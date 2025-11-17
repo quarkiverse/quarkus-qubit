@@ -41,11 +41,11 @@ public class ArithmeticExpressionBuilder {
             ResultHandle right) {
 
         MethodDescriptor arithmeticMethod = switch (operator) {
-            case ADD -> md(CB_SUM);
-            case SUB -> md(CB_DIFF);
-            case MUL -> md(CB_PROD);
-            case DIV -> md(CB_QUOT);
-            case MOD -> md(CB_MOD);
+            case ADD -> methodDescriptor(CB_SUM);
+            case SUB -> methodDescriptor(CB_DIFF);
+            case MUL -> methodDescriptor(CB_PROD);
+            case DIV -> methodDescriptor(CB_QUOT);
+            case MOD -> methodDescriptor(CB_MOD);
             default -> throw new IllegalArgumentException("Not an arithmetic operator: " + operator);
         };
 
@@ -55,7 +55,7 @@ public class ArithmeticExpressionBuilder {
     /**
      * Creates MethodDescriptor for a method.
      */
-    private static MethodDescriptor md(String methodName) {
+    private static MethodDescriptor methodDescriptor(String methodName) {
         return MethodDescriptor.ofMethod(CriteriaBuilder.class, methodName, Expression.class, Expression.class, Expression.class);
     }
 }

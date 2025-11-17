@@ -39,26 +39,4 @@ public final class BytecodeAnalysisConstants {
      */
     public static final int LABEL_TRACE_DEPTH_LIMIT = 20;
 
-    /**
-     * Field name prefix for captured variables in lambda instances.
-     *
-     * <p>Based on javac implementation (JDK 11-21). The Java compiler generates
-     * synthetic fields with names following the pattern: {@code arg$1}, {@code arg$2}, {@code arg$3}, etc.
-     *
-     * <p>Note: This naming convention is implementation-specific to Oracle/OpenJDK javac.
-     * Other compilers (Eclipse JDT, GraalVM) may use different naming schemes:
-     * <ul>
-     *   <li>javac: {@code arg$1}, {@code arg$2}, ...</li>
-     *   <li>Eclipse: {@code val$1}, {@code val$2}, ...</li>
-     *   <li>GraalVM: {@code arg0}, {@code arg1}, ... (zero-indexed)</li>
-     * </ul>
-     *
-     * @see io.quarkus.qusaq.runtime.CapturedVariableExtractor
-     */
-    public static final String CAPTURED_VAR_PREFIX = "arg$";
-
-    /**
-     * Alternative field name prefix used by Eclipse JDT compiler.
-     */
-    public static final String ECLIPSE_CAPTURED_VAR_PREFIX = "val$";
 }

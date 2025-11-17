@@ -4,6 +4,14 @@ import java.util.Set;
 
 /**
  * Shared constants for the Qusaq extension.
+ *
+ * <p>Naming Conventions:
+ * <ul>
+ *   <li><b>CB_*</b> - {@link jakarta.persistence.criteria.CriteriaBuilder} method names</li>
+ *   <li><b>METHOD_*</b> - Java/JPA method names used in lambda expression analysis</li>
+ *   <li><b>SQL_*</b> - SQL function names for database operations</li>
+ *   <li><b>PREFIX_*</b> - Method name prefixes (e.g., "get", "is") for accessor detection</li>
+ * </ul>
  */
 public final class QusaqConstants {
 
@@ -73,7 +81,64 @@ public final class QusaqConstants {
     public static final String METHOD_VALUE_OF = "valueOf";
     public static final String METHOD_OF = "of";
 
-    // CriteriaBuilder method names (for JPA Criteria API bytecode generation)
+    /**
+     * {@link jakarta.persistence.criteria.CriteriaBuilder} method names for JPA Criteria API bytecode generation.
+     *
+     * <p>These constants map to {@code CriteriaBuilder} methods used to construct type-safe JPA queries.
+     * The "CB_" prefix stands for "CriteriaBuilder" and helps identify these constants at a glance.
+     *
+     * <p><b>Boolean Operations:</b>
+     * <ul>
+     *   <li>{@link #CB_IS_TRUE} - Tests if expression is true</li>
+     *   <li>{@link #CB_IS_FALSE} - Tests if expression is false</li>
+     *   <li>{@link #CB_IS_NULL} - Tests if expression is null</li>
+     *   <li>{@link #CB_IS_NOT_NULL} - Tests if expression is not null</li>
+     *   <li>{@link #CB_NOT} - Logical negation</li>
+     * </ul>
+     *
+     * <p><b>Comparison Operations:</b>
+     * <ul>
+     *   <li>{@link #CB_EQUAL} - Equality comparison</li>
+     *   <li>{@link #CB_NOT_EQUAL} - Inequality comparison</li>
+     *   <li>{@link #CB_GREATER_THAN} - Greater than comparison</li>
+     *   <li>{@link #CB_GREATER_THAN_OR_EQUAL_TO} - Greater than or equal comparison</li>
+     *   <li>{@link #CB_LESS_THAN} - Less than comparison</li>
+     *   <li>{@link #CB_LESS_THAN_OR_EQUAL_TO} - Less than or equal comparison</li>
+     * </ul>
+     *
+     * <p><b>Arithmetic Operations:</b>
+     * <ul>
+     *   <li>{@link #CB_SUM} - Addition</li>
+     *   <li>{@link #CB_DIFF} - Subtraction (difference)</li>
+     *   <li>{@link #CB_PROD} - Multiplication (product)</li>
+     *   <li>{@link #CB_QUOT} - Division (quotient)</li>
+     *   <li>{@link #CB_MOD} - Modulo</li>
+     * </ul>
+     *
+     * <p><b>Logical Operations:</b>
+     * <ul>
+     *   <li>{@link #CB_AND} - Logical AND</li>
+     *   <li>{@link #CB_OR} - Logical OR</li>
+     * </ul>
+     *
+     * <p><b>String Operations:</b>
+     * <ul>
+     *   <li>{@link #CB_LOWER} - Convert to lowercase</li>
+     *   <li>{@link #CB_UPPER} - Convert to uppercase</li>
+     *   <li>{@link #CB_TRIM} - Trim whitespace</li>
+     *   <li>{@link #CB_LIKE} - SQL LIKE pattern matching</li>
+     *   <li>{@link #CB_SUBSTRING} - Extract substring</li>
+     *   <li>{@link #CB_LENGTH} - String length</li>
+     * </ul>
+     *
+     * <p><b>Utility Operations:</b>
+     * <ul>
+     *   <li>{@link #CB_FUNCTION} - Invoke database function</li>
+     *   <li>{@link #CB_LITERAL} - Wrap value as literal expression</li>
+     * </ul>
+     *
+     * @see jakarta.persistence.criteria.CriteriaBuilder
+     */
     public static final String CB_IS_TRUE = "isTrue";
     public static final String CB_IS_FALSE = "isFalse";
     public static final String CB_IS_NULL = "isNull";

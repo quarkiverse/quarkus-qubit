@@ -76,12 +76,12 @@ public class CriteriaExpressionGenerator {
     private final BigDecimalExpressionBuilder bigDecimalBuilder = new BigDecimalExpressionBuilder();
 
     /** Creates MethodDescriptor for method. */
-    private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> returnType, Class<?>... params) {
+    private static MethodDescriptor methodDescriptor(Class<?> clazz, String methodName, Class<?> returnType, Class<?>... params) {
         return MethodDescriptor.ofMethod(clazz, methodName, returnType, params);
     }
 
     /** Creates MethodDescriptor for constructor. */
-    private static MethodDescriptor mdc(Class<?> clazz, Class<?>... params) {
+    private static MethodDescriptor constructorDescriptor(Class<?> clazz, Class<?>... params) {
         return MethodDescriptor.ofConstructor(clazz, params);
     }
 
@@ -106,7 +106,7 @@ public class CriteriaExpressionGenerator {
         } else if (expression instanceof LambdaExpression.FieldAccess field) {
             ResultHandle path = generateFieldAccess(method, field, root);
             if (isBooleanType(field.fieldType())) {
-                return method.invokeInterfaceMethod(md(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
+                return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
             }
             return path;
         } else if (expression instanceof LambdaExpression.MethodCall methodCall) {
@@ -242,9 +242,9 @@ public class CriteriaExpressionGenerator {
         ResultHandle expression = generateExpression(method, nonNullExpr, cb, root, capturedValues);
 
         if (binOp.operator() == EQ) {
-            return method.invokeInterfaceMethod(md(CriteriaBuilder.class, CB_IS_NULL, Predicate.class, Expression.class), cb, expression);
+            return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_IS_NULL, Predicate.class, Expression.class), cb, expression);
         } else {
-            return method.invokeInterfaceMethod(md(CriteriaBuilder.class, CB_IS_NOT_NULL, Predicate.class, Expression.class), cb, expression);
+            return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_IS_NOT_NULL, Predicate.class, Expression.class), cb, expression);
         }
     }
 
@@ -264,9 +264,9 @@ public class CriteriaExpressionGenerator {
         boolean useIsTrue = (isEqualOp && compareToTrue) || (!isEqualOp && !compareToTrue);
 
         if (useIsTrue) {
-            return method.invokeInterfaceMethod(md(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, field);
+            return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, field);
         } else {
-            return method.invokeInterfaceMethod(md(CriteriaBuilder.class, CB_IS_FALSE, Predicate.class, Expression.class), cb, field);
+            return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_IS_FALSE, Predicate.class, Expression.class), cb, field);
         }
     }
 
@@ -282,9 +282,9 @@ public class CriteriaExpressionGenerator {
         ResultHandle capturedExpr = generateExpressionAsJpaExpression(method, binOp.right(), cb, root, capturedValues);
 
         if (binOp.operator() == EQ) {
-            return method.invokeInterfaceMethod(md(CriteriaBuilder.class, CB_EQUAL, Predicate.class, Expression.class, Object.class), cb, fieldExpr, capturedExpr);
+            return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_EQUAL, Predicate.class, Expression.class, Object.class), cb, fieldExpr, capturedExpr);
         } else {
-            return method.invokeInterfaceMethod(md(CriteriaBuilder.class, CB_NOT_EQUAL, Predicate.class, Expression.class, Object.class), cb, fieldExpr, capturedExpr);
+            return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_NOT_EQUAL, Predicate.class, Expression.class, Object.class), cb, fieldExpr, capturedExpr);
         }
     }
 
@@ -308,9 +308,9 @@ public class CriteriaExpressionGenerator {
             ResultHandle argument = generateExpression(method, methodCall.arguments().get(0), cb, root, capturedValues);
 
             if (isEqualityCheck) {
-                return method.invokeInterfaceMethod(md(CriteriaBuilder.class, CB_EQUAL, Predicate.class, Expression.class, Object.class), cb, field, argument);
+                return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_EQUAL, Predicate.class, Expression.class, Object.class), cb, field, argument);
             } else {
-                return method.invokeInterfaceMethod(md(CriteriaBuilder.class, CB_NOT_EQUAL, Predicate.class, Expression.class, Object.class), cb, field, argument);
+                return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_NOT_EQUAL, Predicate.class, Expression.class, Object.class), cb, field, argument);
             }
         }
         return null;
@@ -327,7 +327,7 @@ public class CriteriaExpressionGenerator {
         ResultHandle operand = generatePredicate(method, unOp.operand(), cb, root, capturedValues);
 
         return switch (unOp.operator()) {
-            case NOT -> method.invokeInterfaceMethod(md(CriteriaBuilder.class, CB_NOT, Predicate.class, Expression.class), cb, operand);
+            case NOT -> method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_NOT, Predicate.class, Expression.class), cb, operand);
         };
     }
 
@@ -338,7 +338,7 @@ public class CriteriaExpressionGenerator {
             ResultHandle root) {
 
         ResultHandle fieldName = method.load(field.fieldName());
-        return method.invokeInterfaceMethod(md(Path.class, PATH_GET, Path.class, String.class), root, fieldName);
+        return method.invokeInterfaceMethod(methodDescriptor(Path.class, PATH_GET, Path.class, String.class), root, fieldName);
     }
 
     /** Generates constant value bytecode. */
@@ -361,23 +361,23 @@ public class CriteriaExpressionGenerator {
             return method.load(f);
         } else if (value instanceof java.math.BigDecimal bd) {
             ResultHandle bdString = method.load(bd.toString());
-            return method.newInstance(mdc(java.math.BigDecimal.class, String.class), bdString);
+            return method.newInstance(constructorDescriptor(java.math.BigDecimal.class, String.class), bdString);
         } else if (value instanceof java.time.LocalDate ld) {
             ResultHandle year = method.load(ld.getYear());
             ResultHandle month = method.load(ld.getMonthValue());
             ResultHandle day = method.load(ld.getDayOfMonth());
-            return method.invokeStaticMethod(md(java.time.LocalDate.class, METHOD_OF, java.time.LocalDate.class, int.class, int.class, int.class), year, month, day);
+            return method.invokeStaticMethod(methodDescriptor(java.time.LocalDate.class, METHOD_OF, java.time.LocalDate.class, int.class, int.class, int.class), year, month, day);
         } else if (value instanceof java.time.LocalDateTime ldt) {
             ResultHandle year = method.load(ldt.getYear());
             ResultHandle month = method.load(ldt.getMonthValue());
             ResultHandle day = method.load(ldt.getDayOfMonth());
             ResultHandle hour = method.load(ldt.getHour());
             ResultHandle minute = method.load(ldt.getMinute());
-            return method.invokeStaticMethod(md(java.time.LocalDateTime.class, METHOD_OF, java.time.LocalDateTime.class, int.class, int.class, int.class, int.class, int.class), year, month, day, hour, minute);
+            return method.invokeStaticMethod(methodDescriptor(java.time.LocalDateTime.class, METHOD_OF, java.time.LocalDateTime.class, int.class, int.class, int.class, int.class, int.class), year, month, day, hour, minute);
         } else if (value instanceof java.time.LocalTime lt) {
             ResultHandle hour = method.load(lt.getHour());
             ResultHandle minute = method.load(lt.getMinute());
-            return method.invokeStaticMethod(md(java.time.LocalTime.class, METHOD_OF, java.time.LocalTime.class, int.class, int.class), hour, minute);
+            return method.invokeStaticMethod(methodDescriptor(java.time.LocalTime.class, METHOD_OF, java.time.LocalTime.class, int.class, int.class), hour, minute);
         } else {
             return method.loadNull();
         }
@@ -472,8 +472,8 @@ public class CriteriaExpressionGenerator {
         method.writeArrayValue(predicateArray, 1, right);
 
         return switch (operator) {
-            case AND -> method.invokeInterfaceMethod(md(CriteriaBuilder.class, CB_AND, Predicate.class, Predicate[].class), cb, predicateArray);
-            case OR -> method.invokeInterfaceMethod(md(CriteriaBuilder.class, CB_OR, Predicate.class, Predicate[].class), cb, predicateArray);
+            case AND -> method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_AND, Predicate.class, Predicate[].class), cb, predicateArray);
+            case OR -> method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_OR, Predicate.class, Predicate[].class), cb, predicateArray);
             default -> throw new IllegalArgumentException("Expected AND or OR operator, got: " + operator);
         };
     }
@@ -614,7 +614,7 @@ public class CriteriaExpressionGenerator {
 
     /** Wraps value as literal Expression. */
     private ResultHandle wrapAsLiteral(MethodCreator method, ResultHandle cb, ResultHandle value) {
-        return method.invokeInterfaceMethod(md(CriteriaBuilder.class, CB_LITERAL, Expression.class, Object.class), cb, value);
+        return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_LITERAL, Expression.class, Object.class), cb, value);
     }
 
     /** Checks if type is boolean (primitive or wrapper). */
