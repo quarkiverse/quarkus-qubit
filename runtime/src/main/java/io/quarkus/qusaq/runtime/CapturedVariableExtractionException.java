@@ -1,0 +1,11 @@
+package io.quarkus.qusaq.runtime;
+
+/**
+ * Thrown when captured variable extraction from lambda instance fails.
+ */
+public class CapturedVariableExtractionException extends RuntimeException {
+
+    public CapturedVariableExtractionException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}

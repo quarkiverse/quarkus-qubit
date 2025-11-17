@@ -1,0 +1,11 @@
+package io.quarkus.qusaq.runtime;
+
+/**
+ * Thrown when query executor registration fails during static initialization.
+ */
+public class QueryExecutorRegistrationException extends RuntimeException {
+
+    public QueryExecutorRegistrationException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}

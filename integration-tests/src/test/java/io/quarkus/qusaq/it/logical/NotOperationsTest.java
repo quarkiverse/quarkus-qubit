@@ -1,0 +1,63 @@
+package io.quarkus.qusaq.it.logical;
+
+import io.quarkus.qusaq.it.Person;
+import io.quarkus.qusaq.it.testdata.TestDataFactory;
+import io.quarkus.test.junit.QuarkusTest;
+import jakarta.transaction.Transactional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Tests for NOT logical operations.
+ */
+@QuarkusTest
+class NotOperationsTest {
+
+    @BeforeEach
+    @Transactional
+    void setupTestData() {
+        TestDataFactory.clearAllData();
+        TestDataFactory.createStandardPersons();
+    }
+
+    @Test
+    void simpleNot() {
+        var results = Person.findWhere((Person p) -> !p.active);
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .noneMatch(Person::isActive);
+    }
+
+    @Test
+    void notWithAnd() {
+        var results = Person.findWhere((Person p) -> !p.active && p.age > 40);
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(p -> !p.isActive() && p.getAge() > 40);
+    }
+
+    @Test
+    void notWithAndSalary() {
+        var results = Person.findWhere((Person p) -> !p.active && p.salary > 80000.0);
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(p -> !p.isActive() && p.getSalary() > 80000.0);
+    }
+
+    @Test
+    void notWithComplexOrAnd() {
+        var results = Person.findWhere((Person p) ->
+                !(p.age < 28 || p.age > 42) && p.active
+        );
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(p -> !(p.getAge() < 28 || p.getAge() > 42) && p.isActive());
+    }
+}
