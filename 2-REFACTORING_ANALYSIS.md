@@ -68,30 +68,70 @@ public class QueryExecutorRegistrationException extends RuntimeException {
 ```
 
 **Recommendation:**
-Since these exceptions only have a single constructor variant each, they are candidates for **Java 17+ record-based exceptions**:
+Since these exceptions only have a single constructor variant each and **no factory methods**, they are ideal candidates for **Java 17+ record-based exceptions**.
+
+**DECISION:** Convert to records (Option 2) for maximum modernization.
 
 ```java
-// Option 1: Keep as classes (minimal change) - add default constructor for completeness
-public class CapturedVariableExtractionException extends RuntimeException {
-    public CapturedVariableExtractionException(String message) {
-        super(message);
+// CapturedVariableExtractionException.java - AFTER (record-based)
+public record CapturedVariableExtractionException(String message, Throwable cause)
+    extends RuntimeException {
+
+    // Compact constructor delegates to RuntimeException
+    public CapturedVariableExtractionException {
+        super(message, cause);
     }
 
-    public CapturedVariableExtractionException(String message, Throwable cause) {
-        super(message, cause);
+    // Optional: Add single-arg constructor for convenience
+    public CapturedVariableExtractionException(String message) {
+        this(message, null);
     }
 }
 
-// Option 2: Convert to records (Java 17+) - MORE MODERN
-public record CapturedVariableExtractionException(String message, Throwable cause)
+// QueryExecutorRegistrationException.java - AFTER (record-based)
+public record QueryExecutorRegistrationException(String message, Throwable cause)
     extends RuntimeException {
-    public CapturedVariableExtractionException {
+
+    public QueryExecutorRegistrationException {
         super(message, cause);
+    }
+
+    public QueryExecutorRegistrationException(String message) {
+        this(message, null);
     }
 }
 ```
 
-**Note:** Option 1 recommended for consistency with `BytecodeAnalysisException` which has factory methods.
+**Benefits of record-based exceptions:**
+1. Immutable by default (exception details can't be modified after creation)
+2. Automatic `equals()`, `hashCode()`, `toString()` with useful output
+3. More concise (8-12 lines vs 12-16 lines for class-based)
+4. Modern Java 17 idiom
+5. Clear intent: "This is a simple data carrier exception"
+
+**Why NOT convert `BytecodeAnalysisException` to a record:**
+
+`BytecodeAnalysisException` should **remain a class** because:
+
+1. **Has static factory methods** - Provides domain-specific exception creation:
+   - `stackUnderflow(String instruction, int expected, int actual)`
+   - `invalidOpcode(int opcode, int... validOpcodes)`
+   - `unexpectedNull(String context)`
+
+2. **Encapsulates formatting logic** - Factory methods build formatted messages:
+   ```java
+   // Clean call site
+   throw BytecodeAnalysisException.stackUnderflow("IADD", 2, 1);
+
+   // vs record approach (ugly call site)
+   throw new BytecodeAnalysisException(
+       String.format("Stack underflow processing %s: expected %d elements, found %d",
+           "IADD", 2, 1), null);
+   ```
+
+3. **Factory pattern is intentional** - Not a refactoring candidate but a design feature
+
+**Conclusion:** Convert simple exceptions to records, keep factory-based exceptions as classes.
 
 ---
 

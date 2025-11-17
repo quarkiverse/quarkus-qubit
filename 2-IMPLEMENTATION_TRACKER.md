@@ -88,19 +88,44 @@
 
 ---
 
-### Step 4: Add Missing Exception Constructors
+### Step 4: Convert Simple Exceptions to Records
+
+**DECISION:** Convert to record-based exceptions for maximum Java 17 modernization.
 
 | Step | Task | Status | Test Result | Notes |
 |------|------|--------|-------------|-------|
-| 4.1 | Add default `CapturedVariableExtractionException(String message)` constructor | ❌ | - | For completeness |
-| 4.2 | Add default `QueryExecutorRegistrationException(String message)` constructor | ❌ | - | For completeness |
-| 4.3 | Run full test suite | ❌ | - | Expect 473/473 passing |
+| 4.1 | Convert `CapturedVariableExtractionException` to record | ❌ | - | Use compact constructor pattern |
+| 4.2 | Convert `QueryExecutorRegistrationException` to record | ❌ | - | Use compact constructor pattern |
+| 4.3 | Add optional single-arg constructors to both | ❌ | - | For convenience: `(String message)` |
+| 4.4 | Verify all call sites still compile | ❌ | - | No behavioral changes |
+| 4.5 | Run full test suite | ❌ | - | Expect 473/473 passing |
 
 **Files Modified:**
 - `runtime/src/main/java/io/quarkus/qusaq/runtime/CapturedVariableExtractionException.java`
 - `runtime/src/main/java/io/quarkus/qusaq/runtime/QueryExecutorRegistrationException.java`
 
-**Expected LOC Change:** +6 lines
+**Expected Code Structure (per exception):**
+```java
+public record CapturedVariableExtractionException(String message, Throwable cause)
+    extends RuntimeException {
+
+    public CapturedVariableExtractionException {
+        super(message, cause);
+    }
+
+    public CapturedVariableExtractionException(String message) {
+        this(message, null);
+    }
+}
+```
+
+**Expected LOC Change:** ~0 lines (12 LOC class → 11 LOC record, both files)
+
+**BytecodeAnalysisException Analysis:**
+- ✅ **Keep as class** - Has static factory methods (`stackUnderflow`, `invalidOpcode`, `unexpectedNull`)
+- ✅ Factory methods encapsulate formatting logic (design feature, not code smell)
+- ✅ Converting to record would force ugly string formatting at call sites
+- **Decision:** No changes needed to `BytecodeAnalysisException`
 
 **Test Command:** `mvn clean test -q 2>&1 | tee /tmp/test_p1_step4.log`
 
