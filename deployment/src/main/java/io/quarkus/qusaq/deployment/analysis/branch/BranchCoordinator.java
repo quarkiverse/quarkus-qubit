@@ -11,6 +11,8 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 
+import static org.objectweb.asm.Opcodes.*;
+
 /**
  * Coordinates branch instruction handling using the Strategy pattern.
  *
@@ -114,22 +116,22 @@ public class BranchCoordinator {
      */
     private String getOpcodeName(int opcode) {
         return switch (opcode) {
-            case 153 -> "IFEQ";
-            case 154 -> "IFNE";
-            case 155 -> "IFLT";
-            case 156 -> "IFGE";
-            case 157 -> "IFGT";
-            case 158 -> "IFLE";
-            case 159 -> "IF_ICMPEQ";
-            case 160 -> "IF_ICMPNE";
-            case 161 -> "IF_ICMPLT";
-            case 162 -> "IF_ICMPGE";
-            case 163 -> "IF_ICMPGT";
-            case 164 -> "IF_ICMPLE";
-            case 165 -> "IF_ACMPEQ";
-            case 166 -> "IF_ACMPNE";
-            case 198 -> "IFNULL";
-            case 199 -> "IFNONNULL";
+            case IFEQ -> "IFEQ";
+            case IFNE -> "IFNE";
+            case IFLT -> "IFLT";
+            case IFGE -> "IFGE";
+            case IFGT -> "IFGT";
+            case IFLE -> "IFLE";
+            case IF_ICMPEQ -> "IF_ICMPEQ";
+            case IF_ICMPNE -> "IF_ICMPNE";
+            case IF_ICMPLT -> "IF_ICMPLT";
+            case IF_ICMPGE -> "IF_ICMPGE";
+            case IF_ICMPGT -> "IF_ICMPGT";
+            case IF_ICMPLE -> "IF_ICMPLE";
+            case IF_ACMPEQ -> "IF_ACMPEQ";
+            case IF_ACMPNE -> "IF_ACMPNE";
+            case IFNULL -> "IFNULL";
+            case IFNONNULL -> "IFNONNULL";
             default -> "UNKNOWN(" + opcode + ")";
         };
     }

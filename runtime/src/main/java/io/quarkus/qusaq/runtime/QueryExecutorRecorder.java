@@ -4,6 +4,7 @@ import io.quarkus.runtime.annotations.Recorder;
 import org.jboss.logging.Logger;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Registers build-time generated query executors during static initialization.
@@ -17,56 +18,48 @@ public class QueryExecutorRecorder {
      * Registers list query executor during static initialization.
      */
     public void registerListExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
-        try {
-            log.debugf("Registering list executor: %s -> %s (captured vars: %d)",
-                       callSiteId, executorClassName, capturedVarCount);
-
-            Class<?> executorClass = Thread.currentThread()
-                    .getContextClassLoader()
-                    .loadClass(executorClassName);
-
-            @SuppressWarnings("unchecked")
-            QueryExecutor<List<?>> executor =
-                    (QueryExecutor<List<?>>) executorClass
-                            .getDeclaredConstructor()
-                            .newInstance();
-
-            QueryExecutorRegistry.registerListExecutor(callSiteId, executor, capturedVarCount);
-            log.debugf("Successfully registered list executor: %s", callSiteId);
-
-        } catch (Exception e) {
-            log.errorf(e, "Failed to register list executor for call site: %s", callSiteId);
-            throw new QueryExecutorRegistrationException(
-                    "Failed to register list executor: " + callSiteId +
-                    " (executor class: " + executorClassName + ")", e);
-        }
+        registerExecutor(callSiteId, executorClassName, capturedVarCount, "list",
+            (QueryExecutor<List<?>> executor) -> QueryExecutorRegistry.registerListExecutor(callSiteId, executor, capturedVarCount));
     }
 
     /**
      * Registers count query executor during static initialization.
      */
     public void registerCountExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
+        registerExecutor(callSiteId, executorClassName, capturedVarCount, "count",
+            (QueryExecutor<Long> executor) -> QueryExecutorRegistry.registerCountExecutor(callSiteId, executor, capturedVarCount));
+    }
+
+    /**
+     * Generic executor registration method that handles the common logic for all executor types.
+     */
+    private <T> void registerExecutor(
+            String callSiteId,
+            String executorClassName,
+            int capturedVarCount,
+            String executorType,
+            Consumer<QueryExecutor<T>> registrar) {
+
         try {
-            log.debugf("Registering count executor: %s -> %s (captured vars: %d)",
-                       callSiteId, executorClassName, capturedVarCount);
+            log.debugf("Registering %s executor: %s -> %s (captured vars: %d)",
+                       executorType, callSiteId, executorClassName, capturedVarCount);
 
             Class<?> executorClass = Thread.currentThread()
                     .getContextClassLoader()
                     .loadClass(executorClassName);
 
             @SuppressWarnings("unchecked")
-            QueryExecutor<Long> executor =
-                    (QueryExecutor<Long>) executorClass
-                            .getDeclaredConstructor()
-                            .newInstance();
+            QueryExecutor<T> executor = (QueryExecutor<T>) executorClass
+                    .getDeclaredConstructor()
+                    .newInstance();
 
-            QueryExecutorRegistry.registerCountExecutor(callSiteId, executor, capturedVarCount);
-            log.debugf("Successfully registered count executor: %s", callSiteId);
+            registrar.accept(executor);
+            log.debugf("Successfully registered %s executor: %s", executorType, callSiteId);
 
         } catch (Exception e) {
-            log.errorf(e, "Failed to register count executor for call site: %s", callSiteId);
+            log.errorf(e, "Failed to register %s executor for call site: %s", executorType, callSiteId);
             throw new QueryExecutorRegistrationException(
-                    "Failed to register count executor: " + callSiteId +
+                    "Failed to register " + executorType + " executor: " + callSiteId +
                     " (executor class: " + executorClassName + ")", e);
         }
     }

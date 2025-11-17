@@ -50,7 +50,7 @@ public final class BytecodeAnalysisConstants {
      * <ul>
      *   <li>javac: {@code arg$1}, {@code arg$2}, ...</li>
      *   <li>Eclipse: {@code val$1}, {@code val$2}, ...</li>
-     *   <li>GraalVM: May vary</li>
+     *   <li>GraalVM: {@code arg0}, {@code arg1}, ... (zero-indexed)</li>
      * </ul>
      *
      * @see io.quarkus.qusaq.runtime.CapturedVariableExtractor

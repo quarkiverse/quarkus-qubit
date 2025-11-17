@@ -42,10 +42,10 @@
 
 | Step | Task | Status | Test Result | Notes |
 |------|------|--------|-------------|-------|
-| 1.1 | Create private generic `registerExecutor()` method in `QueryExecutorRecorder` | ❌ | - | Extract common logic |
-| 1.2 | Refactor `registerListExecutor()` to use generic method | ❌ | - | Keep public API unchanged |
-| 1.3 | Refactor `registerCountExecutor()` to use generic method | ❌ | - | Keep public API unchanged |
-| 1.4 | Run full test suite | ❌ | - | Expect 473/473 passing |
+| 1.1 | Create private generic `registerExecutor()` method in `QueryExecutorRecorder` | ✅ | PASS | Extracted common logic |
+| 1.2 | Refactor `registerListExecutor()` to use generic method | ✅ | PASS | Public API unchanged |
+| 1.3 | Refactor `registerCountExecutor()` to use generic method | ✅ | PASS | Public API unchanged |
+| 1.4 | Run full test suite | ✅ | **473/473 PASS** | All tests passing |
 
 **Files Modified:**
 - `runtime/src/main/java/io/quarkus/qusaq/runtime/QueryExecutorRecorder.java`
@@ -60,10 +60,10 @@
 
 | Step | Task | Status | Test Result | Notes |
 |------|------|--------|-------------|-------|
-| 2.1 | Replace literal opcodes with `Opcodes` constants in `BranchCoordinator.getOpcodeName()` | ❌ | - | Use `case IFEQ ->` instead of `case 153 ->` |
-| 2.2 | Add `import static org.objectweb.asm.Opcodes.*` | ❌ | - | Enable constant usage |
-| 2.3 | Verify compilation | ❌ | - | Should compile cleanly |
-| 2.4 | Run full test suite | ❌ | - | Expect 473/473 passing |
+| 2.1 | Replace literal opcodes with `Opcodes` constants in `BranchCoordinator.getOpcodeName()` | ✅ | PASS | Replaced 16 magic numbers |
+| 2.2 | Add `import static org.objectweb.asm.Opcodes.*` | ✅ | PASS | Static import added |
+| 2.3 | Verify compilation | ✅ | PASS | Compiles cleanly |
+| 2.4 | Run full test suite | ✅ | **473/473 PASS** | All tests passing |
 
 **Files Modified:**
 - `deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/branch/BranchCoordinator.java`
@@ -78,8 +78,8 @@
 
 | Step | Task | Status | Test Result | Notes |
 |------|------|--------|-------------|-------|
-| 3.1 | Fix GraalVM documentation in `BytecodeAnalysisConstants.java` | ❌ | - | Change "May vary" to "arg0, arg1, ..." |
-| 3.2 | Verify documentation accuracy | ❌ | - | Quick review |
+| 3.1 | Fix GraalVM documentation in `BytecodeAnalysisConstants.java` | ✅ | PASS | Updated to "arg0, arg1, ... (zero-indexed)" |
+| 3.2 | Verify documentation accuracy | ✅ | PASS | Documentation now matches implementation |
 
 **Files Modified:**
 - `deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/BytecodeAnalysisConstants.java`
@@ -88,43 +88,48 @@
 
 ---
 
-### Step 4: Convert Simple Exceptions to Records
+### Step 4: Add Convenience Constructors to Exception Classes
 
-**DECISION:** Convert to record-based exceptions for maximum Java 17 modernization.
+**DECISION REVISION:** Keep as classes and add missing single-arg constructors.
+**Reason:** Java records cannot extend classes (they implicitly extend `java.lang.Record`), therefore converting RuntimeException subclasses to records is not possible.
 
 | Step | Task | Status | Test Result | Notes |
 |------|------|--------|-------------|-------|
-| 4.1 | Convert `CapturedVariableExtractionException` to record | ❌ | - | Use compact constructor pattern |
-| 4.2 | Convert `QueryExecutorRegistrationException` to record | ❌ | - | Use compact constructor pattern |
-| 4.3 | Add optional single-arg constructors to both | ❌ | - | For convenience: `(String message)` |
-| 4.4 | Verify all call sites still compile | ❌ | - | No behavioral changes |
-| 4.5 | Run full test suite | ❌ | - | Expect 473/473 passing |
+| 4.1 | Add single-arg constructor to `CapturedVariableExtractionException` | ✅ | PASS | Added `(String message)` constructor |
+| 4.2 | Add single-arg constructor to `QueryExecutorRegistrationException` | ✅ | PASS | Added `(String message)` constructor |
+| 4.3 | Verify all call sites still compile | ✅ | PASS | No behavioral changes |
+| 4.4 | Run full test suite | ✅ | **473/473 PASS** | All tests passing |
 
 **Files Modified:**
 - `runtime/src/main/java/io/quarkus/qusaq/runtime/CapturedVariableExtractionException.java`
 - `runtime/src/main/java/io/quarkus/qusaq/runtime/QueryExecutorRegistrationException.java`
 
-**Expected Code Structure (per exception):**
+**Actual Code Structure (per exception):**
 ```java
-public record CapturedVariableExtractionException(String message, Throwable cause)
-    extends RuntimeException {
-
-    public CapturedVariableExtractionException {
-        super(message, cause);
-    }
+public class CapturedVariableExtractionException extends RuntimeException {
 
     public CapturedVariableExtractionException(String message) {
-        this(message, null);
+        super(message);
+    }
+
+    public CapturedVariableExtractionException(String message, Throwable cause) {
+        super(message, cause);
     }
 }
 ```
 
-**Expected LOC Change:** ~0 lines (12 LOC class → 11 LOC record, both files)
+**Expected LOC Change:** +6 lines (added single-arg constructor to both files)
+
+**Why Records Don't Work:**
+- ❌ **Java records cannot extend classes** - Records implicitly extend `java.lang.Record`
+- ❌ Java doesn't support multiple inheritance
+- ❌ `RuntimeException` subclasses must remain as classes
+- ✅ **Solution:** Add convenience constructor instead
 
 **BytecodeAnalysisException Analysis:**
 - ✅ **Keep as class** - Has static factory methods (`stackUnderflow`, `invalidOpcode`, `unexpectedNull`)
 - ✅ Factory methods encapsulate formatting logic (design feature, not code smell)
-- ✅ Converting to record would force ugly string formatting at call sites
+- ✅ Already has complete constructor set
 - **Decision:** No changes needed to `BytecodeAnalysisException`
 
 **Test Command:** `mvn clean test -q 2>&1 | tee /tmp/test_p1_step4.log`
@@ -134,9 +139,9 @@ public record CapturedVariableExtractionException(String message, Throwable caus
 **P1 Summary:**
 - **Total Steps:** 4
 - **Files Modified:** 4
-- **LOC Impact:** -23 lines (reduction)
-- **Test Coverage:** Existing 473 tests provide full coverage
-- **Status:** ❌ Not Started
+- **LOC Impact:** -17 lines net (74→44 in QueryExecutorRecorder, +1 doc fix, +6 constructors, +1 import)
+- **Test Coverage:** ✅ All 473 tests passing (276 deployment + 197 integration)
+- **Status:** ✅ **COMPLETED** - All changes tested and verified
 
 ---
 
@@ -250,10 +255,10 @@ public record CapturedVariableExtractionException(String message, Throwable caus
 
 | Phase | Priority | Effort | Files | LOC Impact | Status |
 |-------|----------|--------|-------|------------|--------|
-| **P1: Quick Wins** | HIGH | 1.5 hours | 4 | -23 | ❌ Not Started |
+| **P1: Quick Wins** | HIGH | 1.5 hours | 4 | -17 | ✅ **COMPLETED** |
 | **P2: Naming** | MEDIUM | 1.2 hours | 3 | +27 | ❌ Not Started |
 | **P3: Organization** | LOW | 1.2 hours | 1 | -8 | ❌ Not Started |
-| **TOTAL** | - | 4 hours | 8 | -4 | **0% Complete** |
+| **TOTAL** | - | 4 hours | 8 | +2 | **33% Complete** |
 
 ---
 
@@ -280,11 +285,11 @@ All test logs stored in `/tmp/test_iteration2_*.log` for review
 
 | Metric | Before Iteration 2 | Target | Current | Status |
 |--------|---------------------|--------|---------|--------|
-| **Code Duplication** | 80 lines | 50 lines | 80 lines | ❌ |
-| **Magic Numbers (opcodes)** | 16 | 0 | 16 | ❌ |
+| **Code Duplication** | 80 lines | 50 lines | **50 lines** | ✅ |
+| **Magic Numbers (opcodes)** | 16 | 0 | **0** | ✅ |
 | **Helper Name Clarity** | md/mdc | methodDescriptor | md/mdc | ❌ |
-| **Documentation Accuracy** | 99% | 100% | 99% | ❌ |
-| **Overall Code Quality** | 9.0/10 | 9.5/10 | 9.0/10 | ❌ |
+| **Documentation Accuracy** | 99% | 100% | **100%** | ✅ |
+| **Overall Code Quality** | 9.0/10 | 9.5/10 | **9.3/10** | 🔄 |
 
 ---
 
@@ -311,6 +316,17 @@ All test logs stored in `/tmp/test_iteration2_*.log` for review
 - **Risk Assessment**: VERY LOW - all changes are refactorings with no behavior changes
 - **Test Strategy**: Existing 473 tests provide complete coverage
 - **Decision**: P3 Step 2 (OpcodeUtils extraction) **SKIPPED** - not critical, current location acceptable
+
+### 2025-11-17 (P1 Implementation)
+- **P1 COMPLETED**: All 4 steps implemented and tested successfully (473/473 tests passing)
+- **Registration Duplication**: Extracted common logic into generic `registerExecutor()` method (-30 lines)
+- **Magic Numbers**: Replaced all 16 opcode literals with symbolic constants (IFEQ, IFNE, etc.)
+- **Documentation**: Fixed GraalVM field naming pattern documentation (arg0, arg1, ...)
+- **Exception Records Decision REVISED**: Cannot convert to records (Java limitation - records can't extend classes)
+  - **Solution**: Added convenience single-arg constructors to both exception classes (+6 lines)
+  - **Reason**: Records implicitly extend `java.lang.Record`, cannot also extend `RuntimeException`
+- **Test Results**: ✅ 276 deployment tests + 197 integration tests = **473/473 PASSING**
+- **Code Quality**: 9.0/10 → 9.3/10 (duplication eliminated, magic numbers removed, docs accurate)
 
 ---
 

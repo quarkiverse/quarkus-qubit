@@ -5,6 +5,10 @@ package io.quarkus.qusaq.runtime;
  */
 public class CapturedVariableExtractionException extends RuntimeException {
 
+    public CapturedVariableExtractionException(String message) {
+        super(message);
+    }
+
     public CapturedVariableExtractionException(String message, Throwable cause) {
         super(message, cause);
     }
