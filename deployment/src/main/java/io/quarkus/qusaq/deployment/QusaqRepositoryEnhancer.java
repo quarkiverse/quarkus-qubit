@@ -15,16 +15,16 @@ import static org.jboss.jandex.Type.Kind.PARAMETERIZED_TYPE;
 import java.util.List;
 import java.util.function.BiFunction;
 
-import static io.quarkus.qusaq.runtime.QusaqConstants.QUERY_METHOD_NAMES;
-import static io.quarkus.qusaq.runtime.QusaqConstants.QUSAQ_OPERATIONS_INTERNAL_NAME;
-import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_COUNT_WHERE;
-import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_EXISTS;
-import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_FIND_WHERE;
+import static io.quarkus.qusaq.runtime.QusaqConstants.FLUENT_ENTRY_POINT_METHODS;
+import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_WHERE;
+import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_SELECT;
+import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_SORTED_BY;
+import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_SORTED_DESCENDING_BY;
 import static io.quarkus.qusaq.runtime.QusaqConstants.QUSAQ_REPOSITORY_CLASS_NAME;
 import static io.quarkus.qusaq.runtime.QusaqConstants.QUSAQ_REPOSITORY_INTERNAL_NAME;
 
 /**
- * Generates @GenerateBridge method implementations for QusaqRepository beans (Repository pattern).
+ * Generates @GenerateBridge fluent API entry point implementations for QusaqRepository beans.
  */
 public class QusaqRepositoryEnhancer implements BiFunction<String, ClassVisitor, ClassVisitor> {
 
@@ -134,7 +134,7 @@ public class QusaqRepositoryEnhancer implements BiFunction<String, ClassVisitor,
         }
 
         private boolean isGenerateBridgeMethod(String methodName) {
-            return QUERY_METHOD_NAMES.contains(methodName);
+            return FLUENT_ENTRY_POINT_METHODS.contains(methodName);
         }
     }
 
@@ -160,15 +160,17 @@ public class QusaqRepositoryEnhancer implements BiFunction<String, ClassVisitor,
 
             String entityInternalName = entityType.getInternalName();
 
-            QusaqBytecodeGenerator.DelegationMethodConfig config = switch (methodName) {
-                case METHOD_FIND_WHERE -> QusaqBytecodeGenerator.DelegationMethodConfig.forFindWhere(
-                        entityType, entityInternalName, false);
-                case METHOD_COUNT_WHERE -> QusaqBytecodeGenerator.DelegationMethodConfig.forCountWhere(
-                        entityType, entityInternalName, false);
-                case METHOD_EXISTS -> QusaqBytecodeGenerator.DelegationMethodConfig.forExists(
-                        entityType, entityInternalName, false);
+            QusaqBytecodeGenerator.FluentMethodConfig config = switch (methodName) {
+                case METHOD_WHERE -> QusaqBytecodeGenerator.FluentMethodConfig.forWhere(
+                        entityType, entityInternalName);
+                case METHOD_SELECT -> QusaqBytecodeGenerator.FluentMethodConfig.forSelect(
+                        entityType, entityInternalName);
+                case METHOD_SORTED_BY -> QusaqBytecodeGenerator.FluentMethodConfig.forSortedBy(
+                        entityType, entityInternalName);
+                case METHOD_SORTED_DESCENDING_BY -> QusaqBytecodeGenerator.FluentMethodConfig.forSortedDescendingBy(
+                        entityType, entityInternalName);
                 default -> {
-                    log.warnf("Unknown bridge method: %s", methodName);
+                    log.warnf("Unknown fluent entry point method: %s", methodName);
                     yield null;
                 }
             };
@@ -177,20 +179,36 @@ public class QusaqRepositoryEnhancer implements BiFunction<String, ClassVisitor,
                 return;
             }
 
+            // Create new QusaqStreamImpl instance
+            mv.visitTypeInsn(Opcodes.NEW, "io/quarkus/qusaq/runtime/QusaqStreamImpl");
+            mv.visitInsn(Opcodes.DUP);
+
+            // Load entity class as constructor argument
             mv.visitLdcInsn(entityType);
 
-            mv.visitVarInsn(Opcodes.ALOAD, config.querySpecParameterIndex());
-
+            // Call QusaqStreamImpl constructor
             mv.visitMethodInsn(
-                    Opcodes.INVOKESTATIC,
-                    QUSAQ_OPERATIONS_INTERNAL_NAME,
-                    config.methodName(),
-                    config.operationsMethodDescriptor(),
+                    Opcodes.INVOKESPECIAL,
+                    "io/quarkus/qusaq/runtime/QusaqStreamImpl",
+                    "<init>",
+                    "(Ljava/lang/Class;)V",
                     false);
 
-            mv.visitInsn(config.returnOpcode());
+            // Load QuerySpec parameter (index 1 for instance method)
+            mv.visitVarInsn(Opcodes.ALOAD, 1);
 
-            mv.visitMaxs(config.maxStack(), config.maxLocals());
+            // Call the appropriate method on the stream
+            mv.visitMethodInsn(
+                    Opcodes.INVOKEINTERFACE,
+                    "io/quarkus/qusaq/runtime/QusaqStream",
+                    methodName,
+                    "(Lio/quarkus/qusaq/runtime/QuerySpec;)Lio/quarkus/qusaq/runtime/QusaqStream;",
+                    true);
+
+            // Return the result
+            mv.visitInsn(Opcodes.ARETURN);
+
+            mv.visitMaxs(4, 2);
         }
 
         /**

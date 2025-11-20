@@ -25,7 +25,7 @@ class NotOperationsTest {
 
     @Test
     void simpleNot() {
-        var results = Person.findWhere((Person p) -> !p.active);
+        var results = Person.where((Person p) -> !p.active).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -34,7 +34,7 @@ class NotOperationsTest {
 
     @Test
     void notWithAnd() {
-        var results = Person.findWhere((Person p) -> !p.active && p.age > 40);
+        var results = Person.where((Person p) -> !p.active && p.age > 40).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -43,7 +43,7 @@ class NotOperationsTest {
 
     @Test
     void notWithAndSalary() {
-        var results = Person.findWhere((Person p) -> !p.active && p.salary > 80000.0);
+        var results = Person.where((Person p) -> !p.active && p.salary > 80000.0).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -52,9 +52,9 @@ class NotOperationsTest {
 
     @Test
     void notWithComplexOrAnd() {
-        var results = Person.findWhere((Person p) ->
+        var results = Person.where((Person p) ->
                 !(p.age < 28 || p.age > 42) && p.active
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)

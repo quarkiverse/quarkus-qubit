@@ -30,7 +30,7 @@ class NullCheckTest {
         new Person("Test", "User", null, 20,
                 LocalDate.of(2003, 1, 1), true, 40000.0, null, null, null, null).persist();
 
-        var results = Person.findWhere((Person p) -> p.email == null);
+        var results = Person.where((Person p) -> p.email == null).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -39,7 +39,7 @@ class NullCheckTest {
 
     @Test
     void stringNotNullCheck() {
-        var results = Person.findWhere((Person p) -> p.email != null);
+        var results = Person.where((Person p) -> p.email != null).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -48,7 +48,7 @@ class NullCheckTest {
 
     @Test
     void doubleNullCheck() {
-        var results = Person.findWhere((Person p) -> p.salary == null);
+        var results = Person.where((Person p) -> p.salary == null).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -57,7 +57,7 @@ class NullCheckTest {
 
     @Test
     void longNullCheck() {
-        var results = Person.findWhere((Person p) -> p.employeeId == null);
+        var results = Person.where((Person p) -> p.employeeId == null).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -66,7 +66,7 @@ class NullCheckTest {
 
     @Test
     void floatNullCheck() {
-        var results = Person.findWhere((Person p) -> p.height == null);
+        var results = Person.where((Person p) -> p.height == null).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -75,7 +75,7 @@ class NullCheckTest {
 
     @Test
     void localDateNullCheck() {
-        var results = Person.findWhere((Person p) -> p.birthDate == null);
+        var results = Person.where((Person p) -> p.birthDate == null).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -84,7 +84,7 @@ class NullCheckTest {
 
     @Test
     void localDateTimeNullCheck() {
-        var results = Person.findWhere((Person p) -> p.createdAt == null);
+        var results = Person.where((Person p) -> p.createdAt == null).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -93,7 +93,7 @@ class NullCheckTest {
 
     @Test
     void localTimeNullCheck() {
-        var results = Person.findWhere((Person p) -> p.startTime == null);
+        var results = Person.where((Person p) -> p.startTime == null).toList();
 
         assertThat(results)
                 .hasSize(1)

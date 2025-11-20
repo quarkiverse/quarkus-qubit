@@ -25,23 +25,23 @@ class CountQueryTest {
 
     @Test
     void countSimplePredicate() {
-        long count = Person.countWhere((Person p) -> p.age > 25);
+        long count = Person.where((Person p) -> p.age > 25).count();
 
         assertThat(count).isGreaterThan(0);
     }
 
     @Test
     void countComplexPredicate() {
-        long count = Person.countWhere((Person p) -> p.age > 25 && p.active);
+        long count = Person.where((Person p) -> p.age > 25 && p.active).count();
 
         assertThat(count).isGreaterThan(0);
     }
 
     @Test
     void countWithNestedExpression() {
-        long count = Person.countWhere((Person p) ->
+        long count = Person.where((Person p) ->
                 (p.age >= 28 && p.age <= 35) || p.salary > 85000
-        );
+        ).count();
 
         assertThat(count).isGreaterThan(0);
     }

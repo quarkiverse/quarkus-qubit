@@ -7,6 +7,10 @@ import io.quarkus.gizmo.ResultHandle;
 import io.quarkus.qusaq.deployment.LambdaExpression;
 import io.quarkus.qusaq.deployment.analysis.LambdaBytecodeAnalyzer;
 import io.quarkus.qusaq.deployment.generation.CriteriaExpressionGenerator;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+
 import org.jboss.logging.Logger;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Handle;
@@ -116,9 +120,9 @@ public abstract class CriteriaQueryTestBase {
                 // Create a method that builds the Criteria query
                 try (MethodCreator method = classCreator.getMethodCreator(
                         "buildPredicate",
-                        jakarta.persistence.criteria.Predicate.class,
-                        jakarta.persistence.criteria.CriteriaBuilder.class,
-                        jakarta.persistence.criteria.Root.class,
+                        Predicate.class,
+                        CriteriaBuilder.class,
+                        Root.class,
                         Object[].class)) {
 
                     ResultHandle cb = method.getMethodParam(0);

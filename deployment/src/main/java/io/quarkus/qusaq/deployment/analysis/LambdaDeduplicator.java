@@ -5,6 +5,8 @@ import io.quarkus.qusaq.deployment.LambdaExpression;
 import io.quarkus.qusaq.deployment.QusaqProcessor;
 import org.jboss.logging.Logger;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
@@ -23,12 +25,38 @@ public class LambdaDeduplicator {
     /**
      * Computes MD5 hash for lambda expression and query type.
      */
-    public String computeLambdaHash(LambdaExpression expression, boolean isCountQuery) {
-        String astString = expression.toString() + "|queryType=" + (isCountQuery ? "COUNT" : "LIST");
+    public String computeLambdaHash(LambdaExpression expression, boolean isCountQuery, boolean isProjectionQuery) {
+        String queryType = CallSiteProcessor.getQueryType(isCountQuery, !isProjectionQuery, isProjectionQuery);
+        String astString = expression.toString() + "|queryType=" + queryType;
 
         try {
             MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] digest = md.digest(astString.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            byte[] digest = md.digest(astString.getBytes(UTF_8));
+
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            return String.valueOf(astString.hashCode());
+        }
+    }
+
+    /**
+     * Computes MD5 hash for combined where + select query (Phase 2.2).
+     */
+    public String computeCombinedHash(LambdaExpression predicateExpression,
+                                     LambdaExpression projectionExpression,
+                                     boolean isCountQuery) {
+        String queryType = CallSiteProcessor.getQueryType(isCountQuery, true, true);
+        String astString = "WHERE=" + predicateExpression.toString() +
+                          "|SELECT=" + projectionExpression.toString() +
+                          "|queryType=" + queryType;
+
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] digest = md.digest(astString.getBytes(UTF_8));
 
             StringBuilder sb = new StringBuilder();
             for (byte b : digest) {
@@ -42,6 +70,7 @@ public class LambdaDeduplicator {
 
     /**
      * Returns true if lambda is duplicate and reuses existing executor.
+     * Query type information is already encoded in the lambdaHash parameter.
      */
     public boolean handleDuplicateLambda(
             String callSiteId,

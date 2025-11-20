@@ -154,4 +154,33 @@ public sealed interface LambdaExpression {
             Objects.requireNonNull(falseValue, "False value cannot be null");
         }
     }
+
+    /**
+     * Constructor invocation expression for DTO projections.
+     * <p>
+     * Represents {@code new ClassName(arg1, arg2, ...)} in lambda expressions.
+     * Used for JPA constructor expressions: {@code cb.construct(ClassName.class, arg1, arg2, ...)}.
+     * <p>
+     * Example:
+     * <pre>
+     * Person.select(p -> new PersonDTO(p.firstName, p.age)).toList()
+     * → ConstructorCall("PersonDTO", [FieldAccess("firstName"), FieldAccess("age")])
+     * → cb.construct(PersonDTO.class, root.get("firstName"), root.get("age"))
+     * </pre>
+     *
+     * @param className Fully qualified class name (e.g., "com/example/PersonDTO")
+     * @param arguments Constructor arguments (field accesses, constants, expressions)
+     * @param resultType The class being instantiated
+     */
+    record ConstructorCall(
+            String className,
+            List<LambdaExpression> arguments,
+            Class<?> resultType) implements LambdaExpression {
+
+        public ConstructorCall {
+            Objects.requireNonNull(className, "Class name cannot be null");
+            arguments = List.copyOf(arguments);
+            Objects.requireNonNull(resultType, "Result type cannot be null");
+        }
+    }
 }

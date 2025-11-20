@@ -27,7 +27,7 @@ class StringOperationsTest {
 
     @Test
     void stringNotEquals() {
-        var results = Person.findWhere((Person p) -> !p.firstName.equals("John"));
+        var results = Person.where((Person p) -> !p.firstName.equals("John")).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -36,7 +36,7 @@ class StringOperationsTest {
 
     @Test
     void stringStartsWith() {
-        var results = Person.findWhere((Person p) -> p.firstName.startsWith("J"));
+        var results = Person.where((Person p) -> p.firstName.startsWith("J")).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -45,7 +45,7 @@ class StringOperationsTest {
 
     @Test
     void stringEndsWith() {
-        var results = Person.findWhere((Person p) -> p.email.endsWith("@example.com"));
+        var results = Person.where((Person p) -> p.email.endsWith("@example.com")).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -54,7 +54,7 @@ class StringOperationsTest {
 
     @Test
     void stringContains() {
-        var results = Person.findWhere((Person p) -> p.email.contains("john"));
+        var results = Person.where((Person p) -> p.email.contains("john")).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -63,7 +63,7 @@ class StringOperationsTest {
 
     @Test
     void stringLength() {
-        var results = Person.findWhere((Person p) -> p.firstName.length() > 4);
+        var results = Person.where((Person p) -> p.firstName.length() > 4).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -72,7 +72,7 @@ class StringOperationsTest {
 
     @Test
     void stringToLowerCase() {
-        var results = Person.findWhere((Person p) -> p.firstName.toLowerCase().equals("john"));
+        var results = Person.where((Person p) -> p.firstName.toLowerCase().equals("john")).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -81,7 +81,7 @@ class StringOperationsTest {
 
     @Test
     void stringToUpperCase() {
-        var results = Person.findWhere((Person p) -> p.firstName.toUpperCase().equals("JANE"));
+        var results = Person.where((Person p) -> p.firstName.toUpperCase().equals("JANE")).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -90,7 +90,7 @@ class StringOperationsTest {
 
     @Test
     void stringTrim() {
-        var results = Person.findWhere((Person p) -> p.email.trim().equals("david.miller@example.com"));
+        var results = Person.where((Person p) -> p.email.trim().equals("david.miller@example.com")).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -99,7 +99,7 @@ class StringOperationsTest {
 
     @Test
     void stringIsEmpty() {
-        var results = Person.findWhere((Person p) -> p.email.isEmpty());
+        var results = Person.where((Person p) -> p.email.isEmpty()).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -108,7 +108,7 @@ class StringOperationsTest {
 
     @Test
     void stringSubstring() {
-        var results = Person.findWhere((Person p) -> p.firstName.substring(0, 4).equals("John"));
+        var results = Person.where((Person p) -> p.firstName.substring(0, 4).equals("John")).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -117,9 +117,9 @@ class StringOperationsTest {
 
     @Test
     void stringMethodChaining() {
-        var results = Person.findWhere((Person p) ->
+        var results = Person.where((Person p) ->
                 p.email.toLowerCase().contains("example")
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -128,9 +128,9 @@ class StringOperationsTest {
 
     @Test
     void stringComplexConditions() {
-        var results = Person.findWhere((Person p) ->
+        var results = Person.where((Person p) ->
                 p.email != null && p.email.contains("@") && p.email.endsWith(".com")
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -141,14 +141,14 @@ class StringOperationsTest {
 
     @Test
     void productDescriptionIsEmpty() {
-        var results = Product.findWhere((Product p) -> p.description.isEmpty());
+        var results = Product.where((Product p) -> p.description.isEmpty()).toList();
 
         assertThat(results).isEmpty();
     }
 
     @Test
     void productDescriptionLength() {
-        var results = Product.findWhere((Product p) -> p.description.length() > 10);
+        var results = Product.where((Product p) -> p.description.length() > 10).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)

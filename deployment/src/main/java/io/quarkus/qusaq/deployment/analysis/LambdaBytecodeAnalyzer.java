@@ -28,6 +28,7 @@ import static org.objectweb.asm.Opcodes.*;
  *   ├── ConstantInstructionHandler (LDC, ICONST, BIPUSH, etc.)
  *   ├── ArithmeticInstructionHandler (IADD, ISUB, DCMPL, etc.)
  *   ├── TypeConversionHandler (I2L, L2F, D2I, etc.)
+ *   ├── InvokeDynamicHandler (INVOKEDYNAMIC - Java 9+ string concatenation)
  *   ├── MethodInvocationHandler (INVOKEVIRTUAL, INVOKESTATIC, INVOKESPECIAL)
  *   └── BranchCoordinator (IF_ICMP*, IFEQ, IFNE, IFNULL, etc.)
  * </pre>
@@ -48,6 +49,7 @@ public class LambdaBytecodeAnalyzer {
         new ConstantInstructionHandler(),
         new ArithmeticInstructionHandler(),
         new TypeConversionHandler(),
+        new InvokeDynamicHandler(),  // Java 9+ string concatenation
         new MethodInvocationHandler()
     );
 

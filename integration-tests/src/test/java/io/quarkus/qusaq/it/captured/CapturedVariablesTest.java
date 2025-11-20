@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * inside the lambda expression. For example:
  * <pre>{@code
  * int minAge = 30;
- * List<Person> results = Person.findWhere(p -> p.age > minAge);
+ * List<Person> results = Person.where(p -> p.age > minAge).toList();
  * }</pre>
  *
  * <p>The {@code minAge} variable is "captured" by the lambda and must be
@@ -41,7 +41,7 @@ class CapturedVariablesTest {
     @Test
     void singleCapturedVariable_int() {
         int minAge = 30;
-        var results = Person.findWhere((Person p) -> p.age > minAge);
+        var results = Person.where((Person p) -> p.age > minAge).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -51,7 +51,7 @@ class CapturedVariablesTest {
     @Test
     void singleCapturedVariable_long() {
         long minEmployeeId = 1000003L;
-        var results = Person.findWhere((Person p) -> p.employeeId >= minEmployeeId);
+        var results = Person.where((Person p) -> p.employeeId >= minEmployeeId).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -61,7 +61,7 @@ class CapturedVariablesTest {
     @Test
     void singleCapturedVariable_double() {
         double minSalary = 70000.0;
-        var results = Person.findWhere((Person p) -> p.salary > minSalary);
+        var results = Person.where((Person p) -> p.salary > minSalary).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -71,7 +71,7 @@ class CapturedVariablesTest {
     @Test
     void singleCapturedVariable_float() {
         float minHeight = 1.70f;
-        var results = Person.findWhere((Person p) -> p.height > minHeight);
+        var results = Person.where((Person p) -> p.height > minHeight).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -81,7 +81,7 @@ class CapturedVariablesTest {
     @Test
     void singleCapturedVariable_String() {
         String targetName = "Alice";
-        var results = Person.findWhere((Person p) -> p.firstName.equals(targetName));
+        var results = Person.where((Person p) -> p.firstName.equals(targetName)).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -91,7 +91,7 @@ class CapturedVariablesTest {
     @Test
     void singleCapturedVariable_BigDecimal() {
         BigDecimal maxPrice = new BigDecimal("1000");
-        var results = Product.findWhere((Product p) -> p.price.compareTo(maxPrice) < 0);
+        var results = Product.where((Product p) -> p.price.compareTo(maxPrice) < 0).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -101,7 +101,7 @@ class CapturedVariablesTest {
     @Test
     void singleCapturedVariable_LocalDate() {
         LocalDate cutoffDate = LocalDate.of(1990, 1, 1);
-        var results = Person.findWhere((Person p) -> p.birthDate.isAfter(cutoffDate));
+        var results = Person.where((Person p) -> p.birthDate.isAfter(cutoffDate)).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -111,7 +111,7 @@ class CapturedVariablesTest {
     @Test
     void singleCapturedVariable_boolean() {
         boolean activeStatus = true;
-        var results = Person.findWhere((Person p) -> p.active == activeStatus);
+        var results = Person.where((Person p) -> p.active == activeStatus).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -124,7 +124,7 @@ class CapturedVariablesTest {
     void twoCapturedVariables_range() {
         int minAge = 25;
         int maxAge = 35;
-        var results = Person.findWhere((Person p) -> p.age >= minAge && p.age <= maxAge);
+        var results = Person.where((Person p) -> p.age >= minAge && p.age <= maxAge).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -135,7 +135,7 @@ class CapturedVariablesTest {
     void twoCapturedVariables_differentTypes() {
         int minAge = 30;
         double minSalary = 70000.0;
-        var results = Person.findWhere((Person p) -> p.age > minAge && p.salary > minSalary);
+        var results = Person.where((Person p) -> p.age > minAge && p.salary > minSalary).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -147,9 +147,9 @@ class CapturedVariablesTest {
         int minAge = 25;
         double minSalary = 60000.0;
         String lastName = "Smith";
-        var results = Person.findWhere((Person p) ->
+        var results = Person.where((Person p) ->
             p.age >= minAge && p.salary >= minSalary && p.lastName.equals(lastName)
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -163,7 +163,7 @@ class CapturedVariablesTest {
     @Test
     void capturedVariable_inArithmeticOperation_addition() {
         int baseAge = 20;
-        var results = Person.findWhere((Person p) -> p.age > baseAge + 10);
+        var results = Person.where((Person p) -> p.age > baseAge + 10).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -173,7 +173,7 @@ class CapturedVariablesTest {
     @Test
     void capturedVariable_inArithmeticOperation_multiplication() {
         double multiplier = 2.0;
-        var results = Person.findWhere((Person p) -> p.salary > 35000.0 * multiplier);
+        var results = Person.where((Person p) -> p.salary > 35000.0 * multiplier).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -183,9 +183,9 @@ class CapturedVariablesTest {
     @Test
     void capturedVariable_BigDecimal_arithmetic() {
         BigDecimal adjustment = new BigDecimal("100");
-        var results = Product.findWhere((Product p) ->
+        var results = Product.where((Product p) ->
             p.price.subtract(adjustment).compareTo(new BigDecimal("700")) > 0
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -197,7 +197,7 @@ class CapturedVariablesTest {
     @Test
     void capturedVariable_stringContains() {
         String searchTerm = "ice";
-        var results = Person.findWhere((Person p) -> p.firstName.contains(searchTerm));
+        var results = Person.where((Person p) -> p.firstName.contains(searchTerm)).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -207,7 +207,7 @@ class CapturedVariablesTest {
     @Test
     void capturedVariable_stringStartsWith() {
         String prefix = "A";
-        var results = Person.findWhere((Person p) -> p.firstName.startsWith(prefix));
+        var results = Person.where((Person p) -> p.firstName.startsWith(prefix)).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -217,7 +217,7 @@ class CapturedVariablesTest {
     @Test
     void capturedVariable_stringEndsWith() {
         String suffix = "e";
-        var results = Person.findWhere((Person p) -> p.firstName.endsWith(suffix));
+        var results = Person.where((Person p) -> p.firstName.endsWith(suffix)).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -230,7 +230,7 @@ class CapturedVariablesTest {
     void complexExpression_orWithCapturedVariables() {
         int youngAge = 26;
         int oldAge = 40;
-        var results = Person.findWhere((Person p) -> p.age < youngAge || p.age > oldAge);
+        var results = Person.where((Person p) -> p.age < youngAge || p.age > oldAge).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -240,7 +240,7 @@ class CapturedVariablesTest {
     @Test
     void complexExpression_notWithCapturedVariable() {
         String excludeEmail = "john@example.com";
-        var results = Person.findWhere((Person p) -> !p.email.equals(excludeEmail));
+        var results = Person.where((Person p) -> !p.email.equals(excludeEmail)).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -254,10 +254,10 @@ class CapturedVariablesTest {
         String firstName1 = "Alice";
         String firstName2 = "Bob";
 
-        var results = Person.findWhere((Person p) ->
+        var results = Person.where((Person p) ->
             (p.age >= minAge && p.salary >= minSalary) ||
             (p.firstName.equals(firstName1) || p.firstName.equals(firstName2))
-        );
+        ).toList();
 
         assertThat(results).hasSizeGreaterThan(0);
 
@@ -273,12 +273,12 @@ class CapturedVariablesTest {
     @Test
     void countQuery_withCapturedVariable() {
         int minAge = 30;
-        long count = Person.countWhere((Person p) -> p.age > minAge);
+        long count = Person.where((Person p) -> p.age > minAge).count();
 
         assertThat(count).isGreaterThan(0);
 
         // Verify with findWhere
-        var results = Person.findWhere((Person p) -> p.age > minAge);
+        var results = Person.where((Person p) -> p.age > minAge).toList();
         assertThat(count).isEqualTo(results.size());
     }
 
@@ -286,11 +286,11 @@ class CapturedVariablesTest {
     void countQuery_withMultipleCapturedVariables() {
         int minAge = 25;
         int maxAge = 35;
-        long count = Person.countWhere((Person p) -> p.age >= minAge && p.age <= maxAge);
+        long count = Person.where((Person p) -> p.age >= minAge && p.age <= maxAge).count();
 
         assertThat(count).isGreaterThan(0);
 
-        var results = Person.findWhere((Person p) -> p.age >= minAge && p.age <= maxAge);
+        var results = Person.where((Person p) -> p.age >= minAge && p.age <= maxAge).toList();
         assertThat(count).isEqualTo(results.size());
     }
 
@@ -299,7 +299,7 @@ class CapturedVariablesTest {
     @Test
     void existsQuery_withCapturedVariable_true() {
         int minAge = 30;
-        boolean exists = Person.exists((Person p) -> p.age > minAge);
+        boolean exists = Person.where((Person p) -> p.age > minAge).exists();
 
         assertThat(exists).isTrue();
     }
@@ -307,7 +307,7 @@ class CapturedVariablesTest {
     @Test
     void existsQuery_withCapturedVariable_false() {
         int impossibleAge = 200;
-        boolean exists = Person.exists((Person p) -> p.age > impossibleAge);
+        boolean exists = Person.where((Person p) -> p.age > impossibleAge).exists();
 
         assertThat(exists).isFalse();
     }
@@ -317,9 +317,9 @@ class CapturedVariablesTest {
     @Test
     void capturedVariable_usedMultipleTimes() {
         int threshold = 30;
-        var results = Person.findWhere((Person p) ->
+        var results = Person.where((Person p) ->
             p.age > threshold && p.age < threshold + 20
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -329,12 +329,151 @@ class CapturedVariablesTest {
     @Test
     void capturedVariable_nullComparison() {
         Double nullValue = null;
-        var results = Person.findWhere((Person p) -> p.salary == nullValue);
+        var results = Person.where((Person p) -> p.salary == nullValue).toList();
 
         // This test expects to find persons with null salary
         // If no such persons exist in test data, the result may be empty
         // So we don't assert hasSizeGreaterThan(0), just verify the query works
-        assertThat(results).isNotNull();
-        assertThat(results).allMatch(p -> p.getSalary() == null);
+        assertThat(results)
+                .isNotNull()
+                .satisfies(list -> {
+                    if (!list.isEmpty()) {
+                        assertThat(list).allMatch(p -> p.getSalary() == null);
+                    }
+                });
+    }
+
+    // ========== Multiple where() with Captured Variables (Phase 2.5+) ==========
+
+    @Test
+    @Transactional
+    void multipleWhere_withCapturedVariables_combinesCorrectly() {
+        // REGRESSION TEST for bug where only first predicate's captured vars were extracted
+        int minAge = 25;
+        String targetLastName = "Williams";
+
+        var results = Person.where((Person p) -> p.age > minAge)
+                .where((Person p) -> p.lastName.equals(targetLastName))
+                .toList();
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(p -> p.getAge() > minAge && p.getLastName().equals(targetLastName));
+    }
+
+    @Test
+    @Transactional
+    void multipleWhere_withMultipleCapturedVariablesPerPredicate() {
+        // Each predicate has its own captured variables
+        int minAge = 20;
+        int maxAge = 40;
+        double minSalary = 60000.0;
+        double maxSalary = 90000.0;
+
+        var results = Person.where((Person p) -> p.age > minAge && p.age < maxAge)
+                .where((Person p) -> p.salary > minSalary && p.salary < maxSalary)
+                .toList();
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(p ->
+                        p.getAge() > minAge && p.getAge() < maxAge &&
+                        p.getSalary() > minSalary && p.getSalary() < maxSalary);
+    }
+
+    @Test
+    @Transactional
+    void multipleWhere_threePredicate_withCapturedVariables() {
+        // Three predicates, each with a captured variable
+        int minAge = 25;
+        String targetLastName = "Williams";
+        boolean activeStatus = true;
+
+        var results = Person.where((Person p) -> p.age > minAge)
+                .where((Person p) -> p.lastName.equals(targetLastName))
+                .where((Person p) -> p.active == activeStatus)
+                .toList();
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(p ->
+                        p.getAge() > minAge &&
+                        p.getLastName().equals(targetLastName) &&
+                        p.isActive() == activeStatus);
+    }
+
+    @Test
+    @Transactional
+    void multipleWhere_mixedCapturedAndNonCaptured() {
+        // First predicate has captured variable, second doesn't
+        int minAge = 25;
+
+        var results = Person.where((Person p) -> p.age > minAge)
+                .where((Person p) -> p.active)  // No captured variables
+                .toList();
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(p -> p.getAge() > minAge && p.isActive());
+    }
+
+    @Test
+    @Transactional
+    void multipleWhere_withCapturedVariables_count() {
+        // Verify count queries also work with multiple predicates and captured vars
+        int minAge = 25;
+        String targetLastName = "Williams";
+
+        long count = Person.where((Person p) -> p.age > minAge)
+                .where((Person p) -> p.lastName.equals(targetLastName))
+                .count();
+
+        assertThat(count).isGreaterThan(0);
+
+        // Verify count matches toList size
+        long listSize = Person.where((Person p) -> p.age > minAge)
+                .where((Person p) -> p.lastName.equals(targetLastName))
+                .toList()
+                .size();
+
+        assertThat(count).isEqualTo(listSize);
+    }
+
+    @Test
+    @Transactional
+    void multipleWhere_withCapturedVariables_getSingleResult() {
+        // Use unique email to ensure single result
+        String uniqueEmail = "alice.williams@example.com";
+        int minAge = 20;  // Captured variable in first predicate
+
+        Person result = Person.where((Person p) -> p.age > minAge)
+                .where((Person p) -> p.email.equals(uniqueEmail))
+                .getSingleResult();
+
+        assertThat(result)
+                .isNotNull()
+                .satisfies(p -> {
+                    assertThat(p.getAge()).isGreaterThan(minAge);
+                    assertThat(p.getEmail()).isEqualTo(uniqueEmail);
+                });
+    }
+
+    @Test
+    @Transactional
+    void multipleWhere_withCapturedVariables_findFirst() {
+        int minAge = 25;
+        String targetLastName = "Williams";
+
+        var result = Person.where((Person p) -> p.age > minAge)
+                .where((Person p) -> p.lastName.equals(targetLastName))
+                .findFirst();
+
+        assertThat(result)
+                .isPresent()
+                .get()
+                .satisfies(p -> {
+                    assertThat(p.getAge()).isGreaterThan(minAge);
+                    assertThat(p.getLastName()).isEqualTo(targetLastName);
+                });
     }
 }

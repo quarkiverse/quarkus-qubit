@@ -33,6 +33,12 @@ import static io.quarkus.qusaq.deployment.analysis.PatternDetector.isCompareToEq
 import static io.quarkus.qusaq.deployment.analysis.PatternDetector.isLogicalOperation;
 import static io.quarkus.qusaq.deployment.analysis.PatternDetector.isNullCheckPattern;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 import io.quarkus.gizmo.MethodCreator;
@@ -46,10 +52,12 @@ import io.quarkus.qusaq.deployment.generation.builders.ComparisonExpressionBuild
 import io.quarkus.qusaq.deployment.generation.builders.StringExpressionBuilder;
 import io.quarkus.qusaq.deployment.generation.builders.TemporalExpressionBuilder;
 import io.quarkus.qusaq.deployment.util.TypeConverter;
+import jakarta.persistence.criteria.CompoundSelection;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Selection;
 
 /**
  * Converts lambda expression AST into JPA Criteria API bytecode using Gizmo.
@@ -175,13 +183,15 @@ public class CriteriaExpressionGenerator {
             return generateMethodCall(method, methodCall, cb, root, capturedValues);
         } else if (expression instanceof LambdaExpression.BinaryOp binOp) {
             return generateBinaryOperation(method, binOp, cb, root, capturedValues);
+        } else if (expression instanceof LambdaExpression.ConstructorCall constructorCall) {
+            return generateConstructorCall(method, constructorCall, cb, root, capturedValues);
         }
 
         return null;
     }
 
     /**
-     * Generates comparison, logical, or arithmetic operation.
+     * Generates comparison, logical, arithmetic, or string concatenation operation.
      */
     public ResultHandle generateBinaryOperation(
             MethodCreator method,
@@ -189,6 +199,14 @@ public class CriteriaExpressionGenerator {
             ResultHandle cb,
             ResultHandle root,
             ResultHandle capturedValues) {
+
+        // Check for string concatenation BEFORE arithmetic (both use ADD operator)
+        if (isStringConcatenation(binOp)) {
+            ResultHandle left = generateExpressionAsJpaExpression(method, binOp.left(), cb, root, capturedValues);
+            ResultHandle right = generateExpressionAsJpaExpression(method, binOp.right(), cb, root, capturedValues);
+
+            return generateStringConcatenation(method, cb, left, right);
+        }
 
         if (PatternDetector.isArithmeticExpression(binOp)) {
             ResultHandle left = generateExpressionAsJpaExpression(method, binOp.left(), cb, root, capturedValues);
@@ -359,25 +377,25 @@ public class CriteriaExpressionGenerator {
             return method.load(d);
         } else if (value instanceof Float f) {
             return method.load(f);
-        } else if (value instanceof java.math.BigDecimal bd) {
+        } else if (value instanceof BigDecimal bd) {
             ResultHandle bdString = method.load(bd.toString());
-            return method.newInstance(constructorDescriptor(java.math.BigDecimal.class, String.class), bdString);
-        } else if (value instanceof java.time.LocalDate ld) {
+            return method.newInstance(constructorDescriptor(BigDecimal.class, String.class), bdString);
+        } else if (value instanceof LocalDate ld) {
             ResultHandle year = method.load(ld.getYear());
             ResultHandle month = method.load(ld.getMonthValue());
             ResultHandle day = method.load(ld.getDayOfMonth());
-            return method.invokeStaticMethod(methodDescriptor(java.time.LocalDate.class, METHOD_OF, java.time.LocalDate.class, int.class, int.class, int.class), year, month, day);
-        } else if (value instanceof java.time.LocalDateTime ldt) {
+            return method.invokeStaticMethod(methodDescriptor(LocalDate.class, METHOD_OF, LocalDate.class, int.class, int.class, int.class), year, month, day);
+        } else if (value instanceof LocalDateTime ldt) {
             ResultHandle year = method.load(ldt.getYear());
             ResultHandle month = method.load(ldt.getMonthValue());
             ResultHandle day = method.load(ldt.getDayOfMonth());
             ResultHandle hour = method.load(ldt.getHour());
             ResultHandle minute = method.load(ldt.getMinute());
-            return method.invokeStaticMethod(methodDescriptor(java.time.LocalDateTime.class, METHOD_OF, java.time.LocalDateTime.class, int.class, int.class, int.class, int.class, int.class), year, month, day, hour, minute);
-        } else if (value instanceof java.time.LocalTime lt) {
+            return method.invokeStaticMethod(methodDescriptor(LocalDateTime.class, METHOD_OF, LocalDateTime.class, int.class, int.class, int.class, int.class, int.class), year, month, day, hour, minute);
+        } else if (value instanceof LocalTime lt) {
             ResultHandle hour = method.load(lt.getHour());
             ResultHandle minute = method.load(lt.getMinute());
-            return method.invokeStaticMethod(methodDescriptor(java.time.LocalTime.class, METHOD_OF, java.time.LocalTime.class, int.class, int.class), hour, minute);
+            return method.invokeStaticMethod(methodDescriptor(LocalTime.class, METHOD_OF, LocalTime.class, int.class, int.class), hour, minute);
         } else {
             return method.loadNull();
         }
@@ -437,6 +455,68 @@ public class CriteriaExpressionGenerator {
         return null;
     }
 
+    /**
+     * Generates JPA constructor expression for DTO projections.
+     * <p>
+     * Converts {@code new PersonDTO(p.firstName, p.age)} to
+     * {@code cb.construct(PersonDTO.class, root.get("firstName"), root.get("age"))}.
+     * <p>
+     * Example bytecode generation:
+     * <pre>
+     * Class dtoClass = Class.forName("io.quarkus.qusaq.it.dto.PersonNameDTO");
+     * Selection[] selections = new Selection[2];
+     * selections[0] = root.get("firstName");
+     * selections[1] = root.get("age");
+     * return cb.construct(dtoClass, selections);
+     * </pre>
+     *
+     * @param method the method creator for bytecode generation
+     * @param constructorCall the constructor call expression from the lambda AST
+     * @param cb the CriteriaBuilder handle
+     * @param root the root entity handle
+     * @param capturedValues the captured variables array handle
+     * @return the JPA CompoundSelection handle representing the constructor expression
+     */
+    private ResultHandle generateConstructorCall(
+            MethodCreator method,
+            LambdaExpression.ConstructorCall constructorCall,
+            ResultHandle cb,
+            ResultHandle root,
+            ResultHandle capturedValues) {
+
+        // Get the DTO class name (e.g., "io/quarkus/qusaq/it/dto/PersonNameDTO")
+        String className = constructorCall.className();
+
+        // Convert internal class name to fully qualified class name (replace / with .)
+        String fqClassName = className.replace('/', '.');
+
+        // Load the class at runtime using Class.forName()
+        ResultHandle classNameHandle = method.load(fqClassName);
+        ResultHandle resultClassHandle = method.invokeStaticMethod(
+                MethodDescriptor.ofMethod(Class.class, "forName", Class.class, String.class),
+                classNameHandle);
+
+        // Generate JPA expressions for each constructor argument
+        int argCount = constructorCall.arguments().size();
+        ResultHandle selectionsArray = method.newArray(Selection.class, argCount);
+
+        for (int i = 0; i < argCount; i++) {
+            LambdaExpression arg = constructorCall.arguments().get(i);
+            ResultHandle argExpression = generateExpressionAsJpaExpression(method, arg, cb, root, capturedValues);
+            method.writeArrayValue(selectionsArray, i, argExpression);
+        }
+
+        // Call cb.construct(resultClass, selections...)
+        MethodDescriptor constructMethod = MethodDescriptor.ofMethod(
+                CriteriaBuilder.class,
+                "construct",
+                CompoundSelection.class,
+                Class.class,
+                Selection[].class);
+
+        return method.invokeInterfaceMethod(constructMethod, cb, resultClassHandle, selectionsArray);
+    }
+
     /** Generates arithmetic operations. Delegates to ArithmeticExpressionBuilder. */
     private ResultHandle generateArithmeticOperation(
             MethodCreator method,
@@ -446,6 +526,55 @@ public class CriteriaExpressionGenerator {
             ResultHandle right) {
 
         return arithmeticBuilder.buildArithmeticOperation(method, operator, cb, left, right);
+    }
+
+    /**
+     * Detects if binary operation is string concatenation.
+     * Returns true if operator is ADD and at least one operand is a String type.
+     */
+    private boolean isStringConcatenation(LambdaExpression.BinaryOp binOp) {
+        if (binOp.operator() != LambdaExpression.BinaryOp.Operator.ADD) {
+            return false;
+        }
+
+        return isStringType(binOp.left()) || isStringType(binOp.right());
+    }
+
+    /**
+     * Checks if expression evaluates to String type.
+     */
+    private boolean isStringType(LambdaExpression expr) {
+        if (expr instanceof LambdaExpression.FieldAccess field) {
+            return field.fieldType() == String.class;
+        } else if (expr instanceof LambdaExpression.Constant constant) {
+            return constant.value() instanceof String;
+        } else if (expr instanceof LambdaExpression.CapturedVariable capturedVar) {
+            return capturedVar.type() == String.class;
+        } else if (expr instanceof LambdaExpression.BinaryOp binOp) {
+            // Recursive: concatenation of concatenations
+            return isStringConcatenation(binOp);
+        }
+        return false;
+    }
+
+    /**
+     * Generates string concatenation using JPA CriteriaBuilder.concat().
+     * Handles chaining of multiple concat operations.
+     */
+    private ResultHandle generateStringConcatenation(
+            MethodCreator method,
+            ResultHandle cb,
+            ResultHandle left,
+            ResultHandle right) {
+
+        // cb.concat(left, right)
+        MethodDescriptor concatMethod = MethodDescriptor.ofMethod(
+                CriteriaBuilder.class,
+                "concat",
+                Expression.class,
+                Expression.class, Expression.class);
+
+        return method.invokeInterfaceMethod(concatMethod, cb, left, right);
     }
 
     /** Generates comparison operations. Delegates to ComparisonExpressionBuilder. */
@@ -586,7 +715,7 @@ public class CriteriaExpressionGenerator {
         ResultHandle fieldExpression = generateExpressionAsJpaExpression(method, methodCall.target(), cb, root, capturedValues);
 
         // Generate argument expressions
-        java.util.List<ResultHandle> arguments = new java.util.ArrayList<>();
+        List<ResultHandle> arguments = new ArrayList<>();
         for (LambdaExpression arg : methodCall.arguments()) {
             arguments.add(generateExpressionAsJpaExpression(method, arg, cb, root, capturedValues));
         }

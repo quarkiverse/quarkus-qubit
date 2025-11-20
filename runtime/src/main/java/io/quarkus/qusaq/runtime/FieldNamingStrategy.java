@@ -1,6 +1,8 @@
 package io.quarkus.qusaq.runtime;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.Optional;
 
 /**
@@ -105,8 +107,8 @@ public interface FieldNamingStrategy {
             }
 
             // Filter out synthetic or static fields (lambdas shouldn't have static fields)
-            Field[] instanceFields = java.util.Arrays.stream(allFields)
-                    .filter(f -> !java.lang.reflect.Modifier.isStatic(f.getModifiers()))
+            Field[] instanceFields = Arrays.stream(allFields)
+                    .filter(f -> !Modifier.isStatic(f.getModifiers()))
                     .toArray(Field[]::new);
 
             if (index >= instanceFields.length) {

@@ -25,33 +25,33 @@ class ExistsQueryTest {
 
     @Test
     void existsTrue() {
-        boolean exists = Person.exists((Person p) -> p.firstName.equals("John"));
+        boolean exists = Person.where((Person p) -> p.firstName.equals("John")).exists();
 
         assertThat(exists).isTrue();
     }
 
     @Test
     void existsFalse() {
-        boolean exists = Person.exists((Person p) -> p.firstName.equals("NonExistent"));
+        boolean exists = Person.where((Person p) -> p.firstName.equals("NonExistent")).exists();
 
         assertThat(exists).isFalse();
     }
 
     @Test
     void existsWithAnd() {
-        boolean exists = Person.exists((Person p) ->
+        boolean exists = Person.where((Person p) ->
                 p.firstName.equals("Bob") && !p.active
-        );
+        ).exists();
 
         assertThat(exists).isTrue();
     }
 
     @Test
     void existsWithComplexExpression() {
-        boolean exists = Person.exists((Person p) ->
+        boolean exists = Person.where((Person p) ->
                 p.active && p.salary > 85000.0 && p.height != null &&
                 p.height > 1.60f && p.email.contains("@example.com")
-        );
+        ).exists();
 
         assertThat(exists).isTrue();
     }

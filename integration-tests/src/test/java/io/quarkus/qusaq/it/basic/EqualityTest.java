@@ -31,7 +31,7 @@ class EqualityTest {
 
     @Test
     void stringEqualityByFieldAccess() {
-        var results = Person.findWhere((Person p) -> p.firstName.equals("John"));
+        var results = Person.where((Person p) -> p.firstName.equals("John")).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -41,7 +41,7 @@ class EqualityTest {
 
     @Test
     void stringEqualityByGetter() {
-        var results = Person.findWhere((Person p) -> p.getLastName().equals("Smith"));
+        var results = Person.where((Person p) -> p.getLastName().equals("Smith")).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -51,7 +51,7 @@ class EqualityTest {
 
     @Test
     void integerEquality() {
-        var results = Person.findWhere((Person p) -> p.age == 30);
+        var results = Person.where((Person p) -> p.age == 30).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -61,7 +61,7 @@ class EqualityTest {
 
     @Test
     void booleanEqualityImplicit() {
-        var results = Person.findWhere((Person p) -> p.active);
+        var results = Person.where((Person p) -> p.active).toList();
 
         assertThat(results)
                 .hasSizeGreaterThanOrEqualTo(2)
@@ -70,7 +70,7 @@ class EqualityTest {
 
     @Test
     void booleanEqualityTrue() {
-        var results = Person.findWhere((Person p) -> p.active == true);
+        var results = Person.where((Person p) -> p.active == true).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -79,7 +79,7 @@ class EqualityTest {
 
     @Test
     void booleanEqualityFalse() {
-        var results = Person.findWhere((Person p) -> p.active == false);
+        var results = Person.where((Person p) -> p.active == false).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -88,7 +88,7 @@ class EqualityTest {
 
     @Test
     void longEquality() {
-        var results = Person.findWhere((Person p) -> p.employeeId == 1000001L);
+        var results = Person.where((Person p) -> p.employeeId == 1000001L).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -98,7 +98,7 @@ class EqualityTest {
 
     @Test
     void floatEquality() {
-        var results = Person.findWhere((Person p) -> p.height == 1.75f);
+        var results = Person.where((Person p) -> p.height == 1.75f).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -108,7 +108,7 @@ class EqualityTest {
 
     @Test
     void doubleEquality() {
-        var results = Person.findWhere((Person p) -> p.salary == 75000.0);
+        var results = Person.where((Person p) -> p.salary == 75000.0).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -117,7 +117,7 @@ class EqualityTest {
 
     @Test
     void localDateTimeEquality() {
-        var results = Person.findWhere((Person p) -> p.createdAt.isEqual(LocalDateTime.of(2024, 1, 15, 9, 30)));
+        var results = Person.where((Person p) -> p.createdAt.isEqual(LocalDateTime.of(2024, 1, 15, 9, 30))).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -127,7 +127,7 @@ class EqualityTest {
 
     @Test
     void localTimeEquality() {
-        var results = Person.findWhere((Person p) -> p.startTime.equals(LocalTime.of(9, 0)));
+        var results = Person.where((Person p) -> p.startTime.equals(LocalTime.of(9, 0))).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -137,7 +137,7 @@ class EqualityTest {
 
     @Test
     void localDateEquality() {
-        var results = Person.findWhere((Person p) -> p.birthDate.isEqual(LocalDate.of(1993, 5, 15)));
+        var results = Person.where((Person p) -> p.birthDate.isEqual(LocalDate.of(1993, 5, 15))).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -146,7 +146,7 @@ class EqualityTest {
 
     @Test
     void bigDecimalEquality() {
-        var results = Product.findWhere((Product p) -> p.price.compareTo(new BigDecimal("899.99")) == 0);
+        var results = Product.where((Product p) -> p.price.compareTo(new BigDecimal("899.99")) == 0).toList();
 
         assertThat(results)
                 .hasSize(1)

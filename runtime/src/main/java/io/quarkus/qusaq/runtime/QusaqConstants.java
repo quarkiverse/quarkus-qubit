@@ -18,34 +18,67 @@ public final class QusaqConstants {
     private QusaqConstants() {
     }
 
-    // Query method names
-    public static final String METHOD_FIND_WHERE = "findWhere";
-    public static final String METHOD_COUNT_WHERE = "countWhere";
+    // Fluent API - Entry point methods (static methods on QusaqEntity)
+    public static final String METHOD_WHERE = "where";
+    public static final String METHOD_SELECT = "select";
+    public static final String METHOD_SORTED_BY = "sortedBy";
+    public static final String METHOD_SORTED_DESCENDING_BY = "sortedDescendingBy";
+
+    // Fluent API - Intermediate operations (instance methods on QusaqStream)
+    public static final String METHOD_SKIP = "skip";
+    public static final String METHOD_LIMIT = "limit";
+    public static final String METHOD_DISTINCT = "distinct";
+
+    // Fluent API - Terminal operations (instance methods on QusaqStream)
+    public static final String METHOD_TO_LIST = "toList";
+    public static final String METHOD_COUNT = "count";
+    public static final String METHOD_GET_SINGLE_RESULT = "getSingleResult";
+    public static final String METHOD_FIND_FIRST = "findFirst";
+    public static final String METHOD_MIN = "min";
+    public static final String METHOD_MAX = "max";
+    public static final String METHOD_AVG = "avg";
+    public static final String METHOD_SUM_INTEGER = "sumInteger";
+    public static final String METHOD_SUM_LONG = "sumLong";
+    public static final String METHOD_SUM_DOUBLE = "sumDouble";
     public static final String METHOD_EXISTS = "exists";
+
+    // All fluent API entry points (static methods)
+    public static final Set<String> FLUENT_ENTRY_POINT_METHODS = Set.of(
+        METHOD_WHERE, METHOD_SELECT, METHOD_SORTED_BY, METHOD_SORTED_DESCENDING_BY
+    );
+
+    // All fluent API intermediate operations
+    public static final Set<String> FLUENT_INTERMEDIATE_METHODS = Set.of(
+        METHOD_WHERE, METHOD_SELECT, METHOD_SORTED_BY, METHOD_SORTED_DESCENDING_BY,
+        METHOD_SKIP, METHOD_LIMIT, METHOD_DISTINCT
+    );
+
+    // All fluent API terminal operations
+    public static final Set<String> FLUENT_TERMINAL_METHODS = Set.of(
+        METHOD_TO_LIST, METHOD_COUNT, METHOD_EXISTS,
+        METHOD_GET_SINGLE_RESULT, METHOD_FIND_FIRST,
+        METHOD_MIN, METHOD_MAX, METHOD_AVG,
+        METHOD_SUM_INTEGER, METHOD_SUM_LONG, METHOD_SUM_DOUBLE
+    );
+
+    // Temporal comparison methods (used in lambda expressions for date/time comparisons)
     public static final String METHOD_IS_AFTER = "isAfter";
     public static final String METHOD_IS_BEFORE = "isBefore";
     public static final String METHOD_IS_EQUAL = "isEqual";
-
-    public static final Set<String> QUERY_METHOD_NAMES = Set.of(
-        METHOD_FIND_WHERE, METHOD_COUNT_WHERE, METHOD_EXISTS
-    );
 
     public static final Set<String> TEMPORAL_COMPARISON_METHOD_NAMES = Set.of(
         METHOD_IS_AFTER, METHOD_IS_BEFORE, METHOD_IS_EQUAL
     );
 
-    public static final Set<String> COUNT_QUERY_METHOD_NAMES = Set.of(
-        METHOD_COUNT_WHERE, METHOD_EXISTS
-    );
-
     public static final String QUSAQ_ENTITY_CLASS_NAME = "io.quarkus.qusaq.runtime.QusaqEntity";
     public static final String QUSAQ_REPOSITORY_CLASS_NAME = "io.quarkus.qusaq.runtime.QusaqRepository";
+    public static final String QUSAQ_STREAM_CLASS_NAME = "io.quarkus.qusaq.runtime.QusaqStream";
     public static final String QUERY_EXECUTOR_CLASS_NAME = "io.quarkus.qusaq.runtime.QueryExecutor";
 
     // JVM internal names (slash-separated format for ASM bytecode generation)
-    public static final String QUSAQ_OPERATIONS_INTERNAL_NAME = "io/quarkus/qusaq/runtime/QusaqOperations";
     public static final String QUSAQ_ENTITY_INTERNAL_NAME = "io/quarkus/qusaq/runtime/QusaqEntity";
     public static final String QUSAQ_REPOSITORY_INTERNAL_NAME = "io/quarkus/qusaq/runtime/QusaqRepository";
+    public static final String QUSAQ_STREAM_INTERNAL_NAME = "io/quarkus/qusaq/runtime/QusaqStream";
     public static final String QUERY_SPEC_DESCRIPTOR = "Lio/quarkus/qusaq/runtime/QuerySpec;";
 
     // Standard Java method names for lambda expression analysis

@@ -156,14 +156,26 @@ public class QusaqProcessor {
         log.debugf("Qusaq: Scanning for lambda call sites using invokedynamic analysis");
 
         IndexView index = combinedIndex.getIndex();
-        InvokeDynamicScanner scanner = new InvokeDynamicScanner(index);
+        InvokeDynamicScanner scanner = new InvokeDynamicScanner();
 
         Collection<ClassInfo> allClasses = index.getKnownClasses();
 
         log.debugf("Qusaq: Scanning %d classes for lambda call sites", allClasses.size());
 
-        List<InvokeDynamicScanner.LambdaCallSite> allCallSites = allClasses.stream()
+        List<ClassInfo> filteredClasses = allClasses.stream()
                 .filter(QusaqProcessor::isNotFrameworkClass)
+                .toList();
+
+        log.infof("Qusaq: Filtered to %d application classes (from %d total)",
+                filteredClasses.size(), allClasses.size());
+
+        // Log test classes found
+        long testClassCount = filteredClasses.stream()
+                .filter(c -> c.name().toString().contains(".it."))
+                .count();
+        log.infof("Qusaq: Found %d integration test classes", testClassCount);
+
+        List<InvokeDynamicScanner.LambdaCallSite> allCallSites = filteredClasses.stream()
                 .flatMap(classInfo -> scanClassForCallSites(classInfo, scanner, applicationArchives).stream())
                 .peek(c -> log.tracef("Qusaq: Found callSite %s", c.getCallSiteId()))
                 .toList();

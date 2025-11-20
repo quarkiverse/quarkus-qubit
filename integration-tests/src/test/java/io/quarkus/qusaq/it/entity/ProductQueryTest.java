@@ -26,7 +26,7 @@ class ProductQueryTest {
 
     @Test
     void productByCategory() {
-        var results = Product.findWhere((Product p) -> p.category.equals("Electronics"));
+        var results = Product.where((Product p) -> p.category.equals("Electronics")).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -35,7 +35,7 @@ class ProductQueryTest {
 
     @Test
     void productAvailability() {
-        var results = Product.findWhere((Product p) -> p.available && p.stockQuantity > 0);
+        var results = Product.where((Product p) -> p.available && p.stockQuantity > 0).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -44,7 +44,7 @@ class ProductQueryTest {
 
     @Test
     void productPriceRange() {
-        var results = Product.findWhere((Product p) -> p.price.compareTo(new BigDecimal("300")) > 0);
+        var results = Product.where((Product p) -> p.price.compareTo(new BigDecimal("300")) > 0).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -53,7 +53,7 @@ class ProductQueryTest {
 
     @Test
     void productRating() {
-        var results = Product.findWhere((Product p) -> p.rating >= 4.5);
+        var results = Product.where((Product p) -> p.rating >= 4.5).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -62,12 +62,12 @@ class ProductQueryTest {
 
     @Test
     void productComplexMixedTypes() {
-        var results = Product.findWhere((Product p) ->
+        var results = Product.where((Product p) ->
                 p.category.equals("Electronics") &&
                 p.price.compareTo(new BigDecimal("800.00")) >= 0 &&
                 p.stockQuantity > 0 &&
                 p.rating > 4.0
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)

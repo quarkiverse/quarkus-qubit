@@ -27,9 +27,9 @@ class BigDecimalTest {
     // BigDecimal arithmetic operations
     @Test
     void bigDecimalAdd() {
-        var results = Product.findWhere((Product p) ->
+        var results = Product.where((Product p) ->
                 p.price.add(new BigDecimal("100")).compareTo(new BigDecimal("1000")) > 0
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -38,9 +38,9 @@ class BigDecimalTest {
 
     @Test
     void bigDecimalSubtract() {
-        var results = Product.findWhere((Product p) ->
+        var results = Product.where((Product p) ->
                 p.price.subtract(new BigDecimal("50")).compareTo(new BigDecimal("100")) < 0
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -49,9 +49,9 @@ class BigDecimalTest {
 
     @Test
     void bigDecimalMultiply() {
-        var results = Product.findWhere((Product p) ->
+        var results = Product.where((Product p) ->
                 p.price.multiply(new BigDecimal("2")).compareTo(new BigDecimal("1000")) > 0
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -60,9 +60,9 @@ class BigDecimalTest {
 
     @Test
     void bigDecimalDivide() {
-        var results = Product.findWhere((Product p) ->
+        var results = Product.where((Product p) ->
                 p.price.divide(new BigDecimal("2")).compareTo(new BigDecimal("400")) > 0
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -72,9 +72,9 @@ class BigDecimalTest {
     // BigDecimal in complex expressions
     @Test
     void bigDecimalWithAvailability() {
-        var results = Product.findWhere((Product p) ->
+        var results = Product.where((Product p) ->
                 p.price.compareTo(new BigDecimal("1000.00")) > 0 && p.available
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -84,12 +84,12 @@ class BigDecimalTest {
 
     @Test
     void bigDecimalMixedTypes() {
-        var results = Product.findWhere((Product p) ->
+        var results = Product.where((Product p) ->
                 p.category.equals("Electronics") &&
                 p.price.compareTo(new BigDecimal("800.00")) >= 0 &&
                 p.stockQuantity > 0 &&
                 p.rating > 4.0
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)

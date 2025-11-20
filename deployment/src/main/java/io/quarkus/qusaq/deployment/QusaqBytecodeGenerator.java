@@ -5,33 +5,28 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 
-import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_COUNT_WHERE;
-import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_EXISTS;
-import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_FIND_WHERE;
-import static io.quarkus.qusaq.runtime.QusaqConstants.QUSAQ_OPERATIONS_INTERNAL_NAME;
-
 /**
- * Generates delegation methods that call QusaqOperations.
+ * Generates fluent API entry point methods for QusaqEntity and QusaqRepository.
  */
 public final class QusaqBytecodeGenerator {
 
-    private static final String DESC_QUERY_SPEC_TO_LIST = "(Lio/quarkus/qusaq/runtime/QuerySpec;)Ljava/util/List;";
-    private static final String DESC_QUERY_SPEC_TO_LONG = "(Lio/quarkus/qusaq/runtime/QuerySpec;)J";
-    private static final String DESC_QUERY_SPEC_TO_BOOLEAN = "(Lio/quarkus/qusaq/runtime/QuerySpec;)Z";
-
-    private static final String OPS_DESC_CLASS_QUERY_SPEC_TO_LIST = "(Ljava/lang/Class;Lio/quarkus/qusaq/runtime/QuerySpec;)Ljava/util/List;";
-    private static final String OPS_DESC_CLASS_QUERY_SPEC_TO_LONG = "(Ljava/lang/Class;Lio/quarkus/qusaq/runtime/QuerySpec;)J";
-    private static final String OPS_DESC_CLASS_QUERY_SPEC_TO_BOOLEAN = "(Ljava/lang/Class;Lio/quarkus/qusaq/runtime/QuerySpec;)Z";
-
-    private static final String GENERIC_SIG_PREFIX = "(Lio/quarkus/qusaq/runtime/QuerySpec<L";
+    private static final String DESC_QUERY_SPEC_TO_STREAM = "(Lio/quarkus/qusaq/runtime/QuerySpec;)Lio/quarkus/qusaq/runtime/QusaqStream;";
+    private static final String QUSAQ_STREAM_IMPL_INTERNAL_NAME = "io/quarkus/qusaq/runtime/QusaqStreamImpl";
 
     private QusaqBytecodeGenerator() {
     }
 
     /**
-     * Generates method that delegates to QusaqOperations.
+     * Generates fluent API entry point method that returns QusaqStreamImpl.
+     * <p>
+     * Generated code pattern for entry points:
+     * <pre>{@code
+     * public static QusaqStream<Person> where(QuerySpec<Person, Boolean> spec) {
+     *     return new QusaqStreamImpl<>(Person.class).where(spec);
+     * }
+     * }</pre>
      */
-    public static MethodVisitor generateDelegationMethod(ClassVisitor cv, DelegationMethodConfig config) {
+    public static MethodVisitor generateFluentEntryPoint(ClassVisitor cv, FluentMethodConfig config) {
         MethodVisitor mv = cv.visitMethod(
                 config.access(),
                 config.methodName(),
@@ -41,98 +36,127 @@ public final class QusaqBytecodeGenerator {
 
         mv.visitCode();
 
+        // Create new QusaqStreamImpl instance
+        mv.visitTypeInsn(Opcodes.NEW, QUSAQ_STREAM_IMPL_INTERNAL_NAME);
+        mv.visitInsn(Opcodes.DUP);
+
+        // Load entity class as constructor argument
         mv.visitLdcInsn(config.entityType());
 
-        mv.visitVarInsn(Opcodes.ALOAD, config.querySpecParameterIndex());
-
+        // Call QusaqStreamImpl constructor: new QusaqStreamImpl(Person.class)
         mv.visitMethodInsn(
-                Opcodes.INVOKESTATIC,
-                QUSAQ_OPERATIONS_INTERNAL_NAME,
-                config.methodName(),
-                config.operationsMethodDescriptor(),
+                Opcodes.INVOKESPECIAL,
+                QUSAQ_STREAM_IMPL_INTERNAL_NAME,
+                "<init>",
+                "(Ljava/lang/Class;)V",
                 false);
 
+        // Load QuerySpec parameter (index 0 for static method)
+        mv.visitVarInsn(Opcodes.ALOAD, 0);
+
+        // Call the appropriate method on the stream: .where(spec) or .select(spec) etc.
+        mv.visitMethodInsn(
+                Opcodes.INVOKEINTERFACE,
+                "io/quarkus/qusaq/runtime/QusaqStream",
+                config.methodName(),
+                DESC_QUERY_SPEC_TO_STREAM,
+                true);
+
+        // Return the result
         mv.visitInsn(config.returnOpcode());
 
-        mv.visitMaxs(config.maxStack(), config.maxLocals());
+        mv.visitMaxs(config.maxStack() + 1, config.maxLocals()); // +1 for ALOAD
         mv.visitEnd();
 
         return mv;
     }
 
     /**
-     * Configuration for generating delegation method.
+     * Configuration for generating fluent API entry point methods.
      */
-    public record DelegationMethodConfig(
+    public record FluentMethodConfig(
             int access,
             String methodName,
             String methodDescriptor,
             String genericSignature,
-            String operationsMethodDescriptor,
             int returnOpcode,
             Type entityType,
-            int querySpecParameterIndex,
             int maxStack,
             int maxLocals
     ) {
         /**
-         * Creates config for findWhere method.
+         * Creates config for where() method.
          */
-        public static DelegationMethodConfig forFindWhere(Type entityType, String entityInternalName, boolean isStatic) {
-            String genericSignature = GENERIC_SIG_PREFIX + entityInternalName +
-                    ";Ljava/lang/Boolean;>;)Ljava/util/List<L" + entityInternalName + ";>;";
+        public static FluentMethodConfig forWhere(Type entityType, String entityInternalName) {
+            String genericSignature = "(Lio/quarkus/qusaq/runtime/QuerySpec<L" + entityInternalName +
+                    ";Ljava/lang/Boolean;>;)Lio/quarkus/qusaq/runtime/QusaqStream<L" + entityInternalName + ";>;";
 
-            return new DelegationMethodConfig(
-                    isStatic ? (Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC) : Opcodes.ACC_PUBLIC,
-                    METHOD_FIND_WHERE,
-                    DESC_QUERY_SPEC_TO_LIST,
+            return new FluentMethodConfig(
+                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                    "where",
+                    DESC_QUERY_SPEC_TO_STREAM,
                     genericSignature,
-                    OPS_DESC_CLASS_QUERY_SPEC_TO_LIST,
                     Opcodes.ARETURN,
                     entityType,
-                    isStatic ? 0 : 1,
-                    2,
-                    isStatic ? 1 : 2
+                    3,  // max stack: NEW, DUP, LDC
+                    1   // max locals: QuerySpec parameter
             );
         }
 
         /**
-         * Creates config for countWhere method.
+         * Creates config for select() method.
          */
-        public static DelegationMethodConfig forCountWhere(Type entityType, String entityInternalName, boolean isStatic) {
-            String genericSignature = GENERIC_SIG_PREFIX + entityInternalName + ";Ljava/lang/Boolean;>;)J";
+        public static FluentMethodConfig forSelect(Type entityType, String entityInternalName) {
+            String genericSignature = "<R:Ljava/lang/Object;>(Lio/quarkus/qusaq/runtime/QuerySpec<L" +
+                    entityInternalName + ";TR;>;)Lio/quarkus/qusaq/runtime/QusaqStream<TR;>;";
 
-            return new DelegationMethodConfig(
-                    isStatic ? (Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC) : Opcodes.ACC_PUBLIC,
-                    METHOD_COUNT_WHERE,
-                    DESC_QUERY_SPEC_TO_LONG,
+            return new FluentMethodConfig(
+                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                    "select",
+                    DESC_QUERY_SPEC_TO_STREAM,
                     genericSignature,
-                    OPS_DESC_CLASS_QUERY_SPEC_TO_LONG,
-                    Opcodes.LRETURN,
+                    Opcodes.ARETURN,
                     entityType,
-                    isStatic ? 0 : 1,
-                    2,
-                    isStatic ? 1 : 2
+                    3,
+                    1
             );
         }
 
         /**
-         * Creates config for exists method.
+         * Creates config for sortedBy() method.
          */
-        public static DelegationMethodConfig forExists(Type entityType, String entityInternalName, boolean isStatic) {
-            String genericSignature = GENERIC_SIG_PREFIX + entityInternalName + ";Ljava/lang/Boolean;>;)Z";
+        public static FluentMethodConfig forSortedBy(Type entityType, String entityInternalName) {
+            String genericSignature = "<K::Ljava/lang/Comparable<TK;>;>(Lio/quarkus/qusaq/runtime/QuerySpec<L" +
+                    entityInternalName + ";TK;>;)Lio/quarkus/qusaq/runtime/QusaqStream<L" + entityInternalName + ";>;";
 
-            return new DelegationMethodConfig(
-                    isStatic ? (Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC) : Opcodes.ACC_PUBLIC,
-                    METHOD_EXISTS,
-                    DESC_QUERY_SPEC_TO_BOOLEAN,
+            return new FluentMethodConfig(
+                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                    "sortedBy",
+                    DESC_QUERY_SPEC_TO_STREAM,
                     genericSignature,
-                    OPS_DESC_CLASS_QUERY_SPEC_TO_BOOLEAN,
-                    Opcodes.IRETURN,
+                    Opcodes.ARETURN,
                     entityType,
-                    isStatic ? 0 : 1,
-                    2,
-                    isStatic ? 1 : 2
+                    3,
+                    1
+            );
+        }
+
+        /**
+         * Creates config for sortedDescendingBy() method.
+         */
+        public static FluentMethodConfig forSortedDescendingBy(Type entityType, String entityInternalName) {
+            String genericSignature = "<K::Ljava/lang/Comparable<TK;>;>(Lio/quarkus/qusaq/runtime/QuerySpec<L" +
+                    entityInternalName + ";TK;>;)Lio/quarkus/qusaq/runtime/QusaqStream<L" + entityInternalName + ";>;";
+
+            return new FluentMethodConfig(
+                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                    "sortedDescendingBy",
+                    DESC_QUERY_SPEC_TO_STREAM,
+                    genericSignature,
+                    Opcodes.ARETURN,
+                    entityType,
+                    3,
+                    1
             );
         }
     }

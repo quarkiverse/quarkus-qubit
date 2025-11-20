@@ -31,7 +31,7 @@ class ComparisonTest {
     // Integer comparisons
     @Test
     void integerGreaterThan() {
-        var results = Person.findWhere((Person p) -> p.age > 30);
+        var results = Person.where((Person p) -> p.age > 30).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -40,7 +40,7 @@ class ComparisonTest {
 
     @Test
     void integerGreaterThanOrEqual() {
-        var results = Person.findWhere((Person p) -> p.age >= 30);
+        var results = Person.where((Person p) -> p.age >= 30).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -49,7 +49,7 @@ class ComparisonTest {
 
     @Test
     void integerLessThan() {
-        var results = Person.findWhere((Person p) -> p.age < 30);
+        var results = Person.where((Person p) -> p.age < 30).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -58,7 +58,7 @@ class ComparisonTest {
 
     @Test
     void integerLessThanOrEqual() {
-        var results = Person.findWhere((Person p) -> p.age <= 30);
+        var results = Person.where((Person p) -> p.age <= 30).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -67,7 +67,7 @@ class ComparisonTest {
 
     @Test
     void integerNotEquals() {
-        var results = Person.findWhere((Person p) -> p.age != 30);
+        var results = Person.where((Person p) -> p.age != 30).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -77,7 +77,7 @@ class ComparisonTest {
     // Long comparisons
     @Test
     void longGreaterThan() {
-        var results = Person.findWhere((Person p) -> p.employeeId > 1000003L);
+        var results = Person.where((Person p) -> p.employeeId > 1000003L).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -86,7 +86,7 @@ class ComparisonTest {
 
     @Test
     void longGreaterThanOrEqual() {
-        var results = Person.findWhere((Person p) -> p.employeeId >= 1000002L);
+        var results = Person.where((Person p) -> p.employeeId >= 1000002L).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -95,7 +95,7 @@ class ComparisonTest {
 
     @Test
     void longLessThan() {
-        var results = Person.findWhere((Person p) -> p.employeeId < 1000003L);
+        var results = Person.where((Person p) -> p.employeeId < 1000003L).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -104,7 +104,7 @@ class ComparisonTest {
 
     @Test
     void longLessThanOrEqual() {
-        var results = Person.findWhere((Person p) -> p.employeeId <= 1000003L);
+        var results = Person.where((Person p) -> p.employeeId <= 1000003L).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -113,7 +113,7 @@ class ComparisonTest {
 
     @Test
     void longNotEquals() {
-        var results = Person.findWhere((Person p) -> p.employeeId != 1000001L);
+        var results = Person.where((Person p) -> p.employeeId != 1000001L).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -123,7 +123,7 @@ class ComparisonTest {
     // Float comparisons
     @Test
     void floatGreaterThan() {
-        var results = Person.findWhere((Person p) -> p.height > 1.70f);
+        var results = Person.where((Person p) -> p.height > 1.70f).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -132,7 +132,7 @@ class ComparisonTest {
 
     @Test
     void floatGreaterThanOrEqual() {
-        var results = Person.findWhere((Person p) -> p.height >= 1.70f);
+        var results = Person.where((Person p) -> p.height >= 1.70f).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -141,7 +141,7 @@ class ComparisonTest {
 
     @Test
     void floatLessThan() {
-        var results = Person.findWhere((Person p) -> p.height < 1.70f);
+        var results = Person.where((Person p) -> p.height < 1.70f).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -150,7 +150,7 @@ class ComparisonTest {
 
     @Test
     void floatLessThanOrEqual() {
-        var results = Person.findWhere((Person p) -> p.height <= 1.75f);
+        var results = Person.where((Person p) -> p.height <= 1.75f).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -159,7 +159,7 @@ class ComparisonTest {
 
     @Test
     void floatNotEquals() {
-        var results = Person.findWhere((Person p) -> p.height != 1.75f);
+        var results = Person.where((Person p) -> p.height != 1.75f).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -169,7 +169,7 @@ class ComparisonTest {
     // Double comparisons
     @Test
     void doubleGreaterThan() {
-        var results = Person.findWhere((Person p) -> p.salary > 70000.0);
+        var results = Person.where((Person p) -> p.salary > 70000.0).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -178,7 +178,7 @@ class ComparisonTest {
 
     @Test
     void doubleGreaterThanOrEqual() {
-        var results = Person.findWhere((Person p) -> p.salary >= 75000.0);
+        var results = Person.where((Person p) -> p.salary >= 75000.0).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -187,7 +187,7 @@ class ComparisonTest {
 
     @Test
     void doubleLessThan() {
-        var results = Person.findWhere((Person p) -> p.salary < 80000.0);
+        var results = Person.where((Person p) -> p.salary < 80000.0).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -196,7 +196,7 @@ class ComparisonTest {
 
     @Test
     void doubleLessThanOrEqual() {
-        var results = Person.findWhere((Person p) -> p.salary <= 75000.0);
+        var results = Person.where((Person p) -> p.salary <= 75000.0).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -205,7 +205,7 @@ class ComparisonTest {
 
     @Test
     void doubleNotEquals() {
-        var results = Person.findWhere((Person p) -> p.salary != 75000.0);
+        var results = Person.where((Person p) -> p.salary != 75000.0).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -215,7 +215,7 @@ class ComparisonTest {
     // BigDecimal comparisons
     @Test
     void bigDecimalGreaterThan() {
-        var results = Product.findWhere((Product p) -> p.price.compareTo(new BigDecimal("500")) > 0);
+        var results = Product.where((Product p) -> p.price.compareTo(new BigDecimal("500")) > 0).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -224,7 +224,7 @@ class ComparisonTest {
 
     @Test
     void bigDecimalGreaterThanOrEqual() {
-        var results = Product.findWhere((Product p) -> p.price.compareTo(new BigDecimal("500")) >= 0);
+        var results = Product.where((Product p) -> p.price.compareTo(new BigDecimal("500")) >= 0).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -233,7 +233,7 @@ class ComparisonTest {
 
     @Test
     void bigDecimalLessThan() {
-        var results = Product.findWhere((Product p) -> p.price.compareTo(new BigDecimal("1000")) < 0);
+        var results = Product.where((Product p) -> p.price.compareTo(new BigDecimal("1000")) < 0).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -242,7 +242,7 @@ class ComparisonTest {
 
     @Test
     void bigDecimalLessThanOrEqual() {
-        var results = Product.findWhere((Product p) -> p.price.compareTo(new BigDecimal("300")) <= 0);
+        var results = Product.where((Product p) -> p.price.compareTo(new BigDecimal("300")) <= 0).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -251,7 +251,7 @@ class ComparisonTest {
 
     @Test
     void bigDecimalNotEquals() {
-        var results = Product.findWhere((Product p) -> p.price.compareTo(new BigDecimal("899.99")) != 0);
+        var results = Product.where((Product p) -> p.price.compareTo(new BigDecimal("899.99")) != 0).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -261,7 +261,7 @@ class ComparisonTest {
     // Temporal comparisons
     @Test
     void localDateAfter() {
-        var results = Person.findWhere((Person p) -> p.birthDate.isAfter(LocalDate.of(1990, 1, 1)));
+        var results = Person.where((Person p) -> p.birthDate.isAfter(LocalDate.of(1990, 1, 1))).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -270,7 +270,7 @@ class ComparisonTest {
 
     @Test
     void localDateBefore() {
-        var results = Person.findWhere((Person p) -> p.birthDate.isBefore(LocalDate.of(1990, 1, 1)));
+        var results = Person.where((Person p) -> p.birthDate.isBefore(LocalDate.of(1990, 1, 1))).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -279,7 +279,7 @@ class ComparisonTest {
 
     @Test
     void localDateTimeAfter() {
-        var results = Person.findWhere((Person p) -> p.createdAt.isAfter(LocalDateTime.of(2024, 3, 1, 0, 0)));
+        var results = Person.where((Person p) -> p.createdAt.isAfter(LocalDateTime.of(2024, 3, 1, 0, 0))).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -288,7 +288,7 @@ class ComparisonTest {
 
     @Test
     void localDateTimeBefore() {
-        var results = Person.findWhere((Person p) -> p.createdAt.isBefore(LocalDateTime.of(2024, 3, 1, 0, 0)));
+        var results = Person.where((Person p) -> p.createdAt.isBefore(LocalDateTime.of(2024, 3, 1, 0, 0))).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -297,7 +297,7 @@ class ComparisonTest {
 
     @Test
     void localTimeAfter() {
-        var results = Person.findWhere((Person p) -> p.startTime.isAfter(LocalTime.of(9, 0)));
+        var results = Person.where((Person p) -> p.startTime.isAfter(LocalTime.of(9, 0))).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -306,7 +306,7 @@ class ComparisonTest {
 
     @Test
     void localTimeBefore() {
-        var results = Person.findWhere((Person p) -> p.startTime.isBefore(LocalTime.of(9, 0)));
+        var results = Person.where((Person p) -> p.startTime.isBefore(LocalTime.of(9, 0))).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -316,7 +316,7 @@ class ComparisonTest {
     // Range queries
     @Test
     void integerRangeQuery() {
-        var results = Person.findWhere((Person p) -> p.age >= 25 && p.age <= 35);
+        var results = Person.where((Person p) -> p.age >= 25 && p.age <= 35).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -325,9 +325,9 @@ class ComparisonTest {
 
     @Test
     void longRangeQuery() {
-        var results = Person.findWhere((Person p) ->
+        var results = Person.where((Person p) ->
                 p.employeeId >= 1000002L && p.employeeId <= 1000004L
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -336,7 +336,7 @@ class ComparisonTest {
 
     @Test
     void floatRangeQuery() {
-        var results = Person.findWhere((Person p) -> p.height >= 1.65f && p.height <= 1.80f);
+        var results = Person.where((Person p) -> p.height >= 1.65f && p.height <= 1.80f).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -345,10 +345,10 @@ class ComparisonTest {
 
     @Test
     void bigDecimalRangeQuery() {
-        var results = Product.findWhere((Product p) ->
+        var results = Product.where((Product p) ->
                 p.price.compareTo(new BigDecimal("800.00")) >= 0 &&
                 p.price.compareTo(new BigDecimal("1500.00")) <= 0
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)

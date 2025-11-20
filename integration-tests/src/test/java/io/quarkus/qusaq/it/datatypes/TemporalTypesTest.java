@@ -29,7 +29,7 @@ class TemporalTypesTest {
     // LocalDate tests
     @Test
     void localDateGetYear() {
-        var results = Person.findWhere((Person p) -> p.birthDate.getYear() == 1993);
+        var results = Person.where((Person p) -> p.birthDate.getYear() == 1993).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -38,7 +38,7 @@ class TemporalTypesTest {
 
     @Test
     void localDateGetMonth() {
-        var results = Person.findWhere((Person p) -> p.birthDate.getMonthValue() == 5);
+        var results = Person.where((Person p) -> p.birthDate.getMonthValue() == 5).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -47,7 +47,7 @@ class TemporalTypesTest {
 
     @Test
     void localDateGetDayOfMonth() {
-        var results = Person.findWhere((Person p) -> p.birthDate.getDayOfMonth() == 15);
+        var results = Person.where((Person p) -> p.birthDate.getDayOfMonth() == 15).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -57,7 +57,7 @@ class TemporalTypesTest {
     // LocalDateTime tests
     @Test
     void localDateTimeGetYear() {
-        var results = Person.findWhere((Person p) -> p.createdAt.getYear() == 2024);
+        var results = Person.where((Person p) -> p.createdAt.getYear() == 2024).toList();
 
         assertThat(results)
                 .hasSize(5)
@@ -66,7 +66,7 @@ class TemporalTypesTest {
 
     @Test
     void localDateTimeGetMonth() {
-        var results = Person.findWhere((Person p) -> p.createdAt.getMonthValue() == 1);
+        var results = Person.where((Person p) -> p.createdAt.getMonthValue() == 1).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -75,7 +75,7 @@ class TemporalTypesTest {
 
     @Test
     void localDateTimeGetDayOfMonth() {
-        var results = Person.findWhere((Person p) -> p.createdAt.getDayOfMonth() == 15);
+        var results = Person.where((Person p) -> p.createdAt.getDayOfMonth() == 15).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -84,7 +84,7 @@ class TemporalTypesTest {
 
     @Test
     void localDateTimeGetHour() {
-        var results = Person.findWhere((Person p) -> p.createdAt.getHour() == 8);
+        var results = Person.where((Person p) -> p.createdAt.getHour() == 8).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -93,7 +93,7 @@ class TemporalTypesTest {
 
     @Test
     void localDateTimeGetMinute() {
-        var results = Person.findWhere((Person p) -> p.createdAt.getMinute() == 30);
+        var results = Person.where((Person p) -> p.createdAt.getMinute() == 30).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -102,7 +102,7 @@ class TemporalTypesTest {
 
     @Test
     void localDateTimeGetSecond() {
-        var results = Person.findWhere((Person p) -> p.createdAt.getSecond() == 0);
+        var results = Person.where((Person p) -> p.createdAt.getSecond() == 0).toList();
 
         assertThat(results)
                 .hasSize(5)
@@ -112,7 +112,7 @@ class TemporalTypesTest {
     // LocalTime tests
     @Test
     void localTimeGetHour() {
-        var results = Person.findWhere((Person p) -> p.startTime.getHour() == 8);
+        var results = Person.where((Person p) -> p.startTime.getHour() == 8).toList();
 
         assertThat(results)
                 .hasSize(2)
@@ -121,7 +121,7 @@ class TemporalTypesTest {
 
     @Test
     void localTimeGetMinute() {
-        var results = Person.findWhere((Person p) -> p.startTime.getMinute() == 0);
+        var results = Person.where((Person p) -> p.startTime.getMinute() == 0).toList();
 
         assertThat(results)
                 .hasSize(3)
@@ -130,7 +130,7 @@ class TemporalTypesTest {
 
     @Test
     void localTimeGetSecond() {
-        var results = Person.findWhere((Person p) -> p.startTime.getSecond() == 0);
+        var results = Person.where((Person p) -> p.startTime.getSecond() == 0).toList();
 
         assertThat(results)
                 .hasSize(5)
@@ -140,11 +140,11 @@ class TemporalTypesTest {
     // Mixed temporal types
     @Test
     void mixedTemporalTypes() {
-        var results = Person.findWhere((Person p) ->
+        var results = Person.where((Person p) ->
                 p.birthDate.isAfter(LocalDate.of(1990, 1, 1)) &&
                 p.createdAt.isBefore(LocalDateTime.of(2024, 4, 1, 0, 0)) &&
                 p.startTime.isAfter(LocalTime.of(8, 0))
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -155,11 +155,11 @@ class TemporalTypesTest {
 
     @Test
     void localDateTimeWithComplexConditions() {
-        var results = Person.findWhere((Person p) ->
+        var results = Person.where((Person p) ->
                 p.createdAt != null &&
                 p.createdAt.isAfter(LocalDateTime.of(2024, 2, 1, 0, 0)) &&
                 p.age < 40
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -170,10 +170,10 @@ class TemporalTypesTest {
 
     @Test
     void localTimeWithOrConditions() {
-        var results = Person.findWhere((Person p) ->
+        var results = Person.where((Person p) ->
                 p.startTime.isBefore(LocalTime.of(9, 0)) ||
                 p.startTime.isAfter(LocalTime.of(9, 0))
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)

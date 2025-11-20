@@ -44,29 +44,38 @@ public class QusaqEntityOperationGenerationVisitor extends ClassVisitor {
     @Override
     public void visitEnd() {
         if (extendsQusaqEntity) {
-            generateFindWhereMethod();
-            generateCountWhereMethod();
-            generateExistsMethod();
+            // Generate new fluent API entry points (Iteration 3)
+            generateWhereMethod();
+            generateSelectMethod();
+            generateSortedByMethod();
+            generateSortedDescendingByMethod();
+            // Note: count() and findAll() are inherited from PanacheEntityBase
         }
 
         super.visitEnd();
     }
 
-    private void generateFindWhereMethod() {
-        var config = QusaqBytecodeGenerator.DelegationMethodConfig.forFindWhere(
-                entityType, entityInternalName, true);
-        QusaqBytecodeGenerator.generateDelegationMethod(cv, config);
+    private void generateWhereMethod() {
+        var config = QusaqBytecodeGenerator.FluentMethodConfig.forWhere(
+                entityType, entityInternalName);
+        QusaqBytecodeGenerator.generateFluentEntryPoint(cv, config);
     }
 
-    private void generateCountWhereMethod() {
-        var config = QusaqBytecodeGenerator.DelegationMethodConfig.forCountWhere(
-                entityType, entityInternalName, true);
-        QusaqBytecodeGenerator.generateDelegationMethod(cv, config);
+    private void generateSelectMethod() {
+        var config = QusaqBytecodeGenerator.FluentMethodConfig.forSelect(
+                entityType, entityInternalName);
+        QusaqBytecodeGenerator.generateFluentEntryPoint(cv, config);
     }
 
-    private void generateExistsMethod() {
-        var config = QusaqBytecodeGenerator.DelegationMethodConfig.forExists(
-                entityType, entityInternalName, true);
-        QusaqBytecodeGenerator.generateDelegationMethod(cv, config);
+    private void generateSortedByMethod() {
+        var config = QusaqBytecodeGenerator.FluentMethodConfig.forSortedBy(
+                entityType, entityInternalName);
+        QusaqBytecodeGenerator.generateFluentEntryPoint(cv, config);
+    }
+
+    private void generateSortedDescendingByMethod() {
+        var config = QusaqBytecodeGenerator.FluentMethodConfig.forSortedDescendingBy(
+                entityType, entityInternalName);
+        QusaqBytecodeGenerator.generateFluentEntryPoint(cv, config);
     }
 }

@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -162,7 +163,7 @@ class CapturedVariableCoverageTest {
         var methodCall = new LambdaExpression.MethodCall(
                 capturedVar,
                 "getValue",
-                java.util.List.of(),
+                List.of(),
                 Object.class);
         var instanceOf = new LambdaExpression.InstanceOf(methodCall, String.class);
 
@@ -314,7 +315,7 @@ class CapturedVariableCoverageTest {
         var methodCall = new LambdaExpression.MethodCall(
                 capturedVar3,
                 "toLowerCase",
-                java.util.List.of(),
+                List.of(),
                 String.class);
 
         assertThat(collectCapturedVariables(methodCall))

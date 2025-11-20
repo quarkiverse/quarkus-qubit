@@ -25,9 +25,9 @@ class ComplexExpressionsTest {
 
     @Test
     void nestedAndOrExpression() {
-        var results = Person.findWhere((Person p) ->
+        var results = Person.where((Person p) ->
                 (p.age > 25 && p.age < 35) || p.salary > 80000
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -37,9 +37,9 @@ class ComplexExpressionsTest {
 
     @Test
     void andWithNestedOr() {
-        var results = Person.findWhere((Person p) ->
+        var results = Person.where((Person p) ->
                 p.active && (p.age < 30 || p.salary > 80000)
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -49,9 +49,9 @@ class ComplexExpressionsTest {
 
     @Test
     void complexNestedOrAnd() {
-        var results = Person.findWhere((Person p) ->
+        var results = Person.where((Person p) ->
                 (p.age < 30 || p.age > 40) && (p.active || p.salary > 70000)
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -61,9 +61,9 @@ class ComplexExpressionsTest {
 
     @Test
     void tripleAndWithOr() {
-        var results = Person.findWhere((Person p) ->
+        var results = Person.where((Person p) ->
                 (p.age >= 25 && p.age <= 30 && p.active) || p.salary > 88000
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -73,10 +73,10 @@ class ComplexExpressionsTest {
 
     @Test
     void deeplyNestedMultipleOrGroups() {
-        var results = Person.findWhere((Person p) ->
+        var results = Person.where((Person p) ->
                 ((p.age > 25 && p.age < 40) || p.salary > 85000) &&
                 (p.active || p.firstName.startsWith("B"))
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -89,9 +89,9 @@ class ComplexExpressionsTest {
 
     @Test
     void arithmeticInOrGroups() {
-        var results = Person.findWhere((Person p) ->
+        var results = Person.where((Person p) ->
                 (p.age + 10 > 40) || (p.age * 2 < 60)
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -100,9 +100,9 @@ class ComplexExpressionsTest {
 
     @Test
     void complexArithmeticInOr() {
-        var results = Person.findWhere((Person p) ->
+        var results = Person.where((Person p) ->
                 (p.age * 2 - 10 > 50) || (p.age + 15 < 50)
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -111,19 +111,19 @@ class ComplexExpressionsTest {
 
     @Test
     void complexNestedConditions() {
-        var results = Person.findWhere((Person p) ->
+        var results = Person.where((Person p) ->
                 (p.firstName.equals("John") || p.firstName.equals("Jane")) &&
                 p.age >= 25 && p.active
-        );
+        ).toList();
 
         assertThat(results).hasSizeGreaterThan(0);
     }
 
     @Test
     void complexLogicalExpression() {
-        var results = Person.findWhere((Person p) ->
+        var results = Person.where((Person p) ->
                 (p.age > 25 && p.age < 35) || p.salary > 80000
-        );
+        ).toList();
 
         assertThat(results).hasSizeGreaterThan(0);
     }

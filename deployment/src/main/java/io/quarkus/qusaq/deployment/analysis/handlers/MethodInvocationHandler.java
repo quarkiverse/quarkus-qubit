@@ -486,9 +486,10 @@ public class MethodInvocationHandler implements InstructionHandler {
 
     /**
      * Pushes a constructor call expression onto the stack.
+     * Creates a ConstructorCall for DTO projections.
      */
     private void pushConstructorCall(AnalysisContext ctx, List<LambdaExpression> args, String owner) {
         Class<?> constructedType = TypeConverter.descriptorToClass("L" + owner + ";");
-        ctx.push(new LambdaExpression.MethodCall(null, CONSTRUCTOR, args, constructedType));
+        ctx.push(new LambdaExpression.ConstructorCall(owner, args, constructedType));
     }
 }

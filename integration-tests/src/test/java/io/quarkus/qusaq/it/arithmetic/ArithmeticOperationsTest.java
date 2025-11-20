@@ -26,7 +26,7 @@ class ArithmeticOperationsTest {
     // Integer arithmetic
     @Test
     void integerAddition() {
-        var results = Person.findWhere((Person p) -> p.age + 5 > 35);
+        var results = Person.where((Person p) -> p.age + 5 > 35).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -35,7 +35,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void integerSubtraction() {
-        var results = Person.findWhere((Person p) -> p.age - 5 > 20);
+        var results = Person.where((Person p) -> p.age - 5 > 20).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -44,7 +44,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void integerMultiplication() {
-        var results = Person.findWhere((Person p) -> p.age * 2 > 60);
+        var results = Person.where((Person p) -> p.age * 2 > 60).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -53,7 +53,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void integerDivision() {
-        var results = Person.findWhere((Person p) -> p.age / 2 > 15);
+        var results = Person.where((Person p) -> p.age / 2 > 15).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -62,7 +62,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void integerModulo() {
-        var results = Person.findWhere((Person p) -> p.age % 10 == 0);
+        var results = Person.where((Person p) -> p.age % 10 == 0).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -72,7 +72,7 @@ class ArithmeticOperationsTest {
     // Long arithmetic
     @Test
     void longAddition() {
-        var results = Person.findWhere((Person p) -> p.employeeId + 10L > 1000010L);
+        var results = Person.where((Person p) -> p.employeeId + 10L > 1000010L).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -81,7 +81,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void longSubtraction() {
-        var results = Person.findWhere((Person p) -> p.employeeId - 10L < 1000000L);
+        var results = Person.where((Person p) -> p.employeeId - 10L < 1000000L).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -90,7 +90,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void longMultiplication() {
-        var results = Person.findWhere((Person p) -> p.employeeId * 2L > 2000000L);
+        var results = Person.where((Person p) -> p.employeeId * 2L > 2000000L).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -99,7 +99,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void longDivision() {
-        var results = Person.findWhere((Person p) -> p.employeeId / 2L < 500002L);
+        var results = Person.where((Person p) -> p.employeeId / 2L < 500002L).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -108,7 +108,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void longModulo() {
-        var results = Person.findWhere((Person p) -> p.employeeId % 2L == 1L);
+        var results = Person.where((Person p) -> p.employeeId % 2L == 1L).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -118,7 +118,7 @@ class ArithmeticOperationsTest {
     // Float arithmetic
     @Test
     void floatAddition() {
-        var results = Person.findWhere((Person p) -> p.height + 0.10f > 1.85f);
+        var results = Person.where((Person p) -> p.height + 0.10f > 1.85f).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -127,7 +127,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void floatSubtraction() {
-        var results = Person.findWhere((Person p) -> p.height - 0.05f < 1.70f);
+        var results = Person.where((Person p) -> p.height - 0.05f < 1.70f).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -136,7 +136,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void floatMultiplication() {
-        var results = Person.findWhere((Person p) -> p.height * 2.0f > 3.5f);
+        var results = Person.where((Person p) -> p.height * 2.0f > 3.5f).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -145,7 +145,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void floatDivision() {
-        var results = Person.findWhere((Person p) -> p.height / 2.0f < 0.85f);
+        var results = Person.where((Person p) -> p.height / 2.0f < 0.85f).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -155,7 +155,7 @@ class ArithmeticOperationsTest {
     // Double arithmetic
     @Test
     void doubleAddition() {
-        var results = Person.findWhere((Person p) -> p.salary + 5000.0 > 80000.0);
+        var results = Person.where((Person p) -> p.salary + 5000.0 > 80000.0).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -164,7 +164,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void doubleSubtraction() {
-        var results = Person.findWhere((Person p) -> p.salary - 10000.0 < 70000.0);
+        var results = Person.where((Person p) -> p.salary - 10000.0 < 70000.0).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -173,7 +173,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void doubleMultiplication() {
-        var results = Person.findWhere((Person p) -> p.salary * 1.1 > 80000.0);
+        var results = Person.where((Person p) -> p.salary * 1.1 > 80000.0).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -182,7 +182,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void doubleDivision() {
-        var results = Person.findWhere((Person p) -> p.salary / 1000.0 > 75.0);
+        var results = Person.where((Person p) -> p.salary / 1000.0 > 75.0).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -192,9 +192,9 @@ class ArithmeticOperationsTest {
     // Field-field arithmetic expressions
     @Test
     void longFieldFieldAddition() {
-        var results = Person.findWhere((Person p) ->
+        var results = Person.where((Person p) ->
                 p.employeeId + p.employeeId > 2000000L
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -203,9 +203,9 @@ class ArithmeticOperationsTest {
 
     @Test
     void longFieldFieldSubtraction() {
-        var results = Person.findWhere((Person p) ->
+        var results = Person.where((Person p) ->
                 p.employeeId - p.employeeId == 0L
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -214,9 +214,9 @@ class ArithmeticOperationsTest {
 
     @Test
     void longFieldFieldMultiplication() {
-        var results = Person.findWhere((Person p) ->
+        var results = Person.where((Person p) ->
                 p.employeeId * p.employeeId > 1000000000000L
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -225,9 +225,9 @@ class ArithmeticOperationsTest {
 
     @Test
     void longFieldFieldDivision() {
-        var results = Person.findWhere((Person p) ->
+        var results = Person.where((Person p) ->
                 p.employeeId / p.employeeId == 1L
-        );
+        ).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -236,7 +236,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void floatFieldFieldAddition() {
-        var results = Person.findWhere((Person p) -> p.height + p.height > 3.0f);
+        var results = Person.where((Person p) -> p.height + p.height > 3.0f).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -245,7 +245,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void floatFieldFieldSubtraction() {
-        var results = Person.findWhere((Person p) -> p.height - p.height == 0.0f);
+        var results = Person.where((Person p) -> p.height - p.height == 0.0f).toList();
 
         assertThat(results)
                 .hasSize(6)
@@ -254,7 +254,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void floatFieldFieldMultiplication() {
-        var results = Person.findWhere((Person p) -> p.height * p.height > 2.0f);
+        var results = Person.where((Person p) -> p.height * p.height > 2.0f).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -263,7 +263,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void floatFieldFieldDivision() {
-        var results = Person.findWhere((Person p) -> p.height / p.height == 1.0f);
+        var results = Person.where((Person p) -> p.height / p.height == 1.0f).toList();
 
         assertThat(results)
                 .hasSize(6)
@@ -272,7 +272,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void doubleFieldFieldAddition() {
-        var results = Person.findWhere((Person p) -> p.salary + p.salary > 170000.0);
+        var results = Person.where((Person p) -> p.salary + p.salary > 170000.0).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -281,7 +281,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void doubleFieldFieldSubtraction() {
-        var results = Person.findWhere((Person p) -> p.salary - p.salary == 0.0);
+        var results = Person.where((Person p) -> p.salary - p.salary == 0.0).toList();
 
         assertThat(results)
                 .hasSize(6)
@@ -290,7 +290,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void doubleFieldFieldMultiplication() {
-        var results = Person.findWhere((Person p) -> p.salary * p.salary > 8000000000.0);
+        var results = Person.where((Person p) -> p.salary * p.salary > 8000000000.0).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -299,7 +299,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void doubleFieldFieldDivision() {
-        var results = Person.findWhere((Person p) -> p.salary / p.salary == 1.0);
+        var results = Person.where((Person p) -> p.salary / p.salary == 1.0).toList();
 
         assertThat(results)
                 .hasSize(6)
@@ -309,7 +309,7 @@ class ArithmeticOperationsTest {
     // Type conversion tests (wrapper types with int constants)
     @Test
     void longWrapperWithIntConstant() {
-        var results = Person.findWhere((Person p) -> p.employeeId + 5 == 1000006L);
+        var results = Person.where((Person p) -> p.employeeId + 5 == 1000006L).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -318,7 +318,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void doubleWrapperWithIntConstant() {
-        var results = Person.findWhere((Person p) -> p.salary + 1000 == 76000.0);
+        var results = Person.where((Person p) -> p.salary + 1000 == 76000.0).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -327,7 +327,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void longWrapperSubtractionWithIntConstant() {
-        var results = Person.findWhere((Person p) -> p.employeeId - 3 == 999999L);
+        var results = Person.where((Person p) -> p.employeeId - 3 == 999999L).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -336,7 +336,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void doubleWrapperMultiplicationWithIntConstant() {
-        var results = Person.findWhere((Person p) -> p.salary * 2 == 180000.0);
+        var results = Person.where((Person p) -> p.salary * 2 == 180000.0).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -345,7 +345,7 @@ class ArithmeticOperationsTest {
 
     @Test
     void floatWrapperComparisonWithIntConstant() {
-        var results = Person.findWhere((Person p) -> p.height > 1);
+        var results = Person.where((Person p) -> p.height > 1).toList();
 
         assertThat(results)
                 .hasSize(6)

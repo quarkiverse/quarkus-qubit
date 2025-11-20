@@ -1,8 +1,5 @@
 package io.quarkus.qusaq.deployment;
 
-import org.jboss.jandex.ClassInfo;
-import org.jboss.jandex.DotName;
-import org.jboss.jandex.IndexView;
 import org.jboss.logging.Logger;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Handle;
@@ -17,41 +14,86 @@ import org.objectweb.asm.tree.MethodNode;
 import java.util.ArrayList;
 import java.util.List;
 
-import static io.quarkus.qusaq.runtime.QusaqConstants.COUNT_QUERY_METHOD_NAMES;
-import static io.quarkus.qusaq.runtime.QusaqConstants.QUERY_METHOD_NAMES;
-import static io.quarkus.qusaq.runtime.QusaqConstants.QUERY_SPEC_DESCRIPTOR;
-import static io.quarkus.qusaq.runtime.QusaqConstants.QUSAQ_ENTITY_CLASS_NAME;
-import static io.quarkus.qusaq.runtime.QusaqConstants.QUSAQ_REPOSITORY_CLASS_NAME;
+import static io.quarkus.qusaq.runtime.QusaqConstants.*;
 
 /**
  * Scans bytecode for invokedynamic instructions creating QuerySpec lambdas.
- * Discovery only - does not analyze lambda contents.
+ * Detects fluent API terminal operations.
  */
 public class InvokeDynamicScanner {
 
     private static final Logger log = Logger.getLogger(InvokeDynamicScanner.class);
-    private final IndexView index;
-
-    public InvokeDynamicScanner(IndexView index) {
-        this.index = index;
-    }
 
     /**
-     * Discovered lambda call site.
+     * Pair of lambda method name and descriptor.
+     */
+    public record LambdaPair(String methodName, String descriptor) {}
+
+    /**
+     * Discovered lambda call site for fluent API terminal operations.
+     * Phase 2.2: Enhanced to track both predicate and projection lambdas for combined queries.
+     * Phase 2.5: Enhanced to support multiple where() predicates.
      */
     public record LambdaCallSite(
             String ownerClassName,
             String methodName,
-            String lambdaMethodName,
-            String lambdaMethodDescriptor,
+            String lambdaMethodName,           // Primary lambda (for backward compatibility)
+            String lambdaMethodDescriptor,     // Primary lambda descriptor
+            String fluentMethodName,           // Primary fluent method (for backward compatibility)
             String targetMethodName,
-            int lineNumber) {
+            int lineNumber,
+            int terminalInsnIndex,
+            String predicateLambdaMethodName,      // WHERE lambda (null if no where clause) - DEPRECATED
+            String predicateLambdaMethodDescriptor, // WHERE lambda descriptor - DEPRECATED
+            String projectionLambdaMethodName,     // SELECT lambda (null if no select clause)
+            String projectionLambdaMethodDescriptor, // SELECT lambda descriptor
+            List<LambdaPair> predicateLambdas) {   // Phase 2.5: ALL WHERE lambdas for multiple where() support
 
         /**
          * Returns true if this is a count query.
+         * Both count() and exists() are count queries since exists() delegates to count().
          */
         public boolean isCountQuery() {
-            return COUNT_QUERY_METHOD_NAMES.contains(targetMethodName);
+            return METHOD_COUNT.equals(targetMethodName) || METHOD_EXISTS.equals(targetMethodName);
+        }
+
+        /**
+         * Returns true if this is a projection query (select).
+         * Phase 2.2: Checks if projection lambda is present.
+         */
+        public boolean isProjectionQuery() {
+            // Phase 2.2: Check if projection lambda is present
+            if (projectionLambdaMethodName != null) {
+                return true;
+            }
+
+            // Phase 2.1 backward compatibility: Check fluent method name
+            if (METHOD_SELECT.equals(fluentMethodName)) {
+                return true;
+            }
+
+            if (METHOD_WHERE.equals(fluentMethodName)) {
+                return false;
+            }
+
+            // Fallback: Use descriptor heuristic
+            boolean returnsBoolean = lambdaMethodDescriptor.endsWith(")Z") ||
+                                    lambdaMethodDescriptor.endsWith(")Ljava/lang/Boolean;");
+
+            if (returnsBoolean) {
+                return false;
+            }
+
+            log.warnf("Treating as projection (non-boolean): descriptor=%s, fluent=%s", lambdaMethodDescriptor, fluentMethodName);
+            return true;
+        }
+
+        /**
+         * Returns true if this call site has both a where() predicate and a select() projection.
+         * This indicates a Phase 2.2 combined query.
+         */
+        public boolean isCombinedQuery() {
+            return predicateLambdaMethodName != null && projectionLambdaMethodName != null;
         }
 
         /**
@@ -63,8 +105,13 @@ public class InvokeDynamicScanner {
 
         @Override
         public String toString() {
-            return String.format("LambdaCallSite{%s.%s line %d, lambda=%s, target=%s}",
-                    ownerClassName, methodName, lineNumber, lambdaMethodName, targetMethodName);
+            if (isCombinedQuery()) {
+                return String.format("LambdaCallSite{%s.%s line %d, where=%s, select=%s, target=%s}",
+                        ownerClassName, methodName, lineNumber,
+                        predicateLambdaMethodName, projectionLambdaMethodName, targetMethodName);
+            }
+            return String.format("LambdaCallSite{%s.%s line %d, lambda=%s, fluent=%s, target=%s}",
+                    ownerClassName, methodName, lineNumber, lambdaMethodName, fluentMethodName, targetMethodName);
         }
     }
 
@@ -89,46 +136,135 @@ public class InvokeDynamicScanner {
         return callSites;
     }
 
+    /**
+     * Tracked lambda in the pipeline.
+     */
+    private record PendingLambda(String methodName, String descriptor, String fluentMethod) {}
+
+    /**
+     * Grouped lambda information for building call sites.
+     */
+    private record LambdaInfo(
+        String primaryLambdaMethod,
+        String primaryLambdaDescriptor,
+        String primaryFluentMethod,
+        String firstWhereLambdaMethod,
+        String firstWhereLambdaDescriptor,
+        String selectLambdaMethod,
+        String selectLambdaDescriptor,
+        List<LambdaPair> whereLambdas
+    ) {}
+
     private void scanMethod(ClassNode classNode, MethodNode method, List<LambdaCallSite> callSites) {
         InsnList instructions = method.instructions;
+        List<PendingLambda> pendingLambdas = new ArrayList<>();
         int currentLine = -1;
-        String pendingLambdaMethod = null;
-        String pendingLambdaDescriptor = null;
 
         for (int i = 0; i < instructions.size(); i++) {
             AbstractInsnNode insn = instructions.get(i);
 
-            if (insn instanceof LineNumberNode lineNumberNode) {
-                currentLine = lineNumberNode.line;
-            }
+            currentLine = updateLineNumber(insn, currentLine);
+            detectAndAddLambda(insn, instructions, i, pendingLambdas);
 
-            if (insn instanceof InvokeDynamicInsnNode invokeDynamic && isQuerySpecLambda(invokeDynamic)) {
-                Handle lambdaHandle = extractLambdaHandle(invokeDynamic);
-                if (lambdaHandle != null) {
-                    pendingLambdaMethod = lambdaHandle.getName();
-                    pendingLambdaDescriptor = lambdaHandle.getDesc();
-                }
-            }
-
-            if (insn instanceof MethodInsnNode methodCall && isQusaqEntityCall(methodCall) && pendingLambdaMethod != null) {
-                String targetMethod = methodCall.name;
-
-                LambdaCallSite callSite = new LambdaCallSite(
-                        classNode.name.replace('/', '.'),
-                        method.name,
-                        pendingLambdaMethod,
-                        pendingLambdaDescriptor,
-                        targetMethod,
-                        currentLine
-                );
-
+            if (isTerminalOperation(insn, pendingLambdas)) {
+                LambdaCallSite callSite = createCallSite(classNode, method, (MethodInsnNode) insn,
+                                                          pendingLambdas, currentLine, i);
                 callSites.add(callSite);
-                log.debugf("Found lambda call site: %s", callSite);
-
-                pendingLambdaMethod = null;
-                pendingLambdaDescriptor = null;
+                log.debugf("Found fluent API terminal operation: %s", callSite);
+                pendingLambdas.clear();
             }
         }
+    }
+
+    private int updateLineNumber(AbstractInsnNode insn, int currentLine) {
+        return (insn instanceof LineNumberNode lineNode) ? lineNode.line : currentLine;
+    }
+
+    private void detectAndAddLambda(AbstractInsnNode insn, InsnList instructions, int index,
+                                     List<PendingLambda> pendingLambdas) {
+        if (insn instanceof InvokeDynamicInsnNode invokeDynamic && isQuerySpecLambda(invokeDynamic)) {
+            Handle handle = extractLambdaHandle(invokeDynamic);
+            if (handle != null) {
+                String fluentMethod = findFluentMethodForward(instructions, index);
+                pendingLambdas.add(new PendingLambda(handle.getName(), handle.getDesc(), fluentMethod));
+            }
+        }
+    }
+
+    private boolean isTerminalOperation(AbstractInsnNode insn, List<PendingLambda> pendingLambdas) {
+        return insn instanceof MethodInsnNode methodCall
+            && !pendingLambdas.isEmpty()
+            && isQusaqStreamTerminalCall(methodCall);
+    }
+
+    private LambdaCallSite createCallSite(ClassNode classNode, MethodNode method, MethodInsnNode methodCall,
+                                          List<PendingLambda> pendingLambdas, int lineNumber, int insnIndex) {
+        LambdaInfo info = extractLambdaInfo(pendingLambdas);
+        return new LambdaCallSite(
+            classNode.name.replace('/', '.'),
+            method.name,
+            info.primaryLambdaMethod,
+            info.primaryLambdaDescriptor,
+            info.primaryFluentMethod,
+            methodCall.name,
+            lineNumber,
+            insnIndex,
+            info.firstWhereLambdaMethod,
+            info.firstWhereLambdaDescriptor,
+            info.selectLambdaMethod,
+            info.selectLambdaDescriptor,
+            info.whereLambdas
+        );
+    }
+
+    private LambdaInfo extractLambdaInfo(List<PendingLambda> pendingLambdas) {
+        List<LambdaPair> whereLambdas = new ArrayList<>();
+        String firstWhereMethod = null;
+        String firstWhereDescriptor = null;
+        String selectMethod = null;
+        String selectDescriptor = null;
+
+        for (PendingLambda lambda : pendingLambdas) {
+            if (METHOD_WHERE.equals(lambda.fluentMethod)) {
+                whereLambdas.add(new LambdaPair(lambda.methodName, lambda.descriptor));
+                if (firstWhereMethod == null) {
+                    firstWhereMethod = lambda.methodName;
+                    firstWhereDescriptor = lambda.descriptor;
+                }
+            } else if (METHOD_SELECT.equals(lambda.fluentMethod)) {
+                selectMethod = lambda.methodName;
+                selectDescriptor = lambda.descriptor;
+            }
+        }
+
+        PendingLambda first = pendingLambdas.isEmpty() ? null : pendingLambdas.get(0);
+        return new LambdaInfo(
+            first != null ? first.methodName : null,
+            first != null ? first.descriptor : null,
+            first != null && first.fluentMethod != null ? first.fluentMethod : METHOD_WHERE,
+            firstWhereMethod,
+            firstWhereDescriptor,
+            selectMethod,
+            selectDescriptor,
+            whereLambdas.isEmpty() ? null : whereLambdas
+        );
+    }
+
+    /**
+     * Looks forward from invokedynamic to find the fluent method call (where/select).
+     */
+    private String findFluentMethodForward(InsnList instructions, int startIndex) {
+        // Look ahead a few instructions to find where/select call
+        for (int j = startIndex + 1; j < Math.min(startIndex + 5, instructions.size()); j++) {
+            AbstractInsnNode nextInsn = instructions.get(j);
+            if (nextInsn instanceof MethodInsnNode methodCall) {
+                String methodName = methodCall.name;
+                if (FLUENT_ENTRY_POINT_METHODS.contains(methodName) || FLUENT_INTERMEDIATE_METHODS.contains(methodName)) {
+                    return methodName;
+                }
+            }
+        }
+        return null;
     }
 
     private boolean isQuerySpecLambda(InvokeDynamicInsnNode invokeDynamic) {
@@ -146,66 +282,19 @@ public class InvokeDynamicScanner {
         return null;
     }
 
-    private boolean isQusaqEntityCall(MethodInsnNode methodCall) {
-        String owner = methodCall.owner.replace('/', '.');
+    /**
+     * Checks if method call is a terminal operation on QusaqStream.
+     */
+    private boolean isQusaqStreamTerminalCall(MethodInsnNode methodCall) {
         String name = methodCall.name;
 
-        if (!QUERY_METHOD_NAMES.contains(name)) {
+        // Check if it's a terminal method name
+        if (!FLUENT_TERMINAL_METHODS.contains(name)) {
             return false;
         }
 
-        if (QUSAQ_ENTITY_CLASS_NAME.equals(owner)) {
-            return true;
-        }
-
-        if (implementsQusaqRepository(owner)) {
-            return true;
-        }
-
-        return implementsQusaqEntity(owner);
-    }
-
-    private boolean implementsQusaqRepository(String className) {
-        DotName qusaqRepositoryName = DotName.createSimple(QUSAQ_REPOSITORY_CLASS_NAME);
-        DotName classNameDot = DotName.createSimple(className);
-
-        ClassInfo classInfo = index.getClassByName(classNameDot);
-        if (classInfo == null) {
-            return false;
-        }
-
-        for (org.jboss.jandex.Type interfaceType : classInfo.interfaceTypes()) {
-            if (interfaceType.name().equals(qusaqRepositoryName)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private boolean implementsQusaqEntity(String className) {
-        DotName qusaqEntityName = DotName.createSimple(QUSAQ_ENTITY_CLASS_NAME);
-        DotName classNameDot = DotName.createSimple(className);
-
-        ClassInfo classInfo = index.getClassByName(classNameDot);
-        if (classInfo == null) {
-            return false;
-        }
-
-        ClassInfo currentClass = classInfo;
-        while (currentClass != null) {
-            if (currentClass.superName() != null && currentClass.superName().equals(qusaqEntityName)) {
-                return true;
-            }
-
-            if (currentClass.superName() != null) {
-                currentClass = index.getClassByName(currentClass.superName());
-            } else {
-                break;
-            }
-        }
-
-        return false;
+        // Check if owner is QusaqStream interface
+        return QUSAQ_STREAM_INTERNAL_NAME.equals(methodCall.owner);
     }
 
 }
