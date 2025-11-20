@@ -65,10 +65,22 @@ public class QueryExecutorRegistry {
         QueryExecutor<List<?>> executor = LIST_EXECUTORS.get(callSiteId);
 
         if (executor == null) {
-            throw new IllegalStateException(
-                    "No executor found for call site: " + callSiteId +
-                    ". This lambda may not have been analyzed at build time. " +
-                    "Ensure the lambda is in application code (not test code) and rebuild.");
+            throw new IllegalStateException(String.format(
+                    "No query executor found for call site: %s%n" +
+                    "%n" +
+                    "Possible causes:%n" +
+                    "  1. Lambda expression was not analyzed during build-time processing%n" +
+                    "  2. Lambda is in test code (only application code is analyzed)%n" +
+                    "  3. Incremental compilation didn't detect changes%n" +
+                    "%n" +
+                    "Solutions:%n" +
+                    "  - Run a clean build: 'mvn clean compile' or 'gradle clean build'%n" +
+                    "  - Check build logs for 'QusaqProcessor' messages%n" +
+                    "  - Verify lambda is in src/main/java (not src/test/java)%n" +
+                    "  - Ensure query is reachable from application code%n" +
+                    "%n" +
+                    "Registered executors: %d list, %d count",
+                    callSiteId, getListExecutorCount(), getCountExecutorCount()));
         }
 
         if (entityManager == null) {
@@ -88,10 +100,22 @@ public class QueryExecutorRegistry {
         QueryExecutor<Long> executor = COUNT_EXECUTORS.get(callSiteId);
 
         if (executor == null) {
-            throw new IllegalStateException(
-                    "No executor found for call site: " + callSiteId +
-                    ". This lambda may not have been analyzed at build time. " +
-                    "Ensure the lambda is in application code (not test code) and rebuild.");
+            throw new IllegalStateException(String.format(
+                    "No query executor found for call site: %s%n" +
+                    "%n" +
+                    "Possible causes:%n" +
+                    "  1. Lambda expression was not analyzed during build-time processing%n" +
+                    "  2. Lambda is in test code (only application code is analyzed)%n" +
+                    "  3. Incremental compilation didn't detect changes%n" +
+                    "%n" +
+                    "Solutions:%n" +
+                    "  - Run a clean build: 'mvn clean compile' or 'gradle clean build'%n" +
+                    "  - Check build logs for 'QusaqProcessor' messages%n" +
+                    "  - Verify lambda is in src/main/java (not src/test/java)%n" +
+                    "  - Ensure query is reachable from application code%n" +
+                    "%n" +
+                    "Registered executors: %d list, %d count",
+                    callSiteId, getListExecutorCount(), getCountExecutorCount()));
         }
 
         if (entityManager == null) {

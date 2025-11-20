@@ -11,33 +11,73 @@ import java.time.LocalTime;
 /**
  * Centralized factory for creating test data across integration tests.
  * Provides consistent test datasets with methods for common scenarios.
+ * <p>
+ * Uses builder pattern internally to reduce duplication and improve maintainability.
+ * Each named person (John, Jane, etc.) is defined once and reused across factory methods.
  */
 public class TestDataFactory {
+
+    // ========== Person Builders (Private) ==========
+
+    private static Person createJohnDoe() {
+        return new Person("John", "Doe", "john.doe@example.com", 30,
+                LocalDate.of(1993, 5, 15), true, 75000.0, 1000001L, 1.75f,
+                LocalDateTime.of(2024, 1, 15, 9, 30), LocalTime.of(9, 0));
+    }
+
+    private static Person createJaneSmith() {
+        return new Person("Jane", "Smith", "jane.smith@example.com", 25,
+                LocalDate.of(1998, 8, 22), true, 65000.0, 1000002L, 1.68f,
+                LocalDateTime.of(2024, 2, 20, 14, 45), LocalTime.of(8, 30));
+    }
+
+    private static Person createBobJohnson() {
+        return new Person("Bob", "Johnson", "bob.johnson@example.com", 45,
+                LocalDate.of(1978, 3, 10), false, 85000.0, 1000003L, 1.82f,
+                LocalDateTime.of(2024, 3, 10, 8, 0), LocalTime.of(10, 0));
+    }
+
+    private static Person createAliceWilliams() {
+        return new Person("Alice", "Williams", "alice.williams@example.com", 35,
+                LocalDate.of(1988, 11, 5), true, 90000.0, 1000004L, 1.65f,
+                LocalDateTime.of(2024, 4, 5, 16, 20), LocalTime.of(8, 0));
+    }
+
+    private static Person createCharlieBrown() {
+        return new Person("Charlie", "Brown", "charlie.brown@example.com", 28,
+                LocalDate.of(1995, 7, 18), true, 55000.0, 1000005L, 1.78f,
+                LocalDateTime.of(2024, 5, 12, 10, 15), LocalTime.of(9, 30));
+    }
+
+    private static Person createDavidMiller() {
+        return new Person("David", "Miller", "david.miller@example.com", 40,
+                LocalDate.of(1984, 6, 20), true, 95000.0, 1000006L, 1.80f,
+                LocalDateTime.of(2024, 6, 1, 11, 0), LocalTime.of(9, 15));
+    }
+
+    private static Person createDavidMillerWithSpaces() {
+        return new Person("David", "Miller", " david.miller@example.com ", 40,
+                LocalDate.of(1984, 6, 20), true, 95000.0, 1000006L, 1.80f,
+                LocalDateTime.of(2024, 6, 1, 11, 0), LocalTime.of(9, 15));
+    }
+
+    private static Person createEveWilsonWithNulls() {
+        return new Person("Eve", "Wilson", "", 50,
+                null, false, null, null, null, null, null);
+    }
+
+    // ========== Public Factory Methods ==========
 
     /**
      * Creates and persists the standard set of 5 Person entities.
      * This is the most common dataset used across tests.
      */
     public static void createStandardPersons() {
-        new Person("John", "Doe", "john.doe@example.com", 30,
-                LocalDate.of(1993, 5, 15), true, 75000.0, 1000001L, 1.75f,
-                LocalDateTime.of(2024, 1, 15, 9, 30), LocalTime.of(9, 0)).persist();
-
-        new Person("Jane", "Smith", "jane.smith@example.com", 25,
-                LocalDate.of(1998, 8, 22), true, 65000.0, 1000002L, 1.68f,
-                LocalDateTime.of(2024, 2, 20, 14, 45), LocalTime.of(8, 30)).persist();
-
-        new Person("Bob", "Johnson", "bob.johnson@example.com", 45,
-                LocalDate.of(1978, 3, 10), false, 85000.0, 1000003L, 1.82f,
-                LocalDateTime.of(2024, 3, 10, 8, 0), LocalTime.of(10, 0)).persist();
-
-        new Person("Alice", "Williams", "alice.williams@example.com", 35,
-                LocalDate.of(1988, 11, 5), true, 90000.0, 1000004L, 1.65f,
-                LocalDateTime.of(2024, 4, 5, 16, 20), LocalTime.of(8, 0)).persist();
-
-        new Person("Charlie", "Brown", "charlie.brown@example.com", 28,
-                LocalDate.of(1995, 7, 18), true, 55000.0, 1000005L, 1.78f,
-                LocalDateTime.of(2024, 5, 12, 10, 15), LocalTime.of(9, 30)).persist();
+        createJohnDoe().persist();
+        createJaneSmith().persist();
+        createBobJohnson().persist();
+        createAliceWilliams().persist();
+        createCharlieBrown().persist();
     }
 
     /**
@@ -46,10 +86,7 @@ public class TestDataFactory {
      */
     public static void createAdditionalPersons() {
         createStandardPersons();
-
-        new Person("David", "Miller", "david.miller@example.com", 40,
-                LocalDate.of(1984, 6, 20), true, 95000.0, 1000006L, 1.80f,
-                LocalDateTime.of(2024, 6, 1, 11, 0), LocalTime.of(9, 15)).persist();
+        createDavidMiller().persist();
     }
 
     /**
@@ -57,17 +94,9 @@ public class TestDataFactory {
      * Includes standard persons plus Eve with null values.
      */
     public static void createPersonsForNullChecks() {
-        new Person("John", "Doe", "john.doe@example.com", 30,
-                LocalDate.of(1993, 5, 15), true, 75000.0, 1000001L, 1.75f,
-                LocalDateTime.of(2024, 1, 15, 9, 30), LocalTime.of(9, 0)).persist();
-
-        new Person("Jane", "Smith", "jane.smith@example.com", 25,
-                LocalDate.of(1998, 8, 22), true, 65000.0, 1000002L, 1.68f,
-                LocalDateTime.of(2024, 2, 20, 14, 45), LocalTime.of(8, 30)).persist();
-
-        // Person with null values for testing null safety
-        new Person("Eve", "Wilson", "", 50,
-                null, false, null, null, null, null, null).persist();
+        createJohnDoe().persist();
+        createJaneSmith().persist();
+        createEveWilsonWithNulls().persist();
     }
 
     /**
@@ -76,13 +105,8 @@ public class TestDataFactory {
      */
     public static void createPersonsForStringTests() {
         createStandardPersons();
-
-        new Person("David", "Miller", " david.miller@example.com ", 40,
-                LocalDate.of(1984, 6, 20), true, 95000.0, 1000006L, 1.80f,
-                LocalDateTime.of(2024, 6, 1, 11, 0), LocalTime.of(9, 15)).persist();
-
-        new Person("Eve", "Wilson", "", 50,
-                null, false, null, null, null, null, null).persist();
+        createDavidMillerWithSpaces().persist();
+        createEveWilsonWithNulls().persist();
     }
 
     /**
@@ -109,17 +133,9 @@ public class TestDataFactory {
      * Creates and persists a subset of persons (3) for simpler tests.
      */
     public static void createMinimalPersons() {
-        new Person("John", "Doe", "john.doe@example.com", 30,
-                LocalDate.of(1993, 5, 15), true, 75000.0, 1000001L, 1.75f,
-                LocalDateTime.of(2024, 1, 15, 9, 30), LocalTime.of(9, 0)).persist();
-
-        new Person("Jane", "Smith", "jane.smith@example.com", 25,
-                LocalDate.of(1998, 8, 22), true, 65000.0, 1000002L, 1.68f,
-                LocalDateTime.of(2024, 2, 20, 14, 45), LocalTime.of(8, 30)).persist();
-
-        new Person("Bob", "Johnson", "bob.johnson@example.com", 45,
-                LocalDate.of(1978, 3, 10), false, 85000.0, 1000003L, 1.82f,
-                LocalDateTime.of(2024, 3, 10, 8, 0), LocalTime.of(10, 0)).persist();
+        createJohnDoe().persist();
+        createJaneSmith().persist();
+        createBobJohnson().persist();
     }
 
     /**
