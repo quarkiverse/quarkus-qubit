@@ -6,7 +6,6 @@ import io.quarkus.qusaq.runtime.QusaqStream;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -120,13 +119,15 @@ class BasicQueryTest {
     // DISABLED TESTS - Will be enabled in future phases
     // =============================================================================================
 
-    @Disabled("Phase 4: distinct() not yet implemented")
     @Test
+    @Transactional
     void distinct_removeDuplicates() {
         List<String> unique = Person.select((Person p) -> p.lastName)
                 .distinct()
                 .toList();
 
-        assertThat(unique).isNotEmpty();
+        assertThat(unique)
+                .isNotEmpty()
+                .doesNotHaveDuplicates();
     }
 }

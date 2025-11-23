@@ -60,6 +60,10 @@ public class QueryExecutorClassGenerator {
     private static final MethodDescriptor TQ_SET_MAX_RESULTS = md(TypedQuery.class, "setMaxResults",
             TypedQuery.class, int.class);
 
+    // Method descriptor for DISTINCT
+    private static final MethodDescriptor CQ_DISTINCT = md(CriteriaQuery.class, "distinct",
+            CriteriaQuery.class, boolean.class);
+
     /**
      * Common context for query generation methods.
      * Encapsulates parameters shared across all query generation methods.
@@ -71,6 +75,7 @@ public class QueryExecutorClassGenerator {
      * @param capturedValues Lambda captured variables
      * @param offset OFFSET value for pagination (null if none)
      * @param limit LIMIT value for pagination (null if none)
+     * @param distinct DISTINCT flag (null or false for no distinct)
      */
     private record QueryGenContext(
         MethodCreator method,
@@ -79,7 +84,8 @@ public class QueryExecutorClassGenerator {
         List<?> sortExpressions,
         ResultHandle capturedValues,
         ResultHandle offset,
-        ResultHandle limit
+        ResultHandle limit,
+        ResultHandle distinct
     ) {}
 
     /**
@@ -122,24 +128,25 @@ public class QueryExecutorClassGenerator {
                 constructor.returnValue(null);
             }
 
-            // Phase 4: Updated execute method signature to include offset and limit parameters
+            // Phase 4: Updated execute method signature to include offset, limit, and distinct parameters
             try (MethodCreator execute = classCreator.getMethodCreator(
                     QE_EXECUTE, Object.class, EntityManager.class, Class.class, Object[].class,
-                    Integer.class, Integer.class)) {
+                    Integer.class, Integer.class, Boolean.class)) {
 
                 ResultHandle em = execute.getMethodParam(0);
                 ResultHandle entityClassParam = execute.getMethodParam(1);
                 ResultHandle capturedValues = execute.getMethodParam(2);
                 ResultHandle offset = execute.getMethodParam(3);
                 ResultHandle limit = execute.getMethodParam(4);
+                ResultHandle distinct = execute.getMethodParam(5);
 
                 ResultHandle result;
                 if (isCountQuery) {
-                    // Count queries ignore pagination parameters
+                    // Count queries ignore pagination and distinct parameters
                     result = generateCountQueryBody(execute, em, entityClassParam, predicateExpression, capturedValues);
                 } else {
                     QueryGenContext ctx = new QueryGenContext(execute, em, entityClassParam,
-                            sortExpressions, capturedValues, offset, limit);
+                            sortExpressions, capturedValues, offset, limit, distinct);
                     result = generateListQueryBody(ctx, predicateExpression, projectionExpression);
                 }
 
@@ -179,6 +186,7 @@ public class QueryExecutorClassGenerator {
             ResultHandle predicate = expressionGenerator.generatePredicate(ctx.method(), predicateExpression, cb, root, ctx.capturedValues());
             applyWherePredicate(ctx.method(), query, predicate);
             applyOrderBy(ctx.method(), query, root, cb, ctx.sortExpressions(), ctx.capturedValues(), null);
+            applyDistinct(ctx.method(), query, ctx.distinct());
             ResultHandle typedQuery = ctx.method().invokeInterfaceMethod(md(EntityManager.class, EM_CREATE_QUERY, TypedQuery.class, CriteriaQuery.class), ctx.em(), query);
             applyPagination(ctx.method(), typedQuery, ctx.offset(), ctx.limit());
             return ctx.method().invokeInterfaceMethod(md(TypedQuery.class, TQ_GET_RESULT_LIST, List.class), typedQuery);
@@ -189,6 +197,7 @@ public class QueryExecutorClassGenerator {
         ResultHandle query = ctx.method().invokeInterfaceMethod(md(CriteriaBuilder.class, EM_CREATE_QUERY, CriteriaQuery.class, Class.class), cb, ctx.entityClass());
         ResultHandle root = ctx.method().invokeInterfaceMethod(md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class), query, ctx.entityClass());
         applyOrderBy(ctx.method(), query, root, cb, ctx.sortExpressions(), ctx.capturedValues(), null);
+        applyDistinct(ctx.method(), query, ctx.distinct());
         ResultHandle typedQuery = ctx.method().invokeInterfaceMethod(md(EntityManager.class, EM_CREATE_QUERY, TypedQuery.class, CriteriaQuery.class), ctx.em(), query);
         applyPagination(ctx.method(), typedQuery, ctx.offset(), ctx.limit());
         return ctx.method().invokeInterfaceMethod(md(TypedQuery.class, TQ_GET_RESULT_LIST, List.class), typedQuery);
@@ -266,6 +275,9 @@ public class QueryExecutorClassGenerator {
         // Phase 3: Apply ORDER BY if sorting expressions present
         applyOrderBy(ctx.method(), query, root, cb, ctx.sortExpressions(), ctx.capturedValues(), path);
 
+        // Phase 4: Apply DISTINCT if requested
+        applyDistinct(ctx.method(), query, ctx.distinct());
+
         // Create TypedQuery
         ResultHandle typedQuery = ctx.method().invokeInterfaceMethod(
                 md(EntityManager.class, EM_CREATE_QUERY, TypedQuery.class, CriteriaQuery.class),
@@ -332,6 +344,9 @@ public class QueryExecutorClassGenerator {
 
         // Phase 3: Apply ORDER BY if sorting expressions present
         applyOrderBy(ctx.method(), query, root, cb, ctx.sortExpressions(), ctx.capturedValues(), projectionExpr);
+
+        // Phase 4: Apply DISTINCT if requested
+        applyDistinct(ctx.method(), query, ctx.distinct());
 
         // Create TypedQuery
         ResultHandle typedQuery = ctx.method().invokeInterfaceMethod(
@@ -415,6 +430,9 @@ public class QueryExecutorClassGenerator {
 
         // Phase 3: Apply ORDER BY if sorting expressions present
         applyOrderBy(ctx.method(), query, root, cb, ctx.sortExpressions(), ctx.capturedValues(), projectionExpr);
+
+        // Phase 4: Apply DISTINCT if requested
+        applyDistinct(ctx.method(), query, ctx.distinct());
 
         // Create TypedQuery
         ResultHandle typedQuery = ctx.method().invokeInterfaceMethod(
@@ -510,6 +528,43 @@ public class QueryExecutorClassGenerator {
 
         // Apply orderBy to query
         method.invokeInterfaceMethod(CQ_ORDER_BY, query, ordersArray);
+    }
+
+    /**
+     * Applies DISTINCT clause to CriteriaQuery.
+     * Phase 4: Implementation of distinct() support.
+     * <p>
+     * Generates code equivalent to:
+     * <pre>
+     * if (distinct != null && distinct) query.distinct(true);
+     * </pre>
+     *
+     * @param method the method creator
+     * @param query the CriteriaQuery to apply distinct to
+     * @param distinct the distinct parameter (Boolean, may be null)
+     */
+    private void applyDistinct(
+            MethodCreator method,
+            ResultHandle query,
+            ResultHandle distinct) {
+
+        // Apply distinct if present and true: if (distinct != null && distinct) query.distinct(true);
+        if (distinct != null) {
+            io.quarkus.gizmo.BranchResult distinctBranch = method.ifNotNull(distinct);
+            try (io.quarkus.gizmo.BytecodeCreator distinctNotNull = distinctBranch.trueBranch()) {
+                // Unbox Boolean to boolean
+                ResultHandle distinctValue = distinctNotNull.invokeVirtualMethod(
+                        MethodDescriptor.ofMethod(Boolean.class, "booleanValue", boolean.class),
+                        distinct);
+
+                // Only call query.distinct(true) if the value is true
+                io.quarkus.gizmo.BranchResult trueBranch = distinctNotNull.ifTrue(distinctValue);
+                try (io.quarkus.gizmo.BytecodeCreator applyDistinct = trueBranch.trueBranch()) {
+                    applyDistinct.invokeInterfaceMethod(CQ_DISTINCT, query,
+                            applyDistinct.load(true));
+                }
+            }
+        }
     }
 
     /**

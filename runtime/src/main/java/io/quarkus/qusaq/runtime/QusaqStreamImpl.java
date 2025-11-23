@@ -199,44 +199,58 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
 
     @Override
     public <K extends Comparable<K>> K min(QuerySpec<T, K> mapper) {
+        // Phase 5: Delegate to build-time generated executor via registry
+        // Note: Aggregations with mappers work similar to projection queries
+        // The mapper lambda and predicates are analyzed at build time
         throw new UnsupportedOperationException(
-                "min() will be implemented in Phase 5. " +
-                "This is a placeholder for Phase 1 core functionality.");
+                "Phase 5: min() requires build-time scanner updates to detect aggregation terminals. " +
+                "Implementation deferred - requires changes to InvokeDynamicScanner, CallSiteProcessor, " +
+                "and QueryExecutorClassGenerator to generate MIN aggregation queries.");
     }
 
     @Override
     public <K extends Comparable<K>> K max(QuerySpec<T, K> mapper) {
+        // Phase 5: Delegate to build-time generated executor via registry
         throw new UnsupportedOperationException(
-                "max() will be implemented in Phase 5. " +
-                "This is a placeholder for Phase 1 core functionality.");
+                "Phase 5: max() requires build-time scanner updates to detect aggregation terminals. " +
+                "Implementation deferred - requires changes to InvokeDynamicScanner, CallSiteProcessor, " +
+                "and QueryExecutorClassGenerator to generate MAX aggregation queries.");
     }
 
     @Override
     public long sumInteger(QuerySpec<T, Integer> mapper) {
+        // Phase 5: Delegate to build-time generated executor via registry
         throw new UnsupportedOperationException(
-                "sumInteger() will be implemented in Phase 5. " +
-                "This is a placeholder for Phase 1 core functionality.");
+                "Phase 5: sumInteger() requires build-time scanner updates to detect aggregation terminals. " +
+                "Implementation deferred - requires changes to InvokeDynamicScanner, CallSiteProcessor, " +
+                "and QueryExecutorClassGenerator to generate SUM aggregation queries.");
     }
 
     @Override
     public long sumLong(QuerySpec<T, Long> mapper) {
+        // Phase 5: Delegate to build-time generated executor via registry
         throw new UnsupportedOperationException(
-                "sumLong() will be implemented in Phase 5. " +
-                "This is a placeholder for Phase 1 core functionality.");
+                "Phase 5: sumLong() requires build-time scanner updates to detect aggregation terminals. " +
+                "Implementation deferred - requires changes to InvokeDynamicScanner, CallSiteProcessor, " +
+                "and QueryExecutorClassGenerator to generate SUM aggregation queries.");
     }
 
     @Override
     public double sumDouble(QuerySpec<T, Double> mapper) {
+        // Phase 5: Delegate to build-time generated executor via registry
         throw new UnsupportedOperationException(
-                "sumDouble() will be implemented in Phase 5. " +
-                "This is a placeholder for Phase 1 core functionality.");
+                "Phase 5: sumDouble() requires build-time scanner updates to detect aggregation terminals. " +
+                "Implementation deferred - requires changes to InvokeDynamicScanner, CallSiteProcessor, " +
+                "and QueryExecutorClassGenerator to generate SUM aggregation queries.");
     }
 
     @Override
     public Double avg(QuerySpec<T, ? extends Number> mapper) {
+        // Phase 5: Delegate to build-time generated executor via registry
         throw new UnsupportedOperationException(
-                "avg() will be implemented in Phase 5. " +
-                "This is a placeholder for Phase 1 core functionality.");
+                "Phase 5: avg() requires build-time scanner updates to detect aggregation terminals. " +
+                "Implementation deferred - requires changes to InvokeDynamicScanner, CallSiteProcessor, " +
+                "and QueryExecutorClassGenerator to generate AVG aggregation queries.");
     }
 
     // =============================================================================================
@@ -251,8 +265,8 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
 
         QueryExecutorRegistry registry = Arc.container().instance(QueryExecutorRegistry.class).get();
 
-        // Phase 4: Pass pagination parameters to registry for runtime application
-        return registry.executeListQuery(callSiteId, entityClass, capturedValues, offset, limit);
+        // Phase 4: Pass pagination and distinct parameters to registry for runtime application
+        return registry.executeListQuery(callSiteId, entityClass, capturedValues, offset, limit, distinct);
     }
 
     @Override

@@ -59,11 +59,11 @@ public class QueryExecutorRegistry {
 
     /**
      * Executes list query for call site.
-     * Phase 4: Added offset and limit parameters for pagination support.
+     * Phase 4: Added offset, limit, and distinct parameters for pagination and deduplication support.
      */
     @SuppressWarnings("unchecked")
     public <T> List<T> executeListQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues,
-                                         Integer offset, Integer limit) {
+                                         Integer offset, Integer limit, Boolean distinct) {
         QueryExecutor<List<?>> executor = LIST_EXECUTORS.get(callSiteId);
 
         if (executor == null) {
@@ -89,11 +89,11 @@ public class QueryExecutorRegistry {
             throw new IllegalStateException("EntityManager not available");
         }
 
-        log.tracef("Executing list query for call site: %s with %d captured variables (offset=%s, limit=%s)",
-                   callSiteId, capturedValues.length, offset, limit);
+        log.tracef("Executing list query for call site: %s with %d captured variables (offset=%s, limit=%s, distinct=%s)",
+                   callSiteId, capturedValues.length, offset, limit, distinct);
 
-        // Execute query and apply pagination parameters
-        return (List<T>) executor.execute(entityManager, entityClass, capturedValues, offset, limit);
+        // Execute query and apply pagination and distinct parameters
+        return (List<T>) executor.execute(entityManager, entityClass, capturedValues, offset, limit, distinct);
     }
 
     /**
@@ -128,8 +128,8 @@ public class QueryExecutorRegistry {
         log.tracef("Executing count query for call site: %s with %d captured variables",
                    callSiteId, capturedValues.length);
 
-        // Count queries don't use pagination
-        return executor.execute(entityManager, entityClass, capturedValues, null, null);
+        // Count queries don't use pagination or distinct (count is always distinct counts)
+        return executor.execute(entityManager, entityClass, capturedValues, null, null, null);
     }
 
     /**
