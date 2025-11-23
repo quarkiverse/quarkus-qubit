@@ -59,9 +59,11 @@ public class QueryExecutorRegistry {
 
     /**
      * Executes list query for call site.
+     * Phase 4: Added offset and limit parameters for pagination support.
      */
     @SuppressWarnings("unchecked")
-    public <T> List<T> executeListQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues) {
+    public <T> List<T> executeListQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues,
+                                         Integer offset, Integer limit) {
         QueryExecutor<List<?>> executor = LIST_EXECUTORS.get(callSiteId);
 
         if (executor == null) {
@@ -87,10 +89,11 @@ public class QueryExecutorRegistry {
             throw new IllegalStateException("EntityManager not available");
         }
 
-        log.tracef("Executing list query for call site: %s with %d captured variables",
-                   callSiteId, capturedValues.length);
+        log.tracef("Executing list query for call site: %s with %d captured variables (offset=%s, limit=%s)",
+                   callSiteId, capturedValues.length, offset, limit);
 
-        return (List<T>) executor.execute(entityManager, entityClass, capturedValues);
+        // Execute query and apply pagination parameters
+        return (List<T>) executor.execute(entityManager, entityClass, capturedValues, offset, limit);
     }
 
     /**
@@ -125,7 +128,8 @@ public class QueryExecutorRegistry {
         log.tracef("Executing count query for call site: %s with %d captured variables",
                    callSiteId, capturedValues.length);
 
-        return executor.execute(entityManager, entityClass, capturedValues);
+        // Count queries don't use pagination
+        return executor.execute(entityManager, entityClass, capturedValues, null, null);
     }
 
     /**

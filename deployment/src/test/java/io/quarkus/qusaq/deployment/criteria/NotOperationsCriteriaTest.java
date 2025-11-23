@@ -38,4 +38,27 @@ class NotOperationsCriteriaTest extends CriteriaQueryTestBase {
         assertCriteriaGenerationSucceeds(expr);
         // Negated method calls may compile to inverted conditions, not notEqual()
     }
+
+    @Test
+    void notWithComplexAnd() {
+        LambdaExpression expr = analyzeLambda("notWithComplexAnd");
+        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
+        assertCriteriaGenerationSucceeds(expr);
+        assertCriteriaMethodCalled(structure, "or");
+    }
+
+    @Test
+    void doubleNegation() {
+        LambdaExpression expr = analyzeLambda("doubleNegation");
+        assertCriteriaGenerationSucceeds(expr);
+        // Double negation compiles to simple equality check
+    }
+
+    @Test
+    void notWithOr() {
+        LambdaExpression expr = analyzeLambda("notWithOr");
+        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
+        assertCriteriaGenerationSucceeds(expr);
+        assertCriteriaMethodCalled(structure, "and");
+    }
 }

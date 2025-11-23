@@ -13,6 +13,7 @@ import java.util.Deque;
 import java.util.Map;
 
 import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.EQ;
+import static java.lang.Boolean.FALSE;
 import static org.objectweb.asm.Opcodes.IFNE;
 
 /**
@@ -32,10 +33,10 @@ import static org.objectweb.asm.Opcodes.IFNE;
  */
 public class IfNotEqualsZeroInstructionHandler extends AbstractZeroEqualityBranchHandler {
 
-    private static final Logger logger = Logger.getLogger(IfNotEqualsZeroInstructionHandler.class);
+    private static final Logger log = Logger.getLogger(IfNotEqualsZeroInstructionHandler.class);
 
     public IfNotEqualsZeroInstructionHandler() {
-        super(logger);
+        super(log);
     }
 
     @Override
@@ -58,39 +59,38 @@ public class IfNotEqualsZeroInstructionHandler extends AbstractZeroEqualityBranc
 
         PatternDetector.BranchPatternAnalysis patterns = PatternDetector.BranchPatternAnalysis.analyze(stack);
 
-        // Handle arithmetic comparison pattern: ISUB/LSUB → IFNE
-        // Transforms (a - b) != 0 to a == b
-        if (patterns.isArithmeticComparisonPattern() || patterns.isDcmplPattern()) {
-            LambdaExpression right = BytecodeValidator.popSafe(stack, "IFNE-ArithComp");
-            LambdaExpression left = BytecodeValidator.popSafe(stack, "IFNE-ArithComp");
-            stack.push(new LambdaExpression.BinaryOp(left, EQ, right));
-            log.tracef("IFNE: Arithmetic/DCMPL comparison pattern - created EQ comparison");
-            return state;
-        }
-
-        // Handle compareTo pattern: a.compareTo(b) → IFNE
-        // Transforms compareTo(a, b) != 0 to not-equals check
-        if (patterns.isCompareToPattern()) {
-            LambdaExpression expr = BytecodeValidator.popSafe(stack, "IFNE-CompareTo");
-            stack.push(new LambdaExpression.BinaryOp(expr, EQ,
-                    new LambdaExpression.Constant(0, int.class)));
-            log.tracef("IFNE: CompareTo pattern - created EQ 0 comparison");
-            return state;
-        }
-
-        // Handle arithmetic pattern: (arithmetic expr) → IFNE
-        // Transforms expr != 0
-        if (patterns.isArithmeticPattern()) {
-            LambdaExpression expr = BytecodeValidator.popSafe(stack, "IFNE-Arithmetic");
-            stack.push(new LambdaExpression.BinaryOp(expr, EQ,
-                    new LambdaExpression.Constant(0, int.class)));
-            log.tracef("IFNE: Arithmetic pattern - created EQ 0 comparison");
-            return state;
-        }
-
-        // Handle boolean field pattern: field.booleanValue → IFNE
-        // This is the complex case requiring AND/OR combination logic
-        return handleBooleanFieldPattern(stack, jumpInsn, labelToValue, state);
+        return switch (patterns.pattern()) {
+            case NUMERIC_COMPARISON -> {
+                // Handle numeric comparison: ISUB/LSUB or DCMPL/DCMPG → IFNE
+                // Transforms (a - b) != 0 to a == b
+                LambdaExpression right = BytecodeValidator.popSafe(stack, "IFNE-NumericComp");
+                LambdaExpression left = BytecodeValidator.popSafe(stack, "IFNE-NumericComp");
+                stack.push(new LambdaExpression.BinaryOp(left, EQ, right));
+                log.tracef("IFNE: Numeric comparison pattern - created EQ comparison");
+                yield state;
+            }
+            case COMPARE_TO -> {
+                // Handle compareTo pattern: a.compareTo(b) → IFNE
+                // Transforms compareTo(a, b) != 0 to not-equals check
+                LambdaExpression expr = BytecodeValidator.popSafe(stack, "IFNE-CompareTo");
+                stack.push(new LambdaExpression.BinaryOp(expr, EQ, LambdaExpression.Constant.ZERO_INT));
+                log.tracef("IFNE: CompareTo pattern - created EQ 0 comparison");
+                yield state;
+            }
+            case ARITHMETIC -> {
+                // Handle arithmetic pattern: (arithmetic expr) → IFNE
+                // Transforms expr != 0
+                LambdaExpression expr = BytecodeValidator.popSafe(stack, "IFNE-Arithmetic");
+                stack.push(new LambdaExpression.BinaryOp(expr, EQ, LambdaExpression.Constant.ZERO_INT));
+                log.tracef("IFNE: Arithmetic pattern - created EQ 0 comparison");
+                yield state;
+            }
+            case OTHER -> {
+                // Handle boolean field pattern: field.booleanValue → IFNE
+                // This is the complex case requiring AND/OR combination logic
+                yield handleBooleanFieldPattern(stack, jumpInsn, labelToValue, state);
+            }
+        };
     }
 
     @Override
@@ -106,17 +106,14 @@ public class IfNotEqualsZeroInstructionHandler extends AbstractZeroEqualityBranc
         boolean isAlreadyComparison = (fieldAccess instanceof LambdaExpression.BinaryOp binOp) &&
                                       binOp.operator() == EQ;
 
-        boolean shouldNegate = (jumpTarget != null && !jumpTarget);
-
-        if (isAlreadyComparison) {
-            return shouldNegate ?
-                    new LambdaExpression.UnaryOp(LambdaExpression.UnaryOp.Operator.NOT, fieldAccess) :
-                    fieldAccess;
+        // Extract common negate case
+        if (FALSE.equals(jumpTarget)) {
+            return new LambdaExpression.UnaryOp(LambdaExpression.UnaryOp.Operator.NOT, fieldAccess);
         }
 
-        return shouldNegate ?
-                new LambdaExpression.UnaryOp(LambdaExpression.UnaryOp.Operator.NOT, fieldAccess) :
-                new LambdaExpression.BinaryOp(fieldAccess, EQ,
-                        new LambdaExpression.Constant(true, boolean.class));
+        // Handle non-negate cases
+        return isAlreadyComparison ?
+                fieldAccess :
+                new LambdaExpression.BinaryOp(fieldAccess, EQ, LambdaExpression.Constant.TRUE);
     }
 }

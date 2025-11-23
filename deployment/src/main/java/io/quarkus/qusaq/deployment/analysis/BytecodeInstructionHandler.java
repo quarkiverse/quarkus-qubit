@@ -16,7 +16,7 @@ import io.quarkus.qusaq.deployment.util.DescriptorParser;
 public class BytecodeInstructionHandler {
 
     /**
-     * Handles numeric type conversion (I2L, L2F, D2I, etc.).
+     * Handles numeric type conversion.
      */
     public void handleTypeConversion(Deque<LambdaExpression> stack, Class<?> sourceType, Class<?> targetType) {
         if (stack.isEmpty()) {
@@ -32,7 +32,7 @@ public class BytecodeInstructionHandler {
                 case "long" -> value.longValue();
                 case "float" -> value.floatValue();
                 case "double" -> value.doubleValue();
-                default -> throw new IllegalArgumentException("Unsupported target type: " + targetType);
+                default -> throw BytecodeAnalysisException.unsupported("type conversion target", targetType.getName());
             };
 
             stack.push(new LambdaExpression.Constant(convertedValue, targetType));
@@ -40,7 +40,7 @@ public class BytecodeInstructionHandler {
     }
 
     /**
-     * Handles primitive loads (ILOAD, LLOAD, FLOAD, DLOAD) from local variable slots.
+     * Handles primitive loads from local variable slots.
      */
     public void handlePrimitiveLoad(Deque<LambdaExpression> stack, VarInsnNode insn,
                                      MethodNode method, Class<?> primitiveType) {
@@ -55,7 +55,7 @@ public class BytecodeInstructionHandler {
     }
 
     /**
-     * Handles primitive constants (FCONST_*, LCONST_*, DCONST_*).
+     * Handles primitive constants.
      */
     public void handlePrimitiveConstant(Deque<LambdaExpression> stack, int opcode,
                                         int baseOpcode, Class<?> constantType) {
@@ -63,14 +63,14 @@ public class BytecodeInstructionHandler {
             case "float" -> (float) (opcode - baseOpcode);
             case "long" -> (long) (opcode - baseOpcode);
             case "double" -> (double) (opcode - baseOpcode);
-            default -> throw new IllegalArgumentException("Unsupported constant type: " + constantType);
+            default -> throw BytecodeAnalysisException.unsupported("constant type", constantType.getName());
         };
 
         stack.push(new LambdaExpression.Constant(value, constantType));
     }
 
     /**
-     * Handles temporal accessor methods (getYear, getMonthValue, etc.).
+     * Handles temporal accessor methods.
      */
     public void handleTemporalAccessorMethod(Deque<LambdaExpression> stack, MethodInsnNode methodInsn,
                                               String ownerType, String... validMethods) {
@@ -95,7 +95,7 @@ public class BytecodeInstructionHandler {
     }
 
     /**
-     * Handles zero-argument method calls (e.g., length(), isEmpty()).
+     * Handles zero-argument method calls.
      */
     public void handleNoArgumentMethodCall(Deque<LambdaExpression> stack, String methodName, Class<?> returnType) {
         if (!stack.isEmpty()) {
@@ -110,7 +110,7 @@ public class BytecodeInstructionHandler {
     }
 
     /**
-     * Handles single-argument method calls (e.g., startsWith(), compareTo()).
+     * Handles single-argument method calls.
      */
     public void handleSingleArgumentMethodCall(Deque<LambdaExpression> stack, String methodName, Class<?> returnType) {
         if (stack.size() >= 2) {

@@ -1,13 +1,13 @@
 package io.quarkus.qusaq.deployment.analysis.handlers;
 
 import io.quarkus.qusaq.deployment.LambdaExpression;
+import io.quarkus.qusaq.deployment.analysis.BytecodeAnalysisException;
 import org.objectweb.asm.tree.AbstractInsnNode;
 
 import static org.objectweb.asm.Opcodes.*;
 
 /**
- * Handles primitive type conversion instructions (I2L, I2F, I2D, L2I, L2F, L2D, F2I, F2L, F2D, D2I, D2L, D2F).
- * Performs constant folding optimization: constants are converted at analysis time, non-constants handled implicitly during criteria generation.
+ * Handles primitive type conversion instructions with constant folding optimization.
  */
 public class TypeConversionHandler implements InstructionHandler {
 
@@ -20,14 +20,8 @@ public class TypeConversionHandler implements InstructionHandler {
     @Override
     public boolean handle(AbstractInsnNode insn, AnalysisContext ctx) {
         int opcode = insn.getOpcode();
-
-        // Determine source and target types
         TypeConversionInfo conversionInfo = getConversionInfo(opcode);
-
-        // Perform type conversion (with constant folding optimization)
         handleTypeConversion(ctx, conversionInfo.sourceType, conversionInfo.targetType);
-
-        // Continue processing (don't terminate analysis)
         return false;
     }
 
@@ -39,30 +33,20 @@ public class TypeConversionHandler implements InstructionHandler {
                opcode == D2I || opcode == D2L || opcode == D2F;
     }
 
-    /** Handles type conversion with constant folding: constants converted at analysis time, non-constants unchanged. */
+    /** Handles type conversion with constant folding. */
     private void handleTypeConversion(AnalysisContext ctx, Class<?> sourceType, Class<?> targetType) {
         if (ctx.isStackEmpty()) {
             return;
         }
 
-        // Peek at top of stack
         LambdaExpression top = ctx.peek();
 
-        // Only perform constant folding for constant values
         if (top instanceof LambdaExpression.Constant constant && constant.type() == sourceType) {
-            // Pop the constant
             ctx.pop();
-
-            // Convert the value
             Number value = (Number) constant.value();
             Object convertedValue = convertValue(value, targetType);
-
-            // Push the converted constant
             ctx.push(new LambdaExpression.Constant(convertedValue, targetType));
         }
-
-        // For non-constants (field access, captured variables, etc.), do nothing.
-        // Type conversions are handled implicitly during criteria query generation.
     }
 
     /** Converts numeric value to target primitive type. */
@@ -72,7 +56,7 @@ public class TypeConversionHandler implements InstructionHandler {
             case "long" -> value.longValue();
             case "float" -> value.floatValue();
             case "double" -> value.doubleValue();
-            default -> throw new IllegalArgumentException("Unsupported target type: " + targetType);
+            default -> throw BytecodeAnalysisException.unsupported("type conversion target", targetType.getName());
         };
     }
 
@@ -91,7 +75,7 @@ public class TypeConversionHandler implements InstructionHandler {
             case D2I -> new TypeConversionInfo(double.class, int.class);
             case D2L -> new TypeConversionInfo(double.class, long.class);
             case D2F -> new TypeConversionInfo(double.class, float.class);
-            default -> throw new IllegalStateException("Unexpected conversion opcode: " + opcode);
+            default -> throw BytecodeAnalysisException.unexpectedOpcode("type conversion", opcode);
         };
     }
 

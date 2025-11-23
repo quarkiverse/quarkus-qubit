@@ -72,4 +72,49 @@ class NotOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         // Inside NOT: p.firstName == "John" (optimized from equals)
         assertBinaryOp(notOp.operand(), LambdaExpression.BinaryOp.Operator.EQ);
     }
+
+    @Test
+    void notWithComplexAnd() {
+        LambdaExpression expr = analyzeLambda("notWithComplexAnd");
+
+        // !(p.age > 10 && p.salary < 5000)
+        // Compiler optimizes using De Morgan's law: !(a && b) => !a || !b
+        // Results in: (p.age <= 10 || p.salary >= 5000)
+        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.OR);
+        LambdaExpression.BinaryOp orOp = (LambdaExpression.BinaryOp) expr;
+
+        // Left: p.age <= 10
+        assertBinaryOp(orOp.left(), LambdaExpression.BinaryOp.Operator.LE);
+
+        // Right: p.salary >= 5000
+        assertBinaryOp(orOp.right(), LambdaExpression.BinaryOp.Operator.GE);
+    }
+
+    @Test
+    void doubleNegation() {
+        LambdaExpression expr = analyzeLambda("doubleNegation");
+
+        // !!p.active
+        // Compiler optimizes double negation to: p.active == true
+        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.EQ);
+    }
+
+    @Test
+    void notWithOr() {
+        LambdaExpression expr = analyzeLambda("notWithOr");
+
+        // !(p.active || p.salary > 90000)
+        // Compiler optimizes using De Morgan's law: !(a || b) => !a && !b
+        // Results in: (!p.active && p.salary <= 90000)
+        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.AND);
+        LambdaExpression.BinaryOp andOp = (LambdaExpression.BinaryOp) expr;
+
+        // Left: !p.active
+        assertUnaryOp(andOp.left(), LambdaExpression.UnaryOp.Operator.NOT);
+        LambdaExpression.UnaryOp notOp = (LambdaExpression.UnaryOp) andOp.left();
+        assertFieldAccess(notOp.operand(), "active");
+
+        // Right: p.salary <= 90000
+        assertBinaryOp(andOp.right(), LambdaExpression.BinaryOp.Operator.LE);
+    }
 }

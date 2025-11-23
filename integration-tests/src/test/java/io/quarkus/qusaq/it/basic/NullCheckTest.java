@@ -99,4 +99,46 @@ class NullCheckTest {
                 .hasSize(1)
                 .allMatch(p -> p.getStartTime() == null);
     }
+
+    @Test
+    void nullCheckWithAnd() {
+        var results = Person.where((Person p) -> p.email != null && p.firstName != null).toList();
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(p -> p.getEmail() != null && p.getFirstName() != null);
+    }
+
+    @Test
+    void nullCheckWithCondition() {
+        var results = Person.where((Person p) -> p.email != null && p.age > 30).toList();
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(p -> p.getEmail() != null && p.getAge() > 30);
+    }
+
+    @Test
+    @Transactional
+    void nullCheckWithOr() {
+        // Test the EXACT same lambda as in LambdaTestSources.nullCheckWithOr:
+        // p -> p.email == null || p.firstName == null
+
+        // Create one person with null email (firstName NOT null)
+        Person withNullEmail = new Person();
+        withNullEmail.firstName = "TestFirst";
+        withNullEmail.lastName = "TestLast";
+        withNullEmail.email = null;
+        withNullEmail.age = 99;
+        withNullEmail.persist();
+
+        var results = Person.where((Person p) -> p.email == null || p.firstName == null).toList();
+
+        // Expected: Only the person we just created (plus any from test data with empty string email)
+        // Eve has email="" (empty string, not null) so should NOT match
+        // Our test person has email=null so SHOULD match
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .anyMatch(p -> "TestFirst".equals(p.getFirstName()));
+    }
 }

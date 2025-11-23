@@ -20,6 +20,8 @@ import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.MethodDescriptor;
 import io.quarkus.gizmo.ResultHandle;
 import io.quarkus.qusaq.deployment.LambdaExpression;
+import io.quarkus.qusaq.deployment.analysis.CallSiteProcessor;
+import io.quarkus.qusaq.runtime.SortDirection;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
@@ -44,13 +46,51 @@ public class QueryExecutorClassGenerator {
         return MethodDescriptor.ofMethod(clazz, methodName, returnType, params);
     }
 
+    // Method descriptors for ORDER BY generation
+    private static final MethodDescriptor CB_ASC = md(CriteriaBuilder.class, "asc",
+            jakarta.persistence.criteria.Order.class, jakarta.persistence.criteria.Expression.class);
+    private static final MethodDescriptor CB_DESC = md(CriteriaBuilder.class, "desc",
+            jakarta.persistence.criteria.Order.class, jakarta.persistence.criteria.Expression.class);
+    private static final MethodDescriptor CQ_ORDER_BY = md(CriteriaQuery.class, "orderBy",
+            CriteriaQuery.class, jakarta.persistence.criteria.Order[].class);
+
+    // Method descriptors for pagination
+    private static final MethodDescriptor TQ_SET_FIRST_RESULT = md(TypedQuery.class, "setFirstResult",
+            TypedQuery.class, int.class);
+    private static final MethodDescriptor TQ_SET_MAX_RESULTS = md(TypedQuery.class, "setMaxResults",
+            TypedQuery.class, int.class);
+
+    /**
+     * Common context for query generation methods.
+     * Encapsulates parameters shared across all query generation methods.
+     *
+     * @param method Gizmo bytecode generator context
+     * @param em EntityManager handle
+     * @param entityClass Entity class being queried
+     * @param sortExpressions ORDER BY expressions (null if none)
+     * @param capturedValues Lambda captured variables
+     * @param offset OFFSET value for pagination (null if none)
+     * @param limit LIMIT value for pagination (null if none)
+     */
+    private record QueryGenContext(
+        MethodCreator method,
+        ResultHandle em,
+        ResultHandle entityClass,
+        List<?> sortExpressions,
+        ResultHandle capturedValues,
+        ResultHandle offset,
+        ResultHandle limit
+    ) {}
+
     /**
      * Generates query executor class bytecode from lambda expressions.
      * Phase 2.2: Accepts both predicate and projection expressions for combined queries.
+     * Phase 3: Accepts sort expressions for ORDER BY generation.
      */
     public byte[] generateQueryExecutorClass(
             LambdaExpression predicateExpression,
             LambdaExpression projectionExpression,
+            List<?> sortExpressions,
             String className,
             boolean isCountQuery) {
 
@@ -82,19 +122,25 @@ public class QueryExecutorClassGenerator {
                 constructor.returnValue(null);
             }
 
+            // Phase 4: Updated execute method signature to include offset and limit parameters
             try (MethodCreator execute = classCreator.getMethodCreator(
-                    QE_EXECUTE, Object.class, EntityManager.class, Class.class, Object[].class)) {
+                    QE_EXECUTE, Object.class, EntityManager.class, Class.class, Object[].class,
+                    Integer.class, Integer.class)) {
 
                 ResultHandle em = execute.getMethodParam(0);
                 ResultHandle entityClassParam = execute.getMethodParam(1);
                 ResultHandle capturedValues = execute.getMethodParam(2);
+                ResultHandle offset = execute.getMethodParam(3);
+                ResultHandle limit = execute.getMethodParam(4);
 
                 ResultHandle result;
                 if (isCountQuery) {
+                    // Count queries ignore pagination parameters
                     result = generateCountQueryBody(execute, em, entityClassParam, predicateExpression, capturedValues);
                 } else {
-                    result = generateListQueryBody(execute, em, entityClassParam,
-                            predicateExpression, projectionExpression, capturedValues);
+                    QueryGenContext ctx = new QueryGenContext(execute, em, entityClassParam,
+                            sortExpressions, capturedValues, offset, limit);
+                    result = generateListQueryBody(ctx, predicateExpression, projectionExpression);
                 }
 
                 execute.returnValue(result);
@@ -107,43 +153,45 @@ public class QueryExecutorClassGenerator {
     /**
      * Generates LIST query returning em.createQuery(query).getResultList().
      * Phase 2.2: Handles combined where() + select() queries.
+     * Phase 3: Handles ORDER BY for sorting.
+     * Phase 4: Handles pagination via offset/limit parameters.
      */
     private ResultHandle generateListQueryBody(
-            MethodCreator method,
-            ResultHandle em,
-            ResultHandle entityClass,
+            QueryGenContext ctx,
             LambdaExpression predicateExpression,
-            LambdaExpression projectionExpression,
-            ResultHandle capturedValues) {
+            LambdaExpression projectionExpression) {
 
         // Phase 2.2/2.3: Combined WHERE + SELECT query
         if (predicateExpression != null && projectionExpression != null) {
-            return generateCombinedWhereSelectQuery(method, em, entityClass,
-                    predicateExpression, projectionExpression, capturedValues);
+            return generateCombinedWhereSelectQuery(ctx, predicateExpression, projectionExpression);
         }
 
         // Phase 2.1/2.3: Projection query (select().toList())
         if (projectionExpression != null) {
-            return generateProjectionQuery(method, em, entityClass, projectionExpression, capturedValues);
+            return generateProjectionQuery(ctx, projectionExpression);
         }
 
         // Phase 1: Predicate query (where().toList())
         if (predicateExpression != null) {
-            ResultHandle cb = method.invokeInterfaceMethod(md(EntityManager.class, EM_GET_CRITERIA_BUILDER, CriteriaBuilder.class), em);
-            ResultHandle query = method.invokeInterfaceMethod(md(CriteriaBuilder.class, EM_CREATE_QUERY, CriteriaQuery.class, Class.class), cb, entityClass);
-            ResultHandle root = method.invokeInterfaceMethod(md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class), query, entityClass);
-            ResultHandle predicate = expressionGenerator.generatePredicate(method, predicateExpression, cb, root, capturedValues);
-            applyWherePredicate(method, query, predicate);
-            ResultHandle typedQuery = method.invokeInterfaceMethod(md(EntityManager.class, EM_CREATE_QUERY, TypedQuery.class, CriteriaQuery.class), em, query);
-            return method.invokeInterfaceMethod(md(TypedQuery.class, TQ_GET_RESULT_LIST, List.class), typedQuery);
+            ResultHandle cb = ctx.method().invokeInterfaceMethod(md(EntityManager.class, EM_GET_CRITERIA_BUILDER, CriteriaBuilder.class), ctx.em());
+            ResultHandle query = ctx.method().invokeInterfaceMethod(md(CriteriaBuilder.class, EM_CREATE_QUERY, CriteriaQuery.class, Class.class), cb, ctx.entityClass());
+            ResultHandle root = ctx.method().invokeInterfaceMethod(md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class), query, ctx.entityClass());
+            ResultHandle predicate = expressionGenerator.generatePredicate(ctx.method(), predicateExpression, cb, root, ctx.capturedValues());
+            applyWherePredicate(ctx.method(), query, predicate);
+            applyOrderBy(ctx.method(), query, root, cb, ctx.sortExpressions(), ctx.capturedValues(), null);
+            ResultHandle typedQuery = ctx.method().invokeInterfaceMethod(md(EntityManager.class, EM_CREATE_QUERY, TypedQuery.class, CriteriaQuery.class), ctx.em(), query);
+            applyPagination(ctx.method(), typedQuery, ctx.offset(), ctx.limit());
+            return ctx.method().invokeInterfaceMethod(md(TypedQuery.class, TQ_GET_RESULT_LIST, List.class), typedQuery);
         }
 
         // No predicate or projection - return all entities
-        ResultHandle cb = method.invokeInterfaceMethod(md(EntityManager.class, EM_GET_CRITERIA_BUILDER, CriteriaBuilder.class), em);
-        ResultHandle query = method.invokeInterfaceMethod(md(CriteriaBuilder.class, EM_CREATE_QUERY, CriteriaQuery.class, Class.class), cb, entityClass);
-        method.invokeInterfaceMethod(md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class), query, entityClass);
-        ResultHandle typedQuery = method.invokeInterfaceMethod(md(EntityManager.class, EM_CREATE_QUERY, TypedQuery.class, CriteriaQuery.class), em, query);
-        return method.invokeInterfaceMethod(md(TypedQuery.class, TQ_GET_RESULT_LIST, List.class), typedQuery);
+        ResultHandle cb = ctx.method().invokeInterfaceMethod(md(EntityManager.class, EM_GET_CRITERIA_BUILDER, CriteriaBuilder.class), ctx.em());
+        ResultHandle query = ctx.method().invokeInterfaceMethod(md(CriteriaBuilder.class, EM_CREATE_QUERY, CriteriaQuery.class, Class.class), cb, ctx.entityClass());
+        ResultHandle root = ctx.method().invokeInterfaceMethod(md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class), query, ctx.entityClass());
+        applyOrderBy(ctx.method(), query, root, cb, ctx.sortExpressions(), ctx.capturedValues(), null);
+        ResultHandle typedQuery = ctx.method().invokeInterfaceMethod(md(EntityManager.class, EM_CREATE_QUERY, TypedQuery.class, CriteriaQuery.class), ctx.em(), query);
+        applyPagination(ctx.method(), typedQuery, ctx.offset(), ctx.limit());
+        return ctx.method().invokeInterfaceMethod(md(TypedQuery.class, TQ_GET_RESULT_LIST, List.class), typedQuery);
     }
 
     /**
@@ -170,6 +218,7 @@ public class QueryExecutorClassGenerator {
 
     /**
      * Generates simple field projection query (Phase 2.1).
+     * Phase 3: Enhanced to support ORDER BY sorting.
      * <p>
      * Example: Person.select(p -> p.firstName).toList()
      * <p>
@@ -183,52 +232,57 @@ public class QueryExecutorClassGenerator {
      * </pre>
      */
     private ResultHandle generateSimpleFieldProjectionQuery(
-            MethodCreator method,
-            ResultHandle em,
-            ResultHandle entityClass,
+            QueryGenContext ctx,
             LambdaExpression.FieldAccess fieldAccess) {
 
         // Get CriteriaBuilder
-        ResultHandle cb = method.invokeInterfaceMethod(
-                md(EntityManager.class, EM_GET_CRITERIA_BUILDER, CriteriaBuilder.class), em);
+        ResultHandle cb = ctx.method().invokeInterfaceMethod(
+                md(EntityManager.class, EM_GET_CRITERIA_BUILDER, CriteriaBuilder.class), ctx.em());
 
         // Load field type class
-        ResultHandle fieldTypeClass = method.loadClass(fieldAccess.fieldType());
+        ResultHandle fieldTypeClass = ctx.method().loadClass(fieldAccess.fieldType());
 
         // Create CriteriaQuery<FieldType>
-        ResultHandle query = method.invokeInterfaceMethod(
+        ResultHandle query = ctx.method().invokeInterfaceMethod(
                 md(CriteriaBuilder.class, EM_CREATE_QUERY, CriteriaQuery.class, Class.class),
                 cb, fieldTypeClass);
 
         // Create Root<Entity>
-        ResultHandle root = method.invokeInterfaceMethod(
+        ResultHandle root = ctx.method().invokeInterfaceMethod(
                 md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class),
-                query, entityClass);
+                query, ctx.entityClass());
 
         // Generate root.get("fieldName")
-        ResultHandle fieldName = method.load(fieldAccess.fieldName());
-        ResultHandle path = method.invokeInterfaceMethod(
+        ResultHandle fieldName = ctx.method().load(fieldAccess.fieldName());
+        ResultHandle path = ctx.method().invokeInterfaceMethod(
                 md(Path.class, "get", Path.class, String.class),
                 root, fieldName);
 
         // query.select(path)
-        method.invokeInterfaceMethod(
+        ctx.method().invokeInterfaceMethod(
                 md(CriteriaQuery.class, CQ_SELECT, CriteriaQuery.class, Selection.class),
                 query, path);
 
+        // Phase 3: Apply ORDER BY if sorting expressions present
+        applyOrderBy(ctx.method(), query, root, cb, ctx.sortExpressions(), ctx.capturedValues(), path);
+
         // Create TypedQuery
-        ResultHandle typedQuery = method.invokeInterfaceMethod(
+        ResultHandle typedQuery = ctx.method().invokeInterfaceMethod(
                 md(EntityManager.class, EM_CREATE_QUERY, TypedQuery.class, CriteriaQuery.class),
-                em, query);
+                ctx.em(), query);
+
+        // Phase 4: Apply pagination
+        applyPagination(ctx.method(), typedQuery, ctx.offset(), ctx.limit());
 
         // Return getResultList()
-        return method.invokeInterfaceMethod(
+        return ctx.method().invokeInterfaceMethod(
                 md(TypedQuery.class, TQ_GET_RESULT_LIST, List.class),
                 typedQuery);
     }
 
     /**
      * Generates projection query supporting both field access and expressions (Phase 2.1/2.3).
+     * Phase 3: Enhanced to support ORDER BY sorting.
      * <p>
      * Examples:
      * <ul>
@@ -241,57 +295,61 @@ public class QueryExecutorClassGenerator {
      * For expression projections, creates CriteriaQuery&lt;Object&gt;.
      */
     private ResultHandle generateProjectionQuery(
-            MethodCreator method,
-            ResultHandle em,
-            ResultHandle entityClass,
-            LambdaExpression projectionExpression,
-            ResultHandle capturedValues) {
+            QueryGenContext ctx,
+            LambdaExpression projectionExpression) {
 
         // Phase 2.1: Simple field access projection - use type-safe query
         if (projectionExpression instanceof LambdaExpression.FieldAccess fieldAccess) {
-            return generateSimpleFieldProjectionQuery(method, em, entityClass, fieldAccess);
+            return generateSimpleFieldProjectionQuery(ctx, fieldAccess);
         }
 
         // Phase 2.3: Expression projection - use Object query
         // Get CriteriaBuilder
-        ResultHandle cb = method.invokeInterfaceMethod(
-                md(EntityManager.class, EM_GET_CRITERIA_BUILDER, CriteriaBuilder.class), em);
+        ResultHandle cb = ctx.method().invokeInterfaceMethod(
+                md(EntityManager.class, EM_GET_CRITERIA_BUILDER, CriteriaBuilder.class), ctx.em());
 
         // Use Object.class for expression projections
-        ResultHandle objectClass = method.loadClass(Object.class);
+        ResultHandle objectClass = ctx.method().loadClass(Object.class);
 
         // Create CriteriaQuery<Object>
-        ResultHandle query = method.invokeInterfaceMethod(
+        ResultHandle query = ctx.method().invokeInterfaceMethod(
                 md(CriteriaBuilder.class, EM_CREATE_QUERY, CriteriaQuery.class, Class.class),
                 cb, objectClass);
 
         // Create Root<Entity>
-        ResultHandle root = method.invokeInterfaceMethod(
+        ResultHandle root = ctx.method().invokeInterfaceMethod(
                 md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class),
-                query, entityClass);
+                query, ctx.entityClass());
 
         // Generate the projection expression as JPA Expression
         ResultHandle projectionExpr = expressionGenerator.generateExpressionAsJpaExpression(
-                method, projectionExpression, cb, root, capturedValues);
+                ctx.method(), projectionExpression, cb, root, ctx.capturedValues());
 
         // query.select(projectionExpr)
-        method.invokeInterfaceMethod(
+        ctx.method().invokeInterfaceMethod(
                 md(CriteriaQuery.class, CQ_SELECT, CriteriaQuery.class, Selection.class),
                 query, projectionExpr);
 
+        // Phase 3: Apply ORDER BY if sorting expressions present
+        applyOrderBy(ctx.method(), query, root, cb, ctx.sortExpressions(), ctx.capturedValues(), projectionExpr);
+
         // Create TypedQuery
-        ResultHandle typedQuery = method.invokeInterfaceMethod(
+        ResultHandle typedQuery = ctx.method().invokeInterfaceMethod(
                 md(EntityManager.class, EM_CREATE_QUERY, TypedQuery.class, CriteriaQuery.class),
-                em, query);
+                ctx.em(), query);
+
+        // Phase 4: Apply pagination
+        applyPagination(ctx.method(), typedQuery, ctx.offset(), ctx.limit());
 
         // Return getResultList()
-        return method.invokeInterfaceMethod(
+        return ctx.method().invokeInterfaceMethod(
                 md(TypedQuery.class, TQ_GET_RESULT_LIST, List.class),
                 typedQuery);
     }
 
     /**
      * Generates combined WHERE + SELECT query (Phase 2.2/2.3).
+     * Phase 3: Enhanced to support ORDER BY sorting.
      * <p>
      * Examples:
      * <ul>
@@ -303,68 +361,71 @@ public class QueryExecutorClassGenerator {
      * For expression projections, creates CriteriaQuery&lt;Object&gt;.
      */
     private ResultHandle generateCombinedWhereSelectQuery(
-            MethodCreator method,
-            ResultHandle em,
-            ResultHandle entityClass,
+            QueryGenContext ctx,
             LambdaExpression predicateExpression,
-            LambdaExpression projectionExpression,
-            ResultHandle capturedValues) {
+            LambdaExpression projectionExpression) {
 
         // Get CriteriaBuilder
-        ResultHandle cb = method.invokeInterfaceMethod(
-                md(EntityManager.class, EM_GET_CRITERIA_BUILDER, CriteriaBuilder.class), em);
+        ResultHandle cb = ctx.method().invokeInterfaceMethod(
+                md(EntityManager.class, EM_GET_CRITERIA_BUILDER, CriteriaBuilder.class), ctx.em());
 
         // Determine result type based on projection expression
         ResultHandle resultTypeClass;
         if (projectionExpression instanceof LambdaExpression.FieldAccess fieldAccess) {
             // Phase 2.2: Field access projection - use field type for type safety
-            resultTypeClass = method.loadClass(fieldAccess.fieldType());
+            resultTypeClass = ctx.method().loadClass(fieldAccess.fieldType());
         } else {
             // Phase 2.3: Expression projection - use Object.class
-            resultTypeClass = method.loadClass(Object.class);
+            resultTypeClass = ctx.method().loadClass(Object.class);
         }
 
         // Create CriteriaQuery<ResultType>
-        ResultHandle query = method.invokeInterfaceMethod(
+        ResultHandle query = ctx.method().invokeInterfaceMethod(
                 md(CriteriaBuilder.class, EM_CREATE_QUERY, CriteriaQuery.class, Class.class),
                 cb, resultTypeClass);
 
         // Create Root<Entity>
-        ResultHandle root = method.invokeInterfaceMethod(
+        ResultHandle root = ctx.method().invokeInterfaceMethod(
                 md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class),
-                query, entityClass);
+                query, ctx.entityClass());
 
         // Generate WHERE predicate
         ResultHandle predicate = expressionGenerator.generatePredicate(
-                method, predicateExpression, cb, root, capturedValues);
-        applyWherePredicate(method, query, predicate);
+                ctx.method(), predicateExpression, cb, root, ctx.capturedValues());
+        applyWherePredicate(ctx.method(), query, predicate);
 
         // Generate SELECT projection expression
         ResultHandle projectionExpr;
         if (projectionExpression instanceof LambdaExpression.FieldAccess fieldAccess) {
             // Phase 2.2: Simple field access - root.get("fieldName")
-            ResultHandle fieldName = method.load(fieldAccess.fieldName());
-            projectionExpr = method.invokeInterfaceMethod(
+            ResultHandle fieldName = ctx.method().load(fieldAccess.fieldName());
+            projectionExpr = ctx.method().invokeInterfaceMethod(
                     md(Path.class, "get", Path.class, String.class),
                     root, fieldName);
         } else {
             // Phase 2.3: Expression projection - use expression generator
             projectionExpr = expressionGenerator.generateExpressionAsJpaExpression(
-                    method, projectionExpression, cb, root, capturedValues);
+                    ctx.method(), projectionExpression, cb, root, ctx.capturedValues());
         }
 
         // query.select(projectionExpr)
-        method.invokeInterfaceMethod(
+        ctx.method().invokeInterfaceMethod(
                 md(CriteriaQuery.class, CQ_SELECT, CriteriaQuery.class, Selection.class),
                 query, projectionExpr);
 
+        // Phase 3: Apply ORDER BY if sorting expressions present
+        applyOrderBy(ctx.method(), query, root, cb, ctx.sortExpressions(), ctx.capturedValues(), projectionExpr);
+
         // Create TypedQuery
-        ResultHandle typedQuery = method.invokeInterfaceMethod(
+        ResultHandle typedQuery = ctx.method().invokeInterfaceMethod(
                 md(EntityManager.class, EM_CREATE_QUERY, TypedQuery.class, CriteriaQuery.class),
-                em, query);
+                ctx.em(), query);
+
+        // Phase 4: Apply pagination
+        applyPagination(ctx.method(), typedQuery, ctx.offset(), ctx.limit());
 
         // Return getResultList()
-        return method.invokeInterfaceMethod(
+        return ctx.method().invokeInterfaceMethod(
                 md(TypedQuery.class, TQ_GET_RESULT_LIST, List.class),
                 typedQuery);
     }
@@ -377,6 +438,123 @@ public class QueryExecutorClassGenerator {
             ResultHandle predicateArray = method.newArray(Predicate.class, 1);
             method.writeArrayValue(predicateArray, 0, predicate);
             method.invokeInterfaceMethod(md(CriteriaQuery.class, CQ_WHERE, CriteriaQuery.class, Predicate[].class), query, predicateArray);
+        }
+    }
+
+    /**
+     * Applies ORDER BY clause to CriteriaQuery.
+     * Phase 3: Generates JPA ordering from sort expressions.
+     * <p>
+     * For each sort expression, generates:
+     * - Expression for the sort key (e.g., root.get("age"))
+     * - Order object (cb.asc() or cb.desc())
+     * Then applies all orders via query.orderBy(orders...)
+     * <p>
+     * IMPORTANT: sortExpressions are in bytecode order (first-to-last as written in source).
+     * For "last call wins" semantics, we process in REVERSE order so the last call becomes
+     * the primary sort (first in JPA's ORDER BY array).
+     * <p>
+     * Phase 3 Enhancement: For SELECT+SORT queries with identity sort functions like (String s) -> s,
+     * the sort key expression will be null (Parameter cannot be converted to JPA expression).
+     * In this case, we use the projectionExpression parameter as the ORDER BY key.
+     *
+     * @param projectionExpression the JPA expression for the SELECT clause (used for identity sorts), or null
+     */
+    private void applyOrderBy(
+            MethodCreator method,
+            ResultHandle query,
+            ResultHandle root,
+            ResultHandle cb,
+            List<?> sortExpressions,
+            ResultHandle capturedValues,
+            ResultHandle projectionExpression) {
+
+        if (sortExpressions == null || sortExpressions.isEmpty()) {
+            return; // No sorting
+        }
+
+        // Create array to hold Order objects
+        ResultHandle ordersArray = method.newArray(jakarta.persistence.criteria.Order.class, sortExpressions.size());
+
+        // Generate Order objects in REVERSE order for "last call wins" semantics
+        // Example: .sortedBy(firstName).sortedBy(lastName) should order by lastName first
+        for (int i = 0; i < sortExpressions.size(); i++) {
+            // Read from end of list (reverse order)
+            int reverseIndex = sortExpressions.size() - 1 - i;
+            Object sortExprObj = sortExpressions.get(reverseIndex);
+
+            // This is a build-time object, so we can safely cast it
+            if (sortExprObj instanceof CallSiteProcessor.SortExpression sortExpr) {
+                // Generate JPA Expression for the sort key extractor
+                ResultHandle sortKeyExpr = expressionGenerator.generateExpressionAsJpaExpression(
+                        method, sortExpr.keyExtractor(), cb, root, capturedValues);
+
+                // Phase 3: If sort key is null (identity function like s -> s after projection),
+                // use the projection expression instead
+                if (sortKeyExpr == null && projectionExpression != null) {
+                    sortKeyExpr = projectionExpression;
+                }
+
+                // Create Order object (ascending or descending)
+                ResultHandle order;
+                if (sortExpr.direction() == SortDirection.DESCENDING) {
+                    order = method.invokeInterfaceMethod(CB_DESC, cb, sortKeyExpr);
+                } else {
+                    order = method.invokeInterfaceMethod(CB_ASC, cb, sortKeyExpr);
+                }
+
+                // Add to orders array at position i (forward order)
+                method.writeArrayValue(ordersArray, i, order);
+            }
+        }
+
+        // Apply orderBy to query
+        method.invokeInterfaceMethod(CQ_ORDER_BY, query, ordersArray);
+    }
+
+    /**
+     * Applies pagination (OFFSET and LIMIT) to TypedQuery.
+     * Phase 4: Implementation of skip() and limit() support.
+     * <p>
+     * Generates code equivalent to:
+     * <pre>
+     * if (offset != null) query.setFirstResult(offset);
+     * if (limit != null) query.setMaxResults(limit);
+     * </pre>
+     *
+     * @param method the method creator
+     * @param typedQuery the TypedQuery to apply pagination to
+     * @param offset the offset parameter (Integer, may be null)
+     * @param limit the limit parameter (Integer, may be null)
+     */
+    private void applyPagination(
+            MethodCreator method,
+            ResultHandle typedQuery,
+            ResultHandle offset,
+            ResultHandle limit) {
+
+        // Apply offset if present: if (offset != null) query.setFirstResult(offset);
+        if (offset != null) {
+            io.quarkus.gizmo.BranchResult offsetBranch = method.ifNotNull(offset);
+            try (io.quarkus.gizmo.BytecodeCreator offsetTrue = offsetBranch.trueBranch()) {
+                // Unbox Integer to int
+                ResultHandle offsetValue = offsetTrue.invokeVirtualMethod(
+                        MethodDescriptor.ofMethod(Integer.class, "intValue", int.class),
+                        offset);
+                offsetTrue.invokeInterfaceMethod(TQ_SET_FIRST_RESULT, typedQuery, offsetValue);
+            }
+        }
+
+        // Apply limit if present: if (limit != null) query.setMaxResults(limit);
+        if (limit != null) {
+            io.quarkus.gizmo.BranchResult limitBranch = method.ifNotNull(limit);
+            try (io.quarkus.gizmo.BytecodeCreator limitTrue = limitBranch.trueBranch()) {
+                // Unbox Integer to int
+                ResultHandle limitValue = limitTrue.invokeVirtualMethod(
+                        MethodDescriptor.ofMethod(Integer.class, "intValue", int.class),
+                        limit);
+                limitTrue.invokeInterfaceMethod(TQ_SET_MAX_RESULTS, typedQuery, limitValue);
+            }
         }
     }
 }

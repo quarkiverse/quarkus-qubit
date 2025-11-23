@@ -35,12 +35,21 @@ public sealed interface BranchState permits BranchState.Initial, BranchState.And
     /**
      * Processes a branch instruction, returning combine operator and new state atomically.
      *
+     * <p>Default implementation delegates to testing API methods ({@code determineCombineOperator}
+     * and {@code transition}). Implementations can override for custom behavior (e.g., {@link Initial}).
+     *
      * @param jumpTarget true if jump targets true branch, false otherwise
      * @param isBooleanCheck true if boolean field check
      * @param stackTop top stack expression, or null
      * @return BranchResult with combine operator and new state
      */
-    BranchResult processBranch(boolean jumpTarget, boolean isBooleanCheck, LambdaExpression stackTop);
+    default BranchResult processBranch(boolean jumpTarget, boolean isBooleanCheck, LambdaExpression stackTop) {
+        // All BranchState implementations also implement BranchStateTestingAPI
+        BranchStateTestingAPI testingAPI = (BranchStateTestingAPI) this;
+        Operator combineOp = testingAPI.determineCombineOperator(jumpTarget, stackTop);
+        BranchState newState = testingAPI.transition(jumpTarget, isBooleanCheck);
+        return new BranchResult(combineOp, newState);
+    }
 
     /**
      * Returns true if this is the initial state (no jumps processed yet).
@@ -90,8 +99,8 @@ sealed interface BranchStateTestingAPI permits BranchState.Initial, BranchState.
             // First comparison doesn't combine, and first jump determines the mode
             // CRITICAL: Record the first jump target and boolean check flag for second comparison
             BranchState newState = jumpTarget ?
-                    new OrMode(jumpTarget, isBooleanCheck) :
-                    new AndMode(jumpTarget, isBooleanCheck);
+                    new OrMode(Optional.of(jumpTarget), isBooleanCheck) :
+                    new AndMode(Optional.of(jumpTarget), isBooleanCheck);
             return new BranchResult(null, newState);
         }
 
@@ -103,7 +112,9 @@ sealed interface BranchStateTestingAPI permits BranchState.Initial, BranchState.
 
         @Override
         public BranchState transition(boolean jumpTarget, boolean isBooleanCheck) {
-            return jumpTarget ? new OrMode() : new AndMode();
+            return jumpTarget ?
+                    new OrMode(Optional.empty(), false) :
+                    new AndMode(Optional.empty(), false);
         }
 
         @Override
@@ -115,49 +126,19 @@ sealed interface BranchStateTestingAPI permits BranchState.Initial, BranchState.
     /**
      * AND mode: combines expressions with AND (jump-to-false pattern).
      */
-    record AndMode(Optional<Boolean> lastJumpTarget, Optional<Boolean> secondLastJumpTarget, boolean prevWasBooleanCheck) implements BranchState, BranchStateTestingAPI {
-
-        /**
-         * Creates new AND mode with no jump history.
-         */
-        public AndMode() {
-            this(Optional.empty(), Optional.empty(), false);
-        }
-
-        /**
-         * Creates AND mode with last jump target recorded.
-         */
-        public AndMode(boolean lastJumpTarget) {
-            this(Optional.of(lastJumpTarget), Optional.empty(), false);
-        }
-
-        /**
-         * Creates AND mode with last jump target and boolean check flag.
-         */
-        public AndMode(boolean lastJumpTarget, boolean prevWasBooleanCheck) {
-            this(Optional.of(lastJumpTarget), Optional.empty(), prevWasBooleanCheck);
-        }
-
-        @Override
-        public BranchResult processBranch(boolean jumpTarget, boolean isBooleanCheck, LambdaExpression stackTop) {
-            // Call deprecated methods separately to ensure exact same logic
-            Operator combineOp = determineCombineOperator(jumpTarget, stackTop);
-            BranchState newState = transition(jumpTarget, isBooleanCheck);
-            return new BranchResult(combineOp, newState);
-        }
+    record AndMode(Optional<Boolean> lastJumpTarget, boolean prevWasBooleanCheck) implements BranchState, BranchStateTestingAPI {
 
         @Override
         public BranchState afterCombination(boolean currentJumpTarget, Optional<Boolean> previousJumpTarget, Operator combineOp) {
-            // Original logic: shouldEnterOrModeAfterAndGroup
-            // This should only trigger when completing a nested AND group that should lead to OR alternatives
-            // It should NOT trigger when completing an OR group (even if we used AND to add to it)
+            // Post-combination transition logic for AND mode
+            // Transitions to OR mode when completing a nested AND group that leads to OR alternatives
+            // Does NOT transition when completing an OR group (even if we used AND to combine)
 
             // No transition if no combination happened
             if (combineOp == null) {
                 return this;
             }
 
-            boolean currentJumpTrue = currentJumpTarget;
             boolean prevJumpFalse = previousJumpTarget.isPresent() && !previousJumpTarget.get();
             boolean usedAndOperator = combineOp == AND;
 
@@ -165,9 +146,9 @@ sealed interface BranchStateTestingAPI permits BranchState.Initial, BranchState.
             // 1. Current jump is TRUE (completing a group)
             // 2. Previous jump was FALSE (was in AND chain)
             // 3. We combined with AND (not OR - if we used OR, we were already in an OR group!)
-            if (currentJumpTrue && prevJumpFalse && usedAndOperator) {
+            if (currentJumpTarget && prevJumpFalse && usedAndOperator) {
                 // Completed nested AND group, entering OR mode for next comparison
-                return new OrMode(currentJumpTarget, prevWasBooleanCheck);
+                return new OrMode(Optional.of(currentJumpTarget), prevWasBooleanCheck);
             }
 
             return this; // No mode transition
@@ -181,18 +162,11 @@ sealed interface BranchStateTestingAPI permits BranchState.Initial, BranchState.
             // 3. We just completed an AND group (jump pattern: FALSE then TRUE)
             if (jumpTarget && lastJumpTarget.isPresent() && !lastJumpTarget.get()) {
                 // Completed nested AND group, enter OR mode for alternatives
-                return new OrMode(jumpTarget, isBooleanCheck);
-            }
-
-            // Transition from OR back to AND when:
-            // Both current and previous jump are FALSE (starting new AND group)
-            if (!jumpTarget && lastJumpTarget.isPresent() && !lastJumpTarget.get()) {
-                // Stay in AND mode but update history
-                return new AndMode(Optional.of(jumpTarget), lastJumpTarget, isBooleanCheck);
+                return new OrMode(Optional.of(jumpTarget), isBooleanCheck);
             }
 
             // Stay in AND mode, update history
-            return new AndMode(Optional.of(jumpTarget), lastJumpTarget, isBooleanCheck);
+            return new AndMode(Optional.of(jumpTarget), isBooleanCheck);
         }
 
         @Override
@@ -202,54 +176,51 @@ sealed interface BranchStateTestingAPI permits BranchState.Initial, BranchState.
                 return AND;
             }
 
-            boolean prevJumpedToTrue = lastJumpTarget.get();
-
             // Both jumps to TRUE → OR (alternative conditions)
-            if (jumpTarget && prevJumpedToTrue) {
+            if (jumpTarget && lastJumpTarget.get()) {
                 return OR;
             }
 
             // Current TRUE, previous FALSE → completing nested AND group
             if (jumpTarget) {
-                boolean stackHasOr = hasOrOperator(stackTop);
-
-                // If previous was a boolean check and stack doesn't have OR, don't combine
-                if (prevWasBooleanCheck && !stackHasOr) {
-                    return null;
-                }
-
-                // If previous wasn't a boolean check and stack doesn't have OR
-                if (!prevWasBooleanCheck && !stackHasOr) {
-                    boolean stackHasAnd = hasAndOperator(stackTop);
-                    if (stackHasAnd) {
-                        return OR;
-                    }
-                    return AND;
-                }
-
-                return AND;
+                return determineOperatorForCompletingAndGroup(stackTop);
             }
 
             // Both FALSE or current FALSE, previous TRUE → AND
             return AND;
         }
 
-        private boolean hasOrOperator(LambdaExpression expr) {
-            return expr instanceof LambdaExpression.BinaryOp topOp &&
-                   containsOrOperator(topOp);
-        }
+        /**
+         * Determines the combine operator when completing a nested AND group (jump to TRUE after FALSE).
+         * Handles special cases based on previous boolean checks and stack operator presence.
+         *
+         * @param stackTop top stack expression to analyze
+         * @return combine operator (AND, OR, or null if no combination needed)
+         */
+        private Operator determineOperatorForCompletingAndGroup(LambdaExpression stackTop) {
+            boolean stackHasOr = containsOrOperator(stackTop);
 
-        private boolean hasAndOperator(LambdaExpression expr) {
-            return expr instanceof LambdaExpression.BinaryOp topOp &&
-                   topOp.operator() == AND;
+            // If stack has OR, always combine with AND
+            if (stackHasOr) {
+                return AND;
+            }
+
+            // Stack doesn't have OR - handle based on previous comparison type
+            if (prevWasBooleanCheck) {
+                return null;  // Previous was boolean check, don't combine
+            }
+
+            // Previous wasn't boolean check - determine operator based on stack content
+            boolean stackHasAnd = stackTop instanceof LambdaExpression.BinaryOp topOp &&
+                                  topOp.operator() == AND;
+            return stackHasAnd ? OR : AND;
         }
 
         private boolean containsOrOperator(LambdaExpression expr) {
             if (expr instanceof LambdaExpression.BinaryOp binOp) {
-                if (binOp.operator() == OR) {
-                    return true;
-                }
-                return containsOrOperator(binOp.left()) || containsOrOperator(binOp.right());
+                return binOp.operator() == OR ||
+                       containsOrOperator(binOp.left()) ||
+                       containsOrOperator(binOp.right());
             }
             return false;
         }
@@ -258,42 +229,13 @@ sealed interface BranchStateTestingAPI permits BranchState.Initial, BranchState.
     /**
      * OR mode: combines expressions with OR (jump-to-true pattern or after AND groups).
      */
-    record OrMode(Optional<Boolean> lastJumpTarget, Optional<Boolean> secondLastJumpTarget, boolean prevWasBooleanCheck) implements BranchState, BranchStateTestingAPI {
-
-        /**
-         * Creates new OR mode with no jump history.
-         */
-        public OrMode() {
-            this(Optional.empty(), Optional.empty(), false);
-        }
-
-        /**
-         * Creates OR mode with last jump target recorded.
-         */
-        public OrMode(boolean lastJumpTarget) {
-            this(Optional.of(lastJumpTarget), Optional.empty(), false);
-        }
-
-        /**
-         * Creates OR mode with last jump target and boolean check flag.
-         */
-        public OrMode(boolean lastJumpTarget, boolean prevWasBooleanCheck) {
-            this(Optional.of(lastJumpTarget), Optional.empty(), prevWasBooleanCheck);
-        }
-
-        @Override
-        public BranchResult processBranch(boolean jumpTarget, boolean isBooleanCheck, LambdaExpression stackTop) {
-            // Call deprecated methods separately to ensure exact same logic
-            Operator combineOp = determineCombineOperator(jumpTarget, stackTop);
-            BranchState newState = transition(jumpTarget, isBooleanCheck);
-            return new BranchResult(combineOp, newState);
-        }
+    record OrMode(Optional<Boolean> lastJumpTarget, boolean prevWasBooleanCheck) implements BranchState, BranchStateTestingAPI {
 
         @Override
         public BranchState afterCombination(boolean currentJumpTarget, Optional<Boolean> previousJumpTarget, Operator combineOp) {
-            // In OR mode, no post-combination transitions occur in the original code
-            // The transition from OR to AND happens BEFORE combination (in shouldResetOrMode)
-            // which is handled by the processBranch/transition methods
+            // Post-combination transition logic for OR mode
+            // No state transitions occur after combination in OR mode
+            // Transitions from OR to AND happen before combination during processBranch/transition
             return this;
         }
 
@@ -305,11 +247,11 @@ sealed interface BranchStateTestingAPI permits BranchState.Initial, BranchState.
             // 3. Starting a new nested AND group
             if (!jumpTarget && lastJumpTarget.isPresent() && !lastJumpTarget.get()) {
                 // Two FALSE jumps in a row → nested AND group
-                return new AndMode(Optional.of(jumpTarget), lastJumpTarget, isBooleanCheck);
+                return new AndMode(Optional.of(jumpTarget), isBooleanCheck);
             }
 
             // Stay in OR mode, update history
-            return new OrMode(Optional.of(jumpTarget), lastJumpTarget, isBooleanCheck);
+            return new OrMode(Optional.of(jumpTarget), isBooleanCheck);
         }
 
         @Override
@@ -322,22 +264,16 @@ sealed interface BranchStateTestingAPI permits BranchState.Initial, BranchState.
                 return OR;
             }
 
-            boolean prevJumpedToTrue = lastJumpTarget.get();
-
-            // CRITICAL FIX: Detect when combining two OR groups with AND
+            // Detect when combining two OR groups with AND
             // Pattern: (a OR b) AND (c OR ...)
-            // When we see:
-            // - Current jump is TRUE (entering/completing OR group)
-            // - Stack has an OR expression (first OR group complete)
-            // We need to use AND to combine them
-            // BUT we must be careful not to use AND too early (see restructuring below)
+            // When current jump is TRUE and stack has an OR expression, use AND to combine the groups
             if (jumpTarget && stackTop instanceof LambdaExpression.BinaryOp binOp && binOp.operator() == OR) {
                     // Stack has OR expression, jumping to TRUE → use AND
                     return AND;
             }
 
             // Both FALSE → transition to AND group is happening
-            if (!jumpTarget && !prevJumpedToTrue) {
+            if (!jumpTarget && !lastJumpTarget.get()) {
                 return OR; // Combine current before transitioning
             }
 

@@ -60,4 +60,31 @@ class NotOperationsTest {
                 .hasSizeGreaterThan(0)
                 .allMatch(p -> !(p.getAge() < 28 || p.getAge() > 42) && p.isActive());
     }
+
+    @Test
+    void notWithComplexAnd() {
+        var results = Person.where((Person p) -> !(p.age > 10 && p.salary < 5000)).toList();
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(p -> !(p.getAge() > 10 && p.getSalary() < 5000));
+    }
+
+    @Test
+    void doubleNegation() {
+        var results = Person.where((Person p) -> !!p.active).toList();
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(Person::isActive);
+    }
+
+    @Test
+    void notWithOr() {
+        var results = Person.where((Person p) -> !(p.active || p.salary > 90000)).toList();
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(p -> !(p.isActive() || p.getSalary() > 90000));
+    }
 }

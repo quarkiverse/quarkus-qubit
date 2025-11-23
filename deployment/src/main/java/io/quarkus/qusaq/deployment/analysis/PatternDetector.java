@@ -5,7 +5,15 @@ import io.quarkus.qusaq.deployment.LambdaExpression;
 import java.util.Deque;
 import java.util.Iterator;
 
-import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.*;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.ADD;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.AND;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.DIV;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.EQ;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.MOD;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.MUL;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.NE;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.OR;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.SUB;
 
 /**
  * Detects bytecode patterns: dcmpl/fcmpl/lcmp, compareTo, arithmetic, arithmetic+constant.
@@ -16,30 +24,87 @@ public final class PatternDetector {
     }
 
     /**
-     * Analysis result for branch instruction patterns.
+     * Enumeration of bytecode branch patterns detected during lambda analysis.
+     * Patterns are mutually exclusive and checked in priority order during detection.
      */
-    public record BranchPatternAnalysis(
-        LambdaExpression top,
-        boolean isDcmplPattern,
-        boolean isCompareToPattern,
-        boolean isArithmeticPattern,
-        boolean isArithmeticComparisonPattern
-    ) {
+    public enum BranchPattern {
         /**
-         * Analyzes stack for bytecode patterns.
+         * Numeric comparison pattern: arithmetic comparison (ISUB/LSUB) or floating-point comparison (DCMPL/DCMPG).
+         * Examples: {@code (a - b) == 0}, {@code dcmpl(a, b) != 0}
          */
-        public static BranchPatternAnalysis analyze(Deque<LambdaExpression> stack) {
+        NUMERIC_COMPARISON,
+
+        /**
+         * CompareTo method call pattern.
+         * Example: {@code a.compareTo(b)}
+         */
+        COMPARE_TO,
+
+        /**
+         * Arithmetic expression pattern (ADD/SUB/MUL/DIV/MOD).
+         * Example: {@code (a + b) != 0}
+         */
+        ARITHMETIC,
+
+        /**
+         * Other patterns (boolean field access, etc.).
+         * This is the default when no other pattern matches.
+         */
+        OTHER;
+
+        /**
+         * Detects branch pattern with priority ordering.
+         * Patterns are checked from highest to lowest priority.
+         *
+         * @param stack expression stack to analyze
+         * @return detected pattern (never null)
+         */
+        public static BranchPattern detect(Deque<LambdaExpression> stack) {
             if (stack.isEmpty()) {
-                return new BranchPatternAnalysis(null, false, false, false, false);
+                return OTHER;
             }
 
             LambdaExpression top = stack.peek();
+
+            // Priority 1: Numeric comparison (covers both arithmetic and DCMPL)
+            if (PatternDetector.isArithmeticComparisonPattern(stack) ||
+                PatternDetector.isDcmplPattern(stack)) {
+                return NUMERIC_COMPARISON;
+            }
+
+            // Priority 2: CompareTo method call
+            if (PatternDetector.isCompareToPattern(top)) {
+                return COMPARE_TO;
+            }
+
+            // Priority 3: Arithmetic expression
+            if (PatternDetector.isArithmeticExpression(top)) {
+                return ARITHMETIC;
+            }
+
+            // Default: Other patterns
+            return OTHER;
+        }
+    }
+
+    /**
+     * Analysis result for branch instruction patterns.
+     * Immutable record containing the top stack expression and detected pattern type.
+     */
+    public record BranchPatternAnalysis(
+        LambdaExpression top,
+        BranchPattern pattern
+    ) {
+        /**
+         * Analyzes stack for bytecode patterns.
+         *
+         * @param stack expression stack to analyze
+         * @return analysis result with top expression and pattern type
+         */
+        public static BranchPatternAnalysis analyze(Deque<LambdaExpression> stack) {
             return new BranchPatternAnalysis(
-                top,
-                PatternDetector.isDcmplPattern(stack),
-                PatternDetector.isCompareToPattern(top),
-                PatternDetector.isArithmeticExpression(top),
-                PatternDetector.isArithmeticComparisonPattern(stack)
+                stack.isEmpty() ? null : stack.peek(),
+                BranchPattern.detect(stack)
             );
         }
     }

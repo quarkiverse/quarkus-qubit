@@ -2,6 +2,8 @@ package io.quarkus.qusaq.deployment.analysis.branch;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Optional;
+
 import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator;
 import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.AND;
 import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.OR;
@@ -61,7 +63,7 @@ class BranchStateTest {
 
     @Test
     void andMode_noHistory_determineCombineOperatorReturnsAnd() {
-        BranchState.AndMode andMode = new BranchState.AndMode();
+        BranchState.AndMode andMode = new BranchState.AndMode(Optional.empty(), false);
 
         Operator combineOp = andMode.determineCombineOperator(false, null);
 
@@ -72,7 +74,7 @@ class BranchStateTest {
     void andMode_bothFalse_combinedWithAnd() {
         // Simulates: (a > 5) && (b > 10)
         // Both jump to FALSE (fall-through continues)
-        BranchState.AndMode andMode = new BranchState.AndMode(false);
+        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
 
         Operator combineOp = andMode.determineCombineOperator(false, null);
 
@@ -84,7 +86,7 @@ class BranchStateTest {
         // Completing nested AND group
         // Previous: jump to FALSE (first condition in AND)
         // Current: jump to TRUE (last condition in AND)
-        BranchState.AndMode andMode = new BranchState.AndMode(false);
+        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
 
         Operator combineOp = andMode.determineCombineOperator(true, null);
 
@@ -96,7 +98,7 @@ class BranchStateTest {
         // Alternative branches (OR)
         // Previous: jump to TRUE
         // Current: jump to TRUE
-        BranchState.AndMode andMode = new BranchState.AndMode(true);
+        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(true), false);
 
         Operator combineOp = andMode.determineCombineOperator(true, null);
 
@@ -106,7 +108,7 @@ class BranchStateTest {
     @Test
     void andMode_previousFalseCurrentTrue_transitionsToOrMode() {
         // After completing AND group, enter OR mode for alternatives
-        BranchState.AndMode andMode = new BranchState.AndMode(false);
+        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
 
         BranchState next = andMode.transition(true, false);
 
@@ -115,7 +117,7 @@ class BranchStateTest {
 
     @Test
     void andMode_bothFalse_staysInAndMode() {
-        BranchState.AndMode andMode = new BranchState.AndMode(false);
+        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
 
         BranchState next = andMode.transition(false, false);
 
@@ -124,7 +126,7 @@ class BranchStateTest {
 
     @Test
     void andMode_previousTrueCurrentFalse_staysInAndMode() {
-        BranchState.AndMode andMode = new BranchState.AndMode(true);
+        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(true), false);
 
         BranchState next = andMode.transition(false, false);
 
@@ -135,7 +137,7 @@ class BranchStateTest {
 
     @Test
     void orMode_noHistory_determineCombineOperatorReturnsOr() {
-        BranchState.OrMode orMode = new BranchState.OrMode();
+        BranchState.OrMode orMode = new BranchState.OrMode(Optional.empty(), false);
 
         Operator combineOp = orMode.determineCombineOperator(true, null);
 
@@ -145,7 +147,7 @@ class BranchStateTest {
     @Test
     void orMode_bothTrue_combinedWithOr() {
         // Alternative conditions (OR chain)
-        BranchState.OrMode orMode = new BranchState.OrMode(true);
+        BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(true), false);
 
         Operator combineOp = orMode.determineCombineOperator(true, null);
 
@@ -155,7 +157,7 @@ class BranchStateTest {
     @Test
     void orMode_bothFalse_combinedWithOr() {
         // Transitioning to nested AND group, but still combine with OR first
-        BranchState.OrMode orMode = new BranchState.OrMode(false);
+        BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(false), false);
 
         Operator combineOp = orMode.determineCombineOperator(false, null);
 
@@ -165,7 +167,7 @@ class BranchStateTest {
     @Test
     void orMode_bothFalse_transitionsToAndMode() {
         // Two FALSE jumps in a row → nested AND group
-        BranchState.OrMode orMode = new BranchState.OrMode(false);
+        BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(false), false);
 
         BranchState next = orMode.transition(false, false);
 
@@ -174,7 +176,7 @@ class BranchStateTest {
 
     @Test
     void orMode_previousTrueCurrentFalse_staysInOrMode() {
-        BranchState.OrMode orMode = new BranchState.OrMode(true);
+        BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(true), false);
 
         BranchState next = orMode.transition(false, false);
 
@@ -183,7 +185,7 @@ class BranchStateTest {
 
     @Test
     void orMode_bothTrue_staysInOrMode() {
-        BranchState.OrMode orMode = new BranchState.OrMode(true);
+        BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(true), false);
 
         BranchState next = orMode.transition(true, false);
 
@@ -348,7 +350,7 @@ class BranchStateTest {
 
     @Test
     void andMode_transitionDoesNotMutateOriginal() {
-        BranchState.AndMode original = new BranchState.AndMode();
+        BranchState.AndMode original = new BranchState.AndMode(Optional.empty(), false);
 
         BranchState next = original.transition(false, false);
 
@@ -360,7 +362,7 @@ class BranchStateTest {
 
     @Test
     void orMode_transitionDoesNotMutateOriginal() {
-        BranchState.OrMode original = new BranchState.OrMode();
+        BranchState.OrMode original = new BranchState.OrMode(Optional.empty(), false);
 
         BranchState next = original.transition(true, false);
 

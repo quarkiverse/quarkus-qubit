@@ -1,15 +1,21 @@
 package io.quarkus.qusaq.deployment.analysis.handlers;
 
 import io.quarkus.qusaq.deployment.LambdaExpression;
+import io.quarkus.qusaq.deployment.analysis.BytecodeAnalysisException;
 import io.quarkus.qusaq.deployment.analysis.BytecodeValidator;
 import org.objectweb.asm.tree.AbstractInsnNode;
 
-import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.*;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.ADD;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.AND;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.DIV;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.MOD;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.MUL;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.OR;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.SUB;
 import static org.objectweb.asm.Opcodes.*;
 
 /**
- * Handles arithmetic (ADD, SUB, MUL, DIV, MOD), logical (IAND, IOR), and comparison (DCMPL/G, FCMPL/G, LCMP) operations.
- * Comparison operations leave operands on stack for branch instruction consumption.
+ * Handles arithmetic, logical, and comparison operations.
  */
 public class ArithmeticInstructionHandler implements InstructionHandler {
 
@@ -33,7 +39,6 @@ public class ArithmeticInstructionHandler implements InstructionHandler {
             handleComparisonOperation(ctx, opcode);
         }
 
-        // Continue processing (don't terminate analysis)
         return false;
     }
 
@@ -42,21 +47,20 @@ public class ArithmeticInstructionHandler implements InstructionHandler {
         return (opcode >= IADD && opcode <= DREM) && opcode != IAND && opcode != IOR;
     }
 
-    /** Checks if opcode is logical (IAND, IOR). */
+    /** Checks if opcode is logical. */
     private boolean isLogicalOpcode(int opcode) {
         return opcode == IAND || opcode == IOR;
     }
 
-    /** Checks if opcode is comparison (DCMPL/G, FCMPL/G, LCMP). */
+    /** Checks if opcode is comparison. */
     private boolean isComparisonOpcode(int opcode) {
         return opcode == DCMPL || opcode == DCMPG ||
                opcode == FCMPL || opcode == FCMPG ||
                opcode == LCMP;
     }
 
-    /** Handles arithmetic operations: pops operands, creates BinaryOp, pushes result. */
+    /** Handles arithmetic operations. */
     private void handleArithmeticOperation(AnalysisContext ctx, int opcode) {
-        // Validate stack has at least 2 elements
         BytecodeValidator.requireStackSize(ctx.getStack(), 2, getOpcodeName(opcode));
 
         LambdaExpression right = ctx.pop();
@@ -68,15 +72,14 @@ public class ArithmeticInstructionHandler implements InstructionHandler {
             case IMUL, LMUL, FMUL, DMUL -> MUL;
             case IDIV, LDIV, FDIV, DDIV -> DIV;
             case IREM, LREM -> MOD;
-            default -> throw new IllegalStateException("Unexpected arithmetic opcode: " + opcode);
+            default -> throw BytecodeAnalysisException.unexpectedOpcode("arithmetic operation", opcode);
         };
 
         ctx.push(new LambdaExpression.BinaryOp(left, arithmeticOp, right));
     }
 
-    /** Handles logical operations: creates BinaryOp with AND/OR operator. */
+    /** Handles logical operations. */
     private void handleLogicalOperation(AnalysisContext ctx, int opcode) {
-        // Validate stack has at least 2 elements
         BytecodeValidator.requireStackSize(ctx.getStack(), 2, getOpcodeName(opcode));
 
         LambdaExpression right = ctx.pop();
@@ -86,13 +89,9 @@ public class ArithmeticInstructionHandler implements InstructionHandler {
         ctx.push(new LambdaExpression.BinaryOp(left, logicalOp, right));
     }
 
-    /** Handles comparison operations: leaves operands on stack for branch handler to consume. */
+    /** Handles comparison operations: leaves operands on stack for branch handler. */
     private void handleComparisonOperation(AnalysisContext ctx, int opcode) {
-        // Validate stack has at least 2 elements
         BytecodeValidator.requireStackSize(ctx.getStack(), 2, getOpcodeName(opcode));
-
-        // Do nothing - leave operands on stack for branch instruction to consume
-        // The branch handler will recognize the two-operand pattern and create the comparison
     }
 
     /** Returns opcode name for error messages. */

@@ -85,4 +85,31 @@ class NullCheckOperationsCriteriaTest extends CriteriaQueryTestBase {
         assertCriteriaGenerationSucceeds(expr);
         assertCriteriaMethodCalled(structure, "isNull");
     }
+
+    @Test
+    void nullCheckWithAnd() {
+        LambdaExpression expr = analyzeLambda("nullCheckWithAnd");
+        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
+        assertCriteriaGenerationSucceeds(expr);
+        assertCriteriaMethodCalled(structure, "and");
+        assertCriteriaMethodCalled(structure, "isNotNull");
+    }
+
+    @Test
+    void nullCheckWithCondition() {
+        LambdaExpression expr = analyzeLambda("nullCheckWithCondition");
+        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
+        assertCriteriaGenerationSucceeds(expr);
+        assertCriteriaMethodCalled(structure, "and");
+        assertCriteriaMethodCalled(structure, "isNotNull");
+    }
+
+    @Test
+    void nullCheckWithOr() {
+        LambdaExpression expr = analyzeLambda("nullCheckWithOr");
+        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
+        assertCriteriaGenerationSucceeds(expr);
+        assertCriteriaMethodCalled(structure, "or");
+        assertCriteriaMethodCalled(structure, "isNull");
+    }
 }

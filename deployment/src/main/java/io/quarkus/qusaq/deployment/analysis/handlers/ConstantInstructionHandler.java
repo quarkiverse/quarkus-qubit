@@ -10,8 +10,7 @@ import static io.quarkus.qusaq.deployment.analysis.BytecodeAnalysisConstants.LOO
 import static org.objectweb.asm.Opcodes.*;
 
 /**
- * Handles constant load instructions: BIPUSH/SIPUSH, LDC, ACONST_NULL, ICONST/FCONST/LCONST/DCONST.
- * Special handling for ICONST_0/1 after branches: uses lookahead to determine if constant is a boolean result marker (skip/terminate) or actual expression operand (include).
+ * Handles constant load instructions with special ICONST_0/1 post-branch handling.
  */
 public class ConstantInstructionHandler implements InstructionHandler {
 
@@ -32,7 +31,6 @@ public class ConstantInstructionHandler implements InstructionHandler {
     public boolean handle(AbstractInsnNode insn, AnalysisContext ctx) {
         int opcode = insn.getOpcode();
 
-        // Handle simple constants
         if (opcode == BIPUSH || opcode == SIPUSH) {
             handleIntConstant(ctx, (IntInsnNode) insn);
             return false;
@@ -48,12 +46,10 @@ public class ConstantInstructionHandler implements InstructionHandler {
             return false;
         }
 
-        // Handle ICONST with special post-branch logic
         if (opcode >= ICONST_0 && opcode <= ICONST_5) {
             return handleIconst(ctx, opcode);
         }
 
-        // Handle other primitive constants
         if (opcode >= FCONST_0 && opcode <= FCONST_2) {
             handleFloatConstant(ctx, opcode);
             return false;
@@ -77,7 +73,7 @@ public class ConstantInstructionHandler implements InstructionHandler {
         ctx.push(new LambdaExpression.Constant(intInsn.operand, int.class));
     }
 
-    /** Handles LDC: loads constant from constant pool. */
+    /** Handles LDC. */
     private void handleLdc(AnalysisContext ctx, LdcInsnNode ldcInsn) {
         ctx.push(new LambdaExpression.Constant(ldcInsn.cst, ldcInsn.cst.getClass()));
     }
@@ -87,53 +83,44 @@ public class ConstantInstructionHandler implements InstructionHandler {
         ctx.push(new LambdaExpression.NullLiteral(Object.class));
     }
 
-    /** Handles ICONST with special logic for post-branch boolean markers. Returns true if should terminate. */
+    /** Handles ICONST with post-branch boolean marker detection. */
     private boolean handleIconst(AnalysisContext ctx, int opcode) {
         int constValue = opcode - ICONST_0;
 
-        // Special handling for ICONST_0 and ICONST_1 after branch instructions
         if (ctx.hasSeenBranch() && (constValue == 0 || constValue == 1)) {
             boolean isUsedInExpression = isIconstUsedInExpression(ctx);
 
-            // If not used in expression, this is a boolean result marker
             if (!isUsedInExpression) {
-                // Only terminate if this is the final result (stack has content and no more useful instructions)
                 if (ctx.getStackSize() >= 1 && isFinalResult(ctx)) {
                     log.tracef("ICONST_%d: Final boolean result marker, terminating analysis", constValue);
-                    return true; // Signal to return early
+                    return true;
                 }
 
-                // Otherwise, skip this boolean wrapper (don't push it onto stack)
                 log.debugf("Skipping intermediate boolean marker ICONST_%d", constValue);
-                return false; // Skip this instruction
+                return false;
             }
         }
 
-        // Normal constant - push onto stack
         ctx.push(new LambdaExpression.Constant(constValue, int.class));
         return false;
     }
 
-    /** Checks if final result (no more meaningful instructions). */
+    /** Checks if final result. */
     private boolean isFinalResult(AnalysisContext ctx) {
         int currentIndex = ctx.getCurrentInstructionIndex();
         int instructionCount = ctx.getInstructionCount();
 
-        // Look ahead to see if there are any more meaningful instructions
         for (int i = currentIndex + 1; i < instructionCount; i++) {
             AbstractInsnNode insn = ctx.getInstructions().get(i);
             int opcode = insn.getOpcode();
 
-            // Skip pseudo-instructions (labels, line numbers, frames)
             if (opcode == -1) {
                 continue;
             }
 
-            // Return true if we find a return instruction, false for any other real instruction
             return (opcode == IRETURN || opcode == ARETURN || opcode == RETURN);
         }
 
-        // Reached end of instructions
         return true;
     }
 
@@ -155,47 +142,34 @@ public class ConstantInstructionHandler implements InstructionHandler {
         ctx.push(new LambdaExpression.Constant(value, double.class));
     }
 
-    /** Lookahead analysis: checks if ICONST is used in expression (vs. boolean result marker). */
+    /** Lookahead: checks if ICONST is used in expression. */
     private boolean isIconstUsedInExpression(AnalysisContext ctx) {
         int currentIndex = ctx.getCurrentInstructionIndex();
         int instructionCount = ctx.getInstructionCount();
 
-        // Look ahead to see how this constant is used
         for (int j = currentIndex + 1; j < Math.min(currentIndex + LOOKAHEAD_WINDOW_SIZE, instructionCount); j++) {
             AbstractInsnNode nextInsn = ctx.getInstructions().get(j);
             int nextOpcode = nextInsn.getOpcode();
 
-            // Skip pseudo-instructions (labels, line numbers, frames)
             if (nextOpcode == -1) {
                 continue;
             }
 
-            // Check for GOTO (control flow that indicates this is a boolean result path)
             if (nextOpcode == GOTO) {
                 return false;
             }
 
-            // Check for method invocation
             if (isInvokeOpcode(nextOpcode)) {
-                // If it's Boolean.valueOf, this is a wrapper → not used in expression
                 return !isBooleanValueOfCall(nextInsn);
             }
 
-            // Check for arithmetic/logical operations
-            if (isArithmeticOrLogicalOpcode(nextOpcode)) {
+            if (isArithmeticOrLogicalOpcode(nextOpcode) || isBranchOpcode(nextOpcode)) {
                 return true;
             }
 
-            // Check for branch instructions
-            if (isBranchOpcode(nextOpcode)) {
-                return true;
-            }
-
-            // Return false if we hit a return, true for any other real instruction
             return !(nextOpcode == IRETURN || nextOpcode == ARETURN || nextOpcode == RETURN);
         }
 
-        // Default: assume not used (conservative)
         return false;
     }
 
@@ -215,10 +189,10 @@ public class ConstantInstructionHandler implements InstructionHandler {
         return false;
     }
 
-    /** Checks if opcode is arithmetic/logical operation. */
+    /** Checks if opcode is arithmetic or logical. */
     private boolean isArithmeticOrLogicalOpcode(int opcode) {
-        return (opcode >= IADD && opcode <= DREM) || // Arithmetic
-               opcode == IAND || opcode == IOR || opcode == IXOR; // Logical
+        return (opcode >= IADD && opcode <= DREM) ||
+               opcode == IAND || opcode == IOR || opcode == IXOR;
     }
 
     /** Checks if opcode is conditional branch. */

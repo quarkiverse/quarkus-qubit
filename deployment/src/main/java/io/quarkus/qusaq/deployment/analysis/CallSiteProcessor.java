@@ -4,13 +4,16 @@ import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.builditem.ApplicationArchivesBuildItem;
 import io.quarkus.deployment.builditem.GeneratedClassBuildItem;
 import io.quarkus.qusaq.deployment.InvokeDynamicScanner;
+import io.quarkus.qusaq.deployment.InvokeDynamicScanner.SortLambda;
 import io.quarkus.qusaq.deployment.LambdaExpression;
 import io.quarkus.qusaq.deployment.QusaqProcessor;
 import io.quarkus.qusaq.deployment.generation.QueryExecutorClassGenerator;
 import io.quarkus.qusaq.deployment.util.BytecodeLoader;
+import io.quarkus.qusaq.runtime.SortDirection;
 import org.jboss.logging.Logger;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -25,11 +28,22 @@ public class CallSiteProcessor {
 
     /**
      * Result of lambda bytecode analysis containing expressions and captured variable count.
+     * Phase 3: Added sortExpressions list for sorting support.
      */
     private record LambdaAnalysisResult(
             LambdaExpression predicateExpression,
             LambdaExpression projectionExpression,
+            List<SortExpression> sortExpressions,
             int totalCapturedVarCount) {}
+
+    /**
+     * Sort expression with direction (ascending/descending).
+     * Phase 3: Represents analyzed sort key extractor lambda with direction.
+     * Public to allow access from QueryExecutorClassGenerator.
+     */
+    public record SortExpression(
+            LambdaExpression keyExtractor,
+            SortDirection direction) {}
 
     private final LambdaBytecodeAnalyzer bytecodeAnalyzer;
     private final LambdaDeduplicator deduplicator;
@@ -90,6 +104,7 @@ public class CallSiteProcessor {
             String executorClassName = generateAndRegisterExecutor(
                     result.predicateExpression,
                     result.projectionExpression,
+                    result.sortExpressions,
                     callSite.isCountQuery(),
                     callSiteId,
                     generatedClass,
@@ -128,34 +143,59 @@ public class CallSiteProcessor {
 
     /**
      * Computes deduplication hash based on query type.
+     * Phase 3: Handles sorting-only queries and includes sort expressions in hash.
      */
     private String computeHash(InvokeDynamicScanner.LambdaCallSite callSite, LambdaAnalysisResult result) {
+        // Phase 3: Include sort expressions in hash if present
+        boolean hasSorting = result.sortExpressions != null && !result.sortExpressions.isEmpty();
+
         if (callSite.isCombinedQuery()) {
+            if (hasSorting) {
+                return deduplicator.computeFullQueryHash(
+                        result.predicateExpression,
+                        result.projectionExpression,
+                        result.sortExpressions,
+                        callSite.isCountQuery());
+            }
             return deduplicator.computeCombinedHash(
                     result.predicateExpression,
                     result.projectionExpression,
                     callSite.isCountQuery());
-        } else {
-            LambdaExpression expr = result.predicateExpression != null
-                    ? result.predicateExpression
-                    : result.projectionExpression;
-            return deduplicator.computeLambdaHash(expr, callSite.isCountQuery(), callSite.isProjectionQuery());
         }
+
+        // Phase 3: For sorting-only queries, compute hash from sort expressions
+        if (result.predicateExpression == null && result.projectionExpression == null && hasSorting) {
+            return deduplicator.computeSortingHash(result.sortExpressions);
+        }
+
+        // Regular WHERE or SELECT query (possibly with sorting)
+        LambdaExpression expr = result.predicateExpression != null
+                ? result.predicateExpression
+                : result.projectionExpression;
+
+        if (hasSorting) {
+            return deduplicator.computeQueryWithSortingHash(expr, result.sortExpressions,
+                    callSite.isCountQuery(), callSite.isProjectionQuery());
+        }
+
+        return deduplicator.computeLambdaHash(expr, callSite.isCountQuery(), callSite.isProjectionQuery());
     }
 
     /**
      * Generates executor class and registers it.
      * Phase 2.2: Accepts both predicate and projection expressions.
+     * Phase 3: Accepts sort expressions for ORDER BY generation.
      */
     private String generateAndRegisterExecutor(
             LambdaExpression predicateExpression,
             LambdaExpression projectionExpression,
+            List<SortExpression> sortExpressions,
             boolean isCountQuery,
             String queryId,
             BuildProducer<GeneratedClassBuildItem> generatedClass,
             BuildProducer<QusaqProcessor.QueryTransformationBuildItem> queryTransformations) {
 
-        // Count captured variables from both expressions
+        // Count captured variables from all expressions
         int capturedVarCount = 0;
         if (predicateExpression != null) {
             capturedVarCount += countCapturedVariables(predicateExpression);
@@ -163,6 +203,7 @@ public class CallSiteProcessor {
         if (projectionExpression != null) {
             capturedVarCount += countCapturedVariables(projectionExpression);
         }
+        capturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
 
         String className = "io.quarkus.qusaq.generated.QueryExecutor_" +
                            queryCounter.getAndIncrement();
@@ -170,6 +211,7 @@ public class CallSiteProcessor {
         byte[] bytecode = classGenerator.generateQueryExecutorClass(
                 predicateExpression,
                 projectionExpression,
+                sortExpressions,
                 className,
                 isCountQuery);
 
@@ -177,7 +219,7 @@ public class CallSiteProcessor {
         queryTransformations.produce(
                 new QusaqProcessor.QueryTransformationBuildItem(queryId, className, Object.class, isCountQuery, capturedVarCount));
 
-        String queryTypeDesc = getQueryTypeDescription(predicateExpression, projectionExpression, isCountQuery);
+        String queryTypeDesc = getQueryTypeDescription(predicateExpression, projectionExpression, sortExpressions, isCountQuery);
 
         log.debugf("Generated query executor: %s (%s, %d captured vars)",
                    className, queryTypeDesc, capturedVarCount);
@@ -210,10 +252,12 @@ public class CallSiteProcessor {
     /**
      * Determines the query type description for logging based on expressions and flags.
      * Adds decorative formatting to the base query type for better log readability.
+     * Phase 3: Enhanced to show sorting in query type description.
      */
     private String getQueryTypeDescription(
             LambdaExpression predicateExpression,
             LambdaExpression projectionExpression,
+            List<SortExpression> sortExpressions,
             boolean isCountQuery) {
 
         String baseType = getQueryType(
@@ -222,25 +266,29 @@ public class CallSiteProcessor {
                 projectionExpression != null);
 
         // Add decorative formatting for combined queries in logs
-        return "COMBINED".equals(baseType) ? "COMBINED(WHERE+SELECT)" : baseType;
+        String typeDesc = "COMBINED".equals(baseType) ? "COMBINED(WHERE+SELECT)" : baseType;
+
+        // Phase 3: Append sorting info if present
+        if (sortExpressions != null && !sortExpressions.isEmpty()) {
+            typeDesc += "+SORT(" + sortExpressions.size() + ")";
+        }
+
+        return typeDesc;
     }
 
     /**
-     * Analyzes multiple where() predicates and combines them with AND.
-     * Phase 2.5: Handles multiple where() chaining.
+     * Analyzes and combines multiple predicate lambdas with AND operation.
+     * Handles captured variable renumbering to ensure sequential indices.
      *
-     * IMPORTANT: Renumbers CapturedVariable indices before combining to ensure correct ordering.
-     * Each lambda has indices starting from 0. When combined, indices must be sequential:
-     * - Lambda 1: CapturedVariable(0) stays as index 0
-     * - Lambda 2: CapturedVariable(0) becomes index 1 (offset by lambda 1 count)
-     * - Lambda 3: CapturedVariable(0) becomes index 2 (offset by lambda 1+2 count)
+     * @return pair of (combined expression, total captured variable count), or null if analysis fails
      */
-    private LambdaAnalysisResult analyzeMultiplePredicates(
+    private record PredicateAnalysisResult(LambdaExpression expression, int capturedVarCount) {}
+
+    private PredicateAnalysisResult analyzeAndCombinePredicates(
             byte[] classBytes,
-            InvokeDynamicScanner.LambdaCallSite callSite,
+            List<InvokeDynamicScanner.LambdaPair> predicateLambdas,
             String callSiteId) {
 
-        var predicateLambdas = callSite.predicateLambdas();
         List<LambdaExpression> predicateExpressions = new ArrayList<>();
         int indexOffset = 0;
 
@@ -265,10 +313,37 @@ public class CallSiteProcessor {
         }
 
         int totalCapturedVarCount = indexOffset; // Total from all predicates
+        LambdaExpression combinedExpression = combinePredicatesWithAnd(predicateExpressions);
 
-        LambdaExpression predicateExpression = combinePredicatesWithAnd(predicateExpressions);
         log.debugf("Combined %d predicates with AND at %s (total %d captured variables)",
                 Integer.valueOf(predicateExpressions.size()), callSiteId, Integer.valueOf(totalCapturedVarCount));
+
+        return new PredicateAnalysisResult(combinedExpression, totalCapturedVarCount);
+    }
+
+    /**
+     * Analyzes multiple where() predicates and combines them with AND.
+     * Phase 2.5: Handles multiple where() chaining.
+     *
+     * IMPORTANT: Renumbers CapturedVariable indices before combining to ensure correct ordering.
+     * Each lambda has indices starting from 0. When combined, indices must be sequential:
+     * - Lambda 1: CapturedVariable(0) stays as index 0
+     * - Lambda 2: CapturedVariable(0) becomes index 1 (offset by lambda 1 count)
+     * - Lambda 3: CapturedVariable(0) becomes index 2 (offset by lambda 1+2 count)
+     */
+    private LambdaAnalysisResult analyzeMultiplePredicates(
+            byte[] classBytes,
+            InvokeDynamicScanner.LambdaCallSite callSite,
+            String callSiteId) {
+
+        var predicateLambdas = callSite.predicateLambdas();
+        PredicateAnalysisResult predicateResult = analyzeAndCombinePredicates(classBytes, predicateLambdas, callSiteId);
+        if (predicateResult == null) {
+            return null;
+        }
+
+        LambdaExpression predicateExpression = predicateResult.expression;
+        int totalCapturedVarCount = predicateResult.capturedVarCount;
 
         // Check if there's also a select
         LambdaExpression projectionExpression = null;
@@ -285,28 +360,38 @@ public class CallSiteProcessor {
             totalCapturedVarCount += countCapturedVariables(projectionExpression);
         }
 
-        return new LambdaAnalysisResult(predicateExpression, projectionExpression, totalCapturedVarCount);
+        // Phase 3: Analyze sort lambdas if present
+        List<SortExpression> sortExpressions = analyzeSortLambdas(classBytes, callSite, callSiteId);
+        totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
+
+        return new LambdaAnalysisResult(predicateExpression, projectionExpression, sortExpressions, totalCapturedVarCount);
     }
 
     /**
-     * Analyzes combined where() + select() query (single where).
+     * Analyzes combined where() + select() query.
      * Phase 2.2: Handles combined queries.
+     * Updated: Uses predicateLambdas list for consistency with multiple where() support.
      */
     private LambdaAnalysisResult analyzeCombinedQuery(
             byte[] classBytes,
             InvokeDynamicScanner.LambdaCallSite callSite,
             String callSiteId) {
 
-        // Analyze predicate lambda (WHERE clause)
-        LambdaExpression predicateExpression = bytecodeAnalyzer.analyze(
-                classBytes,
-                callSite.predicateLambdaMethodName(),
-                callSite.predicateLambdaMethodDescriptor());
-
-        if (predicateExpression == null) {
-            log.warnf("Could not analyze predicate lambda at: %s", callSiteId);
+        // Analyze predicate lambda(s) (WHERE clause)
+        // For combined queries, use the first predicate (or combine if multiple)
+        var predicateLambdas = callSite.predicateLambdas();
+        if (predicateLambdas == null || predicateLambdas.isEmpty()) {
+            log.warnf("Combined query without predicates at: %s", callSiteId);
             return null;
         }
+
+        PredicateAnalysisResult predicateResult = analyzeAndCombinePredicates(classBytes, predicateLambdas, callSiteId);
+        if (predicateResult == null) {
+            return null;
+        }
+
+        LambdaExpression predicateExpression = predicateResult.expression;
+        int totalCapturedVarCount = predicateResult.capturedVarCount;
 
         // Analyze projection lambda (SELECT clause)
         LambdaExpression projectionExpression = bytecodeAnalyzer.analyze(
@@ -322,15 +407,19 @@ public class CallSiteProcessor {
         log.debugf("Analyzed combined query at %s: WHERE=%s, SELECT=%s",
                 callSiteId, predicateExpression, projectionExpression);
 
-        int totalCapturedVarCount = countCapturedVariables(predicateExpression) +
-                                   countCapturedVariables(projectionExpression);
+        totalCapturedVarCount += countCapturedVariables(projectionExpression);
 
-        return new LambdaAnalysisResult(predicateExpression, projectionExpression, totalCapturedVarCount);
+        // Phase 3: Analyze sort lambdas if present
+        List<SortExpression> sortExpressions = analyzeSortLambdas(classBytes, callSite, callSiteId);
+        totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
+
+        return new LambdaAnalysisResult(predicateExpression, projectionExpression, sortExpressions, totalCapturedVarCount);
     }
 
     /**
-     * Analyzes single lambda (where-only or select-only).
+     * Analyzes single lambda (where-only, select-only, or sorting-only).
      * Phase 2.1 or Phase 1: Single lambda support.
+     * Phase 3: Handles sorting-only queries.
      */
     private LambdaAnalysisResult analyzeSingleLambda(
             byte[] classBytes,
@@ -338,6 +427,23 @@ public class CallSiteProcessor {
             String callSiteId,
             boolean isProjectionQuery) {
 
+        // Phase 3: Check if this is a sorting-only query
+        List<SortExpression> sortExpressions = analyzeSortLambdas(classBytes, callSite, callSiteId);
+        boolean hasSortLambdas = sortExpressions != null && !sortExpressions.isEmpty();
+
+        // Check if there are predicate or projection lambdas
+        boolean hasPredicates = callSite.predicateLambdas() != null && !callSite.predicateLambdas().isEmpty();
+        boolean hasProjection = callSite.projectionLambdaMethodName() != null;
+
+        // Phase 3: For sorting-only queries, don't analyze the primary lambda as predicate/projection
+        if (hasSortLambdas && !hasPredicates && !hasProjection) {
+            // Sorting-only query - no WHERE or SELECT clauses
+            int totalCapturedVarCount = countCapturedVariablesInSortExpressions(sortExpressions);
+            log.debugf("Analyzed sorting-only query at %s: %d sort expression(s)", callSiteId, sortExpressions.size());
+            return new LambdaAnalysisResult(null, null, sortExpressions, totalCapturedVarCount);
+        }
+
+        // Regular WHERE or SELECT query
         LambdaExpression lambdaExpression = bytecodeAnalyzer.analyze(
                 classBytes,
                 callSite.lambdaMethodName(),
@@ -355,7 +461,48 @@ public class CallSiteProcessor {
         LambdaExpression projectionExpression = isProjectionQuery ? lambdaExpression : null;
         int totalCapturedVarCount = countCapturedVariables(lambdaExpression);
 
-        return new LambdaAnalysisResult(predicateExpression, projectionExpression, totalCapturedVarCount);
+        // Phase 3: Add captured variables from sort expressions
+        totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
+
+        return new LambdaAnalysisResult(predicateExpression, projectionExpression, sortExpressions, totalCapturedVarCount);
+    }
+
+    /**
+     * Analyzes sort lambdas from call site.
+     * Phase 3: Handles sortedBy() and sortedDescendingBy() operations.
+     *
+     * @return list of SortExpression objects, or null if no sorting
+     */
+    private List<SortExpression> analyzeSortLambdas(
+            byte[] classBytes,
+            InvokeDynamicScanner.LambdaCallSite callSite,
+            String callSiteId) {
+
+        List<SortLambda> sortLambdas = callSite.sortLambdas();
+
+        if (sortLambdas == null || sortLambdas.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<SortExpression> sortExpressions = new ArrayList<>(sortLambdas.size());
+
+        for (SortLambda sortLambda : sortLambdas) {
+            LambdaExpression keyExtractor = bytecodeAnalyzer.analyze(
+                    classBytes,
+                    sortLambda.methodName(),
+                    sortLambda.descriptor());
+
+            if (keyExtractor == null) {
+                log.warnf("Could not analyze sort lambda %s at: %s", sortLambda.methodName(), callSiteId);
+                return Collections.emptyList();
+            }
+
+            sortExpressions.add(new SortExpression(keyExtractor, sortLambda.direction()));
+            log.debugf("Analyzed sort lambda at %s: %s (direction=%s)",
+                    callSiteId, keyExtractor, sortLambda.direction());
+        }
+
+        return sortExpressions;
     }
 
     /**
@@ -391,6 +538,22 @@ public class CallSiteProcessor {
         collectCapturedVariableIndices(expression, capturedIndices);
 
         return capturedIndices.size();
+    }
+
+    /**
+     * Counts total captured variables across all sort expressions.
+     * Returns 0 if sortExpressions is null or empty.
+     */
+    private int countCapturedVariablesInSortExpressions(List<SortExpression> sortExpressions) {
+        if (sortExpressions == null || sortExpressions.isEmpty()) {
+            return 0;
+        }
+
+        int count = 0;
+        for (SortExpression sortExpr : sortExpressions) {
+            count += countCapturedVariables(sortExpr.keyExtractor);
+        }
+        return count;
     }
 
     /**

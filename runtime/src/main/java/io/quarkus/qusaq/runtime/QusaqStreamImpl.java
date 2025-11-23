@@ -115,8 +115,7 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
     public QusaqStream<T> where(QuerySpec<T, Boolean> predicate) {
         List<QuerySpec<T, Boolean>> newPredicates = new ArrayList<>(this.predicates);
         newPredicates.add(predicate);
-        return new QusaqStreamImpl<>(entityClass, newPredicates, selector, resultType,
-                sortOrders, offset, limit, distinct);
+        return withPredicates(newPredicates);
     }
 
     // =============================================================================================
@@ -132,16 +131,7 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
 
         // Create a new stream with the selector
         // Note: This is a type transformation, so we need to cast carefully
-        return (QusaqStream<R>) new QusaqStreamImpl<>(
-                entityClass,
-                predicates,
-                mapper,
-                newResultType,
-                (List<SortOrder<T>>) (List<?>) sortOrders,
-                offset,
-                limit,
-                distinct
-        );
+        return withSelector(mapper, newResultType);
     }
 
     // =============================================================================================
@@ -152,18 +142,16 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
     public <K extends Comparable<K>> QusaqStream<T> sortedBy(QuerySpec<T, K> keyExtractor) {
         List<SortOrder<T>> newSortOrders = new ArrayList<>(this.sortOrders);
         // Prepend to list (last call wins - becomes primary sort)
-        newSortOrders.add(0, new SortOrder<>(keyExtractor, false));
-        return new QusaqStreamImpl<>(entityClass, predicates, selector, resultType,
-                newSortOrders, offset, limit, distinct);
+        newSortOrders.add(0, new SortOrder<>(keyExtractor, SortDirection.ASCENDING));
+        return withSortOrders(newSortOrders);
     }
 
     @Override
     public <K extends Comparable<K>> QusaqStream<T> sortedDescendingBy(QuerySpec<T, K> keyExtractor) {
         List<SortOrder<T>> newSortOrders = new ArrayList<>(this.sortOrders);
         // Prepend to list (last call wins - becomes primary sort)
-        newSortOrders.add(0, new SortOrder<>(keyExtractor, true));
-        return new QusaqStreamImpl<>(entityClass, predicates, selector, resultType,
-                newSortOrders, offset, limit, distinct);
+        newSortOrders.add(0, new SortOrder<>(keyExtractor, SortDirection.DESCENDING));
+        return withSortOrders(newSortOrders);
     }
 
     // =============================================================================================
@@ -175,8 +163,7 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
         if (n < 0) {
             throw new IllegalArgumentException("skip count must be >= 0, got: " + n);
         }
-        return new QusaqStreamImpl<>(entityClass, predicates, selector, resultType,
-                sortOrders, n, limit, distinct);
+        return withOffset(n);
     }
 
     @Override
@@ -184,8 +171,7 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
         if (n < 0) {
             throw new IllegalArgumentException("limit count must be >= 0, got: " + n);
         }
-        return new QusaqStreamImpl<>(entityClass, predicates, selector, resultType,
-                sortOrders, offset, n, distinct);
+        return withLimit(n);
     }
 
     // =============================================================================================
@@ -194,8 +180,7 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
 
     @Override
     public QusaqStream<T> distinct() {
-        return new QusaqStreamImpl<>(entityClass, predicates, selector, resultType,
-                sortOrders, offset, limit, true);
+        return withDistinct(true);
     }
 
     // =============================================================================================
@@ -260,29 +245,14 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
 
     @Override
     public List<T> toList() {
-        // Phase 3+: Validate advanced features not yet implemented
-        if (!sortOrders.isEmpty()) {
-            throw new UnsupportedOperationException(
-                    "sortedBy() will be implemented in Phase 3. " +
-                    "For Phase 2.2, use where() and select() only.");
-        }
-        if (distinct) {
-            throw new UnsupportedOperationException(
-                    "distinct() will be implemented in Phase 4. " +
-                    "For Phase 2.2, use where() and select() only.");
-        }
-        if (offset != null || limit != null) {
-            throw new UnsupportedOperationException(
-                    "skip()/limit() will be implemented in Phase 4. " +
-                    "For Phase 2.2, use where() and select() only.");
-        }
-
         // Delegate to build-time generated executor via registry
         String callSiteId = getCallSiteId();
         Object[] capturedValues = extractCapturedVariables(callSiteId);
 
         QueryExecutorRegistry registry = Arc.container().instance(QueryExecutorRegistry.class).get();
-        return registry.executeListQuery(callSiteId, entityClass, capturedValues);
+
+        // Phase 4: Pass pagination parameters to registry for runtime application
+        return registry.executeListQuery(callSiteId, entityClass, capturedValues, offset, limit);
     }
 
     @Override
@@ -306,10 +276,10 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
 
     @Override
     public Optional<T> findFirst() {
-        // Delegate to toList() and return first element wrapped in Optional
-        // Note: This uses the build-time generated executor infrastructure
-        // TODO Phase 4: When limit() is implemented, internally apply limit(1) for optimization
-        List<T> results = toList();
+        // Optimization: Apply limit(1) at SQL level if not already limited to ≤1 results
+        // This prevents fetching all rows when we only need the first one
+        QusaqStream<T> stream = (this.limit == null || this.limit > 1) ? this.limit(1) : this;
+        List<T> results = stream.toList();
         return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
     }
 
@@ -320,7 +290,74 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
     }
 
     // =============================================================================================
-    // INTERNAL HELPER METHODS
+    // INTERNAL HELPER METHODS - Stream Derivation
+    // =============================================================================================
+
+    /**
+     * Creates a new stream with modified predicates.
+     * All other state is copied from the current stream.
+     */
+    private QusaqStreamImpl<T> withPredicates(List<QuerySpec<T, Boolean>> predicates) {
+        return new QusaqStreamImpl<>(entityClass, predicates, selector, resultType,
+                sortOrders, offset, limit, distinct);
+    }
+
+    /**
+     * Creates a new stream with modified selector and result type.
+     * All other state is copied from the current stream.
+     */
+    @SuppressWarnings("unchecked")
+    private <R> QusaqStream<R> withSelector(QuerySpec<T, R> selector, Class<R> resultType) {
+        return (QusaqStream<R>) new QusaqStreamImpl<>(
+                entityClass,
+                predicates,
+                selector,
+                resultType,
+                (List<SortOrder<T>>) (List<?>) sortOrders,
+                offset,
+                limit,
+                distinct
+        );
+    }
+
+    /**
+     * Creates a new stream with modified sort orders.
+     * All other state is copied from the current stream.
+     */
+    private QusaqStreamImpl<T> withSortOrders(List<SortOrder<T>> sortOrders) {
+        return new QusaqStreamImpl<>(entityClass, predicates, selector, resultType,
+                sortOrders, offset, limit, distinct);
+    }
+
+    /**
+     * Creates a new stream with modified offset.
+     * All other state is copied from the current stream.
+     */
+    private QusaqStreamImpl<T> withOffset(Integer offset) {
+        return new QusaqStreamImpl<>(entityClass, predicates, selector, resultType,
+                sortOrders, offset, limit, distinct);
+    }
+
+    /**
+     * Creates a new stream with modified limit.
+     * All other state is copied from the current stream.
+     */
+    private QusaqStreamImpl<T> withLimit(Integer limit) {
+        return new QusaqStreamImpl<>(entityClass, predicates, selector, resultType,
+                sortOrders, offset, limit, distinct);
+    }
+
+    /**
+     * Creates a new stream with modified distinct flag.
+     * All other state is copied from the current stream.
+     */
+    private QusaqStreamImpl<T> withDistinct(boolean distinct) {
+        return new QusaqStreamImpl<>(entityClass, predicates, selector, resultType,
+                sortOrders, offset, limit, distinct);
+    }
+
+    // =============================================================================================
+    // INTERNAL HELPER METHODS - Call Site Resolution
     // =============================================================================================
 
     /**
@@ -424,17 +461,13 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
     // =============================================================================================
 
     /**
-     * Represents a sort order specification.
-     * Phase 3: Will be used for sorting implementation.
+     * Represents a sort order specification combining a key extractor with a direction.
+     * Immutable record providing type-safe sort specifications for query ordering.
+     *
+     * @param keyExtractor Function to extract the sort key from entities
+     * @param direction Sort direction (ascending or descending)
+     * @param <T> Entity type being sorted
      */
-    @SuppressWarnings("unused") // Fields will be used in Phase 3
-    private static class SortOrder<T> {
-        final QuerySpec<T, ?> keyExtractor;
-        final boolean descending;
-
-        SortOrder(QuerySpec<T, ?> keyExtractor, boolean descending) {
-            this.keyExtractor = keyExtractor;
-            this.descending = descending;
-        }
+    private record SortOrder<T>(QuerySpec<T, ?> keyExtractor, SortDirection direction) {
     }
 }

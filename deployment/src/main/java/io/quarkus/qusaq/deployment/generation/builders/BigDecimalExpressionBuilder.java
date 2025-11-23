@@ -6,7 +6,10 @@ import io.quarkus.qusaq.deployment.LambdaExpression;
 
 import java.util.Set;
 
-import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.*;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.ADD;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.DIV;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.MUL;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.SUB;
 import static io.quarkus.qusaq.runtime.QusaqConstants.*;
 
 /**

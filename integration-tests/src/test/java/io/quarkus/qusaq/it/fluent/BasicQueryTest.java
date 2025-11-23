@@ -120,24 +120,6 @@ class BasicQueryTest {
     // DISABLED TESTS - Will be enabled in future phases
     // =============================================================================================
 
-    @Disabled("Phase 2: select() not yet implemented")
-    @Test
-    void select_projectsFields() {
-        List<String> names = Person.select((Person p) -> p.firstName).toList();
-
-        assertThat(names).isNotEmpty();
-    }
-
-    @Disabled("Phase 3: sortedBy() not yet implemented")
-    @Test
-    void sortedBy_sortsResults() {
-        List<Person> sorted = Person.where((Person p) -> p.active)
-                .sortedBy((Person p) -> Integer.valueOf(p.age))
-                .toList();
-
-        assertThat(sorted).isNotEmpty();
-    }
-
     @Disabled("Phase 4: distinct() not yet implemented")
     @Test
     void distinct_removeDuplicates() {

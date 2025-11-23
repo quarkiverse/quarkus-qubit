@@ -156,6 +156,7 @@ public class CriteriaExpressionGenerator {
 
     /**
      * Generates JPA Expression from lambda expression.
+     * Phase 3: Added Parameter handling for identity sort functions.
      */
     public ResultHandle generateExpressionAsJpaExpression(
             MethodCreator method,
@@ -185,6 +186,11 @@ public class CriteriaExpressionGenerator {
             return generateBinaryOperation(method, binOp, cb, root, capturedValues);
         } else if (expression instanceof LambdaExpression.ConstructorCall constructorCall) {
             return generateConstructorCall(method, constructorCall, cb, root, capturedValues);
+        } else if (expression instanceof LambdaExpression.Parameter) {
+            // Phase 3: Parameter expressions occur in identity sort functions like (String s) -> s
+            // These cannot be directly converted to JPA expressions - return null to signal
+            // to caller that special handling is needed
+            return null;
         }
 
         return null;

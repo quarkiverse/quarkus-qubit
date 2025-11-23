@@ -11,7 +11,12 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import static io.quarkus.qusaq.deployment.analysis.BytecodeAnalysisConstants.CONDITIONAL_JUMP_LOOKAHEAD_LIMIT;
+import static io.quarkus.qusaq.deployment.analysis.BytecodeAnalysisConstants.LABEL_CLASSIFICATION_LOOKAHEAD_LIMIT;
 import static io.quarkus.qusaq.deployment.analysis.BytecodeAnalysisConstants.LABEL_TRACE_DEPTH_LIMIT;
+import static io.quarkus.qusaq.deployment.analysis.ControlFlowAnalyzer.LabelClassification.FALSE_SINK;
+import static io.quarkus.qusaq.deployment.analysis.ControlFlowAnalyzer.LabelClassification.INTERMEDIATE;
+import static io.quarkus.qusaq.deployment.analysis.ControlFlowAnalyzer.LabelClassification.TRUE_SINK;
 import static org.objectweb.asm.Opcodes.GOTO;
 import static org.objectweb.asm.Opcodes.ICONST_0;
 import static org.objectweb.asm.Opcodes.ICONST_1;
@@ -23,16 +28,30 @@ public final class ControlFlowAnalyzer {
 
     private static final Logger log = Logger.getLogger(ControlFlowAnalyzer.class);
 
-    private static final int LABEL_CLASSIFICATION_LOOKAHEAD_LIMIT = 10;
-    private static final int CONDITIONAL_JUMP_LOOKAHEAD_LIMIT = 5;
+    /**
+     * Formats label for logging.
+     */
+    private static String formatLabelForLogging(LabelNode label) {
+        return String.valueOf(System.identityHashCode(label));
+    }
 
     /**
      * Label role in boolean expression evaluation.
      */
     public enum LabelClassification {
-        TRUE_SINK,
-        FALSE_SINK,
-        INTERMEDIATE
+        TRUE_SINK("TRUE_SINK"),
+        FALSE_SINK("FALSE_SINK"),
+        INTERMEDIATE("INTERMEDIATE");
+
+        private final String displayName;
+
+        LabelClassification(String displayName) {
+            this.displayName = displayName;
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
     }
 
     /**
@@ -56,7 +75,7 @@ public final class ControlFlowAnalyzer {
     }
 
     /**
-     * Classifies a single label by examining following instructions.
+     * Classifies label by examining following instructions.
      */
     private LabelClassification classifyLabel(LabelNode labelNode, InsnList instructions, int labelIndex, int instructionCount) {
         int limit = Math.min(labelIndex + LABEL_CLASSIFICATION_LOOKAHEAD_LIMIT, instructionCount);
@@ -65,22 +84,17 @@ public final class ControlFlowAnalyzer {
             AbstractInsnNode next = instructions.get(j);
             int opcode = next.getOpcode();
 
-            if (opcode == ICONST_0) {
-                log.debugf("Classified label %s as FALSE_SINK (offset %d)",
-                          System.identityHashCode(labelNode), j - labelIndex);
-                return LabelClassification.FALSE_SINK;
-            }
-
-            if (opcode == ICONST_1) {
-                log.debugf("Classified label %s as TRUE_SINK (offset %d)",
-                          System.identityHashCode(labelNode), j - labelIndex);
-                return LabelClassification.TRUE_SINK;
+            LabelClassification classification = classifyIconstInstruction(opcode);
+            if (classification != null) {
+                log.debugf("Classified label %s as %s (offset %d)",
+                          formatLabelForLogging(labelNode), classification.getDisplayName(), j - labelIndex);
+                return classification;
             }
 
             if (opcode != -1) {
-                log.debugf("Classified label %s as INTERMEDIATE (next opcode: %d at offset %d)",
-                          System.identityHashCode(labelNode), opcode, j - labelIndex);
-                return LabelClassification.INTERMEDIATE;
+                log.debugf("Classified label %s as %s (next opcode: %d at offset %d)",
+                          formatLabelForLogging(labelNode), INTERMEDIATE.getDisplayName(), opcode, j - labelIndex);
+                return INTERMEDIATE;
             }
         }
 
@@ -92,6 +106,20 @@ public final class ControlFlowAnalyzer {
      */
     public Map<LabelNode, Boolean> traceLabelDestinations(InsnList instructions,
                                                           Map<LabelNode, LabelClassification> classifications) {
+        Map<LabelNode, Integer> labelToIndex = buildLabelToIndexMap(instructions);
+        Map<LabelNode, Boolean> labelToValue = new HashMap<>();
+
+        classifications.forEach((label, classification) ->
+            resolveLabelValue(label, classification, instructions, labelToIndex, classifications, labelToValue)
+        );
+
+        return labelToValue;
+    }
+
+    /**
+     * Builds label-to-index map.
+     */
+    private Map<LabelNode, Integer> buildLabelToIndexMap(InsnList instructions) {
         Map<LabelNode, Integer> labelToIndex = new HashMap<>();
         int instructionCount = instructions.size();
         for (int i = 0; i < instructionCount; i++) {
@@ -100,33 +128,57 @@ public final class ControlFlowAnalyzer {
                 labelToIndex.put(labelNode, i);
             }
         }
-
-        Map<LabelNode, Boolean> labelToValue = new HashMap<>();
-        classifications.forEach((label, classification) -> {
-            if (classification == LabelClassification.TRUE_SINK) {
-                labelToValue.put(label, true);
-            } else if (classification == LabelClassification.FALSE_SINK) {
-                labelToValue.put(label, false);
-            } else if (classification == LabelClassification.INTERMEDIATE) {
-                LabelClassification destination = traceLabelDestination(
-                    label, instructions, labelToIndex, classifications, new HashSet<>());
-                if (destination == LabelClassification.TRUE_SINK) {
-                    labelToValue.put(label, true);
-                    log.debugf("Traced intermediate label %s -> TRUE", System.identityHashCode(label));
-                } else if (destination == LabelClassification.FALSE_SINK) {
-                    labelToValue.put(label, false);
-                    log.debugf("Traced intermediate label %s -> FALSE", System.identityHashCode(label));
-                } else {
-                    log.debugf("Could not trace label %s to TRUE/FALSE", System.identityHashCode(label));
-                }
-            }
-        });
-
-        return labelToValue;
+        return labelToIndex;
     }
 
     /**
-     * Traces intermediate label to its ultimate TRUE_SINK or FALSE_SINK destination.
+     * Resolves label classification to boolean value.
+     */
+    private void resolveLabelValue(
+            LabelNode label,
+            LabelClassification classification,
+            InsnList instructions,
+            Map<LabelNode, Integer> labelToIndex,
+            Map<LabelNode, LabelClassification> classifications,
+            Map<LabelNode, Boolean> labelToValue) {
+
+        switch (classification) {
+            case TRUE_SINK -> labelToValue.put(label, true);
+            case FALSE_SINK -> labelToValue.put(label, false);
+            case INTERMEDIATE -> resolveIntermediateLabel(label, instructions, labelToIndex, classifications, labelToValue);
+        }
+    }
+
+    /**
+     * Resolves intermediate label by tracing to sink destination.
+     */
+    private void resolveIntermediateLabel(
+            LabelNode label,
+            InsnList instructions,
+            Map<LabelNode, Integer> labelToIndex,
+            Map<LabelNode, LabelClassification> classifications,
+            Map<LabelNode, Boolean> labelToValue) {
+
+        LabelClassification destination = traceLabelDestination(
+            label, instructions, labelToIndex, classifications, new HashSet<>());
+
+        if (destination == TRUE_SINK) {
+            labelToValue.put(label, true);
+            log.debugf("Traced intermediate label %s -> %s",
+                      formatLabelForLogging(label), TRUE_SINK.getDisplayName());
+        } else if (destination == FALSE_SINK) {
+            labelToValue.put(label, false);
+            log.debugf("Traced intermediate label %s -> %s",
+                      formatLabelForLogging(label), FALSE_SINK.getDisplayName());
+        } else {
+            log.debugf("Could not trace label %s to %s/%s",
+                      formatLabelForLogging(label),
+                      TRUE_SINK.getDisplayName(), FALSE_SINK.getDisplayName());
+        }
+    }
+
+    /**
+     * Traces label to TRUE_SINK or FALSE_SINK destination.
      */
     private LabelClassification traceLabelDestination(
             LabelNode label,
@@ -161,14 +213,14 @@ public final class ControlFlowAnalyzer {
             Map<LabelNode, LabelClassification> classifications) {
 
         LabelClassification classification = classifications.get(label);
-        if (classification == LabelClassification.TRUE_SINK || classification == LabelClassification.FALSE_SINK) {
+        if (classification == TRUE_SINK || classification == FALSE_SINK) {
             return classification;
         }
         return null;
     }
 
     /**
-     * Traces label destination starting from a specific instruction index.
+     * Traces label destination from instruction index.
      */
     private LabelClassification traceFromIndex(
             int startIndex,
@@ -202,7 +254,7 @@ public final class ControlFlowAnalyzer {
     }
 
     /**
-     * Processes a single instruction during label tracing.
+     * Processes instruction during label tracing.
      */
     private LabelClassification processInstruction(
             AbstractInsnNode insn,
@@ -243,7 +295,7 @@ public final class ControlFlowAnalyzer {
     }
 
     /**
-     * Looks ahead after a conditional jump to find a subsequent GOTO instruction.
+     * Finds subsequent GOTO target after conditional jump.
      */
     private LabelNode findSubsequentGotoTarget(int startIndex, InsnList instructions) {
         int instructionCount = instructions.size();
@@ -269,10 +321,10 @@ public final class ControlFlowAnalyzer {
      */
     private LabelClassification classifyIconstInstruction(int opcode) {
         if (opcode == ICONST_0) {
-            return LabelClassification.FALSE_SINK;
+            return FALSE_SINK;
         }
         if (opcode == ICONST_1) {
-            return LabelClassification.TRUE_SINK;
+            return TRUE_SINK;
         }
         return null;
     }

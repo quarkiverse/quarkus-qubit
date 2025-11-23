@@ -1,5 +1,6 @@
 package io.quarkus.qusaq.deployment;
 
+import io.quarkus.qusaq.runtime.SortDirection;
 import org.jboss.logging.Logger;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Handle;
@@ -30,9 +31,16 @@ public class InvokeDynamicScanner {
     public record LambdaPair(String methodName, String descriptor) {}
 
     /**
+     * Sort lambda with direction (ascending/descending).
+     * Phase 3: Used to track sortedBy() and sortedDescendingBy() operations.
+     */
+    public record SortLambda(String methodName, String descriptor, SortDirection direction) {}
+
+    /**
      * Discovered lambda call site for fluent API terminal operations.
      * Phase 2.2: Enhanced to track both predicate and projection lambdas for combined queries.
      * Phase 2.5: Enhanced to support multiple where() predicates.
+     * Phase 3: Enhanced to support sorting (sortedBy/sortedDescendingBy).
      */
     public record LambdaCallSite(
             String ownerClassName,
@@ -43,11 +51,10 @@ public class InvokeDynamicScanner {
             String targetMethodName,
             int lineNumber,
             int terminalInsnIndex,
-            String predicateLambdaMethodName,      // WHERE lambda (null if no where clause) - DEPRECATED
-            String predicateLambdaMethodDescriptor, // WHERE lambda descriptor - DEPRECATED
             String projectionLambdaMethodName,     // SELECT lambda (null if no select clause)
             String projectionLambdaMethodDescriptor, // SELECT lambda descriptor
-            List<LambdaPair> predicateLambdas) {   // Phase 2.5: ALL WHERE lambdas for multiple where() support
+            List<LambdaPair> predicateLambdas,     // Phase 2.5: ALL WHERE lambdas for multiple where() support
+            List<SortLambda> sortLambdas) {        // Phase 3: ALL sort lambdas with direction
 
         /**
          * Returns true if this is a count query.
@@ -60,6 +67,7 @@ public class InvokeDynamicScanner {
         /**
          * Returns true if this is a projection query (select).
          * Phase 2.2: Checks if projection lambda is present.
+         * Phase 3: Excludes sorting methods from being treated as projections.
          */
         public boolean isProjectionQuery() {
             // Phase 2.2: Check if projection lambda is present
@@ -73,6 +81,11 @@ public class InvokeDynamicScanner {
             }
 
             if (METHOD_WHERE.equals(fluentMethodName)) {
+                return false;
+            }
+
+            // Phase 3: Sorting methods are not projections
+            if (METHOD_SORTED_BY.equals(fluentMethodName) || METHOD_SORTED_DESCENDING_BY.equals(fluentMethodName)) {
                 return false;
             }
 
@@ -93,7 +106,7 @@ public class InvokeDynamicScanner {
          * This indicates a Phase 2.2 combined query.
          */
         public boolean isCombinedQuery() {
-            return predicateLambdaMethodName != null && projectionLambdaMethodName != null;
+            return (predicateLambdas != null && !predicateLambdas.isEmpty()) && projectionLambdaMethodName != null;
         }
 
         /**
@@ -106,9 +119,10 @@ public class InvokeDynamicScanner {
         @Override
         public String toString() {
             if (isCombinedQuery()) {
-                return String.format("LambdaCallSite{%s.%s line %d, where=%s, select=%s, target=%s}",
+                int predicateCount = predicateLambdas != null ? predicateLambdas.size() : 0;
+                return String.format("LambdaCallSite{%s.%s line %d, where=%d predicates, select=%s, target=%s}",
                         ownerClassName, methodName, lineNumber,
-                        predicateLambdaMethodName, projectionLambdaMethodName, targetMethodName);
+                        predicateCount, projectionLambdaMethodName, targetMethodName);
             }
             return String.format("LambdaCallSite{%s.%s line %d, lambda=%s, fluent=%s, target=%s}",
                     ownerClassName, methodName, lineNumber, lambdaMethodName, fluentMethodName, targetMethodName);
@@ -152,7 +166,8 @@ public class InvokeDynamicScanner {
         String firstWhereLambdaDescriptor,
         String selectLambdaMethod,
         String selectLambdaDescriptor,
-        List<LambdaPair> whereLambdas
+        List<LambdaPair> whereLambdas,
+        List<SortLambda> sortLambdas
     ) {}
 
     private void scanMethod(ClassNode classNode, MethodNode method, List<LambdaCallSite> callSites) {
@@ -209,16 +224,16 @@ public class InvokeDynamicScanner {
             methodCall.name,
             lineNumber,
             insnIndex,
-            info.firstWhereLambdaMethod,
-            info.firstWhereLambdaDescriptor,
             info.selectLambdaMethod,
             info.selectLambdaDescriptor,
-            info.whereLambdas
+            info.whereLambdas,
+            info.sortLambdas
         );
     }
 
     private LambdaInfo extractLambdaInfo(List<PendingLambda> pendingLambdas) {
         List<LambdaPair> whereLambdas = new ArrayList<>();
+        List<SortLambda> sortLambdas = new ArrayList<>();
         String firstWhereMethod = null;
         String firstWhereDescriptor = null;
         String selectMethod = null;
@@ -234,6 +249,12 @@ public class InvokeDynamicScanner {
             } else if (METHOD_SELECT.equals(lambda.fluentMethod)) {
                 selectMethod = lambda.methodName;
                 selectDescriptor = lambda.descriptor;
+            } else if (METHOD_SORTED_BY.equals(lambda.fluentMethod)) {
+                // Ascending sort
+                sortLambdas.add(new SortLambda(lambda.methodName, lambda.descriptor, SortDirection.ASCENDING));
+            } else if (METHOD_SORTED_DESCENDING_BY.equals(lambda.fluentMethod)) {
+                // Descending sort
+                sortLambdas.add(new SortLambda(lambda.methodName, lambda.descriptor, SortDirection.DESCENDING));
             }
         }
 
@@ -246,7 +267,8 @@ public class InvokeDynamicScanner {
             firstWhereDescriptor,
             selectMethod,
             selectDescriptor,
-            whereLambdas.isEmpty() ? null : whereLambdas
+            whereLambdas.isEmpty() ? null : whereLambdas,
+            sortLambdas.isEmpty() ? null : sortLambdas
         );
     }
 

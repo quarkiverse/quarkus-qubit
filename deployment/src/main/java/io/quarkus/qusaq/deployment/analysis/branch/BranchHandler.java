@@ -8,6 +8,9 @@ import org.objectweb.asm.tree.LabelNode;
 import java.util.Deque;
 import java.util.Map;
 
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.AND;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.OR;
+
 /**
  * Handler for specific branch instruction types during bytecode analysis.
  *
@@ -66,5 +69,48 @@ public interface BranchHandler {
      */
     default String getName() {
         return getClass().getSimpleName();
+    }
+
+    /**
+     * Combines two expressions and restructures if needed to fix operator precedence.
+     *
+     * <p>Handles the pattern: {@code ((a OR b) AND c) OR d → (a OR b) AND (c OR d)}
+     *
+     * <p>This restructuring maintains proper grouping when combining OR expressions
+     * that were previously part of an AND group. Without restructuring, the precedence
+     * would be incorrect: {@code (a OR b) AND c} would be evaluated as one group, then
+     * OR'd with {@code d}, when the intended logic is {@code (a OR b)} AND {@code (c OR d)}.
+     *
+     * @param combineOp the operator to use for combining (AND or OR)
+     * @param previousCondition the previous expression on the stack
+     * @param newExpression the new expression being added
+     * @return the combined expression, restructured if necessary
+     */
+    default LambdaExpression combineAndRestructureIfNeeded(
+            LambdaExpression.BinaryOp.Operator combineOp,
+            LambdaExpression previousCondition,
+            LambdaExpression newExpression) {
+
+        LambdaExpression combined = new LambdaExpression.BinaryOp(
+                previousCondition, combineOp, newExpression);
+
+        // RESTRUCTURING: Fix precedence when combining ((a OR b) AND c) OR d
+        // Should be: (a OR b) AND (c OR d) to maintain proper grouping
+        // ONLY restructure if X is itself an OR expression
+        if (combineOp == OR &&
+            previousCondition instanceof LambdaExpression.BinaryOp prevBinOp &&
+            prevBinOp.operator() == AND &&
+            prevBinOp.left() instanceof LambdaExpression.BinaryOp xBinOp &&
+            xBinOp.operator() == OR) {
+
+            // Restructure: ((a OR b) AND c) OR d → (a OR b) AND (c OR d)
+            LambdaExpression x = prevBinOp.left();  // (a OR b)
+            LambdaExpression y = prevBinOp.right(); // c
+            LambdaExpression z = newExpression;     // d
+            LambdaExpression yOrZ = new LambdaExpression.BinaryOp(y, OR, z);
+            return new LambdaExpression.BinaryOp(x, AND, yOrZ);
+        }
+
+        return combined;
     }
 }

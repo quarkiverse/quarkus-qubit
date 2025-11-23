@@ -301,6 +301,20 @@ public class LambdaTestSources {
         return p -> p.startTime == null;
     }
 
+    // ==================== CHAINED NULL CHECKS ====================
+
+    public static QuerySpec<TestPerson, Boolean> nullCheckWithAnd() {
+        return p -> p.email != null && p.firstName != null;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> nullCheckWithCondition() {
+        return p -> p.email != null && p.age > 30;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> nullCheckWithOr() {
+        return p -> p.email == null || p.firstName == null;
+    }
+
     // ==================== LOGICAL OPERATIONS - AND ====================
 
     public static QuerySpec<TestPerson, Boolean> twoConditionAnd() {
@@ -361,6 +375,18 @@ public class LambdaTestSources {
 
     public static QuerySpec<TestPerson, Boolean> stringNotEquals() {
         return p -> !p.firstName.equals("John");
+    }
+
+    public static QuerySpec<TestPerson, Boolean> notWithComplexAnd() {
+        return p -> !(p.age > 10 && p.salary < 5000);
+    }
+
+    public static QuerySpec<TestPerson, Boolean> doubleNegation() {
+        return p -> !!p.active;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> notWithOr() {
+        return p -> !(p.active || p.salary > 90000);
     }
 
     // ==================== ARITHMETIC OPERATIONS ====================

@@ -90,6 +90,22 @@ public sealed interface LambdaExpression {
      * Constant literal value.
      */
     record Constant(Object value, Class<?> type) implements LambdaExpression {
+
+        /**
+         * Common constant for boolean true value.
+         */
+        public static final Constant TRUE = new Constant(true, boolean.class);
+
+        /**
+         * Common constant for boolean false value.
+         */
+        public static final Constant FALSE = new Constant(false, boolean.class);
+
+        /**
+         * Common constant for integer zero value.
+         */
+        public static final Constant ZERO_INT = new Constant(0, int.class);
+
         public Constant {
             Objects.requireNonNull(type, "Type cannot be null");
         }
