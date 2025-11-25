@@ -199,4 +199,113 @@ public sealed interface LambdaExpression {
             Objects.requireNonNull(resultType, "Result type cannot be null");
         }
     }
+
+    // =============================================================================================
+    // RELATIONSHIP NAVIGATION (Iteration 4)
+    // =============================================================================================
+
+    /**
+     * Relationship type for path segments.
+     * <p>
+     * Used to determine whether a path segment requires a JPA join or simple field access.
+     */
+    enum RelationType {
+        /** Regular field access (no join required). */
+        FIELD,
+        /** @ManyToOne relationship (requires implicit join). */
+        MANY_TO_ONE,
+        /** @OneToOne relationship (requires implicit join). */
+        ONE_TO_ONE,
+        /** @OneToMany relationship (requires implicit join for collection access). */
+        ONE_TO_MANY,
+        /** @ManyToMany relationship (requires implicit join for collection access). */
+        MANY_TO_MANY
+    }
+
+    /**
+     * A segment in a path expression representing a single navigation step.
+     * <p>
+     * Each segment captures the field name, its type, and whether it's a relationship
+     * that requires a JPA join.
+     *
+     * @param fieldName The field name for this navigation step
+     * @param fieldType The type of this field
+     * @param relationType Whether this is a relationship requiring a join
+     */
+    record PathSegment(
+            String fieldName,
+            Class<?> fieldType,
+            RelationType relationType) {
+
+        public PathSegment {
+            Objects.requireNonNull(fieldName, "Field name cannot be null");
+            Objects.requireNonNull(fieldType, "Field type cannot be null");
+            Objects.requireNonNull(relationType, "Relation type cannot be null");
+        }
+
+        /**
+         * Returns true if this segment requires a JPA join.
+         */
+        public boolean requiresJoin() {
+            return relationType != RelationType.FIELD;
+        }
+    }
+
+    /**
+     * Path expression for relationship navigation.
+     * <p>
+     * Represents chained field access like {@code p.owner.firstName} or
+     * {@code phone.owner.department.name}.
+     * <p>
+     * Example:
+     * <pre>
+     * Phone.where(p -> p.owner.firstName.equals("John"))
+     * → PathExpression([
+     *     PathSegment("owner", Person.class, MANY_TO_ONE),
+     *     PathSegment("firstName", String.class, FIELD)
+     *   ])
+     *
+     * Generated JPA:
+     *   Join&lt;Phone, Person&gt; ownerJoin = root.join("owner");
+     *   Path&lt;String&gt; firstName = ownerJoin.get("firstName");
+     *   Predicate pred = cb.equal(firstName, "John");
+     * </pre>
+     *
+     * @param segments The list of path segments from root to final field
+     * @param resultType The type of the final expression result
+     */
+    record PathExpression(
+            List<PathSegment> segments,
+            Class<?> resultType) implements LambdaExpression {
+
+        public PathExpression {
+            Objects.requireNonNull(segments, "Segments cannot be null");
+            if (segments.isEmpty()) {
+                throw new IllegalArgumentException("Path expression must have at least one segment");
+            }
+            segments = List.copyOf(segments);
+            Objects.requireNonNull(resultType, "Result type cannot be null");
+        }
+
+        /**
+         * Returns true if this path requires any JPA joins.
+         */
+        public boolean requiresJoins() {
+            return segments.stream().anyMatch(PathSegment::requiresJoin);
+        }
+
+        /**
+         * Returns the number of segments in this path.
+         */
+        public int depth() {
+            return segments.size();
+        }
+
+        /**
+         * Returns the final segment (the actual field being accessed).
+         */
+        public PathSegment finalSegment() {
+            return segments.get(segments.size() - 1);
+        }
+    }
 }

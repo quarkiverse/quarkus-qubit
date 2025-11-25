@@ -3,6 +3,7 @@ package io.quarkus.qusaq.it;
 import io.quarkus.qusaq.runtime.QusaqEntity;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 
 import java.time.LocalDate;
@@ -32,6 +33,9 @@ public class Person extends QusaqEntity {
     public Float height;  // REAL/FLOAT type for testing Float operations
     public LocalDateTime createdAt;  // TIMESTAMP type for testing LocalDateTime operations
     public LocalTime startTime;  // TIME type for testing LocalTime operations
+
+    @ManyToOne
+    public Department department;  // For testing multi-level navigation: phone.owner.department.name
 
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
     public List<Phone> phones = new ArrayList<>();
@@ -98,6 +102,10 @@ public class Person extends QusaqEntity {
 
     public LocalTime getStartTime() {
         return startTime;
+    }
+
+    public Department getDepartment() {
+        return department;
     }
 
     public List<Phone> getPhones() {

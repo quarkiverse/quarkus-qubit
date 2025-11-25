@@ -45,6 +45,8 @@ import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.MethodDescriptor;
 import io.quarkus.gizmo.ResultHandle;
 import io.quarkus.qusaq.deployment.LambdaExpression;
+import io.quarkus.qusaq.deployment.LambdaExpression.PathExpression;
+import io.quarkus.qusaq.deployment.LambdaExpression.PathSegment;
 import io.quarkus.qusaq.deployment.analysis.PatternDetector;
 import io.quarkus.qusaq.deployment.generation.builders.ArithmeticExpressionBuilder;
 import io.quarkus.qusaq.deployment.generation.builders.BigDecimalExpressionBuilder;
@@ -117,6 +119,12 @@ public class CriteriaExpressionGenerator {
                 return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
             }
             return path;
+        } else if (expression instanceof PathExpression pathExpr) {
+            ResultHandle path = generatePathExpression(method, pathExpr, root);
+            if (isBooleanType(pathExpr.resultType())) {
+                return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
+            }
+            return path;
         } else if (expression instanceof LambdaExpression.MethodCall methodCall) {
             return generateMethodCall(method, methodCall, cb, root, capturedValues);
         }
@@ -140,6 +148,8 @@ public class CriteriaExpressionGenerator {
 
         if (expression instanceof LambdaExpression.FieldAccess field) {
             return generateFieldAccess(method, field, root);
+        } else if (expression instanceof PathExpression pathExpr) {
+            return generatePathExpression(method, pathExpr, root);
         } else if (expression instanceof LambdaExpression.Constant constant) {
             return generateConstant(method, constant);
         } else if (expression instanceof LambdaExpression.CapturedVariable capturedVar) {
@@ -171,6 +181,8 @@ public class CriteriaExpressionGenerator {
 
         if (expression instanceof LambdaExpression.FieldAccess field) {
             return generateFieldAccess(method, field, root);
+        } else if (expression instanceof PathExpression pathExpr) {
+            return generatePathExpression(method, pathExpr, root);
         } else if (expression instanceof LambdaExpression.Constant constant) {
             ResultHandle constantValue = generateConstant(method, constant);
             return wrapAsLiteral(method, cb, constantValue);
@@ -363,6 +375,46 @@ public class CriteriaExpressionGenerator {
 
         ResultHandle fieldName = method.load(field.fieldName());
         return method.invokeInterfaceMethod(methodDescriptor(Path.class, PATH_GET, Path.class, String.class), root, fieldName);
+    }
+
+    /**
+     * Generates JPA path expression for relationship navigation.
+     * <p>
+     * Converts a PathExpression like {@code p.owner.firstName} to chained
+     * {@code Path.get()} calls: {@code root.get("owner").get("firstName")}.
+     * <p>
+     * This method handles both simple field chains and relationship navigation.
+     * For relationships requiring JPA joins, the path segments are marked with
+     * their relationship type, though this initial implementation uses simple
+     * chained get() calls which work for @ManyToOne and @OneToOne navigation.
+     * <p>
+     * Example:
+     * <pre>
+     * // Lambda: phone -> phone.owner.firstName
+     * // PathExpression: [owner (MANY_TO_ONE), firstName (FIELD)]
+     * // Generated JPA: root.get("owner").get("firstName")
+     * </pre>
+     *
+     * @param method the method creator for bytecode generation
+     * @param pathExpr the path expression from the lambda AST
+     * @param root the root entity handle (From or Path)
+     * @return the final Path handle after all navigation steps
+     */
+    public ResultHandle generatePathExpression(
+            MethodCreator method,
+            PathExpression pathExpr,
+            ResultHandle root) {
+
+        ResultHandle currentPath = root;
+
+        for (PathSegment segment : pathExpr.segments()) {
+            ResultHandle fieldName = method.load(segment.fieldName());
+            currentPath = method.invokeInterfaceMethod(
+                    methodDescriptor(Path.class, PATH_GET, Path.class, String.class),
+                    currentPath, fieldName);
+        }
+
+        return currentPath;
     }
 
     /** Generates constant value bytecode. */

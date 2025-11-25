@@ -1,5 +1,6 @@
 package io.quarkus.qusaq.it.testdata;
 
+import io.quarkus.qusaq.it.Department;
 import io.quarkus.qusaq.it.Person;
 import io.quarkus.qusaq.it.Phone;
 import io.quarkus.qusaq.it.Product;
@@ -23,6 +24,9 @@ public class TestDataFactory {
 
     // Cache for reusable tags
     private static final Map<String, Tag> tagCache = new HashMap<>();
+
+    // Cache for reusable departments
+    private static final Map<String, Department> departmentCache = new HashMap<>();
 
     // ========== Person Builders (Private) ==========
 
@@ -92,6 +96,23 @@ public class TestDataFactory {
         getOrCreateTag("eco-friendly", "lime");
     }
 
+    // ========== Department Helpers (Private) ==========
+
+    private static Department getOrCreateDepartment(String name, String code, int budget) {
+        return departmentCache.computeIfAbsent(name, k -> {
+            Department dept = new Department(name, code, budget);
+            dept.persist();
+            return dept;
+        });
+    }
+
+    private static void createStandardDepartments() {
+        getOrCreateDepartment("Engineering", "ENG", 500000);
+        getOrCreateDepartment("Sales", "SLS", 300000);
+        getOrCreateDepartment("Human Resources", "HR", 150000);
+        getOrCreateDepartment("Marketing", "MKT", 200000);
+    }
+
     // ========== Phone Helpers (Private) ==========
 
     private static void addPhonesTo(Person person, String[][] phoneData) {
@@ -117,11 +138,25 @@ public class TestDataFactory {
     }
 
     /**
-     * Creates and persists persons with phone relationships (one-to-many).
+     * Creates and persists persons with phone relationships (one-to-many)
+     * and department relationships (many-to-one) for three-level navigation testing.
      * John has 2 phones, Jane has 1 phone, Bob has 3 phones, etc.
+     * Persons are assigned to departments:
+     * - John, Alice -> Engineering (ENG, budget 500000)
+     * - Jane, Charlie -> Sales (SLS, budget 300000)
+     * - Bob -> Human Resources (HR, budget 150000)
      */
     public static void createPersonsWithPhones() {
+        // Create departments first (must be persisted before assigning to persons)
+        departmentCache.clear();
+        createStandardDepartments();
+
+        Department engineering = departmentCache.get("Engineering");
+        Department sales = departmentCache.get("Sales");
+        Department hr = departmentCache.get("Human Resources");
+
         Person john = createJohnDoe();
+        john.department = engineering;
         john.persist();
         addPhonesTo(john, new String[][]{
             {"555-0101", "mobile", "true"},
@@ -129,12 +164,14 @@ public class TestDataFactory {
         });
 
         Person jane = createJaneSmith();
+        jane.department = sales;
         jane.persist();
         addPhonesTo(jane, new String[][]{
             {"555-0201", "mobile", "true"}
         });
 
         Person bob = createBobJohnson();
+        bob.department = hr;
         bob.persist();
         addPhonesTo(bob, new String[][]{
             {"555-0301", "mobile", "true"},
@@ -143,6 +180,7 @@ public class TestDataFactory {
         });
 
         Person alice = createAliceWilliams();
+        alice.department = engineering;
         alice.persist();
         addPhonesTo(alice, new String[][]{
             {"555-0401", "mobile", "true"},
@@ -150,6 +188,7 @@ public class TestDataFactory {
         });
 
         Person charlie = createCharlieBrown();
+        charlie.department = sales;
         charlie.persist();
         addPhonesTo(charlie, new String[][]{
             {"555-0501", "mobile", "true"}
@@ -275,9 +314,10 @@ public class TestDataFactory {
      * Should be called in @BeforeEach to ensure test isolation.
      */
     public static void clearAllData() {
-        // Delete in order respecting foreign key constraints
-        // Phone references Person, so delete phones first
-        // Product_Tag is a join table, handled by JPA
+        // Delete in order respecting foreign key constraints:
+        // 1. Phone references Person, so delete phones first
+        // 2. Person references Department, so delete persons before departments
+        // 3. Product_Tag is a join table, handled by JPA
         try {
             Phone.deleteAll();
         } catch (Exception e) {
@@ -289,7 +329,13 @@ public class TestDataFactory {
             // Table might not exist in some test configurations
         }
         Person.deleteAll();
+        try {
+            Department.deleteAll();
+        } catch (Exception e) {
+            // Table might not exist in some test configurations
+        }
         Product.deleteAll();
         tagCache.clear();
+        departmentCache.clear();
     }
 }

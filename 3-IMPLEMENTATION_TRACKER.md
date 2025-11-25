@@ -2,9 +2,41 @@
 
 **Date Started:** 2025-11-18
 **Last Updated:** 2025-11-25
-**Status:** ✅ ALL PHASES COMPLETE (1-6) - Fluent API infrastructure, all projection features (field, expression, DTO), multiple where() chaining, single-result terminals, sorting (sortedBy/sortedDescendingBy), pagination (skip/limit), distinct, aggregations (min/max/avg/sum*), code quality improvements, test coverage enhancements, critical bug fixes, relationship entity tests, and comprehensive documentation
-**Overall Progress:** 100% - All Phases 1-6 complete (852/852 tests passing - 100% pass rate!)
-**Reference Document:** [3-API_ENHANCEMENT_ANALYSIS.md](3-API_ENHANCEMENT_ANALYSIS.md) | [IMPROVEMENTS_ANALYSIS.md](IMPROVEMENTS_ANALYSIS.md)
+**Status:** ✅ ALL PHASES COMPLETE (1-6) + ITERATION 4 COMPLETE - Fluent API infrastructure, all projection features (field, expression, DTO), multiple where() chaining, single-result terminals, sorting (sortedBy/sortedDescendingBy), pagination (skip/limit), distinct, aggregations (min/max/avg/sum*), code quality improvements, test coverage enhancements, critical bug fixes, relationship entity tests, comprehensive documentation, AND relationship navigation (PathExpression support)
+**Overall Progress:** 100% - All Phases 1-6 complete + Iteration 4 complete (885/885 tests passing - 100% pass rate!)
+**Reference Document:** [3-API_ENHANCEMENT_ANALYSIS.md](3-API_ENHANCEMENT_ANALYSIS.md) | [IMPROVEMENTS_ANALYSIS.md](IMPROVEMENTS_ANALYSIS.md) | [4-MISSING_FEATURES_TRACKER.md](4-MISSING_FEATURES_TRACKER.md)
+
+---
+## 🎉 ITERATION 4: RELATIONSHIP NAVIGATION - COMPLETE (2025-11-25)
+
+**New Feature:** Support for @ManyToOne relationship navigation in lambda expressions
+
+**Example Usage:**
+```java
+// Filter by related entity field
+Phone.where((Phone ph) -> ph.owner.firstName.equals("John")).toList();
+
+// Project related entity field
+Phone.select((Phone ph) -> ph.owner.firstName).toList();
+
+// Sort by related entity field
+Phone.sortedBy((Phone ph) -> ph.owner.lastName).toList();
+```
+
+**Implementation Summary:**
+- ✅ PathExpression AST type for multi-level field access
+- ✅ PathSegment and RelationType for relationship metadata
+- ✅ LoadInstructionHandler enhanced to detect chained GETFIELD
+- ✅ CriteriaExpressionGenerator.generatePathExpression() for JPA path generation
+- ✅ 33 new integration tests (ManyToOneNavigationTest.java)
+- ✅ Total tests: 885 (all passing)
+
+**Files Modified:**
+- `LambdaExpression.java` - Added PathExpression, PathSegment, RelationType
+- `LoadInstructionHandler.java` - Enhanced to build PathExpression from GETFIELD chains
+- `CriteriaExpressionGenerator.java` - Added generatePathExpression() method
+
+---
 
 ## Phase 1 Progress (2025-11-18 to 2025-11-19)
 
