@@ -204,6 +204,11 @@ public final class QusaqConstants {
     public static final String CB_LENGTH = "length";
     public static final String CB_LITERAL = "literal";
 
+    // CriteriaBuilder IN and MEMBER OF operations (Iteration 5: Collections)
+    public static final String CB_IN = "in";
+    public static final String CB_IS_MEMBER = "isMember";
+    public static final String CB_IS_NOT_MEMBER = "isNotMember";
+
     // Path method names (for JPA Path API)
     public static final String PATH_GET = "get";
 

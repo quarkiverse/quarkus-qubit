@@ -1,6 +1,8 @@
 package io.quarkus.qusaq.deployment.analysis.handlers;
 
 import io.quarkus.qusaq.deployment.LambdaExpression;
+import io.quarkus.qusaq.deployment.LambdaExpression.InExpression;
+import io.quarkus.qusaq.deployment.LambdaExpression.MemberOfExpression;
 import io.quarkus.qusaq.deployment.util.DescriptorParser;
 import io.quarkus.qusaq.deployment.util.TypeConverter;
 import org.jboss.logging.Logger;
@@ -12,7 +14,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.EQ;
 import static io.quarkus.qusaq.runtime.QusaqConstants.*;
@@ -21,16 +25,35 @@ import static org.objectweb.asm.Opcodes.*;
 /**
  * Handles method invocations: INVOKEVIRTUAL (equals, String, compareTo, BigDecimal, temporal, getters),
  * INVOKESTATIC (Boolean.valueOf skip, temporal factory methods with constant folding),
- * INVOKESPECIAL (constructors including BigDecimal constant folding).
+ * INVOKESPECIAL (constructors including BigDecimal constant folding),
+ * INVOKEINTERFACE (Collection.contains for IN and MEMBER OF expressions).
  */
 public class MethodInvocationHandler implements InstructionHandler {
 
     private static final Logger log = Logger.getLogger(MethodInvocationHandler.class);
 
+    /**
+     * Collection interface types that support contains() for IN/MEMBER OF detection.
+     */
+    private static final Set<String> COLLECTION_INTERFACE_OWNERS = Set.of(
+            "java/util/Collection",
+            "java/util/List",
+            "java/util/Set",
+            "java/util/AbstractCollection",
+            "java/util/AbstractList",
+            "java/util/AbstractSet",
+            "java/util/ArrayList",
+            "java/util/LinkedList",
+            "java/util/HashSet",
+            "java/util/TreeSet",
+            "java/util/LinkedHashSet"
+    );
+
     @Override
     public boolean canHandle(AbstractInsnNode insn) {
         int opcode = insn.getOpcode();
-        return opcode == INVOKEVIRTUAL || opcode == INVOKESTATIC || opcode == INVOKESPECIAL;
+        return opcode == INVOKEVIRTUAL || opcode == INVOKESTATIC ||
+               opcode == INVOKESPECIAL || opcode == INVOKEINTERFACE;
     }
 
     @Override
@@ -42,6 +65,7 @@ public class MethodInvocationHandler implements InstructionHandler {
             case INVOKEVIRTUAL -> handleInvokeVirtual(ctx, methodInsn);
             case INVOKESTATIC -> handleInvokeStatic(ctx, methodInsn);
             case INVOKESPECIAL -> handleInvokeSpecial(ctx, methodInsn);
+            case INVOKEINTERFACE -> handleInvokeInterface(ctx, methodInsn);
         }
 
         // Continue processing (don't terminate analysis)
@@ -130,6 +154,149 @@ public class MethodInvocationHandler implements InstructionHandler {
             log.errorf(e, "Error processing INVOKESPECIAL %s for %s", CONSTRUCTOR, specialInsn.owner);
             throw e;
         }
+    }
+
+    // ========== INVOKEINTERFACE Handler (Iteration 5: Collections) ==========
+
+    /**
+     * Handles INVOKEINTERFACE: primarily Collection.contains() for IN and MEMBER OF expressions.
+     * <p>
+     * Detects two patterns:
+     * <ul>
+     *   <li><b>IN clause</b>: {@code collection.contains(p.field)} where collection is a captured variable
+     *       → Creates {@link InExpression}</li>
+     *   <li><b>MEMBER OF</b>: {@code p.collectionField.contains(value)} where collectionField is a mapped collection
+     *       → Creates {@link MemberOfExpression}</li>
+     * </ul>
+     * <p>
+     * Bytecode pattern for IN clause ({@code cities.contains(p.city)}):
+     * <pre>
+     * ALOAD 1              // Load captured cities collection (CapturedVariable)
+     * ALOAD 0              // Load lambda parameter (Person)
+     * GETFIELD Person.city // Get city field (FieldAccess)
+     * INVOKEINTERFACE Collection.contains(Object)
+     * </pre>
+     * <p>
+     * Bytecode pattern for MEMBER OF ({@code p.roles.contains("admin")}):
+     * <pre>
+     * ALOAD 0              // Load lambda parameter (Person)
+     * GETFIELD Person.roles // Get roles collection field (FieldAccess)
+     * LDC "admin"          // Load constant value
+     * INVOKEINTERFACE Collection.contains(Object)
+     * </pre>
+     */
+    private void handleInvokeInterface(AnalysisContext ctx, MethodInsnNode interfaceInsn) {
+        // Check if this is a Collection.contains() call
+        if (isCollectionContainsCall(interfaceInsn)) {
+            handleCollectionContains(ctx);
+            return;
+        }
+
+        // Fallback: treat as regular method call (similar to INVOKEVIRTUAL)
+        // This handles other interface method calls that might be needed
+        if (isEqualsMethodCall(interfaceInsn)) {
+            handleEqualsMethod(ctx);
+            return;
+        }
+
+        if (isCompareToMethodCall(interfaceInsn)) {
+            handleSingleArgumentMethodCall(ctx, METHOD_COMPARE_TO, int.class);
+        }
+    }
+
+    /**
+     * Checks if the instruction is a Collection.contains() call.
+     */
+    private boolean isCollectionContainsCall(MethodInsnNode methodInsn) {
+        return methodInsn.name.equals(METHOD_CONTAINS) &&
+               methodInsn.desc.equals("(Ljava/lang/Object;)Z") &&
+               COLLECTION_INTERFACE_OWNERS.contains(methodInsn.owner);
+    }
+
+    /**
+     * Handles Collection.contains() by determining whether it's an IN clause or MEMBER OF pattern.
+     * <p>
+     * The key distinction is based on the target (collection) expression:
+     * <ul>
+     *   <li><b>IN clause</b>: target is CapturedVariable (collection from outer scope)
+     *       → Field is in collection, creates {@code InExpression(field, collection, false)}</li>
+     *   <li><b>MEMBER OF</b>: target is FieldAccess or PathExpression (collection field on entity)
+     *       → Value is in collection field, creates {@code MemberOfExpression(value, collectionField, false)}</li>
+     * </ul>
+     */
+    private void handleCollectionContains(AnalysisContext ctx) {
+        if (ctx.getStackSize() < 2) {
+            return;
+        }
+
+        LambdaExpression argument = ctx.pop();  // The contains() argument
+        LambdaExpression target = ctx.pop();    // The collection (target of contains())
+
+        // Determine if this is IN clause or MEMBER OF pattern
+        if (isInClausePattern(target, argument)) {
+            // IN clause: collection.contains(field)
+            // The argument is the field we're checking, target is the collection
+            ctx.push(InExpression.in(argument, target));
+        } else if (isMemberOfPattern(target, argument)) {
+            // MEMBER OF: entityField.contains(value)
+            // The target is the collection field, argument is the value we're checking
+            ctx.push(MemberOfExpression.memberOf(argument, target));
+        } else {
+            // Fallback: create a regular MethodCall for unknown patterns
+            ctx.push(new LambdaExpression.MethodCall(
+                    target,
+                    METHOD_CONTAINS,
+                    List.of(argument),
+                    boolean.class
+            ));
+        }
+    }
+
+    /**
+     * Determines if the contains() call represents an IN clause pattern.
+     * <p>
+     * IN clause pattern: captured collection.contains(entity field)
+     * Example: {@code cities.contains(p.city)}
+     * - target (collection) is CapturedVariable
+     * - argument (field) is FieldAccess or PathExpression
+     *
+     * @param target The collection (left side of contains)
+     * @param argument The value being checked (argument to contains)
+     * @return true if this is an IN clause pattern
+     */
+    private boolean isInClausePattern(LambdaExpression target, LambdaExpression argument) {
+        // Target must be a captured variable (the collection from outer scope)
+        boolean targetIsCaptured = target instanceof LambdaExpression.CapturedVariable;
+
+        // Argument must be a field access or path expression (entity field)
+        boolean argumentIsEntityField = argument instanceof LambdaExpression.FieldAccess ||
+                                         argument instanceof LambdaExpression.PathExpression;
+
+        return targetIsCaptured && argumentIsEntityField;
+    }
+
+    /**
+     * Determines if the contains() call represents a MEMBER OF pattern.
+     * <p>
+     * MEMBER OF pattern: entity collection field.contains(value)
+     * Example: {@code p.roles.contains("admin")}
+     * - target (collection field) is FieldAccess or PathExpression
+     * - argument (value) is Constant or CapturedVariable
+     *
+     * @param target The collection field (left side of contains)
+     * @param argument The value being checked (argument to contains)
+     * @return true if this is a MEMBER OF pattern
+     */
+    private boolean isMemberOfPattern(LambdaExpression target, LambdaExpression argument) {
+        // Target must be a field access or path expression (collection field on entity)
+        boolean targetIsEntityField = target instanceof LambdaExpression.FieldAccess ||
+                                       target instanceof LambdaExpression.PathExpression;
+
+        // Argument must be a constant or captured variable (the value to check)
+        boolean argumentIsValue = argument instanceof LambdaExpression.Constant ||
+                                  argument instanceof LambdaExpression.CapturedVariable;
+
+        return targetIsEntityField && argumentIsValue;
     }
 
     // ========== INVOKEVIRTUAL Helper Methods ==========

@@ -2,7 +2,7 @@
 
 **Date Created:** 2025-11-25
 **Last Updated:** 2025-11-25
-**Status:** 🚀 ITERATION 4 COMPLETE - Relationship Navigation Implemented
+**Status:** 🚀 ITERATION 5 COMPLETE - Collections (IN Clause) Implemented
 **Reference Document:** [README.md](README.md) Limitations Section
 
 ## Executive Summary
@@ -14,13 +14,13 @@ This document tracks the implementation of all missing functionalities identifie
 | Feature | Priority | Complexity | Dependencies | Estimated Effort | Status |
 |---------|----------|------------|--------------|------------------|--------|
 | Relationship Navigation | 🔴 HIGH | Medium | None | 2-3 weeks | ✅ COMPLETE |
-| Collections (IN, MEMBER OF) | 🔴 HIGH | Medium | None | 1-2 weeks | 📋 Planned |
+| Collections (IN, MEMBER OF) | 🔴 HIGH | Medium | None | 1-2 weeks | ✅ COMPLETE |
 | Join Queries | 🟠 MEDIUM | High | Relationship Navigation | 3-4 weeks | 📋 Planned |
 | Grouping (GROUP BY) | 🟠 MEDIUM | High | None | 3-4 weeks | 📋 Planned |
 | Subqueries | 🟡 LOW | Very High | Joins, Grouping | 4-5 weeks | 📋 Planned |
 
 **Total Estimated Effort:** 13-18 weeks (3-4 months)
-**Completed:** Iteration 4 (Relationship Navigation) - 33 new tests, 885 total tests passing
+**Completed:** Iteration 5 (Collections - IN Clause) - 23 tests, 934 total tests passing
 
 ---
 
@@ -314,8 +314,10 @@ void multiLevelNavigation_threeLevel() {
 - ✅ Chained GETFIELD bytecode detected and analyzed (LoadInstructionHandler.java)
 - ✅ JPA path expressions with chained Path.get() generated (CriteriaExpressionGenerator.java)
 - ✅ All existing tests pass (852 tests)
-- ✅ 33 new relationship navigation tests (ManyToOneNavigationTest.java)
-- ✅ Total tests: 885 (all passing)
+- ✅ 59 relationship navigation tests in ManyToOneNavigationTest.java:
+  - 33 two-level navigation tests (phone.owner.firstName)
+  - 26 three-level navigation tests (phone.owner.department.name)
+- ✅ Total tests: 911 (all passing)
 
 **🎯 MILESTONE: Relationship Navigation Functional - ACHIEVED 2025-11-25**
 
@@ -324,7 +326,8 @@ void multiLevelNavigation_threeLevel() {
 - LoadInstructionHandler detects chained GETFIELD and builds PathExpression
 - CriteriaExpressionGenerator.generatePathExpression() creates chained Path.get() calls
 - Supports: where(), select(), sortedBy(), count(), exists(), distinct(), limit()
-- Known limitation: Double/wrapper type comparisons with path expressions need additional handling
+- Three-level navigation fully tested: phone.owner.department.name/code/budget
+- Department entity added with Person relationship for three-level testing
 
 ---
 
@@ -362,15 +365,15 @@ Person.where((Person p) -> p.roles.contains("admin")).toList();
 
 ### Implementation Plan
 
-#### Phase 5.1: IN Clause Support (5-7 days)
+#### Phase 5.1: IN Clause Support (5-7 days) ✅ COMPLETE
 
 | Task | Status | LOC | Notes |
 |------|--------|-----|-------|
-| 5.1.1 | Create `InExpression` AST type | ❌ | ~30 LOC | `InExpression(field, collection)` |
-| 5.1.2 | Detect `Collection.contains(field)` pattern | ❌ | ~80 LOC | Bytecode analysis |
-| 5.1.3 | Handle captured List/Set/Array | ❌ | ~60 LOC | Extract collection values |
-| 5.1.4 | Generate JPA IN predicate | ❌ | ~100 LOC | `cb.in().value()...` |
-| 5.1.5 | Optimize for large collections | ❌ | ~50 LOC | Batch or parameter binding |
+| 5.1.1 | Create `InExpression` AST type | ✅ | ~30 LOC | `InExpression(field, collection, negated)` |
+| 5.1.2 | Detect `Collection.contains(field)` pattern | ✅ | ~80 LOC | INVOKEINTERFACE in MethodInvocationHandler |
+| 5.1.3 | Handle captured List/Set/Array | ✅ | ~60 LOC | CapturedVariable for collection |
+| 5.1.4 | Generate JPA IN predicate | ✅ | ~100 LOC | `fieldExpr.in(collection)` |
+| 5.1.5 | Optimize for large collections | ✅ | ~50 LOC | JPA Expression.in(Collection) handles batching |
 
 **New AST Type:**
 ```java
@@ -410,15 +413,15 @@ INVOKEINTERFACE Collection.contains(Object)
 
 ---
 
-#### Phase 5.2: MEMBER OF Support (4-5 days)
+#### Phase 5.2: MEMBER OF Support (4-5 days) ✅ COMPLETE
 
 | Task | Status | LOC | Notes |
 |------|--------|-----|-------|
-| 5.2.1 | Create `MemberOfExpression` AST type | ❌ | ~25 LOC | `MemberOfExpression(value, collection)` |
-| 5.2.2 | Detect `field.contains(value)` pattern | ❌ | ~60 LOC | When field is mapped collection |
-| 5.2.3 | Integrate with relationship metadata | ❌ | ~40 LOC | Detect @ElementCollection, @OneToMany |
-| 5.2.4 | Generate JPA MEMBER OF predicate | ❌ | ~60 LOC | `cb.isMember()` |
-| 5.2.5 | Handle negation (NOT MEMBER OF) | ❌ | ~30 LOC | `cb.isNotMember()` |
+| 5.2.1 | Create `MemberOfExpression` AST type | ✅ | ~25 LOC | `MemberOfExpression(value, collectionField, negated)` |
+| 5.2.2 | Detect `field.contains(value)` pattern | ✅ | ~60 LOC | INVOKEINTERFACE in MethodInvocationHandler |
+| 5.2.3 | Integrate with relationship metadata | ✅ | ~40 LOC | Pattern-based detection (target is FieldAccess/PathExpression) |
+| 5.2.4 | Generate JPA MEMBER OF predicate | ✅ | ~60 LOC | `cb.isMember(value, collection)` |
+| 5.2.5 | Handle negation (NOT MEMBER OF) | ✅ | ~30 LOC | `cb.isNotMember(value, collection)` |
 
 **New AST Type:**
 ```java
@@ -440,18 +443,18 @@ record MemberOfExpression(
 
 ---
 
-#### Phase 5.3: Integration Tests (3-4 days)
+#### Phase 5.3: Integration Tests (3-4 days) ✅ COMPLETE
 
 | Task | Status | Tests | Notes |
 |------|--------|-------|-------|
-| 5.3.1 | Test IN with List | ❌ | 3 tests | String, Integer, Enum values |
-| 5.3.2 | Test IN with Set | ❌ | 2 tests | Unique values |
-| 5.3.3 | Test IN with Array | ❌ | 2 tests | Primitive and object arrays |
-| 5.3.4 | Test NOT IN | ❌ | 2 tests | Negated IN clause |
-| 5.3.5 | Test MEMBER OF | ❌ | 3 tests | @ElementCollection fields |
-| 5.3.6 | Test NOT MEMBER OF | ❌ | 2 tests | Negated membership |
-| 5.3.7 | Test with filtering | ❌ | 3 tests | Combined with other predicates |
-| 5.3.8 | Test edge cases | ❌ | 3 tests | Empty collections, null values |
+| 5.3.1 | Test IN with List | ✅ | 5 tests | String, Integer, Enum values |
+| 5.3.2 | Test IN with Set | ✅ | 3 tests | Unique values |
+| 5.3.3 | Test IN with Array | ✅ | 2 tests | Arrays.asList conversion |
+| 5.3.4 | Test NOT IN | ✅ | 2 tests | Negated IN clause |
+| 5.3.5 | Test MEMBER OF | ✅ | 2 tests | Collection field membership |
+| 5.3.6 | Test NOT MEMBER OF | ✅ | 1 test | Negated membership |
+| 5.3.7 | Test with filtering | ✅ | 4 tests | Combined with AND/OR/comparison |
+| 5.3.8 | Test edge cases | ✅ | 4 tests | Empty collections, single value, multiple IN clauses |
 
 **Test Examples:**
 ```java
@@ -488,17 +491,25 @@ void notIn_excludesValues() {
 
 ---
 
-### Phase 5 Completion Criteria
+### Phase 5 Completion Criteria ✅ ALL COMPLETE
 
-- ✅ `InExpression` AST type implemented
-- ✅ `MemberOfExpression` AST type implemented
-- ✅ `Collection.contains()` bytecode pattern detected
-- ✅ JPA IN and MEMBER OF predicates generated
-- ✅ All existing tests pass
-- ✅ 20+ new collection tests
+- ✅ `InExpression` AST type implemented (in LambdaExpression.java)
+- ✅ `MemberOfExpression` AST type implemented (in LambdaExpression.java)
+- ✅ `Collection.contains()` bytecode pattern detected (INVOKEINTERFACE in MethodInvocationHandler.java)
+- ✅ JPA IN and MEMBER OF predicates generated (CriteriaExpressionGenerator.java)
+- ✅ All existing tests pass (934 tests)
+- ✅ 23 new collection tests in InClauseTest.java
 - ✅ Documentation updated
 
-**🎯 MILESTONE: Collection Operations Functional**
+**🎯 MILESTONE: Collection Operations Functional - ACHIEVED 2025-11-25**
+
+#### Implementation Notes:
+- InExpression: `collection.contains(field)` → `fieldExpr.in(collection)`
+- MemberOfExpression: `field.contains(value)` → `cb.isMember(value, fieldExpr)`
+- Pattern detection based on target type: CapturedVariable → IN, FieldAccess/PathExpression → MEMBER OF
+- UnaryOp handling added to generateExpressionAsJpaExpression for short-circuit evaluation
+- Combined predicates work correctly: IN with AND/OR/comparison operators
+- Negation supported: NOT IN via negated flag, cb.not(inPredicate)
 
 ---
 

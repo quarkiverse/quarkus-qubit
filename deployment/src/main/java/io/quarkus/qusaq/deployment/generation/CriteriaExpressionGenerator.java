@@ -17,6 +17,8 @@ import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_SUBTRACT;
 import static io.quarkus.qusaq.runtime.QusaqConstants.CB_AND;
 import static io.quarkus.qusaq.runtime.QusaqConstants.CB_EQUAL;
 import static io.quarkus.qusaq.runtime.QusaqConstants.CB_IS_FALSE;
+import static io.quarkus.qusaq.runtime.QusaqConstants.CB_IS_MEMBER;
+import static io.quarkus.qusaq.runtime.QusaqConstants.CB_IS_NOT_MEMBER;
 import static io.quarkus.qusaq.runtime.QusaqConstants.CB_IS_NOT_NULL;
 import static io.quarkus.qusaq.runtime.QusaqConstants.CB_IS_NULL;
 import static io.quarkus.qusaq.runtime.QusaqConstants.CB_IS_TRUE;
@@ -45,6 +47,8 @@ import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.MethodDescriptor;
 import io.quarkus.gizmo.ResultHandle;
 import io.quarkus.qusaq.deployment.LambdaExpression;
+import io.quarkus.qusaq.deployment.LambdaExpression.InExpression;
+import io.quarkus.qusaq.deployment.LambdaExpression.MemberOfExpression;
 import io.quarkus.qusaq.deployment.LambdaExpression.PathExpression;
 import io.quarkus.qusaq.deployment.LambdaExpression.PathSegment;
 import io.quarkus.qusaq.deployment.analysis.PatternDetector;
@@ -127,6 +131,10 @@ public class CriteriaExpressionGenerator {
             return path;
         } else if (expression instanceof LambdaExpression.MethodCall methodCall) {
             return generateMethodCall(method, methodCall, cb, root, capturedValues);
+        } else if (expression instanceof InExpression inExpr) {
+            return generateInPredicate(method, inExpr, cb, root, capturedValues);
+        } else if (expression instanceof MemberOfExpression memberOfExpr) {
+            return generateMemberOfPredicate(method, memberOfExpr, cb, root, capturedValues);
         }
 
         return null;
@@ -203,6 +211,17 @@ public class CriteriaExpressionGenerator {
             // These cannot be directly converted to JPA expressions - return null to signal
             // to caller that special handling is needed
             return null;
+        } else if (expression instanceof InExpression inExpr) {
+            // Iteration 5: InExpression is a predicate but Predicate extends Expression<Boolean>
+            // so we can return it as a JPA expression
+            return generateInPredicate(method, inExpr, cb, root, capturedValues);
+        } else if (expression instanceof MemberOfExpression memberOfExpr) {
+            // Iteration 5: MemberOfExpression is also a predicate that can be used as expression
+            return generateMemberOfPredicate(method, memberOfExpr, cb, root, capturedValues);
+        } else if (expression instanceof LambdaExpression.UnaryOp unaryOp) {
+            // Iteration 5: UnaryOp (NOT) is a predicate that can be used as expression
+            // This occurs when IFEQ creates NOT(InExpression) for short-circuit evaluation
+            return generateUnaryOperation(method, unaryOp, cb, root, capturedValues);
         }
 
         return null;
@@ -573,6 +592,115 @@ public class CriteriaExpressionGenerator {
                 Selection[].class);
 
         return method.invokeInterfaceMethod(constructMethod, cb, resultClassHandle, selectionsArray);
+    }
+
+    // =============================================================================================
+    // COLLECTION OPERATIONS (Iteration 5: IN and MEMBER OF)
+    // =============================================================================================
+
+    /**
+     * Generates JPA IN predicate for collection membership testing.
+     * <p>
+     * Converts {@code cities.contains(p.city)} to JPA {@code root.get("city").in(cities)}.
+     * <p>
+     * Example:
+     * <pre>
+     * // Lambda: cities.contains(p.city)
+     * // InExpression(field=FieldAccess("city"), collection=CapturedVariable(0), negated=false)
+     *
+     * // Generated JPA:
+     * Expression&lt;String&gt; cityPath = root.get("city");
+     * Predicate inPred = cityPath.in(capturedValues[0]); // capturedValues[0] is the cities collection
+     * </pre>
+     *
+     * @param method the method creator for bytecode generation
+     * @param inExpr the IN expression from the lambda AST
+     * @param cb the CriteriaBuilder handle
+     * @param root the root entity handle
+     * @param capturedValues the captured variables array handle
+     * @return the JPA Predicate handle representing the IN clause
+     */
+    private ResultHandle generateInPredicate(
+            MethodCreator method,
+            InExpression inExpr,
+            ResultHandle cb,
+            ResultHandle root,
+            ResultHandle capturedValues) {
+
+        // Generate the field expression (e.g., root.get("city"))
+        ResultHandle fieldExpr = generateExpressionAsJpaExpression(method, inExpr.field(), cb, root, capturedValues);
+
+        // Generate the collection expression (e.g., capturedValues[0])
+        ResultHandle collectionExpr = generateExpression(method, inExpr.collection(), cb, root, capturedValues);
+
+        // Call fieldExpr.in(collection) - Expression.in(Collection)
+        // This creates a Predicate that checks if field value is in the collection
+        MethodDescriptor inMethod = MethodDescriptor.ofMethod(
+                Expression.class,
+                "in",
+                Predicate.class,
+                java.util.Collection.class);
+
+        ResultHandle inPredicate = method.invokeInterfaceMethod(inMethod, fieldExpr, collectionExpr);
+
+        // If negated (NOT IN), wrap with cb.not()
+        if (inExpr.negated()) {
+            return method.invokeInterfaceMethod(
+                    methodDescriptor(CriteriaBuilder.class, CB_NOT, Predicate.class, Expression.class),
+                    cb, inPredicate);
+        }
+
+        return inPredicate;
+    }
+
+    /**
+     * Generates JPA MEMBER OF predicate for collection field membership.
+     * <p>
+     * Converts {@code p.roles.contains("admin")} to JPA {@code cb.isMember("admin", root.get("roles"))}.
+     * <p>
+     * Example:
+     * <pre>
+     * // Lambda: p.roles.contains("admin")
+     * // MemberOfExpression(value=Constant("admin"), collectionField=FieldAccess("roles"), negated=false)
+     *
+     * // Generated JPA:
+     * Expression&lt;Collection&lt;String&gt;&gt; rolesPath = root.get("roles");
+     * Predicate memberPred = cb.isMember("admin", rolesPath);
+     * </pre>
+     *
+     * @param method the method creator for bytecode generation
+     * @param memberOfExpr the MEMBER OF expression from the lambda AST
+     * @param cb the CriteriaBuilder handle
+     * @param root the root entity handle
+     * @param capturedValues the captured variables array handle
+     * @return the JPA Predicate handle representing the MEMBER OF clause
+     */
+    private ResultHandle generateMemberOfPredicate(
+            MethodCreator method,
+            MemberOfExpression memberOfExpr,
+            ResultHandle cb,
+            ResultHandle root,
+            ResultHandle capturedValues) {
+
+        // Generate the value expression (e.g., "admin" constant or captured variable)
+        ResultHandle valueExpr = generateExpression(method, memberOfExpr.value(), cb, root, capturedValues);
+
+        // Generate the collection field expression (e.g., root.get("roles"))
+        ResultHandle collectionFieldExpr = generateExpressionAsJpaExpression(
+                method, memberOfExpr.collectionField(), cb, root, capturedValues);
+
+        // Determine which method to call based on negation
+        String memberMethodName = memberOfExpr.negated() ? CB_IS_NOT_MEMBER : CB_IS_MEMBER;
+
+        // Call cb.isMember(value, collection) or cb.isNotMember(value, collection)
+        MethodDescriptor memberMethod = MethodDescriptor.ofMethod(
+                CriteriaBuilder.class,
+                memberMethodName,
+                Predicate.class,
+                Object.class,
+                Expression.class);
+
+        return method.invokeInterfaceMethod(memberMethod, cb, valueExpr, collectionFieldExpr);
     }
 
     /** Generates arithmetic operations. Delegates to ArithmeticExpressionBuilder. */

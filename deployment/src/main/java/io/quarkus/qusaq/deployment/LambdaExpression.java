@@ -308,4 +308,102 @@ public sealed interface LambdaExpression {
             return segments.get(segments.size() - 1);
         }
     }
+
+    // =============================================================================================
+    // COLLECTION OPERATIONS (Iteration 5)
+    // =============================================================================================
+
+    /**
+     * IN expression for collection membership testing.
+     * <p>
+     * Represents a predicate that checks if a field value is contained within a collection.
+     * This translates to SQL {@code WHERE field IN (value1, value2, ...)} or JPA
+     * {@code cb.in(root.get("field")).value(v1).value(v2)...}.
+     * <p>
+     * Example:
+     * <pre>
+     * List&lt;String&gt; cities = List.of("NYC", "LA", "Chicago");
+     * Person.where(p -&gt; cities.contains(p.city))
+     * → InExpression(FieldAccess("city"), CapturedVariable(0), false)
+     *
+     * Generated JPA:
+     *   CriteriaBuilder.In&lt;String&gt; in = cb.in(root.get("city"));
+     *   in.value("NYC").value("LA").value("Chicago");
+     *   // or: root.get("city").in(collectionParameter)
+     * </pre>
+     *
+     * @param field The field to check (e.g., p.city)
+     * @param collection The collection to check against (typically a CapturedVariable)
+     * @param negated True for NOT IN, false for IN
+     */
+    record InExpression(
+            LambdaExpression field,
+            LambdaExpression collection,
+            boolean negated) implements LambdaExpression {
+
+        public InExpression {
+            Objects.requireNonNull(field, "Field cannot be null");
+            Objects.requireNonNull(collection, "Collection cannot be null");
+        }
+
+        /**
+         * Creates a non-negated IN expression.
+         */
+        public static InExpression in(LambdaExpression field, LambdaExpression collection) {
+            return new InExpression(field, collection, false);
+        }
+
+        /**
+         * Creates a negated NOT IN expression.
+         */
+        public static InExpression notIn(LambdaExpression field, LambdaExpression collection) {
+            return new InExpression(field, collection, true);
+        }
+    }
+
+    /**
+     * MEMBER OF expression for collection field membership.
+     * <p>
+     * Represents a predicate that checks if a value is a member of a mapped collection field
+     * (e.g., @ElementCollection, @OneToMany). This translates to SQL
+     * {@code WHERE value MEMBER OF collectionField} or JPA {@code cb.isMember(value, collection)}.
+     * <p>
+     * Example:
+     * <pre>
+     * // Assuming Person has @ElementCollection Set&lt;String&gt; roles
+     * Person.where(p -&gt; p.roles.contains("admin"))
+     * → MemberOfExpression(Constant("admin"), FieldAccess("roles"), false)
+     *
+     * Generated JPA:
+     *   Predicate pred = cb.isMember("admin", root.get("roles"));
+     * </pre>
+     *
+     * @param value The value to check for membership
+     * @param collectionField The collection field to search within
+     * @param negated True for NOT MEMBER OF, false for MEMBER OF
+     */
+    record MemberOfExpression(
+            LambdaExpression value,
+            LambdaExpression collectionField,
+            boolean negated) implements LambdaExpression {
+
+        public MemberOfExpression {
+            Objects.requireNonNull(value, "Value cannot be null");
+            Objects.requireNonNull(collectionField, "Collection field cannot be null");
+        }
+
+        /**
+         * Creates a non-negated MEMBER OF expression.
+         */
+        public static MemberOfExpression memberOf(LambdaExpression value, LambdaExpression collectionField) {
+            return new MemberOfExpression(value, collectionField, false);
+        }
+
+        /**
+         * Creates a negated NOT MEMBER OF expression.
+         */
+        public static MemberOfExpression notMemberOf(LambdaExpression value, LambdaExpression collectionField) {
+            return new MemberOfExpression(value, collectionField, true);
+        }
+    }
 }

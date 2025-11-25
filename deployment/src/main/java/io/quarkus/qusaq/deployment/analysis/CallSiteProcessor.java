@@ -700,6 +700,17 @@ public class CallSiteProcessor {
             for (LambdaExpression arg : constructorCall.arguments()) {
                 collectCapturedVariableIndices(arg, capturedIndices);
             }
+        } else if (expression instanceof LambdaExpression.InExpression inExpr) {
+            // Iteration 5: Handle IN clause expressions
+            collectCapturedVariableIndices(inExpr.field(), capturedIndices);
+            collectCapturedVariableIndices(inExpr.collection(), capturedIndices);
+        } else if (expression instanceof LambdaExpression.MemberOfExpression memberOfExpr) {
+            // Iteration 5: Handle MEMBER OF expressions
+            collectCapturedVariableIndices(memberOfExpr.value(), capturedIndices);
+            collectCapturedVariableIndices(memberOfExpr.collectionField(), capturedIndices);
+        } else if (expression instanceof LambdaExpression.PathExpression pathExpr) {
+            // Iteration 4: PathExpression doesn't contain captured variables
+            // (but traversing for consistency if any fields were added later)
         }
     }
 
@@ -755,6 +766,21 @@ public class CallSiteProcessor {
                     renumberCapturedVariables(conditional.condition(), offset),
                     renumberCapturedVariables(conditional.trueValue(), offset),
                     renumberCapturedVariables(conditional.falseValue(), offset));
+        } else if (expression instanceof LambdaExpression.InExpression inExpr) {
+            // Iteration 5: Handle IN clause expressions
+            return new LambdaExpression.InExpression(
+                    renumberCapturedVariables(inExpr.field(), offset),
+                    renumberCapturedVariables(inExpr.collection(), offset),
+                    inExpr.negated());
+        } else if (expression instanceof LambdaExpression.MemberOfExpression memberOfExpr) {
+            // Iteration 5: Handle MEMBER OF expressions
+            return new LambdaExpression.MemberOfExpression(
+                    renumberCapturedVariables(memberOfExpr.value(), offset),
+                    renumberCapturedVariables(memberOfExpr.collectionField(), offset),
+                    memberOfExpr.negated());
+        } else if (expression instanceof LambdaExpression.PathExpression) {
+            // Iteration 4: PathExpression doesn't contain captured variables
+            return expression;
         } else {
             // These expression types don't contain captured variables, return as-is:
             // FieldAccess, Constant, Parameter, NullLiteral
