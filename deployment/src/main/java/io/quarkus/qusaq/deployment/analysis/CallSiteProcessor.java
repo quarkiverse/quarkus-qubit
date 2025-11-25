@@ -113,10 +113,12 @@ public class CallSiteProcessor {
             String executorClassName;
 
             // Iteration 6: Handle join queries with special generator
+            // Iteration 6.5: Pass sort expressions for join query sorting
             if (callSite.isJoinQuery() && result.joinType != null) {
                 executorClassName = generateAndRegisterJoinExecutor(
                         result.joinRelationshipExpression,
                         result.biEntityPredicateExpression,
+                        result.sortExpressions,
                         result.joinType,
                         callSiteId,
                         result.totalCapturedVarCount,
@@ -188,11 +190,13 @@ public class CallSiteProcessor {
      */
     private String computeHash(InvokeDynamicScanner.LambdaCallSite callSite, LambdaAnalysisResult result) {
         // Iteration 6: Join queries have priority
+        // Iteration 6.5: Include sort expressions for join queries
         if (callSite.isJoinQuery() && result.joinType != null) {
             String joinTypeStr = result.joinType.name();  // INNER or LEFT
             return deduplicator.computeJoinHash(
                     result.joinRelationshipExpression,
                     result.biEntityPredicateExpression,
+                    result.sortExpressions,  // Iteration 6.5: Include sort expressions
                     joinTypeStr,
                     callSite.isCountQuery());
         }
@@ -304,6 +308,7 @@ public class CallSiteProcessor {
      *
      * @param joinRelationshipExpression Lambda for the join relationship (e.g., p -> p.phones)
      * @param biEntityPredicateExpression Lambda for bi-entity predicate (e.g., (p, ph) -> ph.type.equals("mobile"))
+     * @param sortExpressions Iteration 6.5: List of sort expressions for ORDER BY
      * @param joinType The type of join (INNER or LEFT)
      * @param queryId Unique identifier for the query
      * @param capturedVarCount Number of captured variables
@@ -315,6 +320,7 @@ public class CallSiteProcessor {
     private String generateAndRegisterJoinExecutor(
             LambdaExpression joinRelationshipExpression,
             LambdaExpression biEntityPredicateExpression,
+            List<SortExpression> sortExpressions,
             InvokeDynamicScanner.JoinType joinType,
             String queryId,
             int capturedVarCount,
@@ -328,6 +334,7 @@ public class CallSiteProcessor {
         byte[] bytecode = classGenerator.generateJoinQueryExecutorClass(
                 joinRelationshipExpression,
                 biEntityPredicateExpression,
+                sortExpressions,
                 joinType,
                 className,
                 isCountQuery);
@@ -730,13 +737,18 @@ public class CallSiteProcessor {
             biEntityPredicateExpression = combinePredicatesWithAnd(biPredicates);
         }
 
-        log.debugf("Analyzed join query at %s: type=%s, relationship=%s, biPredicate=%s",
-                callSiteId, callSite.joinType(), joinRelationshipExpression, biEntityPredicateExpression);
+        // Iteration 6.5: Analyze bi-entity sort lambdas for join queries
+        List<SortExpression> sortExpressions = analyzeBiEntitySortLambdas(classBytes, callSite, callSiteId);
+        totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
+
+        log.debugf("Analyzed join query at %s: type=%s, relationship=%s, biPredicate=%s, sortExpressions=%d",
+                callSiteId, callSite.joinType(), joinRelationshipExpression, biEntityPredicateExpression,
+                sortExpressions.size());
 
         return new LambdaAnalysisResult(
                 null,  // Regular predicates handled separately
                 null,  // No projection for basic join queries (yet)
-                Collections.emptyList(),  // TODO: Support sorting in join queries
+                sortExpressions,  // Iteration 6.5: Sort expressions for join queries
                 null,  // No aggregation
                 null,  // No aggregation type
                 joinRelationshipExpression,
@@ -777,6 +789,46 @@ public class CallSiteProcessor {
 
             sortExpressions.add(new SortExpression(keyExtractor, sortLambda.direction()));
             log.debugf("Analyzed sort lambda at %s: %s (direction=%s)",
+                    callSiteId, keyExtractor, sortLambda.direction());
+        }
+
+        return sortExpressions;
+    }
+
+    /**
+     * Analyzes bi-entity sort lambdas from call site for join queries.
+     * Iteration 6.5: Handles sortedBy() and sortedDescendingBy() on JoinStream.
+     * Uses analyzeBiEntity() since join sort lambdas take two entity parameters.
+     *
+     * @return list of SortExpression objects with bi-entity key extractors, or empty list if no sorting
+     */
+    private List<SortExpression> analyzeBiEntitySortLambdas(
+            byte[] classBytes,
+            InvokeDynamicScanner.LambdaCallSite callSite,
+            String callSiteId) {
+
+        List<SortLambda> sortLambdas = callSite.sortLambdas();
+
+        if (sortLambdas == null || sortLambdas.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<SortExpression> sortExpressions = new ArrayList<>(sortLambdas.size());
+
+        for (SortLambda sortLambda : sortLambdas) {
+            // Use analyzeBiEntity() for bi-entity sort lambdas in join queries
+            LambdaExpression keyExtractor = bytecodeAnalyzer.analyzeBiEntity(
+                    classBytes,
+                    sortLambda.methodName(),
+                    sortLambda.descriptor());
+
+            if (keyExtractor == null) {
+                log.warnf("Could not analyze bi-entity sort lambda %s at: %s", sortLambda.methodName(), callSiteId);
+                return Collections.emptyList();
+            }
+
+            sortExpressions.add(new SortExpression(keyExtractor, sortLambda.direction()));
+            log.debugf("Analyzed bi-entity sort lambda at %s: %s (direction=%s)",
                     callSiteId, keyExtractor, sortLambda.direction());
         }
 
@@ -867,7 +919,7 @@ public class CallSiteProcessor {
             // Iteration 5: Handle MEMBER OF expressions
             collectCapturedVariableIndices(memberOfExpr.value(), capturedIndices);
             collectCapturedVariableIndices(memberOfExpr.collectionField(), capturedIndices);
-        } else if (expression instanceof LambdaExpression.PathExpression pathExpr) {
+        } else if (expression instanceof LambdaExpression.PathExpression) {
             // Iteration 4: PathExpression doesn't contain captured variables
             // (but traversing for consistency if any fields were added later)
         } else if (expression instanceof LambdaExpression.BiEntityFieldAccess) {

@@ -26,6 +26,8 @@ import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_AVG;
 import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_SUM_INTEGER;
 import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_SUM_LONG;
 import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_SUM_DOUBLE;
+import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_JOIN;
+import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_LEFT_JOIN;
 import static io.quarkus.qusaq.runtime.QusaqConstants.QUSAQ_REPOSITORY_CLASS_NAME;
 import static io.quarkus.qusaq.runtime.QusaqConstants.QUSAQ_REPOSITORY_INTERNAL_NAME;
 
@@ -140,7 +142,9 @@ public class QusaqRepositoryEnhancer implements BiFunction<String, ClassVisitor,
         }
 
         private boolean isGenerateBridgeMethod(String methodName) {
-            return FLUENT_ENTRY_POINT_METHODS.contains(methodName);
+            return FLUENT_ENTRY_POINT_METHODS.contains(methodName) ||
+                   METHOD_JOIN.equals(methodName) ||
+                   METHOD_LEFT_JOIN.equals(methodName);
         }
 
         /**
@@ -157,6 +161,10 @@ public class QusaqRepositoryEnhancer implements BiFunction<String, ClassVisitor,
                 for (String methodName : FLUENT_ENTRY_POINT_METHODS) {
                     generateBridgeMethod(methodName);
                 }
+
+                // Generate join methods (Iteration 6)
+                generateJoinMethod(METHOD_JOIN);
+                generateJoinMethod(METHOD_LEFT_JOIN);
             }
             super.visitEnd();
         }
@@ -242,6 +250,78 @@ public class QusaqRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             mv.visitMaxs(4, 2);
             mv.visitEnd();
             log.infof("    Successfully generated method: %s", methodName);
+        }
+
+        /**
+         * Generates a join/leftJoin method implementation for repositories (Iteration 6).
+         * These methods return JoinStream instead of QusaqStream.
+         *
+         * Generated code equivalent:
+         * <pre>{@code
+         * public <R> JoinStream<E, R> join(QuerySpec<E, Collection<R>> relationship) {
+         *     return new JoinStreamImpl<>(entityClass, relationship, JoinType.INNER);
+         * }
+         * public <R> JoinStream<E, R> leftJoin(QuerySpec<E, Collection<R>> relationship) {
+         *     return new JoinStreamImpl<>(entityClass, relationship, JoinType.LEFT);
+         * }
+         * }</pre>
+         */
+        private void generateJoinMethod(String methodName) {
+            boolean isLeftJoin = METHOD_LEFT_JOIN.equals(methodName);
+
+            // Method signature: (QuerySpec)JoinStream
+            // Note: Generic types are erased at bytecode level
+            String methodDescriptor = "(Lio/quarkus/qusaq/runtime/QuerySpec;)Lio/quarkus/qusaq/runtime/JoinStream;";
+            String genericSignature = "<R:Ljava/lang/Object;>(Lio/quarkus/qusaq/runtime/QuerySpec<L" +
+                    entityType.getInternalName() + ";Ljava/util/Collection<TR;>;>;)Lio/quarkus/qusaq/runtime/JoinStream<L" +
+                    entityType.getInternalName() + ";TR;>;";
+
+            log.tracef("Generating join method %s with descriptor %s", methodName, methodDescriptor);
+
+            MethodVisitor mv = cv.visitMethod(
+                    Opcodes.ACC_PUBLIC,
+                    methodName,
+                    methodDescriptor,
+                    genericSignature,
+                    null);
+
+            mv.visitCode();
+
+            // Create new JoinStreamImpl instance
+            mv.visitTypeInsn(Opcodes.NEW, "io/quarkus/qusaq/runtime/JoinStreamImpl");
+            mv.visitInsn(Opcodes.DUP);
+
+            // Load entity class as first constructor argument (sourceEntityClass)
+            mv.visitLdcInsn(entityType);
+
+            // Load Object.class as second constructor argument (joinedEntityClass - placeholder)
+            // The actual joined entity type is erased at runtime; Object.class is used as placeholder
+            mv.visitLdcInsn(Type.getType(Object.class));
+
+            // Load relationship QuerySpec parameter (index 1 for instance method)
+            mv.visitVarInsn(Opcodes.ALOAD, 1);
+
+            // Load join type as fourth constructor argument
+            mv.visitFieldInsn(
+                    Opcodes.GETSTATIC,
+                    "io/quarkus/qusaq/runtime/JoinType",
+                    isLeftJoin ? "LEFT" : "INNER",
+                    "Lio/quarkus/qusaq/runtime/JoinType;");
+
+            // Call JoinStreamImpl constructor: <init>(Class, Class, QuerySpec, JoinType)
+            mv.visitMethodInsn(
+                    Opcodes.INVOKESPECIAL,
+                    "io/quarkus/qusaq/runtime/JoinStreamImpl",
+                    "<init>",
+                    "(Ljava/lang/Class;Ljava/lang/Class;Lio/quarkus/qusaq/runtime/QuerySpec;Lio/quarkus/qusaq/runtime/JoinType;)V",
+                    false);
+
+            // Return the result
+            mv.visitInsn(Opcodes.ARETURN);
+
+            mv.visitMaxs(6, 2);
+            mv.visitEnd();
+            log.infof("    Successfully generated join method: %s", methodName);
         }
     }
 

@@ -32,6 +32,112 @@
 - Use proper error handling
 - Verify code compiles before considering it complete
 
+### Modern Java 17 Code Review (Pre-Test Requirement)
+
+**Before running tests on any generated or modified code, perform a code review for idiomatic Java 17 patterns.**
+
+**Required Review Checklist:**
+
+1. **Records over POJOs**
+   - Use `record` for immutable data carriers
+   - Replace Lombok `@Value`/`@Data` with records where appropriate
+   - Keep records simple (no complex logic in compact constructors)
+
+2. **Pattern Matching**
+   - Use `instanceof` pattern matching: `if (obj instanceof String s)`
+   - Use switch pattern matching for type checks (Java 17 preview)
+   - Eliminate redundant casts after type checks
+
+3. **Text Blocks**
+   - Use `"""` for multi-line strings (SQL, JSON, error messages)
+   - Proper indentation alignment with closing `"""`
+   - Use `\` for line continuation where needed
+
+4. **Sealed Classes**
+   - Use `sealed` for restricted hierarchies (like LambdaExpression)
+   - Define `permits` clause explicitly
+   - Use `non-sealed` or `final` for permitted subclasses
+
+5. **Switch Expressions**
+   - Use switch expressions with `->` instead of `:` for simple cases
+   - Use `yield` for complex blocks
+   - Ensure exhaustiveness (no missing cases)
+
+6. **Stream API Best Practices**
+   - Use `toList()` instead of `.collect(Collectors.toList())`
+   - Prefer `Stream.ofNullable()` for nullable sources
+   - Use `takeWhile()`/`dropWhile()` for conditional processing
+
+7. **Optional Improvements**
+   - Use `Optional.isEmpty()` instead of `!isPresent()`
+   - Use `Optional.ifPresentOrElse()` for branching
+   - Avoid `Optional.get()` - use `orElseThrow()` with message
+
+8. **Null Safety**
+   - Use `Objects.requireNonNull()` for parameter validation
+   - Use `Objects.requireNonNullElse()` for defaults
+   - Prefer empty collections over null
+
+9. **Local Variable Type Inference**
+   - Use `var` for local variables when type is obvious
+   - Avoid `var` when it reduces readability
+   - Never use `var` for method parameters or fields
+
+10. **API Deprecation Awareness**
+    - No `new Integer()`, `new Long()` - use `valueOf()`
+    - No `Thread.stop()` or `finalize()`
+    - Use `Files.readString()` / `Files.writeString()`
+
+**Review Process:**
+```
+1. Write/generate code
+2. Review against checklist above
+3. Refactor to modern Java 17 idioms
+4. Run tests to verify correctness
+5. Fix any issues, repeat until all pass
+```
+
+**Example Transformations:**
+
+```java
+// Before (Java 8 style)
+public class PersonDto {
+    private final String name;
+    private final int age;
+    // constructor, getters, equals, hashCode, toString...
+}
+
+// After (Java 17)
+public record PersonDto(String name, int age) {}
+```
+
+```java
+// Before
+if (expression instanceof MethodCall) {
+    MethodCall mc = (MethodCall) expression;
+    return mc.methodName();
+}
+
+// After
+if (expression instanceof MethodCall mc) {
+    return mc.methodName();
+}
+```
+
+```java
+// Before
+String query = "SELECT p FROM Person p\n" +
+               "WHERE p.age > :minAge\n" +
+               "ORDER BY p.name";
+
+// After
+String query = """
+    SELECT p FROM Person p
+    WHERE p.age > :minAge
+    ORDER BY p.name
+    """;
+```
+
 ## Project-Specific Guidelines
 
 ### Testing Philosophy
@@ -496,3 +602,494 @@ From 8 sessions of intensive refactoring:
 ✅ **ISP compliance** (specialized methods > forced interface)
 ✅ **Template Method** (eliminate duplication with base classes)
 ✅ **Brevity in docs** (concise yet complete)
+
+---
+
+## Join Queries and Multi-Entity Lambda Patterns (Iteration 6)
+
+### Architecture Overview
+
+**Join queries use a separate stream type and bi-entity lambdas:**
+
+```
+Person.join(p -> p.phones)           // Returns JoinStream<Person, Phone>
+      .where((p, ph) -> ph.type.equals("mobile"))  // BiQuerySpec<T, R, Boolean>
+      .toList();                     // Returns List<Person>
+```
+
+**Key Components:**
+- `JoinStream<T, R>` - Fluent API for join operations (separate from QusaqStream)
+- `JoinStreamImpl<T, R>` - Runtime implementation
+- `BiQuerySpec<T, R, U>` - Functional interface for two-entity lambdas
+- `JoinType` enum - INNER or LEFT join types
+
+### Multi-Entity Lambda Analysis
+
+**Bi-entity lambdas have 2 parameters:**
+```java
+// Single-entity: (Person p) -> p.age > 25
+// Bi-entity: (Person p, Phone ph) -> ph.type.equals("mobile")
+```
+
+**Detection Pattern:**
+1. `InvokeDynamicScanner` detects `join()` or `leftJoin()` method calls
+2. `LambdaBytecodeAnalyzer` parses bi-entity lambdas with 2 ALOAD instructions
+3. `AnalysisContext` tracks both parameters with separate indices (0=source, 1=joined)
+4. `CriteriaExpressionGenerator.generateBiEntityPredicate()` generates JPA with root + join handles
+
+### Deduplication for Count vs List Queries
+
+**CRITICAL: Include query type in hash computation to prevent deduplication errors**
+
+```java
+// LambdaDeduplicator.computeJoinHash() - Include isCountQuery in hash
+astString.append("|QUERY_TYPE=").append(isCountQuery ? "COUNT" : "LIST");
+```
+
+**Problem Pattern:**
+- `Person.join(...).toList()` and `Person.join(...).count()` would get same hash
+- Both would use the same executor (wrong!)
+- Count query would get List executor → ClassCastException
+
+**Solution:**
+- Always include query type (COUNT/LIST) in hash computation
+- Different executors for count vs list operations
+
+### JPA/Hibernate Entity Behavior
+
+**Entity deduplication vs SQL row counts:**
+
+```java
+// SQL returns 9 rows (one per phone)
+// But Hibernate returns 5 unique Person entities
+var results = Person.join(p -> p.phones).toList();
+assertThat(results).hasSize(5);  // NOT 9!
+
+// COUNT shows actual SQL row count
+long count = Person.join(p -> p.phones).count();
+assertThat(count).isEqualTo(9);  // Actual join matches
+```
+
+**Key Insight:**
+- When selecting entities (not scalars), JPA persistence context deduplicates
+- Use `count()` to verify actual SQL-level row counts
+- Test expectations must account for entity deduplication behavior
+
+### Captured Variable Extraction for Multi-Lambda Streams
+
+**JoinStreamImpl extracts from multiple lambda sources:**
+
+```java
+private Object[] extractCapturedVariables() {
+    // Extract from bi-predicates (most common)
+    for (BiQuerySpec<T, R, Boolean> biPredicate : biPredicates) { ... }
+    // Extract from source predicates
+    for (QuerySpec<T, Boolean> sourcePredicate : sourcePredicates) { ... }
+    // Extract from ON conditions
+    for (BiQuerySpec<T, R, Boolean> onCondition : onConditions) { ... }
+}
+```
+
+**Pattern:**
+1. Get expected count from registry: `QueryExecutorRegistry.getCapturedVariableCount(callSiteId)`
+2. Iterate through all lambda lists
+3. Count captured fields using reflection
+4. Extract using `CapturedVariableExtractor.extract()`
+5. Combine into single array
+
+### Key Files for Join Query Implementation
+
+**Deployment Module:**
+- `InvokeDynamicScanner.java` - Detect join/leftJoin calls, parse relationship lambdas
+- `CallSiteProcessor.java` - Process join call sites, compute join hashes
+- `LambdaBytecodeAnalyzer.java` - Parse bi-entity lambdas with 2 parameters
+- `CriteriaExpressionGenerator.java` - `generateBiEntityPredicate()` for joins
+- `QueryExecutorClassGenerator.java` - `generateJoinQueryBody()`, `generateJoinCountQueryBody()`
+- `LambdaDeduplicator.java` - `computeJoinHash()` with isCountQuery
+
+**Runtime Module:**
+- `JoinStream.java` - Fluent API interface
+- `JoinStreamImpl.java` - Runtime implementation with captured variable extraction
+- `BiQuerySpec.java` - Two-entity lambda functional interface
+- `JoinType.java` - INNER/LEFT enum
+- `QueryExecutorRegistry.java` - `executeJoinListQuery()`, `executeJoinCountQuery()`
+
+### Testing Join Queries
+
+**Test organization:** `integration-tests/src/test/java/io/quarkus/qusaq/it/join/JoinQueryTest.java`
+
+**Key test patterns:**
+```java
+// Basic join
+Person.join((Person p) -> p.phones).toList();
+
+// With bi-entity predicate
+Person.join((Person p) -> p.phones)
+      .where((Person p, Phone ph) -> ph.type.equals("mobile"))
+      .toList();
+
+// With captured variables
+String targetType = "mobile";
+Person.join((Person p) -> p.phones)
+      .where((Person p, Phone ph) -> ph.type.equals(targetType))
+      .toList();
+
+// LEFT JOIN
+Person.leftJoin((Person p) -> p.phones).toList();
+
+// Count query
+long count = Person.join((Person p) -> p.phones).count();
+
+// Join with sorting (Iteration 6.5)
+Person.join((Person p) -> p.phones)
+      .where((Person p, Phone ph) -> ph.type.equals("mobile"))
+      .sortedBy((Person p, Phone ph) -> p.age)
+      .toList();
+
+// Sort by joined entity field
+Person.join((Person p) -> p.phones)
+      .sortedDescendingBy((Person p, Phone ph) -> ph.number)
+      .toList();
+```
+
+### Join Query Sorting Implementation (Iteration 6.5)
+
+**Key insight:** Join query sorting uses bi-entity lambdas just like predicates, but needs separate analysis and ORDER BY generation.
+
+**Implementation Chain:**
+1. `InvokeDynamicScanner` - Already captures sort lambdas in `LambdaCallSite.sortLambdas()`
+2. `CallSiteProcessor.analyzeBiEntitySortLambdas()` - Uses `bytecodeAnalyzer.analyzeBiEntity()` instead of `analyze()`
+3. `LambdaDeduplicator.computeJoinHash()` - Include sort expressions in hash
+4. `QueryExecutorClassGenerator.applyBiEntityOrderBy()` - Generate ORDER BY using both root and join handles
+5. `CriteriaExpressionGenerator.generateBiEntityExpressionAsJpaExpression()` - Generate JPA expressions with bi-entity support
+
+**Critical Difference from Regular Sorting:**
+- Regular queries: `applyOrderBy()` uses `generateExpressionAsJpaExpression()` with root only
+- Join queries: `applyBiEntityOrderBy()` uses `generateBiEntityExpressionAsJpaExpression()` with root + join handle
+
+**Test File:** `integration-tests/src/test/java/io/quarkus/qusaq/it/join/JoinSortingTest.java`
+
+### Common Join Query Errors and Fixes
+
+| Error | Root Cause | Fix |
+|-------|-----------|-----|
+| `NullPointerException in computeHash()` | Join queries not handled in hash computation | Add join query check at start of `computeHash()` |
+| `ClassCastException: ArrayList cannot be cast to Long` | Count/list queries deduplicated to same executor | Include `isCountQuery` in `computeJoinHash()` |
+| `ArrayIndexOutOfBoundsException` | `extractCapturedVariables()` returns empty array | Implement extraction from `biPredicates` list |
+| Test expects 9 results but gets 5 | JPA entity deduplication behavior | Use `count()` for SQL row counts, adjust test expectations |
+
+---
+
+## Qusaq Extension Architecture Reference
+
+### Build-Time Processing Flow
+
+```
+1. QusaqProcessor.generateQueryExecutors() - Entry point
+2. InvokeDynamicScanner.scanClass() - Find lambda call sites
+3. CallSiteProcessor.processCallSite() - Analyze each call site
+   a. LambdaBytecodeAnalyzer.analyze() - Parse lambda bytecode
+   b. LambdaDeduplicator.computeHash() - Check for duplicates
+   c. QueryExecutorClassGenerator.generate*() - Generate bytecode
+4. GeneratedClassBuildItem - Register generated class
+5. QueryTransformationBuildItem - Link call site to executor
+```
+
+### Runtime Execution Flow
+
+```
+1. QusaqStreamImpl.toList() / count() / etc. - Terminal operation
+2. getCallSiteId() - Stack walk to find caller
+3. extractCapturedVariables() - Reflection to get lambda values
+4. QueryExecutorRegistry.executeListQuery() - Lookup executor
+5. QueryExecutor.execute() - Run generated JPA Criteria query
+```
+
+### Lambda Expression Types (LambdaExpression sealed interface)
+
+| Type | Example | JPA Generation |
+|------|---------|----------------|
+| `FieldAccess` | `p.age` | `root.get("age")` |
+| `PathExpression` | `p.address.city` | `root.get("address").get("city")` |
+| `MethodCall` | `p.name.startsWith("J")` | `cb.like(root.get("name"), "J%")` |
+| `BinaryOp` | `p.age > 25` | `cb.greaterThan(root.get("age"), 25)` |
+| `UnaryOp` | `!p.active` | `cb.not(root.get("active"))` |
+| `CapturedVariable` | `p.age > minAge` | Parameter from captured array |
+| `BiEntityFieldAccess` | `(p, ph) -> ph.type` | `join.get("type")` |
+
+### Query Executor Types
+
+| Executor Type | Registry Method | Return Type |
+|---------------|-----------------|-------------|
+| List | `registerListExecutor()` | `List<T>` |
+| Count | `registerCountExecutor()` | `Long` |
+| Aggregation | `registerAggregationExecutor()` | `Object` (min/max/avg/sum) |
+| Join List | `registerJoinListExecutor()` | `List<T>` |
+| Join Count | `registerJoinCountExecutor()` | `Long` |
+
+---
+
+## Comprehensive Test Suite Creation Standards
+
+### Three-Dimensional Test Matrix
+
+**CRITICAL: Every feature MUST have tests across THREE dimensions to ensure complete coverage.**
+
+#### Dimension 1: Deployment vs Integration Tests
+
+| Test Type | Location | Purpose |
+|-----------|----------|---------|
+| **Deployment Tests** | `deployment/src/test/java/` | Unit tests for bytecode analysis, AST parsing, code generation |
+| **Integration Tests** | `integration-tests/src/test/java/` | End-to-end tests with real database, full Quarkus app |
+
+**Deployment tests verify:**
+- Lambda bytecode analysis produces correct AST
+- QueryExecutor bytecode generation is correct
+- Hash computation for deduplication works
+- Edge cases in bytecode patterns (boolean optimizations, etc.)
+
+**Integration tests verify:**
+- Generated queries execute correctly against real database
+- Results match expected data
+- Captured variables work at runtime
+- Full stack from API call to SQL execution
+
+#### Dimension 2: Entity API vs Repository API (Integration Tests)
+
+The Qusaq extension exposes functionality through two parallel APIs:
+1. **Entity API** (Static methods): `Person.stream().where(...)`
+2. **Repository API** (Injected beans): `personRepository.stream().where(...)`
+
+**Mandatory Test Organization:**
+```
+integration-tests/src/test/java/io/quarkus/qusaq/it/
+├── <feature>/                    # Entity API tests
+│   ├── BasicQueryTest.java
+│   ├── FeatureATest.java
+│   └── FeatureBTest.java
+└── repository/<feature>/         # Repository API tests (mirror of entity tests)
+    ├── RepositoryBasicQueryTest.java
+    ├── RepositoryFeatureATest.java
+    └── RepositoryFeatureBTest.java
+```
+
+#### Dimension 3: Feature Coverage Matrix
+
+Each feature needs tests covering: happy path, edge cases, captured variables, combinations, data types, and operators (see Feature Test Matrix Template below).
+
+### Test Parity Requirements
+
+**Deployment ↔ Integration Parity:**
+- Features with complex bytecode handling MUST have deployment unit tests
+- Every deployment test scenario SHOULD have corresponding integration test
+- Bytecode edge cases (e.g., boolean field optimizations) need both levels
+
+**Entity API ↔ Repository API Parity:**
+- For **every** test in `<feature>/SomeTest.java`, there MUST be a corresponding test in `repository/<feature>/RepositorySomeTest.java`
+- Test names should match with `Repository` prefix: `testAgeGreaterThan` → `repositoryTestAgeGreaterThan`
+- Test logic should be identical except for the API entry point
+
+### Feature Test Matrix Template
+
+When implementing a new feature, create tests covering this complete matrix:
+
+| Category | Test Cases | Priority |
+|----------|-----------|----------|
+| **Happy Path** | Basic usage, common scenarios | P0 (Required) |
+| **Edge Cases** | Null values, empty results, boundary conditions | P0 (Required) |
+| **Captured Variables** | External variables in lambdas | P0 (Required) |
+| **Combinations** | Feature + other features (where+sort, where+limit, etc.) | P1 (Required) |
+| **Data Types** | String, Integer, Long, Double, BigDecimal, temporal types | P1 (Required) |
+| **Operators** | All supported operators for the feature | P1 (Required) |
+| **Negation** | NOT versions of predicates | P2 (Recommended) |
+| **Multiple Predicates** | Chained where() clauses | P2 (Recommended) |
+
+### Required Test Categories by Feature Type
+
+**For Predicate Features (where clauses):**
+```java
+// 1. Basic predicate
+@Test void basicEquals() { ... }
+
+// 2. With captured variable
+@Test void equalsWithCapturedVariable() { ... }
+
+// 3. Combined with other predicates
+@Test void equalsAndGreaterThan() { ... }
+
+// 4. Combined with sorting
+@Test void equalsWithSorting() { ... }
+
+// 5. Combined with pagination
+@Test void equalsWithPagination() { ... }
+
+// 6. Null handling
+@Test void equalsWithNullValue() { ... }
+
+// 7. Empty result
+@Test void equalsNoMatches() { ... }
+```
+
+**For Aggregation Features (count, min, max, avg, sum):**
+```java
+// 1. Basic aggregation
+@Test void countAll() { ... }
+
+// 2. With where clause
+@Test void countWithPredicate() { ... }
+
+// 3. Empty result handling
+@Test void countEmptyResult() { ... }
+
+// 4. Null value handling
+@Test void avgWithNullValues() { ... }
+```
+
+**For Join Features:**
+```java
+// 1. Basic join
+@Test void basicInnerJoin() { ... }
+
+// 2. Join with bi-entity predicate
+@Test void joinWithBiEntityPredicate() { ... }
+
+// 3. Join with captured variable
+@Test void joinWithCapturedVariable() { ... }
+
+// 4. LEFT JOIN vs INNER JOIN
+@Test void leftJoinIncludesNullRelationships() { ... }
+
+// 5. Count on join (verify SQL row count vs entity count)
+@Test void joinCount() { ... }
+
+// 6. Join + distinct
+@Test void joinDistinct() { ... }
+```
+
+### Test Implementation Checklist
+
+Before marking a feature as complete, verify:
+
+**Deployment Tests (Unit Level):**
+- [ ] **Bytecode analysis tests exist** in `deployment/src/test/java/.../bytecode/`
+- [ ] **AST parsing verified** - Lambda expressions produce correct AST
+- [ ] **Edge cases covered** - Boolean optimizations, null handling, etc.
+
+**Integration Tests (End-to-End):**
+- [ ] **Entity API tests exist** in `integration-tests/src/test/java/io/quarkus/qusaq/it/<feature>/`
+- [ ] **Repository API tests exist** in `integration-tests/src/test/java/io/quarkus/qusaq/it/repository/<feature>/`
+- [ ] **Entity ↔ Repository parity verified** - Every entity test has corresponding repository test
+
+**Coverage Requirements:**
+- [ ] **All priority P0 categories covered** (happy path, edge cases, captured variables)
+- [ ] **All priority P1 categories covered** (for production-ready features)
+- [ ] **Tests use real assertions** - Not just "runs without exception"
+- [ ] **Edge cases tested** - Null values, empty results, boundary conditions
+- [ ] **Captured variables tested** - External variables in lambdas work correctly
+
+**Verification:**
+- [ ] **All tests pass** - `mvn test` shows 0 failures, 0 errors
+- [ ] **Both modules pass** - deployment and integration-tests modules
+
+### Test Tracking Document
+
+Maintain `REPOSITORY_PATTERN_TEST_COVERAGE_TRACKING.md` to track:
+- Which entity tests have repository equivalents
+- Coverage gaps that need to be addressed
+- Test counts for each feature area
+
+**Format:**
+```markdown
+## Feature: String Operations
+
+| Entity Test | Repository Test | Status |
+|-------------|-----------------|--------|
+| StringOperationsTest.startsWithBasic | RepositoryStringOperationsTest.repositoryStartsWithBasic | ✅ |
+| StringOperationsTest.containsWithCaptured | RepositoryStringOperationsTest.repositoryContainsWithCaptured | ✅ |
+| StringOperationsTest.endsWithNull | (missing) | ❌ |
+
+Coverage: 2/3 (67%)
+```
+
+### Anti-Patterns in Testing
+
+**❌ Avoid These:**
+```java
+// Bad: No real assertion
+@Test void testFeature() {
+    List<Person> results = Person.stream().where(p -> p.age > 25).toList();
+    assertThat(results).isNotNull(); // Too weak!
+}
+
+// Bad: Testing only happy path
+@Test void testEquals() {
+    // Only tests when data exists, no edge cases
+}
+
+// Bad: Entity tests without repository equivalents
+// Results in asymmetric coverage
+```
+
+**✅ Do This Instead:**
+```java
+// Good: Specific assertions
+@Test void testAgeGreaterThan() {
+    List<Person> results = Person.stream().where(p -> p.age > 25).toList();
+    assertThat(results).hasSize(3);
+    assertThat(results).extracting(Person::getName)
+                       .containsExactlyInAnyOrder("Alice", "Bob", "Charlie");
+    assertThat(results).allMatch(p -> p.getAge() > 25);
+}
+
+// Good: Edge case coverage
+@Test void testAgeGreaterThanNoMatches() {
+    List<Person> results = Person.stream().where(p -> p.age > 1000).toList();
+    assertThat(results).isEmpty();
+}
+
+// Good: Paired with repository test
+@Test void repositoryTestAgeGreaterThan() {
+    List<Person> results = personRepository.stream().where(p -> p.age > 25).toList();
+    assertThat(results).hasSize(3);
+    // Same assertions as entity test
+}
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+mvn test
+
+# Run specific test class
+mvn test -Dtest="JoinQueryTest"
+
+# Run tests in a package
+mvn test -Dtest="io.quarkus.qusaq.it.repository.**"
+
+# Run with verbose output
+mvn test -Dtest="JoinQueryTest" -X
+```
+
+### Success Criteria
+
+A feature is fully tested when:
+- ✅ `mvn test` passes with 0 failures, 0 errors in **both** deployment and integration-tests modules
+- ✅ **Deployment tests exist** for bytecode analysis and code generation
+- ✅ **Entity API tests exist** in integration-tests
+- ✅ **Repository API tests exist** mirroring entity tests
+- ✅ Test matrix coverage ≥ 90% for P0+P1 categories
+- ✅ `REPOSITORY_PATTERN_TEST_COVERAGE_TRACKING.md` shows parity
+- ✅ Edge cases and captured variables are covered
+
+### Test Count Reference
+
+Current test distribution (as of Iteration 6):
+- **Deployment module**: ~280 tests (bytecode analysis, AST parsing, code generation)
+- **Integration-tests module**: ~670 tests (Entity API + Repository API parity)
+- **Total**: ~950+ tests
+
+When adding new features, expect to add tests to **all three areas**:
+1. Deployment bytecode tests
+2. Integration Entity API tests
+3. Integration Repository API tests (mirroring #2)

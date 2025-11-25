@@ -193,6 +193,7 @@ public class QueryExecutorClassGenerator {
      *
      * @param joinRelationshipExpression Lambda for the join relationship (e.g., p -> p.phones)
      * @param biEntityPredicateExpression Lambda for bi-entity predicate (e.g., (p, ph) -> ph.type.equals("mobile"))
+     * @param sortExpressions Iteration 6.5: List of sort expressions for ORDER BY (null or empty for no sorting)
      * @param joinType The type of join (INNER or LEFT)
      * @param className The generated class name
      * @param isCountQuery True if this is a count query (JoinStream.count())
@@ -201,6 +202,7 @@ public class QueryExecutorClassGenerator {
     public byte[] generateJoinQueryExecutorClass(
             LambdaExpression joinRelationshipExpression,
             LambdaExpression biEntityPredicateExpression,
+            List<CallSiteProcessor.SortExpression> sortExpressions,
             InvokeDynamicScanner.JoinType joinType,
             String className,
             boolean isCountQuery) {
@@ -255,7 +257,7 @@ public class QueryExecutorClassGenerator {
                     result = generateJoinQueryBody(
                             execute, em, entityClassParam,
                             joinRelationshipExpression, biEntityPredicateExpression,
-                            joinType, capturedValues, offset, limit, distinct);
+                            joinType, sortExpressions, capturedValues, offset, limit, distinct);
                 }
 
                 execute.returnValue(result);
@@ -479,6 +481,7 @@ public class QueryExecutorClassGenerator {
      * @param offset OFFSET value for pagination (null if none)
      * @param limit LIMIT value for pagination (null if none)
      * @param distinct DISTINCT flag (null or false for no distinct)
+     * @param sortExpressions Iteration 6.5: List of sort expressions for ORDER BY (null or empty for no sorting)
      * @return ResultHandle to join query result
      */
     private ResultHandle generateJoinQueryBody(
@@ -488,6 +491,7 @@ public class QueryExecutorClassGenerator {
             LambdaExpression joinRelationshipExpression,
             LambdaExpression biEntityPredicateExpression,
             InvokeDynamicScanner.JoinType joinType,
+            List<CallSiteProcessor.SortExpression> sortExpressions,
             ResultHandle capturedValues,
             ResultHandle offset,
             ResultHandle limit,
@@ -521,6 +525,9 @@ public class QueryExecutorClassGenerator {
                     method, biEntityPredicateExpression, cb, root, joinHandle, capturedValues);
             applyWherePredicate(method, query, predicate);
         }
+
+        // Iteration 6.5: Apply ORDER BY for join query sorting
+        applyBiEntityOrderBy(method, query, root, joinHandle, cb, sortExpressions, capturedValues);
 
         // Apply DISTINCT if requested
         applyDistinct(method, query, distinct);
@@ -941,6 +948,66 @@ public class QueryExecutorClassGenerator {
                 if (sortKeyExpr == null && projectionExpression != null) {
                     sortKeyExpr = projectionExpression;
                 }
+
+                // Create Order object (ascending or descending)
+                ResultHandle order;
+                if (sortExpr.direction() == SortDirection.DESCENDING) {
+                    order = method.invokeInterfaceMethod(CB_DESC, cb, sortKeyExpr);
+                } else {
+                    order = method.invokeInterfaceMethod(CB_ASC, cb, sortKeyExpr);
+                }
+
+                // Add to orders array at position i (forward order)
+                method.writeArrayValue(ordersArray, i, order);
+            }
+        }
+
+        // Apply orderBy to query
+        method.invokeInterfaceMethod(CQ_ORDER_BY, query, ordersArray);
+    }
+
+    /**
+     * Applies ORDER BY clause for join queries using bi-entity sort expressions.
+     * Iteration 6.5: Implementation of sortedBy() and sortedDescendingBy() for JoinStream.
+     * <p>
+     * Uses the "last call wins" semantics where the most recent sortedBy() call
+     * becomes the primary sort key.
+     *
+     * @param method the method creator
+     * @param query the CriteriaQuery to apply order by to
+     * @param root the Root for source entity (position 0)
+     * @param join the Join for joined entity (position 1)
+     * @param cb the CriteriaBuilder
+     * @param sortExpressions list of sort expressions with bi-entity key extractors
+     * @param capturedValues captured variables from lambdas
+     */
+    private void applyBiEntityOrderBy(
+            MethodCreator method,
+            ResultHandle query,
+            ResultHandle root,
+            ResultHandle join,
+            ResultHandle cb,
+            List<?> sortExpressions,
+            ResultHandle capturedValues) {
+
+        if (sortExpressions == null || sortExpressions.isEmpty()) {
+            return; // No sorting
+        }
+
+        // Create array to hold Order objects
+        ResultHandle ordersArray = method.newArray(jakarta.persistence.criteria.Order.class, sortExpressions.size());
+
+        // Generate Order objects in REVERSE order for "last call wins" semantics
+        // Example: .sortedBy(sourceField).sortedBy(joinedField) should order by joinedField first
+        for (int i = 0; i < sortExpressions.size(); i++) {
+            // Read from end of list (reverse order)
+            int reverseIndex = sortExpressions.size() - 1 - i;
+            Object sortExprObj = sortExpressions.get(reverseIndex);
+
+            if (sortExprObj instanceof CallSiteProcessor.SortExpression sortExpr) {
+                // Generate JPA Expression for the bi-entity sort key extractor
+                ResultHandle sortKeyExpr = expressionGenerator.generateBiEntityExpressionAsJpaExpression(
+                        method, sortExpr.keyExtractor(), cb, root, join, capturedValues);
 
                 // Create Order object (ascending or descending)
                 ResultHandle order;

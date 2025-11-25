@@ -162,6 +162,27 @@ public class LambdaDeduplicator {
             LambdaExpression biEntityPredicateExpression,
             String joinType,
             boolean isCountQuery) {
+        return computeJoinHash(joinRelationshipExpression, biEntityPredicateExpression,
+                null, joinType, isCountQuery);
+    }
+
+    /**
+     * Computes MD5 hash for join query with sorting (Iteration 6.5).
+     * Supports optional bi-entity predicate and sort expressions after join.
+     *
+     * @param joinRelationshipExpression Join relationship lambda (e.g., p -> p.phones)
+     * @param biEntityPredicateExpression Bi-entity WHERE clause (null if no filtering)
+     * @param sortExpressions List of sort expressions (null or empty if no sorting)
+     * @param joinType Join type: INNER or LEFT
+     * @param isCountQuery True if this is a count query (JoinStream.count())
+     * @return MD5 hash uniquely identifying this join query
+     */
+    public String computeJoinHash(
+            LambdaExpression joinRelationshipExpression,
+            LambdaExpression biEntityPredicateExpression,
+            List<CallSiteProcessor.SortExpression> sortExpressions,
+            String joinType,
+            boolean isCountQuery) {
 
         StringBuilder astString = new StringBuilder();
 
@@ -174,6 +195,12 @@ public class LambdaDeduplicator {
         // Include bi-entity predicate if present
         if (biEntityPredicateExpression != null) {
             astString.append("|BI_WHERE=").append(biEntityPredicateExpression.toString());
+        }
+
+        // Iteration 6.5: Include sort expressions if present
+        if (sortExpressions != null && !sortExpressions.isEmpty()) {
+            String sortString = buildSortString(sortExpressions);
+            astString.append(SORT_SEPARATOR).append(sortString);
         }
 
         // Include join type (INNER/LEFT)

@@ -1,6 +1,5 @@
 package io.quarkus.qusaq.it.relationship;
 
-import io.quarkus.qusaq.it.Department;
 import io.quarkus.qusaq.it.Person;
 import io.quarkus.qusaq.it.Phone;
 import io.quarkus.qusaq.it.testdata.TestDataFactory;
