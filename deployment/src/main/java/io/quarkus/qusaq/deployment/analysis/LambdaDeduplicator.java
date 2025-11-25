@@ -118,6 +118,36 @@ public class LambdaDeduplicator {
     }
 
     /**
+     * Computes MD5 hash for aggregation query (Phase 5).
+     * Supports optional WHERE predicate before aggregation.
+     *
+     * @param predicateExpression WHERE clause (null if no filtering)
+     * @param aggregationExpression Aggregation mapper lambda (e.g., p -> p.salary)
+     * @param aggregationType Aggregation type: MIN, MAX, AVG, SUM_INTEGER, SUM_LONG, SUM_DOUBLE
+     * @return MD5 hash uniquely identifying this aggregation query
+     */
+    public String computeAggregationHash(
+            LambdaExpression predicateExpression,
+            LambdaExpression aggregationExpression,
+            String aggregationType) {
+
+        StringBuilder astString = new StringBuilder();
+
+        // Include WHERE predicate if present
+        if (predicateExpression != null) {
+            astString.append(WHERE_PREFIX).append(predicateExpression.toString());
+        }
+
+        // Include aggregation mapper (e.g., "p -> p.salary")
+        astString.append("|AGG=").append(aggregationExpression.toString());
+
+        // Include aggregation type (MIN/MAX/AVG/SUM_*)
+        astString.append("|TYPE=").append(aggregationType);
+
+        return computeMd5Hash(astString.toString());
+    }
+
+    /**
      * Returns true if lambda is duplicate and reuses existing executor.
      * Query type information is already encoded in the lambdaHash parameter.
      */
@@ -125,6 +155,7 @@ public class LambdaDeduplicator {
             String callSiteId,
             String lambdaHash,
             boolean isCountQuery,
+            boolean isAggregationQuery,
             int capturedVarCount,
             AtomicInteger deduplicatedCount,
             BuildProducer<QusaqProcessor.QueryTransformationBuildItem> queryTransformations) {
@@ -136,7 +167,7 @@ public class LambdaDeduplicator {
 
             queryTransformations.produce(
                     new QusaqProcessor.QueryTransformationBuildItem(callSiteId, existingExecutor,
-                            Object.class, isCountQuery, capturedVarCount));
+                            Object.class, isCountQuery, isAggregationQuery, capturedVarCount));
             return true;
         }
 

@@ -19,6 +19,7 @@ public class QueryExecutorRegistry {
 
     private static final Map<String, QueryExecutor<List<?>>> LIST_EXECUTORS = new ConcurrentHashMap<>();
     private static final Map<String, QueryExecutor<Long>> COUNT_EXECUTORS = new ConcurrentHashMap<>();
+    private static final Map<String, QueryExecutor<Object>> AGGREGATION_EXECUTORS = new ConcurrentHashMap<>();
     private static final Map<String, Integer> CAPTURED_VAR_COUNTS = new ConcurrentHashMap<>();
 
     @Inject
@@ -47,6 +48,20 @@ public class QueryExecutorRegistry {
         COUNT_EXECUTORS.put(callSiteId, executor);
         CAPTURED_VAR_COUNTS.put(callSiteId, capturedVarCount);
         log.debugf("Registered count executor for call site: %s (captured variables: %d)",
+                   callSiteId, capturedVarCount);
+    }
+
+    /**
+     * Registers aggregation query executor for call site.
+     * Phase 5: Supports MIN, MAX, AVG, SUM* aggregation operations.
+     */
+    public static void registerAggregationExecutor(
+            String callSiteId,
+            QueryExecutor<Object> executor,
+            int capturedVarCount) {
+        AGGREGATION_EXECUTORS.put(callSiteId, executor);
+        CAPTURED_VAR_COUNTS.put(callSiteId, capturedVarCount);
+        log.debugf("Registered aggregation executor for call site: %s (captured variables: %d)",
                    callSiteId, capturedVarCount);
     }
 
@@ -140,6 +155,52 @@ public class QueryExecutorRegistry {
     }
 
     /**
+     * Executes aggregation query for call site.
+     * Phase 5: Supports MIN, MAX, AVG, SUM* aggregation operations.
+     *
+     * @param callSiteId Unique identifier for the call site
+     * @param entityClass Entity class being queried
+     * @param capturedValues Captured variables from lambda expressions
+     * @param <T> Entity type
+     * @param <R> Result type (e.g., Double for avg, Long for sum, Object for min/max)
+     * @return Aggregation result
+     */
+    @SuppressWarnings("unchecked")
+    public <T, R> R executeAggregationQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues) {
+        QueryExecutor<Object> executor = AGGREGATION_EXECUTORS.get(callSiteId);
+
+        if (executor == null) {
+            throw new IllegalStateException(String.format(
+                    "No aggregation executor found for call site: %s%n" +
+                    "%n" +
+                    "Possible causes:%n" +
+                    "  1. Lambda expression was not analyzed during build-time processing%n" +
+                    "  2. Lambda is in test code (only application code is analyzed)%n" +
+                    "  3. Incremental compilation didn't detect changes%n" +
+                    "%n" +
+                    "Solutions:%n" +
+                    "  - Run a clean build: 'mvn clean compile' or 'gradle clean build'%n" +
+                    "  - Check build logs for 'QusaqProcessor' messages%n" +
+                    "  - Verify lambda is in src/main/java (not src/test/java)%n" +
+                    "  - Ensure query is reachable from application code%n" +
+                    "%n" +
+                    "Registered executors: %d list, %d count, %d aggregation",
+                    callSiteId, getListExecutorCount(), getCountExecutorCount(), getAggregationExecutorCount()));
+        }
+
+        if (entityManager == null) {
+            throw new IllegalStateException("EntityManager not available");
+        }
+
+        log.tracef("Executing aggregation query for call site: %s with %d captured variables",
+                   callSiteId, capturedValues.length);
+
+        // Aggregation queries don't use pagination or distinct
+        Object result = executor.execute(entityManager, entityClass, capturedValues, null, null, null);
+        return (R) result;
+    }
+
+    /**
      * Returns number of registered list executors.
      */
     public static int getListExecutorCount() {
@@ -151,5 +212,13 @@ public class QueryExecutorRegistry {
      */
     public static int getCountExecutorCount() {
         return COUNT_EXECUTORS.size();
+    }
+
+    /**
+     * Returns number of registered aggregation executors.
+     * Phase 5: Tracks MIN, MAX, AVG, SUM* executors.
+     */
+    public static int getAggregationExecutorCount() {
+        return AGGREGATION_EXECUTORS.size();
     }
 }

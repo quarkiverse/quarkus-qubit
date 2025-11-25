@@ -54,12 +54,13 @@ public final class QusaqBytecodeGenerator {
         // Load QuerySpec parameter (index 0 for static method)
         mv.visitVarInsn(Opcodes.ALOAD, 0);
 
-        // Call the appropriate method on the stream: .where(spec) or .select(spec) etc.
+        // Call the appropriate method on the stream: .where(spec) or .select(spec) or .min(spec) etc.
+        // Use the method descriptor from config (aggregation methods have different return types)
         mv.visitMethodInsn(
                 Opcodes.INVOKEINTERFACE,
                 "io/quarkus/qusaq/runtime/QusaqStream",
                 config.methodName(),
-                DESC_QUERY_SPEC_TO_STREAM,
+                config.methodDescriptor(),  // Use descriptor from config (not hardcoded)
                 true);
 
         // Return the result
@@ -154,6 +155,128 @@ public final class QusaqBytecodeGenerator {
                     DESC_QUERY_SPEC_TO_STREAM,
                     genericSignature,
                     Opcodes.ARETURN,
+                    entityType,
+                    3,
+                    1
+            );
+        }
+
+        // Phase 5: Aggregation methods - these now return QusaqStream (intermediate operations)
+
+        /**
+         * Creates config for min() method.
+         * Returns: <K extends Comparable<K>> QusaqStream<K>
+         */
+        public static FluentMethodConfig forMin(Type entityType, String entityInternalName) {
+            String genericSignature = "<K::Ljava/lang/Comparable<TK;>;>(Lio/quarkus/qusaq/runtime/QuerySpec<L" +
+                    entityInternalName + ";TK;>;)Lio/quarkus/qusaq/runtime/QusaqStream<TK;>;";
+
+            return new FluentMethodConfig(
+                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                    "min",
+                    DESC_QUERY_SPEC_TO_STREAM,  // Returns QusaqStream
+                    genericSignature,
+                    Opcodes.ARETURN,
+                    entityType,
+                    3,
+                    1
+            );
+        }
+
+        /**
+         * Creates config for max() method.
+         * Returns: <K extends Comparable<K>> QusaqStream<K>
+         */
+        public static FluentMethodConfig forMax(Type entityType, String entityInternalName) {
+            String genericSignature = "<K::Ljava/lang/Comparable<TK;>;>(Lio/quarkus/qusaq/runtime/QuerySpec<L" +
+                    entityInternalName + ";TK;>;)Lio/quarkus/qusaq/runtime/QusaqStream<TK;>;";
+
+            return new FluentMethodConfig(
+                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                    "max",
+                    DESC_QUERY_SPEC_TO_STREAM,  // Returns QusaqStream
+                    genericSignature,
+                    Opcodes.ARETURN,
+                    entityType,
+                    3,
+                    1
+            );
+        }
+
+        /**
+         * Creates config for avg() method.
+         * Returns: QusaqStream<Double>
+         */
+        public static FluentMethodConfig forAvg(Type entityType, String entityInternalName) {
+            String genericSignature = "(Lio/quarkus/qusaq/runtime/QuerySpec<L" +
+                    entityInternalName + ";+Ljava/lang/Number;>;)Lio/quarkus/qusaq/runtime/QusaqStream<Ljava/lang/Double;>;";
+
+            return new FluentMethodConfig(
+                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                    "avg",
+                    DESC_QUERY_SPEC_TO_STREAM,  // Returns QusaqStream
+                    genericSignature,
+                    Opcodes.ARETURN,
+                    entityType,
+                    3,
+                    1
+            );
+        }
+
+        /**
+         * Creates config for sumInteger() method.
+         * Returns: QusaqStream<Long>
+         */
+        public static FluentMethodConfig forSumInteger(Type entityType, String entityInternalName) {
+            String genericSignature = "(Lio/quarkus/qusaq/runtime/QuerySpec<L" +
+                    entityInternalName + ";Ljava/lang/Integer;>;)Lio/quarkus/qusaq/runtime/QusaqStream<Ljava/lang/Long;>;";
+
+            return new FluentMethodConfig(
+                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                    "sumInteger",
+                    DESC_QUERY_SPEC_TO_STREAM,  // Returns QusaqStream
+                    genericSignature,
+                    Opcodes.ARETURN,  // object reference return
+                    entityType,
+                    3,
+                    1
+            );
+        }
+
+        /**
+         * Creates config for sumLong() method.
+         * Returns: QusaqStream<Long>
+         */
+        public static FluentMethodConfig forSumLong(Type entityType, String entityInternalName) {
+            String genericSignature = "(Lio/quarkus/qusaq/runtime/QuerySpec<L" +
+                    entityInternalName + ";Ljava/lang/Long;>;)Lio/quarkus/qusaq/runtime/QusaqStream<Ljava/lang/Long;>;";
+
+            return new FluentMethodConfig(
+                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                    "sumLong",
+                    DESC_QUERY_SPEC_TO_STREAM,  // Returns QusaqStream
+                    genericSignature,
+                    Opcodes.ARETURN,  // object reference return
+                    entityType,
+                    3,
+                    1
+            );
+        }
+
+        /**
+         * Creates config for sumDouble() method.
+         * Returns: QusaqStream<Double>
+         */
+        public static FluentMethodConfig forSumDouble(Type entityType, String entityInternalName) {
+            String genericSignature = "(Lio/quarkus/qusaq/runtime/QuerySpec<L" +
+                    entityInternalName + ";Ljava/lang/Double;>;)Lio/quarkus/qusaq/runtime/QusaqStream<Ljava/lang/Double;>;";
+
+            return new FluentMethodConfig(
+                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                    "sumDouble",
+                    DESC_QUERY_SPEC_TO_STREAM,  // Returns QusaqStream
+                    genericSignature,
+                    Opcodes.ARETURN,  // object reference return
                     entityType,
                     3,
                     1

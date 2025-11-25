@@ -84,4 +84,160 @@ public interface QusaqRepository<E extends PanacheEntity, I> extends PanacheRepo
     default <K extends Comparable<K>> QusaqStream<E> sortedDescendingBy(QuerySpec<E, K> keyExtractor) {
         throw implementationInjectionMissing();
     }
+
+    // =============================================================================================
+    // AGGREGATION ENTRY POINTS (Phase 5)
+    // =============================================================================================
+
+    /**
+     * Prepares a minimum value aggregation query.
+     * <p>
+     * This is an intermediate operation that sets up the aggregation but does not execute it.
+     * Call {@link QusaqStream#getSingleResult()} to execute and get the result.
+     * <p>
+     * <strong>Generated at build time</strong> via bytecode enhancement.
+     * <p>
+     * Example:
+     * <pre>{@code
+     * // Find minimum age
+     * Integer minAge = personRepository.min(p -> p.age).getSingleResult();
+     *
+     * // Find minimum salary for active employees
+     * Integer minSalary = personRepository.where(p -> p.active).min(p -> p.salary).getSingleResult();
+     * }</pre>
+     *
+     * @param <K> the type of the field (must be comparable)
+     * @param mapper lambda extracting the field to minimize
+     * @return a new stream configured for MIN aggregation
+     */
+    @GenerateBridge
+    default <K extends Comparable<K>> QusaqStream<K> min(QuerySpec<E, K> mapper) {
+        throw implementationInjectionMissing();
+    }
+
+    /**
+     * Prepares a maximum value aggregation query.
+     * <p>
+     * This is an intermediate operation that sets up the aggregation but does not execute it.
+     * Call {@link QusaqStream#getSingleResult()} to execute and get the result.
+     * <p>
+     * <strong>Generated at build time</strong> via bytecode enhancement.
+     * <p>
+     * Example:
+     * <pre>{@code
+     * // Find maximum age
+     * Integer maxAge = personRepository.max(p -> p.age).getSingleResult();
+     *
+     * // Find maximum salary for active employees
+     * Integer maxSalary = personRepository.where(p -> p.active).max(p -> p.salary).getSingleResult();
+     * }</pre>
+     *
+     * @param <K> the type of the field (must be comparable)
+     * @param mapper lambda extracting the field to maximize
+     * @return a new stream configured for MAX aggregation
+     */
+    @GenerateBridge
+    default <K extends Comparable<K>> QusaqStream<K> max(QuerySpec<E, K> mapper) {
+        throw implementationInjectionMissing();
+    }
+
+    /**
+     * Prepares an average aggregation query for numeric values.
+     * <p>
+     * This is an intermediate operation that sets up the aggregation but does not execute it.
+     * Call {@link QusaqStream#getSingleResult()} to execute and get the result.
+     * <p>
+     * <strong>Generated at build time</strong> via bytecode enhancement.
+     * <p>
+     * Example:
+     * <pre>{@code
+     * // Calculate average age
+     * Double avgAge = personRepository.avg(p -> p.age).getSingleResult();
+     *
+     * // Calculate average salary for active employees
+     * Double avgSalary = personRepository.where(p -> p.active).avg(p -> p.salary).getSingleResult();
+     * }</pre>
+     *
+     * @param mapper lambda extracting the numeric field to average
+     * @return a new stream configured for AVG aggregation (returns Double)
+     */
+    @GenerateBridge
+    default QusaqStream<Double> avg(QuerySpec<E, ? extends Number> mapper) {
+        throw implementationInjectionMissing();
+    }
+
+    /**
+     * Prepares a sum aggregation query for Integer values.
+     * <p>
+     * This is an intermediate operation that sets up the aggregation but does not execute it.
+     * Call {@link QusaqStream#getSingleResult()} to execute and get the result.
+     * <p>
+     * <strong>Generated at build time</strong> via bytecode enhancement.
+     * <p>
+     * Example:
+     * <pre>{@code
+     * // Sum all ages
+     * Long totalAge = personRepository.sumInteger(p -> p.age).getSingleResult();
+     *
+     * // Sum ages for active employees
+     * Long totalActiveAge = personRepository.where(p -> p.active).sumInteger(p -> p.age).getSingleResult();
+     * }</pre>
+     *
+     * @param mapper lambda extracting the Integer field to sum
+     * @return a new stream configured for SUM aggregation (returns Long)
+     */
+    @GenerateBridge
+    default QusaqStream<Long> sumInteger(QuerySpec<E, Integer> mapper) {
+        throw implementationInjectionMissing();
+    }
+
+    /**
+     * Prepares a sum aggregation query for Long values.
+     * <p>
+     * This is an intermediate operation that sets up the aggregation but does not execute it.
+     * Call {@link QusaqStream#getSingleResult()} to execute and get the result.
+     * <p>
+     * <strong>Generated at build time</strong> via bytecode enhancement.
+     * <p>
+     * Example:
+     * <pre>{@code
+     * // Sum all employee IDs
+     * Long totalEmployeeId = personRepository.sumLong(p -> p.employeeId).getSingleResult();
+     *
+     * // Sum employee IDs for active employees
+     * Long totalActiveEmployeeId = personRepository.where(p -> p.active).sumLong(p -> p.employeeId).getSingleResult();
+     * }</pre>
+     *
+     * @param mapper lambda extracting the Long field to sum
+     * @return a new stream configured for SUM aggregation (returns Long)
+     */
+    @GenerateBridge
+    default QusaqStream<Long> sumLong(QuerySpec<E, Long> mapper) {
+        throw implementationInjectionMissing();
+    }
+
+    /**
+     * Prepares a sum aggregation query for Double values.
+     * <p>
+     * This is an intermediate operation that sets up the aggregation but does not execute it.
+     * Call {@link QusaqStream#getSingleResult()} to execute and get the result.
+     * <p>
+     * <strong>Generated at build time</strong> via bytecode enhancement.
+     * <p>
+     * Example:
+     * <pre>{@code
+     * // Sum all salaries
+     * Double totalSalary = personRepository.sumDouble(p -> p.salary).getSingleResult();
+     *
+     * // Sum salaries for active employees
+     * Double totalActiveSalary = personRepository.where(p -> p.active).sumDouble(p -> p.salary).getSingleResult();
+     * }</pre>
+     *
+     * @param mapper lambda extracting the Double field to sum
+     * @return a new stream configured for SUM aggregation (returns Double)
+     */
+    @GenerateBridge
+    default QusaqStream<Double> sumDouble(QuerySpec<E, Double> mapper) {
+        throw implementationInjectionMissing();
+    }
 }

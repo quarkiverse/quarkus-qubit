@@ -41,6 +41,7 @@ public class InvokeDynamicScanner {
      * Phase 2.2: Enhanced to track both predicate and projection lambdas for combined queries.
      * Phase 2.5: Enhanced to support multiple where() predicates.
      * Phase 3: Enhanced to support sorting (sortedBy/sortedDescendingBy).
+     * Phase 5: Enhanced to support aggregations (min/max/avg/sum*).
      */
     public record LambdaCallSite(
             String ownerClassName,
@@ -54,7 +55,9 @@ public class InvokeDynamicScanner {
             String projectionLambdaMethodName,     // SELECT lambda (null if no select clause)
             String projectionLambdaMethodDescriptor, // SELECT lambda descriptor
             List<LambdaPair> predicateLambdas,     // Phase 2.5: ALL WHERE lambdas for multiple where() support
-            List<SortLambda> sortLambdas) {        // Phase 3: ALL sort lambdas with direction
+            List<SortLambda> sortLambdas,          // Phase 3: ALL sort lambdas with direction
+            String aggregationLambdaMethodName,    // Phase 5: Aggregation mapper lambda (e.g., p -> p.salary for min/max/avg/sum)
+            String aggregationLambdaMethodDescriptor) { // Phase 5: Aggregation mapper descriptor
 
         /**
          * Returns true if this is a count query.
@@ -62,6 +65,19 @@ public class InvokeDynamicScanner {
          */
         public boolean isCountQuery() {
             return METHOD_COUNT.equals(targetMethodName) || METHOD_EXISTS.equals(targetMethodName);
+        }
+
+        /**
+         * Returns true if this is an aggregation query (min, max, avg, sum*).
+         * Phase 5: Aggregation terminals require mapper lambda analysis.
+         */
+        public boolean isAggregationQuery() {
+            return METHOD_MIN.equals(targetMethodName) ||
+                   METHOD_MAX.equals(targetMethodName) ||
+                   METHOD_AVG.equals(targetMethodName) ||
+                   METHOD_SUM_INTEGER.equals(targetMethodName) ||
+                   METHOD_SUM_LONG.equals(targetMethodName) ||
+                   METHOD_SUM_DOUBLE.equals(targetMethodName);
         }
 
         /**
@@ -86,6 +102,13 @@ public class InvokeDynamicScanner {
 
             // Phase 3: Sorting methods are not projections
             if (METHOD_SORTED_BY.equals(fluentMethodName) || METHOD_SORTED_DESCENDING_BY.equals(fluentMethodName)) {
+                return false;
+            }
+
+            // Phase 5: Aggregation methods are not projections - they are aggregations
+            if (METHOD_MIN.equals(fluentMethodName) || METHOD_MAX.equals(fluentMethodName) ||
+                METHOD_AVG.equals(fluentMethodName) || METHOD_SUM_INTEGER.equals(fluentMethodName) ||
+                METHOD_SUM_LONG.equals(fluentMethodName) || METHOD_SUM_DOUBLE.equals(fluentMethodName)) {
                 return false;
             }
 
@@ -156,7 +179,14 @@ public class InvokeDynamicScanner {
     private record PendingLambda(String methodName, String descriptor, String fluentMethod) {}
 
     /**
+     * Tracked aggregation method in the pipeline.
+     * Phase 5: Used to detect aggregation methods that are now intermediate operations.
+     */
+    private record PendingAggregation(String aggregationMethod) {}
+
+    /**
      * Grouped lambda information for building call sites.
+     * Phase 5: Added aggregation lambda fields.
      */
     private record LambdaInfo(
         String primaryLambdaMethod,
@@ -167,12 +197,15 @@ public class InvokeDynamicScanner {
         String selectLambdaMethod,
         String selectLambdaDescriptor,
         List<LambdaPair> whereLambdas,
-        List<SortLambda> sortLambdas
+        List<SortLambda> sortLambdas,
+        String aggregationLambdaMethod,      // Phase 5: Aggregation mapper lambda
+        String aggregationLambdaDescriptor   // Phase 5: Aggregation mapper descriptor
     ) {}
 
     private void scanMethod(ClassNode classNode, MethodNode method, List<LambdaCallSite> callSites) {
         InsnList instructions = method.instructions;
         List<PendingLambda> pendingLambdas = new ArrayList<>();
+        PendingAggregation pendingAggregation = null;
         int currentLine = -1;
 
         for (int i = 0; i < instructions.size(); i++) {
@@ -181,12 +214,18 @@ public class InvokeDynamicScanner {
             currentLine = updateLineNumber(insn, currentLine);
             detectAndAddLambda(insn, instructions, i, pendingLambdas);
 
+            // Phase 5: Detect aggregation method calls (now intermediate operations)
+            if (insn instanceof MethodInsnNode methodCall && isAggregationMethod(methodCall)) {
+                pendingAggregation = new PendingAggregation(methodCall.name);
+            }
+
             if (isTerminalOperation(insn, pendingLambdas)) {
                 LambdaCallSite callSite = createCallSite(classNode, method, (MethodInsnNode) insn,
-                                                          pendingLambdas, currentLine, i);
+                                                          pendingLambdas, pendingAggregation, currentLine, i);
                 callSites.add(callSite);
                 log.debugf("Found fluent API terminal operation: %s", callSite);
                 pendingLambdas.clear();
+                pendingAggregation = null;
             }
         }
     }
@@ -213,34 +252,57 @@ public class InvokeDynamicScanner {
     }
 
     private LambdaCallSite createCallSite(ClassNode classNode, MethodNode method, MethodInsnNode methodCall,
-                                          List<PendingLambda> pendingLambdas, int lineNumber, int insnIndex) {
-        LambdaInfo info = extractLambdaInfo(pendingLambdas);
+                                          List<PendingLambda> pendingLambdas, PendingAggregation pendingAggregation,
+                                          int lineNumber, int insnIndex) {
+        // Phase 5: Pass aggregation method to extractLambdaInfo
+        String aggregationMethod = pendingAggregation != null ? pendingAggregation.aggregationMethod : null;
+        LambdaInfo info = extractLambdaInfo(pendingLambdas, methodCall.name, aggregationMethod);
+
+        // Phase 5: For aggregation queries, use aggregation method as target instead of getSingleResult
+        String targetMethod = aggregationMethod != null ? aggregationMethod : methodCall.name;
+
         return new LambdaCallSite(
             classNode.name.replace('/', '.'),
             method.name,
             info.primaryLambdaMethod,
             info.primaryLambdaDescriptor,
             info.primaryFluentMethod,
-            methodCall.name,
+            targetMethod,
             lineNumber,
             insnIndex,
             info.selectLambdaMethod,
             info.selectLambdaDescriptor,
             info.whereLambdas,
-            info.sortLambdas
+            info.sortLambdas,
+            info.aggregationLambdaMethod,
+            info.aggregationLambdaDescriptor
         );
     }
 
-    private LambdaInfo extractLambdaInfo(List<PendingLambda> pendingLambdas) {
+    private LambdaInfo extractLambdaInfo(List<PendingLambda> pendingLambdas, String terminalMethodName, String aggregationMethodName) {
         List<LambdaPair> whereLambdas = new ArrayList<>();
         List<SortLambda> sortLambdas = new ArrayList<>();
         String firstWhereMethod = null;
         String firstWhereDescriptor = null;
         String selectMethod = null;
         String selectDescriptor = null;
+        String aggregationMethod = null;
+        String aggregationDescriptor = null;
 
-        for (PendingLambda lambda : pendingLambdas) {
-            if (METHOD_WHERE.equals(lambda.fluentMethod)) {
+        // Phase 5: Use provided aggregation method name (detected from intermediate operation)
+        boolean isAggregation = aggregationMethodName != null;
+
+        // Phase 5: If aggregation, the last lambda is the mapper (e.g., p -> p.salary)
+        // All others are treated as WHERE predicates
+        for (int i = 0; i < pendingLambdas.size(); i++) {
+            PendingLambda lambda = pendingLambdas.get(i);
+            boolean isLastLambda = (i == pendingLambdas.size() - 1);
+
+            // Phase 5: For aggregations, last lambda is the mapper
+            if (isAggregation && isLastLambda) {
+                aggregationMethod = lambda.methodName;
+                aggregationDescriptor = lambda.descriptor;
+            } else if (METHOD_WHERE.equals(lambda.fluentMethod)) {
                 whereLambdas.add(new LambdaPair(lambda.methodName, lambda.descriptor));
                 if (firstWhereMethod == null) {
                     firstWhereMethod = lambda.methodName;
@@ -268,7 +330,9 @@ public class InvokeDynamicScanner {
             selectMethod,
             selectDescriptor,
             whereLambdas.isEmpty() ? null : whereLambdas,
-            sortLambdas.isEmpty() ? null : sortLambdas
+            sortLambdas.isEmpty() ? null : sortLambdas,
+            aggregationMethod,
+            aggregationDescriptor
         );
     }
 
@@ -317,6 +381,52 @@ public class InvokeDynamicScanner {
 
         // Check if owner is QusaqStream interface
         return QUSAQ_STREAM_INTERNAL_NAME.equals(methodCall.owner);
+    }
+
+    /**
+     * Checks if method call is an aggregation method.
+     * Phase 5: Aggregation methods are now intermediate operations.
+     * Detects both:
+     * - Instance calls on QusaqStream: stream.min(...)
+     * - Static calls on entities: Person.min(...)
+     */
+    private boolean isAggregationMethod(MethodInsnNode methodCall) {
+        String name = methodCall.name;
+
+        // Check if it's an aggregation method name
+        boolean isAggregationName = METHOD_MIN.equals(name) ||
+                                     METHOD_MAX.equals(name) ||
+                                     METHOD_AVG.equals(name) ||
+                                     METHOD_SUM_INTEGER.equals(name) ||
+                                     METHOD_SUM_LONG.equals(name) ||
+                                     METHOD_SUM_DOUBLE.equals(name);
+
+        if (!isAggregationName) {
+            return false;
+        }
+
+        // Accept if owner is QusaqStream interface (instance method call)
+        if (QUSAQ_STREAM_INTERNAL_NAME.equals(methodCall.owner)) {
+            return true;
+        }
+
+        // Also accept if it's a static method call (invokestatic) with QusaqStream return type
+        // This handles direct static calls like Person.min(...)
+        if (methodCall.getOpcode() == org.objectweb.asm.Opcodes.INVOKESTATIC) {
+            // Check if return type is QusaqStream
+            String desc = methodCall.desc;
+            return desc.contains("Lio/quarkus/qusaq/runtime/QusaqStream;");
+        }
+
+        // Phase 5: Also accept instance method calls on QusaqRepository that return QusaqStream
+        // This handles repository.min(...) calls
+        if (methodCall.getOpcode() == org.objectweb.asm.Opcodes.INVOKEVIRTUAL ||
+            methodCall.getOpcode() == org.objectweb.asm.Opcodes.INVOKEINTERFACE) {
+            String desc = methodCall.desc;
+            return desc.contains("Lio/quarkus/qusaq/runtime/QusaqStream;");
+        }
+
+        return false;
     }
 
 }

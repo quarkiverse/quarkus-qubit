@@ -29,11 +29,14 @@ public class CallSiteProcessor {
     /**
      * Result of lambda bytecode analysis containing expressions and captured variable count.
      * Phase 3: Added sortExpressions list for sorting support.
+     * Phase 5: Added aggregationExpression for aggregation queries (min/max/avg/sum*).
      */
     private record LambdaAnalysisResult(
             LambdaExpression predicateExpression,
             LambdaExpression projectionExpression,
             List<SortExpression> sortExpressions,
+            LambdaExpression aggregationExpression,
+            String aggregationType,  // Phase 5: "MIN", "MAX", "AVG", "SUM_INTEGER", "SUM_LONG", "SUM_DOUBLE"
             int totalCapturedVarCount) {}
 
     /**
@@ -97,6 +100,7 @@ public class CallSiteProcessor {
             String lambdaHash = computeHash(callSite, result);
             if (deduplicator.handleDuplicateLambda(callSiteId, lambdaHash,
                     callSite.isCountQuery(),
+                    callSite.isAggregationQuery(),
                     result.totalCapturedVarCount, deduplicatedCount, queryTransformations)) {
                 return;
             }
@@ -105,7 +109,10 @@ public class CallSiteProcessor {
                     result.predicateExpression,
                     result.projectionExpression,
                     result.sortExpressions,
+                    result.aggregationExpression,
+                    result.aggregationType,
                     callSite.isCountQuery(),
+                    callSite.isAggregationQuery(),
                     callSiteId,
                     generatedClass,
                     queryTransformations);
@@ -122,12 +129,18 @@ public class CallSiteProcessor {
     }
 
     /**
-     * Analyzes lambdas based on call site type (multiple predicates, combined, or single).
+     * Analyzes lambdas based on call site type (multiple predicates, combined, aggregation, or single).
+     * Phase 5: Added aggregation query support.
      */
     private LambdaAnalysisResult analyzeLambdas(
             byte[] classBytes,
             InvokeDynamicScanner.LambdaCallSite callSite,
             String callSiteId) {
+
+        // Phase 5: Handle aggregation queries first
+        if (callSite.isAggregationQuery()) {
+            return analyzeAggregationQuery(classBytes, callSite, callSiteId);
+        }
 
         var predicateLambdas = callSite.predicateLambdas();
         boolean hasMultiplePredicates = predicateLambdas != null && predicateLambdas.size() > 1;
@@ -144,8 +157,17 @@ public class CallSiteProcessor {
     /**
      * Computes deduplication hash based on query type.
      * Phase 3: Handles sorting-only queries and includes sort expressions in hash.
+     * Phase 5: Handles aggregation queries with optional WHERE predicates.
      */
     private String computeHash(InvokeDynamicScanner.LambdaCallSite callSite, LambdaAnalysisResult result) {
+        // Phase 5: Aggregation queries have priority
+        if (callSite.isAggregationQuery() && result.aggregationExpression != null) {
+            return deduplicator.computeAggregationHash(
+                    result.predicateExpression,
+                    result.aggregationExpression,
+                    result.aggregationType);
+        }
+
         // Phase 3: Include sort expressions in hash if present
         boolean hasSorting = result.sortExpressions != null && !result.sortExpressions.isEmpty();
 
@@ -185,12 +207,16 @@ public class CallSiteProcessor {
      * Generates executor class and registers it.
      * Phase 2.2: Accepts both predicate and projection expressions.
      * Phase 3: Accepts sort expressions for ORDER BY generation.
+     * Phase 5: Accepts aggregation expression and type for aggregation queries.
      */
     private String generateAndRegisterExecutor(
             LambdaExpression predicateExpression,
             LambdaExpression projectionExpression,
             List<SortExpression> sortExpressions,
+            LambdaExpression aggregationExpression,
+            String aggregationType,
             boolean isCountQuery,
+            boolean isAggregationQuery,
             String queryId,
             BuildProducer<GeneratedClassBuildItem> generatedClass,
             BuildProducer<QusaqProcessor.QueryTransformationBuildItem> queryTransformations) {
@@ -204,6 +230,9 @@ public class CallSiteProcessor {
             capturedVarCount += countCapturedVariables(projectionExpression);
         }
         capturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
+        if (aggregationExpression != null) {
+            capturedVarCount += countCapturedVariables(aggregationExpression);
+        }
 
         String className = "io.quarkus.qusaq.generated.QueryExecutor_" +
                            queryCounter.getAndIncrement();
@@ -212,14 +241,18 @@ public class CallSiteProcessor {
                 predicateExpression,
                 projectionExpression,
                 sortExpressions,
+                aggregationExpression,
+                aggregationType,
                 className,
-                isCountQuery);
+                isCountQuery,
+                isAggregationQuery);
 
         generatedClass.produce(new GeneratedClassBuildItem(true, className, bytecode));
         queryTransformations.produce(
-                new QusaqProcessor.QueryTransformationBuildItem(queryId, className, Object.class, isCountQuery, capturedVarCount));
+                new QusaqProcessor.QueryTransformationBuildItem(queryId, className, Object.class, isCountQuery, isAggregationQuery, capturedVarCount));
 
-        String queryTypeDesc = getQueryTypeDescription(predicateExpression, projectionExpression, sortExpressions, isCountQuery);
+        String queryTypeDesc = getQueryTypeDescription(predicateExpression, projectionExpression, sortExpressions,
+                                                       aggregationExpression, aggregationType, isCountQuery, isAggregationQuery);
 
         log.debugf("Generated query executor: %s (%s, %d captured vars)",
                    className, queryTypeDesc, capturedVarCount);
@@ -253,12 +286,25 @@ public class CallSiteProcessor {
      * Determines the query type description for logging based on expressions and flags.
      * Adds decorative formatting to the base query type for better log readability.
      * Phase 3: Enhanced to show sorting in query type description.
+     * Phase 5: Enhanced to show aggregation type in query description.
      */
     private String getQueryTypeDescription(
             LambdaExpression predicateExpression,
             LambdaExpression projectionExpression,
             List<SortExpression> sortExpressions,
-            boolean isCountQuery) {
+            LambdaExpression aggregationExpression,
+            String aggregationType,
+            boolean isCountQuery,
+            boolean isAggregationQuery) {
+
+        // Phase 5: Aggregation queries have priority in description
+        if (isAggregationQuery && aggregationType != null) {
+            String typeDesc = aggregationType;  // "MIN", "MAX", "AVG", etc.
+            if (predicateExpression != null) {
+                typeDesc += "+WHERE";
+            }
+            return typeDesc;
+        }
 
         String baseType = getQueryType(
                 isCountQuery,
@@ -364,7 +410,8 @@ public class CallSiteProcessor {
         List<SortExpression> sortExpressions = analyzeSortLambdas(classBytes, callSite, callSiteId);
         totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
 
-        return new LambdaAnalysisResult(predicateExpression, projectionExpression, sortExpressions, totalCapturedVarCount);
+        return new LambdaAnalysisResult(predicateExpression, projectionExpression, sortExpressions,
+                                       null, null, totalCapturedVarCount);
     }
 
     /**
@@ -413,7 +460,8 @@ public class CallSiteProcessor {
         List<SortExpression> sortExpressions = analyzeSortLambdas(classBytes, callSite, callSiteId);
         totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
 
-        return new LambdaAnalysisResult(predicateExpression, projectionExpression, sortExpressions, totalCapturedVarCount);
+        return new LambdaAnalysisResult(predicateExpression, projectionExpression, sortExpressions,
+                                       null, null, totalCapturedVarCount);
     }
 
     /**
@@ -440,7 +488,7 @@ public class CallSiteProcessor {
             // Sorting-only query - no WHERE or SELECT clauses
             int totalCapturedVarCount = countCapturedVariablesInSortExpressions(sortExpressions);
             log.debugf("Analyzed sorting-only query at %s: %d sort expression(s)", callSiteId, sortExpressions.size());
-            return new LambdaAnalysisResult(null, null, sortExpressions, totalCapturedVarCount);
+            return new LambdaAnalysisResult(null, null, sortExpressions, null, null, totalCapturedVarCount);
         }
 
         // Regular WHERE or SELECT query
@@ -464,7 +512,78 @@ public class CallSiteProcessor {
         // Phase 3: Add captured variables from sort expressions
         totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
 
-        return new LambdaAnalysisResult(predicateExpression, projectionExpression, sortExpressions, totalCapturedVarCount);
+        return new LambdaAnalysisResult(predicateExpression, projectionExpression, sortExpressions,
+                                       null, null, totalCapturedVarCount);
+    }
+
+    /**
+     * Analyzes aggregation query (min, max, avg, sum*).
+     * Phase 5: Handles aggregation terminals with optional WHERE predicates.
+     *
+     * Example: Person.where(p -> p.active).min(p -> p.salary)
+     * - Predicate: p.active
+     * - Aggregation mapper: p.salary
+     * - Aggregation type: MIN
+     */
+    private LambdaAnalysisResult analyzeAggregationQuery(
+            byte[] classBytes,
+            InvokeDynamicScanner.LambdaCallSite callSite,
+            String callSiteId) {
+
+        // Analyze aggregation mapper lambda (e.g., p -> p.salary)
+        if (callSite.aggregationLambdaMethodName() == null) {
+            log.warnf("Aggregation query missing mapper lambda at: %s", callSiteId);
+            return null;
+        }
+
+        LambdaExpression aggregationExpression = bytecodeAnalyzer.analyze(
+                classBytes,
+                callSite.aggregationLambdaMethodName(),
+                callSite.aggregationLambdaMethodDescriptor());
+
+        if (aggregationExpression == null) {
+            log.warnf("Could not analyze aggregation mapper lambda at: %s", callSiteId);
+            return null;
+        }
+
+        int totalCapturedVarCount = countCapturedVariables(aggregationExpression);
+
+        // Analyze predicate lambda(s) if present (WHERE clause)
+        LambdaExpression predicateExpression = null;
+        var predicateLambdas = callSite.predicateLambdas();
+        if (predicateLambdas != null && !predicateLambdas.isEmpty()) {
+            PredicateAnalysisResult predicateResult = analyzeAndCombinePredicates(
+                    classBytes, predicateLambdas, callSiteId);
+            if (predicateResult == null) {
+                return null;
+            }
+            predicateExpression = predicateResult.expression;
+            totalCapturedVarCount += predicateResult.capturedVarCount;
+        }
+
+        // Determine aggregation type from terminal method name
+        // Convert camelCase method names to UPPER_SNAKE_CASE constants
+        String methodName = callSite.targetMethodName();
+        String aggregationType = switch (methodName) {
+            case "min" -> "MIN";
+            case "max" -> "MAX";
+            case "avg" -> "AVG";
+            case "sumInteger" -> "SUM_INTEGER";
+            case "sumLong" -> "SUM_LONG";
+            case "sumDouble" -> "SUM_DOUBLE";
+            default -> methodName.toUpperCase(); // Fallback
+        };
+
+        log.debugf("Analyzed aggregation query at %s: type=%s, mapper=%s, predicate=%s",
+                callSiteId, aggregationType, aggregationExpression, predicateExpression);
+
+        return new LambdaAnalysisResult(
+                predicateExpression,
+                null,  // No projection for aggregations
+                Collections.emptyList(),  // No sorting for aggregations
+                aggregationExpression,
+                aggregationType,
+                totalCapturedVarCount);
     }
 
     /**

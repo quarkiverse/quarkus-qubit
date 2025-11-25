@@ -20,6 +20,12 @@ import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_WHERE;
 import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_SELECT;
 import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_SORTED_BY;
 import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_SORTED_DESCENDING_BY;
+import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_MIN;
+import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_MAX;
+import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_AVG;
+import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_SUM_INTEGER;
+import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_SUM_LONG;
+import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_SUM_DOUBLE;
 import static io.quarkus.qusaq.runtime.QusaqConstants.QUSAQ_REPOSITORY_CLASS_NAME;
 import static io.quarkus.qusaq.runtime.QusaqConstants.QUSAQ_REPOSITORY_INTERNAL_NAME;
 
@@ -136,6 +142,107 @@ public class QusaqRepositoryEnhancer implements BiFunction<String, ClassVisitor,
         private boolean isGenerateBridgeMethod(String methodName) {
             return FLUENT_ENTRY_POINT_METHODS.contains(methodName);
         }
+
+        /**
+         * Generate bridge methods at the end of class visiting for empty repository classes.
+         * This ensures all @GenerateBridge methods are implemented even if the repository
+         * class body is empty.
+         */
+        @Override
+        public void visitEnd() {
+            if (implementsQusaqRepository && entityType != null) {
+                log.debugf("Generating bridge methods for empty repository: %s", className);
+
+                // Generate all fluent API entry point methods
+                for (String methodName : FLUENT_ENTRY_POINT_METHODS) {
+                    generateBridgeMethod(methodName);
+                }
+            }
+            super.visitEnd();
+        }
+
+        /**
+         * Generates a bridge method implementation for the given fluent API method.
+         */
+        private void generateBridgeMethod(String methodName) {
+            String entityInternalName = entityType.getInternalName();
+
+            QusaqBytecodeGenerator.FluentMethodConfig config = switch (methodName) {
+                case METHOD_WHERE -> QusaqBytecodeGenerator.FluentMethodConfig.forWhere(
+                        entityType, entityInternalName);
+                case METHOD_SELECT -> QusaqBytecodeGenerator.FluentMethodConfig.forSelect(
+                        entityType, entityInternalName);
+                case METHOD_SORTED_BY -> QusaqBytecodeGenerator.FluentMethodConfig.forSortedBy(
+                        entityType, entityInternalName);
+                case METHOD_SORTED_DESCENDING_BY -> QusaqBytecodeGenerator.FluentMethodConfig.forSortedDescendingBy(
+                        entityType, entityInternalName);
+                case METHOD_MIN -> QusaqBytecodeGenerator.FluentMethodConfig.forMin(
+                        entityType, entityInternalName);
+                case METHOD_MAX -> QusaqBytecodeGenerator.FluentMethodConfig.forMax(
+                        entityType, entityInternalName);
+                case METHOD_AVG -> QusaqBytecodeGenerator.FluentMethodConfig.forAvg(
+                        entityType, entityInternalName);
+                case METHOD_SUM_INTEGER -> QusaqBytecodeGenerator.FluentMethodConfig.forSumInteger(
+                        entityType, entityInternalName);
+                case METHOD_SUM_LONG -> QusaqBytecodeGenerator.FluentMethodConfig.forSumLong(
+                        entityType, entityInternalName);
+                case METHOD_SUM_DOUBLE -> QusaqBytecodeGenerator.FluentMethodConfig.forSumDouble(
+                        entityType, entityInternalName);
+                default -> {
+                    log.warnf("Unknown fluent entry point method: %s", methodName);
+                    yield null;
+                }
+            };
+
+            if (config == null) {
+                return;
+            }
+
+            log.tracef("Generating method %s with descriptor %s", methodName, config.methodDescriptor());
+
+            // Generate method: public QusaqStream methodName(QuerySpec spec)
+            MethodVisitor mv = cv.visitMethod(
+                    Opcodes.ACC_PUBLIC,
+                    methodName,
+                    config.methodDescriptor(),
+                    config.genericSignature(),
+                    null);
+
+            mv.visitCode();
+
+            // Create new QusaqStreamImpl instance
+            mv.visitTypeInsn(Opcodes.NEW, "io/quarkus/qusaq/runtime/QusaqStreamImpl");
+            mv.visitInsn(Opcodes.DUP);
+
+            // Load entity class as constructor argument
+            mv.visitLdcInsn(entityType);
+
+            // Call QusaqStreamImpl constructor
+            mv.visitMethodInsn(
+                    Opcodes.INVOKESPECIAL,
+                    "io/quarkus/qusaq/runtime/QusaqStreamImpl",
+                    "<init>",
+                    "(Ljava/lang/Class;)V",
+                    false);
+
+            // Load QuerySpec parameter (index 1 for instance method)
+            mv.visitVarInsn(Opcodes.ALOAD, 1);
+
+            // Call the appropriate method on the stream
+            mv.visitMethodInsn(
+                    Opcodes.INVOKEINTERFACE,
+                    "io/quarkus/qusaq/runtime/QusaqStream",
+                    methodName,
+                    "(Lio/quarkus/qusaq/runtime/QuerySpec;)Lio/quarkus/qusaq/runtime/QusaqStream;",
+                    true);
+
+            // Return the result
+            mv.visitInsn(Opcodes.ARETURN);
+
+            mv.visitMaxs(4, 2);
+            mv.visitEnd();
+            log.infof("    Successfully generated method: %s", methodName);
+        }
     }
 
     private static class BridgeMethodReplacer extends MethodVisitor {
@@ -168,6 +275,18 @@ public class QusaqRepositoryEnhancer implements BiFunction<String, ClassVisitor,
                 case METHOD_SORTED_BY -> QusaqBytecodeGenerator.FluentMethodConfig.forSortedBy(
                         entityType, entityInternalName);
                 case METHOD_SORTED_DESCENDING_BY -> QusaqBytecodeGenerator.FluentMethodConfig.forSortedDescendingBy(
+                        entityType, entityInternalName);
+                case METHOD_MIN -> QusaqBytecodeGenerator.FluentMethodConfig.forMin(
+                        entityType, entityInternalName);
+                case METHOD_MAX -> QusaqBytecodeGenerator.FluentMethodConfig.forMax(
+                        entityType, entityInternalName);
+                case METHOD_AVG -> QusaqBytecodeGenerator.FluentMethodConfig.forAvg(
+                        entityType, entityInternalName);
+                case METHOD_SUM_INTEGER -> QusaqBytecodeGenerator.FluentMethodConfig.forSumInteger(
+                        entityType, entityInternalName);
+                case METHOD_SUM_LONG -> QusaqBytecodeGenerator.FluentMethodConfig.forSumLong(
+                        entityType, entityInternalName);
+                case METHOD_SUM_DOUBLE -> QusaqBytecodeGenerator.FluentMethodConfig.forSumDouble(
                         entityType, entityInternalName);
                 default -> {
                     log.warnf("Unknown fluent entry point method: %s", methodName);

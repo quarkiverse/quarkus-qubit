@@ -217,105 +217,129 @@ public interface QusaqStream<T> {
     long count();
 
     /**
-     * Finds the minimum value using the given mapper function.
-     * This is a terminal operation that executes the query.
+     * Prepares a minimum value aggregation query.
+     * This is an intermediate operation that sets up the aggregation but does not execute it.
+     * Call {@link #getSingleResult()} to execute and get the result.
      * <p>
      * Example:
      * <pre>{@code
      * // Minimum age
-     * Integer minAge = Person.where(p -> p.age != null).min(p -> p.age);
+     * Integer minAge = Person.where(p -> p.age != null).min(p -> p.age).getSingleResult();
+     *
+     * // Direct call (without where)
+     * Integer minAge = Person.min(p -> p.age).getSingleResult();
      *
      * // Earliest birth date
-     * LocalDate earliest = Person.where(p -> p.birthDate != null).min(p -> p.birthDate);
+     * LocalDate earliest = Person.where(p -> p.birthDate != null).min(p -> p.birthDate).getSingleResult();
      * }</pre>
      *
      * @param <K> the type of the value (must be comparable)
      * @param mapper lambda expression extracting the value to minimize
-     * @return the minimum value, or null if no results
+     * @return a new stream configured for MIN aggregation
      */
-    <K extends Comparable<K>> K min(QuerySpec<T, K> mapper);
+    <K extends Comparable<K>> QusaqStream<K> min(QuerySpec<T, K> mapper);
 
     /**
-     * Finds the maximum value using the given mapper function.
-     * This is a terminal operation that executes the query.
+     * Prepares a maximum value aggregation query.
+     * This is an intermediate operation that sets up the aggregation but does not execute it.
+     * Call {@link #getSingleResult()} to execute and get the result.
      * <p>
      * Example:
      * <pre>{@code
      * // Maximum age
-     * Integer maxAge = Person.where(p -> p.age != null).max(p -> p.age);
+     * Integer maxAge = Person.where(p -> p.age != null).max(p -> p.age).getSingleResult();
+     *
+     * // Direct call (without where)
+     * Integer maxAge = Person.max(p -> p.age).getSingleResult();
      *
      * // Highest salary
-     * Double topSalary = Person.where(p -> p.active).max(p -> p.salary);
+     * Double topSalary = Person.where(p -> p.active).max(p -> p.salary).getSingleResult();
      * }</pre>
      *
      * @param <K> the type of the value (must be comparable)
      * @param mapper lambda expression extracting the value to maximize
-     * @return the maximum value, or null if no results
+     * @return a new stream configured for MAX aggregation
      */
-    <K extends Comparable<K>> K max(QuerySpec<T, K> mapper);
+    <K extends Comparable<K>> QusaqStream<K> max(QuerySpec<T, K> mapper);
 
     /**
-     * Computes the sum of integer values.
-     * This is a terminal operation that executes the query.
+     * Prepares a sum aggregation query for Integer values.
+     * This is an intermediate operation that sets up the aggregation but does not execute it.
+     * Call {@link #getSingleResult()} to execute and get the result.
      * <p>
      * Example:
      * <pre>{@code
      * // Sum of all ages
-     * long totalAge = Person.where(p -> p.age != null).sumInteger(p -> p.age);
+     * Long totalAge = Person.where(p -> p.age != null).sumInteger(p -> p.age).getSingleResult();
+     *
+     * // Direct call (without where)
+     * Long totalAge = Person.sumInteger(p -> p.age).getSingleResult();
      * }</pre>
      *
      * @param mapper lambda expression extracting integer values to sum
-     * @return the sum as a long
+     * @return a new stream configured for SUM aggregation (returns Long)
      */
-    long sumInteger(QuerySpec<T, Integer> mapper);
+    QusaqStream<Long> sumInteger(QuerySpec<T, Integer> mapper);
 
     /**
-     * Computes the sum of long values.
-     * This is a terminal operation that executes the query.
+     * Prepares a sum aggregation query for Long values.
+     * This is an intermediate operation that sets up the aggregation but does not execute it.
+     * Call {@link #getSingleResult()} to execute and get the result.
      * <p>
      * Example:
      * <pre>{@code
      * // Sum of employee IDs
-     * long totalIds = Person.where(p -> p.employeeId != null).sumLong(p -> p.employeeId);
+     * Long totalIds = Person.where(p -> p.employeeId != null).sumLong(p -> p.employeeId).getSingleResult();
+     *
+     * // Direct call (without where)
+     * Long totalIds = Person.sumLong(p -> p.employeeId).getSingleResult();
      * }</pre>
      *
      * @param mapper lambda expression extracting long values to sum
-     * @return the sum as a long
+     * @return a new stream configured for SUM aggregation (returns Long)
      */
-    long sumLong(QuerySpec<T, Long> mapper);
+    QusaqStream<Long> sumLong(QuerySpec<T, Long> mapper);
 
     /**
-     * Computes the sum of double values.
-     * This is a terminal operation that executes the query.
+     * Prepares a sum aggregation query for Double values.
+     * This is an intermediate operation that sets up the aggregation but does not execute it.
+     * Call {@link #getSingleResult()} to execute and get the result.
      * <p>
      * Example:
      * <pre>{@code
      * // Total salaries
-     * double totalSalaries = Person.where(p -> p.active).sumDouble(p -> p.salary);
+     * Double totalSalaries = Person.where(p -> p.active).sumDouble(p -> p.salary).getSingleResult();
+     *
+     * // Direct call (without where)
+     * Double totalSalaries = Person.sumDouble(p -> p.salary).getSingleResult();
      * }</pre>
      *
      * @param mapper lambda expression extracting double values to sum
-     * @return the sum as a double
+     * @return a new stream configured for SUM aggregation (returns Double)
      */
-    double sumDouble(QuerySpec<T, Double> mapper);
+    QusaqStream<Double> sumDouble(QuerySpec<T, Double> mapper);
 
     /**
-     * Computes the average of numeric values.
-     * This is a terminal operation that executes the query.
+     * Prepares an average aggregation query for numeric values.
+     * This is an intermediate operation that sets up the aggregation but does not execute it.
+     * Call {@link #getSingleResult()} to execute and get the result.
      * <p>
      * Example:
      * <pre>{@code
      * // Average age
-     * Double avgAge = Person.where(p -> p.age != null).avg(p -> p.age);
+     * Double avgAge = Person.where(p -> p.age != null).avg(p -> p.age).getSingleResult();
+     *
+     * // Direct call (without where)
+     * Double avgAge = Person.avg(p -> p.age).getSingleResult();
      *
      * // Average salary
-     * Double avgSalary = Person.where(p -> p.active).avg(p -> p.salary);
+     * Double avgSalary = Person.where(p -> p.active).avg(p -> p.salary).getSingleResult();
      * }</pre>
      *
      * @param mapper lambda expression extracting numeric values to average
-     * @return the average as a Double, or null if no results
+     * @return a new stream configured for AVG aggregation (returns Double)
      */
-    Double avg(QuerySpec<T, ? extends Number> mapper);
+    QusaqStream<Double> avg(QuerySpec<T, ? extends Number> mapper);
 
     // =============================================================================================
     // TERMINAL OPERATIONS

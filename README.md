@@ -9,21 +9,28 @@ A Quarkus extension that enables type-safe, lambda-based queries on Panache enti
 - **Type-safe queries**: Write queries in plain Java using lambda expressions with explicit types
 - **Build-time transformation**: Lambda expressions are analyzed and transformed during compilation
 - **Zero runtime overhead**: Transformed Criteria Queries are cached and executed directly
+- **Fluent API**: JINQ-inspired method chaining for composing complex queries
 - **IDE support**: Full code completion and refactoring support
 - **No string-based queries**: Eliminate typos and runtime query errors
 
 ## Features
 
-- ✅ **Field access and getter methods**: Query using direct field access or getters
-- ✅ **All comparison operators**: `==`, `!=`, `<`, `<=`, `>`, `>=`
-- ✅ **Logical operators**: `&&`, `||`, `!`
-- ✅ **Arithmetic operations**: `+`, `-`, `*`, `/`, `%` in predicates
-- ✅ **String methods**: `startsWith()`, `endsWith()`, `contains()`
-- ✅ **Null checks**: `== null`, `!= null`
-- ✅ **Count and exists queries**: Optimized counting and existence checks
-- ✅ **Multiple entity types**: Works with any Panache entity
-- ✅ **Complex nested conditions**: Combine multiple predicates with parentheses
-- ✅ **Bytecode enhancement**: Static methods injected into entity classes (application code only)
+### Query Capabilities
+- **Filtering**: Filter entities with complex predicates using `where()`
+- **Projection**: Select specific fields, expressions, or DTOs using `select()`
+- **Sorting**: Order results ascending or descending using `sortedBy()` / `sortedDescendingBy()`
+- **Pagination**: Limit and skip results using `limit()` and `skip()`
+- **Distinct**: Remove duplicates using `distinct()`
+- **Aggregation**: Compute min, max, avg, sum, count using aggregation methods
+
+### Expression Support
+- **All comparison operators**: `==`, `!=`, `<`, `<=`, `>`, `>=`
+- **Logical operators**: `&&`, `||`, `!`
+- **Arithmetic operations**: `+`, `-`, `*`, `/`, `%` in predicates and projections
+- **String methods**: `startsWith()`, `endsWith()`, `contains()`, `toLowerCase()`, `toUpperCase()`, `concat()`, `trim()`, `length()`
+- **Null checks**: `== null`, `!= null`
+- **Temporal types**: LocalDate, LocalTime, LocalDateTime comparisons with `isAfter()`, `isBefore()`
+- **BigDecimal**: Full `compareTo()` support for precision arithmetic
 
 ## Installation
 
@@ -39,106 +46,258 @@ Add the extension to your Quarkus project:
 
 ## Quick Start
 
-### 1. Define Your Entity
+### Option 1: ActiveRecord Pattern (QusaqEntity)
 
 ```java
 @Entity
-public class Person extends PanacheEntity {
+public class Person extends QusaqEntity {
     public String firstName;
     public String lastName;
     public int age;
     public boolean active;
     public Double salary;
 }
+
+// Simple filtering
+List<Person> adults = Person.where((Person p) -> p.age >= 18).toList();
+
+// Complex composition
+List<String> topCities = Person.where((Person p) -> p.active && p.salary > 100000)
+                               .select((Person p) -> p.city)
+                               .distinct()
+                               .sortedBy((String city) -> city)
+                               .limit(10)
+                               .toList();
 ```
 
-### 2. Write Type-Safe Queries
+### Option 2: Repository Pattern (QusaqRepository) - Recommended
 
 ```java
+@ApplicationScoped
+public class PersonRepository implements QusaqRepository<Person, Long> {
+}
+
 @Path("/persons")
 public class PersonResource {
+
+    @Inject
+    PersonRepository personRepository;
 
     @GET
     @Path("/adults")
     public List<Person> getAdults() {
-        // Explicit type parameter required due to Java type erasure
-        return Person.findWhere((Person p) -> p.age >= 18);
+        return personRepository.where((Person p) -> p.age >= 18).toList();
     }
 
     @GET
-    @Path("/active")
-    public List<Person> getActive() {
-        return Person.findWhere((Person p) -> p.active && p.age > 25);
+    @Path("/search")
+    public List<PersonDTO> search(@QueryParam("minSalary") double minSalary) {
+        return personRepository
+            .where((Person p) -> p.active && p.salary > minSalary)
+            .select((Person p) -> new PersonDTO(p.firstName, p.lastName))
+            .sortedDescendingBy((PersonDTO dto) -> dto.lastName())
+            .limit(100)
+            .toList();
     }
 }
 ```
 
-> **Why Explicit Types?** Java's type erasure requires explicit lambda parameter types for the compiler to resolve field access. This is the same pattern used by Java Streams and other functional APIs.
+## Fluent API Reference
 
-### 3. Count and Existence Checks
+### Entry Points
 
-```java
-@GET
-@Path("/stats")
-public Stats getStats() {
-    // Explicit type parameters required
-    long activeCount = Person.countWhere((Person p) -> p.active);
-    boolean hasAdults = Person.exists((Person p) -> p.age >= 18);
+| Method | Description |
+|--------|-------------|
+| `where(p -> predicate)` | Filter entities matching the predicate |
+| `select(p -> projection)` | Project to fields, expressions, or DTOs |
+| `sortedBy(p -> key)` | Sort ascending by the key |
+| `sortedDescendingBy(p -> key)` | Sort descending by the key |
 
-    return new Stats(activeCount, hasAdults);
-}
-```
+### Intermediate Operations
 
-## API Summary
+| Method | Description |
+|--------|-------------|
+| `where(p -> predicate)` | Add additional filter (AND with previous) |
+| `select(p -> projection)` | Transform elements |
+| `sortedBy(p -> key)` | Add sort order (JINQ semantics: last wins as primary) |
+| `sortedDescendingBy(p -> key)` | Add descending sort order |
+| `limit(n)` | Limit results to n items |
+| `skip(n)` | Skip first n results |
+| `distinct()` | Remove duplicates |
 
-All code (application and tests) uses the same syntax with explicit type parameters:
+### Terminal Operations
 
-```java
-// List query
-Person.findWhere((Person p) -> p.age >= 18)
+| Method | Description |
+|--------|-------------|
+| `toList()` | Execute and return all results as List |
+| `getSingleResult()` | Execute expecting exactly one result |
+| `findFirst()` | Execute and return Optional of first result |
+| `count()` | Count matching entities |
+| `exists()` | Check if any entity matches |
 
-// Count query
-Person.countWhere((Person p) -> p.active)
+### Aggregation Operations
 
-// Existence check
-Person.exists((Person p) -> p.email != null)
-```
+| Method | Description |
+|--------|-------------|
+| `min(p -> field)` | Find minimum value |
+| `max(p -> field)` | Find maximum value |
+| `avg(p -> field)` | Calculate average (returns Double) |
+| `sumInteger(p -> field)` | Sum Integer values (returns Long) |
+| `sumLong(p -> field)` | Sum Long values (returns Long) |
+| `sumDouble(p -> field)` | Sum Double values (returns Double) |
 
 ## Usage Examples
 
-### Complex Queries
+### Filtering
 
 ```java
-@GET
-@Path("/search")
-public List<Person> search(@QueryParam("minAge") int minAge) {
-    return Person.findWhere((Person p) ->
-        (p.age > minAge && p.active) ||
-        (p.salary > 80000 && p.firstName.startsWith("J"))
-    );
-}
+// Simple predicate
+List<Person> adults = personRepository.where((Person p) -> p.age >= 18).toList();
+
+// Multiple conditions (AND)
+List<Person> activeAdults = personRepository
+    .where((Person p) -> p.age >= 18)
+    .where((Person p) -> p.active)
+    .toList();
+
+// Complex logical expressions
+List<Person> results = personRepository.where((Person p) ->
+    (p.age >= 25 && p.age <= 35) || (p.salary > 100000 && p.active)
+).toList();
+```
+
+### Projection
+
+```java
+// Single field projection
+List<String> names = personRepository.select((Person p) -> p.firstName).toList();
+
+// Expression projection
+List<String> fullNames = personRepository
+    .select((Person p) -> p.firstName + " " + p.lastName)
+    .toList();
+
+// DTO projection
+List<PersonDTO> dtos = personRepository
+    .select((Person p) -> new PersonDTO(p.firstName, p.lastName, p.age))
+    .toList();
+
+// Combined filtering and projection
+List<String> activeCities = personRepository
+    .where((Person p) -> p.active)
+    .select((Person p) -> p.city)
+    .distinct()
+    .toList();
+```
+
+### Sorting
+
+```java
+// Single sort
+List<Person> byAge = personRepository.sortedBy((Person p) -> p.age).toList();
+
+// Descending sort
+List<Person> highestSalary = personRepository
+    .sortedDescendingBy((Person p) -> p.salary)
+    .limit(10)
+    .toList();
+
+// Multi-level sort (JINQ semantics: last call is primary)
+List<Person> sorted = personRepository
+    .sortedBy((Person p) -> p.firstName)    // Secondary
+    .sortedBy((Person p) -> p.lastName)     // Primary
+    .toList();
+// SQL: ORDER BY lastName ASC, firstName ASC
+```
+
+### Pagination
+
+```java
+// Top 10
+List<Person> top10 = personRepository
+    .sortedDescendingBy((Person p) -> p.salary)
+    .limit(10)
+    .toList();
+
+// Page 3 (skip 20, take 10)
+List<Person> page3 = personRepository
+    .sortedBy((Person p) -> p.id)
+    .skip(20)
+    .limit(10)
+    .toList();
+```
+
+### Aggregation
+
+```java
+// Count
+long activeCount = personRepository.where((Person p) -> p.active).count();
+
+// Exists
+boolean hasAdults = personRepository.where((Person p) -> p.age >= 18).exists();
+
+// Min/Max
+Integer minAge = personRepository.min((Person p) -> p.age).getSingleResult();
+Double maxSalary = personRepository.max((Person p) -> p.salary).getSingleResult();
+
+// Average
+Double avgAge = personRepository.avg((Person p) -> p.age).getSingleResult();
+
+// Sum
+Long totalAge = personRepository.sumInteger((Person p) -> p.age).getSingleResult();
+Double totalSalary = personRepository.sumDouble((Person p) -> p.salary).getSingleResult();
+
+// Conditional aggregation
+Double avgActiveSalary = personRepository
+    .where((Person p) -> p.active)
+    .avg((Person p) -> p.salary)
+    .getSingleResult();
 ```
 
 ### String Operations
 
 ```java
-List<Person> johns = Person.findWhere((Person p) -> p.firstName.startsWith("John"));
-List<Person> smiths = Person.findWhere((Person p) -> p.lastName.endsWith("Smith"));
-List<Person> gmail = Person.findWhere((Person p) -> p.email.contains("@gmail.com"));
+List<Person> johns = personRepository.where((Person p) -> p.firstName.startsWith("John")).toList();
+List<Person> smiths = personRepository.where((Person p) -> p.lastName.endsWith("Smith")).toList();
+List<Person> gmail = personRepository.where((Person p) -> p.email.contains("@gmail.com")).toList();
+List<Person> upper = personRepository.where((Person p) -> p.firstName.toLowerCase().equals("john")).toList();
 ```
 
 ### Null Checks
 
 ```java
-List<Person> withEmail = Person.findWhere((Person p) -> p.email != null);
-List<Person> withoutEmail = Person.findWhere((Person p) -> p.email == null);
+List<Person> withEmail = personRepository.where((Person p) -> p.email != null).toList();
+List<Person> withoutEmail = personRepository.where((Person p) -> p.email == null).toList();
 ```
 
-### Arithmetic Operations
+### Temporal Types
 
 ```java
-List<Person> retiring = Person.findWhere((Person p) -> p.age + 5 >= 65);
-List<Person> doubleAge = Person.findWhere((Person p) -> p.age * 2 > 60);
+// Date comparisons
+List<Person> bornAfter1990 = personRepository
+    .where((Person p) -> p.birthDate.isAfter(LocalDate.of(1990, 1, 1)))
+    .toList();
+
+// DateTime comparisons
+List<Person> recentlyCreated = personRepository
+    .where((Person p) -> p.createdAt.isAfter(LocalDateTime.now().minusDays(7)))
+    .toList();
+```
+
+### BigDecimal Comparisons
+
+```java
+// Product price queries
+List<Product> expensive = productRepository
+    .where((Product p) -> p.price.compareTo(new BigDecimal("1000.00")) > 0)
+    .toList();
+```
+
+### Arithmetic in Predicates
+
+```java
+List<Person> retiring = personRepository.where((Person p) -> p.age + 5 >= 65).toList();
+List<Person> doubleAge = personRepository.where((Person p) -> p.age * 2 > 60).toList();
 ```
 
 ## How It Works
@@ -147,8 +306,8 @@ List<Person> doubleAge = Person.findWhere((Person p) -> p.age * 2 > 60);
 
 1. **Lambda Detection**: During compilation, Qusaq scans bytecode for `invokedynamic` instructions
 2. **AST Analysis**: Lambda expressions are analyzed to build an Abstract Syntax Tree
-3. **Query Generation**: AST is transformed into JPA Criteria Query using Gizmo
-4. **Bytecode Enhancement**: Static methods are injected into entity classes (application code only)
+3. **Query Generation**: AST is transformed into JPA Criteria Query using Gizmo bytecode generation
+4. **Entity/Repository Enhancement**: Static methods are injected at build time
 5. **Registry Storage**: Generated executors are stored in `QueryExecutorRegistry`
 6. **Runtime Execution**: Queries execute with zero overhead using cached executors
 
@@ -156,37 +315,15 @@ List<Person> doubleAge = Person.findWhere((Person p) -> p.age * 2 > 60);
 
 ```
 User Code:
-  Person.findWhere((Person p) -> p.age >= 18)
-         ↓
-  [Bytecode Enhancement - injects static method at build time]
-         ↓
-  Person.findWhere(QuerySpec spec)
-         ↓
-  QusaqOperations.findWhere(Person.class, spec)
-         ↓
+  personRepository.where((Person p) -> p.age >= 18).toList()
+         |
+  [Bytecode Enhancement - generates query executor at build time]
+         |
+  QusaqStreamImpl.where(QuerySpec spec)
+         |
   QueryExecutorRegistry.executeListQuery(callSiteId, Person.class)
-         ↓
+         |
   Generated Criteria Query Executor (built at compile time)
-```
-
-## API Reference
-
-### Static Methods (Injected via Bytecode Enhancement)
-
-Available on all entities extending `QusaqEntity` or `PanacheEntity`:
-
-```java
-// Injected by bytecode enhancement at build time
-public static List<Person> findWhere(QuerySpec<Person, Boolean> spec)
-public static long countWhere(QuerySpec<Person, Boolean> spec)
-public static boolean exists(QuerySpec<Person, Boolean> spec)
-```
-
-**Usage with explicit type parameter:**
-```java
-Person.findWhere((Person p) -> p.age >= 18)
-Person.countWhere((Person p) -> p.active)
-Person.exists((Person p) -> p.email != null)
 ```
 
 ## Supported Operations
@@ -196,7 +333,7 @@ Person.exists((Person p) -> p.email != null)
 | Operator | Example | JPA Criteria Method |
 |----------|---------|---------------------|
 | `==` | `p.age == 30` | `cb.equal()` |
-| `!=` | `p.age != 30` | `cb.not(cb.equal())` |
+| `!=` | `p.age != 30` | `cb.notEqual()` |
 | `<` | `p.age < 30` | `cb.lt()` |
 | `<=` | `p.age <= 30` | `cb.le()` |
 | `>` | `p.age > 30` | `cb.gt()` |
@@ -217,6 +354,11 @@ Person.exists((Person p) -> p.email != null)
 | `startsWith()` | `p.name.startsWith("J")` | `cb.like(expr, "J%")` |
 | `endsWith()` | `p.email.endsWith(".com")` | `cb.like(expr, "%.com")` |
 | `contains()` | `p.email.contains("john")` | `cb.like(expr, "%john%")` |
+| `toLowerCase()` | `p.name.toLowerCase()` | `cb.lower()` |
+| `toUpperCase()` | `p.name.toUpperCase()` | `cb.upper()` |
+| `trim()` | `p.name.trim()` | `cb.trim()` |
+| `length()` | `p.name.length() > 5` | `cb.length()` |
+| `concat()` | `p.first.concat(p.last)` | `cb.concat()` |
 
 ### Arithmetic Operators
 
@@ -228,23 +370,37 @@ Person.exists((Person p) -> p.email != null)
 | `/` | `p.age / 2` | `cb.quot()` |
 | `%` | `p.age % 2` | `cb.mod()` |
 
+### Aggregation Functions
+
+| Function | Example | JPA Criteria Method |
+|----------|---------|---------------------|
+| `min()` | `Person.min(p -> p.age)` | `cb.min()` |
+| `max()` | `Person.max(p -> p.age)` | `cb.max()` |
+| `avg()` | `Person.avg(p -> p.salary)` | `cb.avg()` |
+| `sumInteger()` | `Person.sumInteger(p -> p.age)` | `cb.sum()` |
+| `sumLong()` | `Person.sumLong(p -> p.employeeId)` | `cb.sum()` |
+| `sumDouble()` | `Person.sumDouble(p -> p.salary)` | `cb.sum()` |
+
 ## Testing
 
-The extension includes a comprehensive test suite covering all query combinations:
+The extension includes a comprehensive test suite with 850+ tests covering all query combinations:
 
 ```bash
 mvn clean test
 ```
 
 Test categories:
-- Equality and inequality tests
-- Comparison operator tests
-- Logical operator combinations
-- String method tests
-- Null checks
-- Count and exists queries
-- Arithmetic operations
-- Complex nested conditions
+- Basic queries (equality, comparison, null checks)
+- Logical operators (AND, OR, NOT, complex expressions)
+- String operations (startsWith, endsWith, contains, case conversion)
+- Arithmetic operations (in predicates and projections)
+- Temporal types (LocalDate, LocalTime, LocalDateTime)
+- BigDecimal comparisons
+- Fluent API (where, select, sortedBy, limit, skip, distinct)
+- Projections (field, expression, DTO)
+- Aggregation (min, max, avg, sum, count, exists)
+- Pagination and sorting
+- Repository pattern and ActiveRecord pattern parity
 
 ## Performance
 
@@ -252,14 +408,16 @@ Test categories:
 - **Runtime**: Zero overhead - pre-compiled Criteria Queries execute directly
 - **Caching**: Query cache uses `ConcurrentHashMap` for thread-safe, high-performance lookups
 - **Memory**: Only transformed queries are cached, not lambda instances
+- **Optimization**: findFirst() automatically adds LIMIT 1
 
 ## Limitations
 
 - **Explicit type parameters**: Required due to Java type erasure
 - **Join queries**: Not yet supported (planned for future release)
 - **Subqueries**: Not yet supported (planned for future release)
-- **Aggregations**: Limited to count (sum, avg, min, max planned)
+- **Relationship navigation**: Queries like `p.address.city` not yet supported
 - **Collections**: `IN`, `MEMBER OF` not yet supported
+- **Grouping**: GROUP BY not yet supported (planned for future release)
 
 ## Requirements
 

@@ -29,36 +29,41 @@ public final class QusaqConstants {
     public static final String METHOD_LIMIT = "limit";
     public static final String METHOD_DISTINCT = "distinct";
 
-    // Fluent API - Terminal operations (instance methods on QusaqStream)
-    public static final String METHOD_TO_LIST = "toList";
-    public static final String METHOD_COUNT = "count";
-    public static final String METHOD_GET_SINGLE_RESULT = "getSingleResult";
-    public static final String METHOD_FIND_FIRST = "findFirst";
+    // Fluent API - Aggregation operations (can be entry points or intermediate operations)
+    // Phase 5: Aggregations now return QusaqStream and are intermediate operations
     public static final String METHOD_MIN = "min";
     public static final String METHOD_MAX = "max";
     public static final String METHOD_AVG = "avg";
     public static final String METHOD_SUM_INTEGER = "sumInteger";
     public static final String METHOD_SUM_LONG = "sumLong";
     public static final String METHOD_SUM_DOUBLE = "sumDouble";
+
+    // Fluent API - Terminal operations (instance methods on QusaqStream)
+    public static final String METHOD_TO_LIST = "toList";
+    public static final String METHOD_COUNT = "count";
+    public static final String METHOD_GET_SINGLE_RESULT = "getSingleResult";
+    public static final String METHOD_FIND_FIRST = "findFirst";
     public static final String METHOD_EXISTS = "exists";
 
     // All fluent API entry points (static methods)
     public static final Set<String> FLUENT_ENTRY_POINT_METHODS = Set.of(
-        METHOD_WHERE, METHOD_SELECT, METHOD_SORTED_BY, METHOD_SORTED_DESCENDING_BY
+        METHOD_WHERE, METHOD_SELECT, METHOD_SORTED_BY, METHOD_SORTED_DESCENDING_BY,
+        METHOD_MIN, METHOD_MAX, METHOD_AVG,
+        METHOD_SUM_INTEGER, METHOD_SUM_LONG, METHOD_SUM_DOUBLE
     );
 
     // All fluent API intermediate operations
     public static final Set<String> FLUENT_INTERMEDIATE_METHODS = Set.of(
         METHOD_WHERE, METHOD_SELECT, METHOD_SORTED_BY, METHOD_SORTED_DESCENDING_BY,
-        METHOD_SKIP, METHOD_LIMIT, METHOD_DISTINCT
+        METHOD_SKIP, METHOD_LIMIT, METHOD_DISTINCT,
+        METHOD_MIN, METHOD_MAX, METHOD_AVG,
+        METHOD_SUM_INTEGER, METHOD_SUM_LONG, METHOD_SUM_DOUBLE
     );
 
     // All fluent API terminal operations
     public static final Set<String> FLUENT_TERMINAL_METHODS = Set.of(
         METHOD_TO_LIST, METHOD_COUNT, METHOD_EXISTS,
-        METHOD_GET_SINGLE_RESULT, METHOD_FIND_FIRST,
-        METHOD_MIN, METHOD_MAX, METHOD_AVG,
-        METHOD_SUM_INTEGER, METHOD_SUM_LONG, METHOD_SUM_DOUBLE
+        METHOD_GET_SINGLE_RESULT, METHOD_FIND_FIRST
     );
 
     // Temporal comparison methods (used in lambda expressions for date/time comparisons)

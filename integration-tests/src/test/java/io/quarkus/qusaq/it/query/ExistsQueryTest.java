@@ -1,12 +1,14 @@
 package io.quarkus.qusaq.it.query;
 
 import io.quarkus.qusaq.it.Person;
+import io.quarkus.qusaq.it.Product;
 import io.quarkus.qusaq.it.testdata.TestDataFactory;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -20,7 +22,7 @@ class ExistsQueryTest {
     @Transactional
     void setupTestData() {
         TestDataFactory.clearAllData();
-        TestDataFactory.createStandardPersons();
+        TestDataFactory.createStandardPersonsAndProducts();
     }
 
     @Test
@@ -54,5 +56,30 @@ class ExistsQueryTest {
         ).exists();
 
         assertThat(exists).isTrue();
+    }
+
+    @Test
+    void productExistsTrue() {
+        boolean exists = Product.where((Product p) -> p.name.equals("Laptop")).exists();
+
+        assertThat(exists).isTrue();
+    }
+
+    @Test
+    void productExistsFalse() {
+        boolean exists = Product.where((Product p) -> p.name.equals("NonExistent")).exists();
+
+        assertThat(exists).isFalse();
+    }
+
+    @Test
+    void productExistsWithComplexExpression() {
+        boolean exists = Product.where((Product p) ->
+                p.category.equals("Electronics") &&
+                p.price.compareTo(new BigDecimal("1000")) > 0 &&
+                p.available
+        ).exists();
+
+        assertThat(exists).isTrue(); // Laptop is > $1000
     }
 }

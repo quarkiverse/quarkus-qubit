@@ -74,6 +74,16 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
      */
     private final boolean distinct;
 
+    /**
+     * Aggregation type (null if not an aggregation query).
+     */
+    private final AggregationType aggregationType;
+
+    /**
+     * Aggregation mapper (null if not an aggregation query).
+     */
+    private final QuerySpec<T, ?> aggregationMapper;
+
     // =============================================================================================
     // CONSTRUCTORS
     // =============================================================================================
@@ -82,7 +92,7 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
      * Creates a new stream for the given entity class with no operations.
      */
     public QusaqStreamImpl(Class<T> entityClass) {
-        this(entityClass, new ArrayList<>(), null, entityClass, new ArrayList<>(), null, null, false);
+        this(entityClass, new ArrayList<>(), null, entityClass, new ArrayList<>(), null, null, false, null, null);
     }
 
     /**
@@ -96,7 +106,9 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
             List<SortOrder<T>> sortOrders,
             Integer offset,
             Integer limit,
-            boolean distinct) {
+            boolean distinct,
+            AggregationType aggregationType,
+            QuerySpec<T, ?> aggregationMapper) {
         this.entityClass = entityClass;
         this.predicates = predicates;
         this.selector = selector;
@@ -105,6 +117,8 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
         this.offset = offset;
         this.limit = limit;
         this.distinct = distinct;
+        this.aggregationType = aggregationType;
+        this.aggregationMapper = aggregationMapper;
     }
 
     // =============================================================================================
@@ -198,59 +212,39 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
     }
 
     @Override
-    public <K extends Comparable<K>> K min(QuerySpec<T, K> mapper) {
-        // Phase 5: Delegate to build-time generated executor via registry
-        // Note: Aggregations with mappers work similar to projection queries
-        // The mapper lambda and predicates are analyzed at build time
-        throw new UnsupportedOperationException(
-                "Phase 5: min() requires build-time scanner updates to detect aggregation terminals. " +
-                "Implementation deferred - requires changes to InvokeDynamicScanner, CallSiteProcessor, " +
-                "and QueryExecutorClassGenerator to generate MIN aggregation queries.");
+    public <K extends Comparable<K>> QusaqStream<K> min(QuerySpec<T, K> mapper) {
+        // Phase 5: Store aggregation state, execution happens in getSingleResult()
+        return withAggregation(AggregationType.MIN, mapper);
     }
 
     @Override
-    public <K extends Comparable<K>> K max(QuerySpec<T, K> mapper) {
-        // Phase 5: Delegate to build-time generated executor via registry
-        throw new UnsupportedOperationException(
-                "Phase 5: max() requires build-time scanner updates to detect aggregation terminals. " +
-                "Implementation deferred - requires changes to InvokeDynamicScanner, CallSiteProcessor, " +
-                "and QueryExecutorClassGenerator to generate MAX aggregation queries.");
+    public <K extends Comparable<K>> QusaqStream<K> max(QuerySpec<T, K> mapper) {
+        // Phase 5: Store aggregation state, execution happens in getSingleResult()
+        return withAggregation(AggregationType.MAX, mapper);
     }
 
     @Override
-    public long sumInteger(QuerySpec<T, Integer> mapper) {
-        // Phase 5: Delegate to build-time generated executor via registry
-        throw new UnsupportedOperationException(
-                "Phase 5: sumInteger() requires build-time scanner updates to detect aggregation terminals. " +
-                "Implementation deferred - requires changes to InvokeDynamicScanner, CallSiteProcessor, " +
-                "and QueryExecutorClassGenerator to generate SUM aggregation queries.");
+    public QusaqStream<Long> sumInteger(QuerySpec<T, Integer> mapper) {
+        // Phase 5: Store aggregation state, execution happens in getSingleResult()
+        return withAggregation(AggregationType.SUM_INTEGER, mapper);
     }
 
     @Override
-    public long sumLong(QuerySpec<T, Long> mapper) {
-        // Phase 5: Delegate to build-time generated executor via registry
-        throw new UnsupportedOperationException(
-                "Phase 5: sumLong() requires build-time scanner updates to detect aggregation terminals. " +
-                "Implementation deferred - requires changes to InvokeDynamicScanner, CallSiteProcessor, " +
-                "and QueryExecutorClassGenerator to generate SUM aggregation queries.");
+    public QusaqStream<Long> sumLong(QuerySpec<T, Long> mapper) {
+        // Phase 5: Store aggregation state, execution happens in getSingleResult()
+        return withAggregation(AggregationType.SUM_LONG, mapper);
     }
 
     @Override
-    public double sumDouble(QuerySpec<T, Double> mapper) {
-        // Phase 5: Delegate to build-time generated executor via registry
-        throw new UnsupportedOperationException(
-                "Phase 5: sumDouble() requires build-time scanner updates to detect aggregation terminals. " +
-                "Implementation deferred - requires changes to InvokeDynamicScanner, CallSiteProcessor, " +
-                "and QueryExecutorClassGenerator to generate SUM aggregation queries.");
+    public QusaqStream<Double> sumDouble(QuerySpec<T, Double> mapper) {
+        // Phase 5: Store aggregation state, execution happens in getSingleResult()
+        return withAggregation(AggregationType.SUM_DOUBLE, mapper);
     }
 
     @Override
-    public Double avg(QuerySpec<T, ? extends Number> mapper) {
-        // Phase 5: Delegate to build-time generated executor via registry
-        throw new UnsupportedOperationException(
-                "Phase 5: avg() requires build-time scanner updates to detect aggregation terminals. " +
-                "Implementation deferred - requires changes to InvokeDynamicScanner, CallSiteProcessor, " +
-                "and QueryExecutorClassGenerator to generate AVG aggregation queries.");
+    public QusaqStream<Double> avg(QuerySpec<T, ? extends Number> mapper) {
+        // Phase 5: Store aggregation state, execution happens in getSingleResult()
+        return withAggregation(AggregationType.AVG, mapper);
     }
 
     // =============================================================================================
@@ -270,8 +264,18 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public T getSingleResult() {
-        // Delegate to toList() and validate single result
+        // Phase 5: If this is an aggregation query, execute it directly
+        if (aggregationType != null) {
+            String callSiteId = getCallSiteId();
+            Object[] capturedValues = extractCapturedVariables(callSiteId);
+
+            QueryExecutorRegistry registry = Arc.container().instance(QueryExecutorRegistry.class).get();
+            return (T) registry.executeAggregationQuery(callSiteId, entityClass, capturedValues);
+        }
+
+        // Otherwise, delegate to toList() and validate single result
         // Note: This uses the build-time generated executor infrastructure
         List<T> results = toList();
 
@@ -313,7 +317,7 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
      */
     private QusaqStreamImpl<T> withPredicates(List<QuerySpec<T, Boolean>> predicates) {
         return new QusaqStreamImpl<>(entityClass, predicates, selector, resultType,
-                sortOrders, offset, limit, distinct);
+                sortOrders, offset, limit, distinct, aggregationType, aggregationMapper);
     }
 
     /**
@@ -330,7 +334,9 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
                 (List<SortOrder<T>>) (List<?>) sortOrders,
                 offset,
                 limit,
-                distinct
+                distinct,
+                aggregationType,
+                aggregationMapper
         );
     }
 
@@ -340,7 +346,7 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
      */
     private QusaqStreamImpl<T> withSortOrders(List<SortOrder<T>> sortOrders) {
         return new QusaqStreamImpl<>(entityClass, predicates, selector, resultType,
-                sortOrders, offset, limit, distinct);
+                sortOrders, offset, limit, distinct, aggregationType, aggregationMapper);
     }
 
     /**
@@ -349,7 +355,7 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
      */
     private QusaqStreamImpl<T> withOffset(Integer offset) {
         return new QusaqStreamImpl<>(entityClass, predicates, selector, resultType,
-                sortOrders, offset, limit, distinct);
+                sortOrders, offset, limit, distinct, aggregationType, aggregationMapper);
     }
 
     /**
@@ -358,7 +364,7 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
      */
     private QusaqStreamImpl<T> withLimit(Integer limit) {
         return new QusaqStreamImpl<>(entityClass, predicates, selector, resultType,
-                sortOrders, offset, limit, distinct);
+                sortOrders, offset, limit, distinct, aggregationType, aggregationMapper);
     }
 
     /**
@@ -367,7 +373,27 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
      */
     private QusaqStreamImpl<T> withDistinct(boolean distinct) {
         return new QusaqStreamImpl<>(entityClass, predicates, selector, resultType,
-                sortOrders, offset, limit, distinct);
+                sortOrders, offset, limit, distinct, aggregationType, aggregationMapper);
+    }
+
+    /**
+     * Creates a new stream with aggregation state.
+     * All other state is copied from the current stream.
+     */
+    @SuppressWarnings("unchecked")
+    private <R> QusaqStream<R> withAggregation(AggregationType type, QuerySpec<T, ?> mapper) {
+        return (QusaqStream<R>) new QusaqStreamImpl<>(
+                entityClass,
+                predicates,
+                selector,
+                resultType,
+                sortOrders,
+                offset,
+                limit,
+                distinct,
+                type,
+                mapper
+        );
     }
 
     // =============================================================================================
@@ -483,5 +509,17 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
      * @param <T> Entity type being sorted
      */
     private record SortOrder<T>(QuerySpec<T, ?> keyExtractor, SortDirection direction) {
+    }
+
+    /**
+     * Types of aggregation operations supported.
+     */
+    private enum AggregationType {
+        MIN,
+        MAX,
+        SUM_INTEGER,
+        SUM_LONG,
+        SUM_DOUBLE,
+        AVG
     }
 }

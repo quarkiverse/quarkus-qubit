@@ -31,6 +31,15 @@ public class QueryExecutorRecorder {
     }
 
     /**
+     * Registers aggregation query executor during static initialization.
+     * Phase 5: Supports MIN, MAX, AVG, SUM* aggregation operations.
+     */
+    public void registerAggregationExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
+        registerExecutor(callSiteId, executorClassName, capturedVarCount, "aggregation",
+            (QueryExecutor<Object> executor) -> QueryExecutorRegistry.registerAggregationExecutor(callSiteId, executor, capturedVarCount));
+    }
+
+    /**
      * Generic executor registration method that handles the common logic for all executor types.
      */
     private <T> void registerExecutor(

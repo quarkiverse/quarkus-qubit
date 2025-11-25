@@ -32,7 +32,7 @@ public class QusaqEntityOperationGenerationVisitor extends ClassVisitor {
     public void visit(int version, int access, String name, String signature,
                       String superName, String[] interfaces) {
 
-        if (superName != null && superName.equals(QUSAQ_ENTITY_INTERNAL_NAME)) {
+        if (QUSAQ_ENTITY_INTERNAL_NAME.equals(superName)) {
             extendsQusaqEntity = true;
             entityType = Type.getObjectType(entityInternalName);
             log.debugf("Entity %s extends QusaqEntity - will replace abstract methods", entityClassName);
@@ -49,6 +49,15 @@ public class QusaqEntityOperationGenerationVisitor extends ClassVisitor {
             generateSelectMethod();
             generateSortedByMethod();
             generateSortedDescendingByMethod();
+
+            // Phase 5: Generate aggregation entry points
+            generateMinMethod();
+            generateMaxMethod();
+            generateAvgMethod();
+            generateSumIntegerMethod();
+            generateSumLongMethod();
+            generateSumDoubleMethod();
+
             // Note: count() and findAll() are inherited from PanacheEntityBase
         }
 
@@ -75,6 +84,44 @@ public class QusaqEntityOperationGenerationVisitor extends ClassVisitor {
 
     private void generateSortedDescendingByMethod() {
         var config = QusaqBytecodeGenerator.FluentMethodConfig.forSortedDescendingBy(
+                entityType, entityInternalName);
+        QusaqBytecodeGenerator.generateFluentEntryPoint(cv, config);
+    }
+
+    // Phase 5: Aggregation method generation
+
+    private void generateMinMethod() {
+        var config = QusaqBytecodeGenerator.FluentMethodConfig.forMin(
+                entityType, entityInternalName);
+        QusaqBytecodeGenerator.generateFluentEntryPoint(cv, config);
+    }
+
+    private void generateMaxMethod() {
+        var config = QusaqBytecodeGenerator.FluentMethodConfig.forMax(
+                entityType, entityInternalName);
+        QusaqBytecodeGenerator.generateFluentEntryPoint(cv, config);
+    }
+
+    private void generateAvgMethod() {
+        var config = QusaqBytecodeGenerator.FluentMethodConfig.forAvg(
+                entityType, entityInternalName);
+        QusaqBytecodeGenerator.generateFluentEntryPoint(cv, config);
+    }
+
+    private void generateSumIntegerMethod() {
+        var config = QusaqBytecodeGenerator.FluentMethodConfig.forSumInteger(
+                entityType, entityInternalName);
+        QusaqBytecodeGenerator.generateFluentEntryPoint(cv, config);
+    }
+
+    private void generateSumLongMethod() {
+        var config = QusaqBytecodeGenerator.FluentMethodConfig.forSumLong(
+                entityType, entityInternalName);
+        QusaqBytecodeGenerator.generateFluentEntryPoint(cv, config);
+    }
+
+    private void generateSumDoubleMethod() {
+        var config = QusaqBytecodeGenerator.FluentMethodConfig.forSumDouble(
                 entityType, entityInternalName);
         QusaqBytecodeGenerator.generateFluentEntryPoint(cv, config);
     }

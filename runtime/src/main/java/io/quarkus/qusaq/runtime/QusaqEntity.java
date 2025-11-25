@@ -193,4 +193,202 @@ public abstract class QusaqEntity extends PanacheEntity {
                 "Did you forget to annotate your entity with @Entity? " +
                 "Or is the Qusaq build-time processor not properly configured?");
     }
+
+    // =============================================================================================
+    // AGGREGATION OPERATIONS (Phase 5)
+    // =============================================================================================
+
+    /**
+     * Prepares a minimum value aggregation query.
+     * <p>
+     * This is an entry point for finding the minimum value of a comparable field.
+     * Can be combined with {@code where()} for conditional aggregation.
+     * <p>
+     * <strong>Implemented at build time</strong> - the bytecode enhancement processor will
+     * replace this method body in each entity subclass with the actual query execution code.
+     * <p>
+     * Example:
+     * <pre>{@code
+     * // Minimum age across all persons
+     * Integer minAge = Person.min(p -> p.age).getSingleResult();
+     *
+     * // Minimum salary for active employees
+     * Double minActiveSalary = Person.where(p -> p.active)
+     *                                .min(p -> p.salary)
+     *                                .getSingleResult();
+     * }</pre>
+     *
+     * @param <T> the entity type
+     * @param <K> the type of the field (must be comparable)
+     * @param mapper lambda selecting the field to aggregate
+     * @return a QusaqStream that will yield the minimum value
+     * @throws IllegalStateException if called at runtime without build-time enhancement
+     */
+    public static <T extends QusaqEntity, K extends Comparable<K>> QusaqStream<K> min(QuerySpec<T, K> mapper) {
+        throw new IllegalStateException(
+                "This method is normally automatically overridden in subclasses at build time. " +
+                "Did you forget to annotate your entity with @Entity? " +
+                "Or is the Qusaq build-time processor not properly configured?");
+    }
+
+    /**
+     * Prepares a maximum value aggregation query.
+     * <p>
+     * This is an entry point for finding the maximum value of a comparable field.
+     * Can be combined with {@code where()} for conditional aggregation.
+     * <p>
+     * <strong>Implemented at build time</strong> - the bytecode enhancement processor will
+     * replace this method body in each entity subclass with the actual query execution code.
+     * <p>
+     * Example:
+     * <pre>{@code
+     * // Maximum age across all persons
+     * Integer maxAge = Person.max(p -> p.age).getSingleResult();
+     *
+     * // Maximum salary for active employees
+     * Double maxActiveSalary = Person.where(p -> p.active)
+     *                                .max(p -> p.salary)
+     *                                .getSingleResult();
+     * }</pre>
+     *
+     * @param <T> the entity type
+     * @param <K> the type of the field (must be comparable)
+     * @param mapper lambda selecting the field to aggregate
+     * @return a QusaqStream that will yield the maximum value
+     * @throws IllegalStateException if called at runtime without build-time enhancement
+     */
+    public static <T extends QusaqEntity, K extends Comparable<K>> QusaqStream<K> max(QuerySpec<T, K> mapper) {
+        throw new IllegalStateException(
+                "This method is normally automatically overridden in subclasses at build time. " +
+                "Did you forget to annotate your entity with @Entity? " +
+                "Or is the Qusaq build-time processor not properly configured?");
+    }
+
+    /**
+     * Prepares an average aggregation query for numeric values.
+     * <p>
+     * This is an entry point for computing the average value of a numeric field.
+     * Can be combined with {@code where()} for conditional aggregation.
+     * <p>
+     * <strong>Implemented at build time</strong> - the bytecode enhancement processor will
+     * replace this method body in each entity subclass with the actual query execution code.
+     * <p>
+     * Example:
+     * <pre>{@code
+     * // Average age across all persons
+     * Double avgAge = Person.avg(p -> p.age).getSingleResult();
+     *
+     * // Average salary for active employees
+     * Double avgActiveSalary = Person.where(p -> p.active)
+     *                                .avg(p -> p.salary)
+     *                                .getSingleResult();
+     * }</pre>
+     *
+     * @param <T> the entity type
+     * @param mapper lambda selecting the numeric field to aggregate
+     * @return a QusaqStream that will yield the average as a Double
+     * @throws IllegalStateException if called at runtime without build-time enhancement
+     */
+    public static <T extends QusaqEntity> QusaqStream<Double> avg(QuerySpec<T, ? extends Number> mapper) {
+        throw new IllegalStateException(
+                "This method is normally automatically overridden in subclasses at build time. " +
+                "Did you forget to annotate your entity with @Entity? " +
+                "Or is the Qusaq build-time processor not properly configured?");
+    }
+
+    /**
+     * Prepares a sum aggregation query for Integer values.
+     * <p>
+     * This is an entry point for computing the sum of Integer fields.
+     * Returns Long to prevent overflow. Can be combined with {@code where()} for conditional aggregation.
+     * <p>
+     * <strong>Implemented at build time</strong> - the bytecode enhancement processor will
+     * replace this method body in each entity subclass with the actual query execution code.
+     * <p>
+     * Example:
+     * <pre>{@code
+     * // Total age of all persons
+     * Long totalAge = Person.sumInteger(p -> p.age).getSingleResult();
+     *
+     * // Total age of active persons
+     * Long totalActiveAge = Person.where(p -> p.active)
+     *                             .sumInteger(p -> p.age)
+     *                             .getSingleResult();
+     * }</pre>
+     *
+     * @param <T> the entity type
+     * @param mapper lambda selecting the Integer field to sum
+     * @return a QusaqStream that will yield the sum as a Long
+     * @throws IllegalStateException if called at runtime without build-time enhancement
+     */
+    public static <T extends QusaqEntity> QusaqStream<Long> sumInteger(QuerySpec<T, Integer> mapper) {
+        throw new IllegalStateException(
+                "This method is normally automatically overridden in subclasses at build time. " +
+                "Did you forget to annotate your entity with @Entity? " +
+                "Or is the Qusaq build-time processor not properly configured?");
+    }
+
+    /**
+     * Prepares a sum aggregation query for Long values.
+     * <p>
+     * This is an entry point for computing the sum of Long fields.
+     * Can be combined with {@code where()} for conditional aggregation.
+     * <p>
+     * <strong>Implemented at build time</strong> - the bytecode enhancement processor will
+     * replace this method body in each entity subclass with the actual query execution code.
+     * <p>
+     * Example:
+     * <pre>{@code
+     * // Total employee IDs (hypothetical use case)
+     * Long totalIds = Person.sumLong(p -> p.employeeId).getSingleResult();
+     *
+     * // Total IDs for active employees
+     * Long totalActiveIds = Person.where(p -> p.active)
+     *                             .sumLong(p -> p.employeeId)
+     *                             .getSingleResult();
+     * }</pre>
+     *
+     * @param <T> the entity type
+     * @param mapper lambda selecting the Long field to sum
+     * @return a QusaqStream that will yield the sum as a Long
+     * @throws IllegalStateException if called at runtime without build-time enhancement
+     */
+    public static <T extends QusaqEntity> QusaqStream<Long> sumLong(QuerySpec<T, Long> mapper) {
+        throw new IllegalStateException(
+                "This method is normally automatically overridden in subclasses at build time. " +
+                "Did you forget to annotate your entity with @Entity? " +
+                "Or is the Qusaq build-time processor not properly configured?");
+    }
+
+    /**
+     * Prepares a sum aggregation query for Double values.
+     * <p>
+     * This is an entry point for computing the sum of Double fields.
+     * Can be combined with {@code where()} for conditional aggregation.
+     * <p>
+     * <strong>Implemented at build time</strong> - the bytecode enhancement processor will
+     * replace this method body in each entity subclass with the actual query execution code.
+     * <p>
+     * Example:
+     * <pre>{@code
+     * // Total salary of all persons
+     * Double totalSalary = Person.sumDouble(p -> p.salary).getSingleResult();
+     *
+     * // Total salary of active employees
+     * Double totalActiveSalary = Person.where(p -> p.active)
+     *                                  .sumDouble(p -> p.salary)
+     *                                  .getSingleResult();
+     * }</pre>
+     *
+     * @param <T> the entity type
+     * @param mapper lambda selecting the Double field to sum
+     * @return a QusaqStream that will yield the sum as a Double
+     * @throws IllegalStateException if called at runtime without build-time enhancement
+     */
+    public static <T extends QusaqEntity> QusaqStream<Double> sumDouble(QuerySpec<T, Double> mapper) {
+        throw new IllegalStateException(
+                "This method is normally automatically overridden in subclasses at build time. " +
+                "Did you forget to annotate your entity with @Entity? " +
+                "Or is the Qusaq build-time processor not properly configured?");
+    }
 }

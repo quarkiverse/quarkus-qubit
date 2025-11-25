@@ -64,6 +64,18 @@ public class QueryExecutorClassGenerator {
     private static final MethodDescriptor CQ_DISTINCT = md(CriteriaQuery.class, "distinct",
             CriteriaQuery.class, boolean.class);
 
+    // Phase 5: Method descriptors for aggregation functions
+    private static final MethodDescriptor CB_MIN = md(CriteriaBuilder.class, "min",
+            Expression.class, Expression.class);
+    private static final MethodDescriptor CB_MAX = md(CriteriaBuilder.class, "max",
+            Expression.class, Expression.class);
+    private static final MethodDescriptor CB_AVG = md(CriteriaBuilder.class, "avg",
+            Expression.class, Expression.class);
+    private static final MethodDescriptor CB_SUM_AS_LONG = md(CriteriaBuilder.class, "sumAsLong",
+            Expression.class, Expression.class);
+    private static final MethodDescriptor CB_SUM_AS_DOUBLE = md(CriteriaBuilder.class, "sumAsDouble",
+            Expression.class, Expression.class);
+
     /**
      * Common context for query generation methods.
      * Encapsulates parameters shared across all query generation methods.
@@ -92,13 +104,17 @@ public class QueryExecutorClassGenerator {
      * Generates query executor class bytecode from lambda expressions.
      * Phase 2.2: Accepts both predicate and projection expressions for combined queries.
      * Phase 3: Accepts sort expressions for ORDER BY generation.
+     * Phase 5: Accepts aggregation expression and type for aggregation queries.
      */
     public byte[] generateQueryExecutorClass(
             LambdaExpression predicateExpression,
             LambdaExpression projectionExpression,
             List<?> sortExpressions,
+            LambdaExpression aggregationExpression,
+            String aggregationType,
             String className,
-            boolean isCountQuery) {
+            boolean isCountQuery,
+            boolean isAggregationQuery) {
 
         class ByteArrayClassOutput implements ClassOutput {
             private byte[] data;
@@ -141,7 +157,11 @@ public class QueryExecutorClassGenerator {
                 ResultHandle distinct = execute.getMethodParam(5);
 
                 ResultHandle result;
-                if (isCountQuery) {
+                if (isAggregationQuery) {
+                    // Phase 5: Aggregation queries (min, max, avg, sum*)
+                    result = generateAggregationQueryBody(execute, em, entityClassParam, predicateExpression,
+                            aggregationExpression, aggregationType, capturedValues);
+                } else if (isCountQuery) {
                     // Count queries ignore pagination and distinct parameters
                     result = generateCountQueryBody(execute, em, entityClassParam, predicateExpression, capturedValues);
                 } else {
@@ -223,6 +243,123 @@ public class QueryExecutorClassGenerator {
         applyWherePredicate(method, query, predicate);
         ResultHandle typedQuery = method.invokeInterfaceMethod(md(EntityManager.class, EM_CREATE_QUERY, TypedQuery.class, CriteriaQuery.class), em, query);
         return method.invokeInterfaceMethod(md(TypedQuery.class, TQ_GET_SINGLE_RESULT, Object.class), typedQuery);
+    }
+
+    /**
+     * Generates aggregation query body (Phase 5).
+     * Supports MIN, MAX, AVG, SUM_INTEGER, SUM_LONG, SUM_DOUBLE aggregation operations.
+     * <p>
+     * Example: Person.where(p -> p.age > 25).min(p -> p.salary)
+     * <p>
+     * Generates:
+     * <pre>
+     * CriteriaBuilder cb = em.getCriteriaBuilder();
+     * CriteriaQuery<Double> query = cb.createQuery(Double.class);
+     * Root<Person> root = query.from(Person.class);
+     * Expression<Double> salaryExpr = root.get("salary");
+     * query.select(cb.min(salaryExpr));
+     * Predicate where = cb.greaterThan(root.get("age"), 25);
+     * query.where(where);
+     * return em.createQuery(query).getSingleResult();
+     * </pre>
+     *
+     * @param method Bytecode generator context
+     * @param em EntityManager handle
+     * @param entityClass Entity class being queried
+     * @param predicateExpression WHERE clause lambda (null if no filtering)
+     * @param aggregationExpression Aggregation mapper lambda (e.g., p -> p.salary)
+     * @param aggregationType Aggregation type: MIN, MAX, AVG, SUM_INTEGER, SUM_LONG, SUM_DOUBLE
+     * @param capturedValues Captured variables from lambdas
+     * @return ResultHandle to aggregation query result
+     */
+    private ResultHandle generateAggregationQueryBody(
+            MethodCreator method,
+            ResultHandle em,
+            ResultHandle entityClass,
+            LambdaExpression predicateExpression,
+            LambdaExpression aggregationExpression,
+            String aggregationType,
+            ResultHandle capturedValues) {
+
+        // Get CriteriaBuilder
+        ResultHandle cb = method.invokeInterfaceMethod(
+                md(EntityManager.class, EM_GET_CRITERIA_BUILDER, CriteriaBuilder.class), em);
+
+        // Determine result type based on aggregation type
+        Class<?> resultType = getAggregationResultType(aggregationType);
+        ResultHandle resultClass = method.loadClass(resultType);
+
+        // Create CriteriaQuery<ResultType>
+        ResultHandle query = method.invokeInterfaceMethod(
+                md(CriteriaBuilder.class, EM_CREATE_QUERY, CriteriaQuery.class, Class.class),
+                cb, resultClass);
+
+        // Create Root<Entity>
+        ResultHandle root = method.invokeInterfaceMethod(
+                md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class), query, entityClass);
+
+        // Generate expression for aggregation mapper (e.g., root.get("salary"))
+        ResultHandle mapperExpr = expressionGenerator.generateExpression(
+                method, aggregationExpression, cb, root, capturedValues);
+
+        // Apply aggregation function
+        ResultHandle aggExpr = applyAggregationFunction(method, cb, mapperExpr, aggregationType);
+
+        // SELECT aggregation result
+        method.invokeInterfaceMethod(
+                md(CriteriaQuery.class, CQ_SELECT, CriteriaQuery.class, Selection.class),
+                query, aggExpr);
+
+        // Apply WHERE predicate if present
+        if (predicateExpression != null) {
+            ResultHandle predicate = expressionGenerator.generatePredicate(
+                    method, predicateExpression, cb, root, capturedValues);
+            applyWherePredicate(method, query, predicate);
+        }
+
+        // Create and execute query
+        ResultHandle typedQuery = method.invokeInterfaceMethod(
+                md(EntityManager.class, EM_CREATE_QUERY, TypedQuery.class, CriteriaQuery.class),
+                em, query);
+
+        return method.invokeInterfaceMethod(
+                md(TypedQuery.class, TQ_GET_SINGLE_RESULT, Object.class), typedQuery);
+    }
+
+    /**
+     * Determines the Java result type for an aggregation query.
+     * Phase 5: Maps aggregation type names to Java classes.
+     */
+    private Class<?> getAggregationResultType(String aggregationType) {
+        return switch (aggregationType) {
+            case "AVG" -> Double.class;           // AVG always returns Double
+            case "SUM_INTEGER" -> Long.class;     // SUM of integers returns Long
+            case "SUM_LONG" -> Long.class;        // SUM of longs returns Long
+            case "SUM_DOUBLE" -> Double.class;    // SUM of doubles returns Double
+            case "MIN", "MAX" -> Object.class;    // MIN/MAX return same type as field (use Object for now)
+            default -> throw new IllegalArgumentException("Unknown aggregation type: " + aggregationType);
+        };
+    }
+
+    /**
+     * Applies the appropriate CriteriaBuilder aggregation function.
+     * Phase 5: Generates cb.min(), cb.max(), cb.avg(), cb.sum() calls.
+     */
+    private ResultHandle applyAggregationFunction(
+            MethodCreator method,
+            ResultHandle cb,
+            ResultHandle expression,
+            String aggregationType) {
+
+        return switch (aggregationType) {
+            case "MIN" -> method.invokeInterfaceMethod(CB_MIN, cb, expression);
+            case "MAX" -> method.invokeInterfaceMethod(CB_MAX, cb, expression);
+            case "AVG" -> method.invokeInterfaceMethod(CB_AVG, cb, expression);
+            case "SUM_INTEGER" -> method.invokeInterfaceMethod(CB_SUM_AS_LONG, cb, expression);  // Use sumAsLong for Integer fields
+            case "SUM_LONG" -> method.invokeInterfaceMethod(CB_SUM_AS_LONG, cb, expression);
+            case "SUM_DOUBLE" -> method.invokeInterfaceMethod(CB_SUM_AS_DOUBLE, cb, expression);
+            default -> throw new IllegalArgumentException("Unknown aggregation type: " + aggregationType);
+        };
     }
 
     /**

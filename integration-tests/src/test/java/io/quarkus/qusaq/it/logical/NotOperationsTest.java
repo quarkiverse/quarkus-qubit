@@ -1,6 +1,7 @@
 package io.quarkus.qusaq.it.logical;
 
 import io.quarkus.qusaq.it.Person;
+import io.quarkus.qusaq.it.Product;
 import io.quarkus.qusaq.it.testdata.TestDataFactory;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.transaction.Transactional;
@@ -20,7 +21,7 @@ class NotOperationsTest {
     @Transactional
     void setupTestData() {
         TestDataFactory.clearAllData();
-        TestDataFactory.createStandardPersons();
+        TestDataFactory.createStandardPersonsAndProducts();
     }
 
     @Test
@@ -86,5 +87,23 @@ class NotOperationsTest {
         assertThat(results)
                 .hasSizeGreaterThan(0)
                 .allMatch(p -> !(p.isActive() || p.getSalary() > 90000));
+    }
+
+    @Test
+    void productNotAvailable() {
+        var results = Product.where((Product p) -> !p.available).toList();
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .noneMatch(Product::isAvailable);
+    }
+
+    @Test
+    void productNotWithAnd() {
+        var results = Product.where((Product p) -> !p.available && p.stockQuantity < 1).toList();
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(p -> !p.isAvailable() && p.getStockQuantity() < 1);
     }
 }

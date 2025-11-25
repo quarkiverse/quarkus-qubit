@@ -1,11 +1,15 @@
 package io.quarkus.qusaq.it;
 
 import io.quarkus.qusaq.runtime.QusaqEntity;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
+import jakarta.persistence.OneToMany;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -28,6 +32,9 @@ public class Person extends QusaqEntity {
     public Float height;  // REAL/FLOAT type for testing Float operations
     public LocalDateTime createdAt;  // TIMESTAMP type for testing LocalDateTime operations
     public LocalTime startTime;  // TIME type for testing LocalTime operations
+
+    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
+    public List<Phone> phones = new ArrayList<>();
 
     public Person() {
     }
@@ -91,6 +98,10 @@ public class Person extends QusaqEntity {
 
     public LocalTime getStartTime() {
         return startTime;
+    }
+
+    public List<Phone> getPhones() {
+        return phones;
     }
 
     @Override

@@ -2,9 +2,14 @@ package io.quarkus.qusaq.it;
 
 import io.quarkus.qusaq.runtime.QusaqEntity;
 import jakarta.persistence.Entity;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 
 import java.math.BigDecimal;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Another test entity for comprehensive query testing with Qusaq.
@@ -22,6 +27,14 @@ public class Product extends QusaqEntity {
     public boolean available;
     public String description;
     public Double rating;
+
+    @ManyToMany
+    @JoinTable(
+            name = "product_tag",
+            joinColumns = @JoinColumn(name = "product_id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id")
+    )
+    public Set<Tag> tags = new HashSet<>();
 
     public Product() {
     }
@@ -63,6 +76,10 @@ public class Product extends QusaqEntity {
 
     public Double getRating() {
         return rating;
+    }
+
+    public Set<Tag> getTags() {
+        return tags;
     }
 
     @Override

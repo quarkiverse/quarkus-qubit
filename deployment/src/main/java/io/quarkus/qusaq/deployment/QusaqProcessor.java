@@ -251,7 +251,13 @@ public class QusaqProcessor {
         for (QueryTransformationBuildItem transformation : transformations) {
             String callSiteId = transformation.getQueryId();
 
-            if (transformation.isCountQuery()) {
+            if (transformation.isAggregationQuery()) {
+                // Phase 5: Register aggregation executors (min, max, avg, sum*)
+                recorder.registerAggregationExecutor(
+                        callSiteId,
+                        transformation.getGeneratedClassName(),
+                        transformation.getCapturedVarCount());
+            } else if (transformation.isCountQuery()) {
                 recorder.registerCountExecutor(
                         callSiteId,
                         transformation.getGeneratedClassName(),
@@ -276,6 +282,7 @@ public class QusaqProcessor {
         private final String generatedClassName;
         private final Class<?> entityClass;
         private final boolean isCountQuery;
+        private final boolean isAggregationQuery;
         private final int capturedVarCount;
 
         public QueryTransformationBuildItem(
@@ -284,10 +291,21 @@ public class QusaqProcessor {
                 Class<?> entityClass,
                 boolean isCountQuery,
                 int capturedVarCount) {
+            this(queryId, generatedClassName, entityClass, isCountQuery, false, capturedVarCount);
+        }
+
+        public QueryTransformationBuildItem(
+                String queryId,
+                String generatedClassName,
+                Class<?> entityClass,
+                boolean isCountQuery,
+                boolean isAggregationQuery,
+                int capturedVarCount) {
             this.queryId = queryId;
             this.generatedClassName = generatedClassName;
             this.entityClass = entityClass;
             this.isCountQuery = isCountQuery;
+            this.isAggregationQuery = isAggregationQuery;
             this.capturedVarCount = capturedVarCount;
         }
 
@@ -309,6 +327,11 @@ public class QusaqProcessor {
         /** Returns true if this is a count query. */
         public boolean isCountQuery() {
             return isCountQuery;
+        }
+
+        /** Returns true if this is an aggregation query (Phase 5). */
+        public boolean isAggregationQuery() {
+            return isAggregationQuery;
         }
 
         /** Returns number of captured variables. */

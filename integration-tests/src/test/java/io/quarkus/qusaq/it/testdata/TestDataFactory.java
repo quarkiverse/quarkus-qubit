@@ -1,12 +1,16 @@
 package io.quarkus.qusaq.it.testdata;
 
 import io.quarkus.qusaq.it.Person;
+import io.quarkus.qusaq.it.Phone;
 import io.quarkus.qusaq.it.Product;
+import io.quarkus.qusaq.it.Tag;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Centralized factory for creating test data across integration tests.
@@ -16,6 +20,9 @@ import java.time.LocalTime;
  * Each named person (John, Jane, etc.) is defined once and reused across factory methods.
  */
 public class TestDataFactory {
+
+    // Cache for reusable tags
+    private static final Map<String, Tag> tagCache = new HashMap<>();
 
     // ========== Person Builders (Private) ==========
 
@@ -66,6 +73,35 @@ public class TestDataFactory {
                 null, false, null, null, null, null, null);
     }
 
+    // ========== Tag Helpers (Private) ==========
+
+    private static Tag getOrCreateTag(String name, String color) {
+        return tagCache.computeIfAbsent(name, k -> {
+            Tag tag = new Tag(name, color);
+            tag.persist();
+            return tag;
+        });
+    }
+
+    private static void createStandardTags() {
+        getOrCreateTag("electronics", "blue");
+        getOrCreateTag("premium", "gold");
+        getOrCreateTag("bestseller", "green");
+        getOrCreateTag("sale", "red");
+        getOrCreateTag("new-arrival", "purple");
+        getOrCreateTag("eco-friendly", "lime");
+    }
+
+    // ========== Phone Helpers (Private) ==========
+
+    private static void addPhonesTo(Person person, String[][] phoneData) {
+        for (String[] data : phoneData) {
+            Phone phone = new Phone(data[0], data[1], Boolean.parseBoolean(data[2]), person);
+            phone.persist();
+            person.phones.add(phone);
+        }
+    }
+
     // ========== Public Factory Methods ==========
 
     /**
@@ -78,6 +114,46 @@ public class TestDataFactory {
         createBobJohnson().persist();
         createAliceWilliams().persist();
         createCharlieBrown().persist();
+    }
+
+    /**
+     * Creates and persists persons with phone relationships (one-to-many).
+     * John has 2 phones, Jane has 1 phone, Bob has 3 phones, etc.
+     */
+    public static void createPersonsWithPhones() {
+        Person john = createJohnDoe();
+        john.persist();
+        addPhonesTo(john, new String[][]{
+            {"555-0101", "mobile", "true"},
+            {"555-0102", "work", "false"}
+        });
+
+        Person jane = createJaneSmith();
+        jane.persist();
+        addPhonesTo(jane, new String[][]{
+            {"555-0201", "mobile", "true"}
+        });
+
+        Person bob = createBobJohnson();
+        bob.persist();
+        addPhonesTo(bob, new String[][]{
+            {"555-0301", "mobile", "true"},
+            {"555-0302", "home", "false"},
+            {"555-0303", "work", "false"}
+        });
+
+        Person alice = createAliceWilliams();
+        alice.persist();
+        addPhonesTo(alice, new String[][]{
+            {"555-0401", "mobile", "true"},
+            {"555-0402", "work", "false"}
+        });
+
+        Person charlie = createCharlieBrown();
+        charlie.persist();
+        addPhonesTo(charlie, new String[][]{
+            {"555-0501", "mobile", "true"}
+        });
     }
 
     /**
@@ -130,6 +206,45 @@ public class TestDataFactory {
     }
 
     /**
+     * Creates and persists products with tag relationships (many-to-many).
+     */
+    public static void createProductsWithTags() {
+        tagCache.clear();
+        createStandardTags();
+
+        Product laptop = new Product("Laptop", "Electronics", new BigDecimal("1299.99"),
+                50, true, "High-performance laptop", 4.5);
+        laptop.persist();
+        laptop.tags.add(getOrCreateTag("electronics", "blue"));
+        laptop.tags.add(getOrCreateTag("premium", "gold"));
+        laptop.tags.add(getOrCreateTag("bestseller", "green"));
+
+        Product smartphone = new Product("Smartphone", "Electronics", new BigDecimal("899.99"),
+                100, true, "Latest smartphone model", 4.7);
+        smartphone.persist();
+        smartphone.tags.add(getOrCreateTag("electronics", "blue"));
+        smartphone.tags.add(getOrCreateTag("new-arrival", "purple"));
+        smartphone.tags.add(getOrCreateTag("bestseller", "green"));
+
+        Product chair = new Product("Desk Chair", "Furniture", new BigDecimal("299.99"),
+                25, true, "Ergonomic office chair", 4.2);
+        chair.persist();
+        chair.tags.add(getOrCreateTag("eco-friendly", "lime"));
+        chair.tags.add(getOrCreateTag("sale", "red"));
+
+        Product coffeeMaker = new Product("Coffee Maker", "Appliances", new BigDecimal("89.99"),
+                0, false, "Programmable coffee maker", 4.0);
+        coffeeMaker.persist();
+        coffeeMaker.tags.add(getOrCreateTag("sale", "red"));
+
+        Product monitor = new Product("Monitor", "Electronics", new BigDecimal("399.99"),
+                30, true, "27-inch 4K monitor", 4.6);
+        monitor.persist();
+        monitor.tags.add(getOrCreateTag("electronics", "blue"));
+        monitor.tags.add(getOrCreateTag("premium", "gold"));
+    }
+
+    /**
      * Creates and persists a subset of persons (3) for simpler tests.
      */
     public static void createMinimalPersons() {
@@ -147,11 +262,34 @@ public class TestDataFactory {
     }
 
     /**
+     * Creates and persists all entities with their relationships.
+     * Persons have phones (one-to-many), Products have tags (many-to-many).
+     */
+    public static void createAllDataWithRelationships() {
+        createPersonsWithPhones();
+        createProductsWithTags();
+    }
+
+    /**
      * Clears all test data from the database.
      * Should be called in @BeforeEach to ensure test isolation.
      */
     public static void clearAllData() {
+        // Delete in order respecting foreign key constraints
+        // Phone references Person, so delete phones first
+        // Product_Tag is a join table, handled by JPA
+        try {
+            Phone.deleteAll();
+        } catch (Exception e) {
+            // Table might not exist in some test configurations
+        }
+        try {
+            Tag.deleteAll();
+        } catch (Exception e) {
+            // Table might not exist in some test configurations
+        }
         Person.deleteAll();
         Product.deleteAll();
+        tagCache.clear();
     }
 }
