@@ -420,4 +420,60 @@ public interface QusaqStream<T> {
      * @return true if at least one entity matches, false otherwise
      */
     boolean exists();
+
+    // =============================================================================================
+    // JOIN OPERATIONS
+    // =============================================================================================
+
+    /**
+     * Creates an inner join with a related collection.
+     * <p>
+     * Inner join returns only entities that have matching related entities.
+     * Entities without any related entities are excluded from results.
+     * <p>
+     * Example:
+     * <pre>{@code
+     * // Get persons who have phones
+     * List<Person> peopleWithPhones = Person
+     *     .join((Person p) -> p.phones)
+     *     .toList();
+     *
+     * // Filter by joined entity
+     * List<Person> peopleWithMobile = Person
+     *     .join((Person p) -> p.phones)
+     *     .where((Person p, Phone ph) -> ph.type.equals("mobile"))
+     *     .toList();
+     * }</pre>
+     *
+     * @param <R> the type of the related entity
+     * @param relationship lambda expression accessing the collection relationship
+     * @return a JoinStream for composing join operations
+     */
+    <R> JoinStream<T, R> join(QuerySpec<T, java.util.Collection<R>> relationship);
+
+    /**
+     * Creates a left outer join with a related collection.
+     * <p>
+     * Left join returns all entities from the source, including those without
+     * any matching related entities (with NULL for joined entity fields).
+     * <p>
+     * Example:
+     * <pre>{@code
+     * // Get all persons, including those without phones
+     * List<Person> allPeople = Person
+     *     .leftJoin((Person p) -> p.phones)
+     *     .toList();
+     *
+     * // Filter while preserving persons without phones
+     * List<Person> people = Person
+     *     .leftJoin((Person p) -> p.phones)
+     *     .where((Person p, Phone ph) -> ph == null || ph.type.equals("mobile"))
+     *     .toList();
+     * }</pre>
+     *
+     * @param <R> the type of the related entity
+     * @param relationship lambda expression accessing the collection relationship
+     * @return a JoinStream for composing join operations
+     */
+    <R> JoinStream<T, R> leftJoin(QuerySpec<T, java.util.Collection<R>> relationship);
 }

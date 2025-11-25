@@ -22,11 +22,15 @@ import io.quarkus.gizmo.ResultHandle;
 import io.quarkus.qusaq.deployment.LambdaExpression;
 import io.quarkus.qusaq.deployment.analysis.CallSiteProcessor;
 import io.quarkus.qusaq.runtime.SortDirection;
+import io.quarkus.qusaq.deployment.InvokeDynamicScanner;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.From;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
@@ -75,6 +79,10 @@ public class QueryExecutorClassGenerator {
             Expression.class, Expression.class);
     private static final MethodDescriptor CB_SUM_AS_DOUBLE = md(CriteriaBuilder.class, "sumAsDouble",
             Expression.class, Expression.class);
+
+    // Iteration 6: Method descriptors for JOIN operations
+    private static final MethodDescriptor FROM_JOIN = md(From.class, "join",
+            Join.class, String.class, JoinType.class);
 
     /**
      * Common context for query generation methods.
@@ -168,6 +176,86 @@ public class QueryExecutorClassGenerator {
                     QueryGenContext ctx = new QueryGenContext(execute, em, entityClassParam,
                             sortExpressions, capturedValues, offset, limit, distinct);
                     result = generateListQueryBody(ctx, predicateExpression, projectionExpression);
+                }
+
+                execute.returnValue(result);
+            }
+        }
+
+        return classOutput.getData();
+    }
+
+    /**
+     * Generates query executor class bytecode for JOIN queries (Iteration 6).
+     * <p>
+     * Creates a query executor that performs a JPA join between two related entities
+     * and applies bi-entity predicates that reference both the source and joined entity.
+     *
+     * @param joinRelationshipExpression Lambda for the join relationship (e.g., p -> p.phones)
+     * @param biEntityPredicateExpression Lambda for bi-entity predicate (e.g., (p, ph) -> ph.type.equals("mobile"))
+     * @param joinType The type of join (INNER or LEFT)
+     * @param className The generated class name
+     * @param isCountQuery True if this is a count query (JoinStream.count())
+     * @return The bytecode for the generated QueryExecutor class
+     */
+    public byte[] generateJoinQueryExecutorClass(
+            LambdaExpression joinRelationshipExpression,
+            LambdaExpression biEntityPredicateExpression,
+            InvokeDynamicScanner.JoinType joinType,
+            String className,
+            boolean isCountQuery) {
+
+        class ByteArrayClassOutput implements ClassOutput {
+            private byte[] data;
+
+            @Override
+            public void write(String name, byte[] data) {
+                this.data = data;
+            }
+
+            public byte[] getData() {
+                return data;
+            }
+        }
+
+        ByteArrayClassOutput classOutput = new ByteArrayClassOutput();
+
+        try (ClassCreator classCreator = ClassCreator.builder()
+                .classOutput(classOutput)
+                .className(className)
+                .interfaces(QUERY_EXECUTOR_CLASS_NAME)
+                .build()) {
+
+            try (MethodCreator constructor = classCreator.getMethodCreator(CONSTRUCTOR, void.class)) {
+                constructor.invokeSpecialMethod(
+                        MethodDescriptor.ofConstructor(Object.class),
+                        constructor.getThis());
+                constructor.returnValue(null);
+            }
+
+            // Same execute method signature as regular queries
+            try (MethodCreator execute = classCreator.getMethodCreator(
+                    QE_EXECUTE, Object.class, EntityManager.class, Class.class, Object[].class,
+                    Integer.class, Integer.class, Boolean.class)) {
+
+                ResultHandle em = execute.getMethodParam(0);
+                ResultHandle entityClassParam = execute.getMethodParam(1);
+                ResultHandle capturedValues = execute.getMethodParam(2);
+                ResultHandle offset = execute.getMethodParam(3);
+                ResultHandle limit = execute.getMethodParam(4);
+                ResultHandle distinct = execute.getMethodParam(5);
+
+                ResultHandle result;
+                if (isCountQuery) {
+                    result = generateJoinCountQueryBody(
+                            execute, em, entityClassParam,
+                            joinRelationshipExpression, biEntityPredicateExpression,
+                            joinType, capturedValues);
+                } else {
+                    result = generateJoinQueryBody(
+                            execute, em, entityClassParam,
+                            joinRelationshipExpression, biEntityPredicateExpression,
+                            joinType, capturedValues, offset, limit, distinct);
                 }
 
                 execute.returnValue(result);
@@ -360,6 +448,210 @@ public class QueryExecutorClassGenerator {
             case "SUM_DOUBLE" -> method.invokeInterfaceMethod(CB_SUM_AS_DOUBLE, cb, expression);
             default -> throw new IllegalArgumentException("Unknown aggregation type: " + aggregationType);
         };
+    }
+
+    /**
+     * Generates JOIN query bytecode (Iteration 6).
+     * <p>
+     * Creates a JPA Criteria API join query that navigates relationships and applies
+     * bi-entity predicates to filter results based on both the source and joined entities.
+     * <p>
+     * Example: {@code Person.join(p -> p.phones).where((p, ph) -> ph.type.equals("mobile")).toList()}
+     * <p>
+     * Generates:
+     * <pre>
+     * CriteriaBuilder cb = em.getCriteriaBuilder();
+     * CriteriaQuery&lt;Person&gt; query = cb.createQuery(Person.class);
+     * Root&lt;Person&gt; root = query.from(Person.class);
+     * Join&lt;Person, Phone&gt; join = root.join("phones", JoinType.INNER);
+     * Predicate where = cb.equal(join.get("type"), "mobile");
+     * query.where(where);
+     * return em.createQuery(query).getResultList();
+     * </pre>
+     *
+     * @param method Bytecode generator context
+     * @param em EntityManager handle
+     * @param entityClass Entity class being queried (source entity)
+     * @param joinRelationshipExpression Lambda expression for join relationship (e.g., p -> p.phones)
+     * @param biEntityPredicateExpression Lambda expression for bi-entity predicate (e.g., (p, ph) -> ph.type.equals("mobile"))
+     * @param joinType Join type (INNER or LEFT)
+     * @param capturedValues Captured variables from lambdas
+     * @param offset OFFSET value for pagination (null if none)
+     * @param limit LIMIT value for pagination (null if none)
+     * @param distinct DISTINCT flag (null or false for no distinct)
+     * @return ResultHandle to join query result
+     */
+    private ResultHandle generateJoinQueryBody(
+            MethodCreator method,
+            ResultHandle em,
+            ResultHandle entityClass,
+            LambdaExpression joinRelationshipExpression,
+            LambdaExpression biEntityPredicateExpression,
+            InvokeDynamicScanner.JoinType joinType,
+            ResultHandle capturedValues,
+            ResultHandle offset,
+            ResultHandle limit,
+            ResultHandle distinct) {
+
+        // Get CriteriaBuilder
+        ResultHandle cb = method.invokeInterfaceMethod(
+                md(EntityManager.class, EM_GET_CRITERIA_BUILDER, CriteriaBuilder.class), em);
+
+        // Create CriteriaQuery<EntityClass>
+        ResultHandle query = method.invokeInterfaceMethod(
+                md(CriteriaBuilder.class, EM_CREATE_QUERY, CriteriaQuery.class, Class.class),
+                cb, entityClass);
+
+        // Create Root<Entity>
+        ResultHandle root = method.invokeInterfaceMethod(
+                md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class), query, entityClass);
+
+        // Extract relationship field name from join relationship expression
+        // The expression should be a FieldAccess like "phones" from p -> p.phones
+        String relationshipFieldName = extractRelationshipFieldName(joinRelationshipExpression);
+
+        // Create Join by calling root.join(relationshipFieldName, JoinType)
+        ResultHandle relationshipName = method.load(relationshipFieldName);
+        ResultHandle jpaJoinType = loadJpaJoinType(method, joinType);
+        ResultHandle joinHandle = method.invokeInterfaceMethod(FROM_JOIN, root, relationshipName, jpaJoinType);
+
+        // Apply bi-entity predicate if present
+        if (biEntityPredicateExpression != null) {
+            ResultHandle predicate = expressionGenerator.generateBiEntityPredicate(
+                    method, biEntityPredicateExpression, cb, root, joinHandle, capturedValues);
+            applyWherePredicate(method, query, predicate);
+        }
+
+        // Apply DISTINCT if requested
+        applyDistinct(method, query, distinct);
+
+        // Create TypedQuery
+        ResultHandle typedQuery = method.invokeInterfaceMethod(
+                md(EntityManager.class, EM_CREATE_QUERY, TypedQuery.class, CriteriaQuery.class),
+                em, query);
+
+        // Apply pagination
+        applyPagination(method, typedQuery, offset, limit);
+
+        // Return getResultList()
+        return method.invokeInterfaceMethod(
+                md(TypedQuery.class, TQ_GET_RESULT_LIST, List.class), typedQuery);
+    }
+
+    /**
+     * Generates JOIN COUNT query bytecode (Iteration 6).
+     * <p>
+     * Creates a JPA Criteria API count query that navigates relationships and applies
+     * bi-entity predicates to count matching results.
+     * <p>
+     * Example: {@code Person.join(p -> p.phones).where((p, ph) -> ph.type.equals("mobile")).count()}
+     * <p>
+     * Generates:
+     * <pre>
+     * CriteriaBuilder cb = em.getCriteriaBuilder();
+     * CriteriaQuery&lt;Long&gt; query = cb.createQuery(Long.class);
+     * Root&lt;Person&gt; root = query.from(Person.class);
+     * Join&lt;Person, Phone&gt; join = root.join("phones", JoinType.INNER);
+     * query.select(cb.count(root));
+     * Predicate where = cb.equal(join.get("type"), "mobile");
+     * query.where(where);
+     * return em.createQuery(query).getSingleResult();
+     * </pre>
+     *
+     * @param method Bytecode generator context
+     * @param em EntityManager handle
+     * @param entityClass Entity class being queried (source entity)
+     * @param joinRelationshipExpression Lambda expression for join relationship (e.g., p -> p.phones)
+     * @param biEntityPredicateExpression Lambda expression for bi-entity predicate (e.g., (p, ph) -> ph.type.equals("mobile"))
+     * @param joinType Join type (INNER or LEFT)
+     * @param capturedValues Captured variables from lambdas
+     * @return ResultHandle to join count query result (Long)
+     */
+    private ResultHandle generateJoinCountQueryBody(
+            MethodCreator method,
+            ResultHandle em,
+            ResultHandle entityClass,
+            LambdaExpression joinRelationshipExpression,
+            LambdaExpression biEntityPredicateExpression,
+            InvokeDynamicScanner.JoinType joinType,
+            ResultHandle capturedValues) {
+
+        // Get CriteriaBuilder
+        ResultHandle cb = method.invokeInterfaceMethod(
+                md(EntityManager.class, EM_GET_CRITERIA_BUILDER, CriteriaBuilder.class), em);
+
+        // Create CriteriaQuery<Long> for count
+        ResultHandle longClass = method.loadClass(Long.class);
+        ResultHandle query = method.invokeInterfaceMethod(
+                md(CriteriaBuilder.class, EM_CREATE_QUERY, CriteriaQuery.class, Class.class),
+                cb, longClass);
+
+        // Create Root<Entity>
+        ResultHandle root = method.invokeInterfaceMethod(
+                md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class), query, entityClass);
+
+        // Extract relationship field name from join relationship expression
+        String relationshipFieldName = extractRelationshipFieldName(joinRelationshipExpression);
+
+        // Create Join by calling root.join(relationshipFieldName, JoinType)
+        ResultHandle relationshipName = method.load(relationshipFieldName);
+        ResultHandle jpaJoinType = loadJpaJoinType(method, joinType);
+        ResultHandle joinHandle = method.invokeInterfaceMethod(FROM_JOIN, root, relationshipName, jpaJoinType);
+
+        // SELECT COUNT(root)
+        ResultHandle countExpr = method.invokeInterfaceMethod(
+                md(CriteriaBuilder.class, CB_COUNT, Expression.class, Expression.class), cb, root);
+        method.invokeInterfaceMethod(
+                md(CriteriaQuery.class, CQ_SELECT, CriteriaQuery.class, Selection.class), query, countExpr);
+
+        // Apply bi-entity predicate if present
+        if (biEntityPredicateExpression != null) {
+            ResultHandle predicate = expressionGenerator.generateBiEntityPredicate(
+                    method, biEntityPredicateExpression, cb, root, joinHandle, capturedValues);
+            applyWherePredicate(method, query, predicate);
+        }
+
+        // Create TypedQuery
+        ResultHandle typedQuery = method.invokeInterfaceMethod(
+                md(EntityManager.class, EM_CREATE_QUERY, TypedQuery.class, CriteriaQuery.class),
+                em, query);
+
+        // Return getSingleResult() for count
+        return method.invokeInterfaceMethod(
+                md(TypedQuery.class, TQ_GET_SINGLE_RESULT, Object.class), typedQuery);
+    }
+
+    /**
+     * Extracts the relationship field name from a join relationship lambda expression.
+     * <p>
+     * Example: For lambda {@code p -> p.phones}, returns "phones".
+     *
+     * @param expression the join relationship lambda expression
+     * @return the relationship field name
+     */
+    private String extractRelationshipFieldName(LambdaExpression expression) {
+        if (expression instanceof LambdaExpression.FieldAccess fieldAccess) {
+            return fieldAccess.fieldName();
+        } else if (expression instanceof LambdaExpression.PathExpression pathExpr) {
+            // For path expressions, use the first segment (the relationship name)
+            if (!pathExpr.segments().isEmpty()) {
+                return pathExpr.segments().get(0).fieldName();
+            }
+        }
+        throw new IllegalArgumentException("Cannot extract relationship field name from expression: " + expression);
+    }
+
+    /**
+     * Loads JPA JoinType enum value based on Qusaq JoinType.
+     *
+     * @param method the method creator
+     * @param joinType the Qusaq join type (INNER or LEFT)
+     * @return ResultHandle to the JPA JoinType enum value
+     */
+    private ResultHandle loadJpaJoinType(MethodCreator method, InvokeDynamicScanner.JoinType joinType) {
+        String jpaJoinTypeName = (joinType == InvokeDynamicScanner.JoinType.LEFT) ? "LEFT" : "INNER";
+        return method.readStaticField(
+                io.quarkus.gizmo.FieldDescriptor.of(JoinType.class, jpaJoinTypeName, JoinType.class));
     }
 
     /**

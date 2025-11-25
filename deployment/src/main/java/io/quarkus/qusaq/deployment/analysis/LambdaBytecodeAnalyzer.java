@@ -62,6 +62,35 @@ public class LambdaBytecodeAnalyzer {
      * @return lambda expression AST, or null if analysis fails
      */
     public LambdaExpression analyze(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor) {
+        return analyze(classBytes, lambdaMethodName, lambdaDescriptor, false);
+    }
+
+    /**
+     * Analyzes synthetic lambda bytecode for bi-entity lambdas (BiQuerySpec).
+     * <p>
+     * Used for join query predicates and projections that take two entity parameters.
+     * For example: {@code (Person p, Phone ph) -> ph.type.equals("mobile")}
+     *
+     * @param classBytes bytecode of the lambda class
+     * @param lambdaMethodName lambda method name (usually "lambda$methodName$N")
+     * @param lambdaDescriptor method descriptor (e.g., "(LPerson;LPhone;)Z")
+     * @return lambda expression AST with BiEntity nodes, or null if analysis fails
+     */
+    public LambdaExpression analyzeBiEntity(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor) {
+        return analyze(classBytes, lambdaMethodName, lambdaDescriptor, true);
+    }
+
+    /**
+     * Internal analyze method that supports both single-entity and bi-entity lambdas.
+     *
+     * @param classBytes bytecode of the lambda class
+     * @param lambdaMethodName lambda method name
+     * @param lambdaDescriptor method descriptor
+     * @param biEntityMode true for bi-entity lambdas (BiQuerySpec)
+     * @return lambda expression AST, or null if analysis fails
+     */
+    private LambdaExpression analyze(byte[] classBytes, String lambdaMethodName,
+                                      String lambdaDescriptor, boolean biEntityMode) {
         try {
             ClassReader reader = new ClassReader(classBytes);
             ClassNode classNode = new ClassNode();
@@ -80,9 +109,17 @@ public class LambdaBytecodeAnalyzer {
                 return null;
             }
 
-            int entityParameterIndex = DescriptorParser.calculateEntityParameterSlotIndex(lambdaDescriptor);
-
-            return analyzeMethodInstructions(lambdaMethod, entityParameterIndex);
+            if (biEntityMode) {
+                int[] biEntitySlots = DescriptorParser.calculateBiEntityParameterSlotIndices(lambdaDescriptor);
+                if (biEntitySlots == null) {
+                    log.warnf("Bi-entity mode requires at least 2 parameters in descriptor: %s", lambdaDescriptor);
+                    return null;
+                }
+                return analyzeMethodInstructions(lambdaMethod, biEntitySlots[0], biEntitySlots[1]);
+            } else {
+                int entityParameterIndex = DescriptorParser.calculateEntityParameterSlotIndex(lambdaDescriptor);
+                return analyzeMethodInstructions(lambdaMethod, entityParameterIndex);
+            }
 
         } catch (Exception e) {
             log.warnf(e, "Failed to analyze lambda method %s", lambdaMethodName);
@@ -91,16 +128,41 @@ public class LambdaBytecodeAnalyzer {
     }
 
     /**
-     * Analyzes method instructions to build lambda expression AST.
+     * Analyzes method instructions to build lambda expression AST (single-entity).
      *
      * @param method lambda method to analyze
      * @param entityParameterIndex local variable slot index of the entity parameter
      * @return lambda expression AST
      */
     private LambdaExpression analyzeMethodInstructions(MethodNode method, int entityParameterIndex) {
-        // Create analysis context (performs control flow analysis internally)
         AnalysisContext ctx = new AnalysisContext(method, entityParameterIndex);
+        return processInstructions(ctx);
+    }
 
+    /**
+     * Analyzes method instructions to build lambda expression AST (bi-entity).
+     * <p>
+     * Used for BiQuerySpec lambdas in join queries with two entity parameters.
+     *
+     * @param method lambda method to analyze
+     * @param firstEntityParameterIndex local variable slot index of the first entity parameter
+     * @param secondEntityParameterIndex local variable slot index of the second entity parameter
+     * @return lambda expression AST with BiEntity nodes
+     */
+    private LambdaExpression analyzeMethodInstructions(MethodNode method,
+                                                        int firstEntityParameterIndex,
+                                                        int secondEntityParameterIndex) {
+        AnalysisContext ctx = new AnalysisContext(method, firstEntityParameterIndex, secondEntityParameterIndex);
+        return processInstructions(ctx);
+    }
+
+    /**
+     * Processes all instructions in the method to build the lambda expression AST.
+     *
+     * @param ctx analysis context (single or bi-entity)
+     * @return lambda expression AST
+     */
+    private LambdaExpression processInstructions(AnalysisContext ctx) {
         // Process each instruction
         for (int i = 0; i < ctx.getInstructionCount(); i++) {
             AbstractInsnNode insn = ctx.getInstructions().get(i);

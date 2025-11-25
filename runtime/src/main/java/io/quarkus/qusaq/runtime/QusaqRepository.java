@@ -240,4 +240,73 @@ public interface QusaqRepository<E extends PanacheEntity, I> extends PanacheRepo
     default QusaqStream<Double> sumDouble(QuerySpec<E, Double> mapper) {
         throw implementationInjectionMissing();
     }
+
+    // =============================================================================================
+    // JOIN OPERATIONS (Iteration 6)
+    // =============================================================================================
+
+    /**
+     * Creates an inner join query with a related entity collection.
+     * <p>
+     * The join follows the relationship defined by the lambda expression,
+     * typically accessing a collection field. Inner join excludes source
+     * entities that have no matching joined entities.
+     * <p>
+     * <strong>Generated at build time</strong> via bytecode enhancement.
+     * <p>
+     * Example:
+     * <pre>{@code
+     * // Find persons with mobile phones (excludes persons without phones)
+     * List<Person> peopleWithMobilePhones = personRepository
+     *     .join((Person p) -> p.phones)
+     *     .where((Person p, Phone ph) -> ph.type.equals("mobile"))
+     *     .toList();
+     *
+     * // Project both entities to DTO
+     * List<PersonPhoneDTO> dtos = personRepository
+     *     .join((Person p) -> p.phones)
+     *     .select((Person p, Phone ph) -> new PersonPhoneDTO(p.firstName, ph.number))
+     *     .toList();
+     * }</pre>
+     *
+     * @param <R> the joined entity type
+     * @param relationship lambda accessing the collection field to join
+     * @return a JoinStream for composing join predicates and projections
+     */
+    @GenerateBridge
+    default <R> JoinStream<E, R> join(QuerySpec<E, java.util.Collection<R>> relationship) {
+        throw implementationInjectionMissing();
+    }
+
+    /**
+     * Creates a left outer join query with a related entity collection.
+     * <p>
+     * Unlike inner join, left join includes source entities even when
+     * there are no matching joined entities. The joined entity will be
+     * null in such cases.
+     * <p>
+     * <strong>Generated at build time</strong> via bytecode enhancement.
+     * <p>
+     * Example:
+     * <pre>{@code
+     * // Find all persons, including those without phones
+     * List<Person> allPeopleWithPhoneInfo = personRepository
+     *     .leftJoin((Person p) -> p.phones)
+     *     .toList();
+     *
+     * // Filter with null handling
+     * List<Person> peopleWithOptionalPhone = personRepository
+     *     .leftJoin((Person p) -> p.phones)
+     *     .where((Person p, Phone ph) -> ph == null || ph.type.equals("mobile"))
+     *     .toList();
+     * }</pre>
+     *
+     * @param <R> the joined entity type
+     * @param relationship lambda accessing the collection field to join
+     * @return a JoinStream for composing join predicates and projections
+     */
+    @GenerateBridge
+    default <R> JoinStream<E, R> leftJoin(QuerySpec<E, java.util.Collection<R>> relationship) {
+        throw implementationInjectionMissing();
+    }
 }

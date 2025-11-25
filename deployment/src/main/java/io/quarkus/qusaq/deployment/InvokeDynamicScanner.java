@@ -20,8 +20,22 @@ import static io.quarkus.qusaq.runtime.QusaqConstants.*;
 /**
  * Scans bytecode for invokedynamic instructions creating QuerySpec lambdas.
  * Detects fluent API terminal operations.
+ * <p>
+ * Iteration 6: Enhanced to support join queries with BiQuerySpec lambdas.
+ * Detects join()/leftJoin() entry points and JoinStream terminal operations.
  */
 public class InvokeDynamicScanner {
+
+    /**
+     * Join type for join queries.
+     * Iteration 6: Tracks whether a join is INNER or LEFT OUTER.
+     */
+    public enum JoinType {
+        /** Standard inner join - excludes source entities without matching joined entities. */
+        INNER,
+        /** Left outer join - includes all source entities even without matching joined entities. */
+        LEFT
+    }
 
     private static final Logger log = Logger.getLogger(InvokeDynamicScanner.class);
 
@@ -42,6 +56,7 @@ public class InvokeDynamicScanner {
      * Phase 2.5: Enhanced to support multiple where() predicates.
      * Phase 3: Enhanced to support sorting (sortedBy/sortedDescendingBy).
      * Phase 5: Enhanced to support aggregations (min/max/avg/sum*).
+     * Iteration 6: Enhanced to support join queries with BiQuerySpec lambdas.
      */
     public record LambdaCallSite(
             String ownerClassName,
@@ -57,7 +72,11 @@ public class InvokeDynamicScanner {
             List<LambdaPair> predicateLambdas,     // Phase 2.5: ALL WHERE lambdas for multiple where() support
             List<SortLambda> sortLambdas,          // Phase 3: ALL sort lambdas with direction
             String aggregationLambdaMethodName,    // Phase 5: Aggregation mapper lambda (e.g., p -> p.salary for min/max/avg/sum)
-            String aggregationLambdaMethodDescriptor) { // Phase 5: Aggregation mapper descriptor
+            String aggregationLambdaMethodDescriptor, // Phase 5: Aggregation mapper descriptor
+            JoinType joinType,                     // Iteration 6: Join type (INNER/LEFT) or null if not a join query
+            String joinRelationshipLambdaMethodName,    // Iteration 6: Join relationship lambda (e.g., p -> p.phones)
+            String joinRelationshipLambdaDescriptor,    // Iteration 6: Join relationship lambda descriptor
+            List<LambdaPair> biEntityPredicateLambdas) { // Iteration 6: BiQuerySpec WHERE lambdas for join queries
 
         /**
          * Returns true if this is a count query.
@@ -78,6 +97,14 @@ public class InvokeDynamicScanner {
                    METHOD_SUM_INTEGER.equals(targetMethodName) ||
                    METHOD_SUM_LONG.equals(targetMethodName) ||
                    METHOD_SUM_DOUBLE.equals(targetMethodName);
+        }
+
+        /**
+         * Returns true if this is a join query.
+         * Iteration 6: Join queries have a non-null join type.
+         */
+        public boolean isJoinQuery() {
+            return joinType != null;
         }
 
         /**
@@ -141,6 +168,12 @@ public class InvokeDynamicScanner {
 
         @Override
         public String toString() {
+            if (isJoinQuery()) {
+                int biPredicateCount = biEntityPredicateLambdas != null ? biEntityPredicateLambdas.size() : 0;
+                return String.format("LambdaCallSite{%s.%s line %d, %s JOIN, relationship=%s, biPredicates=%d, target=%s}",
+                        ownerClassName, methodName, lineNumber,
+                        joinType, joinRelationshipLambdaMethodName, biPredicateCount, targetMethodName);
+            }
             if (isCombinedQuery()) {
                 int predicateCount = predicateLambdas != null ? predicateLambdas.size() : 0;
                 return String.format("LambdaCallSite{%s.%s line %d, where=%d predicates, select=%s, target=%s}",
@@ -175,8 +208,9 @@ public class InvokeDynamicScanner {
 
     /**
      * Tracked lambda in the pipeline.
+     * Iteration 6: Added isBiEntity to track BiQuerySpec vs QuerySpec lambdas.
      */
-    private record PendingLambda(String methodName, String descriptor, String fluentMethod) {}
+    private record PendingLambda(String methodName, String descriptor, String fluentMethod, boolean isBiEntity) {}
 
     /**
      * Tracked aggregation method in the pipeline.
@@ -187,6 +221,7 @@ public class InvokeDynamicScanner {
     /**
      * Grouped lambda information for building call sites.
      * Phase 5: Added aggregation lambda fields.
+     * Iteration 6: Added join-related fields.
      */
     private record LambdaInfo(
         String primaryLambdaMethod,
@@ -199,13 +234,17 @@ public class InvokeDynamicScanner {
         List<LambdaPair> whereLambdas,
         List<SortLambda> sortLambdas,
         String aggregationLambdaMethod,      // Phase 5: Aggregation mapper lambda
-        String aggregationLambdaDescriptor   // Phase 5: Aggregation mapper descriptor
+        String aggregationLambdaDescriptor,  // Phase 5: Aggregation mapper descriptor
+        String joinRelationshipLambdaMethod,   // Iteration 6: Join relationship lambda
+        String joinRelationshipLambdaDescriptor, // Iteration 6: Join relationship descriptor
+        List<LambdaPair> biEntityWhereLambdas  // Iteration 6: BiQuerySpec WHERE lambdas
     ) {}
 
     private void scanMethod(ClassNode classNode, MethodNode method, List<LambdaCallSite> callSites) {
         InsnList instructions = method.instructions;
         List<PendingLambda> pendingLambdas = new ArrayList<>();
         PendingAggregation pendingAggregation = null;
+        JoinType pendingJoinType = null;  // Iteration 6: Track join type
         int currentLine = -1;
 
         for (int i = 0; i < instructions.size(); i++) {
@@ -219,13 +258,19 @@ public class InvokeDynamicScanner {
                 pendingAggregation = new PendingAggregation(methodCall.name);
             }
 
-            if (isTerminalOperation(insn, pendingLambdas)) {
+            // Iteration 6: Detect join method calls
+            if (insn instanceof MethodInsnNode methodCall && isJoinMethod(methodCall)) {
+                pendingJoinType = METHOD_LEFT_JOIN.equals(methodCall.name) ? JoinType.LEFT : JoinType.INNER;
+            }
+
+            if (isTerminalOperation(insn, pendingLambdas, pendingJoinType)) {
                 LambdaCallSite callSite = createCallSite(classNode, method, (MethodInsnNode) insn,
-                                                          pendingLambdas, pendingAggregation, currentLine, i);
+                                                          pendingLambdas, pendingAggregation, pendingJoinType, currentLine, i);
                 callSites.add(callSite);
                 log.debugf("Found fluent API terminal operation: %s", callSite);
                 pendingLambdas.clear();
                 pendingAggregation = null;
+                pendingJoinType = null;  // Iteration 6: Reset join type
             }
         }
     }
@@ -240,19 +285,33 @@ public class InvokeDynamicScanner {
             Handle handle = extractLambdaHandle(invokeDynamic);
             if (handle != null) {
                 String fluentMethod = findFluentMethodForward(instructions, index);
-                pendingLambdas.add(new PendingLambda(handle.getName(), handle.getDesc(), fluentMethod));
+                // Iteration 6: Check if this is a BiQuerySpec lambda
+                boolean isBiEntity = invokeDynamic.desc.contains(BI_QUERY_SPEC_DESCRIPTOR);
+                pendingLambdas.add(new PendingLambda(handle.getName(), handle.getDesc(), fluentMethod, isBiEntity));
             }
         }
     }
 
-    private boolean isTerminalOperation(AbstractInsnNode insn, List<PendingLambda> pendingLambdas) {
-        return insn instanceof MethodInsnNode methodCall
-            && !pendingLambdas.isEmpty()
-            && isQusaqStreamTerminalCall(methodCall);
+    /**
+     * Checks if instruction is a terminal operation.
+     * Iteration 6: Also checks for JoinStream terminal calls when in join context.
+     */
+    private boolean isTerminalOperation(AbstractInsnNode insn, List<PendingLambda> pendingLambdas, JoinType joinType) {
+        if (!(insn instanceof MethodInsnNode methodCall) || pendingLambdas.isEmpty()) {
+            return false;
+        }
+
+        // Iteration 6: Check for JoinStream terminals when in join context
+        if (joinType != null) {
+            return isJoinStreamTerminalCall(methodCall);
+        }
+
+        return isQusaqStreamTerminalCall(methodCall);
     }
 
     private LambdaCallSite createCallSite(ClassNode classNode, MethodNode method, MethodInsnNode methodCall,
                                           List<PendingLambda> pendingLambdas, PendingAggregation pendingAggregation,
+                                          JoinType pendingJoinType,
                                           int lineNumber, int insnIndex) {
         // Phase 5: Pass aggregation method to extractLambdaInfo
         String aggregationMethod = pendingAggregation != null ? pendingAggregation.aggregationMethod : null;
@@ -275,19 +334,26 @@ public class InvokeDynamicScanner {
             info.whereLambdas,
             info.sortLambdas,
             info.aggregationLambdaMethod,
-            info.aggregationLambdaDescriptor
+            info.aggregationLambdaDescriptor,
+            pendingJoinType,  // Iteration 6: Join type
+            info.joinRelationshipLambdaMethod,  // Iteration 6: Join relationship lambda
+            info.joinRelationshipLambdaDescriptor,  // Iteration 6: Join relationship descriptor
+            info.biEntityWhereLambdas  // Iteration 6: BiQuerySpec WHERE lambdas
         );
     }
 
     private LambdaInfo extractLambdaInfo(List<PendingLambda> pendingLambdas, String terminalMethodName, String aggregationMethodName) {
         List<LambdaPair> whereLambdas = new ArrayList<>();
         List<SortLambda> sortLambdas = new ArrayList<>();
+        List<LambdaPair> biEntityWhereLambdas = new ArrayList<>();  // Iteration 6: BiQuerySpec WHERE lambdas
         String firstWhereMethod = null;
         String firstWhereDescriptor = null;
         String selectMethod = null;
         String selectDescriptor = null;
         String aggregationMethod = null;
         String aggregationDescriptor = null;
+        String joinRelationshipMethod = null;  // Iteration 6: Join relationship lambda
+        String joinRelationshipDescriptor = null;
 
         // Phase 5: Use provided aggregation method name (detected from intermediate operation)
         boolean isAggregation = aggregationMethodName != null;
@@ -302,11 +368,20 @@ public class InvokeDynamicScanner {
             if (isAggregation && isLastLambda) {
                 aggregationMethod = lambda.methodName;
                 aggregationDescriptor = lambda.descriptor;
+            } else if (METHOD_JOIN.equals(lambda.fluentMethod) || METHOD_LEFT_JOIN.equals(lambda.fluentMethod)) {
+                // Iteration 6: Join relationship lambda (e.g., p -> p.phones)
+                joinRelationshipMethod = lambda.methodName;
+                joinRelationshipDescriptor = lambda.descriptor;
             } else if (METHOD_WHERE.equals(lambda.fluentMethod)) {
-                whereLambdas.add(new LambdaPair(lambda.methodName, lambda.descriptor));
-                if (firstWhereMethod == null) {
-                    firstWhereMethod = lambda.methodName;
-                    firstWhereDescriptor = lambda.descriptor;
+                // Iteration 6: Check if this is a BiQuerySpec lambda (has two entity parameters)
+                if (lambda.isBiEntity) {
+                    biEntityWhereLambdas.add(new LambdaPair(lambda.methodName, lambda.descriptor));
+                } else {
+                    whereLambdas.add(new LambdaPair(lambda.methodName, lambda.descriptor));
+                    if (firstWhereMethod == null) {
+                        firstWhereMethod = lambda.methodName;
+                        firstWhereDescriptor = lambda.descriptor;
+                    }
                 }
             } else if (METHOD_SELECT.equals(lambda.fluentMethod)) {
                 selectMethod = lambda.methodName;
@@ -332,20 +407,26 @@ public class InvokeDynamicScanner {
             whereLambdas.isEmpty() ? null : whereLambdas,
             sortLambdas.isEmpty() ? null : sortLambdas,
             aggregationMethod,
-            aggregationDescriptor
+            aggregationDescriptor,
+            joinRelationshipMethod,
+            joinRelationshipDescriptor,
+            biEntityWhereLambdas.isEmpty() ? null : biEntityWhereLambdas
         );
     }
 
     /**
-     * Looks forward from invokedynamic to find the fluent method call (where/select).
+     * Looks forward from invokedynamic to find the fluent method call (where/select/join).
+     * Iteration 6: Also recognizes join methods.
      */
     private String findFluentMethodForward(InsnList instructions, int startIndex) {
-        // Look ahead a few instructions to find where/select call
+        // Look ahead a few instructions to find where/select/join call
         for (int j = startIndex + 1; j < Math.min(startIndex + 5, instructions.size()); j++) {
             AbstractInsnNode nextInsn = instructions.get(j);
             if (nextInsn instanceof MethodInsnNode methodCall) {
                 String methodName = methodCall.name;
-                if (FLUENT_ENTRY_POINT_METHODS.contains(methodName) || FLUENT_INTERMEDIATE_METHODS.contains(methodName)) {
+                if (FLUENT_ENTRY_POINT_METHODS.contains(methodName) ||
+                    FLUENT_INTERMEDIATE_METHODS.contains(methodName) ||
+                    JOIN_METHODS.contains(methodName)) {
                     return methodName;
                 }
             }
@@ -353,9 +434,13 @@ public class InvokeDynamicScanner {
         return null;
     }
 
+    /**
+     * Checks if invokedynamic creates a QuerySpec or BiQuerySpec lambda.
+     * Iteration 6: Also detects BiQuerySpec for join query lambdas.
+     */
     private boolean isQuerySpecLambda(InvokeDynamicInsnNode invokeDynamic) {
         String desc = invokeDynamic.desc;
-        return desc.contains(QUERY_SPEC_DESCRIPTOR);
+        return desc.contains(QUERY_SPEC_DESCRIPTOR) || desc.contains(BI_QUERY_SPEC_DESCRIPTOR);
     }
 
     private Handle extractLambdaHandle(InvokeDynamicInsnNode invokeDynamic) {
@@ -381,6 +466,49 @@ public class InvokeDynamicScanner {
 
         // Check if owner is QusaqStream interface
         return QUSAQ_STREAM_INTERNAL_NAME.equals(methodCall.owner);
+    }
+
+    /**
+     * Checks if method call is a terminal operation on JoinStream.
+     * Iteration 6: JoinStream has the same terminal methods as QusaqStream.
+     */
+    private boolean isJoinStreamTerminalCall(MethodInsnNode methodCall) {
+        String name = methodCall.name;
+
+        // Check if it's a terminal method name
+        if (!FLUENT_TERMINAL_METHODS.contains(name)) {
+            return false;
+        }
+
+        // Check if owner is JoinStream interface
+        return JOIN_STREAM_INTERNAL_NAME.equals(methodCall.owner);
+    }
+
+    /**
+     * Checks if method call is a join entry point (join or leftJoin).
+     * Iteration 6: Detects join/leftJoin calls on QusaqEntity, QusaqRepository, or QusaqStream.
+     */
+    private boolean isJoinMethod(MethodInsnNode methodCall) {
+        String name = methodCall.name;
+
+        // Check if it's a join method name
+        if (!METHOD_JOIN.equals(name) && !METHOD_LEFT_JOIN.equals(name)) {
+            return false;
+        }
+
+        // Accept if called on QusaqEntity (static method)
+        if (QUSAQ_ENTITY_INTERNAL_NAME.equals(methodCall.owner)) {
+            return true;
+        }
+
+        // Accept if called on QusaqRepository (instance method)
+        if (QUSAQ_REPOSITORY_INTERNAL_NAME.equals(methodCall.owner)) {
+            return true;
+        }
+
+        // Accept if return type is JoinStream (covers virtual calls)
+        String desc = methodCall.desc;
+        return desc.contains("Lio/quarkus/qusaq/runtime/JoinStream;");
     }
 
     /**

@@ -391,4 +391,83 @@ public abstract class QusaqEntity extends PanacheEntity {
                 "Did you forget to annotate your entity with @Entity? " +
                 "Or is the Qusaq build-time processor not properly configured?");
     }
+
+    // =============================================================================================
+    // JOIN OPERATIONS (Iteration 6)
+    // =============================================================================================
+
+    /**
+     * Creates an inner join query with a related entity collection.
+     * <p>
+     * This is an entry point for join-based queries. The join follows the relationship
+     * defined by the lambda expression, typically accessing a collection field.
+     * <p>
+     * <strong>Implemented at build time</strong> - the bytecode enhancement processor will
+     * replace this method body in each entity subclass with the actual query execution code.
+     * <p>
+     * Example:
+     * <pre>{@code
+     * // Find persons with mobile phones (inner join - excludes persons without phones)
+     * List<Person> peopleWithMobilePhones = Person
+     *     .join((Person p) -> p.phones)
+     *     .where((Person p, Phone ph) -> ph.type.equals("mobile"))
+     *     .toList();
+     *
+     * // Project both entities
+     * List<PersonPhoneDTO> dtos = Person
+     *     .join((Person p) -> p.phones)
+     *     .select((Person p, Phone ph) -> new PersonPhoneDTO(p.firstName, ph.number))
+     *     .toList();
+     * }</pre>
+     *
+     * @param <T> the source entity type
+     * @param <R> the joined entity type
+     * @param relationship lambda accessing the collection field to join
+     * @return a JoinStream for composing join predicates and projections
+     * @throws IllegalStateException if called at runtime without build-time enhancement
+     */
+    public static <T extends QusaqEntity, R> JoinStream<T, R> join(
+            QuerySpec<T, java.util.Collection<R>> relationship) {
+        throw new IllegalStateException(
+                "This method is normally automatically overridden in subclasses at build time. " +
+                "Did you forget to annotate your entity with @Entity? " +
+                "Or is the Qusaq build-time processor not properly configured?");
+    }
+
+    /**
+     * Creates a left outer join query with a related entity collection.
+     * <p>
+     * Unlike inner join, left join includes entities from the left side (source)
+     * even when there are no matching entities on the right side (joined).
+     * <p>
+     * <strong>Implemented at build time</strong> - the bytecode enhancement processor will
+     * replace this method body in each entity subclass with the actual query execution code.
+     * <p>
+     * Example:
+     * <pre>{@code
+     * // Find all persons, including those without phones
+     * List<Person> allPeopleWithPhoneInfo = Person
+     *     .leftJoin((Person p) -> p.phones)
+     *     .toList();
+     *
+     * // Filter with null handling for left join
+     * List<Person> peopleWithOptionalPhone = Person
+     *     .leftJoin((Person p) -> p.phones)
+     *     .where((Person p, Phone ph) -> ph == null || ph.type.equals("mobile"))
+     *     .toList();
+     * }</pre>
+     *
+     * @param <T> the source entity type
+     * @param <R> the joined entity type
+     * @param relationship lambda accessing the collection field to join
+     * @return a JoinStream for composing join predicates and projections
+     * @throws IllegalStateException if called at runtime without build-time enhancement
+     */
+    public static <T extends QusaqEntity, R> JoinStream<T, R> leftJoin(
+            QuerySpec<T, java.util.Collection<R>> relationship) {
+        throw new IllegalStateException(
+                "This method is normally automatically overridden in subclasses at build time. " +
+                "Did you forget to annotate your entity with @Entity? " +
+                "Or is the Qusaq build-time processor not properly configured?");
+    }
 }

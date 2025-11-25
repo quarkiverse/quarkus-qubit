@@ -66,6 +66,19 @@ public final class QusaqConstants {
         METHOD_GET_SINGLE_RESULT, METHOD_FIND_FIRST
     );
 
+    // Join method names (Iteration 6: Join Queries)
+    public static final String METHOD_JOIN = "join";
+    public static final String METHOD_LEFT_JOIN = "leftJoin";
+    public static final String METHOD_ON = "on";
+    public static final String METHOD_SELECT_SOURCE = "selectSource";
+    public static final String METHOD_SELECT_JOINED = "selectJoined";
+
+    // All join methods (for stack walking filter)
+    public static final Set<String> JOIN_METHODS = Set.of(
+        METHOD_JOIN, METHOD_LEFT_JOIN, METHOD_ON,
+        METHOD_SELECT_SOURCE, METHOD_SELECT_JOINED
+    );
+
     // Temporal comparison methods (used in lambda expressions for date/time comparisons)
     public static final String METHOD_IS_AFTER = "isAfter";
     public static final String METHOD_IS_BEFORE = "isBefore";
@@ -84,7 +97,9 @@ public final class QusaqConstants {
     public static final String QUSAQ_ENTITY_INTERNAL_NAME = "io/quarkus/qusaq/runtime/QusaqEntity";
     public static final String QUSAQ_REPOSITORY_INTERNAL_NAME = "io/quarkus/qusaq/runtime/QusaqRepository";
     public static final String QUSAQ_STREAM_INTERNAL_NAME = "io/quarkus/qusaq/runtime/QusaqStream";
+    public static final String JOIN_STREAM_INTERNAL_NAME = "io/quarkus/qusaq/runtime/JoinStream";
     public static final String QUERY_SPEC_DESCRIPTOR = "Lio/quarkus/qusaq/runtime/QuerySpec;";
+    public static final String BI_QUERY_SPEC_DESCRIPTOR = "Lio/quarkus/qusaq/runtime/BiQuerySpec;";
 
     // Standard Java method names for lambda expression analysis
     public static final String METHOD_DOUBLE_VALUE = "doubleValue";

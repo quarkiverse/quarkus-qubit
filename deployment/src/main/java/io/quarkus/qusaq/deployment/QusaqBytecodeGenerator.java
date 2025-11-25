@@ -11,6 +11,7 @@ import org.objectweb.asm.Type;
 public final class QusaqBytecodeGenerator {
 
     private static final String DESC_QUERY_SPEC_TO_STREAM = "(Lio/quarkus/qusaq/runtime/QuerySpec;)Lio/quarkus/qusaq/runtime/QusaqStream;";
+    private static final String DESC_QUERY_SPEC_TO_JOIN_STREAM = "(Lio/quarkus/qusaq/runtime/QuerySpec;)Lio/quarkus/qusaq/runtime/JoinStream;";
     private static final String QUSAQ_STREAM_IMPL_INTERNAL_NAME = "io/quarkus/qusaq/runtime/QusaqStreamImpl";
 
     private QusaqBytecodeGenerator() {
@@ -70,6 +71,113 @@ public final class QusaqBytecodeGenerator {
         mv.visitEnd();
 
         return mv;
+    }
+
+    /**
+     * Generates join entry point method that returns JoinStream.
+     * <p>
+     * Generated code pattern for join entry points:
+     * <pre>{@code
+     * public static <R> JoinStream<Person, R> join(QuerySpec<Person, Collection<R>> spec) {
+     *     return new QusaqStreamImpl<>(Person.class).join(spec);
+     * }
+     * }</pre>
+     * <p>
+     * Iteration 6: Join Queries
+     */
+    public static MethodVisitor generateJoinEntryPoint(ClassVisitor cv, JoinMethodConfig config) {
+        MethodVisitor mv = cv.visitMethod(
+                config.access(),
+                config.methodName(),
+                config.methodDescriptor(),
+                config.genericSignature(),
+                null);
+
+        mv.visitCode();
+
+        // Create new QusaqStreamImpl instance
+        mv.visitTypeInsn(Opcodes.NEW, QUSAQ_STREAM_IMPL_INTERNAL_NAME);
+        mv.visitInsn(Opcodes.DUP);
+
+        // Load entity class as constructor argument
+        mv.visitLdcInsn(config.entityType());
+
+        // Call QusaqStreamImpl constructor: new QusaqStreamImpl(Person.class)
+        mv.visitMethodInsn(
+                Opcodes.INVOKESPECIAL,
+                QUSAQ_STREAM_IMPL_INTERNAL_NAME,
+                "<init>",
+                "(Ljava/lang/Class;)V",
+                false);
+
+        // Load QuerySpec parameter (index 0 for static method)
+        mv.visitVarInsn(Opcodes.ALOAD, 0);
+
+        // Call the join method on the stream: .join(spec) or .leftJoin(spec)
+        // Returns JoinStream<T, R>
+        mv.visitMethodInsn(
+                Opcodes.INVOKEINTERFACE,
+                "io/quarkus/qusaq/runtime/QusaqStream",
+                config.methodName(),
+                config.methodDescriptor(),
+                true);
+
+        // Return the JoinStream result
+        mv.visitInsn(Opcodes.ARETURN);
+
+        mv.visitMaxs(4, 1); // stack: NEW, DUP, LDC, ALOAD; locals: QuerySpec parameter
+        mv.visitEnd();
+
+        return mv;
+    }
+
+    /**
+     * Configuration for generating join entry point methods.
+     * Iteration 6: Join Queries
+     */
+    public record JoinMethodConfig(
+            int access,
+            String methodName,
+            String methodDescriptor,
+            String genericSignature,
+            Type entityType
+    ) {
+        /**
+         * Creates config for join() method.
+         * Signature: <R> JoinStream<T, R> join(QuerySpec<T, Collection<R>> relationship)
+         */
+        public static JoinMethodConfig forJoin(Type entityType, String entityInternalName) {
+            // Generic signature: <R:Ljava/lang/Object;>(Lio/quarkus/qusaq/runtime/QuerySpec<LPerson;Ljava/util/Collection<TR;>;>;)Lio/quarkus/qusaq/runtime/JoinStream<LPerson;TR;>;
+            String genericSignature = "<R:Ljava/lang/Object;>(Lio/quarkus/qusaq/runtime/QuerySpec<L" +
+                    entityInternalName + ";Ljava/util/Collection<TR;>;>;)Lio/quarkus/qusaq/runtime/JoinStream<L" +
+                    entityInternalName + ";TR;>;";
+
+            return new JoinMethodConfig(
+                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                    "join",
+                    DESC_QUERY_SPEC_TO_JOIN_STREAM,
+                    genericSignature,
+                    entityType
+            );
+        }
+
+        /**
+         * Creates config for leftJoin() method.
+         * Signature: <R> JoinStream<T, R> leftJoin(QuerySpec<T, Collection<R>> relationship)
+         */
+        public static JoinMethodConfig forLeftJoin(Type entityType, String entityInternalName) {
+            String genericSignature = "<R:Ljava/lang/Object;>(Lio/quarkus/qusaq/runtime/QuerySpec<L" +
+                    entityInternalName + ";Ljava/util/Collection<TR;>;>;)Lio/quarkus/qusaq/runtime/JoinStream<L" +
+                    entityInternalName + ";TR;>;";
+
+            return new JoinMethodConfig(
+                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                    "leftJoin",
+                    DESC_QUERY_SPEC_TO_JOIN_STREAM,
+                    genericSignature,
+                    entityType
+            );
+        }
     }
 
     /**

@@ -20,6 +20,8 @@ public class QueryExecutorRegistry {
     private static final Map<String, QueryExecutor<List<?>>> LIST_EXECUTORS = new ConcurrentHashMap<>();
     private static final Map<String, QueryExecutor<Long>> COUNT_EXECUTORS = new ConcurrentHashMap<>();
     private static final Map<String, QueryExecutor<Object>> AGGREGATION_EXECUTORS = new ConcurrentHashMap<>();
+    private static final Map<String, QueryExecutor<List<?>>> JOIN_LIST_EXECUTORS = new ConcurrentHashMap<>();
+    private static final Map<String, QueryExecutor<Long>> JOIN_COUNT_EXECUTORS = new ConcurrentHashMap<>();
     private static final Map<String, Integer> CAPTURED_VAR_COUNTS = new ConcurrentHashMap<>();
 
     @Inject
@@ -220,5 +222,125 @@ public class QueryExecutorRegistry {
      */
     public static int getAggregationExecutorCount() {
         return AGGREGATION_EXECUTORS.size();
+    }
+
+    // =============================================================================================
+    // JOIN QUERY SUPPORT (Iteration 6)
+    // =============================================================================================
+
+    /**
+     * Registers join list query executor for call site.
+     * Iteration 6: Supports join() and leftJoin() operations.
+     */
+    public static void registerJoinListExecutor(
+            String callSiteId,
+            QueryExecutor<List<?>> executor,
+            int capturedVarCount) {
+        JOIN_LIST_EXECUTORS.put(callSiteId, executor);
+        CAPTURED_VAR_COUNTS.put(callSiteId, capturedVarCount);
+        log.debugf("Registered join list executor for call site: %s (captured variables: %d)",
+                   callSiteId, capturedVarCount);
+    }
+
+    /**
+     * Registers join count query executor for call site.
+     * Iteration 6: Supports count() on join queries.
+     */
+    public static void registerJoinCountExecutor(
+            String callSiteId,
+            QueryExecutor<Long> executor,
+            int capturedVarCount) {
+        JOIN_COUNT_EXECUTORS.put(callSiteId, executor);
+        CAPTURED_VAR_COUNTS.put(callSiteId, capturedVarCount);
+        log.debugf("Registered join count executor for call site: %s (captured variables: %d)",
+                   callSiteId, capturedVarCount);
+    }
+
+    /**
+     * Executes join list query for call site.
+     * Iteration 6: Handles join() and leftJoin() queries returning source entities.
+     */
+    @SuppressWarnings("unchecked")
+    public <T> List<T> executeJoinListQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues,
+                                             Integer offset, Integer limit, Boolean distinct) {
+        QueryExecutor<List<?>> executor = JOIN_LIST_EXECUTORS.get(callSiteId);
+
+        if (executor == null) {
+            throw new IllegalStateException(String.format(
+                    "No join query executor found for call site: %s%n" +
+                    "%n" +
+                    "Possible causes:%n" +
+                    "  1. Join expression was not analyzed during build-time processing%n" +
+                    "  2. Lambda is in test code (only application code is analyzed)%n" +
+                    "  3. Incremental compilation didn't detect changes%n" +
+                    "%n" +
+                    "Solutions:%n" +
+                    "  - Run a clean build: 'mvn clean compile' or 'gradle clean build'%n" +
+                    "  - Check build logs for 'QusaqProcessor' messages%n" +
+                    "  - Verify lambda is in src/main/java (not src/test/java)%n" +
+                    "%n" +
+                    "Registered executors: %d list, %d count, %d join list, %d join count",
+                    callSiteId, getListExecutorCount(), getCountExecutorCount(),
+                    getJoinListExecutorCount(), getJoinCountExecutorCount()));
+        }
+
+        if (entityManager == null) {
+            throw new IllegalStateException("EntityManager not available");
+        }
+
+        log.tracef("Executing join list query for call site: %s with %d captured variables (offset=%s, limit=%s, distinct=%s)",
+                   callSiteId, capturedValues.length, offset, limit, distinct);
+
+        return (List<T>) executor.execute(entityManager, entityClass, capturedValues, offset, limit, distinct);
+    }
+
+    /**
+     * Executes join count query for call site.
+     * Iteration 6: Handles count() on join queries.
+     */
+    public <T> long executeJoinCountQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues) {
+        QueryExecutor<Long> executor = JOIN_COUNT_EXECUTORS.get(callSiteId);
+
+        if (executor == null) {
+            throw new IllegalStateException(String.format(
+                    "No join count executor found for call site: %s%n" +
+                    "%n" +
+                    "Possible causes:%n" +
+                    "  1. Join expression was not analyzed during build-time processing%n" +
+                    "  2. Lambda is in test code (only application code is analyzed)%n" +
+                    "  3. Incremental compilation didn't detect changes%n" +
+                    "%n" +
+                    "Solutions:%n" +
+                    "  - Run a clean build: 'mvn clean compile' or 'gradle clean build'%n" +
+                    "  - Check build logs for 'QusaqProcessor' messages%n" +
+                    "  - Verify lambda is in src/main/java (not src/test/java)%n" +
+                    "%n" +
+                    "Registered executors: %d list, %d count, %d join list, %d join count",
+                    callSiteId, getListExecutorCount(), getCountExecutorCount(),
+                    getJoinListExecutorCount(), getJoinCountExecutorCount()));
+        }
+
+        if (entityManager == null) {
+            throw new IllegalStateException("EntityManager not available");
+        }
+
+        log.tracef("Executing join count query for call site: %s with %d captured variables",
+                   callSiteId, capturedValues.length);
+
+        return executor.execute(entityManager, entityClass, capturedValues, null, null, null);
+    }
+
+    /**
+     * Returns number of registered join list executors.
+     */
+    public static int getJoinListExecutorCount() {
+        return JOIN_LIST_EXECUTORS.size();
+    }
+
+    /**
+     * Returns number of registered join count executors.
+     */
+    public static int getJoinCountExecutorCount() {
+        return JOIN_COUNT_EXECUTORS.size();
     }
 }

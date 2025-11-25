@@ -47,6 +47,9 @@ import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.MethodDescriptor;
 import io.quarkus.gizmo.ResultHandle;
 import io.quarkus.qusaq.deployment.LambdaExpression;
+import io.quarkus.qusaq.deployment.LambdaExpression.BiEntityFieldAccess;
+import io.quarkus.qusaq.deployment.LambdaExpression.BiEntityPathExpression;
+import io.quarkus.qusaq.deployment.LambdaExpression.EntityPosition;
 import io.quarkus.qusaq.deployment.LambdaExpression.InExpression;
 import io.quarkus.qusaq.deployment.LambdaExpression.MemberOfExpression;
 import io.quarkus.qusaq.deployment.LambdaExpression.PathExpression;
@@ -948,5 +951,348 @@ public class CriteriaExpressionGenerator {
             return Character.toLowerCase(fieldName.charAt(0)) + fieldName.substring(1);
         }
         return methodName;
+    }
+
+    // =============================================================================================
+    // BI-ENTITY EXPRESSIONS (Iteration 6: Join Queries)
+    // =============================================================================================
+
+    /**
+     * Generates JPA Predicate from bi-entity lambda expression AST.
+     * <p>
+     * Used for join query predicates like {@code (Person p, Phone ph) -> ph.type.equals("mobile")}.
+     * Unlike single-entity predicates, bi-entity predicates need access to both the root entity
+     * and the joined entity to correctly resolve field paths.
+     * <p>
+     * Example:
+     * <pre>
+     * // Lambda: (Person p, Phone ph) -> ph.type.equals("mobile") && p.active
+     * // Generated JPA:
+     * //   - ph.type -> join.get("type")
+     * //   - p.active -> root.get("active")
+     * </pre>
+     *
+     * @param method the method creator for bytecode generation
+     * @param expression the bi-entity lambda expression AST
+     * @param cb the CriteriaBuilder handle
+     * @param root the root entity handle (FIRST entity in join)
+     * @param join the joined entity handle (SECOND entity in join)
+     * @param capturedValues the captured variables array handle
+     * @return the JPA Predicate handle
+     */
+    public ResultHandle generateBiEntityPredicate(
+            MethodCreator method,
+            LambdaExpression expression,
+            ResultHandle cb,
+            ResultHandle root,
+            ResultHandle join,
+            ResultHandle capturedValues) {
+
+        if (expression == null) {
+            return null;
+        }
+
+        if (expression instanceof LambdaExpression.BinaryOp binOp) {
+            return generateBiEntityBinaryOperation(method, binOp, cb, root, join, capturedValues);
+        } else if (expression instanceof LambdaExpression.UnaryOp unOp) {
+            return generateBiEntityUnaryOperation(method, unOp, cb, root, join, capturedValues);
+        } else if (expression instanceof BiEntityFieldAccess biField) {
+            ResultHandle base = getBaseForEntityPosition(biField.entityPosition(), root, join);
+            ResultHandle path = generateFieldAccess(method,
+                    new LambdaExpression.FieldAccess(biField.fieldName(), biField.fieldType()), base);
+            if (isBooleanType(biField.fieldType())) {
+                return method.invokeInterfaceMethod(
+                        methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
+            }
+            return path;
+        } else if (expression instanceof BiEntityPathExpression biPath) {
+            ResultHandle base = getBaseForEntityPosition(biPath.entityPosition(), root, join);
+            ResultHandle path = generatePathExpression(method,
+                    new PathExpression(biPath.segments(), biPath.resultType()), base);
+            if (isBooleanType(biPath.resultType())) {
+                return method.invokeInterfaceMethod(
+                        methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
+            }
+            return path;
+        } else if (expression instanceof LambdaExpression.FieldAccess field) {
+            // Single-entity field in bi-entity context (from root)
+            ResultHandle path = generateFieldAccess(method, field, root);
+            if (isBooleanType(field.fieldType())) {
+                return method.invokeInterfaceMethod(
+                        methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
+            }
+            return path;
+        } else if (expression instanceof PathExpression pathExpr) {
+            // Single-entity path in bi-entity context (from root)
+            ResultHandle path = generatePathExpression(method, pathExpr, root);
+            if (isBooleanType(pathExpr.resultType())) {
+                return method.invokeInterfaceMethod(
+                        methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
+            }
+            return path;
+        } else if (expression instanceof LambdaExpression.MethodCall methodCall) {
+            return generateBiEntityMethodCall(method, methodCall, cb, root, join, capturedValues);
+        }
+
+        return null;
+    }
+
+    /**
+     * Generates JPA Expression from bi-entity lambda expression AST.
+     * <p>
+     * Returns the base expression handle (Path, etc.) for bi-entity expressions,
+     * selecting root or join based on entity position.
+     *
+     * @param method the method creator for bytecode generation
+     * @param expression the bi-entity lambda expression AST
+     * @param cb the CriteriaBuilder handle
+     * @param root the root entity handle (FIRST entity in join)
+     * @param join the joined entity handle (SECOND entity in join)
+     * @param capturedValues the captured variables array handle
+     * @return the JPA Expression handle
+     */
+    public ResultHandle generateBiEntityExpressionAsJpaExpression(
+            MethodCreator method,
+            LambdaExpression expression,
+            ResultHandle cb,
+            ResultHandle root,
+            ResultHandle join,
+            ResultHandle capturedValues) {
+
+        if (expression == null) {
+            return null;
+        }
+
+        if (expression instanceof BiEntityFieldAccess biField) {
+            ResultHandle base = getBaseForEntityPosition(biField.entityPosition(), root, join);
+            return generateFieldAccess(method,
+                    new LambdaExpression.FieldAccess(biField.fieldName(), biField.fieldType()), base);
+        } else if (expression instanceof BiEntityPathExpression biPath) {
+            ResultHandle base = getBaseForEntityPosition(biPath.entityPosition(), root, join);
+            return generatePathExpression(method,
+                    new PathExpression(biPath.segments(), biPath.resultType()), base);
+        } else if (expression instanceof LambdaExpression.FieldAccess field) {
+            // Single-entity field defaults to root
+            return generateFieldAccess(method, field, root);
+        } else if (expression instanceof PathExpression pathExpr) {
+            // Single-entity path defaults to root
+            return generatePathExpression(method, pathExpr, root);
+        } else if (expression instanceof LambdaExpression.Constant constant) {
+            ResultHandle constantValue = generateConstant(method, constant);
+            return wrapAsLiteral(method, cb, constantValue);
+        } else if (expression instanceof LambdaExpression.CapturedVariable capturedVar) {
+            ResultHandle index = method.load(capturedVar.index());
+            ResultHandle value = method.readArrayValue(capturedValues, index);
+            Class<?> targetType = TypeConverter.getBoxedType(capturedVar.type());
+            ResultHandle castedValue = method.checkCast(value, targetType);
+            return wrapAsLiteral(method, cb, castedValue);
+        } else if (expression instanceof LambdaExpression.MethodCall methodCall) {
+            return generateBiEntityMethodCall(method, methodCall, cb, root, join, capturedValues);
+        } else if (expression instanceof LambdaExpression.BinaryOp binOp) {
+            return generateBiEntityBinaryOperation(method, binOp, cb, root, join, capturedValues);
+        }
+
+        return null;
+    }
+
+    /**
+     * Returns the appropriate JPA base handle (root or join) based on entity position.
+     *
+     * @param position the entity position (FIRST or SECOND)
+     * @param root the root entity handle
+     * @param join the joined entity handle
+     * @return root for FIRST position, join for SECOND position
+     */
+    private ResultHandle getBaseForEntityPosition(
+            EntityPosition position,
+            ResultHandle root,
+            ResultHandle join) {
+        return position == EntityPosition.FIRST ? root : join;
+    }
+
+    /**
+     * Generates bi-entity binary operation (comparison, logical, arithmetic).
+     */
+    private ResultHandle generateBiEntityBinaryOperation(
+            MethodCreator method,
+            LambdaExpression.BinaryOp binOp,
+            ResultHandle cb,
+            ResultHandle root,
+            ResultHandle join,
+            ResultHandle capturedValues) {
+
+        // Check for string concatenation
+        if (isStringConcatenation(binOp)) {
+            ResultHandle left = generateBiEntityExpressionAsJpaExpression(method, binOp.left(), cb, root, join, capturedValues);
+            ResultHandle right = generateBiEntityExpressionAsJpaExpression(method, binOp.right(), cb, root, join, capturedValues);
+            return generateStringConcatenation(method, cb, left, right);
+        }
+
+        // Check for arithmetic
+        if (PatternDetector.isArithmeticExpression(binOp)) {
+            ResultHandle left = generateBiEntityExpressionAsJpaExpression(method, binOp.left(), cb, root, join, capturedValues);
+            ResultHandle right = generateBiEntityExpressionAsJpaExpression(method, binOp.right(), cb, root, join, capturedValues);
+            return generateArithmeticOperation(method, binOp.operator(), cb, left, right);
+        }
+
+        // Logical operations
+        if (isLogicalOperation(binOp)) {
+            ResultHandle left = generateBiEntityPredicate(method, binOp.left(), cb, root, join, capturedValues);
+            ResultHandle right = generateBiEntityPredicate(method, binOp.right(), cb, root, join, capturedValues);
+            return combinePredicates(method, cb, left, right, binOp.operator());
+        }
+
+        // Null check
+        if (isNullCheckPattern(binOp)) {
+            return generateBiEntityNullCheckPredicate(method, binOp, cb, root, join, capturedValues);
+        }
+
+        // Default: comparison operation
+        ResultHandle left = generateBiEntityExpressionAsJpaExpression(method, binOp.left(), cb, root, join, capturedValues);
+        ResultHandle right = generateBiEntityExpressionAsJpaExpression(method, binOp.right(), cb, root, join, capturedValues);
+        return generateComparisonOperation(method, binOp.operator(), cb, left, right);
+    }
+
+    /**
+     * Generates bi-entity null check predicate.
+     */
+    private ResultHandle generateBiEntityNullCheckPredicate(
+            MethodCreator method,
+            LambdaExpression.BinaryOp binOp,
+            ResultHandle cb,
+            ResultHandle root,
+            ResultHandle join,
+            ResultHandle capturedValues) {
+
+        boolean leftIsNull = binOp.left() instanceof LambdaExpression.NullLiteral;
+        LambdaExpression nonNullExpr = leftIsNull ? binOp.right() : binOp.left();
+        ResultHandle expression = generateBiEntityExpressionAsJpaExpression(method, nonNullExpr, cb, root, join, capturedValues);
+
+        if (binOp.operator() == EQ) {
+            return method.invokeInterfaceMethod(
+                    methodDescriptor(CriteriaBuilder.class, CB_IS_NULL, Predicate.class, Expression.class), cb, expression);
+        } else {
+            return method.invokeInterfaceMethod(
+                    methodDescriptor(CriteriaBuilder.class, CB_IS_NOT_NULL, Predicate.class, Expression.class), cb, expression);
+        }
+    }
+
+    /**
+     * Generates bi-entity unary NOT operation.
+     */
+    private ResultHandle generateBiEntityUnaryOperation(
+            MethodCreator method,
+            LambdaExpression.UnaryOp unOp,
+            ResultHandle cb,
+            ResultHandle root,
+            ResultHandle join,
+            ResultHandle capturedValues) {
+
+        ResultHandle operand = generateBiEntityPredicate(method, unOp.operand(), cb, root, join, capturedValues);
+
+        return switch (unOp.operator()) {
+            case NOT -> method.invokeInterfaceMethod(
+                    methodDescriptor(CriteriaBuilder.class, CB_NOT, Predicate.class, Expression.class), cb, operand);
+        };
+    }
+
+    /**
+     * Generates bi-entity method call (e.g., ph.type.equals("mobile")).
+     * <p>
+     * Handles string methods like equals(), startsWith(), contains(), etc.
+     * The target of the method call is resolved using bi-entity expression generation.
+     */
+    private ResultHandle generateBiEntityMethodCall(
+            MethodCreator method,
+            LambdaExpression.MethodCall methodCall,
+            ResultHandle cb,
+            ResultHandle root,
+            ResultHandle join,
+            ResultHandle capturedValues) {
+
+        String methodName = methodCall.methodName();
+
+        // Handle equals() method
+        if (METHOD_EQUALS.equals(methodName) && !methodCall.arguments().isEmpty()) {
+            ResultHandle targetExpr = generateBiEntityExpressionAsJpaExpression(
+                    method, methodCall.target(), cb, root, join, capturedValues);
+            ResultHandle argExpr = generateBiEntityExpression(
+                    method, methodCall.arguments().get(0), cb, root, join, capturedValues);
+            return method.invokeInterfaceMethod(
+                    methodDescriptor(CriteriaBuilder.class, CB_EQUAL, Predicate.class, Expression.class, Object.class),
+                    cb, targetExpr, argExpr);
+        }
+
+        // Handle string pattern methods (startsWith, endsWith, contains)
+        if (STRING_PATTERN_METHOD_NAMES.contains(methodName) && !methodCall.arguments().isEmpty()) {
+            ResultHandle fieldExpr = generateBiEntityExpression(
+                    method, methodCall.target(), cb, root, join, capturedValues);
+            ResultHandle argExpr = generateBiEntityExpression(
+                    method, methodCall.arguments().get(0), cb, root, join, capturedValues);
+            return stringBuilder.buildStringPattern(method, methodCall, cb, fieldExpr, argExpr);
+        }
+
+        // Handle temporal comparison methods (isAfter, isBefore, isEqual)
+        if (TEMPORAL_COMPARISON_METHOD_NAMES.contains(methodName) && !methodCall.arguments().isEmpty()) {
+            ResultHandle fieldExpr = generateBiEntityExpressionAsJpaExpression(
+                    method, methodCall.target(), cb, root, join, capturedValues);
+            ResultHandle argExpr = generateBiEntityExpression(
+                    method, methodCall.arguments().get(0), cb, root, join, capturedValues);
+            return temporalBuilder.buildTemporalComparison(method, methodCall, cb, fieldExpr, argExpr);
+        }
+
+        // Handle getter methods (getX, isX)
+        if (methodName.startsWith(PREFIX_GET) || methodName.startsWith(PREFIX_IS)) {
+            String fieldName = extractFieldName(methodName);
+            ResultHandle targetExpr = generateBiEntityExpressionAsJpaExpression(
+                    method, methodCall.target(), cb, root, join, capturedValues);
+            if (targetExpr == null) {
+                targetExpr = root; // Default to root if target cannot be resolved
+            }
+            return generateFieldAccess(method,
+                    new LambdaExpression.FieldAccess(fieldName, methodCall.returnType()), targetExpr);
+        }
+
+        return null;
+    }
+
+    /**
+     * Generates raw value from bi-entity expression.
+     * Used for method arguments and captured variables.
+     */
+    private ResultHandle generateBiEntityExpression(
+            MethodCreator method,
+            LambdaExpression expression,
+            ResultHandle cb,
+            ResultHandle root,
+            ResultHandle join,
+            ResultHandle capturedValues) {
+
+        if (expression == null) {
+            return null;
+        }
+
+        if (expression instanceof BiEntityFieldAccess biField) {
+            ResultHandle base = getBaseForEntityPosition(biField.entityPosition(), root, join);
+            return generateFieldAccess(method,
+                    new LambdaExpression.FieldAccess(biField.fieldName(), biField.fieldType()), base);
+        } else if (expression instanceof BiEntityPathExpression biPath) {
+            ResultHandle base = getBaseForEntityPosition(biPath.entityPosition(), root, join);
+            return generatePathExpression(method,
+                    new PathExpression(biPath.segments(), biPath.resultType()), base);
+        } else if (expression instanceof LambdaExpression.FieldAccess field) {
+            return generateFieldAccess(method, field, root);
+        } else if (expression instanceof PathExpression pathExpr) {
+            return generatePathExpression(method, pathExpr, root);
+        } else if (expression instanceof LambdaExpression.Constant constant) {
+            return generateConstant(method, constant);
+        } else if (expression instanceof LambdaExpression.CapturedVariable capturedVar) {
+            ResultHandle index = method.load(capturedVar.index());
+            ResultHandle value = method.readArrayValue(capturedValues, index);
+            Class<?> targetType = TypeConverter.getBoxedType(capturedVar.type());
+            return method.checkCast(value, targetType);
+        }
+
+        return null;
     }
 }

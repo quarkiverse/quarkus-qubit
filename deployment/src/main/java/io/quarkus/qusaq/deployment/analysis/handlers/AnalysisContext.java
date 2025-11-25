@@ -70,8 +70,21 @@ public class AnalysisContext {
     /**
      * Index of the entity parameter in the local variable table.
      * Used to distinguish entity field accesses from captured variables.
+     * For single-entity lambdas (QuerySpec), this is the only entity parameter.
+     * For bi-entity lambdas (BiQuerySpec), this is the FIRST entity parameter.
      */
     private final int entityParameterIndex;
+
+    /**
+     * Index of the second entity parameter for bi-entity lambdas (BiQuerySpec).
+     * -1 if this is a single-entity lambda.
+     */
+    private final int secondEntityParameterIndex;
+
+    /**
+     * True if this is a bi-entity lambda (BiQuerySpec) with two entity parameters.
+     */
+    private final boolean biEntityMode;
 
     /**
      * Current instruction index in the instruction list.
@@ -84,17 +97,38 @@ public class AnalysisContext {
      */
     private boolean hasSeenBranch = false;
 
-    // ==================== Constructor ====================
+    // ==================== Constructors ====================
 
     /**
-     * Creates a new analysis context for the given method.
+     * Creates a new analysis context for the given method (single-entity lambda).
      *
      * @param method the lambda method being analyzed
      * @param entityParameterIndex the slot index of the entity parameter
      */
     public AnalysisContext(MethodNode method, int entityParameterIndex) {
+        this(method, entityParameterIndex, -1, false);
+    }
+
+    /**
+     * Creates a new analysis context for bi-entity lambdas (BiQuerySpec).
+     *
+     * @param method the lambda method being analyzed
+     * @param firstEntityParameterIndex the slot index of the first entity parameter
+     * @param secondEntityParameterIndex the slot index of the second entity parameter
+     */
+    public AnalysisContext(MethodNode method, int firstEntityParameterIndex, int secondEntityParameterIndex) {
+        this(method, firstEntityParameterIndex, secondEntityParameterIndex, true);
+    }
+
+    /**
+     * Internal constructor for all cases.
+     */
+    private AnalysisContext(MethodNode method, int entityParameterIndex,
+                            int secondEntityParameterIndex, boolean biEntityMode) {
         this.method = method;
         this.entityParameterIndex = entityParameterIndex;
+        this.secondEntityParameterIndex = secondEntityParameterIndex;
+        this.biEntityMode = biEntityMode;
         this.instructions = method.instructions;
         this.instructionCount = instructions.size();
 
@@ -255,11 +289,72 @@ public class AnalysisContext {
     }
 
     /**
-     * Returns the entity parameter index.
+     * Returns the entity parameter index (first entity for bi-entity lambdas).
      *
      * @return entity parameter slot index
      */
     public int getEntityParameterIndex() {
         return entityParameterIndex;
+    }
+
+    /**
+     * Returns the first entity parameter index (alias for getEntityParameterIndex).
+     * <p>
+     * For bi-entity lambdas, use this method for clarity.
+     *
+     * @return first entity parameter slot index
+     */
+    public int getFirstEntityParameterIndex() {
+        return entityParameterIndex;
+    }
+
+    /**
+     * Returns the second entity parameter index for bi-entity lambdas.
+     *
+     * @return second entity parameter slot index, or -1 if single-entity
+     */
+    public int getSecondEntityParameterIndex() {
+        return secondEntityParameterIndex;
+    }
+
+    /**
+     * Returns true if this is a bi-entity lambda (BiQuerySpec) context.
+     *
+     * @return true for bi-entity, false for single-entity
+     */
+    public boolean isBiEntityMode() {
+        return biEntityMode;
+    }
+
+    /**
+     * Checks if the given slot index is an entity parameter.
+     * <p>
+     * In single-entity mode, checks against the single entity parameter.
+     * In bi-entity mode, checks against both entity parameters.
+     *
+     * @param slotIndex the slot index to check
+     * @return true if the slot is an entity parameter
+     */
+    public boolean isEntityParameter(int slotIndex) {
+        if (slotIndex == entityParameterIndex) {
+            return true;
+        }
+        return biEntityMode && slotIndex == secondEntityParameterIndex;
+    }
+
+    /**
+     * Determines which entity (FIRST or SECOND) for a given slot index in bi-entity mode.
+     *
+     * @param slotIndex the slot index to check
+     * @return EntityPosition.FIRST, EntityPosition.SECOND, or null if not an entity parameter
+     */
+    public LambdaExpression.EntityPosition getEntityPosition(int slotIndex) {
+        if (slotIndex == entityParameterIndex) {
+            return LambdaExpression.EntityPosition.FIRST;
+        }
+        if (biEntityMode && slotIndex == secondEntityParameterIndex) {
+            return LambdaExpression.EntityPosition.SECOND;
+        }
+        return null;
     }
 }

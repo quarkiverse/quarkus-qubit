@@ -258,7 +258,7 @@ public class MethodInvocationHandler implements InstructionHandler {
      * IN clause pattern: captured collection.contains(entity field)
      * Example: {@code cities.contains(p.city)}
      * - target (collection) is CapturedVariable
-     * - argument (field) is FieldAccess or PathExpression
+     * - argument (field) is FieldAccess, PathExpression, BiEntityFieldAccess, or BiEntityPathExpression
      *
      * @param target The collection (left side of contains)
      * @param argument The value being checked (argument to contains)
@@ -269,8 +269,11 @@ public class MethodInvocationHandler implements InstructionHandler {
         boolean targetIsCaptured = target instanceof LambdaExpression.CapturedVariable;
 
         // Argument must be a field access or path expression (entity field)
+        // Supports both single-entity and bi-entity expressions
         boolean argumentIsEntityField = argument instanceof LambdaExpression.FieldAccess ||
-                                         argument instanceof LambdaExpression.PathExpression;
+                                         argument instanceof LambdaExpression.PathExpression ||
+                                         argument instanceof LambdaExpression.BiEntityFieldAccess ||
+                                         argument instanceof LambdaExpression.BiEntityPathExpression;
 
         return targetIsCaptured && argumentIsEntityField;
     }
@@ -280,7 +283,7 @@ public class MethodInvocationHandler implements InstructionHandler {
      * <p>
      * MEMBER OF pattern: entity collection field.contains(value)
      * Example: {@code p.roles.contains("admin")}
-     * - target (collection field) is FieldAccess or PathExpression
+     * - target (collection field) is FieldAccess, PathExpression, BiEntityFieldAccess, or BiEntityPathExpression
      * - argument (value) is Constant or CapturedVariable
      *
      * @param target The collection field (left side of contains)
@@ -289,8 +292,11 @@ public class MethodInvocationHandler implements InstructionHandler {
      */
     private boolean isMemberOfPattern(LambdaExpression target, LambdaExpression argument) {
         // Target must be a field access or path expression (collection field on entity)
+        // Supports both single-entity and bi-entity expressions
         boolean targetIsEntityField = target instanceof LambdaExpression.FieldAccess ||
-                                       target instanceof LambdaExpression.PathExpression;
+                                       target instanceof LambdaExpression.PathExpression ||
+                                       target instanceof LambdaExpression.BiEntityFieldAccess ||
+                                       target instanceof LambdaExpression.BiEntityPathExpression;
 
         // Argument must be a constant or captured variable (the value to check)
         boolean argumentIsValue = argument instanceof LambdaExpression.Constant ||
@@ -499,16 +505,25 @@ public class MethodInvocationHandler implements InstructionHandler {
 
     /**
      * Handles getter method calls (getXxx, isXxx) and converts to field access.
+     * <p>
+     * In bi-entity mode, produces BiEntityFieldAccess when called on a BiEntityParameter.
      */
     private void handleGetterMethod(AnalysisContext ctx, MethodInsnNode methodInsn) {
-        if (!ctx.isStackEmpty()) {
-            ctx.pop();
+        if (ctx.isStackEmpty()) {
+            return;
         }
 
+        LambdaExpression target = ctx.pop();
         String fieldName = extractFieldName(methodInsn.name);
         String returnTypeDesc = methodInsn.desc.substring(2);
         Class<?> returnType = TypeConverter.descriptorToClass(returnTypeDesc);
-        ctx.push(new LambdaExpression.FieldAccess(fieldName, returnType));
+
+        // Handle bi-entity parameters for join queries
+        if (target instanceof LambdaExpression.BiEntityParameter biParam) {
+            ctx.push(new LambdaExpression.BiEntityFieldAccess(fieldName, returnType, biParam.position()));
+        } else {
+            ctx.push(new LambdaExpression.FieldAccess(fieldName, returnType));
+        }
     }
 
     /**

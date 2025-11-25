@@ -406,4 +406,160 @@ public sealed interface LambdaExpression {
             return new MemberOfExpression(value, collectionField, true);
         }
     }
+
+    // =============================================================================================
+    // JOIN QUERIES (Iteration 6)
+    // =============================================================================================
+
+    /**
+     * Identifies which entity in a bi-entity lambda (BiQuerySpec).
+     */
+    enum EntityPosition {
+        /** First entity in the join (source/left side). */
+        FIRST,
+        /** Second entity in the join (joined/right side). */
+        SECOND
+    }
+
+    /**
+     * Bi-entity parameter reference for join query lambdas.
+     * <p>
+     * Used in BiQuerySpec lambdas where two entity parameters are available:
+     * {@code (Person p, Phone ph) -> ...}
+     * <p>
+     * Unlike single-entity Parameter, this tracks which entity (FIRST or SECOND)
+     * the parameter represents, enabling correct JPA alias generation.
+     * <p>
+     * Example:
+     * <pre>
+     * // Lambda: (Person p, Phone ph) -> ph.type.equals("mobile")
+     * // Parameter 'ph' is:
+     * BiEntityParameter("entity", Phone.class, 1, SECOND)
+     *
+     * // Generated JPA uses 'phoneJoin' alias instead of 'root'
+     * </pre>
+     *
+     * @param name Parameter name (typically "entity" or "joinedEntity")
+     * @param type The entity class type
+     * @param index The slot index in bytecode
+     * @param position Which entity in the join (FIRST or SECOND)
+     */
+    record BiEntityParameter(
+            String name,
+            Class<?> type,
+            int index,
+            EntityPosition position) implements LambdaExpression {
+
+        public BiEntityParameter {
+            Objects.requireNonNull(name, "Parameter name cannot be null");
+            Objects.requireNonNull(type, "Parameter type cannot be null");
+            Objects.requireNonNull(position, "Entity position cannot be null");
+        }
+
+        /**
+         * Returns true if this is the first (source/left) entity in the join.
+         */
+        public boolean isFirstEntity() {
+            return position == EntityPosition.FIRST;
+        }
+
+        /**
+         * Returns true if this is the second (joined/right) entity in the join.
+         */
+        public boolean isSecondEntity() {
+            return position == EntityPosition.SECOND;
+        }
+    }
+
+    /**
+     * Field access from a bi-entity context (join query).
+     * <p>
+     * Extends FieldAccess to track which entity the field belongs to in a join.
+     * This enables correct JPA path generation: {@code root.get("field")} vs
+     * {@code joinAlias.get("field")}.
+     * <p>
+     * Example:
+     * <pre>
+     * // Lambda: (Person p, Phone ph) -> ph.type.equals("mobile")
+     * // Field 'type' from 'ph' is:
+     * BiEntityFieldAccess("type", String.class, SECOND)
+     *
+     * // Generated JPA: phoneJoin.get("type") instead of root.get("type")
+     * </pre>
+     *
+     * @param fieldName The field name
+     * @param fieldType The field type
+     * @param entityPosition Which entity the field belongs to (FIRST or SECOND)
+     */
+    record BiEntityFieldAccess(
+            String fieldName,
+            Class<?> fieldType,
+            EntityPosition entityPosition) implements LambdaExpression {
+
+        public BiEntityFieldAccess {
+            Objects.requireNonNull(fieldName, "Field name cannot be null");
+            Objects.requireNonNull(fieldType, "Field type cannot be null");
+            Objects.requireNonNull(entityPosition, "Entity position cannot be null");
+        }
+
+        /**
+         * Returns true if this field is from the first (source/left) entity.
+         */
+        public boolean isFromFirstEntity() {
+            return entityPosition == EntityPosition.FIRST;
+        }
+
+        /**
+         * Returns true if this field is from the second (joined/right) entity.
+         */
+        public boolean isFromSecondEntity() {
+            return entityPosition == EntityPosition.SECOND;
+        }
+    }
+
+    /**
+     * Path expression from a bi-entity context (join query).
+     * <p>
+     * Extends PathExpression to track which entity the path starts from in a join.
+     * <p>
+     * Example:
+     * <pre>
+     * // Lambda: (Person p, Phone ph) -> ph.owner.firstName.equals("John")
+     * // Path from 'ph' is:
+     * BiEntityPathExpression([owner, firstName], String.class, SECOND)
+     * </pre>
+     *
+     * @param segments The list of path segments
+     * @param resultType The type of the final expression result
+     * @param entityPosition Which entity the path starts from
+     */
+    record BiEntityPathExpression(
+            List<PathSegment> segments,
+            Class<?> resultType,
+            EntityPosition entityPosition) implements LambdaExpression {
+
+        public BiEntityPathExpression {
+            Objects.requireNonNull(segments, "Segments cannot be null");
+            if (segments.isEmpty()) {
+                throw new IllegalArgumentException("Path expression must have at least one segment");
+            }
+            segments = List.copyOf(segments);
+            Objects.requireNonNull(resultType, "Result type cannot be null");
+            Objects.requireNonNull(entityPosition, "Entity position cannot be null");
+        }
+
+        /**
+         * Returns true if this path starts from the first (source/left) entity.
+         */
+        public boolean isFromFirstEntity() {
+            return entityPosition == EntityPosition.FIRST;
+        }
+
+        /**
+         * Returns true if this path starts from the second (joined/right) entity.
+         */
+        public boolean isFromSecondEntity() {
+            return entityPosition == EntityPosition.SECOND;
+        }
+    }
 }

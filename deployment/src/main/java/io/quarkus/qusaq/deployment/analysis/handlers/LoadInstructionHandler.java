@@ -1,6 +1,10 @@
 package io.quarkus.qusaq.deployment.analysis.handlers;
 
 import io.quarkus.qusaq.deployment.LambdaExpression;
+import io.quarkus.qusaq.deployment.LambdaExpression.BiEntityFieldAccess;
+import io.quarkus.qusaq.deployment.LambdaExpression.BiEntityParameter;
+import io.quarkus.qusaq.deployment.LambdaExpression.BiEntityPathExpression;
+import io.quarkus.qusaq.deployment.LambdaExpression.EntityPosition;
 import io.quarkus.qusaq.deployment.LambdaExpression.FieldAccess;
 import io.quarkus.qusaq.deployment.LambdaExpression.PathExpression;
 import io.quarkus.qusaq.deployment.LambdaExpression.PathSegment;
@@ -22,6 +26,11 @@ import static org.objectweb.asm.Opcodes.*;
  * <p>
  * Enhanced in Iteration 4 to support relationship navigation by detecting
  * chained GETFIELD instructions and building PathExpression AST nodes.
+ * <p>
+ * Enhanced in Iteration 6 to support bi-entity lambdas (BiQuerySpec) for join
+ * queries. In bi-entity mode, produces BiEntityParameter, BiEntityFieldAccess,
+ * and BiEntityPathExpression nodes that track which entity the expression
+ * belongs to (FIRST or SECOND).
  */
 public class LoadInstructionHandler implements InstructionHandler {
 
@@ -45,11 +54,25 @@ public class LoadInstructionHandler implements InstructionHandler {
         return false;
     }
 
-    /** Handles ALOAD: entity parameter or captured variable. */
+    /**
+     * Handles ALOAD: entity parameter or captured variable.
+     * <p>
+     * In bi-entity mode (join queries), checks both entity parameter slots and
+     * produces BiEntityParameter nodes that track the entity position.
+     */
     private void handleALoad(AnalysisContext ctx, VarInsnNode varInsn) {
-        if (varInsn.var == ctx.getEntityParameterIndex()) {
-            // This is the entity parameter (e.g., 'p' in "p -> p.age > 18")
-            ctx.push(new LambdaExpression.Parameter("entity", Object.class, varInsn.var));
+        EntityPosition entityPosition = ctx.getEntityPosition(varInsn.var);
+
+        if (entityPosition != null) {
+            // This is an entity parameter
+            if (ctx.isBiEntityMode()) {
+                // Bi-entity lambda: produce BiEntityParameter
+                String paramName = entityPosition == EntityPosition.FIRST ? "entity" : "joinedEntity";
+                ctx.push(new BiEntityParameter(paramName, Object.class, varInsn.var, entityPosition));
+            } else {
+                // Single-entity lambda: produce Parameter
+                ctx.push(new LambdaExpression.Parameter("entity", Object.class, varInsn.var));
+            }
         } else {
             // This is a captured variable from the enclosing scope
             int paramIndex = DescriptorParser.slotIndexToParameterIndex(
@@ -88,6 +111,9 @@ public class LoadInstructionHandler implements InstructionHandler {
      * Iteration 4 Enhancement: Detects chained field access patterns and builds
      * PathExpression AST nodes for relationship navigation.
      * <p>
+     * Iteration 6 Enhancement: Produces BiEntityFieldAccess and BiEntityPathExpression
+     * nodes in bi-entity mode (join queries) to track entity position.
+     * <p>
      * Bytecode patterns:
      * <pre>
      * // Single field access: p.age
@@ -98,6 +124,10 @@ public class LoadInstructionHandler implements InstructionHandler {
      * ALOAD 0              // Stack: [Parameter]
      * GETFIELD Phone.owner // Stack: [FieldAccess(owner)]  <- intermediate
      * GETFIELD Person.firstName // Stack: [PathExpression([owner, firstName])]
+     *
+     * // Bi-entity (join): (Person p, Phone ph) -> ph.type
+     * ALOAD 1              // Stack: [BiEntityParameter(SECOND)]
+     * GETFIELD Phone.type  // Stack: [BiEntityFieldAccess(type, SECOND)]
      * </pre>
      */
     private void handleGetField(AnalysisContext ctx, FieldInsnNode fieldInsn) {
@@ -110,7 +140,40 @@ public class LoadInstructionHandler implements InstructionHandler {
         // will be resolved during JPA generation using RelationshipMetadataExtractor
         PathSegment newSegment = new PathSegment(fieldName, fieldType, RelationType.FIELD);
 
-        if (target instanceof LambdaExpression.Parameter) {
+        // =========================================================================
+        // Bi-entity mode handling (join queries)
+        // =========================================================================
+
+        if (target instanceof BiEntityParameter biParam) {
+            // First-level field access from bi-entity parameter: ph.type
+            ctx.push(new BiEntityFieldAccess(fieldName, fieldType, biParam.position()));
+
+        } else if (target instanceof BiEntityFieldAccess biField) {
+            // Second-level field access from bi-entity: ph.owner.firstName
+            // Convert to BiEntityPathExpression
+            PathSegment firstSegment = new PathSegment(
+                    biField.fieldName(),
+                    biField.fieldType(),
+                    RelationType.FIELD);
+
+            List<PathSegment> segments = new ArrayList<>();
+            segments.add(firstSegment);
+            segments.add(newSegment);
+
+            ctx.push(new BiEntityPathExpression(segments, fieldType, biField.entityPosition()));
+
+        } else if (target instanceof BiEntityPathExpression biPath) {
+            // Third+ level bi-entity field access: ph.owner.department.name
+            List<PathSegment> segments = new ArrayList<>(biPath.segments());
+            segments.add(newSegment);
+
+            ctx.push(new BiEntityPathExpression(segments, fieldType, biPath.entityPosition()));
+
+        // =========================================================================
+        // Single-entity mode handling (original behavior)
+        // =========================================================================
+
+        } else if (target instanceof LambdaExpression.Parameter) {
             // First-level field access from entity parameter: p.age
             // For single-level access, continue using FieldAccess for backward compatibility
             ctx.push(new FieldAccess(fieldName, fieldType));

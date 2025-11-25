@@ -497,6 +497,28 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
     }
 
     // =============================================================================================
+    // JOIN OPERATIONS (Iteration 6)
+    // =============================================================================================
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <R> JoinStream<T, R> join(QuerySpec<T, java.util.Collection<R>> relationship) {
+        // Infer joined entity class from the relationship
+        // For now, use Object.class as placeholder - actual type is resolved at build time
+        Class<R> joinedClass = (Class<R>) Object.class;
+        return new JoinStreamImpl<>(entityClass, joinedClass, relationship, JoinType.INNER);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <R> JoinStream<T, R> leftJoin(QuerySpec<T, java.util.Collection<R>> relationship) {
+        // Infer joined entity class from the relationship
+        // For now, use Object.class as placeholder - actual type is resolved at build time
+        Class<R> joinedClass = (Class<R>) Object.class;
+        return new JoinStreamImpl<>(entityClass, joinedClass, relationship, JoinType.LEFT);
+    }
+
+    // =============================================================================================
     // INTERNAL CLASSES
     // =============================================================================================
 

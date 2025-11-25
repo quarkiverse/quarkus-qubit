@@ -40,6 +40,24 @@ public class QueryExecutorRecorder {
     }
 
     /**
+     * Registers join list query executor during static initialization.
+     * Iteration 6: Join Queries
+     */
+    public void registerJoinListExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
+        registerExecutor(callSiteId, executorClassName, capturedVarCount, "join-list",
+            (QueryExecutor<List<?>> executor) -> QueryExecutorRegistry.registerJoinListExecutor(callSiteId, executor, capturedVarCount));
+    }
+
+    /**
+     * Registers join count query executor during static initialization.
+     * Iteration 6: Join Queries
+     */
+    public void registerJoinCountExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
+        registerExecutor(callSiteId, executorClassName, capturedVarCount, "join-count",
+            (QueryExecutor<Long> executor) -> QueryExecutorRegistry.registerJoinCountExecutor(callSiteId, executor, capturedVarCount));
+    }
+
+    /**
      * Generic executor registration method that handles the common logic for all executor types.
      */
     private <T> void registerExecutor(

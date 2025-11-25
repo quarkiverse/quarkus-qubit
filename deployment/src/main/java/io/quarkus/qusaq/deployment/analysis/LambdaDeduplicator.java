@@ -148,14 +148,54 @@ public class LambdaDeduplicator {
     }
 
     /**
+     * Computes MD5 hash for join query (Iteration 6).
+     * Supports optional bi-entity predicate after join.
+     *
+     * @param joinRelationshipExpression Join relationship lambda (e.g., p -> p.phones)
+     * @param biEntityPredicateExpression Bi-entity WHERE clause (null if no filtering)
+     * @param joinType Join type: INNER or LEFT
+     * @param isCountQuery True if this is a count query (JoinStream.count())
+     * @return MD5 hash uniquely identifying this join query
+     */
+    public String computeJoinHash(
+            LambdaExpression joinRelationshipExpression,
+            LambdaExpression biEntityPredicateExpression,
+            String joinType,
+            boolean isCountQuery) {
+
+        StringBuilder astString = new StringBuilder();
+
+        // Include join relationship (e.g., "p -> p.phones")
+        astString.append("JOIN=");
+        if (joinRelationshipExpression != null) {
+            astString.append(joinRelationshipExpression.toString());
+        }
+
+        // Include bi-entity predicate if present
+        if (biEntityPredicateExpression != null) {
+            astString.append("|BI_WHERE=").append(biEntityPredicateExpression.toString());
+        }
+
+        // Include join type (INNER/LEFT)
+        astString.append("|JOIN_TYPE=").append(joinType);
+
+        // Include query type (LIST or COUNT) to differentiate
+        astString.append("|QUERY_TYPE=").append(isCountQuery ? "COUNT" : "LIST");
+
+        return computeMd5Hash(astString.toString());
+    }
+
+    /**
      * Returns true if lambda is duplicate and reuses existing executor.
      * Query type information is already encoded in the lambdaHash parameter.
+     * Iteration 6: Added isJoinQuery parameter for join query support.
      */
     public boolean handleDuplicateLambda(
             String callSiteId,
             String lambdaHash,
             boolean isCountQuery,
             boolean isAggregationQuery,
+            boolean isJoinQuery,
             int capturedVarCount,
             AtomicInteger deduplicatedCount,
             BuildProducer<QusaqProcessor.QueryTransformationBuildItem> queryTransformations) {
@@ -167,7 +207,7 @@ public class LambdaDeduplicator {
 
             queryTransformations.produce(
                     new QusaqProcessor.QueryTransformationBuildItem(callSiteId, existingExecutor,
-                            Object.class, isCountQuery, isAggregationQuery, capturedVarCount));
+                            Object.class, isCountQuery, isAggregationQuery, isJoinQuery, capturedVarCount));
             return true;
         }
 

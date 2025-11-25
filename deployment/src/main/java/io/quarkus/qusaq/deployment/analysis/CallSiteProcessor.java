@@ -30,6 +30,7 @@ public class CallSiteProcessor {
      * Result of lambda bytecode analysis containing expressions and captured variable count.
      * Phase 3: Added sortExpressions list for sorting support.
      * Phase 5: Added aggregationExpression for aggregation queries (min/max/avg/sum*).
+     * Iteration 6: Added joinRelationshipExpression and biEntityPredicateExpression for join queries.
      */
     private record LambdaAnalysisResult(
             LambdaExpression predicateExpression,
@@ -37,6 +38,9 @@ public class CallSiteProcessor {
             List<SortExpression> sortExpressions,
             LambdaExpression aggregationExpression,
             String aggregationType,  // Phase 5: "MIN", "MAX", "AVG", "SUM_INTEGER", "SUM_LONG", "SUM_DOUBLE"
+            LambdaExpression joinRelationshipExpression,  // Iteration 6: Join relationship field (e.g., p.phones)
+            LambdaExpression biEntityPredicateExpression,  // Iteration 6: BiQuerySpec WHERE predicate
+            InvokeDynamicScanner.JoinType joinType,  // Iteration 6: INNER or LEFT join
             int totalCapturedVarCount) {}
 
     /**
@@ -101,21 +105,37 @@ public class CallSiteProcessor {
             if (deduplicator.handleDuplicateLambda(callSiteId, lambdaHash,
                     callSite.isCountQuery(),
                     callSite.isAggregationQuery(),
+                    callSite.isJoinQuery(),
                     result.totalCapturedVarCount, deduplicatedCount, queryTransformations)) {
                 return;
             }
 
-            String executorClassName = generateAndRegisterExecutor(
-                    result.predicateExpression,
-                    result.projectionExpression,
-                    result.sortExpressions,
-                    result.aggregationExpression,
-                    result.aggregationType,
-                    callSite.isCountQuery(),
-                    callSite.isAggregationQuery(),
-                    callSiteId,
-                    generatedClass,
-                    queryTransformations);
+            String executorClassName;
+
+            // Iteration 6: Handle join queries with special generator
+            if (callSite.isJoinQuery() && result.joinType != null) {
+                executorClassName = generateAndRegisterJoinExecutor(
+                        result.joinRelationshipExpression,
+                        result.biEntityPredicateExpression,
+                        result.joinType,
+                        callSiteId,
+                        result.totalCapturedVarCount,
+                        callSite.isCountQuery(),
+                        generatedClass,
+                        queryTransformations);
+            } else {
+                executorClassName = generateAndRegisterExecutor(
+                        result.predicateExpression,
+                        result.projectionExpression,
+                        result.sortExpressions,
+                        result.aggregationExpression,
+                        result.aggregationType,
+                        callSite.isCountQuery(),
+                        callSite.isAggregationQuery(),
+                        callSiteId,
+                        generatedClass,
+                        queryTransformations);
+            }
 
             deduplicator.registerExecutor(lambdaHash, executorClassName);
             generatedCount.incrementAndGet();
@@ -129,8 +149,9 @@ public class CallSiteProcessor {
     }
 
     /**
-     * Analyzes lambdas based on call site type (multiple predicates, combined, aggregation, or single).
+     * Analyzes lambdas based on call site type (multiple predicates, combined, aggregation, join, or single).
      * Phase 5: Added aggregation query support.
+     * Iteration 6: Added join query support.
      */
     private LambdaAnalysisResult analyzeLambdas(
             byte[] classBytes,
@@ -140,6 +161,11 @@ public class CallSiteProcessor {
         // Phase 5: Handle aggregation queries first
         if (callSite.isAggregationQuery()) {
             return analyzeAggregationQuery(classBytes, callSite, callSiteId);
+        }
+
+        // Iteration 6: Handle join queries
+        if (callSite.isJoinQuery()) {
+            return analyzeJoinQuery(classBytes, callSite, callSiteId);
         }
 
         var predicateLambdas = callSite.predicateLambdas();
@@ -158,8 +184,19 @@ public class CallSiteProcessor {
      * Computes deduplication hash based on query type.
      * Phase 3: Handles sorting-only queries and includes sort expressions in hash.
      * Phase 5: Handles aggregation queries with optional WHERE predicates.
+     * Iteration 6: Handles join queries with optional bi-entity predicates.
      */
     private String computeHash(InvokeDynamicScanner.LambdaCallSite callSite, LambdaAnalysisResult result) {
+        // Iteration 6: Join queries have priority
+        if (callSite.isJoinQuery() && result.joinType != null) {
+            String joinTypeStr = result.joinType.name();  // INNER or LEFT
+            return deduplicator.computeJoinHash(
+                    result.joinRelationshipExpression,
+                    result.biEntityPredicateExpression,
+                    joinTypeStr,
+                    callSite.isCountQuery());
+        }
+
         // Phase 5: Aggregation queries have priority
         if (callSite.isAggregationQuery() && result.aggregationExpression != null) {
             return deduplicator.computeAggregationHash(
@@ -255,6 +292,54 @@ public class CallSiteProcessor {
                                                        aggregationExpression, aggregationType, isCountQuery, isAggregationQuery);
 
         log.debugf("Generated query executor: %s (%s, %d captured vars)",
+                   className, queryTypeDesc, capturedVarCount);
+
+        return className;
+    }
+
+    /**
+     * Generates and registers a JOIN query executor class (Iteration 6).
+     * <p>
+     * Creates a query executor that performs a JPA join between two related entities.
+     *
+     * @param joinRelationshipExpression Lambda for the join relationship (e.g., p -> p.phones)
+     * @param biEntityPredicateExpression Lambda for bi-entity predicate (e.g., (p, ph) -> ph.type.equals("mobile"))
+     * @param joinType The type of join (INNER or LEFT)
+     * @param queryId Unique identifier for the query
+     * @param capturedVarCount Number of captured variables
+     * @param isCountQuery True if this is a count query (JoinStream.count())
+     * @param generatedClass Build producer for generated classes
+     * @param queryTransformations Build producer for query transformations
+     * @return The generated class name
+     */
+    private String generateAndRegisterJoinExecutor(
+            LambdaExpression joinRelationshipExpression,
+            LambdaExpression biEntityPredicateExpression,
+            InvokeDynamicScanner.JoinType joinType,
+            String queryId,
+            int capturedVarCount,
+            boolean isCountQuery,
+            BuildProducer<GeneratedClassBuildItem> generatedClass,
+            BuildProducer<QusaqProcessor.QueryTransformationBuildItem> queryTransformations) {
+
+        String className = "io.quarkus.qusaq.generated.QueryExecutor_" +
+                           queryCounter.getAndIncrement();
+
+        byte[] bytecode = classGenerator.generateJoinQueryExecutorClass(
+                joinRelationshipExpression,
+                biEntityPredicateExpression,
+                joinType,
+                className,
+                isCountQuery);
+
+        generatedClass.produce(new GeneratedClassBuildItem(true, className, bytecode));
+        // Iteration 6: Create join query build item with isJoinQuery=true
+        queryTransformations.produce(
+                new QusaqProcessor.QueryTransformationBuildItem(queryId, className, Object.class, isCountQuery, false, true, capturedVarCount));
+
+        String joinTypeDesc = (joinType == InvokeDynamicScanner.JoinType.LEFT) ? "LEFT JOIN" : "INNER JOIN";
+        String queryTypeDesc = isCountQuery ? joinTypeDesc + " COUNT" : joinTypeDesc;
+        log.debugf("Generated join query executor: %s (%s, %d captured vars)",
                    className, queryTypeDesc, capturedVarCount);
 
         return className;
@@ -411,7 +496,7 @@ public class CallSiteProcessor {
         totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
 
         return new LambdaAnalysisResult(predicateExpression, projectionExpression, sortExpressions,
-                                       null, null, totalCapturedVarCount);
+                                       null, null, null, null, null, totalCapturedVarCount);
     }
 
     /**
@@ -461,7 +546,7 @@ public class CallSiteProcessor {
         totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
 
         return new LambdaAnalysisResult(predicateExpression, projectionExpression, sortExpressions,
-                                       null, null, totalCapturedVarCount);
+                                       null, null, null, null, null, totalCapturedVarCount);
     }
 
     /**
@@ -488,7 +573,7 @@ public class CallSiteProcessor {
             // Sorting-only query - no WHERE or SELECT clauses
             int totalCapturedVarCount = countCapturedVariablesInSortExpressions(sortExpressions);
             log.debugf("Analyzed sorting-only query at %s: %d sort expression(s)", callSiteId, sortExpressions.size());
-            return new LambdaAnalysisResult(null, null, sortExpressions, null, null, totalCapturedVarCount);
+            return new LambdaAnalysisResult(null, null, sortExpressions, null, null, null, null, null, totalCapturedVarCount);
         }
 
         // Regular WHERE or SELECT query
@@ -513,7 +598,7 @@ public class CallSiteProcessor {
         totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
 
         return new LambdaAnalysisResult(predicateExpression, projectionExpression, sortExpressions,
-                                       null, null, totalCapturedVarCount);
+                                       null, null, null, null, null, totalCapturedVarCount);
     }
 
     /**
@@ -583,6 +668,80 @@ public class CallSiteProcessor {
                 Collections.emptyList(),  // No sorting for aggregations
                 aggregationExpression,
                 aggregationType,
+                null,  // No join relationship for aggregations
+                null,  // No bi-entity predicate for aggregations
+                null,  // No join type for aggregations
+                totalCapturedVarCount);
+    }
+
+    /**
+     * Analyzes join query (join/leftJoin with BiQuerySpec lambdas).
+     * Iteration 6: Handles join queries with bi-entity predicates.
+     *
+     * Example: Person.join(p -> p.phones).where((p, ph) -> ph.type.equals("mobile"))
+     * - Join relationship: p.phones
+     * - Bi-entity predicate: ph.type.equals("mobile")
+     * - Join type: INNER
+     */
+    private LambdaAnalysisResult analyzeJoinQuery(
+            byte[] classBytes,
+            InvokeDynamicScanner.LambdaCallSite callSite,
+            String callSiteId) {
+
+        int totalCapturedVarCount = 0;
+
+        // Analyze join relationship lambda (e.g., p -> p.phones)
+        LambdaExpression joinRelationshipExpression = null;
+        if (callSite.joinRelationshipLambdaMethodName() != null) {
+            joinRelationshipExpression = bytecodeAnalyzer.analyze(
+                    classBytes,
+                    callSite.joinRelationshipLambdaMethodName(),
+                    callSite.joinRelationshipLambdaDescriptor());
+
+            if (joinRelationshipExpression == null) {
+                log.warnf("Could not analyze join relationship lambda at: %s", callSiteId);
+                return null;
+            }
+            totalCapturedVarCount += countCapturedVariables(joinRelationshipExpression);
+        }
+
+        // Analyze bi-entity predicate lambdas if present (e.g., (p, ph) -> ph.type.equals("mobile"))
+        LambdaExpression biEntityPredicateExpression = null;
+        var biEntityPredicateLambdas = callSite.biEntityPredicateLambdas();
+        if (biEntityPredicateLambdas != null && !biEntityPredicateLambdas.isEmpty()) {
+            // Analyze each bi-entity predicate and combine with AND
+            List<LambdaExpression> biPredicates = new java.util.ArrayList<>();
+            for (var lambdaPair : biEntityPredicateLambdas) {
+                LambdaExpression expr = bytecodeAnalyzer.analyzeBiEntity(
+                        classBytes,
+                        lambdaPair.methodName(),
+                        lambdaPair.descriptor());
+
+                if (expr == null) {
+                    log.warnf("Could not analyze bi-entity predicate lambda %s at: %s",
+                            lambdaPair.methodName(), callSiteId);
+                    return null;
+                }
+                biPredicates.add(expr);
+                totalCapturedVarCount += countCapturedVariables(expr);
+            }
+
+            // Combine multiple bi-entity predicates with AND
+            biEntityPredicateExpression = combinePredicatesWithAnd(biPredicates);
+        }
+
+        log.debugf("Analyzed join query at %s: type=%s, relationship=%s, biPredicate=%s",
+                callSiteId, callSite.joinType(), joinRelationshipExpression, biEntityPredicateExpression);
+
+        return new LambdaAnalysisResult(
+                null,  // Regular predicates handled separately
+                null,  // No projection for basic join queries (yet)
+                Collections.emptyList(),  // TODO: Support sorting in join queries
+                null,  // No aggregation
+                null,  // No aggregation type
+                joinRelationshipExpression,
+                biEntityPredicateExpression,
+                callSite.joinType(),
                 totalCapturedVarCount);
     }
 
@@ -711,6 +870,12 @@ public class CallSiteProcessor {
         } else if (expression instanceof LambdaExpression.PathExpression pathExpr) {
             // Iteration 4: PathExpression doesn't contain captured variables
             // (but traversing for consistency if any fields were added later)
+        } else if (expression instanceof LambdaExpression.BiEntityFieldAccess) {
+            // Iteration 6: BiEntityFieldAccess doesn't contain captured variables
+        } else if (expression instanceof LambdaExpression.BiEntityPathExpression) {
+            // Iteration 6: BiEntityPathExpression doesn't contain captured variables
+        } else if (expression instanceof LambdaExpression.BiEntityParameter) {
+            // Iteration 6: BiEntityParameter doesn't contain captured variables
         }
     }
 
@@ -780,6 +945,15 @@ public class CallSiteProcessor {
                     memberOfExpr.negated());
         } else if (expression instanceof LambdaExpression.PathExpression) {
             // Iteration 4: PathExpression doesn't contain captured variables
+            return expression;
+        } else if (expression instanceof LambdaExpression.BiEntityFieldAccess) {
+            // Iteration 6: BiEntityFieldAccess doesn't contain captured variables
+            return expression;
+        } else if (expression instanceof LambdaExpression.BiEntityPathExpression) {
+            // Iteration 6: BiEntityPathExpression doesn't contain captured variables
+            return expression;
+        } else if (expression instanceof LambdaExpression.BiEntityParameter) {
+            // Iteration 6: BiEntityParameter doesn't contain captured variables
             return expression;
         } else {
             // These expression types don't contain captured variables, return as-is:

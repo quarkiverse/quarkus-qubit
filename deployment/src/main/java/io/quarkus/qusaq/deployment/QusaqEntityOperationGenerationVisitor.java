@@ -58,6 +58,10 @@ public class QusaqEntityOperationGenerationVisitor extends ClassVisitor {
             generateSumLongMethod();
             generateSumDoubleMethod();
 
+            // Iteration 6: Generate join entry points
+            generateJoinMethod();
+            generateLeftJoinMethod();
+
             // Note: count() and findAll() are inherited from PanacheEntityBase
         }
 
@@ -124,5 +128,19 @@ public class QusaqEntityOperationGenerationVisitor extends ClassVisitor {
         var config = QusaqBytecodeGenerator.FluentMethodConfig.forSumDouble(
                 entityType, entityInternalName);
         QusaqBytecodeGenerator.generateFluentEntryPoint(cv, config);
+    }
+
+    // Iteration 6: Join method generation
+
+    private void generateJoinMethod() {
+        var config = QusaqBytecodeGenerator.JoinMethodConfig.forJoin(
+                entityType, entityInternalName);
+        QusaqBytecodeGenerator.generateJoinEntryPoint(cv, config);
+    }
+
+    private void generateLeftJoinMethod() {
+        var config = QusaqBytecodeGenerator.JoinMethodConfig.forLeftJoin(
+                entityType, entityInternalName);
+        QusaqBytecodeGenerator.generateJoinEntryPoint(cv, config);
     }
 }
