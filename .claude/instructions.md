@@ -1084,12 +1084,293 @@ A feature is fully tested when:
 
 ### Test Count Reference
 
-Current test distribution (as of Iteration 6):
+Current test distribution (as of Iteration 7):
 - **Deployment module**: ~280 tests (bytecode analysis, AST parsing, code generation)
-- **Integration-tests module**: ~670 tests (Entity API + Repository API parity)
-- **Total**: ~950+ tests
+- **Integration-tests module**: ~770 tests (Entity API + Repository API parity)
+- **Total**: ~1050+ tests
 
 When adding new features, expect to add tests to **all three areas**:
 1. Deployment bytecode tests
 2. Integration Entity API tests
 3. Integration Repository API tests (mirroring #2)
+
+---
+
+## GROUP BY Queries and Aggregation Patterns (Iteration 7)
+
+### Architecture Overview
+
+**GROUP BY queries use a separate stream type with group context lambdas:**
+
+```java
+Person.groupBy((Person p) -> p.department.name)     // Returns GroupStream<Person, String>
+      .having((Group<Person, String> g) -> g.count() >= 2)  // GroupQuerySpec<T, K, Boolean>
+      .select((Group<Person, String> g) -> new Object[]{g.key(), g.count()})
+      .toList();                                    // Returns List<Object[]>
+```
+
+**Key Components:**
+- `GroupStream<T, K>` - Fluent API for group operations (separate from QusaqStream)
+- `GroupStreamImpl<T, K>` - Runtime implementation
+- `GroupQuerySpec<T, K, U>` - Functional interface for group context lambdas (takes `Group<T, K>`)
+- `Group<T, K>` - Context interface providing `key()`, `count()`, `avg()`, `sum*()`, `min()`, `max()`
+
+### Group Context Lambda Analysis
+
+**GroupQuerySpec lambdas have a Group<T, K> parameter:**
+```java
+// Regular lambda: (Person p) -> p.age > 25
+// Group lambda: (Group<Person, String> g) -> g.count() > 5
+```
+
+**Detection and Handling:**
+1. `InvokeDynamicScanner` detects `groupBy()`, `having()`, `select()` on GroupStream
+2. `AnalysisContext.setGroupContextMode(true)` enables group context mode
+3. `GroupParameter` AST type represents the Group<T, K> parameter
+4. `GroupKeyReference` AST type represents `g.key()` calls
+5. `GroupAggregation` AST type represents `g.count()`, `g.avg()`, etc.
+
+### Captured Variable Extraction from Multiple Lambda Sources
+
+**CRITICAL: Complex stream types have MULTIPLE lambda sources - extract from ALL of them.**
+
+```java
+// GroupStreamImpl.extractCapturedVariables()
+private Object[] extractCapturedVariables(String callSiteId) {
+    int capturedCount = QueryExecutorRegistry.getCapturedVariableCount(callSiteId);
+    if (capturedCount == 0) return new Object[0];
+
+    List<Object> allCapturedValues = new ArrayList<>();
+    int remainingCount = capturedCount;
+
+    // 1. Extract from predicates (WHERE clauses BEFORE grouping)
+    for (QuerySpec<T, Boolean> predicate : predicates) { ... }
+
+    // 2. Extract from keyExtractor (GROUP BY key lambda)
+    if (remainingCount > 0 && keyExtractor != null) { ... }
+
+    // 3. Extract from havingConditions (HAVING clause lambdas)
+    for (GroupQuerySpec<T, K, Boolean> havingCondition : havingConditions) { ... }
+
+    // 4. Extract from selector (SELECT projection lambda)
+    if (remainingCount > 0 && selector != null) { ... }
+
+    return allCapturedValues.toArray(new Object[0]);
+}
+```
+
+**Common Bug Pattern:**
+- ❌ Only extracting from `predicates` list
+- Result: `ArrayIndexOutOfBoundsException` when HAVING has captured variables
+- Fix: Extract from ALL four lambda sources in order
+
+### Nested Lambda Analysis for Group Aggregations
+
+**Group aggregation methods contain nested lambdas:**
+```java
+// g.avg((Person p) -> p.salary) - nested lambda inside group context
+g.avg((Person p) -> p.salary)
+g.min((Person p) -> p.hireDate)
+g.countDistinct((Person p) -> p.department)
+```
+
+**Implementation Chain:**
+1. `MethodInvocationHandler` detects `Group.avg()` call in group context
+2. Prior instruction is `INVOKEDYNAMIC` for LambdaMetafactory (the nested lambda)
+3. `AnalysisContext.analyzeNestedLambda()` recursively analyzes the nested method
+4. `GroupAggregation` AST stores aggregation type + nested field expression
+
+**Context Requirements:**
+```java
+// AnalysisContext must support nested lambda analysis
+context.setClassMethods(classMethods);           // List of all class methods
+context.setNestedLambdaAnalyzer(this::analyze);  // Recursive analyzer function
+
+// When detecting nested lambda
+MethodNode nestedMethod = context.findMethod(lambdaName, lambdaDesc);
+LambdaExpression fieldExpr = context.analyzeNestedLambda(nestedMethod, entityParamIndex);
+```
+
+### Object[] Array Projection Handling
+
+**GROUP BY select() can return Object[] for multi-value projections:**
+```java
+.select((Group<Person, String> g) -> new Object[]{g.key(), g.count(), g.avg(p -> p.salary)})
+```
+
+**Bytecode Pattern:**
+```
+ICONST_3                        // Array size
+ANEWARRAY java/lang/Object      // Create Object[3]
+DUP
+ICONST_0                        // Index 0
+... g.key() ...
+AASTORE                         // Store at index 0
+DUP
+ICONST_1                        // Index 1
+... g.count() ...
+AASTORE                         // Store at index 1
+// ... repeat for each element
+ARETURN
+```
+
+**Implementation:**
+1. `AnalysisContext.startArrayCreation()` called on ANEWARRAY
+2. `AnalysisContext.addArrayElement()` called on each AASTORE
+3. `AnalysisContext.completeArrayCreation()` returns `ArrayCreation` AST on ARETURN
+4. `ArrayCreation(elementType, elements, arrayClass)` stores element expressions
+
+**JPA Generation:**
+```java
+// Generate cb.tuple() for Object[] projection
+ResultHandle selection = method.invokeInterfaceMethod(
+    CB_TUPLE,  // CriteriaBuilder.tuple(Selection...)
+    cb,
+    selectionArray  // Array of Selection elements
+);
+// At runtime: tuple.toArray() converts Tuple to Object[]
+```
+
+### GROUP BY Count Query Strategies
+
+**Two distinct patterns based on HAVING presence:**
+
+**Without HAVING (optimized):**
+```java
+// Use COUNT(DISTINCT groupKey) without GROUP BY clause
+Person.groupBy(p -> p.department.name).count();
+
+// Generated SQL:
+SELECT COUNT(DISTINCT department_name) FROM Person
+```
+
+**With HAVING (must execute full query):**
+```java
+// Cannot use COUNT(DISTINCT) - HAVING requires actual groups
+Person.groupBy(p -> p.department.name)
+      .having(g -> g.count() >= 2)
+      .count();
+
+// Generated SQL:
+SELECT department_name FROM Person
+GROUP BY department_name
+HAVING COUNT(*) >= 2
+
+// Then: return results.size()
+```
+
+**Detection Logic:**
+```java
+if (havingConditions.isEmpty()) {
+    // Optimized path: COUNT(DISTINCT key)
+    return generateGroupCountOptimized();
+} else {
+    // Full query path: execute and count results
+    return executeFullGroupQueryAndCount();
+}
+```
+
+### Key Files for GROUP BY Implementation
+
+**Deployment Module:**
+- `InvokeDynamicScanner.java` - Detect groupBy/having/select on GroupStream
+- `CallSiteProcessor.java` - Process group call sites, compute group hashes
+- `LambdaBytecodeAnalyzer.java` - Parse GroupQuerySpec with group context mode
+- `MethodInvocationHandler.java` - Handle Group.key/count/avg/etc calls
+- `CriteriaExpressionGenerator.java` - Generate cb.groupBy(), cb.having(), cb.count()
+- `QueryExecutorClassGenerator.java` - generateGroupQueryBody(), generateGroupCountQueryBody()
+- `AnalysisContext.java` - Group context mode, array tracking, nested lambda support
+
+**Runtime Module:**
+- `GroupStream.java` - Fluent API interface
+- `GroupStreamImpl.java` - Runtime implementation with multi-source captured variable extraction
+- `GroupQuerySpec.java` - Group context lambda functional interface
+- `Group.java` - Context interface for aggregation methods
+- `QueryExecutorRegistry.java` - executeGroupQuery(), executeGroupKeyQuery(), executeGroupCountQuery()
+
+**AST Types Added:**
+- `GroupParameter` - Represents Group<T, K> parameter in group context lambdas
+- `GroupKeyReference` - Represents g.key() calls
+- `GroupAggregation` - Represents g.count(), g.avg(), etc. with nested field extractor
+- `ArrayCreation` - Represents Object[] array projections
+
+### Testing GROUP BY Queries
+
+**Test File:** `integration-tests/src/test/java/io/quarkus/qusaq/it/fluent/GroupQueryTest.java`
+
+**Key test patterns:**
+```java
+// Basic groupBy returning keys
+List<String> depts = Person.groupBy((Person p) -> p.department.name).toList();
+
+// Group count (number of groups)
+long groupCount = Person.groupBy((Person p) -> p.department.name).count();
+
+// HAVING with literal
+Person.groupBy((Person p) -> p.department.name)
+      .having((Group<Person, String> g) -> g.count() >= 2)
+      .toList();
+
+// HAVING with captured variable
+long minCount = 2;
+Person.groupBy((Person p) -> p.department.name)
+      .having((Group<Person, String> g) -> g.count() >= minCount)  // Captured!
+      .toList();
+
+// Multi-value projection with Object[]
+List<Object[]> results = Person.groupBy((Person p) -> p.department.name)
+      .select((Group<Person, String> g) -> new Object[]{g.key(), g.count(), g.avg(p -> p.salary)})
+      .toList();
+
+// Sorting groups
+Person.groupBy((Person p) -> p.department.name)
+      .sortedBy((Group<Person, String> g) -> g.count())
+      .toList();
+
+// Pagination on groups
+Person.groupBy((Person p) -> p.department.name)
+      .skip(1).limit(3)
+      .toList();
+```
+
+### Common GROUP BY Errors and Fixes
+
+| Error | Root Cause | Fix |
+|-------|-----------|-----|
+| `ArrayIndexOutOfBoundsException` in captured vars | Only extracting from `predicates`, not `havingConditions` | Extract from all 4 lambda sources |
+| `NullPointerException` in nested lambda analysis | Context missing `classMethods` or `nestedLambdaAnalyzer` | Set both before analyzing group lambdas |
+| Wrong count value | Using regular COUNT instead of COUNT(DISTINCT) | Use `cb.countDistinct(groupKey)` for group counting |
+| `ClassCastException` on Object[] results | Tuple not converted to array | Add `.toArray()` call in result processing |
+| HAVING condition ignored | Not checking havingConditions in query generation | Generate `cq.having()` clause |
+
+### Multi-Lambda Stream Pattern (Generalized Lesson)
+
+**When implementing complex stream types with multiple lambda sources:**
+
+1. **Identify all lambda sources** in the stream implementation:
+   - QusaqStream: predicates, sortOrders, selector
+   - JoinStream: biPredicates, sourcePredicates, onConditions, sortOrders
+   - GroupStream: predicates, keyExtractor, havingConditions, selector, sortOrders
+
+2. **Extract captured variables from ALL sources** in order:
+   ```java
+   // Pattern for any complex stream
+   for (each lambda source in order) {
+       int count = countCapturedFields(lambdaInstance);
+       if (count > 0 && remainingCount > 0) {
+           Object[] values = CapturedVariableExtractor.extract(lambda, count);
+           allCapturedValues.addAll(Arrays.asList(values));
+           remainingCount -= count;
+       }
+   }
+   ```
+
+3. **Track context mode** in AnalysisContext:
+   - `isBiEntityMode()` for join lambdas
+   - `isGroupContextMode()` for group lambdas
+   - Each mode affects parameter handling and method call interpretation
+
+4. **Support nested lambda analysis** when needed:
+   - Store class methods list in context
+   - Provide recursive analyzer function
+   - Detect INVOKEDYNAMIC/LambdaMetafactory patterns

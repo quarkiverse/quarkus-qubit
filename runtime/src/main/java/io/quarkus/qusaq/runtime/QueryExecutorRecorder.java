@@ -58,6 +58,24 @@ public class QueryExecutorRecorder {
     }
 
     /**
+     * Registers group list query executor during static initialization.
+     * Iteration 7: Group Queries (GROUP BY)
+     */
+    public void registerGroupListExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
+        registerExecutor(callSiteId, executorClassName, capturedVarCount, "group-list",
+            (QueryExecutor<List<?>> executor) -> QueryExecutorRegistry.registerGroupListExecutor(callSiteId, executor, capturedVarCount));
+    }
+
+    /**
+     * Registers group count query executor during static initialization.
+     * Iteration 7: Group Queries (GROUP BY)
+     */
+    public void registerGroupCountExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
+        registerExecutor(callSiteId, executorClassName, capturedVarCount, "group-count",
+            (QueryExecutor<Long> executor) -> QueryExecutorRegistry.registerGroupCountExecutor(callSiteId, executor, capturedVarCount));
+    }
+
+    /**
      * Generic executor registration method that handles the common logic for all executor types.
      */
     private <T> void registerExecutor(

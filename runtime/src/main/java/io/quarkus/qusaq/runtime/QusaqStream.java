@@ -476,4 +476,44 @@ public interface QusaqStream<T> {
      * @return a JoinStream for composing join operations
      */
     <R> JoinStream<T, R> leftJoin(QuerySpec<T, java.util.Collection<R>> relationship);
+
+    // =============================================================================================
+    // GROUPING OPERATIONS
+    // =============================================================================================
+
+    /**
+     * Groups entities by the specified key extractor.
+     * <p>
+     * Creates a GROUP BY query where entities are grouped based on the value
+     * extracted by the key extractor lambda. Returns a {@link GroupStream}
+     * for composing group operations like HAVING and aggregations.
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Group by department
+     * List<DeptCount> results = Person
+     *     .groupBy((Person p) -> p.department)
+     *     .select((Group<Person, String> g) -> new DeptCount(g.key(), g.count()))
+     *     .toList();
+     *
+     * // Pre-filter before grouping
+     * List<DeptCount> activeResults = Person
+     *     .where((Person p) -> p.active)
+     *     .groupBy((Person p) -> p.department)
+     *     .select((Group<Person, String> g) -> new DeptCount(g.key(), g.count()))
+     *     .toList();
+     *
+     * // Group with HAVING
+     * List<String> largeDepts = Person
+     *     .groupBy((Person p) -> p.department)
+     *     .having((Group<Person, String> g) -> g.count() > 5)
+     *     .select((Group<Person, String> g) -> g.key())
+     *     .toList();
+     * }</pre>
+     *
+     * @param <K> the type of the grouping key
+     * @param keyExtractor lambda expression extracting the grouping key (e.g., {@code p -> p.department})
+     * @return a GroupStream for composing group operations
+     */
+    <K> GroupStream<T, K> groupBy(QuerySpec<T, K> keyExtractor);
 }

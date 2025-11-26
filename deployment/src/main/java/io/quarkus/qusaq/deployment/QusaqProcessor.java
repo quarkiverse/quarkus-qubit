@@ -251,7 +251,20 @@ public class QusaqProcessor {
         for (QueryTransformationBuildItem transformation : transformations) {
             String callSiteId = transformation.getQueryId();
 
-            if (transformation.isJoinQuery()) {
+            if (transformation.isGroupQuery()) {
+                // Iteration 7: Register group executors
+                if (transformation.isCountQuery()) {
+                    recorder.registerGroupCountExecutor(
+                            callSiteId,
+                            transformation.getGeneratedClassName(),
+                            transformation.getCapturedVarCount());
+                } else {
+                    recorder.registerGroupListExecutor(
+                            callSiteId,
+                            transformation.getGeneratedClassName(),
+                            transformation.getCapturedVarCount());
+                }
+            } else if (transformation.isJoinQuery()) {
                 // Iteration 6: Register join executors
                 if (transformation.isCountQuery()) {
                     recorder.registerJoinCountExecutor(
@@ -297,6 +310,7 @@ public class QusaqProcessor {
         private final boolean isCountQuery;
         private final boolean isAggregationQuery;
         private final boolean isJoinQuery;  // Iteration 6: Join Queries
+        private final boolean isGroupQuery; // Iteration 7: Group Queries
         private final int capturedVarCount;
 
         public QueryTransformationBuildItem(
@@ -305,7 +319,7 @@ public class QusaqProcessor {
                 Class<?> entityClass,
                 boolean isCountQuery,
                 int capturedVarCount) {
-            this(queryId, generatedClassName, entityClass, isCountQuery, false, false, capturedVarCount);
+            this(queryId, generatedClassName, entityClass, isCountQuery, false, false, false, capturedVarCount);
         }
 
         public QueryTransformationBuildItem(
@@ -315,11 +329,11 @@ public class QusaqProcessor {
                 boolean isCountQuery,
                 boolean isAggregationQuery,
                 int capturedVarCount) {
-            this(queryId, generatedClassName, entityClass, isCountQuery, isAggregationQuery, false, capturedVarCount);
+            this(queryId, generatedClassName, entityClass, isCountQuery, isAggregationQuery, false, false, capturedVarCount);
         }
 
         /**
-         * Full constructor with all flags including join query support.
+         * Constructor with join query support.
          * Iteration 6: Added isJoinQuery parameter.
          */
         public QueryTransformationBuildItem(
@@ -330,12 +344,29 @@ public class QusaqProcessor {
                 boolean isAggregationQuery,
                 boolean isJoinQuery,
                 int capturedVarCount) {
+            this(queryId, generatedClassName, entityClass, isCountQuery, isAggregationQuery, isJoinQuery, false, capturedVarCount);
+        }
+
+        /**
+         * Full constructor with all flags including group query support.
+         * Iteration 7: Added isGroupQuery parameter.
+         */
+        public QueryTransformationBuildItem(
+                String queryId,
+                String generatedClassName,
+                Class<?> entityClass,
+                boolean isCountQuery,
+                boolean isAggregationQuery,
+                boolean isJoinQuery,
+                boolean isGroupQuery,
+                int capturedVarCount) {
             this.queryId = queryId;
             this.generatedClassName = generatedClassName;
             this.entityClass = entityClass;
             this.isCountQuery = isCountQuery;
             this.isAggregationQuery = isAggregationQuery;
             this.isJoinQuery = isJoinQuery;
+            this.isGroupQuery = isGroupQuery;
             this.capturedVarCount = capturedVarCount;
         }
 
@@ -367,6 +398,11 @@ public class QusaqProcessor {
         /** Returns true if this is a join query (Iteration 6). */
         public boolean isJoinQuery() {
             return isJoinQuery;
+        }
+
+        /** Returns true if this is a group query (Iteration 7). */
+        public boolean isGroupQuery() {
+            return isGroupQuery;
         }
 
         /** Returns number of captured variables. */

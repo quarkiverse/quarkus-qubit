@@ -12,6 +12,7 @@ public final class QusaqBytecodeGenerator {
 
     private static final String DESC_QUERY_SPEC_TO_STREAM = "(Lio/quarkus/qusaq/runtime/QuerySpec;)Lio/quarkus/qusaq/runtime/QusaqStream;";
     private static final String DESC_QUERY_SPEC_TO_JOIN_STREAM = "(Lio/quarkus/qusaq/runtime/QuerySpec;)Lio/quarkus/qusaq/runtime/JoinStream;";
+    private static final String DESC_QUERY_SPEC_TO_GROUP_STREAM = "(Lio/quarkus/qusaq/runtime/QuerySpec;)Lio/quarkus/qusaq/runtime/GroupStream;";
     private static final String QUSAQ_STREAM_IMPL_INTERNAL_NAME = "io/quarkus/qusaq/runtime/QusaqStreamImpl";
 
     private QusaqBytecodeGenerator() {
@@ -174,6 +175,95 @@ public final class QusaqBytecodeGenerator {
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
                     "leftJoin",
                     DESC_QUERY_SPEC_TO_JOIN_STREAM,
+                    genericSignature,
+                    entityType
+            );
+        }
+    }
+
+    /**
+     * Generates groupBy entry point method that returns GroupStream.
+     * <p>
+     * Generated code pattern for groupBy entry point:
+     * <pre>{@code
+     * public static <K> GroupStream<Person, K> groupBy(QuerySpec<Person, K> keyExtractor) {
+     *     return new QusaqStreamImpl<>(Person.class).groupBy(keyExtractor);
+     * }
+     * }</pre>
+     * <p>
+     * Iteration 7: Grouping / GROUP BY
+     */
+    public static MethodVisitor generateGroupEntryPoint(ClassVisitor cv, GroupMethodConfig config) {
+        MethodVisitor mv = cv.visitMethod(
+                config.access(),
+                config.methodName(),
+                config.methodDescriptor(),
+                config.genericSignature(),
+                null);
+
+        mv.visitCode();
+
+        // Create new QusaqStreamImpl instance
+        mv.visitTypeInsn(Opcodes.NEW, QUSAQ_STREAM_IMPL_INTERNAL_NAME);
+        mv.visitInsn(Opcodes.DUP);
+
+        // Load entity class as constructor argument
+        mv.visitLdcInsn(config.entityType());
+
+        // Call QusaqStreamImpl constructor: new QusaqStreamImpl(Person.class)
+        mv.visitMethodInsn(
+                Opcodes.INVOKESPECIAL,
+                QUSAQ_STREAM_IMPL_INTERNAL_NAME,
+                "<init>",
+                "(Ljava/lang/Class;)V",
+                false);
+
+        // Load QuerySpec parameter (index 0 for static method)
+        mv.visitVarInsn(Opcodes.ALOAD, 0);
+
+        // Call the groupBy method on the stream: .groupBy(spec)
+        // Returns GroupStream<T, K>
+        mv.visitMethodInsn(
+                Opcodes.INVOKEINTERFACE,
+                "io/quarkus/qusaq/runtime/QusaqStream",
+                config.methodName(),
+                config.methodDescriptor(),
+                true);
+
+        // Return the GroupStream result
+        mv.visitInsn(Opcodes.ARETURN);
+
+        mv.visitMaxs(4, 1); // stack: NEW, DUP, LDC, ALOAD; locals: QuerySpec parameter
+        mv.visitEnd();
+
+        return mv;
+    }
+
+    /**
+     * Configuration for generating groupBy entry point method.
+     * Iteration 7: Grouping / GROUP BY
+     */
+    public record GroupMethodConfig(
+            int access,
+            String methodName,
+            String methodDescriptor,
+            String genericSignature,
+            Type entityType
+    ) {
+        /**
+         * Creates config for groupBy() method.
+         * Signature: <K> GroupStream<T, K> groupBy(QuerySpec<T, K> keyExtractor)
+         */
+        public static GroupMethodConfig forGroupBy(Type entityType, String entityInternalName) {
+            // Generic signature: <K:Ljava/lang/Object;>(Lio/quarkus/qusaq/runtime/QuerySpec<LPerson;TK;>;)Lio/quarkus/qusaq/runtime/GroupStream<LPerson;TK;>;
+            String genericSignature = "<K:Ljava/lang/Object;>(Lio/quarkus/qusaq/runtime/QuerySpec<L" +
+                    entityInternalName + ";TK;>;)Lio/quarkus/qusaq/runtime/GroupStream<L" +
+                    entityInternalName + ";TK;>;";
+
+            return new GroupMethodConfig(
+                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                    "groupBy",
+                    DESC_QUERY_SPEC_TO_GROUP_STREAM,
                     genericSignature,
                     entityType
             );

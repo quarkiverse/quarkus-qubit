@@ -1,9 +1,12 @@
 package io.quarkus.qusaq.deployment.analysis.handlers;
 
 import io.quarkus.qusaq.deployment.LambdaExpression;
+import io.quarkus.qusaq.deployment.util.DescriptorParser;
 import org.jboss.logging.Logger;
+import org.objectweb.asm.Handle;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.InvokeDynamicInsnNode;
+import org.objectweb.asm.tree.MethodNode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,8 +53,11 @@ public class InvokeDynamicHandler implements InstructionHandler {
     /** Marker for dynamic argument in StringConcatFactory recipe. */
     private static final char RECIPE_DYNAMIC_ARG = '\u0001';
 
-    /** StringConcatFactory bootstrap method name. */
+    /** StringConcatFactory bootstrap method owner. */
     private static final String STRING_CONCAT_FACTORY = "java/lang/invoke/StringConcatFactory";
+
+    /** LambdaMetafactory bootstrap method owner (Iteration 7: nested lambda support). */
+    private static final String LAMBDA_METAFACTORY = "java/lang/invoke/LambdaMetafactory";
 
     @Override
     public boolean canHandle(AbstractInsnNode insn) {
@@ -62,12 +68,27 @@ public class InvokeDynamicHandler implements InstructionHandler {
     public boolean handle(AbstractInsnNode insn, AnalysisContext ctx) {
         InvokeDynamicInsnNode indy = (InvokeDynamicInsnNode) insn;
 
-        // Only handle StringConcatFactory (Java 9+ string concatenation)
-        if (!isStringConcatFactory(indy)) {
-            log.tracef("INVOKEDYNAMIC is not StringConcatFactory, ignoring: %s", indy.name);
-            return false; // Not string concatenation, skip
+        // Handle StringConcatFactory (Java 9+ string concatenation)
+        if (isStringConcatFactory(indy)) {
+            return handleStringConcatenation(indy, ctx);
         }
 
+        // Iteration 7: Handle nested lambda creation for group aggregations
+        // When in group context (analyzing g -> g.avg(p -> p.salary)), we need to
+        // analyze nested lambdas (p -> p.salary) inline
+        if (isLambdaMetafactory(indy) && ctx.isGroupContextMode()) {
+            return handleNestedLambda(indy, ctx);
+        }
+
+        log.tracef("INVOKEDYNAMIC not handled: %s (bsm=%s)", indy.name,
+                   indy.bsm != null ? indy.bsm.getOwner() : "null");
+        return false;
+    }
+
+    /**
+     * Handles StringConcatFactory for string concatenation.
+     */
+    private boolean handleStringConcatenation(InvokeDynamicInsnNode indy, AnalysisContext ctx) {
         // Parse the recipe string from bootstrap method arguments
         String recipe = extractRecipe(indy);
         if (recipe == null) {
@@ -85,6 +106,78 @@ public class InvokeDynamicHandler implements InstructionHandler {
         }
 
         return false; // Continue processing
+    }
+
+    /**
+     * Handles nested lambda creation for group aggregations.
+     * <p>
+     * When analyzing a HAVING clause like {@code g -> g.avg((Person p) -> p.salary) > 70000},
+     * the inner lambda {@code (Person p) -> p.salary} is created via INVOKEDYNAMIC with
+     * LambdaMetafactory. We need to analyze this nested lambda inline to get the field
+     * expression for the aggregation.
+     * <p>
+     * Iteration 7: GROUP BY nested lambda support.
+     */
+    private boolean handleNestedLambda(InvokeDynamicInsnNode indy, AnalysisContext ctx) {
+        // Extract the target lambda method from bootstrap method arguments
+        // The impl method handle is typically bsmArgs[1] for LambdaMetafactory
+        Handle implMethodHandle = extractImplMethodHandle(indy);
+        if (implMethodHandle == null) {
+            log.debugf("Could not extract impl method handle from LambdaMetafactory: %s", indy.name);
+            return false;
+        }
+
+        String nestedLambdaMethodName = implMethodHandle.getName();
+        String nestedLambdaDescriptor = implMethodHandle.getDesc();
+
+        log.debugf("Nested lambda detected: %s%s", nestedLambdaMethodName, nestedLambdaDescriptor);
+
+        // Find the nested lambda method in the current class
+        MethodNode nestedMethod = ctx.findMethod(nestedLambdaMethodName, nestedLambdaDescriptor);
+        if (nestedMethod == null) {
+            log.warnf("Could not find nested lambda method %s%s", nestedLambdaMethodName, nestedLambdaDescriptor);
+            return false;
+        }
+
+        // Analyze the nested lambda to extract the field expression
+        // The nested lambda is a single-entity QuerySpec like (Person p) -> p.salary
+        int entityParamIndex = DescriptorParser.calculateEntityParameterSlotIndex(nestedLambdaDescriptor);
+        LambdaExpression nestedExpression = ctx.analyzeNestedLambda(nestedMethod, entityParamIndex);
+
+        if (nestedExpression != null) {
+            ctx.push(nestedExpression);
+            log.debugf("Nested lambda analyzed: %s", nestedExpression);
+        } else {
+            log.warnf("Failed to analyze nested lambda %s", nestedLambdaMethodName);
+        }
+
+        return false; // Continue processing
+    }
+
+    /**
+     * Checks if the invokedynamic instruction uses LambdaMetafactory.
+     */
+    private boolean isLambdaMetafactory(InvokeDynamicInsnNode indy) {
+        return indy.bsm != null &&
+               indy.bsm.getOwner().equals(LAMBDA_METAFACTORY);
+    }
+
+    /**
+     * Extracts the implementation method handle from LambdaMetafactory bootstrap args.
+     * The impl method handle is typically at index 1 in bsmArgs.
+     */
+    private Handle extractImplMethodHandle(InvokeDynamicInsnNode indy) {
+        if (indy.bsmArgs == null || indy.bsmArgs.length < 2) {
+            return null;
+        }
+
+        // bsmArgs[1] is the impl method handle
+        Object arg = indy.bsmArgs[1];
+        if (arg instanceof Handle) {
+            return (Handle) arg;
+        }
+
+        return null;
     }
 
     /**

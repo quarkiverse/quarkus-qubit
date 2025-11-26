@@ -9,7 +9,9 @@ import org.objectweb.asm.tree.MethodNode;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 
 /**
  * Encapsulates all state and context needed during lambda bytecode analysis.
@@ -87,6 +89,25 @@ public class AnalysisContext {
     private final boolean biEntityMode;
 
     /**
+     * True if this is a group context lambda (GroupQuerySpec).
+     * In group context, the parameter is a Group<T, K> and supports aggregation methods.
+     * Iteration 7: Added for GROUP BY query support.
+     */
+    private boolean groupContextMode = false;
+
+    /**
+     * List of all methods in the class (for finding nested lambdas).
+     * Iteration 7: Added for nested lambda analysis in group aggregations.
+     */
+    private List<MethodNode> classMethods;
+
+    /**
+     * Analyzer function for nested lambdas.
+     * Iteration 7: Added for nested lambda analysis in group aggregations.
+     */
+    private BiFunction<MethodNode, Integer, LambdaExpression> nestedLambdaAnalyzer;
+
+    /**
      * Current instruction index in the instruction list.
      */
     private int currentInstructionIndex;
@@ -96,6 +117,19 @@ public class AnalysisContext {
      * Used to detect boolean expressions vs simple field accesses.
      */
     private boolean hasSeenBranch = false;
+
+    /**
+     * Tracks array creation for Object[] projections.
+     * Non-null when we're in the middle of building an array (after ANEWARRAY).
+     * Iteration 7: Added for GROUP BY multi-value select projections.
+     */
+    private String pendingArrayElementType = null;
+
+    /**
+     * Collects elements for the pending array.
+     * Iteration 7: Added for GROUP BY multi-value select projections.
+     */
+    private java.util.List<LambdaExpression> pendingArrayElements = null;
 
     // ==================== Constructors ====================
 
@@ -356,5 +390,163 @@ public class AnalysisContext {
             return LambdaExpression.EntityPosition.SECOND;
         }
         return null;
+    }
+
+    // ==================== Group Context (Iteration 7) ====================
+
+    /**
+     * Returns true if this is a group context lambda (GroupQuerySpec).
+     * <p>
+     * In group context, the parameter is a Group&lt;T, K&gt; and supports
+     * aggregation methods like key(), count(), avg(), min(), max(), etc.
+     *
+     * @return true for group context, false otherwise
+     */
+    public boolean isGroupContextMode() {
+        return groupContextMode;
+    }
+
+    /**
+     * Sets the group context mode.
+     * <p>
+     * Called during analysis setup for GroupQuerySpec lambdas.
+     *
+     * @param groupContextMode true to enable group context mode
+     */
+    public void setGroupContextMode(boolean groupContextMode) {
+        this.groupContextMode = groupContextMode;
+    }
+
+    /**
+     * Sets the list of all methods in the class for nested lambda lookup.
+     * <p>
+     * Iteration 7: Required for analyzing nested lambdas in group aggregations.
+     *
+     * @param methods list of all methods in the class
+     */
+    public void setClassMethods(List<MethodNode> methods) {
+        this.classMethods = methods;
+    }
+
+    /**
+     * Sets the analyzer function for nested lambdas.
+     * <p>
+     * Iteration 7: Required for analyzing nested lambdas in group aggregations.
+     *
+     * @param analyzer function that takes (MethodNode, entityParamIndex) and returns analyzed expression
+     */
+    public void setNestedLambdaAnalyzer(BiFunction<MethodNode, Integer, LambdaExpression> analyzer) {
+        this.nestedLambdaAnalyzer = analyzer;
+    }
+
+    /**
+     * Finds a method in the class by name and descriptor.
+     * <p>
+     * Iteration 7: Used for locating nested lambda methods.
+     *
+     * @param name method name
+     * @param descriptor method descriptor
+     * @return the MethodNode if found, null otherwise
+     */
+    public MethodNode findMethod(String name, String descriptor) {
+        if (classMethods == null) {
+            return null;
+        }
+        for (MethodNode m : classMethods) {
+            if (m.name.equals(name) && m.desc.equals(descriptor)) {
+                return m;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Analyzes a nested lambda method and returns its expression.
+     * <p>
+     * Iteration 7: Used for analyzing field extractor lambdas in group aggregations
+     * like {@code g.avg((Person p) -> p.salary)}.
+     *
+     * @param nestedMethod the nested lambda method to analyze
+     * @param entityParamIndex the entity parameter slot index
+     * @return the analyzed lambda expression, or null if analysis fails
+     */
+    public LambdaExpression analyzeNestedLambda(MethodNode nestedMethod, int entityParamIndex) {
+        if (nestedLambdaAnalyzer == null) {
+            return null;
+        }
+        return nestedLambdaAnalyzer.apply(nestedMethod, entityParamIndex);
+    }
+
+    // ==================== Array Creation Tracking (Iteration 7) ====================
+
+    /**
+     * Starts tracking an array creation.
+     * <p>
+     * Called when ANEWARRAY instruction is encountered.
+     *
+     * @param elementType the internal name of the array element type (e.g., "java/lang/Object")
+     */
+    public void startArrayCreation(String elementType) {
+        this.pendingArrayElementType = elementType;
+        this.pendingArrayElements = new java.util.ArrayList<>();
+    }
+
+    /**
+     * Returns true if we're currently building an array.
+     *
+     * @return true if in array creation mode
+     */
+    public boolean isInArrayCreation() {
+        return pendingArrayElementType != null;
+    }
+
+    /**
+     * Adds an element to the pending array.
+     * <p>
+     * Called when AASTORE instruction stores a value into the array.
+     *
+     * @param element the element expression to add
+     */
+    public void addArrayElement(LambdaExpression element) {
+        if (pendingArrayElements != null) {
+            pendingArrayElements.add(element);
+        }
+    }
+
+    /**
+     * Returns the pending array element type.
+     *
+     * @return the element type internal name, or null if not in array creation
+     */
+    public String getPendingArrayElementType() {
+        return pendingArrayElementType;
+    }
+
+    /**
+     * Returns the collected array elements.
+     *
+     * @return list of collected elements, or null if not in array creation
+     */
+    public java.util.List<LambdaExpression> getPendingArrayElements() {
+        return pendingArrayElements;
+    }
+
+    /**
+     * Completes array creation and returns an ArrayCreation expression.
+     * <p>
+     * Called when the array is being returned (ARETURN) or otherwise finalized.
+     *
+     * @return ArrayCreation expression, or null if not in array creation mode
+     */
+    public LambdaExpression.ArrayCreation completeArrayCreation() {
+        if (pendingArrayElementType == null || pendingArrayElements == null) {
+            return null;
+        }
+        Class<?> arrayType = Object[].class; // Default to Object[]
+        LambdaExpression.ArrayCreation result = new LambdaExpression.ArrayCreation(
+                pendingArrayElementType, pendingArrayElements, arrayType);
+        pendingArrayElementType = null;
+        pendingArrayElements = null;
+        return result;
     }
 }

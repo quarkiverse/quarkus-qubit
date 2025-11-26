@@ -84,6 +84,18 @@ public class QueryExecutorClassGenerator {
     private static final MethodDescriptor FROM_JOIN = md(From.class, "join",
             Join.class, String.class, JoinType.class);
 
+    // Iteration 7: Method descriptors for GROUP BY operations
+    private static final MethodDescriptor CQ_GROUP_BY = md(CriteriaQuery.class, "groupBy",
+            CriteriaQuery.class, Expression[].class);
+    private static final MethodDescriptor CQ_HAVING = md(CriteriaQuery.class, "having",
+            CriteriaQuery.class, Predicate[].class);
+    private static final MethodDescriptor CQ_MULTISELECT = md(CriteriaQuery.class, "multiselect",
+            CriteriaQuery.class, Selection[].class);
+    private static final MethodDescriptor CB_COUNT_EXPRESSION = md(CriteriaBuilder.class, "count",
+            Expression.class, Expression.class);
+    private static final MethodDescriptor CB_COUNT_DISTINCT = md(CriteriaBuilder.class, "countDistinct",
+            Expression.class, Expression.class);
+
     /**
      * Common context for query generation methods.
      * Encapsulates parameters shared across all query generation methods.
@@ -265,6 +277,369 @@ public class QueryExecutorClassGenerator {
         }
 
         return classOutput.getData();
+    }
+
+    /**
+     * Generates query executor class bytecode for GROUP BY queries (Iteration 7).
+     * <p>
+     * Creates a query executor that performs JPA GROUP BY operations with optional
+     * HAVING clause, aggregations in SELECT, and sorting.
+     * <p>
+     * Example: {@code Person.groupBy(p -> p.department).select(g -> new DeptStats(g.key(), g.count())).toList()}
+     * <p>
+     * Generates:
+     * <pre>
+     * CriteriaBuilder cb = em.getCriteriaBuilder();
+     * CriteriaQuery&lt;Object&gt; query = cb.createQuery(Object.class);
+     * Root&lt;Person&gt; root = query.from(Person.class);
+     * Expression&lt;String&gt; groupKey = root.get("department");
+     * query.groupBy(groupKey);
+     * query.multiselect(groupKey, cb.count(root));
+     * return em.createQuery(query).getResultList();
+     * </pre>
+     *
+     * @param predicateExpression Pre-grouping WHERE clause (null if no filtering)
+     * @param groupByKeyExpression groupBy() key extractor lambda (e.g., p -> p.department)
+     * @param havingExpression having() predicate (null if no having)
+     * @param groupSelectExpression select() projection in group context (null if no select)
+     * @param groupSortExpressions sortedBy() in group context (null or empty if no sorting)
+     * @param className The generated class name
+     * @param isCountQuery True if this is a count query (counting groups)
+     * @return The bytecode for the generated QueryExecutor class
+     */
+    public byte[] generateGroupQueryExecutorClass(
+            LambdaExpression predicateExpression,
+            LambdaExpression groupByKeyExpression,
+            LambdaExpression havingExpression,
+            LambdaExpression groupSelectExpression,
+            List<CallSiteProcessor.SortExpression> groupSortExpressions,
+            String className,
+            boolean isCountQuery) {
+
+        class ByteArrayClassOutput implements ClassOutput {
+            private byte[] data;
+
+            @Override
+            public void write(String name, byte[] data) {
+                this.data = data;
+            }
+
+            public byte[] getData() {
+                return data;
+            }
+        }
+
+        ByteArrayClassOutput classOutput = new ByteArrayClassOutput();
+
+        try (ClassCreator classCreator = ClassCreator.builder()
+                .classOutput(classOutput)
+                .className(className)
+                .interfaces(QUERY_EXECUTOR_CLASS_NAME)
+                .build()) {
+
+            try (MethodCreator constructor = classCreator.getMethodCreator(CONSTRUCTOR, void.class)) {
+                constructor.invokeSpecialMethod(
+                        MethodDescriptor.ofConstructor(Object.class),
+                        constructor.getThis());
+                constructor.returnValue(null);
+            }
+
+            // Same execute method signature as regular queries
+            try (MethodCreator execute = classCreator.getMethodCreator(
+                    QE_EXECUTE, Object.class, EntityManager.class, Class.class, Object[].class,
+                    Integer.class, Integer.class, Boolean.class)) {
+
+                ResultHandle em = execute.getMethodParam(0);
+                ResultHandle entityClassParam = execute.getMethodParam(1);
+                ResultHandle capturedValues = execute.getMethodParam(2);
+                ResultHandle offset = execute.getMethodParam(3);
+                ResultHandle limit = execute.getMethodParam(4);
+                ResultHandle distinct = execute.getMethodParam(5);
+
+                ResultHandle result;
+                if (isCountQuery) {
+                    result = generateGroupCountQueryBody(
+                            execute, em, entityClassParam,
+                            predicateExpression, groupByKeyExpression,
+                            havingExpression, capturedValues);
+                } else {
+                    result = generateGroupQueryBody(
+                            execute, em, entityClassParam,
+                            predicateExpression, groupByKeyExpression,
+                            havingExpression, groupSelectExpression,
+                            groupSortExpressions, capturedValues, offset, limit, distinct);
+                }
+
+                execute.returnValue(result);
+            }
+        }
+
+        return classOutput.getData();
+    }
+
+    /**
+     * Generates GROUP BY query body (Iteration 7).
+     * <p>
+     * Creates a JPA Criteria API group by query with optional WHERE, HAVING,
+     * SELECT (with aggregations), and ORDER BY clauses.
+     */
+    private ResultHandle generateGroupQueryBody(
+            MethodCreator method,
+            ResultHandle em,
+            ResultHandle entityClass,
+            LambdaExpression predicateExpression,
+            LambdaExpression groupByKeyExpression,
+            LambdaExpression havingExpression,
+            LambdaExpression groupSelectExpression,
+            List<CallSiteProcessor.SortExpression> groupSortExpressions,
+            ResultHandle capturedValues,
+            ResultHandle offset,
+            ResultHandle limit,
+            ResultHandle distinct) {
+
+        // Get CriteriaBuilder
+        ResultHandle cb = method.invokeInterfaceMethod(
+                md(EntityManager.class, EM_GET_CRITERIA_BUILDER, CriteriaBuilder.class), em);
+
+        // Use Object.class for group queries (multi-select or tuple results)
+        ResultHandle objectClass = method.loadClass(Object.class);
+
+        // Create CriteriaQuery<Object>
+        ResultHandle query = method.invokeInterfaceMethod(
+                md(CriteriaBuilder.class, EM_CREATE_QUERY, CriteriaQuery.class, Class.class),
+                cb, objectClass);
+
+        // Create Root<Entity>
+        ResultHandle root = method.invokeInterfaceMethod(
+                md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class), query, entityClass);
+
+        // Apply pre-grouping WHERE predicate if present
+        if (predicateExpression != null) {
+            ResultHandle predicate = expressionGenerator.generatePredicate(
+                    method, predicateExpression, cb, root, capturedValues);
+            applyWherePredicate(method, query, predicate);
+        }
+
+        // Generate GROUP BY key expression
+        ResultHandle groupKeyExpr = expressionGenerator.generateExpression(
+                method, groupByKeyExpression, cb, root, capturedValues);
+
+        // Apply GROUP BY
+        ResultHandle groupByArray = method.newArray(Expression.class, 1);
+        method.writeArrayValue(groupByArray, 0, groupKeyExpr);
+        method.invokeInterfaceMethod(CQ_GROUP_BY, query, groupByArray);
+
+        // Apply HAVING predicate if present
+        if (havingExpression != null) {
+            ResultHandle havingPredicate = expressionGenerator.generateGroupPredicate(
+                    method, havingExpression, cb, root, groupKeyExpr, capturedValues);
+            applyHavingPredicate(method, query, havingPredicate);
+        }
+
+        // Apply SELECT projection if present
+        if (groupSelectExpression != null) {
+            ResultHandle selection = expressionGenerator.generateGroupSelectExpression(
+                    method, groupSelectExpression, cb, root, groupKeyExpr, capturedValues);
+            method.invokeInterfaceMethod(
+                    md(CriteriaQuery.class, CQ_SELECT, CriteriaQuery.class, Selection.class),
+                    query, selection);
+        } else {
+            // Default: SELECT the grouping key
+            method.invokeInterfaceMethod(
+                    md(CriteriaQuery.class, CQ_SELECT, CriteriaQuery.class, Selection.class),
+                    query, groupKeyExpr);
+        }
+
+        // Apply ORDER BY for group queries
+        applyGroupOrderBy(method, query, root, groupKeyExpr, cb, groupSortExpressions, capturedValues);
+
+        // Apply DISTINCT if requested
+        applyDistinct(method, query, distinct);
+
+        // Create TypedQuery
+        ResultHandle typedQuery = method.invokeInterfaceMethod(
+                md(EntityManager.class, EM_CREATE_QUERY, TypedQuery.class, CriteriaQuery.class),
+                em, query);
+
+        // Apply pagination
+        applyPagination(method, typedQuery, offset, limit);
+
+        // Return getResultList()
+        return method.invokeInterfaceMethod(
+                md(TypedQuery.class, TQ_GET_RESULT_LIST, List.class), typedQuery);
+    }
+
+    /**
+     * Generates GROUP BY COUNT query body (Iteration 7).
+     * <p>
+     * Counts the number of groups (not the total entities).
+     * Uses a subquery or COUNT(DISTINCT groupKey) pattern.
+     */
+    private ResultHandle generateGroupCountQueryBody(
+            MethodCreator method,
+            ResultHandle em,
+            ResultHandle entityClass,
+            LambdaExpression predicateExpression,
+            LambdaExpression groupByKeyExpression,
+            LambdaExpression havingExpression,
+            ResultHandle capturedValues) {
+
+        // Get CriteriaBuilder
+        ResultHandle cb = method.invokeInterfaceMethod(
+                md(EntityManager.class, EM_GET_CRITERIA_BUILDER, CriteriaBuilder.class), em);
+
+        // For counting groups, we use different strategies based on whether HAVING is present:
+        // - Without HAVING: SELECT COUNT(DISTINCT groupKey) - simpler, returns Long
+        // - With HAVING: Need to return group keys and count them at runtime
+        if (havingExpression != null) {
+            // With HAVING: Create query for Object (group key type may vary)
+            ResultHandle objectClass = method.loadClass(Object.class);
+            ResultHandle query = method.invokeInterfaceMethod(
+                    md(CriteriaBuilder.class, EM_CREATE_QUERY, CriteriaQuery.class, Class.class),
+                    cb, objectClass);
+
+            // Create Root<Entity>
+            ResultHandle root = method.invokeInterfaceMethod(
+                    md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class), query, entityClass);
+
+            // Apply pre-grouping WHERE predicate if present
+            if (predicateExpression != null) {
+                ResultHandle predicate = expressionGenerator.generatePredicate(
+                        method, predicateExpression, cb, root, capturedValues);
+                applyWherePredicate(method, query, predicate);
+            }
+
+            // Generate GROUP BY key expression
+            ResultHandle groupKeyExpr = expressionGenerator.generateExpression(
+                    method, groupByKeyExpression, cb, root, capturedValues);
+
+            // Apply GROUP BY
+            ResultHandle groupByArray = method.newArray(Expression.class, 1);
+            method.writeArrayValue(groupByArray, 0, groupKeyExpr);
+            method.invokeInterfaceMethod(CQ_GROUP_BY, query, groupByArray);
+
+            // Apply HAVING predicate
+            ResultHandle havingPredicate = expressionGenerator.generateGroupPredicate(
+                    method, havingExpression, cb, root, groupKeyExpr, capturedValues);
+            applyHavingPredicate(method, query, havingPredicate);
+
+            // SELECT groupKey (we'll count results at runtime)
+            method.invokeInterfaceMethod(
+                    md(CriteriaQuery.class, CQ_SELECT, CriteriaQuery.class, Selection.class),
+                    query, groupKeyExpr);
+
+            // Create TypedQuery
+            ResultHandle typedQuery = method.invokeInterfaceMethod(
+                    md(EntityManager.class, EM_CREATE_QUERY, TypedQuery.class, CriteriaQuery.class),
+                    em, query);
+
+            // Get result list and return its size as Long
+            ResultHandle resultList = method.invokeInterfaceMethod(
+                    md(TypedQuery.class, TQ_GET_RESULT_LIST, List.class), typedQuery);
+            ResultHandle size = method.invokeInterfaceMethod(
+                    md(List.class, "size", int.class), resultList);
+            // Convert int to long using explicit widening cast
+            ResultHandle sizeLong = method.invokeVirtualMethod(
+                    md(Integer.class, "longValue", long.class),
+                    method.invokeStaticMethod(md(Integer.class, "valueOf", Integer.class, int.class), size));
+            return method.invokeStaticMethod(
+                    md(Long.class, "valueOf", Long.class, long.class), sizeLong);
+        } else {
+            // Without HAVING: Create query for Long (count result)
+            ResultHandle longClass = method.loadClass(Long.class);
+            ResultHandle query = method.invokeInterfaceMethod(
+                    md(CriteriaBuilder.class, EM_CREATE_QUERY, CriteriaQuery.class, Class.class),
+                    cb, longClass);
+
+            // Create Root<Entity>
+            ResultHandle root = method.invokeInterfaceMethod(
+                    md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class), query, entityClass);
+
+            // Apply pre-grouping WHERE predicate if present
+            if (predicateExpression != null) {
+                ResultHandle predicate = expressionGenerator.generatePredicate(
+                        method, predicateExpression, cb, root, capturedValues);
+                applyWherePredicate(method, query, predicate);
+            }
+
+            // Generate GROUP BY key expression
+            ResultHandle groupKeyExpr = expressionGenerator.generateExpression(
+                    method, groupByKeyExpression, cb, root, capturedValues);
+
+            // Simple COUNT(DISTINCT groupKey), no GROUP BY needed
+            ResultHandle countExpr = method.invokeInterfaceMethod(CB_COUNT_DISTINCT, cb, groupKeyExpr);
+            method.invokeInterfaceMethod(
+                    md(CriteriaQuery.class, CQ_SELECT, CriteriaQuery.class, Selection.class),
+                    query, countExpr);
+
+            // Create TypedQuery
+            ResultHandle typedQuery = method.invokeInterfaceMethod(
+                    md(EntityManager.class, EM_CREATE_QUERY, TypedQuery.class, CriteriaQuery.class),
+                    em, query);
+
+            // Return getSingleResult()
+            return method.invokeInterfaceMethod(
+                    md(TypedQuery.class, TQ_GET_SINGLE_RESULT, Object.class), typedQuery);
+        }
+    }
+
+    /**
+     * Applies HAVING clause predicate to CriteriaQuery.
+     * Iteration 7: Implementation of having() support.
+     */
+    private void applyHavingPredicate(MethodCreator method, ResultHandle query, ResultHandle predicate) {
+        if (predicate != null) {
+            ResultHandle predicateArray = method.newArray(Predicate.class, 1);
+            method.writeArrayValue(predicateArray, 0, predicate);
+            method.invokeInterfaceMethod(CQ_HAVING, query, predicateArray);
+        }
+    }
+
+    /**
+     * Applies ORDER BY clause for GROUP BY queries.
+     * Iteration 7: Implementation of sortedBy() for GroupStream.
+     */
+    private void applyGroupOrderBy(
+            MethodCreator method,
+            ResultHandle query,
+            ResultHandle root,
+            ResultHandle groupKeyExpr,
+            ResultHandle cb,
+            List<?> sortExpressions,
+            ResultHandle capturedValues) {
+
+        if (sortExpressions == null || sortExpressions.isEmpty()) {
+            return; // No sorting
+        }
+
+        // Create array to hold Order objects
+        ResultHandle ordersArray = method.newArray(jakarta.persistence.criteria.Order.class, sortExpressions.size());
+
+        // Generate Order objects in REVERSE order for "last call wins" semantics
+        for (int i = 0; i < sortExpressions.size(); i++) {
+            int reverseIndex = sortExpressions.size() - 1 - i;
+            Object sortExprObj = sortExpressions.get(reverseIndex);
+
+            if (sortExprObj instanceof CallSiteProcessor.SortExpression sortExpr) {
+                // Generate JPA Expression for the group sort key extractor
+                ResultHandle sortKeyExpr = expressionGenerator.generateGroupSortExpression(
+                        method, sortExpr.keyExtractor(), cb, root, groupKeyExpr, capturedValues);
+
+                // Create Order object (ascending or descending)
+                ResultHandle order;
+                if (sortExpr.direction() == SortDirection.DESCENDING) {
+                    order = method.invokeInterfaceMethod(CB_DESC, cb, sortKeyExpr);
+                } else {
+                    order = method.invokeInterfaceMethod(CB_ASC, cb, sortKeyExpr);
+                }
+
+                // Add to orders array at position i (forward order)
+                method.writeArrayValue(ordersArray, i, order);
+            }
+        }
+
+        // Apply orderBy to query
+        method.invokeInterfaceMethod(CQ_ORDER_BY, query, ordersArray);
     }
 
     /**

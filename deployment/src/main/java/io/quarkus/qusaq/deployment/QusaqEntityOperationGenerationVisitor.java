@@ -62,6 +62,9 @@ public class QusaqEntityOperationGenerationVisitor extends ClassVisitor {
             generateJoinMethod();
             generateLeftJoinMethod();
 
+            // Iteration 7: Generate groupBy entry point
+            generateGroupByMethod();
+
             // Note: count() and findAll() are inherited from PanacheEntityBase
         }
 
@@ -142,5 +145,13 @@ public class QusaqEntityOperationGenerationVisitor extends ClassVisitor {
         var config = QusaqBytecodeGenerator.JoinMethodConfig.forLeftJoin(
                 entityType, entityInternalName);
         QusaqBytecodeGenerator.generateJoinEntryPoint(cv, config);
+    }
+
+    // Iteration 7: GroupBy method generation
+
+    private void generateGroupByMethod() {
+        var config = QusaqBytecodeGenerator.GroupMethodConfig.forGroupBy(
+                entityType, entityInternalName);
+        QusaqBytecodeGenerator.generateGroupEntryPoint(cv, config);
     }
 }

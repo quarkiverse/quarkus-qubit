@@ -6,9 +6,11 @@ import io.quarkus.qusaq.deployment.LambdaExpression.BiEntityParameter;
 import io.quarkus.qusaq.deployment.LambdaExpression.BiEntityPathExpression;
 import io.quarkus.qusaq.deployment.LambdaExpression.EntityPosition;
 import io.quarkus.qusaq.deployment.LambdaExpression.FieldAccess;
+import io.quarkus.qusaq.deployment.LambdaExpression.GroupParameter;
 import io.quarkus.qusaq.deployment.LambdaExpression.PathExpression;
 import io.quarkus.qusaq.deployment.LambdaExpression.PathSegment;
 import io.quarkus.qusaq.deployment.LambdaExpression.RelationType;
+import io.quarkus.qusaq.runtime.Group;
 import io.quarkus.qusaq.deployment.analysis.BytecodeAnalysisException;
 import io.quarkus.qusaq.deployment.util.DescriptorParser;
 import io.quarkus.qusaq.deployment.util.TypeConverter;
@@ -55,17 +57,24 @@ public class LoadInstructionHandler implements InstructionHandler {
     }
 
     /**
-     * Handles ALOAD: entity parameter or captured variable.
+     * Handles ALOAD: entity parameter, group parameter, or captured variable.
      * <p>
      * In bi-entity mode (join queries), checks both entity parameter slots and
      * produces BiEntityParameter nodes that track the entity position.
+     * <p>
+     * In group context mode (GroupQuerySpec), produces GroupParameter nodes
+     * for the Group parameter.
      */
     private void handleALoad(AnalysisContext ctx, VarInsnNode varInsn) {
         EntityPosition entityPosition = ctx.getEntityPosition(varInsn.var);
 
         if (entityPosition != null) {
-            // This is an entity parameter
-            if (ctx.isBiEntityMode()) {
+            // This is an entity parameter (or group parameter in group context)
+            if (ctx.isGroupContextMode()) {
+                // Group context lambda: produce GroupParameter
+                // In group lambdas, the Group parameter is at the entity slot
+                ctx.push(new GroupParameter("group", Group.class, varInsn.var, Object.class, Object.class));
+            } else if (ctx.isBiEntityMode()) {
                 // Bi-entity lambda: produce BiEntityParameter
                 String paramName = entityPosition == EntityPosition.FIRST ? "entity" : "joinedEntity";
                 ctx.push(new BiEntityParameter(paramName, Object.class, varInsn.var, entityPosition));

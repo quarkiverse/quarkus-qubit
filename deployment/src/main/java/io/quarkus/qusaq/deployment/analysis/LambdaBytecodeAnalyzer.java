@@ -81,6 +81,82 @@ public class LambdaBytecodeAnalyzer {
     }
 
     /**
+     * Analyzes synthetic lambda bytecode for group query lambdas (GroupQuerySpec).
+     * <p>
+     * Used for group query operations that take a Group parameter.
+     * For example: {@code (Group<Person, String> g) -> g.count()}
+     * <p>
+     * Group lambdas support:
+     * <ul>
+     *   <li>{@code g.key()} - returns grouping key</li>
+     *   <li>{@code g.count()} - returns count of entities in group</li>
+     *   <li>{@code g.countDistinct(p -> p.field)} - returns distinct count</li>
+     *   <li>{@code g.avg(p -> p.field)} - returns average of field values</li>
+     *   <li>{@code g.min(p -> p.field)} - returns minimum value</li>
+     *   <li>{@code g.max(p -> p.field)} - returns maximum value</li>
+     *   <li>{@code g.sumInteger/sumLong/sumDouble(p -> p.field)} - returns sum</li>
+     * </ul>
+     *
+     * @param classBytes bytecode of the lambda class
+     * @param lambdaMethodName lambda method name (usually "lambda$methodName$N")
+     * @param lambdaDescriptor method descriptor (e.g., "(LGroup;)J")
+     * @return lambda expression AST with Group nodes, or null if analysis fails
+     */
+    public LambdaExpression analyzeGroupQuerySpec(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor) {
+        return analyzeGroupContext(classBytes, lambdaMethodName, lambdaDescriptor);
+    }
+
+    /**
+     * Internal analyze method for group context lambdas (GroupQuerySpec).
+     *
+     * @param classBytes bytecode of the lambda class
+     * @param lambdaMethodName lambda method name
+     * @param lambdaDescriptor method descriptor
+     * @return lambda expression AST with Group nodes, or null if analysis fails
+     */
+    private LambdaExpression analyzeGroupContext(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor) {
+        try {
+            ClassReader reader = new ClassReader(classBytes);
+            ClassNode classNode = new ClassNode();
+            reader.accept(classNode, 0);
+
+            MethodNode lambdaMethod = null;
+            for (MethodNode method : classNode.methods) {
+                if (method.name.equals(lambdaMethodName) && method.desc.equals(lambdaDescriptor)) {
+                    lambdaMethod = method;
+                    break;
+                }
+            }
+
+            if (lambdaMethod == null) {
+                log.warnf("Could not find group lambda method %s%s in class", lambdaMethodName, lambdaDescriptor);
+                return null;
+            }
+
+            // For group context, the Group parameter is at slot 0 (first parameter)
+            // We use a special group context mode in AnalysisContext
+            int groupParameterIndex = DescriptorParser.calculateEntityParameterSlotIndex(lambdaDescriptor);
+            AnalysisContext ctx = new AnalysisContext(lambdaMethod, groupParameterIndex);
+            ctx.setGroupContextMode(true);
+
+            // Iteration 7: Set up nested lambda analysis support
+            // This allows analyzing field extractor lambdas like (Person p) -> p.salary
+            // inside group aggregations like g.avg((Person p) -> p.salary)
+            ctx.setClassMethods(classNode.methods);
+            ctx.setNestedLambdaAnalyzer((nestedMethod, entityParamIndex) -> {
+                AnalysisContext nestedCtx = new AnalysisContext(nestedMethod, entityParamIndex);
+                return processInstructions(nestedCtx);
+            });
+
+            return processInstructions(ctx);
+
+        } catch (Exception e) {
+            log.warnf(e, "Failed to analyze group lambda method %s", lambdaMethodName);
+            return null;
+        }
+    }
+
+    /**
      * Internal analyze method that supports both single-entity and bi-entity lambdas.
      *
      * @param classBytes bytecode of the lambda class
@@ -188,7 +264,7 @@ public class LambdaBytecodeAnalyzer {
             }
         }
 
-        return finalizeExpressionStack(ctx.getStack());
+        return finalizeExpressionStack(ctx);
     }
 
     /**
@@ -244,17 +320,36 @@ public class LambdaBytecodeAnalyzer {
     }
 
     /**
-     * Handles NEW and DUP instructions inline (object creation markers for constructor calls).
+     * Handles NEW, DUP, ANEWARRAY, and AASTORE instructions inline.
+     * <p>
+     * Iteration 7: Extended to support Object[] array creation for GROUP BY multi-value projections.
      *
      * @param ctx analysis context
      * @param insn instruction
      * @param opcode opcode
-     * @return true if instruction was NEW or DUP
+     * @return true if instruction was handled
      */
     private boolean handleNewAndDup(AnalysisContext ctx, AbstractInsnNode insn, int opcode) {
         if (opcode == NEW) {
             org.objectweb.asm.tree.TypeInsnNode newInsn = (org.objectweb.asm.tree.TypeInsnNode) insn;
             ctx.push(new LambdaExpression.Constant(newInsn.desc, String.class));
+            return true;
+        } else if (opcode == ANEWARRAY) {
+            // Iteration 7: Handle array creation for Object[] projections
+            org.objectweb.asm.tree.TypeInsnNode arrayInsn = (org.objectweb.asm.tree.TypeInsnNode) insn;
+            ctx.startArrayCreation(arrayInsn.desc);
+            // Pop the array size from stack (we don't need it)
+            ctx.pop();
+            // Push a marker for the array reference
+            ctx.push(new LambdaExpression.Constant("__array__", String.class));
+            return true;
+        } else if (opcode == AASTORE && ctx.isInArrayCreation()) {
+            // Iteration 7: Store value into array
+            // Stack: [array_ref, index, value] (value on top)
+            LambdaExpression value = ctx.pop();  // pop value
+            ctx.pop();  // pop index (we track order implicitly)
+            ctx.pop();  // pop array_ref (will be re-pushed by DUP before next element)
+            ctx.addArrayElement(value);
             return true;
         } else if (opcode == DUP && !ctx.isStackEmpty()) {
             LambdaExpression top = ctx.peek();
@@ -266,11 +361,22 @@ public class LambdaBytecodeAnalyzer {
 
     /**
      * Finalizes expression stack by combining remaining expressions with AND.
+     * <p>
+     * Iteration 7: Extended to check for pending array creation and finalize it.
      *
-     * @param stack expression stack
+     * @param ctx analysis context for array completion
      * @return final combined expression
      */
-    private LambdaExpression finalizeExpressionStack(Deque<LambdaExpression> stack) {
+    private LambdaExpression finalizeExpressionStack(AnalysisContext ctx) {
+        // Iteration 7: If we have a pending array, complete it
+        if (ctx.isInArrayCreation()) {
+            LambdaExpression.ArrayCreation arrayCreation = ctx.completeArrayCreation();
+            if (arrayCreation != null) {
+                return arrayCreation;
+            }
+        }
+
+        Deque<LambdaExpression> stack = ctx.getStack();
         while (stack.size() > 1) {
             LambdaExpression right = stack.pop();
             LambdaExpression left = stack.pop();

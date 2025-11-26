@@ -519,6 +519,16 @@ public class QusaqStreamImpl<T> implements QusaqStream<T> {
     }
 
     // =============================================================================================
+    // GROUPING OPERATIONS (Iteration 7)
+    // =============================================================================================
+
+    @Override
+    public <K> GroupStream<T, K> groupBy(QuerySpec<T, K> keyExtractor) {
+        // Create a new GroupStream with the accumulated predicates
+        return new GroupStreamImpl<>(entityClass, keyExtractor, new ArrayList<>(predicates));
+    }
+
+    // =============================================================================================
     // INTERNAL CLASSES
     // =============================================================================================
 

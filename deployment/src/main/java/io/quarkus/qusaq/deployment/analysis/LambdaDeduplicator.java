@@ -216,6 +216,7 @@ public class LambdaDeduplicator {
      * Returns true if lambda is duplicate and reuses existing executor.
      * Query type information is already encoded in the lambdaHash parameter.
      * Iteration 6: Added isJoinQuery parameter for join query support.
+     * Iteration 7: Added isGroupQuery parameter for group query support.
      */
     public boolean handleDuplicateLambda(
             String callSiteId,
@@ -223,6 +224,7 @@ public class LambdaDeduplicator {
             boolean isCountQuery,
             boolean isAggregationQuery,
             boolean isJoinQuery,
+            boolean isGroupQuery,
             int capturedVarCount,
             AtomicInteger deduplicatedCount,
             BuildProducer<QusaqProcessor.QueryTransformationBuildItem> queryTransformations) {
@@ -234,11 +236,66 @@ public class LambdaDeduplicator {
 
             queryTransformations.produce(
                     new QusaqProcessor.QueryTransformationBuildItem(callSiteId, existingExecutor,
-                            Object.class, isCountQuery, isAggregationQuery, isJoinQuery, capturedVarCount));
+                            Object.class, isCountQuery, isAggregationQuery, isJoinQuery, isGroupQuery, capturedVarCount));
             return true;
         }
 
         return false;
+    }
+
+    /**
+     * Computes MD5 hash for group query (Iteration 7).
+     * Supports groupBy(), having(), select(), and sortedBy() in group context.
+     *
+     * @param predicateExpression Pre-grouping WHERE clause (null if no filtering)
+     * @param groupByKeyExpression groupBy() key extractor lambda (e.g., p -> p.department)
+     * @param havingExpression having() predicate (null if no having)
+     * @param groupSelectExpression select() projection in group context (null if no select)
+     * @param groupSortExpressions sortedBy() in group context (null or empty if no sorting)
+     * @param isCountQuery True if this is a count query (counting groups)
+     * @return MD5 hash uniquely identifying this group query
+     */
+    public String computeGroupHash(
+            LambdaExpression predicateExpression,
+            LambdaExpression groupByKeyExpression,
+            LambdaExpression havingExpression,
+            LambdaExpression groupSelectExpression,
+            List<CallSiteProcessor.SortExpression> groupSortExpressions,
+            boolean isCountQuery) {
+
+        StringBuilder astString = new StringBuilder();
+
+        // Include WHERE predicate if present (pre-grouping filter)
+        if (predicateExpression != null) {
+            astString.append(WHERE_PREFIX).append(predicateExpression.toString());
+        }
+
+        // Include groupBy key expression
+        astString.append("|GROUP_BY=");
+        if (groupByKeyExpression != null) {
+            astString.append(groupByKeyExpression.toString());
+        }
+
+        // Include having predicate if present
+        if (havingExpression != null) {
+            astString.append("|HAVING=").append(havingExpression.toString());
+        }
+
+        // Include group select expression if present
+        if (groupSelectExpression != null) {
+            astString.append("|GROUP_SELECT=").append(groupSelectExpression.toString());
+        }
+
+        // Include group sort expressions if present
+        if (groupSortExpressions != null && !groupSortExpressions.isEmpty()) {
+            String sortString = buildSortString(groupSortExpressions);
+            astString.append(SORT_SEPARATOR).append(sortString);
+        }
+
+        // Include query type (LIST or COUNT) to differentiate
+        astString.append("|QUERY_TYPE=").append(isCountQuery ? "COUNT" : "LIST");
+
+        return computeMd5Hash(astString.toString());
     }
 
     /**

@@ -50,6 +50,9 @@ import io.quarkus.qusaq.deployment.LambdaExpression;
 import io.quarkus.qusaq.deployment.LambdaExpression.BiEntityFieldAccess;
 import io.quarkus.qusaq.deployment.LambdaExpression.BiEntityPathExpression;
 import io.quarkus.qusaq.deployment.LambdaExpression.EntityPosition;
+import io.quarkus.qusaq.deployment.LambdaExpression.GroupAggregation;
+import io.quarkus.qusaq.deployment.LambdaExpression.GroupAggregationType;
+import io.quarkus.qusaq.deployment.LambdaExpression.GroupKeyReference;
 import io.quarkus.qusaq.deployment.LambdaExpression.InExpression;
 import io.quarkus.qusaq.deployment.LambdaExpression.MemberOfExpression;
 import io.quarkus.qusaq.deployment.LambdaExpression.PathExpression;
@@ -1294,5 +1297,402 @@ public class CriteriaExpressionGenerator {
         }
 
         return null;
+    }
+
+    // =============================================================================================
+    // GROUP EXPRESSIONS (Iteration 7: GROUP BY)
+    // =============================================================================================
+
+    /**
+     * Generates JPA Predicate from group lambda expression AST (HAVING clause).
+     * <p>
+     * Used for group query HAVING predicates like {@code g -> g.count() > 5}.
+     * Group expressions can reference the grouping key ({@code g.key()}) or
+     * aggregation functions ({@code g.count()}, {@code g.avg()}, etc.).
+     * <p>
+     * Example:
+     * <pre>
+     * // Lambda: g -> g.count() > 5
+     * // Generated JPA: cb.greaterThan(cb.count(root), 5L)
+     * </pre>
+     *
+     * @param method the method creator for bytecode generation
+     * @param expression the group lambda expression AST
+     * @param cb the CriteriaBuilder handle
+     * @param root the root entity handle
+     * @param groupKeyExpr the JPA expression for the grouping key
+     * @param capturedValues the captured variables array handle
+     * @return the JPA Predicate handle for the HAVING clause
+     */
+    public ResultHandle generateGroupPredicate(
+            MethodCreator method,
+            LambdaExpression expression,
+            ResultHandle cb,
+            ResultHandle root,
+            ResultHandle groupKeyExpr,
+            ResultHandle capturedValues) {
+
+        if (expression == null) {
+            return null;
+        }
+
+        if (expression instanceof LambdaExpression.BinaryOp binOp) {
+            return generateGroupBinaryOperation(method, binOp, cb, root, groupKeyExpr, capturedValues);
+        } else if (expression instanceof LambdaExpression.UnaryOp unOp) {
+            return generateGroupUnaryOperation(method, unOp, cb, root, groupKeyExpr, capturedValues);
+        } else if (expression instanceof GroupAggregation groupAgg) {
+            // Aggregation used as a boolean predicate (rare, but possible)
+            return generateGroupAggregationExpression(method, groupAgg, cb, root, capturedValues);
+        } else if (expression instanceof GroupKeyReference) {
+            // Key reference as boolean (if key is boolean type)
+            return groupKeyExpr;
+        }
+
+        return null;
+    }
+
+    /**
+     * Generates JPA Expression from group lambda expression AST (GROUP BY SELECT).
+     * <p>
+     * Used for group query select projections like {@code g -> new DeptStats(g.key(), g.count())}.
+     * Converts GroupKeyReference and GroupAggregation nodes to JPA expressions.
+     * <p>
+     * Example:
+     * <pre>
+     * // Lambda: g -> g.count()
+     * // Generated JPA: cb.count(root)
+     *
+     * // Lambda: g -> g.key()
+     * // Generated JPA: groupKeyExpr (the pre-computed grouping key expression)
+     *
+     * // Lambda: g -> g.avg(p -> p.salary)
+     * // Generated JPA: cb.avg(root.get("salary"))
+     * </pre>
+     *
+     * @param method the method creator for bytecode generation
+     * @param expression the group lambda expression AST
+     * @param cb the CriteriaBuilder handle
+     * @param root the root entity handle
+     * @param groupKeyExpr the JPA expression for the grouping key
+     * @param capturedValues the captured variables array handle
+     * @return the JPA Expression handle for the SELECT clause
+     */
+    public ResultHandle generateGroupSelectExpression(
+            MethodCreator method,
+            LambdaExpression expression,
+            ResultHandle cb,
+            ResultHandle root,
+            ResultHandle groupKeyExpr,
+            ResultHandle capturedValues) {
+
+        if (expression == null) {
+            return null;
+        }
+
+        if (expression instanceof GroupKeyReference) {
+            // g.key() -> use the pre-computed grouping key expression
+            return groupKeyExpr;
+        } else if (expression instanceof GroupAggregation groupAgg) {
+            // g.count(), g.avg(), etc. -> generate aggregation expression
+            return generateGroupAggregationExpression(method, groupAgg, cb, root, capturedValues);
+        } else if (expression instanceof LambdaExpression.ArrayCreation arrayCreation) {
+            // Iteration 7: Object[] projection using cb.tuple()
+            return generateGroupArrayCreation(method, arrayCreation, cb, root, groupKeyExpr, capturedValues);
+        } else if (expression instanceof LambdaExpression.ConstructorCall constructorCall) {
+            // DTO constructor with group elements
+            return generateGroupConstructorCall(method, constructorCall, cb, root, groupKeyExpr, capturedValues);
+        } else if (expression instanceof LambdaExpression.FieldAccess field) {
+            // Field access in group context (from nested lambda in aggregation)
+            return generateFieldAccess(method, field, root);
+        } else if (expression instanceof PathExpression pathExpr) {
+            return generatePathExpression(method, pathExpr, root);
+        } else if (expression instanceof LambdaExpression.Constant constant) {
+            ResultHandle constantValue = generateConstant(method, constant);
+            return wrapAsLiteral(method, cb, constantValue);
+        } else if (expression instanceof LambdaExpression.CapturedVariable capturedVar) {
+            ResultHandle index = method.load(capturedVar.index());
+            ResultHandle value = method.readArrayValue(capturedValues, index);
+            Class<?> targetType = TypeConverter.getBoxedType(capturedVar.type());
+            ResultHandle castedValue = method.checkCast(value, targetType);
+            return wrapAsLiteral(method, cb, castedValue);
+        } else if (expression instanceof LambdaExpression.BinaryOp binOp) {
+            return generateGroupBinaryOperation(method, binOp, cb, root, groupKeyExpr, capturedValues);
+        }
+
+        return null;
+    }
+
+    /**
+     * Generates JPA Expression for group ORDER BY clause.
+     * <p>
+     * Used for sorting group query results by group key or aggregation values.
+     * <p>
+     * Example:
+     * <pre>
+     * // sortedBy(g -> g.count()) -> cb.count(root)
+     * // sortedBy(g -> g.key()) -> groupKeyExpr
+     * </pre>
+     *
+     * @param method the method creator for bytecode generation
+     * @param expression the sort key expression AST
+     * @param cb the CriteriaBuilder handle
+     * @param root the root entity handle
+     * @param groupKeyExpr the JPA expression for the grouping key
+     * @param capturedValues the captured variables array handle
+     * @return the JPA Expression handle for ORDER BY
+     */
+    public ResultHandle generateGroupSortExpression(
+            MethodCreator method,
+            LambdaExpression expression,
+            ResultHandle cb,
+            ResultHandle root,
+            ResultHandle groupKeyExpr,
+            ResultHandle capturedValues) {
+
+        // Delegate to generateGroupSelectExpression since they handle the same types
+        return generateGroupSelectExpression(method, expression, cb, root, groupKeyExpr, capturedValues);
+    }
+
+    /**
+     * Generates JPA aggregation expression for GroupAggregation AST node.
+     * <p>
+     * Maps GroupAggregationType to JPA CriteriaBuilder aggregation methods:
+     * <ul>
+     *   <li>COUNT -> cb.count(root)</li>
+     *   <li>COUNT_DISTINCT -> cb.countDistinct(fieldExpr)</li>
+     *   <li>AVG -> cb.avg(fieldExpr)</li>
+     *   <li>SUM_INTEGER -> cb.sum(fieldExpr) [returns Integer]</li>
+     *   <li>SUM_LONG -> cb.sumAsLong(fieldExpr)</li>
+     *   <li>SUM_DOUBLE -> cb.sumAsDouble(fieldExpr)</li>
+     *   <li>MIN -> cb.min(fieldExpr) or cb.least(fieldExpr) for non-numeric</li>
+     *   <li>MAX -> cb.max(fieldExpr) or cb.greatest(fieldExpr) for non-numeric</li>
+     * </ul>
+     *
+     * @param method the method creator for bytecode generation
+     * @param groupAgg the group aggregation expression
+     * @param cb the CriteriaBuilder handle
+     * @param root the root entity handle
+     * @param capturedValues the captured variables array handle
+     * @return the JPA Expression handle for the aggregation
+     */
+    private ResultHandle generateGroupAggregationExpression(
+            MethodCreator method,
+            GroupAggregation groupAgg,
+            ResultHandle cb,
+            ResultHandle root,
+            ResultHandle capturedValues) {
+
+        GroupAggregationType aggType = groupAgg.aggregationType();
+
+        // Handle COUNT specially - it operates on the root, not a field
+        if (aggType == GroupAggregationType.COUNT) {
+            return method.invokeInterfaceMethod(
+                    methodDescriptor(CriteriaBuilder.class, "count", Expression.class, Expression.class),
+                    cb, root);
+        }
+
+        // For all other aggregations, we need to extract the field expression
+        // The fieldExpression in GroupAggregation is the analyzed nested lambda (e.g., p -> p.salary)
+        // which should be a FieldAccess or PathExpression
+        LambdaExpression fieldExpr = groupAgg.fieldExpression();
+        ResultHandle fieldPath = generateExpressionAsJpaExpression(method, fieldExpr, cb, root, capturedValues);
+
+        if (fieldPath == null) {
+            // Fallback: if field expression is null, use root
+            fieldPath = root;
+        }
+
+        return switch (aggType) {
+            case COUNT_DISTINCT -> method.invokeInterfaceMethod(
+                    methodDescriptor(CriteriaBuilder.class, "countDistinct", Expression.class, Expression.class),
+                    cb, fieldPath);
+            case AVG -> method.invokeInterfaceMethod(
+                    methodDescriptor(CriteriaBuilder.class, "avg", Expression.class, Expression.class),
+                    cb, fieldPath);
+            case SUM_INTEGER -> method.invokeInterfaceMethod(
+                    methodDescriptor(CriteriaBuilder.class, "sum", Expression.class, Expression.class),
+                    cb, fieldPath);
+            case SUM_LONG -> method.invokeInterfaceMethod(
+                    methodDescriptor(CriteriaBuilder.class, "sumAsLong", Expression.class, Expression.class),
+                    cb, fieldPath);
+            case SUM_DOUBLE -> method.invokeInterfaceMethod(
+                    methodDescriptor(CriteriaBuilder.class, "sumAsDouble", Expression.class, Expression.class),
+                    cb, fieldPath);
+            case MIN -> method.invokeInterfaceMethod(
+                    methodDescriptor(CriteriaBuilder.class, "min", Expression.class, Expression.class),
+                    cb, fieldPath);
+            case MAX -> method.invokeInterfaceMethod(
+                    methodDescriptor(CriteriaBuilder.class, "max", Expression.class, Expression.class),
+                    cb, fieldPath);
+            case COUNT -> throw new IllegalStateException("COUNT should be handled above");
+        };
+    }
+
+    /**
+     * Generates group binary operation (comparison, logical, arithmetic).
+     * <p>
+     * Handles operations like {@code g.count() > 5} or {@code g.avg() < limit}.
+     */
+    private ResultHandle generateGroupBinaryOperation(
+            MethodCreator method,
+            LambdaExpression.BinaryOp binOp,
+            ResultHandle cb,
+            ResultHandle root,
+            ResultHandle groupKeyExpr,
+            ResultHandle capturedValues) {
+
+        // Logical operations (AND, OR)
+        if (isLogicalOperation(binOp)) {
+            ResultHandle left = generateGroupPredicate(method, binOp.left(), cb, root, groupKeyExpr, capturedValues);
+            ResultHandle right = generateGroupPredicate(method, binOp.right(), cb, root, groupKeyExpr, capturedValues);
+            return combinePredicates(method, cb, left, right, binOp.operator());
+        }
+
+        // Arithmetic operations
+        if (PatternDetector.isArithmeticExpression(binOp)) {
+            ResultHandle left = generateGroupSelectExpression(method, binOp.left(), cb, root, groupKeyExpr, capturedValues);
+            ResultHandle right = generateGroupSelectExpression(method, binOp.right(), cb, root, groupKeyExpr, capturedValues);
+            return generateArithmeticOperation(method, binOp.operator(), cb, left, right);
+        }
+
+        // Comparison operations (most common in HAVING)
+        ResultHandle left = generateGroupSelectExpression(method, binOp.left(), cb, root, groupKeyExpr, capturedValues);
+        ResultHandle right = generateGroupSelectExpression(method, binOp.right(), cb, root, groupKeyExpr, capturedValues);
+        return generateComparisonOperation(method, binOp.operator(), cb, left, right);
+    }
+
+    /**
+     * Generates group unary NOT operation.
+     */
+    private ResultHandle generateGroupUnaryOperation(
+            MethodCreator method,
+            LambdaExpression.UnaryOp unOp,
+            ResultHandle cb,
+            ResultHandle root,
+            ResultHandle groupKeyExpr,
+            ResultHandle capturedValues) {
+
+        ResultHandle operand = generateGroupPredicate(method, unOp.operand(), cb, root, groupKeyExpr, capturedValues);
+
+        return switch (unOp.operator()) {
+            case NOT -> method.invokeInterfaceMethod(
+                    methodDescriptor(CriteriaBuilder.class, CB_NOT, Predicate.class, Expression.class), cb, operand);
+        };
+    }
+
+    /**
+     * Generates JPA multiselect array for Object[] projections in group context.
+     * <p>
+     * Iteration 7: Converts {@code new Object[]{g.key(), g.count()}} to an array of
+     * JPA Selection elements that will be used with {@code query.multiselect()}.
+     *
+     * @param method the method creator for bytecode generation
+     * @param arrayCreation the array creation expression from the lambda AST
+     * @param cb the CriteriaBuilder handle
+     * @param root the root entity handle
+     * @param groupKeyExpr the JPA expression for the grouping key
+     * @param capturedValues the captured variables array handle
+     * @return an array of JPA Selection handles for multiselect
+     */
+    public ResultHandle generateGroupArraySelections(
+            MethodCreator method,
+            LambdaExpression.ArrayCreation arrayCreation,
+            ResultHandle cb,
+            ResultHandle root,
+            ResultHandle groupKeyExpr,
+            ResultHandle capturedValues) {
+
+        int elementCount = arrayCreation.elements().size();
+        ResultHandle selectionsArray = method.newArray(Selection.class, elementCount);
+
+        for (int i = 0; i < elementCount; i++) {
+            LambdaExpression element = arrayCreation.elements().get(i);
+            ResultHandle elementSelection = generateGroupSelectExpression(
+                    method, element, cb, root, groupKeyExpr, capturedValues);
+            method.writeArrayValue(selectionsArray, i, elementSelection);
+        }
+
+        return selectionsArray;
+    }
+
+    /**
+     * Generates JPA tuple for Object[] projections in group context.
+     * <p>
+     * Iteration 7: Uses cb.tuple() to create a compound selection for Object[] projections.
+     * The resulting Tuple objects will be converted to Object[] at runtime.
+     */
+    private ResultHandle generateGroupArrayCreation(
+            MethodCreator method,
+            LambdaExpression.ArrayCreation arrayCreation,
+            ResultHandle cb,
+            ResultHandle root,
+            ResultHandle groupKeyExpr,
+            ResultHandle capturedValues) {
+
+        // Generate Selection array for all elements
+        ResultHandle selectionsArray = generateGroupArraySelections(
+                method, arrayCreation, cb, root, groupKeyExpr, capturedValues);
+
+        // Use cb.tuple() to create a compound selection
+        MethodDescriptor tupleMethod = MethodDescriptor.ofMethod(
+                CriteriaBuilder.class,
+                "tuple",
+                CompoundSelection.class,
+                Selection[].class);
+
+        return method.invokeInterfaceMethod(tupleMethod, cb, selectionsArray);
+    }
+
+    /**
+     * Generates JPA constructor expression for DTO projections in group context.
+     * <p>
+     * Converts {@code new DeptStats(g.key(), g.count())} to
+     * {@code cb.construct(DeptStats.class, groupKeyExpr, cb.count(root))}.
+     *
+     * @param method the method creator for bytecode generation
+     * @param constructorCall the constructor call expression from the lambda AST
+     * @param cb the CriteriaBuilder handle
+     * @param root the root entity handle
+     * @param groupKeyExpr the JPA expression for the grouping key
+     * @param capturedValues the captured variables array handle
+     * @return the JPA CompoundSelection handle representing the constructor expression
+     */
+    private ResultHandle generateGroupConstructorCall(
+            MethodCreator method,
+            LambdaExpression.ConstructorCall constructorCall,
+            ResultHandle cb,
+            ResultHandle root,
+            ResultHandle groupKeyExpr,
+            ResultHandle capturedValues) {
+
+        // Get the DTO class name
+        String className = constructorCall.className();
+        String fqClassName = className.replace('/', '.');
+
+        // Load the class at runtime
+        ResultHandle classNameHandle = method.load(fqClassName);
+        ResultHandle resultClassHandle = method.invokeStaticMethod(
+                MethodDescriptor.ofMethod(Class.class, "forName", Class.class, String.class),
+                classNameHandle);
+
+        // Generate JPA expressions for each constructor argument
+        int argCount = constructorCall.arguments().size();
+        ResultHandle selectionsArray = method.newArray(Selection.class, argCount);
+
+        for (int i = 0; i < argCount; i++) {
+            LambdaExpression arg = constructorCall.arguments().get(i);
+            ResultHandle argExpression = generateGroupSelectExpression(method, arg, cb, root, groupKeyExpr, capturedValues);
+            method.writeArrayValue(selectionsArray, i, argExpression);
+        }
+
+        // Call cb.construct(resultClass, selections...)
+        MethodDescriptor constructMethod = MethodDescriptor.ofMethod(
+                CriteriaBuilder.class,
+                "construct",
+                CompoundSelection.class,
+                Class.class,
+                Selection[].class);
+
+        return method.invokeInterfaceMethod(constructMethod, cb, resultClassHandle, selectionsArray);
     }
 }

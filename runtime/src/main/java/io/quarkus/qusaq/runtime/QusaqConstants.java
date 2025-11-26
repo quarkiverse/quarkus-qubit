@@ -79,6 +79,24 @@ public final class QusaqConstants {
         METHOD_SELECT_SOURCE, METHOD_SELECT_JOINED
     );
 
+    // Group method names (Iteration 7: Grouping / GROUP BY)
+    public static final String METHOD_GROUP_BY = "groupBy";
+    public static final String METHOD_HAVING = "having";
+    public static final String METHOD_SELECT_KEY = "selectKey";
+
+    // Group.xxx() method names for aggregate functions
+    public static final String METHOD_KEY = "key";
+    public static final String METHOD_COUNT_DISTINCT = "countDistinct";
+    // Note: METHOD_AVG, METHOD_MIN, METHOD_MAX, METHOD_SUM_* already defined in aggregation section above
+
+    // All group methods (for stack walking filter)
+    public static final Set<String> GROUP_METHODS = Set.of(
+        METHOD_GROUP_BY, METHOD_HAVING, METHOD_SELECT_KEY
+    );
+
+    // Group interface internal name
+    public static final String GROUP_INTERNAL_NAME = "io/quarkus/qusaq/runtime/Group";
+
     // Temporal comparison methods (used in lambda expressions for date/time comparisons)
     public static final String METHOD_IS_AFTER = "isAfter";
     public static final String METHOD_IS_BEFORE = "isBefore";
@@ -98,8 +116,10 @@ public final class QusaqConstants {
     public static final String QUSAQ_REPOSITORY_INTERNAL_NAME = "io/quarkus/qusaq/runtime/QusaqRepository";
     public static final String QUSAQ_STREAM_INTERNAL_NAME = "io/quarkus/qusaq/runtime/QusaqStream";
     public static final String JOIN_STREAM_INTERNAL_NAME = "io/quarkus/qusaq/runtime/JoinStream";
+    public static final String GROUP_STREAM_INTERNAL_NAME = "io/quarkus/qusaq/runtime/GroupStream";
     public static final String QUERY_SPEC_DESCRIPTOR = "Lio/quarkus/qusaq/runtime/QuerySpec;";
     public static final String BI_QUERY_SPEC_DESCRIPTOR = "Lio/quarkus/qusaq/runtime/BiQuerySpec;";
+    public static final String GROUP_QUERY_SPEC_DESCRIPTOR = "Lio/quarkus/qusaq/runtime/GroupQuerySpec;";
 
     // Standard Java method names for lambda expression analysis
     public static final String METHOD_DOUBLE_VALUE = "doubleValue";
@@ -223,6 +243,18 @@ public final class QusaqConstants {
     public static final String CB_IN = "in";
     public static final String CB_IS_MEMBER = "isMember";
     public static final String CB_IS_NOT_MEMBER = "isNotMember";
+
+    // CriteriaBuilder aggregation operations (Iteration 7: Grouping)
+    public static final String CB_AVG = "avg";
+    public static final String CB_COUNT_DISTINCT = "countDistinct";
+    public static final String CB_MIN = "min";
+    public static final String CB_MAX = "max";
+    public static final String CB_LEAST = "least";
+    public static final String CB_GREATEST = "greatest";
+
+    // CriteriaQuery GROUP BY operations (Iteration 7: Grouping)
+    public static final String CQ_GROUP_BY = "groupBy";
+    public static final String CQ_HAVING = "having";
 
     // Path method names (for JPA Path API)
     public static final String PATH_GET = "get";

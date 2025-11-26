@@ -470,4 +470,65 @@ public abstract class QusaqEntity extends PanacheEntity {
                 "Did you forget to annotate your entity with @Entity? " +
                 "Or is the Qusaq build-time processor not properly configured?");
     }
+
+    // =============================================================================================
+    // GROUPING OPERATIONS (Iteration 7)
+    // =============================================================================================
+
+    /**
+     * Creates a GROUP BY query grouped by the specified key extractor.
+     * <p>
+     * This is an entry point for grouped aggregation queries. The grouping key can be
+     * any field, relationship navigation, or expression that returns a comparable value.
+     * <p>
+     * <strong>Implemented at build time</strong> - the bytecode enhancement processor will
+     * replace this method body in each entity subclass with the actual query execution code.
+     * <p>
+     * Example:
+     * <pre>{@code
+     * // Group by department and count employees
+     * List<DeptCount> counts = Person
+     *     .groupBy((Person p) -> p.department.name)
+     *     .select((Group<Person, String> g) -> new DeptCount(g.key(), g.count()))
+     *     .toList();
+     *
+     * // Group with HAVING clause
+     * List<String> largeDepts = Person
+     *     .groupBy((Person p) -> p.department.name)
+     *     .having((Group<Person, String> g) -> g.count() > 5)
+     *     .selectKey()
+     *     .toList();
+     *
+     * // Group with multiple aggregations
+     * List<DeptStats> stats = Person
+     *     .groupBy((Person p) -> p.department.name)
+     *     .select((Group<Person, String> g) -> new DeptStats(
+     *         g.key(),
+     *         g.count(),
+     *         g.avg((Person p) -> p.salary),
+     *         g.min((Person p) -> p.salary),
+     *         g.max((Person p) -> p.salary)
+     *     ))
+     *     .toList();
+     *
+     * // Pre-filter before grouping
+     * List<DeptCount> activeCounts = Person
+     *     .where((Person p) -> p.active)
+     *     .groupBy((Person p) -> p.department.name)
+     *     .select((Group<Person, String> g) -> new DeptCount(g.key(), g.count()))
+     *     .toList();
+     * }</pre>
+     *
+     * @param <T> the entity type
+     * @param <K> the type of the grouping key
+     * @param keyExtractor lambda extracting the grouping key from an entity
+     * @return a GroupStream for composing HAVING, SELECT, and ORDER BY operations
+     * @throws IllegalStateException if called at runtime without build-time enhancement
+     */
+    public static <T extends QusaqEntity, K> GroupStream<T, K> groupBy(QuerySpec<T, K> keyExtractor) {
+        throw new IllegalStateException(
+                "This method is normally automatically overridden in subclasses at build time. " +
+                "Did you forget to annotate your entity with @Entity? " +
+                "Or is the Qusaq build-time processor not properly configured?");
+    }
 }

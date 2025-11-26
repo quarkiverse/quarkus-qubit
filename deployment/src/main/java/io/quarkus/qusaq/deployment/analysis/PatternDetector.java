@@ -110,7 +110,10 @@ public final class PatternDetector {
     }
 
     /**
-     * Returns true if stack contains floating-point comparison pattern.
+     * Returns true if stack contains floating-point/long comparison pattern.
+     * <p>
+     * Iteration 7: Extended to support GroupAggregation and GroupKeyReference
+     * for GROUP BY HAVING clause comparisons like {@code g.count() > 1}.
      */
     public static boolean isDcmplPattern(Deque<LambdaExpression> stack) {
         if (stack.size() < 2) {
@@ -119,15 +122,23 @@ public final class PatternDetector {
         Iterator<LambdaExpression> iter = stack.iterator();
         LambdaExpression first = iter.next();
         LambdaExpression second = iter.next();
-        boolean topIsComparable = (first instanceof LambdaExpression.FieldAccess ||
-                                    first instanceof LambdaExpression.Constant ||
-                                    first instanceof LambdaExpression.CapturedVariable ||
-                                    isArithmeticExpression(first));
-        boolean secondIsComparable = (second instanceof LambdaExpression.FieldAccess ||
-                                       second instanceof LambdaExpression.Constant ||
-                                       second instanceof LambdaExpression.CapturedVariable ||
-                                       isArithmeticExpression(second));
+        boolean topIsComparable = isComparableExpression(first);
+        boolean secondIsComparable = isComparableExpression(second);
         return topIsComparable && secondIsComparable;
+    }
+
+    /**
+     * Returns true if expression is a comparable value (can be used in LCMP, DCMPL, etc.).
+     * <p>
+     * Iteration 7: Added GroupAggregation and GroupKeyReference support.
+     */
+    private static boolean isComparableExpression(LambdaExpression expr) {
+        return expr instanceof LambdaExpression.FieldAccess ||
+               expr instanceof LambdaExpression.Constant ||
+               expr instanceof LambdaExpression.CapturedVariable ||
+               expr instanceof LambdaExpression.GroupAggregation ||
+               expr instanceof LambdaExpression.GroupKeyReference ||
+               isArithmeticExpression(expr);
     }
 
     /**

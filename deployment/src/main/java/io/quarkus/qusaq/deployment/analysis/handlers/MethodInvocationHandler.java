@@ -1,6 +1,9 @@
 package io.quarkus.qusaq.deployment.analysis.handlers;
 
 import io.quarkus.qusaq.deployment.LambdaExpression;
+import io.quarkus.qusaq.deployment.LambdaExpression.GroupAggregation;
+import io.quarkus.qusaq.deployment.LambdaExpression.GroupKeyReference;
+import io.quarkus.qusaq.deployment.LambdaExpression.GroupParameter;
 import io.quarkus.qusaq.deployment.LambdaExpression.InExpression;
 import io.quarkus.qusaq.deployment.LambdaExpression.MemberOfExpression;
 import io.quarkus.qusaq.deployment.util.DescriptorParser;
@@ -155,17 +158,23 @@ public class MethodInvocationHandler implements InstructionHandler {
         }
     }
 
-    // ========== INVOKEINTERFACE Handler (Iteration 5: Collections) ==========
+    // ========== INVOKEINTERFACE Handler (Iteration 5: Collections, Iteration 7: Group) ==========
 
     /**
-     * Handles INVOKEINTERFACE: primarily Collection.contains() for IN and MEMBER OF expressions.
+     * Handles INVOKEINTERFACE: Collection.contains() for IN/MEMBER OF, and Group methods.
      * <p>
-     * Detects two patterns:
+     * Detects multiple patterns:
      * <ul>
      *   <li><b>IN clause</b>: {@code collection.contains(p.field)} where collection is a captured variable
      *       → Creates {@link InExpression}</li>
      *   <li><b>MEMBER OF</b>: {@code p.collectionField.contains(value)} where collectionField is a mapped collection
      *       → Creates {@link MemberOfExpression}</li>
+     *   <li><b>Group.key()</b>: {@code g.key()} in group context
+     *       → Creates {@link GroupKeyReference}</li>
+     *   <li><b>Group.count()</b>: {@code g.count()} in group context
+     *       → Creates {@link GroupAggregation} with COUNT type</li>
+     *   <li><b>Group aggregations</b>: {@code g.avg(...)}, {@code g.min(...)}, etc.
+     *       → Creates {@link GroupAggregation} with appropriate type</li>
      * </ul>
      * <p>
      * Bytecode pattern for IN clause ({@code cities.contains(p.city)}):
@@ -185,6 +194,12 @@ public class MethodInvocationHandler implements InstructionHandler {
      * </pre>
      */
     private void handleInvokeInterface(AnalysisContext ctx, MethodInsnNode interfaceInsn) {
+        // Iteration 7: Check if this is a Group interface method call
+        if (isGroupMethodCall(interfaceInsn)) {
+            handleGroupMethod(ctx, interfaceInsn);
+            return;
+        }
+
         // Check if this is a Collection.contains() call
         if (isCollectionContainsCall(interfaceInsn)) {
             handleCollectionContains(ctx);
@@ -201,6 +216,156 @@ public class MethodInvocationHandler implements InstructionHandler {
         if (isCompareToMethodCall(interfaceInsn)) {
             handleSingleArgumentMethodCall(ctx, METHOD_COMPARE_TO, int.class);
         }
+    }
+
+    // ========== Group Interface Methods (Iteration 7: GROUP BY) ==========
+
+    /**
+     * Checks if the instruction is a Group interface method call.
+     */
+    private boolean isGroupMethodCall(MethodInsnNode methodInsn) {
+        return methodInsn.owner.equals(GROUP_INTERNAL_NAME);
+    }
+
+    /**
+     * Handles Group interface method calls for GROUP BY queries.
+     * <p>
+     * Supported methods:
+     * <ul>
+     *   <li>{@code g.key()} → GroupKeyReference</li>
+     *   <li>{@code g.count()} → GroupAggregation(COUNT)</li>
+     *   <li>{@code g.countDistinct(field)} → GroupAggregation(COUNT_DISTINCT, field)</li>
+     *   <li>{@code g.avg(field)} → GroupAggregation(AVG, field)</li>
+     *   <li>{@code g.min(field)} → GroupAggregation(MIN, field)</li>
+     *   <li>{@code g.max(field)} → GroupAggregation(MAX, field)</li>
+     *   <li>{@code g.sumInteger(field)} → GroupAggregation(SUM_INTEGER, field)</li>
+     *   <li>{@code g.sumLong(field)} → GroupAggregation(SUM_LONG, field)</li>
+     *   <li>{@code g.sumDouble(field)} → GroupAggregation(SUM_DOUBLE, field)</li>
+     * </ul>
+     */
+    private void handleGroupMethod(AnalysisContext ctx, MethodInsnNode methodInsn) {
+        String methodName = methodInsn.name;
+
+        switch (methodName) {
+            case METHOD_KEY -> handleGroupKey(ctx);
+            case METHOD_COUNT -> handleGroupCount(ctx);
+            case METHOD_COUNT_DISTINCT -> handleGroupCountDistinct(ctx);
+            case METHOD_AVG -> handleGroupAggregationWithField(ctx, GroupAggregation::avg);
+            case METHOD_MIN -> handleGroupMinMax(ctx, true);
+            case METHOD_MAX -> handleGroupMinMax(ctx, false);
+            case METHOD_SUM_INTEGER -> handleGroupAggregationWithField(ctx, GroupAggregation::sumInteger);
+            case METHOD_SUM_LONG -> handleGroupAggregationWithField(ctx, GroupAggregation::sumLong);
+            case METHOD_SUM_DOUBLE -> handleGroupAggregationWithField(ctx, GroupAggregation::sumDouble);
+            default -> log.debugf("Unhandled Group method: %s", methodName);
+        }
+    }
+
+    /**
+     * Handles g.key() - returns the grouping key.
+     */
+    private void handleGroupKey(AnalysisContext ctx) {
+        if (ctx.isStackEmpty()) {
+            return;
+        }
+
+        LambdaExpression target = ctx.pop();
+        if (target instanceof GroupParameter) {
+            // For now, we create a placeholder GroupKeyReference
+            // The actual key expression will be resolved at code generation time
+            ctx.push(new GroupKeyReference(null, Object.class));
+        } else {
+            log.warnf("Unexpected target for g.key(): %s", target);
+        }
+    }
+
+    /**
+     * Handles g.count() - counts entities in the group.
+     */
+    private void handleGroupCount(AnalysisContext ctx) {
+        if (ctx.isStackEmpty()) {
+            return;
+        }
+
+        LambdaExpression target = ctx.pop();
+        if (target instanceof GroupParameter) {
+            ctx.push(GroupAggregation.count());
+        } else {
+            log.warnf("Unexpected target for g.count(): %s", target);
+        }
+    }
+
+    /**
+     * Handles g.countDistinct(field) - counts distinct values.
+     */
+    private void handleGroupCountDistinct(AnalysisContext ctx) {
+        if (ctx.getStackSize() < 2) {
+            return;
+        }
+
+        LambdaExpression fieldArg = ctx.pop();  // The field extractor (analyzed nested lambda)
+        LambdaExpression target = ctx.pop();     // The Group parameter
+
+        if (target instanceof GroupParameter) {
+            ctx.push(GroupAggregation.countDistinct(fieldArg));
+        } else {
+            log.warnf("Unexpected target for g.countDistinct(): %s", target);
+        }
+    }
+
+    /**
+     * Handles g.avg/sumInteger/sumLong/sumDouble(field) - aggregations that return fixed types.
+     */
+    private void handleGroupAggregationWithField(
+            AnalysisContext ctx,
+            java.util.function.Function<LambdaExpression, GroupAggregation> aggregationFactory) {
+        if (ctx.getStackSize() < 2) {
+            return;
+        }
+
+        LambdaExpression fieldArg = ctx.pop();  // The field extractor
+        LambdaExpression target = ctx.pop();     // The Group parameter
+
+        if (target instanceof GroupParameter) {
+            ctx.push(aggregationFactory.apply(fieldArg));
+        } else {
+            log.warnf("Unexpected target for group aggregation: %s", target);
+        }
+    }
+
+    /**
+     * Handles g.min(field) and g.max(field) - aggregations that preserve field type.
+     */
+    private void handleGroupMinMax(AnalysisContext ctx, boolean isMin) {
+        if (ctx.getStackSize() < 2) {
+            return;
+        }
+
+        LambdaExpression fieldArg = ctx.pop();  // The field extractor
+        LambdaExpression target = ctx.pop();     // The Group parameter
+
+        if (target instanceof GroupParameter) {
+            // Determine result type from field expression
+            Class<?> resultType = inferFieldType(fieldArg);
+            if (isMin) {
+                ctx.push(GroupAggregation.min(fieldArg, resultType));
+            } else {
+                ctx.push(GroupAggregation.max(fieldArg, resultType));
+            }
+        } else {
+            log.warnf("Unexpected target for g.%s(): %s", isMin ? "min" : "max", target);
+        }
+    }
+
+    /**
+     * Infers the result type from a field expression.
+     */
+    private Class<?> inferFieldType(LambdaExpression fieldExpr) {
+        if (fieldExpr instanceof LambdaExpression.FieldAccess field) {
+            return field.fieldType();
+        } else if (fieldExpr instanceof LambdaExpression.PathExpression path) {
+            return path.resultType();
+        }
+        return Object.class;
     }
 
     /**

@@ -31,6 +31,7 @@ public class CallSiteProcessor {
      * Phase 3: Added sortExpressions list for sorting support.
      * Phase 5: Added aggregationExpression for aggregation queries (min/max/avg/sum*).
      * Iteration 6: Added joinRelationshipExpression and biEntityPredicateExpression for join queries.
+     * Iteration 7: Added group-related expressions for GROUP BY queries.
      */
     private record LambdaAnalysisResult(
             LambdaExpression predicateExpression,
@@ -41,6 +42,11 @@ public class CallSiteProcessor {
             LambdaExpression joinRelationshipExpression,  // Iteration 6: Join relationship field (e.g., p.phones)
             LambdaExpression biEntityPredicateExpression,  // Iteration 6: BiQuerySpec WHERE predicate
             InvokeDynamicScanner.JoinType joinType,  // Iteration 6: INNER or LEFT join
+            boolean isGroupQuery,  // Iteration 7: True if this is a GROUP BY query
+            LambdaExpression groupByKeyExpression,  // Iteration 7: groupBy() key extractor (e.g., p -> p.department)
+            LambdaExpression havingExpression,  // Iteration 7: having() predicate (GroupQuerySpec)
+            LambdaExpression groupSelectExpression,  // Iteration 7: select() projection in group context
+            List<SortExpression> groupSortExpressions,  // Iteration 7: sortedBy() in group context
             int totalCapturedVarCount) {}
 
     /**
@@ -106,15 +112,30 @@ public class CallSiteProcessor {
                     callSite.isCountQuery(),
                     callSite.isAggregationQuery(),
                     callSite.isJoinQuery(),
+                    result.isGroupQuery,
                     result.totalCapturedVarCount, deduplicatedCount, queryTransformations)) {
                 return;
             }
 
             String executorClassName;
 
+            // Iteration 7: Handle group queries with special generator
+            if (result.isGroupQuery) {
+                executorClassName = generateAndRegisterGroupExecutor(
+                        result.predicateExpression,
+                        result.groupByKeyExpression,
+                        result.havingExpression,
+                        result.groupSelectExpression,
+                        result.groupSortExpressions,
+                        callSiteId,
+                        result.totalCapturedVarCount,
+                        callSite.isCountQuery(),
+                        generatedClass,
+                        queryTransformations);
+            }
             // Iteration 6: Handle join queries with special generator
             // Iteration 6.5: Pass sort expressions for join query sorting
-            if (callSite.isJoinQuery() && result.joinType != null) {
+            else if (callSite.isJoinQuery() && result.joinType != null) {
                 executorClassName = generateAndRegisterJoinExecutor(
                         result.joinRelationshipExpression,
                         result.biEntityPredicateExpression,
@@ -151,9 +172,10 @@ public class CallSiteProcessor {
     }
 
     /**
-     * Analyzes lambdas based on call site type (multiple predicates, combined, aggregation, join, or single).
+     * Analyzes lambdas based on call site type (multiple predicates, combined, aggregation, join, group, or single).
      * Phase 5: Added aggregation query support.
      * Iteration 6: Added join query support.
+     * Iteration 7: Added group query support.
      */
     private LambdaAnalysisResult analyzeLambdas(
             byte[] classBytes,
@@ -168,6 +190,11 @@ public class CallSiteProcessor {
         // Iteration 6: Handle join queries
         if (callSite.isJoinQuery()) {
             return analyzeJoinQuery(classBytes, callSite, callSiteId);
+        }
+
+        // Iteration 7: Handle group queries
+        if (callSite.isGroupByQuery()) {
+            return analyzeGroupQuery(classBytes, callSite, callSiteId);
         }
 
         var predicateLambdas = callSite.predicateLambdas();
@@ -187,8 +214,20 @@ public class CallSiteProcessor {
      * Phase 3: Handles sorting-only queries and includes sort expressions in hash.
      * Phase 5: Handles aggregation queries with optional WHERE predicates.
      * Iteration 6: Handles join queries with optional bi-entity predicates.
+     * Iteration 7: Handles group queries with groupBy, having, select, and sort.
      */
     private String computeHash(InvokeDynamicScanner.LambdaCallSite callSite, LambdaAnalysisResult result) {
+        // Iteration 7: Group queries have highest priority
+        if (result.isGroupQuery) {
+            return deduplicator.computeGroupHash(
+                    result.predicateExpression,
+                    result.groupByKeyExpression,
+                    result.havingExpression,
+                    result.groupSelectExpression,
+                    result.groupSortExpressions,
+                    callSite.isCountQuery());
+        }
+
         // Iteration 6: Join queries have priority
         // Iteration 6.5: Include sort expressions for join queries
         if (callSite.isJoinQuery() && result.joinType != null) {
@@ -353,6 +392,66 @@ public class CallSiteProcessor {
     }
 
     /**
+     * Generates and registers a GROUP BY query executor class (Iteration 7).
+     * <p>
+     * Creates a query executor that performs JPA GROUP BY operations with optional
+     * HAVING clause, aggregations, and sorting.
+     *
+     * @param predicateExpression Pre-grouping WHERE clause (null if no filtering)
+     * @param groupByKeyExpression groupBy() key extractor lambda (e.g., p -> p.department)
+     * @param havingExpression having() predicate (null if no having)
+     * @param groupSelectExpression select() projection in group context (null if no select)
+     * @param groupSortExpressions sortedBy() in group context (null or empty if no sorting)
+     * @param queryId Unique identifier for the query
+     * @param capturedVarCount Number of captured variables
+     * @param isCountQuery True if this is a count query (GroupStream.count())
+     * @param generatedClass Build producer for generated classes
+     * @param queryTransformations Build producer for query transformations
+     * @return The generated class name
+     */
+    private String generateAndRegisterGroupExecutor(
+            LambdaExpression predicateExpression,
+            LambdaExpression groupByKeyExpression,
+            LambdaExpression havingExpression,
+            LambdaExpression groupSelectExpression,
+            List<SortExpression> groupSortExpressions,
+            String queryId,
+            int capturedVarCount,
+            boolean isCountQuery,
+            BuildProducer<GeneratedClassBuildItem> generatedClass,
+            BuildProducer<QusaqProcessor.QueryTransformationBuildItem> queryTransformations) {
+
+        String className = "io.quarkus.qusaq.generated.QueryExecutor_" +
+                           queryCounter.getAndIncrement();
+
+        byte[] bytecode = classGenerator.generateGroupQueryExecutorClass(
+                predicateExpression,
+                groupByKeyExpression,
+                havingExpression,
+                groupSelectExpression,
+                groupSortExpressions,
+                className,
+                isCountQuery);
+
+        generatedClass.produce(new GeneratedClassBuildItem(true, className, bytecode));
+        // Iteration 7: Create group query build item with isGroupQuery=true
+        queryTransformations.produce(
+                new QusaqProcessor.QueryTransformationBuildItem(queryId, className, Object.class, isCountQuery, false, false, true, capturedVarCount));
+
+        String queryTypeDesc = isCountQuery ? "GROUP BY COUNT" : "GROUP BY";
+        if (havingExpression != null) {
+            queryTypeDesc += "+HAVING";
+        }
+        if (groupSelectExpression != null) {
+            queryTypeDesc += "+SELECT";
+        }
+        log.debugf("Generated group query executor: %s (%s, %d captured vars)",
+                   className, queryTypeDesc, capturedVarCount);
+
+        return className;
+    }
+
+    /**
      * Determines query type identifier based on query characteristics.
      * This is the canonical method for query type determination used across the codebase.
      *
@@ -503,7 +602,8 @@ public class CallSiteProcessor {
         totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
 
         return new LambdaAnalysisResult(predicateExpression, projectionExpression, sortExpressions,
-                                       null, null, null, null, null, totalCapturedVarCount);
+                                       null, null, null, null, null,
+                                       false, null, null, null, null, totalCapturedVarCount);
     }
 
     /**
@@ -553,7 +653,8 @@ public class CallSiteProcessor {
         totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
 
         return new LambdaAnalysisResult(predicateExpression, projectionExpression, sortExpressions,
-                                       null, null, null, null, null, totalCapturedVarCount);
+                                       null, null, null, null, null,
+                                       false, null, null, null, null, totalCapturedVarCount);
     }
 
     /**
@@ -580,7 +681,8 @@ public class CallSiteProcessor {
             // Sorting-only query - no WHERE or SELECT clauses
             int totalCapturedVarCount = countCapturedVariablesInSortExpressions(sortExpressions);
             log.debugf("Analyzed sorting-only query at %s: %d sort expression(s)", callSiteId, sortExpressions.size());
-            return new LambdaAnalysisResult(null, null, sortExpressions, null, null, null, null, null, totalCapturedVarCount);
+            return new LambdaAnalysisResult(null, null, sortExpressions, null, null, null, null, null,
+                                           false, null, null, null, null, totalCapturedVarCount);
         }
 
         // Regular WHERE or SELECT query
@@ -605,7 +707,8 @@ public class CallSiteProcessor {
         totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
 
         return new LambdaAnalysisResult(predicateExpression, projectionExpression, sortExpressions,
-                                       null, null, null, null, null, totalCapturedVarCount);
+                                       null, null, null, null, null,
+                                       false, null, null, null, null, totalCapturedVarCount);
     }
 
     /**
@@ -678,6 +781,8 @@ public class CallSiteProcessor {
                 null,  // No join relationship for aggregations
                 null,  // No bi-entity predicate for aggregations
                 null,  // No join type for aggregations
+                false,  // Not a group query
+                null, null, null, null,  // No group-related expressions
                 totalCapturedVarCount);
     }
 
@@ -754,7 +859,156 @@ public class CallSiteProcessor {
                 joinRelationshipExpression,
                 biEntityPredicateExpression,
                 callSite.joinType(),
+                false,  // Not a group query
+                null, null, null, null,  // No group-related expressions
                 totalCapturedVarCount);
+    }
+
+    /**
+     * Analyzes group query (groupBy with GroupQuerySpec lambdas).
+     * Iteration 7: Handles groupBy queries with having, select, and sort in group context.
+     *
+     * Example: Person.groupBy(p -> p.department).select(g -> new DeptStats(g.key(), g.count()))
+     * - Group key: p.department
+     * - Group select: new DeptStats(g.key(), g.count())
+     */
+    private LambdaAnalysisResult analyzeGroupQuery(
+            byte[] classBytes,
+            InvokeDynamicScanner.LambdaCallSite callSite,
+            String callSiteId) {
+
+        int totalCapturedVarCount = 0;
+
+        // Analyze groupBy key extractor lambda (e.g., p -> p.department)
+        LambdaExpression groupByKeyExpression = null;
+        if (callSite.groupByLambdaMethodName() != null) {
+            groupByKeyExpression = bytecodeAnalyzer.analyze(
+                    classBytes,
+                    callSite.groupByLambdaMethodName(),
+                    callSite.groupByLambdaDescriptor());
+
+            if (groupByKeyExpression == null) {
+                log.warnf("Could not analyze groupBy key lambda at: %s", callSiteId);
+                return null;
+            }
+            totalCapturedVarCount += countCapturedVariables(groupByKeyExpression);
+        }
+
+        // Analyze having lambdas if present (e.g., g -> g.count() > 5)
+        LambdaExpression havingExpression = null;
+        var havingLambdas = callSite.havingLambdas();
+        if (havingLambdas != null && !havingLambdas.isEmpty()) {
+            List<LambdaExpression> havingPredicates = new java.util.ArrayList<>();
+            for (var lambdaPair : havingLambdas) {
+                LambdaExpression expr = bytecodeAnalyzer.analyzeGroupQuerySpec(
+                        classBytes,
+                        lambdaPair.methodName(),
+                        lambdaPair.descriptor());
+
+                if (expr == null) {
+                    log.warnf("Could not analyze having lambda %s at: %s",
+                            lambdaPair.methodName(), callSiteId);
+                    return null;
+                }
+                havingPredicates.add(expr);
+                totalCapturedVarCount += countCapturedVariables(expr);
+            }
+            havingExpression = combinePredicatesWithAnd(havingPredicates);
+        }
+
+        // Analyze group select lambdas if present (e.g., g -> new DeptStats(g.key(), g.count()))
+        LambdaExpression groupSelectExpression = null;
+        var groupSelectLambdas = callSite.groupSelectLambdas();
+        if (groupSelectLambdas != null && !groupSelectLambdas.isEmpty()) {
+            // For now, support single select projection
+            var firstSelect = groupSelectLambdas.get(0);
+            groupSelectExpression = bytecodeAnalyzer.analyzeGroupQuerySpec(
+                    classBytes,
+                    firstSelect.methodName(),
+                    firstSelect.descriptor());
+
+            if (groupSelectExpression == null) {
+                log.warnf("Could not analyze group select lambda at: %s", callSiteId);
+                return null;
+            }
+            totalCapturedVarCount += countCapturedVariables(groupSelectExpression);
+        }
+
+        // Analyze group sort lambdas if present
+        List<SortExpression> groupSortExpressions = analyzeGroupSortLambdas(classBytes, callSite, callSiteId);
+        totalCapturedVarCount += countCapturedVariablesInSortExpressions(groupSortExpressions);
+
+        // Also analyze pre-grouping WHERE predicates if present
+        LambdaExpression predicateExpression = null;
+        var predicateLambdas = callSite.predicateLambdas();
+        if (predicateLambdas != null && !predicateLambdas.isEmpty()) {
+            PredicateAnalysisResult predicateResult = analyzeAndCombinePredicates(
+                    classBytes, predicateLambdas, callSiteId);
+            if (predicateResult != null) {
+                predicateExpression = predicateResult.expression;
+                totalCapturedVarCount += predicateResult.capturedVarCount;
+            }
+        }
+
+        log.debugf("Analyzed group query at %s: key=%s, having=%s, select=%s, sortCount=%d",
+                callSiteId, groupByKeyExpression, havingExpression, groupSelectExpression,
+                groupSortExpressions.size());
+
+        return new LambdaAnalysisResult(
+                predicateExpression,  // Pre-grouping WHERE clause
+                null,  // Regular projection not used for group queries
+                Collections.emptyList(),  // Regular sort not used for group queries
+                null,  // No aggregation (group has its own)
+                null,  // No aggregation type
+                null,  // No join relationship
+                null,  // No bi-entity predicate
+                null,  // No join type
+                true,  // This IS a group query
+                groupByKeyExpression,
+                havingExpression,
+                groupSelectExpression,
+                groupSortExpressions,
+                totalCapturedVarCount);
+    }
+
+    /**
+     * Analyzes group sort lambdas from call site.
+     * Iteration 7: Handles sortedBy() and sortedDescendingBy() on GroupStream.
+     * Uses analyzeGroupQuerySpec() since group sort lambdas take Group parameter.
+     *
+     * @return list of SortExpression objects with group key extractors, or empty list if no sorting
+     */
+    private List<SortExpression> analyzeGroupSortLambdas(
+            byte[] classBytes,
+            InvokeDynamicScanner.LambdaCallSite callSite,
+            String callSiteId) {
+
+        List<SortLambda> sortLambdas = callSite.groupSortLambdas();
+
+        if (sortLambdas == null || sortLambdas.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<SortExpression> sortExpressions = new ArrayList<>(sortLambdas.size());
+
+        for (SortLambda sortLambda : sortLambdas) {
+            // Use analyzeGroupQuerySpec() for group sort lambdas
+            LambdaExpression keyExtractor = bytecodeAnalyzer.analyzeGroupQuerySpec(
+                    classBytes,
+                    sortLambda.methodName(),
+                    sortLambda.descriptor());
+
+            if (keyExtractor == null) {
+                log.warnf("Could not analyze group sort lambda %s at: %s", sortLambda.methodName(), callSiteId);
+                return Collections.emptyList();
+            }
+
+            sortExpressions.add(new SortExpression(keyExtractor, sortLambda.direction()));
+            log.debugf("Analyzed group sort lambda at %s: %s (direction=%s)",
+                    callSiteId, keyExtractor, sortLambda.direction());
+        }
+
+        return sortExpressions;
     }
 
     /**

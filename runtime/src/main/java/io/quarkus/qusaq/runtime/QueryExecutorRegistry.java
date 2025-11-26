@@ -22,6 +22,8 @@ public class QueryExecutorRegistry {
     private static final Map<String, QueryExecutor<Object>> AGGREGATION_EXECUTORS = new ConcurrentHashMap<>();
     private static final Map<String, QueryExecutor<List<?>>> JOIN_LIST_EXECUTORS = new ConcurrentHashMap<>();
     private static final Map<String, QueryExecutor<Long>> JOIN_COUNT_EXECUTORS = new ConcurrentHashMap<>();
+    private static final Map<String, QueryExecutor<List<?>>> GROUP_LIST_EXECUTORS = new ConcurrentHashMap<>();
+    private static final Map<String, QueryExecutor<Long>> GROUP_COUNT_EXECUTORS = new ConcurrentHashMap<>();
     private static final Map<String, Integer> CAPTURED_VAR_COUNTS = new ConcurrentHashMap<>();
 
     @Inject
@@ -342,5 +344,175 @@ public class QueryExecutorRegistry {
      */
     public static int getJoinCountExecutorCount() {
         return JOIN_COUNT_EXECUTORS.size();
+    }
+
+    // =============================================================================================
+    // GROUP QUERY SUPPORT (Iteration 7)
+    // =============================================================================================
+
+    /**
+     * Registers group list query executor for call site.
+     * Iteration 7: Supports groupBy() operations with projections.
+     */
+    public static void registerGroupListExecutor(
+            String callSiteId,
+            QueryExecutor<List<?>> executor,
+            int capturedVarCount) {
+        GROUP_LIST_EXECUTORS.put(callSiteId, executor);
+        CAPTURED_VAR_COUNTS.put(callSiteId, capturedVarCount);
+        log.debugf("Registered group list executor for call site: %s (captured variables: %d)",
+                   callSiteId, capturedVarCount);
+    }
+
+    /**
+     * Registers group count query executor for call site.
+     * Iteration 7: Supports count() on group queries (counts number of groups).
+     */
+    public static void registerGroupCountExecutor(
+            String callSiteId,
+            QueryExecutor<Long> executor,
+            int capturedVarCount) {
+        GROUP_COUNT_EXECUTORS.put(callSiteId, executor);
+        CAPTURED_VAR_COUNTS.put(callSiteId, capturedVarCount);
+        log.debugf("Registered group count executor for call site: %s (captured variables: %d)",
+                   callSiteId, capturedVarCount);
+    }
+
+    /**
+     * Executes group list query for call site with projection.
+     * Iteration 7: Handles groupBy().select() queries returning projected results.
+     */
+    @SuppressWarnings("unchecked")
+    public <T, R> List<R> executeGroupQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues,
+                                             Integer offset, Integer limit) {
+        QueryExecutor<List<?>> executor = GROUP_LIST_EXECUTORS.get(callSiteId);
+
+        if (executor == null) {
+            throw new IllegalStateException(String.format(
+                    "No group query executor found for call site: %s%n" +
+                    "%n" +
+                    "Possible causes:%n" +
+                    "  1. Group expression was not analyzed during build-time processing%n" +
+                    "  2. Lambda is in test code (only application code is analyzed)%n" +
+                    "  3. Incremental compilation didn't detect changes%n" +
+                    "%n" +
+                    "Solutions:%n" +
+                    "  - Run a clean build: 'mvn clean compile' or 'gradle clean build'%n" +
+                    "  - Check build logs for 'QusaqProcessor' messages%n" +
+                    "  - Verify lambda is in src/main/java (not src/test/java)%n" +
+                    "%n" +
+                    "Registered executors: %d list, %d count, %d group list, %d group count",
+                    callSiteId, getListExecutorCount(), getCountExecutorCount(),
+                    getGroupListExecutorCount(), getGroupCountExecutorCount()));
+        }
+
+        if (entityManager == null) {
+            throw new IllegalStateException("EntityManager not available");
+        }
+
+        log.tracef("Executing group list query for call site: %s with %d captured variables (offset=%s, limit=%s)",
+                   callSiteId, capturedValues.length, offset, limit);
+
+        List<?> rawResults = executor.execute(entityManager, entityClass, capturedValues, offset, limit, null);
+
+        // Iteration 7: Convert Tuple results to Object[] if needed (for Object[] projections)
+        if (!rawResults.isEmpty() && rawResults.get(0) instanceof jakarta.persistence.Tuple) {
+            List<jakarta.persistence.Tuple> tuples = rawResults.stream()
+                    .map(o -> (jakarta.persistence.Tuple) o)
+                    .collect(java.util.stream.Collectors.toList());
+            return (List<R>) tuples.stream()
+                    .map(jakarta.persistence.Tuple::toArray)
+                    .collect(java.util.stream.Collectors.toList());
+        }
+
+        return (List<R>) rawResults;
+    }
+
+    /**
+     * Executes group key query for call site (returns only grouping keys).
+     * Iteration 7: Handles groupBy().toList() and groupBy().selectKey() queries.
+     */
+    @SuppressWarnings("unchecked")
+    public <T, K> List<K> executeGroupKeyQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues,
+                                                Integer offset, Integer limit) {
+        QueryExecutor<List<?>> executor = GROUP_LIST_EXECUTORS.get(callSiteId);
+
+        if (executor == null) {
+            throw new IllegalStateException(String.format(
+                    "No group key executor found for call site: %s%n" +
+                    "%n" +
+                    "Possible causes:%n" +
+                    "  1. Group expression was not analyzed during build-time processing%n" +
+                    "  2. Lambda is in test code (only application code is analyzed)%n" +
+                    "  3. Incremental compilation didn't detect changes%n" +
+                    "%n" +
+                    "Solutions:%n" +
+                    "  - Run a clean build: 'mvn clean compile' or 'gradle clean build'%n" +
+                    "  - Check build logs for 'QusaqProcessor' messages%n" +
+                    "  - Verify lambda is in src/main/java (not src/test/java)%n" +
+                    "%n" +
+                    "Registered executors: %d list, %d count, %d group list, %d group count",
+                    callSiteId, getListExecutorCount(), getCountExecutorCount(),
+                    getGroupListExecutorCount(), getGroupCountExecutorCount()));
+        }
+
+        if (entityManager == null) {
+            throw new IllegalStateException("EntityManager not available");
+        }
+
+        log.tracef("Executing group key query for call site: %s with %d captured variables (offset=%s, limit=%s)",
+                   callSiteId, capturedValues.length, offset, limit);
+
+        return (List<K>) executor.execute(entityManager, entityClass, capturedValues, offset, limit, null);
+    }
+
+    /**
+     * Executes group count query for call site (counts number of groups).
+     * Iteration 7: Handles groupBy().count() queries.
+     */
+    public <T> long executeGroupCountQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues) {
+        QueryExecutor<Long> executor = GROUP_COUNT_EXECUTORS.get(callSiteId);
+
+        if (executor == null) {
+            throw new IllegalStateException(String.format(
+                    "No group count executor found for call site: %s%n" +
+                    "%n" +
+                    "Possible causes:%n" +
+                    "  1. Group expression was not analyzed during build-time processing%n" +
+                    "  2. Lambda is in test code (only application code is analyzed)%n" +
+                    "  3. Incremental compilation didn't detect changes%n" +
+                    "%n" +
+                    "Solutions:%n" +
+                    "  - Run a clean build: 'mvn clean compile' or 'gradle clean build'%n" +
+                    "  - Check build logs for 'QusaqProcessor' messages%n" +
+                    "  - Verify lambda is in src/main/java (not src/test/java)%n" +
+                    "%n" +
+                    "Registered executors: %d list, %d count, %d group list, %d group count",
+                    callSiteId, getListExecutorCount(), getCountExecutorCount(),
+                    getGroupListExecutorCount(), getGroupCountExecutorCount()));
+        }
+
+        if (entityManager == null) {
+            throw new IllegalStateException("EntityManager not available");
+        }
+
+        log.tracef("Executing group count query for call site: %s with %d captured variables",
+                   callSiteId, capturedValues.length);
+
+        return executor.execute(entityManager, entityClass, capturedValues, null, null, null);
+    }
+
+    /**
+     * Returns number of registered group list executors.
+     */
+    public static int getGroupListExecutorCount() {
+        return GROUP_LIST_EXECUTORS.size();
+    }
+
+    /**
+     * Returns number of registered group count executors.
+     */
+    public static int getGroupCountExecutorCount() {
+        return GROUP_COUNT_EXECUTORS.size();
     }
 }

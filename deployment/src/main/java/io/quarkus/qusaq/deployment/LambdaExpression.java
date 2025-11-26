@@ -200,6 +200,42 @@ public sealed interface LambdaExpression {
         }
     }
 
+    /**
+     * Array creation expression for multi-value projections.
+     * <p>
+     * Represents {@code new T[]{element1, element2, ...}} in lambda expressions.
+     * Used for GROUP BY projections returning multiple values.
+     * <p>
+     * Example:
+     * <pre>
+     * .select(g -> new Object[]{g.key(), g.count()})
+     * → ArrayCreation("java/lang/Object", [GroupKeyReference, GroupAggregation], Object[].class)
+     * → cb.array(keyExpr, cb.count(root))
+     * </pre>
+     *
+     * @param elementType Internal name of array element type (e.g., "java/lang/Object")
+     * @param elements The array elements
+     * @param resultType The array type (e.g., Object[].class)
+     */
+    record ArrayCreation(
+            String elementType,
+            List<LambdaExpression> elements,
+            Class<?> resultType) implements LambdaExpression {
+
+        public ArrayCreation {
+            Objects.requireNonNull(elementType, "Element type cannot be null");
+            elements = List.copyOf(elements);
+            Objects.requireNonNull(resultType, "Result type cannot be null");
+        }
+
+        /**
+         * Returns true if this is an Object[] array.
+         */
+        public boolean isObjectArray() {
+            return "java/lang/Object".equals(elementType);
+        }
+    }
+
     // =============================================================================================
     // RELATIONSHIP NAVIGATION (Iteration 4)
     // =============================================================================================
@@ -560,6 +596,193 @@ public sealed interface LambdaExpression {
          */
         public boolean isFromSecondEntity() {
             return entityPosition == EntityPosition.SECOND;
+        }
+    }
+
+    // =============================================================================================
+    // GROUPING OPERATIONS (Iteration 7)
+    // =============================================================================================
+
+    /**
+     * Group key reference in a GroupQuerySpec lambda.
+     * <p>
+     * Represents the {@code g.key()} call in a group context lambda.
+     * This captures the grouping key expression from the original groupBy() call.
+     * <p>
+     * Example:
+     * <pre>
+     * // Lambda: .select((Group&lt;Person, String&gt; g) -> g.key())
+     * // → GroupKeyReference(keyExpression, String.class)
+     *
+     * // Generated JPA: root.get("department") (the grouping expression)
+     * </pre>
+     *
+     * @param keyExpression The expression used for grouping (from groupBy() lambda), may be null
+     *                      when analyzed in isolation (resolved at code generation time)
+     * @param resultType The type of the grouping key
+     */
+    record GroupKeyReference(
+            LambdaExpression keyExpression,
+            Class<?> resultType) implements LambdaExpression {
+
+        public GroupKeyReference {
+            // keyExpression can be null - it gets resolved at code generation time
+            // from the groupBy() lambda's key expression
+            Objects.requireNonNull(resultType, "Result type cannot be null");
+        }
+    }
+
+    /**
+     * Types of group aggregation functions.
+     */
+    enum GroupAggregationType {
+        /** Count of entities in group - g.count() */
+        COUNT,
+        /** Count of distinct values - g.countDistinct(field) */
+        COUNT_DISTINCT,
+        /** Average of numeric field - g.avg(field) */
+        AVG,
+        /** Sum of integer field - g.sumInteger(field) */
+        SUM_INTEGER,
+        /** Sum of long field - g.sumLong(field) */
+        SUM_LONG,
+        /** Sum of double field - g.sumDouble(field) */
+        SUM_DOUBLE,
+        /** Minimum value - g.min(field) */
+        MIN,
+        /** Maximum value - g.max(field) */
+        MAX
+    }
+
+    /**
+     * Group aggregation expression in a GroupQuerySpec lambda.
+     * <p>
+     * Represents aggregate function calls on a Group context, such as
+     * {@code g.count()}, {@code g.avg(p -> p.salary)}, etc.
+     * <p>
+     * Example:
+     * <pre>
+     * // Lambda: .select((Group&lt;Person, String&gt; g) -> g.count())
+     * // → GroupAggregation(COUNT, null, long.class)
+     *
+     * // Lambda: .select((Group&lt;Person, String&gt; g) -> g.avg(p -> p.salary))
+     * // → GroupAggregation(AVG, FieldAccess("salary"), Double.class)
+     *
+     * // Generated JPA:
+     * //   cb.count(root) for COUNT
+     * //   cb.avg(root.get("salary")) for AVG
+     * </pre>
+     *
+     * @param aggregationType The type of aggregation (COUNT, AVG, MIN, MAX, etc.)
+     * @param fieldExpression The field being aggregated (null for COUNT without field)
+     * @param resultType The return type of the aggregation
+     */
+    record GroupAggregation(
+            GroupAggregationType aggregationType,
+            LambdaExpression fieldExpression,
+            Class<?> resultType) implements LambdaExpression {
+
+        public GroupAggregation {
+            Objects.requireNonNull(aggregationType, "Aggregation type cannot be null");
+            Objects.requireNonNull(resultType, "Result type cannot be null");
+            // fieldExpression can be null for count()
+        }
+
+        /**
+         * Creates a COUNT aggregation (counts all entities in group).
+         */
+        public static GroupAggregation count() {
+            return new GroupAggregation(GroupAggregationType.COUNT, null, long.class);
+        }
+
+        /**
+         * Creates a COUNT DISTINCT aggregation.
+         */
+        public static GroupAggregation countDistinct(LambdaExpression field) {
+            return new GroupAggregation(GroupAggregationType.COUNT_DISTINCT, field, long.class);
+        }
+
+        /**
+         * Creates an AVG aggregation.
+         */
+        public static GroupAggregation avg(LambdaExpression field) {
+            return new GroupAggregation(GroupAggregationType.AVG, field, Double.class);
+        }
+
+        /**
+         * Creates a SUM aggregation for integers.
+         */
+        public static GroupAggregation sumInteger(LambdaExpression field) {
+            return new GroupAggregation(GroupAggregationType.SUM_INTEGER, field, Long.class);
+        }
+
+        /**
+         * Creates a SUM aggregation for longs.
+         */
+        public static GroupAggregation sumLong(LambdaExpression field) {
+            return new GroupAggregation(GroupAggregationType.SUM_LONG, field, Long.class);
+        }
+
+        /**
+         * Creates a SUM aggregation for doubles.
+         */
+        public static GroupAggregation sumDouble(LambdaExpression field) {
+            return new GroupAggregation(GroupAggregationType.SUM_DOUBLE, field, Double.class);
+        }
+
+        /**
+         * Creates a MIN aggregation.
+         */
+        public static GroupAggregation min(LambdaExpression field, Class<?> resultType) {
+            return new GroupAggregation(GroupAggregationType.MIN, field, resultType);
+        }
+
+        /**
+         * Creates a MAX aggregation.
+         */
+        public static GroupAggregation max(LambdaExpression field, Class<?> resultType) {
+            return new GroupAggregation(GroupAggregationType.MAX, field, resultType);
+        }
+
+        /**
+         * Returns true if this aggregation requires a field expression.
+         */
+        public boolean requiresField() {
+            return aggregationType != GroupAggregationType.COUNT;
+        }
+    }
+
+    /**
+     * Group context parameter reference in a GroupQuerySpec lambda.
+     * <p>
+     * Represents the Group parameter itself in a group lambda.
+     * Used as the target for method calls like {@code g.key()}, {@code g.count()}.
+     * <p>
+     * Example:
+     * <pre>
+     * // Lambda: (Group&lt;Person, String&gt; g) -> g.count()
+     * // The 'g' is represented as:
+     * // GroupParameter("g", Group.class, 0, Person.class, String.class)
+     * </pre>
+     *
+     * @param name Parameter name (typically "g" or "group")
+     * @param type The Group class type
+     * @param index The parameter index in bytecode (typically 0)
+     * @param entityType The entity type being grouped (T)
+     * @param keyType The grouping key type (K)
+     */
+    record GroupParameter(
+            String name,
+            Class<?> type,
+            int index,
+            Class<?> entityType,
+            Class<?> keyType) implements LambdaExpression {
+
+        public GroupParameter {
+            Objects.requireNonNull(name, "Parameter name cannot be null");
+            Objects.requireNonNull(type, "Parameter type cannot be null");
+            Objects.requireNonNull(entityType, "Entity type cannot be null");
+            Objects.requireNonNull(keyType, "Key type cannot be null");
         }
     }
 }
