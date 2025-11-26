@@ -205,21 +205,25 @@ public class QueryExecutorClassGenerator {
      *
      * @param joinRelationshipExpression Lambda for the join relationship (e.g., p -> p.phones)
      * @param biEntityPredicateExpression Lambda for bi-entity predicate (e.g., (p, ph) -> ph.type.equals("mobile"))
+     * @param biEntityProjectionExpression Iteration 6.6: BiQuerySpec SELECT projection (e.g., (p, ph) -> new DTO(...))
      * @param sortExpressions Iteration 6.5: List of sort expressions for ORDER BY (null or empty for no sorting)
      * @param joinType The type of join (INNER or LEFT)
      * @param className The generated class name
      * @param isCountQuery True if this is a count query (JoinStream.count())
      * @param isSelectJoined Iteration 6.5: True if selectJoined() was called (returns joined entities)
+     * @param isJoinProjection Iteration 6.6: True if select() with BiQuerySpec was called
      * @return The bytecode for the generated QueryExecutor class
      */
     public byte[] generateJoinQueryExecutorClass(
             LambdaExpression joinRelationshipExpression,
             LambdaExpression biEntityPredicateExpression,
+            LambdaExpression biEntityProjectionExpression,
             List<CallSiteProcessor.SortExpression> sortExpressions,
             InvokeDynamicScanner.JoinType joinType,
             String className,
             boolean isCountQuery,
-            boolean isSelectJoined) {
+            boolean isSelectJoined,
+            boolean isJoinProjection) {
 
         class ByteArrayClassOutput implements ClassOutput {
             private byte[] data;
@@ -267,6 +271,13 @@ public class QueryExecutorClassGenerator {
                             execute, em, entityClassParam,
                             joinRelationshipExpression, biEntityPredicateExpression,
                             joinType, capturedValues);
+                } else if (isJoinProjection) {
+                    // Iteration 6.6: select() with BiQuerySpec returns projected results
+                    result = generateJoinProjectionQueryBody(
+                            execute, em, entityClassParam,
+                            joinRelationshipExpression, biEntityPredicateExpression,
+                            biEntityProjectionExpression,
+                            joinType, sortExpressions, capturedValues, offset, limit, distinct);
                 } else if (isSelectJoined) {
                     // Iteration 6.5: selectJoined() returns joined entities instead of source entities
                     result = generateJoinSelectJoinedQueryBody(
@@ -1105,6 +1116,105 @@ public class QueryExecutorClassGenerator {
         applyPagination(method, typedQuery, offset, limit);
 
         // Return getResultList() containing joined entities
+        return method.invokeInterfaceMethod(
+                md(TypedQuery.class, TQ_GET_RESULT_LIST, List.class), typedQuery);
+    }
+
+    /**
+     * Generates query body for join query with bi-entity projection (Iteration 6.6).
+     * <p>
+     * Example: {@code Person.join(p -> p.phones).select((p, ph) -> new PersonPhoneDTO(p.firstName, ph.number)).toList()}
+     * <p>
+     * Generates:
+     * <pre>
+     * CriteriaBuilder cb = em.getCriteriaBuilder();
+     * CriteriaQuery&lt;Object&gt; query = cb.createQuery(Object.class);
+     * Root&lt;Person&gt; root = query.from(Person.class);
+     * Join&lt;Person, Phone&gt; join = root.join("phones", JoinType.INNER);
+     * query.select(cb.construct(PersonPhoneDTO.class, root.get("firstName"), join.get("number")));
+     * Predicate where = cb.equal(join.get("type"), "mobile");
+     * query.where(where);
+     * return em.createQuery(query).getResultList();
+     * </pre>
+     *
+     * @param method Bytecode generator context
+     * @param em EntityManager handle
+     * @param entityClass Entity class being queried (source entity)
+     * @param joinRelationshipExpression Lambda expression for join relationship (e.g., p -> p.phones)
+     * @param biEntityPredicateExpression Lambda expression for bi-entity predicate (e.g., (p, ph) -> ph.type.equals("mobile"))
+     * @param biEntityProjectionExpression Lambda expression for bi-entity projection (e.g., (p, ph) -> new DTO(...))
+     * @param joinType Join type (INNER or LEFT)
+     * @param sortExpressions List of bi-entity sort expressions for ORDER BY
+     * @param capturedValues Captured variables from lambdas
+     * @param offset Pagination offset (null for no offset)
+     * @param limit Pagination limit (null for no limit)
+     * @param distinct Whether to apply DISTINCT
+     * @return ResultHandle to join projection query result (List of projected objects)
+     */
+    private ResultHandle generateJoinProjectionQueryBody(
+            MethodCreator method,
+            ResultHandle em,
+            ResultHandle entityClass,
+            LambdaExpression joinRelationshipExpression,
+            LambdaExpression biEntityPredicateExpression,
+            LambdaExpression biEntityProjectionExpression,
+            InvokeDynamicScanner.JoinType joinType,
+            List<CallSiteProcessor.SortExpression> sortExpressions,
+            ResultHandle capturedValues,
+            ResultHandle offset,
+            ResultHandle limit,
+            ResultHandle distinct) {
+
+        // Get CriteriaBuilder
+        ResultHandle cb = method.invokeInterfaceMethod(
+                md(EntityManager.class, EM_GET_CRITERIA_BUILDER, CriteriaBuilder.class), em);
+
+        // Create CriteriaQuery<Object> (projection type not known at build time)
+        ResultHandle objectClass = method.loadClass(Object.class);
+        ResultHandle query = method.invokeInterfaceMethod(
+                md(CriteriaBuilder.class, EM_CREATE_QUERY, CriteriaQuery.class, Class.class),
+                cb, objectClass);
+
+        // Create Root<Entity> from source entity
+        ResultHandle root = method.invokeInterfaceMethod(
+                md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class), query, entityClass);
+
+        // Extract relationship field name from join relationship expression
+        String relationshipFieldName = extractRelationshipFieldName(joinRelationshipExpression);
+
+        // Create Join by calling root.join(relationshipFieldName, JoinType)
+        ResultHandle relationshipName = method.load(relationshipFieldName);
+        ResultHandle jpaJoinType = loadJpaJoinType(method, joinType);
+        ResultHandle joinHandle = method.invokeInterfaceMethod(FROM_JOIN, root, relationshipName, jpaJoinType);
+
+        // Generate and apply bi-entity projection
+        ResultHandle projection = expressionGenerator.generateBiEntityProjection(
+                method, biEntityProjectionExpression, cb, root, joinHandle, capturedValues);
+        method.invokeInterfaceMethod(
+                md(CriteriaQuery.class, CQ_SELECT, CriteriaQuery.class, Selection.class), query, projection);
+
+        // Apply bi-entity predicate if present
+        if (biEntityPredicateExpression != null) {
+            ResultHandle predicate = expressionGenerator.generateBiEntityPredicate(
+                    method, biEntityPredicateExpression, cb, root, joinHandle, capturedValues);
+            applyWherePredicate(method, query, predicate);
+        }
+
+        // Apply ORDER BY for join query sorting
+        applyBiEntityOrderBy(method, query, root, joinHandle, cb, sortExpressions, capturedValues);
+
+        // Apply DISTINCT if requested
+        applyDistinct(method, query, distinct);
+
+        // Create TypedQuery
+        ResultHandle typedQuery = method.invokeInterfaceMethod(
+                md(EntityManager.class, EM_CREATE_QUERY, TypedQuery.class, CriteriaQuery.class),
+                em, query);
+
+        // Apply pagination
+        applyPagination(method, typedQuery, offset, limit);
+
+        // Return getResultList() containing projected objects
         return method.invokeInterfaceMethod(
                 md(TypedQuery.class, TQ_GET_RESULT_LIST, List.class), typedQuery);
     }

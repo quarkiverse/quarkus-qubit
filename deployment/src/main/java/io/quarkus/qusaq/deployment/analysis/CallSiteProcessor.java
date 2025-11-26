@@ -31,6 +31,7 @@ public class CallSiteProcessor {
      * Phase 3: Added sortExpressions list for sorting support.
      * Phase 5: Added aggregationExpression for aggregation queries (min/max/avg/sum*).
      * Iteration 6: Added joinRelationshipExpression and biEntityPredicateExpression for join queries.
+     * Iteration 6.6: Added biEntityProjectionExpression for join projections.
      * Iteration 7: Added group-related expressions for GROUP BY queries.
      */
     private record LambdaAnalysisResult(
@@ -41,6 +42,7 @@ public class CallSiteProcessor {
             String aggregationType,  // Phase 5: "MIN", "MAX", "AVG", "SUM_INTEGER", "SUM_LONG", "SUM_DOUBLE"
             LambdaExpression joinRelationshipExpression,  // Iteration 6: Join relationship field (e.g., p.phones)
             LambdaExpression biEntityPredicateExpression,  // Iteration 6: BiQuerySpec WHERE predicate
+            LambdaExpression biEntityProjectionExpression,  // Iteration 6.6: BiQuerySpec SELECT projection for join
             InvokeDynamicScanner.JoinType joinType,  // Iteration 6: INNER or LEFT join
             boolean isGroupQuery,  // Iteration 7: True if this is a GROUP BY query
             LambdaExpression groupByKeyExpression,  // Iteration 7: groupBy() key extractor (e.g., p -> p.department)
@@ -88,8 +90,6 @@ public class CallSiteProcessor {
             BuildProducer<GeneratedClassBuildItem> generatedClass,
             BuildProducer<QusaqProcessor.QueryTransformationBuildItem> queryTransformations) {
         try {
-            log.debugf("Processing fluent API call site: %s", callSite);
-
             byte[] classBytes = BytecodeLoader.loadClassBytecode(callSite.ownerClassName(), applicationArchives);
             if (classBytes == null) {
                 log.warnf("Could not load bytecode for class: %s", callSite.ownerClassName());
@@ -113,6 +113,7 @@ public class CallSiteProcessor {
                     callSite.isAggregationQuery(),
                     callSite.isJoinQuery(),
                     callSite.isSelectJoinedQuery(),  // Iteration 6.5: Pass selectJoined flag
+                    callSite.isJoinProjectionQuery(),  // Iteration 6.6: Pass joinProjection flag
                     result.isGroupQuery,
                     result.totalCapturedVarCount, deduplicatedCount, queryTransformations)) {
                 return;
@@ -136,16 +137,19 @@ public class CallSiteProcessor {
             }
             // Iteration 6: Handle join queries with special generator
             // Iteration 6.5: Pass sort expressions for join query sorting and selectJoined flag
+            // Iteration 6.6: Pass bi-entity projection expression for join projections
             else if (callSite.isJoinQuery() && result.joinType != null) {
                 executorClassName = generateAndRegisterJoinExecutor(
                         result.joinRelationshipExpression,
                         result.biEntityPredicateExpression,
+                        result.biEntityProjectionExpression,
                         result.sortExpressions,
                         result.joinType,
                         callSiteId,
                         result.totalCapturedVarCount,
                         callSite.isCountQuery(),
                         callSite.isSelectJoinedQuery(),
+                        callSite.isJoinProjectionQuery(),
                         generatedClass,
                         queryTransformations);
             } else {
@@ -232,15 +236,18 @@ public class CallSiteProcessor {
 
         // Iteration 6: Join queries have priority
         // Iteration 6.5: Include sort expressions and selectJoined flag for join queries
+        // Iteration 6.6: Include bi-entity projection expression for join projections
         if (callSite.isJoinQuery() && result.joinType != null) {
             String joinTypeStr = result.joinType.name();  // INNER or LEFT
             return deduplicator.computeJoinHash(
                     result.joinRelationshipExpression,
                     result.biEntityPredicateExpression,
-                    result.sortExpressions,  // Iteration 6.5: Include sort expressions
+                    result.biEntityProjectionExpression,  // Iteration 6.6: Include projection
+                    result.sortExpressions,
                     joinTypeStr,
                     callSite.isCountQuery(),
-                    callSite.isSelectJoinedQuery());  // Iteration 6.5: Include selectJoined flag
+                    callSite.isSelectJoinedQuery(),
+                    callSite.isJoinProjectionQuery());  // Iteration 6.6: Include joinProjection flag
         }
 
         // Phase 5: Aggregation queries have priority
@@ -350,12 +357,14 @@ public class CallSiteProcessor {
      *
      * @param joinRelationshipExpression Lambda for the join relationship (e.g., p -> p.phones)
      * @param biEntityPredicateExpression Lambda for bi-entity predicate (e.g., (p, ph) -> ph.type.equals("mobile"))
+     * @param biEntityProjectionExpression Iteration 6.6: BiQuerySpec SELECT projection (e.g., (p, ph) -> new DTO(...))
      * @param sortExpressions Iteration 6.5: List of sort expressions for ORDER BY
      * @param joinType The type of join (INNER or LEFT)
      * @param queryId Unique identifier for the query
      * @param capturedVarCount Number of captured variables
      * @param isCountQuery True if this is a count query (JoinStream.count())
      * @param isSelectJoined Iteration 6.5: True if selectJoined() was called (returns joined entities)
+     * @param isJoinProjection Iteration 6.6: True if select() with BiQuerySpec was called
      * @param generatedClass Build producer for generated classes
      * @param queryTransformations Build producer for query transformations
      * @return The generated class name
@@ -363,12 +372,14 @@ public class CallSiteProcessor {
     private String generateAndRegisterJoinExecutor(
             LambdaExpression joinRelationshipExpression,
             LambdaExpression biEntityPredicateExpression,
+            LambdaExpression biEntityProjectionExpression,
             List<SortExpression> sortExpressions,
             InvokeDynamicScanner.JoinType joinType,
             String queryId,
             int capturedVarCount,
             boolean isCountQuery,
             boolean isSelectJoined,
+            boolean isJoinProjection,
             BuildProducer<GeneratedClassBuildItem> generatedClass,
             BuildProducer<QusaqProcessor.QueryTransformationBuildItem> queryTransformations) {
 
@@ -378,20 +389,25 @@ public class CallSiteProcessor {
         byte[] bytecode = classGenerator.generateJoinQueryExecutorClass(
                 joinRelationshipExpression,
                 biEntityPredicateExpression,
+                biEntityProjectionExpression,
                 sortExpressions,
                 joinType,
                 className,
                 isCountQuery,
-                isSelectJoined);
+                isSelectJoined,
+                isJoinProjection);
 
         generatedClass.produce(new GeneratedClassBuildItem(true, className, bytecode));
         // Iteration 6: Create join query build item with isJoinQuery=true
         // Iteration 6.5: Create selectJoined query build item if isSelectJoined is true
+        // Iteration 6.6: Create join projection query build item if isJoinProjection is true
         queryTransformations.produce(
-                new QusaqProcessor.QueryTransformationBuildItem(queryId, className, Object.class, isCountQuery, false, true, isSelectJoined, capturedVarCount));
+                new QusaqProcessor.QueryTransformationBuildItem(queryId, className, Object.class, isCountQuery, false, true, isSelectJoined, isJoinProjection, capturedVarCount));
 
         String joinTypeDesc = (joinType == InvokeDynamicScanner.JoinType.LEFT) ? "LEFT JOIN" : "INNER JOIN";
-        String queryTypeDesc = isCountQuery ? joinTypeDesc + " COUNT" : (isSelectJoined ? joinTypeDesc + " SELECT JOINED" : joinTypeDesc);
+        String queryTypeDesc = isCountQuery ? joinTypeDesc + " COUNT" :
+                (isJoinProjection ? joinTypeDesc + " PROJECTION" :
+                (isSelectJoined ? joinTypeDesc + " SELECT JOINED" : joinTypeDesc));
         log.debugf("Generated join query executor: %s (%s, %d captured vars)",
                    className, queryTypeDesc, capturedVarCount);
 
@@ -442,9 +458,9 @@ public class CallSiteProcessor {
 
         generatedClass.produce(new GeneratedClassBuildItem(true, className, bytecode));
         // Iteration 7: Create group query build item with isGroupQuery=true
-        // Iteration 6.5: Updated to include isSelectJoined=false parameter
+        // Iteration 6.6: Updated to include isJoinProjection=false parameter before isGroupQuery
         queryTransformations.produce(
-                new QusaqProcessor.QueryTransformationBuildItem(queryId, className, Object.class, isCountQuery, false, false, false, true, capturedVarCount));
+                new QusaqProcessor.QueryTransformationBuildItem(queryId, className, Object.class, isCountQuery, false, false, false, false, true, capturedVarCount));
 
         String queryTypeDesc = isCountQuery ? "GROUP BY COUNT" : "GROUP BY";
         if (havingExpression != null) {
@@ -610,7 +626,7 @@ public class CallSiteProcessor {
         totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
 
         return new LambdaAnalysisResult(predicateExpression, projectionExpression, sortExpressions,
-                                       null, null, null, null, null,
+                                       null, null, null, null, null, null,
                                        false, null, null, null, null, totalCapturedVarCount);
     }
 
@@ -661,7 +677,7 @@ public class CallSiteProcessor {
         totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
 
         return new LambdaAnalysisResult(predicateExpression, projectionExpression, sortExpressions,
-                                       null, null, null, null, null,
+                                       null, null, null, null, null, null,
                                        false, null, null, null, null, totalCapturedVarCount);
     }
 
@@ -689,7 +705,7 @@ public class CallSiteProcessor {
             // Sorting-only query - no WHERE or SELECT clauses
             int totalCapturedVarCount = countCapturedVariablesInSortExpressions(sortExpressions);
             log.debugf("Analyzed sorting-only query at %s: %d sort expression(s)", callSiteId, sortExpressions.size());
-            return new LambdaAnalysisResult(null, null, sortExpressions, null, null, null, null, null,
+            return new LambdaAnalysisResult(null, null, sortExpressions, null, null, null, null, null, null,
                                            false, null, null, null, null, totalCapturedVarCount);
         }
 
@@ -715,7 +731,7 @@ public class CallSiteProcessor {
         totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
 
         return new LambdaAnalysisResult(predicateExpression, projectionExpression, sortExpressions,
-                                       null, null, null, null, null,
+                                       null, null, null, null, null, null,
                                        false, null, null, null, null, totalCapturedVarCount);
     }
 
@@ -788,6 +804,7 @@ public class CallSiteProcessor {
                 aggregationType,
                 null,  // No join relationship for aggregations
                 null,  // No bi-entity predicate for aggregations
+                null,  // No bi-entity projection for aggregations
                 null,  // No join type for aggregations
                 false,  // Not a group query
                 null, null, null, null,  // No group-related expressions
@@ -854,18 +871,34 @@ public class CallSiteProcessor {
         List<SortExpression> sortExpressions = analyzeBiEntitySortLambdas(classBytes, callSite, callSiteId);
         totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
 
-        log.debugf("Analyzed join query at %s: type=%s, relationship=%s, biPredicate=%s, sortExpressions=%d",
+        // Iteration 6.6: Analyze bi-entity projection lambda if present (e.g., (p, ph) -> new PersonPhoneDTO(p.firstName, ph.number))
+        LambdaExpression biEntityProjectionExpression = null;
+        if (callSite.biEntityProjectionLambdaMethodName() != null) {
+            biEntityProjectionExpression = bytecodeAnalyzer.analyzeBiEntity(
+                    classBytes,
+                    callSite.biEntityProjectionLambdaMethodName(),
+                    callSite.biEntityProjectionLambdaDescriptor());
+
+            if (biEntityProjectionExpression == null) {
+                log.warnf("Could not analyze bi-entity projection lambda at: %s", callSiteId);
+                return null;
+            }
+            totalCapturedVarCount += countCapturedVariables(biEntityProjectionExpression);
+        }
+
+        log.debugf("Analyzed join query at %s: type=%s, relationship=%s, biPredicate=%s, biProjection=%s, sortExpressions=%d",
                 callSiteId, callSite.joinType(), joinRelationshipExpression, biEntityPredicateExpression,
-                sortExpressions.size());
+                biEntityProjectionExpression, sortExpressions.size());
 
         return new LambdaAnalysisResult(
                 null,  // Regular predicates handled separately
-                null,  // No projection for basic join queries (yet)
+                null,  // Regular projection handled separately
                 sortExpressions,  // Iteration 6.5: Sort expressions for join queries
                 null,  // No aggregation
                 null,  // No aggregation type
                 joinRelationshipExpression,
                 biEntityPredicateExpression,
+                biEntityProjectionExpression,  // Iteration 6.6: BiQuerySpec SELECT projection
                 callSite.joinType(),
                 false,  // Not a group query
                 null, null, null, null,  // No group-related expressions
@@ -970,6 +1003,7 @@ public class CallSiteProcessor {
                 null,  // No aggregation type
                 null,  // No join relationship
                 null,  // No bi-entity predicate
+                null,  // No bi-entity projection
                 null,  // No join type
                 true,  // This IS a group query
                 groupByKeyExpression,

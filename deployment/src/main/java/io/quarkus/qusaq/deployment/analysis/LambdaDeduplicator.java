@@ -206,6 +206,33 @@ public class LambdaDeduplicator {
             String joinType,
             boolean isCountQuery,
             boolean isSelectJoined) {
+        return computeJoinHash(joinRelationshipExpression, biEntityPredicateExpression,
+                null, sortExpressions, joinType, isCountQuery, isSelectJoined, false);
+    }
+
+    /**
+     * Computes MD5 hash for join query with projection (Iteration 6.6).
+     * Supports optional bi-entity predicate, bi-entity projection, sort expressions.
+     *
+     * @param joinRelationshipExpression Join relationship lambda (e.g., p -> p.phones)
+     * @param biEntityPredicateExpression Bi-entity WHERE clause (null if no filtering)
+     * @param biEntityProjectionExpression Bi-entity SELECT projection (null if no projection)
+     * @param sortExpressions List of sort expressions (null or empty if no sorting)
+     * @param joinType Join type: INNER or LEFT
+     * @param isCountQuery True if this is a count query (JoinStream.count())
+     * @param isSelectJoined True if selectJoined() was called (returns joined entities)
+     * @param isJoinProjection True if select() with BiQuerySpec was called (returns projected objects)
+     * @return MD5 hash uniquely identifying this join query
+     */
+    public String computeJoinHash(
+            LambdaExpression joinRelationshipExpression,
+            LambdaExpression biEntityPredicateExpression,
+            LambdaExpression biEntityProjectionExpression,
+            List<CallSiteProcessor.SortExpression> sortExpressions,
+            String joinType,
+            boolean isCountQuery,
+            boolean isSelectJoined,
+            boolean isJoinProjection) {
 
         StringBuilder astString = new StringBuilder();
 
@@ -220,7 +247,12 @@ public class LambdaDeduplicator {
             astString.append("|BI_WHERE=").append(biEntityPredicateExpression.toString());
         }
 
-        // Iteration 6.5: Include sort expressions if present
+        // Iteration 6.6: Include bi-entity projection if present
+        if (biEntityProjectionExpression != null) {
+            astString.append("|BI_SELECT=").append(biEntityProjectionExpression.toString());
+        }
+
+        // Include sort expressions if present
         if (sortExpressions != null && !sortExpressions.isEmpty()) {
             String sortString = buildSortString(sortExpressions);
             astString.append(SORT_SEPARATOR).append(sortString);
@@ -229,9 +261,14 @@ public class LambdaDeduplicator {
         // Include join type (INNER/LEFT)
         astString.append("|JOIN_TYPE=").append(joinType);
 
-        // Iteration 6.5: Include selectJoined flag
+        // Include selectJoined flag
         if (isSelectJoined) {
             astString.append("|SELECT_JOINED=true");
+        }
+
+        // Iteration 6.6: Include joinProjection flag
+        if (isJoinProjection) {
+            astString.append("|JOIN_PROJECTION=true");
         }
 
         // Include query type (LIST or COUNT) to differentiate
@@ -245,6 +282,7 @@ public class LambdaDeduplicator {
      * Query type information is already encoded in the lambdaHash parameter.
      * Iteration 6: Added isJoinQuery parameter for join query support.
      * Iteration 6.5: Added isSelectJoined parameter for selectJoined() support.
+     * Iteration 6.6: Added isJoinProjection parameter for join projection support.
      * Iteration 7: Added isGroupQuery parameter for group query support.
      */
     public boolean handleDuplicateLambda(
@@ -254,6 +292,7 @@ public class LambdaDeduplicator {
             boolean isAggregationQuery,
             boolean isJoinQuery,
             boolean isSelectJoined,
+            boolean isJoinProjection,
             boolean isGroupQuery,
             int capturedVarCount,
             AtomicInteger deduplicatedCount,
@@ -266,7 +305,7 @@ public class LambdaDeduplicator {
 
             queryTransformations.produce(
                     new QusaqProcessor.QueryTransformationBuildItem(callSiteId, existingExecutor,
-                            Object.class, isCountQuery, isAggregationQuery, isJoinQuery, isSelectJoined, isGroupQuery, capturedVarCount));
+                            Object.class, isCountQuery, isAggregationQuery, isJoinQuery, isSelectJoined, isJoinProjection, isGroupQuery, capturedVarCount));
             return true;
         }
 

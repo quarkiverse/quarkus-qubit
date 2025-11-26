@@ -2,6 +2,7 @@ package io.quarkus.qusaq.it.join;
 
 import io.quarkus.qusaq.it.Person;
 import io.quarkus.qusaq.it.Phone;
+import io.quarkus.qusaq.it.dto.PersonPhoneDTO;
 import io.quarkus.qusaq.it.testdata.TestDataFactory;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.transaction.Transactional;
@@ -383,5 +384,181 @@ class JoinQueryTest {
 
         // All 9 phones are unique
         assertThat(phones).hasSize(9);
+    }
+
+    // ========== JOIN PROJECTION (Iteration 6.6) ==========
+
+    @Test
+    void selectWithBiQuerySpecReturnsProjectedDTO() {
+        // Use select() with BiQuerySpec to project both entities into a DTO
+        var results = Person.join((Person p) -> p.phones)
+                .select((Person p, Phone ph) -> new PersonPhoneDTO(p.firstName, ph.number))
+                .toList();
+
+        // Should return 9 person-phone pairs as DTOs
+        assertThat(results).hasSize(9);
+        assertThat(results).allMatch(obj -> obj instanceof PersonPhoneDTO);
+    }
+
+    @Test
+    void selectWithBiQuerySpecAndWhere() {
+        // Find mobile phones and project to DTO
+        var results = Person.join((Person p) -> p.phones)
+                .where((Person p, Phone ph) -> ph.type.equals("mobile"))
+                .select((Person p, Phone ph) -> new PersonPhoneDTO(p.firstName, ph.number))
+                .toList();
+
+        // 5 mobile phones (one per person)
+        assertThat(results)
+                .hasSize(5)
+                .allMatch(obj -> obj instanceof PersonPhoneDTO);
+    }
+
+    @Test
+    void selectWithBiQuerySpecAndLimit() {
+        // Use select() with limit
+        var results = Person.join((Person p) -> p.phones)
+                .select((Person p, Phone ph) -> new PersonPhoneDTO(p.firstName, ph.number))
+                .limit(3)
+                .toList();
+
+        assertThat(results).hasSize(3);
+    }
+
+    @Test
+    void selectWithBiQuerySpecAndDistinct() {
+        // Use select() with distinct
+        var results = Person.join((Person p) -> p.phones)
+                .distinct()
+                .select((Person p, Phone ph) -> new PersonPhoneDTO(p.firstName, ph.number))
+                .toList();
+
+        // All 9 person-phone pairs are unique
+        assertThat(results).hasSize(9);
+    }
+
+    @Test
+    void selectWithBiQuerySpecExtractingScalarField() {
+        // Use select() to extract a scalar field from joined entity
+        var phoneNumbers = Person.join((Person p) -> p.phones)
+                .where((Person p, Phone ph) -> ph.type.equals("work"))
+                .select((Person p, Phone ph) -> ph.number)
+                .toList();
+
+        // 3 work phones
+        assertThat(phoneNumbers)
+                .hasSize(3)
+                .allMatch(n -> n instanceof String);
+    }
+
+    // ========== LEFT JOIN (Iteration 6) ==========
+
+    @Test
+    void leftJoinBasic() {
+        // LEFT JOIN should include all source entities even without matching joined entities
+        // Since all 5 persons have phones, result is same as inner join
+        var results = Person.leftJoin((Person p) -> p.phones)
+                .distinct()
+                .toList();
+
+        assertThat(results).hasSize(5);
+    }
+
+    @Test
+    void leftJoinWithWhere() {
+        // LEFT JOIN with predicate on joined entity
+        var results = Person.leftJoin((Person p) -> p.phones)
+                .where((Person p, Phone ph) -> ph.type.equals("mobile"))
+                .distinct()
+                .toList();
+
+        // All 5 persons have mobile phones
+        assertThat(results)
+                .hasSize(5)
+                .extracting(p -> p.firstName)
+                .containsExactlyInAnyOrder("John", "Jane", "Bob", "Alice", "Charlie");
+    }
+
+    @Test
+    void leftJoinWithWhereOnWorkPhone() {
+        // LEFT JOIN filtering for work phones
+        var results = Person.leftJoin((Person p) -> p.phones)
+                .where((Person p, Phone ph) -> ph.type.equals("work"))
+                .distinct()
+                .toList();
+
+        // John, Bob, and Alice have work phones
+        assertThat(results)
+                .hasSize(3)
+                .extracting(p -> p.firstName)
+                .containsExactlyInAnyOrder("John", "Bob", "Alice");
+    }
+
+    @Test
+    void leftJoinWithCapturedVariable() {
+        String phoneType = "home";
+
+        var results = Person.leftJoin((Person p) -> p.phones)
+                .where((Person p, Phone ph) -> ph.type.equals(phoneType))
+                .distinct()
+                .toList();
+
+        // Only Bob has a home phone
+        assertThat(results)
+                .hasSize(1)
+                .extracting(p -> p.firstName)
+                .containsExactly("Bob");
+    }
+
+    @Test
+    void leftJoinWithLimit() {
+        var results = Person.leftJoin((Person p) -> p.phones)
+                .where((Person p, Phone ph) -> ph.type.equals("mobile"))
+                .limit(3)
+                .toList();
+
+        assertThat(results).hasSize(3);
+    }
+
+    @Test
+    void leftJoinWithSkipAndLimit() {
+        var results = Person.leftJoin((Person p) -> p.phones)
+                .where((Person p, Phone ph) -> ph.type.equals("mobile"))
+                .skip(2)
+                .limit(2)
+                .toList();
+
+        assertThat(results).hasSize(2);
+    }
+
+    @Test
+    void leftJoinCount() {
+        // Count person-phone pairs with LEFT JOIN
+        long count = Person.leftJoin((Person p) -> p.phones)
+                .where((Person p, Phone ph) -> ph.type.equals("work"))
+                .count();
+
+        // 3 work phones (John, Bob, Alice)
+        assertThat(count).isEqualTo(3);
+    }
+
+    @Test
+    void leftJoinExists() {
+        // Check if any person has a home phone using LEFT JOIN
+        boolean exists = Person.leftJoin((Person p) -> p.phones)
+                .where((Person p, Phone ph) -> ph.type.equals("home"))
+                .exists();
+
+        assertThat(exists).isTrue();
+    }
+
+    @Test
+    void leftJoinNotExists() {
+        // Check if any person has a fax (none do) using LEFT JOIN
+        boolean exists = Person.leftJoin((Person p) -> p.phones)
+                .where((Person p, Phone ph) -> ph.type.equals("fax"))
+                .exists();
+
+        assertThat(exists).isFalse();
     }
 }

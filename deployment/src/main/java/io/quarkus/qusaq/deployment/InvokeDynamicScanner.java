@@ -73,6 +73,7 @@ public class InvokeDynamicScanner {
      * Phase 3: Enhanced to support sorting (sortedBy/sortedDescendingBy).
      * Phase 5: Enhanced to support aggregations (min/max/avg/sum*).
      * Iteration 6: Enhanced to support join queries with BiQuerySpec lambdas.
+     * Iteration 6.6: Enhanced to support join projections with BiQuerySpec select().
      * Iteration 7: Enhanced to support group queries with GroupQuerySpec lambdas.
      */
     public record LambdaCallSite(
@@ -95,6 +96,8 @@ public class InvokeDynamicScanner {
             String joinRelationshipLambdaDescriptor,    // Iteration 6: Join relationship lambda descriptor
             List<LambdaPair> biEntityPredicateLambdas,  // Iteration 6: BiQuerySpec WHERE lambdas for join queries
             boolean isSelectJoined,                // Iteration 6.5: True if selectJoined() was called
+            String biEntityProjectionLambdaMethodName,  // Iteration 6.6: BiQuerySpec SELECT lambda for join projections
+            String biEntityProjectionLambdaDescriptor,  // Iteration 6.6: BiQuerySpec SELECT lambda descriptor
             boolean isGroupQuery,                  // Iteration 7: True if this is a GROUP BY query
             String groupByLambdaMethodName,        // Iteration 7: groupBy() lambda (e.g., p -> p.department)
             String groupByLambdaDescriptor,        // Iteration 7: groupBy() lambda descriptor
@@ -137,6 +140,14 @@ public class InvokeDynamicScanner {
          */
         public boolean isSelectJoinedQuery() {
             return isSelectJoined;
+        }
+
+        /**
+         * Returns true if this is a join projection query.
+         * Iteration 6.6: join().select((p, ph) -> ...) uses BiQuerySpec to project entities.
+         */
+        public boolean isJoinProjectionQuery() {
+            return joinType != null && biEntityProjectionLambdaMethodName != null;
         }
 
         /**
@@ -291,6 +302,7 @@ public class InvokeDynamicScanner {
      * Grouped lambda information for building call sites.
      * Phase 5: Added aggregation lambda fields.
      * Iteration 6: Added join-related fields.
+     * Iteration 6.6: Added bi-entity projection fields for join select().
      * Iteration 7: Added group-related fields.
      */
     private record LambdaInfo(
@@ -308,6 +320,8 @@ public class InvokeDynamicScanner {
         String joinRelationshipLambdaMethod,   // Iteration 6: Join relationship lambda
         String joinRelationshipLambdaDescriptor, // Iteration 6: Join relationship descriptor
         List<LambdaPair> biEntityWhereLambdas, // Iteration 6: BiQuerySpec WHERE lambdas
+        String biEntityProjectionLambdaMethod,   // Iteration 6.6: BiQuerySpec SELECT lambda for join projections
+        String biEntityProjectionLambdaDescriptor, // Iteration 6.6: BiQuerySpec SELECT lambda descriptor
         boolean isGroup,                       // Iteration 7: True if this is a group query
         String groupByLambdaMethod,            // Iteration 7: groupBy() key extractor lambda
         String groupByLambdaDescriptor,        // Iteration 7: groupBy() lambda descriptor
@@ -322,11 +336,13 @@ public class InvokeDynamicScanner {
         PendingAggregation pendingAggregation = null;
         JoinType pendingJoinType = null;  // Iteration 6: Track join type
         boolean pendingJoinSelectJoined = false; // Iteration 6.5: Track selectJoined() on JoinStream
+        boolean pendingJoinSelect = false; // Iteration 6.6: Track select() with BiQuerySpec on JoinStream
         boolean pendingGroupQuery = false; // Iteration 7: Track group query context
         boolean pendingGroupSelectKey = false; // Iteration 7: Track selectKey() on GroupStream
         int currentLine = -1;
         int groupSelectLine = -1;  // Iteration 7: Track line of select() on GroupStream
         int joinSelectJoinedLine = -1; // Iteration 6.5: Track line of selectJoined() on JoinStream
+        int joinSelectLine = -1; // Iteration 6.6: Track line of select() on JoinStream
 
         for (int i = 0; i < instructions.size(); i++) {
             AbstractInsnNode insn = instructions.get(i);
@@ -350,6 +366,13 @@ public class InvokeDynamicScanner {
                 joinSelectJoinedLine = currentLine;  // Record line of selectJoined()
             }
 
+            // Iteration 6.6: Detect select() method calls on JoinStream (for line number tracking)
+            if (insn instanceof MethodInsnNode methodCall && isJoinSelectMethod(methodCall)) {
+                pendingJoinSelect = true;
+                joinSelectLine = currentLine;  // Record line of select()
+                log.infof("Join context: detected JoinStream.select() at line %d", currentLine);
+            }
+
             // Iteration 7: Detect groupBy method calls
             if (insn instanceof MethodInsnNode methodCall && isGroupMethod(methodCall)) {
                 pendingGroupQuery = true;
@@ -366,14 +389,17 @@ public class InvokeDynamicScanner {
                 groupSelectLine = currentLine;  // Record line of select()
             }
 
-            if (isTerminalOperation(insn, pendingLambdas, pendingJoinType, pendingJoinSelectJoined, pendingGroupQuery, pendingGroupSelectKey)) {
+            if (isTerminalOperation(insn, pendingLambdas, pendingJoinType, pendingJoinSelectJoined, pendingJoinSelect, pendingGroupQuery, pendingGroupSelectKey)) {
                 // Iteration 7: For group queries with select(), use the select() line, not terminal line
                 // Iteration 6.5: For join queries with selectJoined(), use the selectJoined() line
+                // Iteration 6.6: For join queries with select(), use the select() line
                 int effectiveLine = currentLine;
                 if (pendingGroupQuery && groupSelectLine > 0) {
                     effectiveLine = groupSelectLine;
                 } else if (pendingJoinSelectJoined && joinSelectJoinedLine > 0) {
                     effectiveLine = joinSelectJoinedLine;
+                } else if (pendingJoinSelect && joinSelectLine > 0) {
+                    effectiveLine = joinSelectLine;
                 }
                 LambdaCallSite callSite = createCallSite(classNode, method, (MethodInsnNode) insn,
                                                           pendingLambdas, pendingAggregation, pendingJoinType,
@@ -392,6 +418,8 @@ public class InvokeDynamicScanner {
                 pendingJoinType = null;  // Iteration 6: Reset join type
                 pendingJoinSelectJoined = false; // Iteration 6.5: Reset selectJoined flag
                 joinSelectJoinedLine = -1; // Iteration 6.5: Reset selectJoined line
+                pendingJoinSelect = false; // Iteration 6.6: Reset select flag
+                joinSelectLine = -1; // Iteration 6.6: Reset select line
                 pendingGroupQuery = false; // Iteration 7: Reset group query flag
                 pendingGroupSelectKey = false; // Iteration 7: Reset selectKey flag
                 groupSelectLine = -1;  // Iteration 7: Reset select line
@@ -436,11 +464,12 @@ public class InvokeDynamicScanner {
      * Checks if instruction is a terminal operation.
      * Iteration 6: Also checks for JoinStream terminal calls when in join context.
      * Iteration 6.5: Also handles selectJoined() returning QusaqStream from JoinStream.
+     * Iteration 6.6: Also handles select() with BiQuerySpec returning QusaqStream from JoinStream.
      * Iteration 7: Also checks for GroupStream terminal calls when in group context.
      *              Also handles select()/selectKey() returning QusaqStream from GroupStream.
      */
     private boolean isTerminalOperation(AbstractInsnNode insn, List<PendingLambda> pendingLambdas,
-                                         JoinType joinType, boolean hasJoinSelectJoined,
+                                         JoinType joinType, boolean hasJoinSelectJoined, boolean hasJoinSelect,
                                          boolean isGroupQuery, boolean hasGroupSelectKey) {
         if (!(insn instanceof MethodInsnNode methodCall) || pendingLambdas.isEmpty()) {
             return false;
@@ -473,6 +502,12 @@ public class InvokeDynamicScanner {
             if (hasJoinSelectJoined) {
                 return isQusaqStreamTerminalCall(methodCall);
             }
+            // Iteration 6.6: If select() with BiQuerySpec was called, look for QusaqStream terminals
+            if (hasJoinSelect || hasJoinSelectLambda(pendingLambdas)) {
+                log.infof("Join context: hasJoinSelect=%b, hasJoinSelectLambda=%b, checking terminal %s.%s",
+                         hasJoinSelect, hasJoinSelectLambda(pendingLambdas), methodCall.owner, methodCall.name);
+                return isQusaqStreamTerminalCall(methodCall);
+            }
             return isJoinStreamTerminalCall(methodCall);
         }
 
@@ -493,11 +528,33 @@ public class InvokeDynamicScanner {
     }
 
     /**
+     * Checks if pending lambdas include a select() call with BiQuerySpec.
+     * Iteration 6.6: Used to detect when JoinStream.select() returns QusaqStream.
+     */
+    private boolean hasJoinSelectLambda(List<PendingLambda> pendingLambdas) {
+        for (PendingLambda lambda : pendingLambdas) {
+            if (METHOD_SELECT.equals(lambda.fluentMethod) && lambda.isBiEntity()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Checks if method call is selectJoined() on JoinStream.
      * Iteration 6.5: selectJoined() returns QusaqStream containing joined entities.
      */
     private boolean isJoinSelectJoinedMethod(MethodInsnNode methodCall) {
         return METHOD_SELECT_JOINED.equals(methodCall.name) &&
+               JOIN_STREAM_INTERNAL_NAME.equals(methodCall.owner);
+    }
+
+    /**
+     * Checks if method call is select() on JoinStream.
+     * Iteration 6.6: select() with BiQuerySpec returns QusaqStream.
+     */
+    private boolean isJoinSelectMethod(MethodInsnNode methodCall) {
+        return METHOD_SELECT.equals(methodCall.name) &&
                JOIN_STREAM_INTERNAL_NAME.equals(methodCall.owner);
     }
 
@@ -550,6 +607,8 @@ public class InvokeDynamicScanner {
             info.joinRelationshipLambdaDescriptor,  // Iteration 6: Join relationship descriptor
             info.biEntityWhereLambdas,  // Iteration 6: BiQuerySpec WHERE lambdas
             pendingJoinSelectJoined,  // Iteration 6.5: selectJoined() flag
+            info.biEntityProjectionLambdaMethod,  // Iteration 6.6: BiQuerySpec SELECT lambda
+            info.biEntityProjectionLambdaDescriptor,  // Iteration 6.6: BiQuerySpec SELECT descriptor
             info.isGroup,  // Iteration 7: Group query flag
             info.groupByLambdaMethod,  // Iteration 7: groupBy() lambda
             info.groupByLambdaDescriptor,  // Iteration 7: groupBy() descriptor
@@ -579,6 +638,8 @@ public class InvokeDynamicScanner {
         String aggregationDescriptor = null;
         String joinRelationshipMethod = null;  // Iteration 6: Join relationship lambda
         String joinRelationshipDescriptor = null;
+        String biEntityProjectionMethod = null;  // Iteration 6.6: BiQuerySpec SELECT lambda
+        String biEntityProjectionDescriptor = null;
 
         // Phase 5: Use provided aggregation method name (detected from intermediate operation)
         boolean isAggregation = aggregationMethodName != null;
@@ -625,8 +686,14 @@ public class InvokeDynamicScanner {
                     }
                 }
             } else if (METHOD_SELECT.equals(lambda.fluentMethod)) {
-                selectMethod = lambda.methodName;
-                selectDescriptor = lambda.descriptor;
+                // Iteration 6.6: Check if this is a BiQuerySpec select (for join projections)
+                if (lambda.isBiEntity()) {
+                    biEntityProjectionMethod = lambda.methodName;
+                    biEntityProjectionDescriptor = lambda.descriptor;
+                } else {
+                    selectMethod = lambda.methodName;
+                    selectDescriptor = lambda.descriptor;
+                }
             } else if (METHOD_SORTED_BY.equals(lambda.fluentMethod)) {
                 // Ascending sort
                 sortLambdas.add(new SortLambda(lambda.methodName, lambda.descriptor, SortDirection.ASCENDING));
@@ -652,6 +719,8 @@ public class InvokeDynamicScanner {
             joinRelationshipMethod,
             joinRelationshipDescriptor,
             biEntityWhereLambdas.isEmpty() ? null : biEntityWhereLambdas,
+            biEntityProjectionMethod,  // Iteration 6.6: BiQuerySpec SELECT lambda
+            biEntityProjectionDescriptor,  // Iteration 6.6: BiQuerySpec SELECT descriptor
             isGroupQuery,  // Iteration 7: Group query flag
             groupByMethod,
             groupByDescriptor,

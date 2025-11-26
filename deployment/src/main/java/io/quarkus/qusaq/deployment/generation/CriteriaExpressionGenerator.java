@@ -1300,6 +1300,130 @@ public class CriteriaExpressionGenerator {
     }
 
     // =============================================================================================
+    // BI-ENTITY PROJECTIONS (Iteration 6.6: Join Projections)
+    // =============================================================================================
+
+    /**
+     * Generates JPA Selection from bi-entity projection expression AST.
+     * <p>
+     * Used for join query projections like {@code (p, ph) -> new PersonPhoneDTO(p.firstName, ph.number)}.
+     * Bi-entity projections can reference fields from both the source entity (root) and
+     * joined entity (join).
+     * <p>
+     * Supports:
+     * - Simple field projection: {@code (p, ph) -> ph.number} → query.select(join.get("number"))
+     * - DTO constructor: {@code (p, ph) -> new DTO(p.firstName, ph.number)} → cb.construct(...)
+     * <p>
+     * Example:
+     * <pre>
+     * // Lambda: (p, ph) -> new PersonPhoneDTO(p.firstName, ph.number)
+     * // Generated JPA: cb.construct(PersonPhoneDTO.class, root.get("firstName"), join.get("number"))
+     * </pre>
+     *
+     * @param method the method creator for bytecode generation
+     * @param expression the bi-entity projection expression AST
+     * @param cb the CriteriaBuilder handle
+     * @param root the root entity handle (source entity)
+     * @param join the join handle (joined entity)
+     * @param capturedValues the captured variables array handle
+     * @return the JPA Selection handle representing the projection
+     */
+    public ResultHandle generateBiEntityProjection(
+            MethodCreator method,
+            LambdaExpression expression,
+            ResultHandle cb,
+            ResultHandle root,
+            ResultHandle join,
+            ResultHandle capturedValues) {
+
+        if (expression == null) {
+            return null;
+        }
+
+        if (expression instanceof LambdaExpression.ConstructorCall constructorCall) {
+            return generateBiEntityConstructorCall(method, constructorCall, cb, root, join, capturedValues);
+        } else if (expression instanceof BiEntityFieldAccess biField) {
+            ResultHandle base = getBaseForEntityPosition(biField.entityPosition(), root, join);
+            return generateFieldAccess(method,
+                    new LambdaExpression.FieldAccess(biField.fieldName(), biField.fieldType()), base);
+        } else if (expression instanceof BiEntityPathExpression biPath) {
+            ResultHandle base = getBaseForEntityPosition(biPath.entityPosition(), root, join);
+            return generatePathExpression(method,
+                    new PathExpression(biPath.segments(), biPath.resultType()), base);
+        } else if (expression instanceof LambdaExpression.FieldAccess field) {
+            return generateFieldAccess(method, field, root);
+        } else if (expression instanceof PathExpression pathExpr) {
+            return generatePathExpression(method, pathExpr, root);
+        }
+
+        // For other expression types, delegate to generateBiEntityExpressionAsJpaExpression
+        return generateBiEntityExpressionAsJpaExpression(method, expression, cb, root, join, capturedValues);
+    }
+
+    /**
+     * Generates JPA ConstructorCall for bi-entity projections (Iteration 6.6).
+     * <p>
+     * Converts DTO constructor call with bi-entity field access to JPA cb.construct() call.
+     * <p>
+     * Example:
+     * <pre>
+     * // Lambda: (p, ph) -> new PersonPhoneDTO(p.firstName, ph.number)
+     * // Generated JPA:
+     * Class<?> dtoClass = Class.forName("...PersonPhoneDTO");
+     * cb.construct(dtoClass, root.get("firstName"), join.get("number"))
+     * </pre>
+     *
+     * @param method the method creator for bytecode generation
+     * @param constructorCall the constructor call expression
+     * @param cb the CriteriaBuilder handle
+     * @param root the root entity handle (source entity)
+     * @param join the join handle (joined entity)
+     * @param capturedValues the captured variables array handle
+     * @return the JPA CompoundSelection handle representing the constructor expression
+     */
+    private ResultHandle generateBiEntityConstructorCall(
+            MethodCreator method,
+            LambdaExpression.ConstructorCall constructorCall,
+            ResultHandle cb,
+            ResultHandle root,
+            ResultHandle join,
+            ResultHandle capturedValues) {
+
+        // Get the DTO class name (e.g., "io/quarkus/qusaq/it/dto/PersonPhoneDTO")
+        String className = constructorCall.className();
+
+        // Convert internal class name to fully qualified class name (replace / with .)
+        String fqClassName = className.replace('/', '.');
+
+        // Load the class at runtime using Class.forName()
+        ResultHandle classNameHandle = method.load(fqClassName);
+        ResultHandle resultClassHandle = method.invokeStaticMethod(
+                MethodDescriptor.ofMethod(Class.class, "forName", Class.class, String.class),
+                classNameHandle);
+
+        // Generate JPA expressions for each constructor argument using bi-entity resolution
+        int argCount = constructorCall.arguments().size();
+        ResultHandle selectionsArray = method.newArray(Selection.class, argCount);
+
+        for (int i = 0; i < argCount; i++) {
+            LambdaExpression arg = constructorCall.arguments().get(i);
+            ResultHandle argExpression = generateBiEntityExpressionAsJpaExpression(
+                    method, arg, cb, root, join, capturedValues);
+            method.writeArrayValue(selectionsArray, i, argExpression);
+        }
+
+        // Call cb.construct(resultClass, selections...)
+        MethodDescriptor constructMethod = MethodDescriptor.ofMethod(
+                CriteriaBuilder.class,
+                "construct",
+                CompoundSelection.class,
+                Class.class,
+                Selection[].class);
+
+        return method.invokeInterfaceMethod(constructMethod, cb, resultClassHandle, selectionsArray);
+    }
+
+    // =============================================================================================
     // GROUP EXPRESSIONS (Iteration 7: GROUP BY)
     // =============================================================================================
 

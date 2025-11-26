@@ -1569,3 +1569,287 @@ Person.join(p -> p.phones).selectJoined().limit(5).toList();
 // With distinct
 Person.join(p -> p.phones).selectJoined().distinct().toList();
 ```
+
+---
+
+## Join Projections Implementation Pattern (Iteration 6.6)
+
+### Architecture
+
+**select() with BiQuerySpec projects both entities into a result type:**
+
+```java
+// Join projection: returns List<PersonPhoneDTO>
+Person.join(p -> p.phones)
+      .select((Person p, Phone ph) -> new PersonPhoneDTO(p.firstName, ph.number))
+      .toList();
+
+// Can also extract scalar fields from joined entity
+Person.join(p -> p.phones)
+      .select((Person p, Phone ph) -> ph.number)  // Returns List<String>
+      .toList();
+```
+
+### Implementation Chain
+
+1. **InvokeDynamicScanner** - Detect `select(BiQuerySpec)` calls on JoinStream
+   - Track `biEntityProjectionLambdaMethodName` and descriptor
+   - Set `pendingJoinProjection` flag for proper call site detection
+   - Use `joinProjectionLine` for accurate call site ID
+
+2. **LambdaCallSite** - Store bi-entity projection fields
+   - `biEntityProjectionLambdaMethodName`
+   - `biEntityProjectionLambdaDescriptor`
+   - `isJoinProjectionQuery()` helper method
+
+3. **CallSiteProcessor** - Analyze and generate executor
+   - `analyzeJoinQuery()` calls `analyzeBiEntity()` for projection lambda
+   - `computeHash()` must call 8-argument `computeJoinHash()` with projection
+   - `generateAndRegisterJoinExecutor()` passes projection to generator
+
+4. **CriteriaExpressionGenerator** - Generate JPA construct() call
+   - `generateBiEntityProjection()` for bi-entity projections
+   - `generateBiEntityConstructorCall()` for DTO construction
+   - Uses `BiEntityFieldAccess` with `EntityPosition.FIRST/SECOND`
+
+5. **QueryExecutorClassGenerator** - Generate projection query
+   - `generateJoinProjectionQueryBody()` generates `cb.construct()` call
+   - Routes correctly based on `isJoinProjection` flag
+
+6. **QueryExecutorRegistry** - Separate executor map
+   - `JOIN_PROJECTION_EXECUTORS` map
+   - `executeJoinProjectionQuery()` method
+
+7. **JoinStreamImpl** - Runtime execution
+   - `select(BiQuerySpec<T, R, S>)` returns `ListProjectionQusaqStream<S>`
+   - Calls `registry.executeJoinProjectionQuery()`
+
+### Key Files Modified
+
+| File | Change |
+|------|--------|
+| `InvokeDynamicScanner.java` | Detect select(BiQuerySpec), track projection lambdas |
+| `LambdaCallSite` record | Add bi-entity projection fields |
+| `CallSiteProcessor.java` | Analyze projection, compute hash, generate executor |
+| `LambdaDeduplicator.java` | 8-arg computeJoinHash() with projection |
+| `CriteriaExpressionGenerator.java` | generateBiEntityProjection(), generateBiEntityConstructorCall() |
+| `QueryExecutorClassGenerator.java` | generateJoinProjectionQueryBody() |
+| `QusaqProcessor.java` | QueryTransformationBuildItem with isJoinProjection |
+| `QueryExecutorRegistry.java` | New executor map and execution method |
+| `JoinStreamImpl.java` | select(BiQuerySpec) implementation, ListProjectionQusaqStream |
+
+### Critical Bug Patterns and Fixes
+
+#### Bug 1: Deduplication Hash Method Overload Mismatch
+
+**Problem:** When multiple overloads of hash computation exist, calling the wrong one omits critical parameters.
+
+```java
+// WRONG: 6-argument version doesn't include projection
+return deduplicator.computeJoinHash(
+    result.joinRelationshipExpression,
+    result.biEntityPredicateExpression,
+    result.sortExpressions,
+    joinTypeStr,
+    callSite.isCountQuery(),
+    callSite.isSelectJoinedQuery());
+
+// RIGHT: 8-argument version includes projection and isJoinProjection flag
+return deduplicator.computeJoinHash(
+    result.joinRelationshipExpression,
+    result.biEntityPredicateExpression,
+    result.biEntityProjectionExpression,  // Include projection!
+    result.sortExpressions,
+    joinTypeStr,
+    callSite.isCountQuery(),
+    callSite.isSelectJoinedQuery(),
+    callSite.isJoinProjectionQuery());   // Include flag!
+```
+
+**Symptom:** Projection queries get same hash as non-projection queries, deduplicator reuses wrong executor, returns wrong result type.
+
+**Fix:** Always use the most specific method overload that includes all discriminating parameters.
+
+#### Bug 2: Constructor Overload Position Shift
+
+**Problem:** Adding new boolean parameters shifts existing code to match wrong constructor.
+
+```java
+// BEFORE (9-argument, Iteration 6.5):
+// positions: queryId, className, entityClass, isCountQuery, isAggregationQuery,
+//            isJoinQuery, isSelectJoined, isGroupQuery, capturedVarCount
+
+// AFTER (added isJoinProjection at position 8):
+// positions: queryId, className, entityClass, isCountQuery, isAggregationQuery,
+//            isJoinQuery, isSelectJoined, isJoinProjection, isGroupQuery, capturedVarCount
+
+// Group query code (unchanged but now BROKEN):
+new QueryTransformationBuildItem(queryId, className, Object.class,
+    isCountQuery, false, false, false, true, capturedVarCount);
+//                                     ^^^^ Was isGroupQuery, now matches isJoinProjection!
+```
+
+**Symptom:** Group queries fail with "No group query executor found" because they're registered as join projection queries.
+
+**Fix:** Update ALL callers when adding constructor parameters. Use full constructor:
+```java
+new QueryTransformationBuildItem(queryId, className, Object.class,
+    isCountQuery, false, false, false, false, true, capturedVarCount);
+//              agg    join   selJ   joinP  group
+```
+
+### Prevention Checklist for New Parameters
+
+When adding parameters to `QueryTransformationBuildItem` or hash methods:
+
+- [ ] **Search for ALL usages**: `grep "QueryTransformationBuildItem\|computeJoinHash" *.java`
+- [ ] **Update every caller** - not just new feature code
+- [ ] **Check constructor overload resolution** - which overload does each call match?
+- [ ] **Verify hash method overload** - are you calling the most specific version?
+- [ ] **Run FULL test suite** - new feature tests + all existing tests
+- [ ] **Check executor counts in error messages** - unexpected counts indicate registration bugs
+
+### Debugging Build-Time to Runtime Flow
+
+**Trace the execution path when tests fail:**
+
+1. **Build-time registration** (CallSiteProcessor):
+   ```
+   Generated join query executor: QueryExecutor_123 (INNER JOIN PROJECTION, 0 captured vars)
+   ```
+
+2. **Executor registration** (QusaqProcessor):
+   ```
+   Registered join projection executor for call site: TestClass:method:line
+   ```
+
+3. **Runtime lookup** (QueryExecutorRegistry):
+   ```
+   Executing join projection query for call site: TestClass:method:line
+   ```
+
+4. **Hash computation** (LambdaDeduplicator):
+   ```
+   Deduplicated lambda at ... (reusing QueryExecutor_XXX)  # WATCH FOR THIS!
+   ```
+
+**If you see "Deduplicated" for a query that should have unique executor:**
+- Check hash computation includes all discriminating parameters
+- Verify method overload being called
+
+### Test Coverage
+
+**Test File:** `integration-tests/src/test/java/io/quarkus/qusaq/it/join/JoinQueryTest.java`
+
+```java
+// Basic DTO projection
+Person.join((Person p) -> p.phones)
+      .select((Person p, Phone ph) -> new PersonPhoneDTO(p.firstName, ph.number))
+      .toList();
+
+// With bi-entity predicate
+Person.join((Person p) -> p.phones)
+      .where((Person p, Phone ph) -> ph.type.equals("mobile"))
+      .select((Person p, Phone ph) -> new PersonPhoneDTO(p.firstName, ph.number))
+      .toList();
+
+// With pagination
+Person.join((Person p) -> p.phones)
+      .select((Person p, Phone ph) -> new PersonPhoneDTO(p.firstName, ph.number))
+      .limit(3)
+      .toList();
+
+// With distinct
+Person.join((Person p) -> p.phones)
+      .distinct()
+      .select((Person p, Phone ph) -> new PersonPhoneDTO(p.firstName, ph.number))
+      .toList();
+
+// Scalar field extraction from joined entity
+Person.join((Person p) -> p.phones)
+      .where((Person p, Phone ph) -> ph.type.equals("work"))
+      .select((Person p, Phone ph) -> ph.number)
+      .toList();
+```
+
+---
+
+## Multi-Parameter Method Overload Safety (General Pattern)
+
+### The Problem with Boolean Parameter Proliferation
+
+**As features are added, classes accumulate boolean flags:**
+
+```java
+// Iteration 1: Simple
+QueryTransformationBuildItem(queryId, className, entityClass, isCountQuery, capturedVarCount)
+
+// Iteration 6: 6 booleans
+QueryTransformationBuildItem(queryId, className, entityClass,
+    isCountQuery, isAggregationQuery, isJoinQuery, capturedVarCount)
+
+// Iteration 6.5: 7 booleans
+QueryTransformationBuildItem(queryId, className, entityClass,
+    isCountQuery, isAggregationQuery, isJoinQuery, isSelectJoined, capturedVarCount)
+
+// Iteration 6.6: 8 booleans
+QueryTransformationBuildItem(queryId, className, entityClass,
+    isCountQuery, isAggregationQuery, isJoinQuery, isSelectJoined, isJoinProjection, capturedVarCount)
+
+// Iteration 7: 9 booleans - EASY TO GET WRONG!
+QueryTransformationBuildItem(queryId, className, entityClass,
+    isCountQuery, isAggregationQuery, isJoinQuery, isSelectJoined, isJoinProjection, isGroupQuery, capturedVarCount)
+```
+
+### Why Constructor Overloads Are Dangerous
+
+1. **No compile-time safety** - `true` matches any boolean parameter
+2. **Silent failures** - Code compiles but behaves incorrectly
+3. **Parameter position drift** - Adding new params shifts existing code
+4. **Cascade effect** - Breaking one type breaks all features using that type
+
+### Best Practices
+
+**When modifying multi-boolean constructors:**
+
+1. **Always use the FULL constructor** in new code
+2. **Update ALL existing callers** when adding parameters
+3. **Use named constants** for clarity:
+   ```java
+   private static final boolean IS_COUNT_QUERY = false;
+   private static final boolean IS_AGGREGATION = false;
+   private static final boolean IS_JOIN = false;
+   private static final boolean IS_SELECT_JOINED = false;
+   private static final boolean IS_JOIN_PROJECTION = false;
+   private static final boolean IS_GROUP = true;
+
+   new QueryTransformationBuildItem(queryId, className, Object.class,
+       IS_COUNT_QUERY, IS_AGGREGATION, IS_JOIN, IS_SELECT_JOINED,
+       IS_JOIN_PROJECTION, IS_GROUP, capturedVarCount);
+   ```
+
+4. **Consider Builder pattern** for future additions (architectural improvement)
+
+5. **Add comments** on positional parameters:
+   ```java
+   new QueryTransformationBuildItem(queryId, className, Object.class,
+       isCountQuery,    // isCountQuery
+       false,           // isAggregationQuery
+       false,           // isJoinQuery
+       false,           // isSelectJoined
+       false,           // isJoinProjection
+       true,            // isGroupQuery  <-- THIS ONE
+       capturedVarCount);
+   ```
+
+### Testing Requirements
+
+After modifying constructors or method overloads:
+
+```bash
+# MANDATORY: Full test suite, not just new feature
+mvn clean test
+
+# Watch for unexpected test failures in UNRELATED features
+# Group tests failing after join changes = constructor mismatch likely
+```
