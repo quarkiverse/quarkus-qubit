@@ -217,6 +217,7 @@ A task is **only** complete when:
 - ✅ Code has been verified by running it
 - ✅ No TODOs or partial implementations remain
 - ✅ Documentation updated if needed
+- ✅ **Lessons learned documented** - Add any new patterns, pitfalls, or insights discovered during implementation to this instructions.md file before committing
 
 ## Anti-Patterns to Avoid
 - ❌ Partial implementations ("I'll do 90% and leave the rest")
