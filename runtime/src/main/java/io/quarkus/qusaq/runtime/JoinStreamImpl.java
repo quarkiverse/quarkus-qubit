@@ -178,9 +178,15 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public QusaqStream<R> selectJoined() {
-        // TODO: Implement joined entity selection
-        throw new UnsupportedOperationException("Joined entity selection not yet implemented");
+        // Execute query selecting joined entities and return wrapped results
+        String callSiteId = getCallSiteId();
+        Object[] capturedValues = extractCapturedVariables();
+
+        QueryExecutorRegistry registry = Arc.container().instance(QueryExecutorRegistry.class).get();
+        List<R> results = registry.executeJoinSelectJoinedQuery(callSiteId, sourceEntityClass, capturedValues, offset, limit, distinct);
+        return new ListJoinedQusaqStream<>(results);
     }
 
     // =============================================================================================
@@ -408,6 +414,129 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
      * Represents a bi-entity sort order specification.
      */
     private record BiSortOrder<T, R>(BiQuerySpec<T, R, ?> keyExtractor, SortDirection direction) {
+    }
+
+    /**
+     * Simple QusaqStream implementation wrapping results from selectJoined().
+     * Used for returning joined entity results after selectJoined() projection.
+     */
+    private static class ListJoinedQusaqStream<T> implements QusaqStream<T> {
+        private final List<T> results;
+
+        ListJoinedQusaqStream(List<T> results) {
+            this.results = results;
+        }
+
+        @Override
+        public QusaqStream<T> where(QuerySpec<T, Boolean> predicate) {
+            throw new UnsupportedOperationException("Cannot filter after selectJoined projection");
+        }
+
+        @Override
+        public <R> QusaqStream<R> select(QuerySpec<T, R> mapper) {
+            throw new UnsupportedOperationException("Cannot project after selectJoined projection");
+        }
+
+        @Override
+        public <K extends Comparable<K>> QusaqStream<T> sortedBy(QuerySpec<T, K> keyExtractor) {
+            throw new UnsupportedOperationException("Cannot sort after selectJoined projection");
+        }
+
+        @Override
+        public <K extends Comparable<K>> QusaqStream<T> sortedDescendingBy(QuerySpec<T, K> keyExtractor) {
+            throw new UnsupportedOperationException("Cannot sort after selectJoined projection");
+        }
+
+        @Override
+        public QusaqStream<T> skip(int n) {
+            return new ListJoinedQusaqStream<>(results.subList(Math.min(n, results.size()), results.size()));
+        }
+
+        @Override
+        public QusaqStream<T> limit(int n) {
+            return new ListJoinedQusaqStream<>(results.subList(0, Math.min(n, results.size())));
+        }
+
+        @Override
+        public QusaqStream<T> distinct() {
+            return new ListJoinedQusaqStream<>(results.stream().distinct().toList());
+        }
+
+        @Override
+        public long count() {
+            return results.size();
+        }
+
+        @Override
+        public <K extends Comparable<K>> QusaqStream<K> min(QuerySpec<T, K> mapper) {
+            throw new UnsupportedOperationException("Cannot aggregate after selectJoined projection");
+        }
+
+        @Override
+        public <K extends Comparable<K>> QusaqStream<K> max(QuerySpec<T, K> mapper) {
+            throw new UnsupportedOperationException("Cannot aggregate after selectJoined projection");
+        }
+
+        @Override
+        public QusaqStream<Long> sumInteger(QuerySpec<T, Integer> mapper) {
+            throw new UnsupportedOperationException("Cannot aggregate after selectJoined projection");
+        }
+
+        @Override
+        public QusaqStream<Long> sumLong(QuerySpec<T, Long> mapper) {
+            throw new UnsupportedOperationException("Cannot aggregate after selectJoined projection");
+        }
+
+        @Override
+        public QusaqStream<Double> sumDouble(QuerySpec<T, Double> mapper) {
+            throw new UnsupportedOperationException("Cannot aggregate after selectJoined projection");
+        }
+
+        @Override
+        public QusaqStream<Double> avg(QuerySpec<T, ? extends Number> mapper) {
+            throw new UnsupportedOperationException("Cannot aggregate after selectJoined projection");
+        }
+
+        @Override
+        public List<T> toList() {
+            return new ArrayList<>(results);
+        }
+
+        @Override
+        public T getSingleResult() {
+            if (results.isEmpty()) {
+                throw new NoResultException("getSingleResult() expected exactly one result but found none");
+            }
+            if (results.size() > 1) {
+                throw new NonUniqueResultException("getSingleResult() expected exactly one result but found " + results.size());
+            }
+            return results.get(0);
+        }
+
+        @Override
+        public Optional<T> findFirst() {
+            return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
+        }
+
+        @Override
+        public boolean exists() {
+            return !results.isEmpty();
+        }
+
+        @Override
+        public <R> JoinStream<T, R> join(QuerySpec<T, java.util.Collection<R>> relationship) {
+            throw new UnsupportedOperationException("Cannot join after selectJoined projection");
+        }
+
+        @Override
+        public <R> JoinStream<T, R> leftJoin(QuerySpec<T, java.util.Collection<R>> relationship) {
+            throw new UnsupportedOperationException("Cannot join after selectJoined projection");
+        }
+
+        @Override
+        public <K> GroupStream<T, K> groupBy(QuerySpec<T, K> keyExtractor) {
+            throw new UnsupportedOperationException("Cannot group after selectJoined projection");
+        }
     }
 
     // =============================================================================================

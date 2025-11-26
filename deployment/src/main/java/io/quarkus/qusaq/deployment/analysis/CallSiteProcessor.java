@@ -112,6 +112,7 @@ public class CallSiteProcessor {
                     callSite.isCountQuery(),
                     callSite.isAggregationQuery(),
                     callSite.isJoinQuery(),
+                    callSite.isSelectJoinedQuery(),  // Iteration 6.5: Pass selectJoined flag
                     result.isGroupQuery,
                     result.totalCapturedVarCount, deduplicatedCount, queryTransformations)) {
                 return;
@@ -134,7 +135,7 @@ public class CallSiteProcessor {
                         queryTransformations);
             }
             // Iteration 6: Handle join queries with special generator
-            // Iteration 6.5: Pass sort expressions for join query sorting
+            // Iteration 6.5: Pass sort expressions for join query sorting and selectJoined flag
             else if (callSite.isJoinQuery() && result.joinType != null) {
                 executorClassName = generateAndRegisterJoinExecutor(
                         result.joinRelationshipExpression,
@@ -144,6 +145,7 @@ public class CallSiteProcessor {
                         callSiteId,
                         result.totalCapturedVarCount,
                         callSite.isCountQuery(),
+                        callSite.isSelectJoinedQuery(),
                         generatedClass,
                         queryTransformations);
             } else {
@@ -229,7 +231,7 @@ public class CallSiteProcessor {
         }
 
         // Iteration 6: Join queries have priority
-        // Iteration 6.5: Include sort expressions for join queries
+        // Iteration 6.5: Include sort expressions and selectJoined flag for join queries
         if (callSite.isJoinQuery() && result.joinType != null) {
             String joinTypeStr = result.joinType.name();  // INNER or LEFT
             return deduplicator.computeJoinHash(
@@ -237,7 +239,8 @@ public class CallSiteProcessor {
                     result.biEntityPredicateExpression,
                     result.sortExpressions,  // Iteration 6.5: Include sort expressions
                     joinTypeStr,
-                    callSite.isCountQuery());
+                    callSite.isCountQuery(),
+                    callSite.isSelectJoinedQuery());  // Iteration 6.5: Include selectJoined flag
         }
 
         // Phase 5: Aggregation queries have priority
@@ -352,6 +355,7 @@ public class CallSiteProcessor {
      * @param queryId Unique identifier for the query
      * @param capturedVarCount Number of captured variables
      * @param isCountQuery True if this is a count query (JoinStream.count())
+     * @param isSelectJoined Iteration 6.5: True if selectJoined() was called (returns joined entities)
      * @param generatedClass Build producer for generated classes
      * @param queryTransformations Build producer for query transformations
      * @return The generated class name
@@ -364,6 +368,7 @@ public class CallSiteProcessor {
             String queryId,
             int capturedVarCount,
             boolean isCountQuery,
+            boolean isSelectJoined,
             BuildProducer<GeneratedClassBuildItem> generatedClass,
             BuildProducer<QusaqProcessor.QueryTransformationBuildItem> queryTransformations) {
 
@@ -376,15 +381,17 @@ public class CallSiteProcessor {
                 sortExpressions,
                 joinType,
                 className,
-                isCountQuery);
+                isCountQuery,
+                isSelectJoined);
 
         generatedClass.produce(new GeneratedClassBuildItem(true, className, bytecode));
         // Iteration 6: Create join query build item with isJoinQuery=true
+        // Iteration 6.5: Create selectJoined query build item if isSelectJoined is true
         queryTransformations.produce(
-                new QusaqProcessor.QueryTransformationBuildItem(queryId, className, Object.class, isCountQuery, false, true, capturedVarCount));
+                new QusaqProcessor.QueryTransformationBuildItem(queryId, className, Object.class, isCountQuery, false, true, isSelectJoined, capturedVarCount));
 
         String joinTypeDesc = (joinType == InvokeDynamicScanner.JoinType.LEFT) ? "LEFT JOIN" : "INNER JOIN";
-        String queryTypeDesc = isCountQuery ? joinTypeDesc + " COUNT" : joinTypeDesc;
+        String queryTypeDesc = isCountQuery ? joinTypeDesc + " COUNT" : (isSelectJoined ? joinTypeDesc + " SELECT JOINED" : joinTypeDesc);
         log.debugf("Generated join query executor: %s (%s, %d captured vars)",
                    className, queryTypeDesc, capturedVarCount);
 
@@ -435,8 +442,9 @@ public class CallSiteProcessor {
 
         generatedClass.produce(new GeneratedClassBuildItem(true, className, bytecode));
         // Iteration 7: Create group query build item with isGroupQuery=true
+        // Iteration 6.5: Updated to include isSelectJoined=false parameter
         queryTransformations.produce(
-                new QusaqProcessor.QueryTransformationBuildItem(queryId, className, Object.class, isCountQuery, false, false, true, capturedVarCount));
+                new QusaqProcessor.QueryTransformationBuildItem(queryId, className, Object.class, isCountQuery, false, false, false, true, capturedVarCount));
 
         String queryTypeDesc = isCountQuery ? "GROUP BY COUNT" : "GROUP BY";
         if (havingExpression != null) {

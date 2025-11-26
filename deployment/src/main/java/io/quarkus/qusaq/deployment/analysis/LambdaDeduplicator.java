@@ -183,6 +183,29 @@ public class LambdaDeduplicator {
             List<CallSiteProcessor.SortExpression> sortExpressions,
             String joinType,
             boolean isCountQuery) {
+        return computeJoinHash(joinRelationshipExpression, biEntityPredicateExpression,
+                sortExpressions, joinType, isCountQuery, false);
+    }
+
+    /**
+     * Computes MD5 hash for join query with sorting and selectJoined (Iteration 6.5).
+     * Supports optional bi-entity predicate, sort expressions, and selectJoined flag.
+     *
+     * @param joinRelationshipExpression Join relationship lambda (e.g., p -> p.phones)
+     * @param biEntityPredicateExpression Bi-entity WHERE clause (null if no filtering)
+     * @param sortExpressions List of sort expressions (null or empty if no sorting)
+     * @param joinType Join type: INNER or LEFT
+     * @param isCountQuery True if this is a count query (JoinStream.count())
+     * @param isSelectJoined True if selectJoined() was called (returns joined entities)
+     * @return MD5 hash uniquely identifying this join query
+     */
+    public String computeJoinHash(
+            LambdaExpression joinRelationshipExpression,
+            LambdaExpression biEntityPredicateExpression,
+            List<CallSiteProcessor.SortExpression> sortExpressions,
+            String joinType,
+            boolean isCountQuery,
+            boolean isSelectJoined) {
 
         StringBuilder astString = new StringBuilder();
 
@@ -206,6 +229,11 @@ public class LambdaDeduplicator {
         // Include join type (INNER/LEFT)
         astString.append("|JOIN_TYPE=").append(joinType);
 
+        // Iteration 6.5: Include selectJoined flag
+        if (isSelectJoined) {
+            astString.append("|SELECT_JOINED=true");
+        }
+
         // Include query type (LIST or COUNT) to differentiate
         astString.append("|QUERY_TYPE=").append(isCountQuery ? "COUNT" : "LIST");
 
@@ -216,6 +244,7 @@ public class LambdaDeduplicator {
      * Returns true if lambda is duplicate and reuses existing executor.
      * Query type information is already encoded in the lambdaHash parameter.
      * Iteration 6: Added isJoinQuery parameter for join query support.
+     * Iteration 6.5: Added isSelectJoined parameter for selectJoined() support.
      * Iteration 7: Added isGroupQuery parameter for group query support.
      */
     public boolean handleDuplicateLambda(
@@ -224,6 +253,7 @@ public class LambdaDeduplicator {
             boolean isCountQuery,
             boolean isAggregationQuery,
             boolean isJoinQuery,
+            boolean isSelectJoined,
             boolean isGroupQuery,
             int capturedVarCount,
             AtomicInteger deduplicatedCount,
@@ -236,7 +266,7 @@ public class LambdaDeduplicator {
 
             queryTransformations.produce(
                     new QusaqProcessor.QueryTransformationBuildItem(callSiteId, existingExecutor,
-                            Object.class, isCountQuery, isAggregationQuery, isJoinQuery, isGroupQuery, capturedVarCount));
+                            Object.class, isCountQuery, isAggregationQuery, isJoinQuery, isSelectJoined, isGroupQuery, capturedVarCount));
             return true;
         }
 

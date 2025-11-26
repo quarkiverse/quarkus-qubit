@@ -32,6 +32,15 @@
 - Use proper error handling
 - Verify code compiles before considering it complete
 
+### Debugging Practices
+- **Mark all debug logging with a `// DEBUG` comment** when inserting logging statements for debugging purposes:
+  ```java
+  System.out.println("DEBUG: value = " + value); // DEBUG
+  logger.debug("Processing item: {}", item); // DEBUG
+  ```
+- **Remove ALL debug-marked logging before marking functionality as complete** - search for `// DEBUG` comments and remove those lines
+- Debug logging is temporary and must never be committed to the final implementation
+
 ### Modern Java 17 Code Review (Pre-Test Requirement)
 
 **Before running tests on any generated or modified code, perform a code review for idiomatic Java 17 patterns.**
@@ -1374,3 +1383,189 @@ Person.groupBy((Person p) -> p.department.name)
    - Store class methods list in context
    - Provide recursive analyzer function
    - Detect INVOKEDYNAMIC/LambdaMetafactory patterns
+
+---
+
+## Constructor Overloading and Build Item Pitfalls (Iteration 6.5)
+
+### The Problem: Silent Constructor Mismatch
+
+**CRITICAL: When adding new parameters to `QueryTransformationBuildItem`, ALL callers must be updated or silent bugs occur.**
+
+**Scenario from Iteration 6.5:**
+```java
+// Before: 8-parameter constructor
+QueryTransformationBuildItem(queryId, className, entityClass,
+    isCountQuery, isAggregationQuery, isJoinQuery, isGroupQuery, capturedVarCount)
+
+// After: Added isSelectJoined between isJoinQuery and isGroupQuery
+QueryTransformationBuildItem(queryId, className, entityClass,
+    isCountQuery, isAggregationQuery, isJoinQuery, isSelectJoined, isGroupQuery, capturedVarCount)
+```
+
+**The Bug:**
+```java
+// Group query code (unchanged):
+new QueryTransformationBuildItem(queryId, className, Object.class,
+    isCountQuery, false, false, true, capturedVarCount);
+//                              ^^^^^ Intended as isGroupQuery=true
+//                              But now matches isSelectJoined=true, isGroupQuery=false!
+```
+
+**Result:** All group queries were silently registered as selectJoined queries instead.
+
+### Why This Is Dangerous
+
+1. **Java resolves to the "closest match" constructor** - no compile error
+2. **Boolean parameters are interchangeable** - `true` for one flag matches another
+3. **Tests for the new feature pass** - you only see failures in unrelated tests
+4. **Error messages are misleading** - "No group executor found" doesn't hint at constructor issue
+
+### Prevention Checklist
+
+When adding parameters to `QueryTransformationBuildItem`:
+
+- [ ] **Update ALL callers** - not just the new feature code
+- [ ] **Search for all usages**: `grep "QueryTransformationBuildItem(" *.java`
+- [ ] **Run FULL test suite** - not just new feature tests
+- [ ] **Check executor registration counts** in error messages:
+  ```
+  Registered executors: 885 list, 80 count, 3 group list, 0 group count
+  // If group list is unexpectedly low, check constructor calls
+  ```
+
+### Hash Computation Must Include All Flags
+
+**CRITICAL: Lambda deduplication hashes must include ALL discriminating flags.**
+
+**Problem Pattern:**
+```java
+// computeJoinHash() missing isSelectJoined flag
+astString.append("|QUERY_TYPE=").append(isCountQuery ? "COUNT" : "LIST");
+// Result: join().toList() and join().selectJoined().toList() get SAME hash!
+```
+
+**Deduplication silently reuses wrong executor:**
+```
+Deduplicated lambda at JoinQueryTest:selectJoinedReturnsPhones:325
+    (reusing io.quarkus.qusaq.generated.QueryExecutor_248)
+Registering join-list executor: JoinQueryTest:selectJoinedReturnsPhones:325
+// ^^^^^^ Wrong! Should be join-selectJoined executor
+```
+
+**Fix: Include all flags in hash computation:**
+```java
+if (isSelectJoined) {
+    astString.append("|SELECT_JOINED=true");
+}
+astString.append("|QUERY_TYPE=").append(isCountQuery ? "COUNT" : "LIST");
+```
+
+### Debugging Multi-Executor Registration Issues
+
+**Diagnostic Steps:**
+1. Check executor registration counts in error message
+2. Look for unexpected deduplication in build logs
+3. Verify hash computation includes all discriminating flags
+4. Check constructor parameter order matches all callers
+
+**Key Log Patterns to Watch:**
+```
+# Good: New executor registered
+Generated join query executor: QueryExecutor_123 (INNER JOIN SELECT JOINED, 0 captured vars)
+
+# Bad: Deduplication reusing wrong type
+Deduplicated lambda at ... (reusing QueryExecutor_248)
+Registering join-list executor: ...  # Should be join-selectJoined!
+```
+
+### Testing Requirements After Parameter Changes
+
+**MANDATORY: Run full test suite, not just new feature tests.**
+
+```bash
+# Wrong: Only testing new feature
+mvn test -Dtest="JoinQueryTest"  # selectJoined tests pass!
+
+# Right: Full regression testing
+mvn clean test  # Catches group query failures!
+```
+
+**Why:**
+- New feature tests verify new code works
+- Regression tests verify you didn't break existing code
+- Constructor mismatch bugs often appear in UNRELATED test classes
+
+---
+
+## selectJoined() Implementation Pattern (Iteration 6.5)
+
+### Architecture
+
+**selectJoined() returns joined entities instead of source entities:**
+
+```java
+// Regular join: returns List<Person>
+Person.join(p -> p.phones).toList();
+
+// selectJoined: returns List<Phone> (the joined entities)
+Person.join(p -> p.phones).selectJoined().toList();
+```
+
+### Implementation Chain
+
+1. **InvokeDynamicScanner** - Detect `selectJoined()` calls on JoinStream
+   - Track `pendingJoinSelectJoined` flag during bytecode scanning
+   - Use `joinSelectJoinedLine` for proper call site ID line numbers
+
+2. **LambdaCallSite** - Store `isSelectJoined` flag in record
+
+3. **CallSiteProcessor** - Compute hash and generate executor
+   - `computeJoinHash()` must include `isSelectJoined` in hash
+   - `handleDuplicateLambda()` must pass `isSelectJoined` to build item
+   - `generateAndRegisterJoinExecutor()` must pass `isSelectJoined` to bytecode generator
+
+4. **QueryExecutorClassGenerator** - Generate JPA query with `query.select(join)`
+   - `generateJoinSelectJoinedQueryBody()` selects joined entity instead of root
+
+5. **QueryExecutorRegistry** - Separate executor map for selectJoined
+   - `JOIN_SELECT_JOINED_EXECUTORS` map
+   - `executeJoinSelectJoinedQuery()` method
+
+6. **JoinStreamImpl** - Runtime execution
+   - `selectJoined()` returns `ListJoinedQusaqStream` wrapper
+   - Calls `registry.executeJoinSelectJoinedQuery()`
+
+### Key Files Modified
+
+| File | Change |
+|------|--------|
+| `InvokeDynamicScanner.java` | Detect selectJoined(), track line numbers |
+| `LambdaCallSite` record | Add `isSelectJoined` field |
+| `CallSiteProcessor.java` | Hash computation, executor generation |
+| `LambdaDeduplicator.java` | New computeJoinHash() overload with isSelectJoined |
+| `QueryExecutorClassGenerator.java` | generateJoinSelectJoinedQueryBody() |
+| `QusaqProcessor.java` | QueryTransformationBuildItem with isSelectJoined |
+| `QueryExecutorRegistry.java` | New executor map and execution method |
+| `QueryExecutorRecorder.java` | registerJoinSelectJoinedExecutor() |
+| `JoinStreamImpl.java` | selectJoined() implementation, ListJoinedQusaqStream |
+
+### Test Coverage
+
+**Test File:** `integration-tests/src/test/java/io/quarkus/qusaq/it/join/JoinQueryTest.java`
+
+```java
+// Basic selectJoined
+Person.join(p -> p.phones).selectJoined().toList();
+
+// With bi-entity predicate
+Person.join(p -> p.phones)
+      .where((p, ph) -> ph.type.equals("mobile"))
+      .selectJoined().toList();
+
+// With pagination
+Person.join(p -> p.phones).selectJoined().limit(5).toList();
+
+// With distinct
+Person.join(p -> p.phones).selectJoined().distinct().toList();
+```

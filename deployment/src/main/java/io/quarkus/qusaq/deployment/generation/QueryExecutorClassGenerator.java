@@ -209,6 +209,7 @@ public class QueryExecutorClassGenerator {
      * @param joinType The type of join (INNER or LEFT)
      * @param className The generated class name
      * @param isCountQuery True if this is a count query (JoinStream.count())
+     * @param isSelectJoined Iteration 6.5: True if selectJoined() was called (returns joined entities)
      * @return The bytecode for the generated QueryExecutor class
      */
     public byte[] generateJoinQueryExecutorClass(
@@ -217,7 +218,8 @@ public class QueryExecutorClassGenerator {
             List<CallSiteProcessor.SortExpression> sortExpressions,
             InvokeDynamicScanner.JoinType joinType,
             String className,
-            boolean isCountQuery) {
+            boolean isCountQuery,
+            boolean isSelectJoined) {
 
         class ByteArrayClassOutput implements ClassOutput {
             private byte[] data;
@@ -265,6 +267,12 @@ public class QueryExecutorClassGenerator {
                             execute, em, entityClassParam,
                             joinRelationshipExpression, biEntityPredicateExpression,
                             joinType, capturedValues);
+                } else if (isSelectJoined) {
+                    // Iteration 6.5: selectJoined() returns joined entities instead of source entities
+                    result = generateJoinSelectJoinedQueryBody(
+                            execute, em, entityClassParam,
+                            joinRelationshipExpression, biEntityPredicateExpression,
+                            joinType, sortExpressions, capturedValues, offset, limit, distinct);
                 } else {
                     result = generateJoinQueryBody(
                             execute, em, entityClassParam,
@@ -1001,6 +1009,104 @@ public class QueryExecutorClassGenerator {
         // Return getSingleResult() for count
         return method.invokeInterfaceMethod(
                 md(TypedQuery.class, TQ_GET_SINGLE_RESULT, Object.class), typedQuery);
+    }
+
+    /**
+     * Generates JOIN SELECT JOINED query bytecode (Iteration 6.5).
+     * <p>
+     * Creates a JPA Criteria API query that navigates relationships and returns
+     * the joined entities instead of the source entities.
+     * <p>
+     * Example: {@code Person.join(p -> p.phones).where((p, ph) -> ph.type.equals("mobile")).selectJoined().toList()}
+     * <p>
+     * Generates:
+     * <pre>
+     * CriteriaBuilder cb = em.getCriteriaBuilder();
+     * CriteriaQuery&lt;Object&gt; query = cb.createQuery(Object.class);
+     * Root&lt;Person&gt; root = query.from(Person.class);
+     * Join&lt;Person, Phone&gt; join = root.join("phones", JoinType.INNER);
+     * query.select(join);  // SELECT joined entity instead of root
+     * Predicate where = cb.equal(join.get("type"), "mobile");
+     * query.where(where);
+     * return em.createQuery(query).getResultList();
+     * </pre>
+     *
+     * @param method Bytecode generator context
+     * @param em EntityManager handle
+     * @param entityClass Entity class being queried (source entity)
+     * @param joinRelationshipExpression Lambda expression for join relationship (e.g., p -> p.phones)
+     * @param biEntityPredicateExpression Lambda expression for bi-entity predicate (e.g., (p, ph) -> ph.type.equals("mobile"))
+     * @param joinType Join type (INNER or LEFT)
+     * @param sortExpressions List of bi-entity sort expressions for ORDER BY
+     * @param capturedValues Captured variables from lambdas
+     * @param offset Pagination offset (null for no offset)
+     * @param limit Pagination limit (null for no limit)
+     * @param distinct Whether to apply DISTINCT
+     * @return ResultHandle to join select joined query result (List of joined entities)
+     */
+    private ResultHandle generateJoinSelectJoinedQueryBody(
+            MethodCreator method,
+            ResultHandle em,
+            ResultHandle entityClass,
+            LambdaExpression joinRelationshipExpression,
+            LambdaExpression biEntityPredicateExpression,
+            InvokeDynamicScanner.JoinType joinType,
+            List<CallSiteProcessor.SortExpression> sortExpressions,
+            ResultHandle capturedValues,
+            ResultHandle offset,
+            ResultHandle limit,
+            ResultHandle distinct) {
+
+        // Get CriteriaBuilder
+        ResultHandle cb = method.invokeInterfaceMethod(
+                md(EntityManager.class, EM_GET_CRITERIA_BUILDER, CriteriaBuilder.class), em);
+
+        // Create CriteriaQuery<Object> (joined entity type not known at build time)
+        ResultHandle objectClass = method.loadClass(Object.class);
+        ResultHandle query = method.invokeInterfaceMethod(
+                md(CriteriaBuilder.class, EM_CREATE_QUERY, CriteriaQuery.class, Class.class),
+                cb, objectClass);
+
+        // Create Root<Entity> from source entity
+        ResultHandle root = method.invokeInterfaceMethod(
+                md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class), query, entityClass);
+
+        // Extract relationship field name from join relationship expression
+        String relationshipFieldName = extractRelationshipFieldName(joinRelationshipExpression);
+
+        // Create Join by calling root.join(relationshipFieldName, JoinType)
+        ResultHandle relationshipName = method.load(relationshipFieldName);
+        ResultHandle jpaJoinType = loadJpaJoinType(method, joinType);
+        ResultHandle joinHandle = method.invokeInterfaceMethod(FROM_JOIN, root, relationshipName, jpaJoinType);
+
+        // SELECT the joined entity (joinHandle) instead of root
+        method.invokeInterfaceMethod(
+                md(CriteriaQuery.class, CQ_SELECT, CriteriaQuery.class, Selection.class), query, joinHandle);
+
+        // Apply bi-entity predicate if present
+        if (biEntityPredicateExpression != null) {
+            ResultHandle predicate = expressionGenerator.generateBiEntityPredicate(
+                    method, biEntityPredicateExpression, cb, root, joinHandle, capturedValues);
+            applyWherePredicate(method, query, predicate);
+        }
+
+        // Apply ORDER BY for join query sorting
+        applyBiEntityOrderBy(method, query, root, joinHandle, cb, sortExpressions, capturedValues);
+
+        // Apply DISTINCT if requested
+        applyDistinct(method, query, distinct);
+
+        // Create TypedQuery
+        ResultHandle typedQuery = method.invokeInterfaceMethod(
+                md(EntityManager.class, EM_CREATE_QUERY, TypedQuery.class, CriteriaQuery.class),
+                em, query);
+
+        // Apply pagination
+        applyPagination(method, typedQuery, offset, limit);
+
+        // Return getResultList() containing joined entities
+        return method.invokeInterfaceMethod(
+                md(TypedQuery.class, TQ_GET_RESULT_LIST, List.class), typedQuery);
     }
 
     /**

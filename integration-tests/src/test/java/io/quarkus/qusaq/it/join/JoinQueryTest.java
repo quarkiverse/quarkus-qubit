@@ -315,4 +315,73 @@ class JoinQueryTest {
                 .extracting(p -> p.firstName)
                 .containsExactlyInAnyOrder("John", "Bob", "Alice");
     }
+
+    // ========== SELECT JOINED (Iteration 6.5) ==========
+
+    @Test
+    void selectJoinedReturnsPhones() {
+        // Use selectJoined() to return Phone entities instead of Person entities
+        var phones = Person.join((Person p) -> p.phones)
+                .selectJoined()
+                .toList();
+
+        // Should return 9 phones (all phone-person pairs)
+        assertThat(phones).hasSize(9);
+        assertThat(phones).allMatch(obj -> obj instanceof Phone);
+    }
+
+    @Test
+    void selectJoinedWithWhere() {
+        // Find all mobile phones using selectJoined()
+        var phones = Person.join((Person p) -> p.phones)
+                .where((Person p, Phone ph) -> ph.type.equals("mobile"))
+                .selectJoined()
+                .toList();
+
+        // 5 mobile phones (one per person)
+        assertThat(phones)
+                .hasSize(5)
+                .allMatch(obj -> obj instanceof Phone)
+                .extracting(obj -> ((Phone) obj).type)
+                .containsOnly("mobile");
+    }
+
+    @Test
+    void selectJoinedWithWhereOnWorkPhones() {
+        // Find work phones using selectJoined()
+        var phones = Person.join((Person p) -> p.phones)
+                .where((Person p, Phone ph) -> ph.type.equals("work"))
+                .selectJoined()
+                .toList();
+
+        // John, Bob, and Alice have work phones
+        assertThat(phones)
+                .hasSize(3)
+                .allMatch(obj -> obj instanceof Phone)
+                .extracting(obj -> ((Phone) obj).type)
+                .containsOnly("work");
+    }
+
+    @Test
+    void selectJoinedWithLimit() {
+        // Use selectJoined() with limit
+        var phones = Person.join((Person p) -> p.phones)
+                .selectJoined()
+                .limit(3)
+                .toList();
+
+        assertThat(phones).hasSize(3);
+    }
+
+    @Test
+    void selectJoinedWithDistinct() {
+        // selectJoined() with distinct (should still work though phones are unique)
+        var phones = Person.join((Person p) -> p.phones)
+                .distinct()
+                .selectJoined()
+                .toList();
+
+        // All 9 phones are unique
+        assertThat(phones).hasSize(9);
+    }
 }

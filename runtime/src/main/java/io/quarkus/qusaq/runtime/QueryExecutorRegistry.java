@@ -22,6 +22,7 @@ public class QueryExecutorRegistry {
     private static final Map<String, QueryExecutor<Object>> AGGREGATION_EXECUTORS = new ConcurrentHashMap<>();
     private static final Map<String, QueryExecutor<List<?>>> JOIN_LIST_EXECUTORS = new ConcurrentHashMap<>();
     private static final Map<String, QueryExecutor<Long>> JOIN_COUNT_EXECUTORS = new ConcurrentHashMap<>();
+    private static final Map<String, QueryExecutor<List<?>>> JOIN_SELECT_JOINED_EXECUTORS = new ConcurrentHashMap<>();
     private static final Map<String, QueryExecutor<List<?>>> GROUP_LIST_EXECUTORS = new ConcurrentHashMap<>();
     private static final Map<String, QueryExecutor<Long>> GROUP_COUNT_EXECUTORS = new ConcurrentHashMap<>();
     private static final Map<String, Integer> CAPTURED_VAR_COUNTS = new ConcurrentHashMap<>();
@@ -344,6 +345,65 @@ public class QueryExecutorRegistry {
      */
     public static int getJoinCountExecutorCount() {
         return JOIN_COUNT_EXECUTORS.size();
+    }
+
+    /**
+     * Registers join selectJoined query executor for call site.
+     * Iteration 6.5: Supports selectJoined() operations returning joined entities.
+     */
+    public static void registerJoinSelectJoinedExecutor(
+            String callSiteId,
+            QueryExecutor<List<?>> executor,
+            int capturedVarCount) {
+        JOIN_SELECT_JOINED_EXECUTORS.put(callSiteId, executor);
+        CAPTURED_VAR_COUNTS.put(callSiteId, capturedVarCount);
+        log.debugf("Registered join selectJoined executor for call site: %s (captured variables: %d)",
+                   callSiteId, capturedVarCount);
+    }
+
+    /**
+     * Executes join selectJoined query for call site.
+     * Iteration 6.5: Handles selectJoined() queries returning joined entities instead of source entities.
+     */
+    @SuppressWarnings("unchecked")
+    public <T, R> List<R> executeJoinSelectJoinedQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues,
+                                                        Integer offset, Integer limit, Boolean distinct) {
+        QueryExecutor<List<?>> executor = JOIN_SELECT_JOINED_EXECUTORS.get(callSiteId);
+
+        if (executor == null) {
+            throw new IllegalStateException(String.format(
+                    "No join selectJoined executor found for call site: %s%n" +
+                    "%n" +
+                    "Possible causes:%n" +
+                    "  1. Join expression was not analyzed during build-time processing%n" +
+                    "  2. Lambda is in test code (only application code is analyzed)%n" +
+                    "  3. Incremental compilation didn't detect changes%n" +
+                    "%n" +
+                    "Solutions:%n" +
+                    "  - Run a clean build: 'mvn clean compile' or 'gradle clean build'%n" +
+                    "  - Check build logs for 'QusaqProcessor' messages%n" +
+                    "  - Verify lambda is in src/main/java (not src/test/java)%n" +
+                    "%n" +
+                    "Registered executors: %d list, %d count, %d join list, %d join count, %d join selectJoined",
+                    callSiteId, getListExecutorCount(), getCountExecutorCount(),
+                    getJoinListExecutorCount(), getJoinCountExecutorCount(), getJoinSelectJoinedExecutorCount()));
+        }
+
+        if (entityManager == null) {
+            throw new IllegalStateException("EntityManager not available");
+        }
+
+        log.tracef("Executing join selectJoined query for call site: %s with %d captured variables (offset=%s, limit=%s, distinct=%s)",
+                   callSiteId, capturedValues.length, offset, limit, distinct);
+
+        return (List<R>) executor.execute(entityManager, entityClass, capturedValues, offset, limit, distinct);
+    }
+
+    /**
+     * Returns number of registered join selectJoined executors.
+     */
+    public static int getJoinSelectJoinedExecutorCount() {
+        return JOIN_SELECT_JOINED_EXECUTORS.size();
     }
 
     // =============================================================================================

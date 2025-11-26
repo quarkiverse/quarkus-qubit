@@ -58,6 +58,15 @@ public class QueryExecutorRecorder {
     }
 
     /**
+     * Registers join selectJoined query executor during static initialization.
+     * Iteration 6.5: selectJoined() - returns joined entities instead of source entities.
+     */
+    public void registerJoinSelectJoinedExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
+        registerExecutor(callSiteId, executorClassName, capturedVarCount, "join-selectJoined",
+            (QueryExecutor<List<?>> executor) -> QueryExecutorRegistry.registerJoinSelectJoinedExecutor(callSiteId, executor, capturedVarCount));
+    }
+
+    /**
      * Registers group list query executor during static initialization.
      * Iteration 7: Group Queries (GROUP BY)
      */
