@@ -74,7 +74,7 @@ public class InvokeDynamicHandler implements InstructionHandler {
         }
 
         // Iteration 7 & 8: Handle nested lambda creation for group aggregations and subqueries
-        // When analyzing g.avg(p -> p.salary) or Subqueries.avg(Person.class, q -> q.salary),
+        // When analyzing g.avg(p -> p.salary) or subquery(Person.class).avg(q -> q.salary),
         // we need to analyze nested QuerySpec lambdas inline
         if (isLambdaMetafactory(indy) && isQuerySpecLambda(indy)) {
             return handleNestedLambda(indy, ctx);

@@ -23,7 +23,7 @@ class SubqueryLambdaBytecodeTest extends PrecompiledSubqueryLambdaAnalyzer {
     class ScalarSubqueryTests {
 
         @Test
-        @DisplayName("AVG subquery: p.salary > Subqueries.avg(Person.class, q -> q.salary)")
+        @DisplayName("AVG subquery: p.salary > subquery(Person.class).avg(q -> q.salary)")
         void avgSubquery() {
             LambdaExpression expr = analyzeSubqueryLambda("avgSubquery");
 
@@ -40,7 +40,7 @@ class SubqueryLambdaBytecodeTest extends PrecompiledSubqueryLambdaAnalyzer {
         }
 
         @Test
-        @DisplayName("MAX subquery: p.salary == Subqueries.max(Person.class, q -> q.salary)")
+        @DisplayName("MAX subquery: p.salary == subquery(Person.class).max(q -> q.salary)")
         void maxSubquery() {
             LambdaExpression expr = analyzeSubqueryLambda("maxSubquery");
 
@@ -53,7 +53,7 @@ class SubqueryLambdaBytecodeTest extends PrecompiledSubqueryLambdaAnalyzer {
         }
 
         @Test
-        @DisplayName("MIN subquery: p.salary >= Subqueries.min(Person.class, q -> q.salary)")
+        @DisplayName("MIN subquery: p.salary >= subquery(Person.class).min(q -> q.salary)")
         void minSubquery() {
             LambdaExpression expr = analyzeSubqueryLambda("minSubquery");
 
@@ -66,7 +66,7 @@ class SubqueryLambdaBytecodeTest extends PrecompiledSubqueryLambdaAnalyzer {
         }
 
         @Test
-        @DisplayName("SUM subquery: p.budget > Subqueries.sum(Department.class, d -> d.budget)")
+        @DisplayName("SUM subquery: p.budget > subquery(Department.class).sum(d -> d.budget)")
         void sumSubquery() {
             LambdaExpression expr = analyzeSubqueryLambda("sumSubquery");
 
@@ -79,7 +79,7 @@ class SubqueryLambdaBytecodeTest extends PrecompiledSubqueryLambdaAnalyzer {
         }
 
         @Test
-        @DisplayName("COUNT subquery: p.age > Subqueries.count(Person.class)")
+        @DisplayName("COUNT subquery: p.age > subquery(Person.class).count()")
         void countSubquery() {
             LambdaExpression expr = analyzeSubqueryLambda("countSubquery");
 
@@ -97,7 +97,7 @@ class SubqueryLambdaBytecodeTest extends PrecompiledSubqueryLambdaAnalyzer {
     class ExistsSubqueryTests {
 
         @Test
-        @DisplayName("EXISTS subquery: Subqueries.exists(Phone.class, ph -> ph.ownerId == p.id)")
+        @DisplayName("EXISTS subquery: subquery(Phone.class).exists(ph -> ph.ownerId == p.id)")
         void existsSubquery() {
             LambdaExpression expr = analyzeSubqueryLambda("existsSubquery");
 
@@ -106,7 +106,7 @@ class SubqueryLambdaBytecodeTest extends PrecompiledSubqueryLambdaAnalyzer {
         }
 
         @Test
-        @DisplayName("NOT EXISTS subquery: Subqueries.notExists(Phone.class, ph -> ph.ownerId == p.id)")
+        @DisplayName("NOT EXISTS subquery: subquery(Phone.class).notExists(ph -> ph.ownerId == p.id)")
         void notExistsSubquery() {
             LambdaExpression expr = analyzeSubqueryLambda("notExistsSubquery");
 
@@ -120,7 +120,7 @@ class SubqueryLambdaBytecodeTest extends PrecompiledSubqueryLambdaAnalyzer {
     class InSubqueryTests {
 
         @Test
-        @DisplayName("IN subquery: Subqueries.in(p.departmentId, Department.class, d -> d.id)")
+        @DisplayName("IN subquery: subquery(Department.class).in(p.departmentId, d -> d.id)")
         void inSubquery() {
             LambdaExpression expr = analyzeSubqueryLambda("inSubquery");
 
@@ -129,7 +129,7 @@ class SubqueryLambdaBytecodeTest extends PrecompiledSubqueryLambdaAnalyzer {
         }
 
         @Test
-        @DisplayName("NOT IN subquery: Subqueries.notIn(p.departmentId, Department.class, d -> d.id)")
+        @DisplayName("NOT IN subquery: subquery(Department.class).notIn(p.departmentId, d -> d.id)")
         void notInSubquery() {
             LambdaExpression expr = analyzeSubqueryLambda("notInSubquery");
 

@@ -242,7 +242,7 @@ public class LambdaBytecodeAnalyzer {
      * Sets up nested lambda analysis capability for the context.
      * <p>
      * This enables analysis of nested lambdas used in subqueries and group aggregations.
-     * For example: {@code Subqueries.avg(Person.class, q -> q.salary)}
+     * For example: {@code subquery(Person.class).avg(q -> q.salary)}
      *
      * @param ctx the analysis context
      * @param classMethods list of all methods in the class

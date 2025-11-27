@@ -19,6 +19,8 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.AND;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.OR;
 import static io.quarkus.qusaq.runtime.QusaqConstants.CB_NOT;
 import static io.quarkus.qusaq.runtime.QusaqConstants.PATH_GET;
 
@@ -36,7 +38,7 @@ import static io.quarkus.qusaq.runtime.QusaqConstants.PATH_GET;
  *
  * <p>Example generated code for ScalarSubquery:
  * <pre>
- * // p.salary > Subqueries.avg(Person.class, q -> q.salary)
+ * // p.salary > subquery(Person.class).avg(q -> q.salary)
  * Subquery&lt;Double&gt; avgSub = query.subquery(Double.class);
  * Root&lt;Person&gt; subRoot = avgSub.from(Person.class);
  * avgSub.select(cb.avg(subRoot.get("salary")));
@@ -44,6 +46,31 @@ import static io.quarkus.qusaq.runtime.QusaqConstants.PATH_GET;
  * </pre>
  */
 public class SubqueryExpressionBuilder {
+
+    /**
+     * Loads entity class for JPA FROM clause.
+     * Handles both direct class references and placeholder class names.
+     *
+     * @param method the method creator for bytecode generation
+     * @param entityClass the entity class (may be Object.class for placeholders)
+     * @param entityClassName optional entity class name (for placeholders)
+     * @return ResultHandle for the entity class
+     */
+    private ResultHandle loadEntityClass(MethodCreator method, Class<?> entityClass, String entityClassName) {
+        if (entityClassName != null) {
+            // Placeholder case: Load class by name at runtime
+            // Generates: Class.forName("io.quarkus.qusaq.it.Person")
+            ResultHandle classNameHandle = method.load(entityClassName);
+            return method.invokeStaticMethod(
+                MethodDescriptor.ofMethod(Class.class, "forName", Class.class, String.class),
+                classNameHandle
+            );
+        } else {
+            // Normal case: Direct class reference
+            // Generates: Person.class
+            return method.loadClass(entityClass);
+        }
+    }
 
     /**
      * Generates JPA scalar aggregation subquery.
@@ -76,7 +103,7 @@ public class SubqueryExpressionBuilder {
                 query, resultTypeHandle);
 
         // Create from clause: subquery.from(entityClass)
-        ResultHandle entityClassHandle = method.loadClass(scalar.entityClass());
+        ResultHandle entityClassHandle = loadEntityClass(method, scalar.entityClass(), scalar.entityClassName());
         ResultHandle subRoot = method.invokeInterfaceMethod(
                 MethodDescriptor.ofMethod(Subquery.class, "from", Root.class, Class.class),
                 subquery, entityClassHandle);
@@ -123,8 +150,7 @@ public class SubqueryExpressionBuilder {
             ResultHandle capturedValues) {
 
         // Create subquery: query.subquery(entityClass)
-        Class<?> entityClass = exists.entityClass();
-        ResultHandle entityClassHandle = method.loadClass(entityClass);
+        ResultHandle entityClassHandle = loadEntityClass(method, exists.entityClass(), exists.entityClassName());
         ResultHandle subquery = method.invokeInterfaceMethod(
                 MethodDescriptor.ofMethod(CriteriaQuery.class, "subquery", Subquery.class, Class.class),
                 query, entityClassHandle);
@@ -195,8 +221,7 @@ public class SubqueryExpressionBuilder {
                 query, selectTypeHandle);
 
         // Create from clause: subquery.from(entityClass)
-        Class<?> entityClass = inSubquery.entityClass();
-        ResultHandle entityClassHandle = method.loadClass(entityClass);
+        ResultHandle entityClassHandle = loadEntityClass(method, inSubquery.entityClass(), inSubquery.entityClassName());
         ResultHandle subRoot = method.invokeInterfaceMethod(
                 MethodDescriptor.ofMethod(Subquery.class, "from", Root.class, Class.class),
                 subquery, entityClassHandle);
@@ -350,7 +375,23 @@ public class SubqueryExpressionBuilder {
             ResultHandle outerRoot,
             ResultHandle capturedValues) {
 
-        // Generate left and right expressions
+        // Handle logical operators (AND/OR) differently - they need predicates
+        if (binOp.operator() == AND ||binOp.operator() == OR) {
+            // Recursively generate predicates for both sides
+            ResultHandle leftPredicate = generateSubqueryPredicate(method, binOp.left(), cb, subRoot, outerRoot, capturedValues);
+            ResultHandle rightPredicate = generateSubqueryPredicate(method, binOp.right(), cb, subRoot, outerRoot, capturedValues);
+
+            ResultHandle predicateArray = method.newArray(Predicate.class, 2);
+            method.writeArrayValue(predicateArray, 0, leftPredicate);
+            method.writeArrayValue(predicateArray, 1, rightPredicate);
+
+            String methodName = binOp.operator() == AND ? "and" : "or";
+            return method.invokeInterfaceMethod(
+                    MethodDescriptor.ofMethod(CriteriaBuilder.class, methodName, Predicate.class, Predicate[].class),
+                    cb, predicateArray);
+        }
+
+        // For comparison operators, generate expressions
         ResultHandle left = generateSubqueryExpression(method, binOp.left(), cb, subRoot, outerRoot, capturedValues);
         ResultHandle right = generateSubqueryExpression(method, binOp.right(), cb, subRoot, outerRoot, capturedValues);
 
@@ -374,22 +415,6 @@ public class SubqueryExpressionBuilder {
             case LE -> method.invokeInterfaceMethod(
                     MethodDescriptor.ofMethod(CriteriaBuilder.class, "lessThanOrEqualTo", Predicate.class, Expression.class, Comparable.class),
                     cb, left, right);
-            case AND -> {
-                ResultHandle predicateArray = method.newArray(Predicate.class, 2);
-                method.writeArrayValue(predicateArray, 0, left);
-                method.writeArrayValue(predicateArray, 1, right);
-                yield method.invokeInterfaceMethod(
-                        MethodDescriptor.ofMethod(CriteriaBuilder.class, "and", Predicate.class, Predicate[].class),
-                        cb, predicateArray);
-            }
-            case OR -> {
-                ResultHandle predicateArray = method.newArray(Predicate.class, 2);
-                method.writeArrayValue(predicateArray, 0, left);
-                method.writeArrayValue(predicateArray, 1, right);
-                yield method.invokeInterfaceMethod(
-                        MethodDescriptor.ofMethod(CriteriaBuilder.class, "or", Predicate.class, Predicate[].class),
-                        cb, predicateArray);
-            }
             default -> null;
         };
     }

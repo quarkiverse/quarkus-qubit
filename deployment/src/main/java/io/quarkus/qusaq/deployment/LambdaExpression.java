@@ -794,27 +794,98 @@ public sealed interface LambdaExpression {
      * Types of scalar aggregation subqueries.
      */
     enum SubqueryAggregationType {
-        /** Average aggregation - Subqueries.avg(...) */
+        /** Average aggregation - subquery(...).avg(...) */
         AVG,
-        /** Sum aggregation - Subqueries.sum(...) */
+        /** Sum aggregation - subquery(...).sum(...) */
         SUM,
-        /** Minimum value - Subqueries.min(...) */
+        /** Minimum value - subquery(...).min(...) */
         MIN,
-        /** Maximum value - Subqueries.max(...) */
+        /** Maximum value - subquery(...).max(...) */
         MAX,
-        /** Count - Subqueries.count(...) */
+        /** Count - subquery(...).count(...) */
         COUNT
+    }
+
+    /**
+     * Reference to a SubqueryBuilder instance (intermediate AST node).
+     * <p>
+     * Created by {@code Subqueries.subquery(Class)}, holds entity class and optional predicate
+     * from {@code .where()} calls. Converted to ScalarSubquery/ExistsSubquery/InSubquery when
+     * aggregation method ({@code .avg()}, {@code .exists()}, etc.) is called.
+     *
+     * @param entityClass The entity class for the subquery
+     * @param entityClassName Optional entity class name (for placeholder classes not loadable at build-time)
+     * @param predicate Optional WHERE predicate (null if none)
+     */
+    record SubqueryBuilderReference(
+            Class<?> entityClass,
+            String entityClassName,
+            LambdaExpression predicate) implements LambdaExpression {
+
+        public SubqueryBuilderReference {
+            Objects.requireNonNull(entityClass, "Entity class cannot be null");
+            // entityClassName can be null (only set when class not loadable at build-time)
+            // predicate can be null (no WHERE clause)
+        }
+
+        /**
+         * Creates a SubqueryBuilderReference without entityClassName or predicate.
+         */
+        public SubqueryBuilderReference(Class<?> entityClass) {
+            this(entityClass, null, null);
+        }
+
+        /**
+         * Creates a SubqueryBuilderReference without predicate.
+         */
+        public SubqueryBuilderReference(Class<?> entityClass, String entityClassName) {
+            this(entityClass, entityClassName, null);
+        }
+
+        /**
+         * Creates a SubqueryBuilderReference without entityClassName (for compatibility).
+         */
+        public SubqueryBuilderReference(Class<?> entityClass, LambdaExpression predicate) {
+            this(entityClass, null, predicate);
+        }
+
+        /**
+         * Creates a new SubqueryBuilderReference with an added predicate.
+         * If this builder already has a predicate, combines them with AND.
+         */
+        public SubqueryBuilderReference withPredicate(LambdaExpression newPredicate) {
+            Objects.requireNonNull(newPredicate, "New predicate cannot be null");
+
+            if (this.predicate == null) {
+                return new SubqueryBuilderReference(entityClass, entityClassName, newPredicate);
+            }
+
+            // Combine with existing predicate using AND
+            LambdaExpression combinedPredicate = new BinaryOp(
+                this.predicate,
+                BinaryOp.Operator.AND,
+                newPredicate
+            );
+            return new SubqueryBuilderReference(entityClass, entityClassName, combinedPredicate);
+        }
+
+        /**
+         * Returns true if this builder has a filtering predicate.
+         */
+        public boolean hasPredicate() {
+            return predicate != null;
+        }
     }
 
     /**
      * Scalar aggregation subquery expression.
      * <p>
      * Represents a subquery that returns a single scalar value from an aggregation.
-     * Used for comparisons like {@code p.salary > Subqueries.avg(Person.class, q -> q.salary)}.
+     * Used for comparisons like {@code p.salary > subquery(Person.class).avg(q -> q.salary)}.
      * <p>
      * Example:
      * <pre>
-     * // Lambda: p -> p.salary > Subqueries.avg(Person.class, q -> q.salary)
+     * // Fluent API: p -> p.salary > subquery(Person.class).avg(q -> q.salary)
      * // → BinaryOp(FieldAccess("salary"), GT, ScalarSubquery(AVG, Person.class, FieldAccess("salary"), null))
      *
      * // Generated JPA:
@@ -826,6 +897,7 @@ public sealed interface LambdaExpression {
      *
      * @param aggregationType The type of aggregation (AVG, SUM, MIN, MAX, COUNT)
      * @param entityClass The entity class for the subquery
+     * @param entityClassName Optional entity class name (for placeholder classes not loadable at build-time)
      * @param fieldExpression The field being aggregated (may be null for COUNT)
      * @param predicate Optional predicate to filter the subquery (WHERE clause)
      * @param resultType The return type of the aggregation
@@ -833,6 +905,7 @@ public sealed interface LambdaExpression {
     record ScalarSubquery(
             SubqueryAggregationType aggregationType,
             Class<?> entityClass,
+            String entityClassName,
             LambdaExpression fieldExpression,
             LambdaExpression predicate,
             Class<?> resultType) implements LambdaExpression {
@@ -841,6 +914,7 @@ public sealed interface LambdaExpression {
             Objects.requireNonNull(aggregationType, "Aggregation type cannot be null");
             Objects.requireNonNull(entityClass, "Entity class cannot be null");
             Objects.requireNonNull(resultType, "Result type cannot be null");
+            // entityClassName can be null (only set when class not loadable at build-time)
             // fieldExpression can be null for COUNT
             // predicate can be null (no WHERE clause in subquery)
         }
@@ -849,35 +923,35 @@ public sealed interface LambdaExpression {
          * Creates an AVG subquery.
          */
         public static ScalarSubquery avg(Class<?> entityClass, LambdaExpression field, LambdaExpression predicate) {
-            return new ScalarSubquery(SubqueryAggregationType.AVG, entityClass, field, predicate, Double.class);
+            return new ScalarSubquery(SubqueryAggregationType.AVG, entityClass, null, field, predicate, Double.class);
         }
 
         /**
          * Creates a SUM subquery.
          */
         public static ScalarSubquery sum(Class<?> entityClass, LambdaExpression field, LambdaExpression predicate, Class<?> resultType) {
-            return new ScalarSubquery(SubqueryAggregationType.SUM, entityClass, field, predicate, resultType);
+            return new ScalarSubquery(SubqueryAggregationType.SUM, entityClass, null, field, predicate, resultType);
         }
 
         /**
          * Creates a MIN subquery.
          */
         public static ScalarSubquery min(Class<?> entityClass, LambdaExpression field, LambdaExpression predicate, Class<?> resultType) {
-            return new ScalarSubquery(SubqueryAggregationType.MIN, entityClass, field, predicate, resultType);
+            return new ScalarSubquery(SubqueryAggregationType.MIN, entityClass, null, field, predicate, resultType);
         }
 
         /**
          * Creates a MAX subquery.
          */
         public static ScalarSubquery max(Class<?> entityClass, LambdaExpression field, LambdaExpression predicate, Class<?> resultType) {
-            return new ScalarSubquery(SubqueryAggregationType.MAX, entityClass, field, predicate, resultType);
+            return new ScalarSubquery(SubqueryAggregationType.MAX, entityClass, null, field, predicate, resultType);
         }
 
         /**
          * Creates a COUNT subquery.
          */
         public static ScalarSubquery count(Class<?> entityClass, LambdaExpression predicate) {
-            return new ScalarSubquery(SubqueryAggregationType.COUNT, entityClass, null, predicate, Long.class);
+            return new ScalarSubquery(SubqueryAggregationType.COUNT, entityClass, null, null, predicate, Long.class);
         }
 
         /**
@@ -899,11 +973,11 @@ public sealed interface LambdaExpression {
      * EXISTS subquery expression.
      * <p>
      * Represents an EXISTS check on a correlated or non-correlated subquery.
-     * Used for predicates like {@code Subqueries.exists(Phone.class, ph -> ph.owner.id == p.id)}.
+     * Used for predicates like {@code subquery(Phone.class).exists(ph -> ph.owner.id == p.id)}.
      * <p>
      * Example:
      * <pre>
-     * // Lambda: p -> Subqueries.exists(Phone.class, ph -> ph.owner.id.equals(p.id))
+     * // Fluent API: p -> subquery(Phone.class).exists(ph -> ph.owner.id.equals(p.id))
      * // → ExistsSubquery(Phone.class, BinaryOp(PathExpression(...), EQ, CorrelatedVariable(...)), false)
      *
      * // Generated JPA:
@@ -915,31 +989,34 @@ public sealed interface LambdaExpression {
      * </pre>
      *
      * @param entityClass The entity class for the subquery
+     * @param entityClassName Optional entity class name (for placeholder classes not loadable at build-time)
      * @param predicate The predicate defining the subquery (may contain correlated references)
      * @param negated True for NOT EXISTS, false for EXISTS
      */
     record ExistsSubquery(
             Class<?> entityClass,
+            String entityClassName,
             LambdaExpression predicate,
             boolean negated) implements LambdaExpression {
 
         public ExistsSubquery {
             Objects.requireNonNull(entityClass, "Entity class cannot be null");
             Objects.requireNonNull(predicate, "Predicate cannot be null");
+            // entityClassName can be null (only set when class not loadable at build-time)
         }
 
         /**
          * Creates an EXISTS subquery.
          */
         public static ExistsSubquery exists(Class<?> entityClass, LambdaExpression predicate) {
-            return new ExistsSubquery(entityClass, predicate, false);
+            return new ExistsSubquery(entityClass, null, predicate, false);
         }
 
         /**
          * Creates a NOT EXISTS subquery.
          */
         public static ExistsSubquery notExists(Class<?> entityClass, LambdaExpression predicate) {
-            return new ExistsSubquery(entityClass, predicate, true);
+            return new ExistsSubquery(entityClass, null, predicate, true);
         }
     }
 
@@ -947,11 +1024,11 @@ public sealed interface LambdaExpression {
      * IN subquery expression.
      * <p>
      * Represents an IN check against a subquery result set.
-     * Used for predicates like {@code p.department.name.in(Subqueries.select(Department.class, d -> d.name, d -> d.budget > 1000000))}.
+     * Used for predicates like {@code subquery(Department.class).in(p.department.name, d -> d.name, d -> d.budget > 1000000)}.
      * <p>
      * Example:
      * <pre>
-     * // Lambda: p -> Subqueries.in(p.department.name, Department.class, d -> d.name, d -> d.budget > 1000000)
+     * // Fluent API: p -> subquery(Department.class).in(p.department.name, d -> d.name, d -> d.budget > 1000000)
      * // → InSubquery(PathExpression("department.name"), Department.class, FieldAccess("name"), predicate, false)
      *
      * // Generated JPA:
@@ -964,6 +1041,7 @@ public sealed interface LambdaExpression {
      *
      * @param field The field to check (left side of IN)
      * @param entityClass The entity class for the subquery
+     * @param entityClassName Optional entity class name (for placeholder classes not loadable at build-time)
      * @param selectExpression The expression to select (right side values)
      * @param predicate Optional predicate to filter the subquery
      * @param negated True for NOT IN, false for IN
@@ -971,6 +1049,7 @@ public sealed interface LambdaExpression {
     record InSubquery(
             LambdaExpression field,
             Class<?> entityClass,
+            String entityClassName,
             LambdaExpression selectExpression,
             LambdaExpression predicate,
             boolean negated) implements LambdaExpression {
@@ -979,6 +1058,7 @@ public sealed interface LambdaExpression {
             Objects.requireNonNull(field, "Field cannot be null");
             Objects.requireNonNull(entityClass, "Entity class cannot be null");
             Objects.requireNonNull(selectExpression, "Select expression cannot be null");
+            // entityClassName can be null (only set when class not loadable at build-time)
             // predicate can be null (no WHERE clause in subquery)
         }
 
@@ -987,7 +1067,7 @@ public sealed interface LambdaExpression {
          */
         public static InSubquery in(LambdaExpression field, Class<?> entityClass,
                                      LambdaExpression selectExpr, LambdaExpression predicate) {
-            return new InSubquery(field, entityClass, selectExpr, predicate, false);
+            return new InSubquery(field, entityClass, null, selectExpr, predicate, false);
         }
 
         /**
@@ -995,7 +1075,7 @@ public sealed interface LambdaExpression {
          */
         public static InSubquery notIn(LambdaExpression field, Class<?> entityClass,
                                         LambdaExpression selectExpr, LambdaExpression predicate) {
-            return new InSubquery(field, entityClass, selectExpr, predicate, true);
+            return new InSubquery(field, entityClass, null, selectExpr, predicate, true);
         }
 
         /**
@@ -1014,7 +1094,7 @@ public sealed interface LambdaExpression {
      * <p>
      * Example:
      * <pre>
-     * // Lambda: p -> Subqueries.exists(Phone.class, ph -> ph.owner.id.equals(p.id))
+     * // Fluent API: p -> subquery(Phone.class).exists(ph -> ph.owner.id.equals(p.id))
      * // The 'p.id' inside the inner lambda is:
      * // CorrelatedVariable(PathExpression("id"), 0, Person.class)
      * //
