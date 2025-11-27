@@ -1,11 +1,16 @@
 package io.quarkus.qusaq.deployment.analysis.handlers;
 
 import io.quarkus.qusaq.deployment.LambdaExpression;
+import io.quarkus.qusaq.deployment.LambdaExpression.ExistsSubquery;
 import io.quarkus.qusaq.deployment.LambdaExpression.GroupAggregation;
 import io.quarkus.qusaq.deployment.LambdaExpression.GroupKeyReference;
 import io.quarkus.qusaq.deployment.LambdaExpression.GroupParameter;
 import io.quarkus.qusaq.deployment.LambdaExpression.InExpression;
+import io.quarkus.qusaq.deployment.LambdaExpression.InSubquery;
 import io.quarkus.qusaq.deployment.LambdaExpression.MemberOfExpression;
+import io.quarkus.qusaq.deployment.LambdaExpression.ScalarSubquery;
+import io.quarkus.qusaq.deployment.LambdaExpression.SubqueryAggregationType;
+import org.objectweb.asm.Type;
 import io.quarkus.qusaq.deployment.util.DescriptorParser;
 import io.quarkus.qusaq.deployment.util.TypeConverter;
 import org.jboss.logging.Logger;
@@ -106,12 +111,19 @@ public class MethodInvocationHandler implements InstructionHandler {
         }
     }
 
-    /** Handles INVOKESTATIC: skips Boolean.valueOf, handles temporal factory methods with constant folding. */
+    /** Handles INVOKESTATIC: skips Boolean.valueOf, handles temporal factory methods with constant folding,
+     *  and handles Subqueries.* methods for subquery expressions. */
     private void handleInvokeStatic(AnalysisContext ctx, MethodInsnNode staticInsn) {
         // Skip Boolean.valueOf (optimization - we work directly with boolean expressions)
         if (staticInsn.owner.equals("java/lang/Boolean") &&
             staticInsn.name.equals(METHOD_VALUE_OF) &&
             staticInsn.desc.equals("(Z)Ljava/lang/Boolean;")) {
+            return;
+        }
+
+        // Iteration 8: Handle Subqueries.* methods for subquery expressions
+        if (isSubqueriesMethodCall(staticInsn)) {
+            handleSubqueriesMethod(ctx, staticInsn);
             return;
         }
 
@@ -837,5 +849,255 @@ public class MethodInvocationHandler implements InstructionHandler {
     private void pushConstructorCall(AnalysisContext ctx, List<LambdaExpression> args, String owner) {
         Class<?> constructedType = TypeConverter.descriptorToClass("L" + owner + ";");
         ctx.push(new LambdaExpression.ConstructorCall(owner, args, constructedType));
+    }
+
+    // ========== Subqueries Methods (Iteration 8: Subqueries) ==========
+
+    /**
+     * Checks if the instruction is a Subqueries.* static method call.
+     */
+    private boolean isSubqueriesMethodCall(MethodInsnNode methodInsn) {
+        return methodInsn.owner.equals(SUBQUERIES_INTERNAL_NAME);
+    }
+
+    /**
+     * Handles Subqueries.* method calls for subquery expressions.
+     * <p>
+     * Supported methods:
+     * <ul>
+     *   <li>{@code Subqueries.avg(Class, selector)} → ScalarSubquery(AVG)</li>
+     *   <li>{@code Subqueries.avg(Class, selector, predicate)} → ScalarSubquery(AVG, predicate)</li>
+     *   <li>{@code Subqueries.sum(Class, selector)} → ScalarSubquery(SUM)</li>
+     *   <li>{@code Subqueries.min(Class, selector)} → ScalarSubquery(MIN)</li>
+     *   <li>{@code Subqueries.max(Class, selector)} → ScalarSubquery(MAX)</li>
+     *   <li>{@code Subqueries.count(Class)} → ScalarSubquery(COUNT)</li>
+     *   <li>{@code Subqueries.count(Class, predicate)} → ScalarSubquery(COUNT, predicate)</li>
+     *   <li>{@code Subqueries.exists(Class, predicate)} → ExistsSubquery(false)</li>
+     *   <li>{@code Subqueries.notExists(Class, predicate)} → ExistsSubquery(true)</li>
+     *   <li>{@code Subqueries.in(field, Class, selector)} → InSubquery(false)</li>
+     *   <li>{@code Subqueries.in(field, Class, selector, predicate)} → InSubquery(false, predicate)</li>
+     *   <li>{@code Subqueries.notIn(field, Class, selector)} → InSubquery(true)</li>
+     *   <li>{@code Subqueries.notIn(field, Class, selector, predicate)} → InSubquery(true, predicate)</li>
+     * </ul>
+     */
+    private void handleSubqueriesMethod(AnalysisContext ctx, MethodInsnNode methodInsn) {
+        String methodName = methodInsn.name;
+        int argCount = DescriptorParser.countMethodArguments(methodInsn.desc);
+
+        switch (methodName) {
+            case SUBQUERY_AVG -> handleScalarSubquery(ctx, SubqueryAggregationType.AVG, argCount, Double.class);
+            case SUBQUERY_SUM -> handleScalarSubquery(ctx, SubqueryAggregationType.SUM, argCount, Number.class);
+            case SUBQUERY_MIN -> handleScalarSubquery(ctx, SubqueryAggregationType.MIN, argCount, Comparable.class);
+            case SUBQUERY_MAX -> handleScalarSubquery(ctx, SubqueryAggregationType.MAX, argCount, Comparable.class);
+            case SUBQUERY_COUNT -> handleCountSubquery(ctx, argCount);
+            case SUBQUERY_EXISTS -> handleExistsSubquery(ctx, false);
+            case SUBQUERY_NOT_EXISTS -> handleExistsSubquery(ctx, true);
+            case SUBQUERY_IN -> handleInSubquery(ctx, argCount, false);
+            case SUBQUERY_NOT_IN -> handleInSubquery(ctx, argCount, true);
+            default -> log.debugf("Unhandled Subqueries method: %s", methodName);
+        }
+    }
+
+    /**
+     * Handles Subqueries.avg/sum/min/max(Class, selector) and (Class, selector, predicate) variants.
+     * <p>
+     * Stack layout for 2 args (no predicate):
+     * <pre>
+     * LDC Person.class    → Constant(Class)
+     * INVOKEDYNAMIC       → analyzed nested lambda (selector)
+     * INVOKESTATIC avg    → ScalarSubquery
+     * </pre>
+     * <p>
+     * Stack layout for 3 args (with predicate):
+     * <pre>
+     * LDC Person.class    → Constant(Class)
+     * INVOKEDYNAMIC       → analyzed nested lambda (selector)
+     * INVOKEDYNAMIC       → analyzed nested lambda (predicate)
+     * INVOKESTATIC avg    → ScalarSubquery
+     * </pre>
+     */
+    private void handleScalarSubquery(AnalysisContext ctx, SubqueryAggregationType aggregationType,
+                                       int argCount, Class<?> defaultResultType) {
+        if (ctx.getStackSize() < argCount) {
+            log.warnf("Insufficient stack for scalar subquery %s: need %d, have %d",
+                      aggregationType, argCount, ctx.getStackSize());
+            return;
+        }
+
+        LambdaExpression predicate = null;
+        LambdaExpression selector;
+        Class<?> entityClass;
+
+        if (argCount == 3) {
+            // With predicate: (Class, selector, predicate)
+            predicate = ctx.pop();
+            selector = ctx.pop();
+            entityClass = extractEntityClass(ctx.pop());
+        } else {
+            // Without predicate: (Class, selector)
+            selector = ctx.pop();
+            entityClass = extractEntityClass(ctx.pop());
+        }
+
+        // Determine result type from selector if possible
+        Class<?> resultType = inferResultType(selector, aggregationType, defaultResultType);
+
+        ctx.push(new ScalarSubquery(aggregationType, entityClass, selector, predicate, resultType));
+    }
+
+    /**
+     * Handles Subqueries.count(Class) and count(Class, predicate) variants.
+     */
+    private void handleCountSubquery(AnalysisContext ctx, int argCount) {
+        if (ctx.getStackSize() < argCount) {
+            log.warnf("Insufficient stack for count subquery: need %d, have %d",
+                      argCount, ctx.getStackSize());
+            return;
+        }
+
+        LambdaExpression predicate = null;
+        Class<?> entityClass;
+
+        if (argCount == 2) {
+            // With predicate: (Class, predicate)
+            predicate = ctx.pop();
+            entityClass = extractEntityClass(ctx.pop());
+        } else {
+            // Without predicate: (Class)
+            entityClass = extractEntityClass(ctx.pop());
+        }
+
+        ctx.push(ScalarSubquery.count(entityClass, predicate));
+    }
+
+    /**
+     * Handles Subqueries.exists(Class, predicate) and notExists(Class, predicate).
+     */
+    private void handleExistsSubquery(AnalysisContext ctx, boolean negated) {
+        if (ctx.getStackSize() < 2) {
+            log.warnf("Insufficient stack for exists subquery: need 2, have %d", ctx.getStackSize());
+            return;
+        }
+
+        LambdaExpression predicate = ctx.pop();
+        Class<?> entityClass = extractEntityClass(ctx.pop());
+
+        if (negated) {
+            ctx.push(ExistsSubquery.notExists(entityClass, predicate));
+        } else {
+            ctx.push(ExistsSubquery.exists(entityClass, predicate));
+        }
+    }
+
+    /**
+     * Handles Subqueries.in/notIn(field, Class, selector) and (field, Class, selector, predicate) variants.
+     * <p>
+     * Stack layout for 3 args (no predicate):
+     * <pre>
+     * field expression   → FieldAccess or PathExpression
+     * LDC Person.class   → Constant(Class)
+     * INVOKEDYNAMIC      → analyzed nested lambda (selector)
+     * INVOKESTATIC in    → InSubquery
+     * </pre>
+     */
+    private void handleInSubquery(AnalysisContext ctx, int argCount, boolean negated) {
+        if (ctx.getStackSize() < argCount) {
+            log.warnf("Insufficient stack for in subquery: need %d, have %d",
+                      argCount, ctx.getStackSize());
+            return;
+        }
+
+        LambdaExpression predicate = null;
+        LambdaExpression selector;
+        Class<?> entityClass;
+        LambdaExpression field;
+
+        if (argCount == 4) {
+            // With predicate: (field, Class, selector, predicate)
+            predicate = ctx.pop();
+            selector = ctx.pop();
+            entityClass = extractEntityClass(ctx.pop());
+            field = ctx.pop();
+        } else {
+            // Without predicate: (field, Class, selector)
+            selector = ctx.pop();
+            entityClass = extractEntityClass(ctx.pop());
+            field = ctx.pop();
+        }
+
+        if (negated) {
+            ctx.push(InSubquery.notIn(field, entityClass, selector, predicate));
+        } else {
+            ctx.push(InSubquery.in(field, entityClass, selector, predicate));
+        }
+    }
+
+    /**
+     * Extracts the entity class from a Constant expression containing a Class object.
+     * <p>
+     * ASM represents Class constants as Type objects. We try to load the class,
+     * and if that fails (e.g., for test inner classes), we store a placeholder
+     * that can be resolved later during code generation.
+     */
+    private Class<?> extractEntityClass(LambdaExpression expr) {
+        if (expr instanceof LambdaExpression.Constant constant) {
+            Object value = constant.value();
+            if (value instanceof Type asmType) {
+                // ASM represents Class constants as Type objects
+                String className = asmType.getClassName();
+                try {
+                    // Try the current thread's context class loader first
+                    return Class.forName(className, false, Thread.currentThread().getContextClassLoader());
+                } catch (ClassNotFoundException e1) {
+                    try {
+                        // Fallback to the handler's class loader
+                        return Class.forName(className);
+                    } catch (ClassNotFoundException e2) {
+                        // For build-time analysis, the entity class might not be loadable
+                        // Store the class name in a wrapper so code generation can resolve it
+                        log.debugf("Entity class not loadable at analysis time: %s (will resolve at code generation)", className);
+                        // Return a placeholder - the actual class will be resolved during code generation
+                        // by looking up the class name in the index
+                        return createPlaceholderClass(className);
+                    }
+                }
+            } else if (value instanceof Class<?> clazz) {
+                return clazz;
+            }
+        }
+        log.warnf("Expected Class constant for entity class, got: %s", expr);
+        return Object.class;
+    }
+
+    /**
+     * Creates a placeholder class for entity classes that can't be loaded at analysis time.
+     * We use a simple approach: store the class name and return Object.class.
+     * The actual class resolution happens during code generation using the Jandex index.
+     */
+    private Class<?> createPlaceholderClass(String className) {
+        // For now, return Object.class as a placeholder
+        // The code generator should use the Type information from the AST to look up the actual class
+        // TODO: Consider creating a custom holder class to preserve the class name
+        return Object.class;
+    }
+
+    /**
+     * Infers the result type for a scalar subquery based on the selector and aggregation type.
+     */
+    private Class<?> inferResultType(LambdaExpression selector, SubqueryAggregationType aggregationType,
+                                      Class<?> defaultResultType) {
+        // AVG always returns Double
+        if (aggregationType == SubqueryAggregationType.AVG) {
+            return Double.class;
+        }
+
+        // Try to infer from the selector expression
+        if (selector instanceof LambdaExpression.FieldAccess field) {
+            return field.fieldType();
+        } else if (selector instanceof LambdaExpression.PathExpression path) {
+            return path.resultType();
+        }
+
+        return defaultResultType;
     }
 }

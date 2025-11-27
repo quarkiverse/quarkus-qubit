@@ -432,10 +432,10 @@ public class QueryExecutorClassGenerator {
         ResultHandle root = method.invokeInterfaceMethod(
                 md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class), query, entityClass);
 
-        // Apply pre-grouping WHERE predicate if present
+        // Apply pre-grouping WHERE predicate if present (with subquery support)
         if (predicateExpression != null) {
-            ResultHandle predicate = expressionGenerator.generatePredicate(
-                    method, predicateExpression, cb, root, capturedValues);
+            ResultHandle predicate = expressionGenerator.generatePredicateWithSubqueries(
+                    method, predicateExpression, cb, query, root, capturedValues);
             applyWherePredicate(method, query, predicate);
         }
 
@@ -521,10 +521,10 @@ public class QueryExecutorClassGenerator {
             ResultHandle root = method.invokeInterfaceMethod(
                     md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class), query, entityClass);
 
-            // Apply pre-grouping WHERE predicate if present
+            // Apply pre-grouping WHERE predicate if present (with subquery support)
             if (predicateExpression != null) {
-                ResultHandle predicate = expressionGenerator.generatePredicate(
-                        method, predicateExpression, cb, root, capturedValues);
+                ResultHandle predicate = expressionGenerator.generatePredicateWithSubqueries(
+                        method, predicateExpression, cb, query, root, capturedValues);
                 applyWherePredicate(method, query, predicate);
             }
 
@@ -574,10 +574,10 @@ public class QueryExecutorClassGenerator {
             ResultHandle root = method.invokeInterfaceMethod(
                     md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class), query, entityClass);
 
-            // Apply pre-grouping WHERE predicate if present
+            // Apply pre-grouping WHERE predicate if present (with subquery support)
             if (predicateExpression != null) {
-                ResultHandle predicate = expressionGenerator.generatePredicate(
-                        method, predicateExpression, cb, root, capturedValues);
+                ResultHandle predicate = expressionGenerator.generatePredicateWithSubqueries(
+                        method, predicateExpression, cb, query, root, capturedValues);
                 applyWherePredicate(method, query, predicate);
             }
 
@@ -682,12 +682,12 @@ public class QueryExecutorClassGenerator {
             return generateProjectionQuery(ctx, projectionExpression);
         }
 
-        // Phase 1: Predicate query (where().toList())
+        // Phase 1: Predicate query (where().toList()) - with subquery support
         if (predicateExpression != null) {
             ResultHandle cb = ctx.method().invokeInterfaceMethod(md(EntityManager.class, EM_GET_CRITERIA_BUILDER, CriteriaBuilder.class), ctx.em());
             ResultHandle query = ctx.method().invokeInterfaceMethod(md(CriteriaBuilder.class, EM_CREATE_QUERY, CriteriaQuery.class, Class.class), cb, ctx.entityClass());
             ResultHandle root = ctx.method().invokeInterfaceMethod(md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class), query, ctx.entityClass());
-            ResultHandle predicate = expressionGenerator.generatePredicate(ctx.method(), predicateExpression, cb, root, ctx.capturedValues());
+            ResultHandle predicate = expressionGenerator.generatePredicateWithSubqueries(ctx.method(), predicateExpression, cb, query, root, ctx.capturedValues());
             applyWherePredicate(ctx.method(), query, predicate);
             applyOrderBy(ctx.method(), query, root, cb, ctx.sortExpressions(), ctx.capturedValues(), null);
             applyDistinct(ctx.method(), query, ctx.distinct());
@@ -709,6 +709,7 @@ public class QueryExecutorClassGenerator {
 
     /**
      * Generates COUNT query returning em.createQuery(query).getSingleResult().
+     * Iteration 8: With subquery support.
      */
     private ResultHandle generateCountQueryBody(
             MethodCreator method,
@@ -723,7 +724,7 @@ public class QueryExecutorClassGenerator {
         ResultHandle root = method.invokeInterfaceMethod(md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class), query, entityClass);
         ResultHandle countExpr = method.invokeInterfaceMethod(md(CriteriaBuilder.class, CB_COUNT, Expression.class, Expression.class), cb, root);
         method.invokeInterfaceMethod(md(CriteriaQuery.class, CQ_SELECT, CriteriaQuery.class, Selection.class), query, countExpr);
-        ResultHandle predicate = expressionGenerator.generatePredicate(method, expression, cb, root, capturedValues);
+        ResultHandle predicate = expressionGenerator.generatePredicateWithSubqueries(method, expression, cb, query, root, capturedValues);
         applyWherePredicate(method, query, predicate);
         ResultHandle typedQuery = method.invokeInterfaceMethod(md(EntityManager.class, EM_CREATE_QUERY, TypedQuery.class, CriteriaQuery.class), em, query);
         return method.invokeInterfaceMethod(md(TypedQuery.class, TQ_GET_SINGLE_RESULT, Object.class), typedQuery);
@@ -794,10 +795,10 @@ public class QueryExecutorClassGenerator {
                 md(CriteriaQuery.class, CQ_SELECT, CriteriaQuery.class, Selection.class),
                 query, aggExpr);
 
-        // Apply WHERE predicate if present
+        // Apply WHERE predicate if present (with subquery support)
         if (predicateExpression != null) {
-            ResultHandle predicate = expressionGenerator.generatePredicate(
-                    method, predicateExpression, cb, root, capturedValues);
+            ResultHandle predicate = expressionGenerator.generatePredicateWithSubqueries(
+                    method, predicateExpression, cb, query, root, capturedValues);
             applyWherePredicate(method, query, predicate);
         }
 
@@ -1431,9 +1432,9 @@ public class QueryExecutorClassGenerator {
                 md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class),
                 query, ctx.entityClass());
 
-        // Generate WHERE predicate
-        ResultHandle predicate = expressionGenerator.generatePredicate(
-                ctx.method(), predicateExpression, cb, root, ctx.capturedValues());
+        // Generate WHERE predicate (with subquery support)
+        ResultHandle predicate = expressionGenerator.generatePredicateWithSubqueries(
+                ctx.method(), predicateExpression, cb, query, root, ctx.capturedValues());
         applyWherePredicate(ctx.method(), query, predicate);
 
         // Generate SELECT projection expression

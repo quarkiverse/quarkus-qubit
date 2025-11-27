@@ -131,6 +131,7 @@ public final class PatternDetector {
      * Returns true if expression is a comparable value (can be used in LCMP, DCMPL, etc.).
      * <p>
      * Iteration 7: Added GroupAggregation and GroupKeyReference support.
+     * Iteration 8: Added ScalarSubquery support for subquery comparisons.
      */
     private static boolean isComparableExpression(LambdaExpression expr) {
         return expr instanceof LambdaExpression.FieldAccess ||
@@ -138,6 +139,7 @@ public final class PatternDetector {
                expr instanceof LambdaExpression.CapturedVariable ||
                expr instanceof LambdaExpression.GroupAggregation ||
                expr instanceof LambdaExpression.GroupKeyReference ||
+               expr instanceof LambdaExpression.ScalarSubquery ||
                isArithmeticExpression(expr);
     }
 

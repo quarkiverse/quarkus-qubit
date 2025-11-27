@@ -191,10 +191,10 @@ public class LambdaBytecodeAnalyzer {
                     log.warnf("Bi-entity mode requires at least 2 parameters in descriptor: %s", lambdaDescriptor);
                     return null;
                 }
-                return analyzeMethodInstructions(lambdaMethod, biEntitySlots[0], biEntitySlots[1]);
+                return analyzeMethodInstructions(lambdaMethod, biEntitySlots[0], biEntitySlots[1], classNode.methods);
             } else {
                 int entityParameterIndex = DescriptorParser.calculateEntityParameterSlotIndex(lambdaDescriptor);
-                return analyzeMethodInstructions(lambdaMethod, entityParameterIndex);
+                return analyzeMethodInstructions(lambdaMethod, entityParameterIndex, classNode.methods);
             }
 
         } catch (Exception e) {
@@ -208,10 +208,13 @@ public class LambdaBytecodeAnalyzer {
      *
      * @param method lambda method to analyze
      * @param entityParameterIndex local variable slot index of the entity parameter
+     * @param classMethods list of all methods in the class (for nested lambda analysis)
      * @return lambda expression AST
      */
-    private LambdaExpression analyzeMethodInstructions(MethodNode method, int entityParameterIndex) {
+    private LambdaExpression analyzeMethodInstructions(MethodNode method, int entityParameterIndex,
+                                                        List<MethodNode> classMethods) {
         AnalysisContext ctx = new AnalysisContext(method, entityParameterIndex);
+        setupNestedLambdaAnalysis(ctx, classMethods);
         return processInstructions(ctx);
     }
 
@@ -223,13 +226,33 @@ public class LambdaBytecodeAnalyzer {
      * @param method lambda method to analyze
      * @param firstEntityParameterIndex local variable slot index of the first entity parameter
      * @param secondEntityParameterIndex local variable slot index of the second entity parameter
+     * @param classMethods list of all methods in the class (for nested lambda analysis)
      * @return lambda expression AST with BiEntity nodes
      */
     private LambdaExpression analyzeMethodInstructions(MethodNode method,
                                                         int firstEntityParameterIndex,
-                                                        int secondEntityParameterIndex) {
+                                                        int secondEntityParameterIndex,
+                                                        List<MethodNode> classMethods) {
         AnalysisContext ctx = new AnalysisContext(method, firstEntityParameterIndex, secondEntityParameterIndex);
+        setupNestedLambdaAnalysis(ctx, classMethods);
         return processInstructions(ctx);
+    }
+
+    /**
+     * Sets up nested lambda analysis capability for the context.
+     * <p>
+     * This enables analysis of nested lambdas used in subqueries and group aggregations.
+     * For example: {@code Subqueries.avg(Person.class, q -> q.salary)}
+     *
+     * @param ctx the analysis context
+     * @param classMethods list of all methods in the class
+     */
+    private void setupNestedLambdaAnalysis(AnalysisContext ctx, List<MethodNode> classMethods) {
+        ctx.setClassMethods(classMethods);
+        ctx.setNestedLambdaAnalyzer((nestedMethod, entityParamIndex) -> {
+            AnalysisContext nestedCtx = new AnalysisContext(nestedMethod, entityParamIndex);
+            return processInstructions(nestedCtx);
+        });
     }
 
     /**

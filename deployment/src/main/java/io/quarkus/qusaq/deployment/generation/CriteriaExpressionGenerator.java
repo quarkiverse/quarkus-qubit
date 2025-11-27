@@ -50,22 +50,27 @@ import io.quarkus.qusaq.deployment.LambdaExpression;
 import io.quarkus.qusaq.deployment.LambdaExpression.BiEntityFieldAccess;
 import io.quarkus.qusaq.deployment.LambdaExpression.BiEntityPathExpression;
 import io.quarkus.qusaq.deployment.LambdaExpression.EntityPosition;
+import io.quarkus.qusaq.deployment.LambdaExpression.ExistsSubquery;
 import io.quarkus.qusaq.deployment.LambdaExpression.GroupAggregation;
 import io.quarkus.qusaq.deployment.LambdaExpression.GroupAggregationType;
 import io.quarkus.qusaq.deployment.LambdaExpression.GroupKeyReference;
 import io.quarkus.qusaq.deployment.LambdaExpression.InExpression;
+import io.quarkus.qusaq.deployment.LambdaExpression.InSubquery;
 import io.quarkus.qusaq.deployment.LambdaExpression.MemberOfExpression;
 import io.quarkus.qusaq.deployment.LambdaExpression.PathExpression;
 import io.quarkus.qusaq.deployment.LambdaExpression.PathSegment;
+import io.quarkus.qusaq.deployment.LambdaExpression.ScalarSubquery;
 import io.quarkus.qusaq.deployment.analysis.PatternDetector;
 import io.quarkus.qusaq.deployment.generation.builders.ArithmeticExpressionBuilder;
 import io.quarkus.qusaq.deployment.generation.builders.BigDecimalExpressionBuilder;
 import io.quarkus.qusaq.deployment.generation.builders.ComparisonExpressionBuilder;
 import io.quarkus.qusaq.deployment.generation.builders.StringExpressionBuilder;
+import io.quarkus.qusaq.deployment.generation.builders.SubqueryExpressionBuilder;
 import io.quarkus.qusaq.deployment.generation.builders.TemporalExpressionBuilder;
 import io.quarkus.qusaq.deployment.util.TypeConverter;
 import jakarta.persistence.criteria.CompoundSelection;
 import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
@@ -94,6 +99,7 @@ public class CriteriaExpressionGenerator {
     private final StringExpressionBuilder stringBuilder = new StringExpressionBuilder();
     private final TemporalExpressionBuilder temporalBuilder = new TemporalExpressionBuilder();
     private final BigDecimalExpressionBuilder bigDecimalBuilder = new BigDecimalExpressionBuilder();
+    private final SubqueryExpressionBuilder subqueryBuilder = new SubqueryExpressionBuilder();
 
     /** Creates MethodDescriptor for method. */
     private static MethodDescriptor methodDescriptor(Class<?> clazz, String methodName, Class<?> returnType, Class<?>... params) {
@@ -144,6 +150,160 @@ public class CriteriaExpressionGenerator {
         }
 
         return null;
+    }
+
+    /**
+     * Generates JPA Predicate from lambda expression AST with subquery support.
+     * <p>
+     * Iteration 8: Overloaded version that accepts CriteriaQuery for creating subqueries.
+     * Use this method when the predicate may contain subquery expressions
+     * (ExistsSubquery, InSubquery, or comparisons with ScalarSubquery).
+     *
+     * @param method the method creator for bytecode generation
+     * @param expression the lambda expression AST
+     * @param cb the CriteriaBuilder handle
+     * @param query the CriteriaQuery handle (needed for subquery creation)
+     * @param root the root entity handle
+     * @param capturedValues the captured variables array handle
+     * @return the JPA Predicate handle
+     */
+    public ResultHandle generatePredicateWithSubqueries(
+            MethodCreator method,
+            LambdaExpression expression,
+            ResultHandle cb,
+            ResultHandle query,
+            ResultHandle root,
+            ResultHandle capturedValues) {
+
+        if (expression == null) {
+            return null;
+        }
+
+        // Handle subquery expressions first
+        if (expression instanceof ExistsSubquery existsSubquery) {
+            return subqueryBuilder.buildExistsSubquery(method, existsSubquery, cb, query, root, capturedValues);
+        } else if (expression instanceof InSubquery inSubquery) {
+            return subqueryBuilder.buildInSubquery(method, inSubquery, cb, query, root, capturedValues);
+        }
+
+        // Handle binary operations that may contain subqueries
+        if (expression instanceof LambdaExpression.BinaryOp binOp) {
+            return generateBinaryOperationWithSubqueries(method, binOp, cb, query, root, capturedValues);
+        } else if (expression instanceof LambdaExpression.UnaryOp unOp) {
+            return generateUnaryOperationWithSubqueries(method, unOp, cb, query, root, capturedValues);
+        }
+
+        // For non-subquery expressions, delegate to the original method
+        return generatePredicate(method, expression, cb, root, capturedValues);
+    }
+
+    /**
+     * Generates JPA Expression from lambda expression with subquery support.
+     * <p>
+     * Iteration 8: Overloaded version that handles ScalarSubquery expressions
+     * which need the CriteriaQuery to create the subquery.
+     *
+     * @param method the method creator for bytecode generation
+     * @param expression the lambda expression AST
+     * @param cb the CriteriaBuilder handle
+     * @param query the CriteriaQuery handle (needed for subquery creation)
+     * @param root the root entity handle
+     * @param capturedValues the captured variables array handle
+     * @return the JPA Expression handle
+     */
+    public ResultHandle generateExpressionWithSubqueries(
+            MethodCreator method,
+            LambdaExpression expression,
+            ResultHandle cb,
+            ResultHandle query,
+            ResultHandle root,
+            ResultHandle capturedValues) {
+
+        if (expression == null) {
+            return null;
+        }
+
+        // Handle scalar subquery
+        if (expression instanceof ScalarSubquery scalarSubquery) {
+            return subqueryBuilder.buildScalarSubquery(method, scalarSubquery, cb, query, root, capturedValues);
+        }
+
+        // For non-subquery expressions, delegate to the original method
+        return generateExpressionAsJpaExpression(method, expression, cb, root, capturedValues);
+    }
+
+    /**
+     * Generates binary operation with subquery support.
+     * <p>
+     * Iteration 8: Handles comparisons that may contain ScalarSubquery on either side.
+     */
+    private ResultHandle generateBinaryOperationWithSubqueries(
+            MethodCreator method,
+            LambdaExpression.BinaryOp binOp,
+            ResultHandle cb,
+            ResultHandle query,
+            ResultHandle root,
+            ResultHandle capturedValues) {
+
+        // Check for logical operations (AND, OR)
+        if (isLogicalOperation(binOp)) {
+            ResultHandle left = generatePredicateWithSubqueries(method, binOp.left(), cb, query, root, capturedValues);
+            ResultHandle right = generatePredicateWithSubqueries(method, binOp.right(), cb, query, root, capturedValues);
+            return combinePredicates(method, cb, left, right, binOp.operator());
+        }
+
+        // Check if either side contains a subquery
+        boolean leftHasSubquery = containsSubquery(binOp.left());
+        boolean rightHasSubquery = containsSubquery(binOp.right());
+
+        if (leftHasSubquery || rightHasSubquery) {
+            // Generate expressions with subquery support
+            ResultHandle left = generateExpressionWithSubqueries(method, binOp.left(), cb, query, root, capturedValues);
+            ResultHandle right = generateExpressionWithSubqueries(method, binOp.right(), cb, query, root, capturedValues);
+            return generateComparisonOperation(method, binOp.operator(), cb, left, right);
+        }
+
+        // No subqueries - delegate to original method
+        return generateBinaryOperation(method, binOp, cb, root, capturedValues);
+    }
+
+    /**
+     * Generates unary operation with subquery support.
+     * <p>
+     * Iteration 8: Handles NOT operations that may wrap subquery predicates.
+     */
+    private ResultHandle generateUnaryOperationWithSubqueries(
+            MethodCreator method,
+            LambdaExpression.UnaryOp unOp,
+            ResultHandle cb,
+            ResultHandle query,
+            ResultHandle root,
+            ResultHandle capturedValues) {
+
+        ResultHandle operand = generatePredicateWithSubqueries(method, unOp.operand(), cb, query, root, capturedValues);
+
+        return switch (unOp.operator()) {
+            case NOT -> method.invokeInterfaceMethod(
+                    methodDescriptor(CriteriaBuilder.class, CB_NOT, Predicate.class, Expression.class), cb, operand);
+        };
+    }
+
+    /**
+     * Checks if an expression contains a subquery.
+     * <p>
+     * Iteration 8: Used to determine if subquery-aware methods should be used.
+     */
+    private boolean containsSubquery(LambdaExpression expr) {
+        if (expr instanceof ScalarSubquery || expr instanceof ExistsSubquery || expr instanceof InSubquery) {
+            return true;
+        }
+        if (expr instanceof LambdaExpression.BinaryOp binOp) {
+            return containsSubquery(binOp.left()) || containsSubquery(binOp.right());
+        }
+        if (expr instanceof LambdaExpression.UnaryOp unOp) {
+            return containsSubquery(unOp.operand());
+        }
+        return false;
     }
 
     /**

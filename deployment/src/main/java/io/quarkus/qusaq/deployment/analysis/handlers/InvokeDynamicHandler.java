@@ -73,10 +73,10 @@ public class InvokeDynamicHandler implements InstructionHandler {
             return handleStringConcatenation(indy, ctx);
         }
 
-        // Iteration 7: Handle nested lambda creation for group aggregations
-        // When in group context (analyzing g -> g.avg(p -> p.salary)), we need to
-        // analyze nested lambdas (p -> p.salary) inline
-        if (isLambdaMetafactory(indy) && ctx.isGroupContextMode()) {
+        // Iteration 7 & 8: Handle nested lambda creation for group aggregations and subqueries
+        // When analyzing g.avg(p -> p.salary) or Subqueries.avg(Person.class, q -> q.salary),
+        // we need to analyze nested QuerySpec lambdas inline
+        if (isLambdaMetafactory(indy) && isQuerySpecLambda(indy)) {
             return handleNestedLambda(indy, ctx);
         }
 
@@ -109,14 +109,19 @@ public class InvokeDynamicHandler implements InstructionHandler {
     }
 
     /**
-     * Handles nested lambda creation for group aggregations.
+     * Handles nested lambda creation for group aggregations and subqueries.
      * <p>
      * When analyzing a HAVING clause like {@code g -> g.avg((Person p) -> p.salary) > 70000},
      * the inner lambda {@code (Person p) -> p.salary} is created via INVOKEDYNAMIC with
      * LambdaMetafactory. We need to analyze this nested lambda inline to get the field
      * expression for the aggregation.
      * <p>
+     * For capturing lambdas (e.g., {@code ph -> ph.ownerId.equals(p.id)} where p is captured),
+     * the INVOKEDYNAMIC consumes captured variables from the stack. We must pop these before
+     * pushing the analyzed result.
+     * <p>
      * Iteration 7: GROUP BY nested lambda support.
+     * Iteration 8: Subquery nested lambda support with captured variable handling.
      */
     private boolean handleNestedLambda(InvokeDynamicInsnNode indy, AnalysisContext ctx) {
         // Extract the target lambda method from bootstrap method arguments
@@ -131,6 +136,16 @@ public class InvokeDynamicHandler implements InstructionHandler {
         String nestedLambdaDescriptor = implMethodHandle.getDesc();
 
         log.debugf("Nested lambda detected: %s%s", nestedLambdaMethodName, nestedLambdaDescriptor);
+
+        // Pop any captured variables from the stack
+        // The INVOKEDYNAMIC descriptor tells us how many captured variables there are
+        // For example: (LPerson;)Lio/quarkus/qusaq/runtime/QuerySpec; means 1 captured variable
+        int capturedVarCount = countCapturedVariables(indy.desc);
+        for (int i = 0; i < capturedVarCount; i++) {
+            if (!ctx.isStackEmpty()) {
+                ctx.pop(); // Discard captured variable (we analyze the lambda in isolation)
+            }
+        }
 
         // Find the nested lambda method in the current class
         MethodNode nestedMethod = ctx.findMethod(nestedLambdaMethodName, nestedLambdaDescriptor);
@@ -155,11 +170,35 @@ public class InvokeDynamicHandler implements InstructionHandler {
     }
 
     /**
+     * Counts the number of captured variables in an INVOKEDYNAMIC descriptor.
+     * <p>
+     * The descriptor format is: (capturedTypes)ReturnType
+     * For example: ()Lio/quarkus/qusaq/runtime/QuerySpec; → 0 captured
+     *              (LPerson;)Lio/quarkus/qusaq/runtime/QuerySpec; → 1 captured
+     */
+    private int countCapturedVariables(String desc) {
+        return DescriptorParser.countMethodArguments(desc);
+    }
+
+    /**
      * Checks if the invokedynamic instruction uses LambdaMetafactory.
      */
     private boolean isLambdaMetafactory(InvokeDynamicInsnNode indy) {
         return indy.bsm != null &&
                indy.bsm.getOwner().equals(LAMBDA_METAFACTORY);
+    }
+
+    /**
+     * Checks if the invokedynamic instruction creates a QuerySpec lambda.
+     * <p>
+     * Used for detecting nested lambdas in subqueries and group aggregations.
+     * Checks if the return type of the invokedynamic is QuerySpec.
+     */
+    private boolean isQuerySpecLambda(InvokeDynamicInsnNode indy) {
+        // The descriptor ends with the return type (the functional interface)
+        // For QuerySpec: ()Lio/quarkus/qusaq/runtime/QuerySpec;
+        // For capturing lambdas: (capturedVars)Lio/quarkus/qusaq/runtime/QuerySpec;
+        return indy.desc.endsWith("Lio/quarkus/qusaq/runtime/QuerySpec;");
     }
 
     /**

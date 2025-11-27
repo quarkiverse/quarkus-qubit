@@ -97,6 +97,26 @@ public final class QusaqConstants {
     // Group interface internal name
     public static final String GROUP_INTERNAL_NAME = "io/quarkus/qusaq/runtime/Group";
 
+    // Subquery method names (Iteration 8: Subqueries)
+    public static final String SUBQUERY_AVG = "avg";
+    public static final String SUBQUERY_SUM = "sum";
+    public static final String SUBQUERY_MIN = "min";
+    public static final String SUBQUERY_MAX = "max";
+    public static final String SUBQUERY_COUNT = "count";
+    public static final String SUBQUERY_EXISTS = "exists";
+    public static final String SUBQUERY_NOT_EXISTS = "notExists";
+    public static final String SUBQUERY_IN = "in";
+    public static final String SUBQUERY_NOT_IN = "notIn";
+
+    // All subquery methods (for stack walking filter)
+    public static final Set<String> SUBQUERY_METHODS = Set.of(
+        SUBQUERY_AVG, SUBQUERY_SUM, SUBQUERY_MIN, SUBQUERY_MAX, SUBQUERY_COUNT,
+        SUBQUERY_EXISTS, SUBQUERY_NOT_EXISTS, SUBQUERY_IN, SUBQUERY_NOT_IN
+    );
+
+    // Subqueries utility class internal name
+    public static final String SUBQUERIES_INTERNAL_NAME = "io/quarkus/qusaq/runtime/Subqueries";
+
     // Temporal comparison methods (used in lambda expressions for date/time comparisons)
     public static final String METHOD_IS_AFTER = "isAfter";
     public static final String METHOD_IS_BEFORE = "isBefore";
@@ -255,6 +275,11 @@ public final class QusaqConstants {
     // CriteriaQuery GROUP BY operations (Iteration 7: Grouping)
     public static final String CQ_GROUP_BY = "groupBy";
     public static final String CQ_HAVING = "having";
+
+    // CriteriaBuilder subquery operations (Iteration 8: Subqueries)
+    public static final String CB_EXISTS = "exists";
+    public static final String CB_NOT_EXISTS = "not"; // cb.not(cb.exists(subquery))
+    public static final String CQ_SUBQUERY = "subquery"; // criteriaQuery.subquery()
 
     // Path method names (for JPA Path API)
     public static final String PATH_GET = "get";
