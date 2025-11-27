@@ -120,7 +120,6 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
     // =============================================================================================
 
     @Override
-    @SuppressWarnings("unchecked")
     public <R> QusaqStream<R> select(GroupQuerySpec<T, K, R> mapper) {
         // Create a new stream that represents the projected result
         // The actual type inference and query generation is done at build time
@@ -133,7 +132,6 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public QusaqStream<K> selectKey() {
         String callSiteId = getCallSiteId();
         Object[] capturedValues = extractCapturedVariables(callSiteId);
@@ -186,7 +184,6 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
     // =============================================================================================
 
     @Override
-    @SuppressWarnings("unchecked")
     public List<K> toList() {
         String callSiteId = getCallSiteId();
         Object[] capturedValues = extractCapturedVariables(callSiteId);

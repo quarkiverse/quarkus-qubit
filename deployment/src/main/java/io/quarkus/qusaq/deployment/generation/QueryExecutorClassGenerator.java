@@ -89,10 +89,6 @@ public class QueryExecutorClassGenerator {
             CriteriaQuery.class, Expression[].class);
     private static final MethodDescriptor CQ_HAVING = md(CriteriaQuery.class, "having",
             CriteriaQuery.class, Predicate[].class);
-    private static final MethodDescriptor CQ_MULTISELECT = md(CriteriaQuery.class, "multiselect",
-            CriteriaQuery.class, Selection[].class);
-    private static final MethodDescriptor CB_COUNT_EXPRESSION = md(CriteriaBuilder.class, "count",
-            Expression.class, Expression.class);
     private static final MethodDescriptor CB_COUNT_DISTINCT = md(CriteriaBuilder.class, "countDistinct",
             Expression.class, Expression.class);
 

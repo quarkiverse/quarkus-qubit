@@ -6,9 +6,6 @@ import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_CONTAINS;
 import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_DIVIDE;
 import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_ENDS_WITH;
 import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_EQUALS;
-import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_IS_AFTER;
-import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_IS_BEFORE;
-import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_IS_EQUAL;
 import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_MULTIPLY;
 import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_OF;
 import static io.quarkus.qusaq.runtime.QusaqConstants.METHOD_STARTS_WITH;
@@ -29,6 +26,7 @@ import static io.quarkus.qusaq.runtime.QusaqConstants.CB_OR;
 import static io.quarkus.qusaq.runtime.QusaqConstants.PATH_GET;
 import static io.quarkus.qusaq.runtime.QusaqConstants.PREFIX_GET;
 import static io.quarkus.qusaq.runtime.QusaqConstants.PREFIX_IS;
+import static io.quarkus.qusaq.runtime.QusaqConstants.TEMPORAL_COMPARISON_METHOD_NAMES;
 import static io.quarkus.qusaq.deployment.analysis.PatternDetector.isBooleanFieldCapturedVariableComparison;
 import static io.quarkus.qusaq.deployment.analysis.PatternDetector.isBooleanFieldConstantComparison;
 import static io.quarkus.qusaq.deployment.analysis.PatternDetector.isCompareToEqualityPattern;
@@ -70,7 +68,6 @@ import io.quarkus.qusaq.deployment.generation.builders.TemporalExpressionBuilder
 import io.quarkus.qusaq.deployment.util.TypeConverter;
 import jakarta.persistence.criteria.CompoundSelection;
 import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
@@ -83,9 +80,6 @@ public class CriteriaExpressionGenerator {
 
     private static final Set<String> BIG_DECIMAL_ARITHMETIC_METHOD_NAMES = Set.of(
         METHOD_ADD, METHOD_SUBTRACT, METHOD_MULTIPLY, METHOD_DIVIDE
-    );
-    private static final Set<String> TEMPORAL_COMPARISON_METHOD_NAMES = Set.of(
-        METHOD_IS_AFTER, METHOD_IS_BEFORE, METHOD_IS_EQUAL
     );
     private static final Set<String> STRING_PATTERN_METHOD_NAMES = Set.of(
         METHOD_STARTS_WITH, METHOD_ENDS_WITH, METHOD_CONTAINS

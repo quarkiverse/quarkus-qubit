@@ -117,6 +117,13 @@ public final class QusaqConstants {
     // Subqueries utility class internal name
     public static final String SUBQUERIES_INTERNAL_NAME = "io/quarkus/qusaq/runtime/Subqueries";
 
+    // SubqueryBuilder class internal name and descriptor
+    public static final String SUBQUERY_BUILDER_INTERNAL_NAME = "io/quarkus/qusaq/runtime/SubqueryBuilder";
+    public static final String SUBQUERY_BUILDER_DESCRIPTOR = "Lio/quarkus/qusaq/runtime/SubqueryBuilder;";
+
+    // Subquery factory method name
+    public static final String METHOD_SUBQUERY = "subquery";
+
     // Temporal comparison methods (used in lambda expressions for date/time comparisons)
     public static final String METHOD_IS_AFTER = "isAfter";
     public static final String METHOD_IS_BEFORE = "isBefore";

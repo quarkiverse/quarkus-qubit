@@ -1,7 +1,7 @@
 package io.quarkus.qusaq.deployment.testutil;
 
 import io.quarkus.qusaq.runtime.QuerySpec;
-import io.quarkus.qusaq.runtime.Subqueries;
+import static io.quarkus.qusaq.runtime.Subqueries.*;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 
@@ -16,7 +16,7 @@ import jakarta.persistence.Id;
  * executed - it's purely for bytecode generation. The method names match the
  * test names for easy mapping.
  *
- * <p>Iteration 8: Subqueries - bytecode analysis verification.
+ * <p>Iteration 8: Subqueries with fluent builder pattern - bytecode analysis verification.
  */
 public class SubqueryLambdaTestSources {
 
@@ -54,107 +54,107 @@ public class SubqueryLambdaTestSources {
     // ==================== SCALAR AVG SUBQUERIES ====================
 
     /**
-     * AVG subquery: p.salary > Subqueries.avg(Person.class, q -> q.salary)
+     * AVG subquery: p.salary > subquery(Person.class).avg(q -> q.salary)
      */
     public static QuerySpec<TestPerson, Boolean> avgSubquery() {
-        return p -> p.salary > Subqueries.avg(TestPerson.class, q -> q.salary);
+        return p -> p.salary > subquery(TestPerson.class).avg(q -> q.salary);
     }
 
     // ==================== SCALAR MAX SUBQUERIES ====================
 
     /**
-     * MAX subquery: p.salary == Subqueries.max(Person.class, q -> q.salary)
+     * MAX subquery: p.salary == subquery(Person.class).max(q -> q.salary)
      */
     public static QuerySpec<TestPerson, Boolean> maxSubquery() {
-        return p -> p.salary == Subqueries.max(TestPerson.class, q -> q.salary);
+        return p -> p.salary == subquery(TestPerson.class).max(q -> q.salary);
     }
 
     // ==================== SCALAR MIN SUBQUERIES ====================
 
     /**
-     * MIN subquery: p.salary >= Subqueries.min(Person.class, q -> q.salary)
+     * MIN subquery: p.salary >= subquery(Person.class).min(q -> q.salary)
      */
     public static QuerySpec<TestPerson, Boolean> minSubquery() {
-        return p -> p.salary >= Subqueries.min(TestPerson.class, q -> q.salary);
+        return p -> p.salary >= subquery(TestPerson.class).min(q -> q.salary);
     }
 
     // ==================== SCALAR SUM SUBQUERIES ====================
 
     /**
-     * SUM subquery: p.budget > Subqueries.sum(Department.class, d -> d.budget)
+     * SUM subquery: p.budget > subquery(Department.class).sum(d -> d.budget)
      */
     public static QuerySpec<TestPerson, Boolean> sumSubquery() {
-        return p -> p.budget > Subqueries.sum(TestDepartment.class, d -> d.budget);
+        return p -> p.budget > subquery(TestDepartment.class).sum(d -> d.budget);
     }
 
     // ==================== COUNT SUBQUERIES ====================
 
     /**
-     * COUNT subquery: p.age > Subqueries.count(Person.class)
+     * COUNT subquery: p.age > subquery(Person.class).count()
      */
     public static QuerySpec<TestPerson, Boolean> countSubquery() {
-        return p -> p.age > Subqueries.count(TestPerson.class);
+        return p -> p.age > subquery(TestPerson.class).count();
     }
 
     // ==================== EXISTS SUBQUERIES ====================
 
     /**
-     * EXISTS subquery: Subqueries.exists(Phone.class, ph -> ph.ownerId == p.id)
+     * EXISTS subquery: subquery(Phone.class).exists(ph -> ph.ownerId == p.id)
      */
     public static QuerySpec<TestPerson, Boolean> existsSubquery() {
-        return p -> Subqueries.exists(TestPhone.class, ph -> ph.ownerId.equals(p.id));
+        return p -> subquery(TestPhone.class).exists(ph -> ph.ownerId.equals(p.id));
     }
 
     /**
-     * NOT EXISTS subquery: Subqueries.notExists(Phone.class, ph -> ph.ownerId == p.id)
+     * NOT EXISTS subquery: subquery(Phone.class).notExists(ph -> ph.ownerId == p.id)
      */
     public static QuerySpec<TestPerson, Boolean> notExistsSubquery() {
-        return p -> Subqueries.notExists(TestPhone.class, ph -> ph.ownerId.equals(p.id));
+        return p -> subquery(TestPhone.class).notExists(ph -> ph.ownerId.equals(p.id));
     }
 
     // ==================== IN SUBQUERIES ====================
 
     /**
-     * IN subquery: Subqueries.in(p.departmentId, Department.class, d -> d.id)
+     * IN subquery: subquery(Department.class).in(p.departmentId, d -> d.id)
      */
     public static QuerySpec<TestPerson, Boolean> inSubquery() {
-        return p -> Subqueries.in(p.departmentId, TestDepartment.class, d -> d.id);
+        return p -> subquery(TestDepartment.class).in(p.departmentId, d -> d.id);
     }
 
     /**
-     * NOT IN subquery: Subqueries.notIn(p.departmentId, Department.class, d -> d.id)
+     * NOT IN subquery: subquery(Department.class).notIn(p.departmentId, d -> d.id)
      */
     public static QuerySpec<TestPerson, Boolean> notInSubquery() {
-        return p -> Subqueries.notIn(p.departmentId, TestDepartment.class, d -> d.id);
+        return p -> subquery(TestDepartment.class).notIn(p.departmentId, d -> d.id);
     }
 
     // ==================== ADVANCED SUBQUERIES ====================
 
     /**
-     * AVG subquery with predicate
+     * AVG subquery with predicate using .where() chaining
      */
     public static QuerySpec<TestPerson, Boolean> avgSubqueryWithPredicate() {
-        return p -> p.salary > Subqueries.avg(TestPerson.class, q -> q.salary, q -> q.active);
+        return p -> p.salary > subquery(TestPerson.class).where(q -> q.active).avg(q -> q.salary);
     }
 
     /**
-     * IN subquery with predicate
+     * IN subquery with predicate using .where() chaining
      */
     public static QuerySpec<TestPerson, Boolean> inSubqueryWithPredicate() {
-        return p -> Subqueries.in(p.departmentId, TestDepartment.class, d -> d.id, d -> d.budget > 1000000);
+        return p -> subquery(TestDepartment.class).where(d -> d.budget > 1000000).in(p.departmentId, d -> d.id);
     }
 
     /**
      * Subquery combined with AND predicate
      */
     public static QuerySpec<TestPerson, Boolean> subqueryWithAndPredicate() {
-        return p -> p.active && p.salary > Subqueries.avg(TestPerson.class, q -> q.salary);
+        return p -> p.active && p.salary > subquery(TestPerson.class).avg(q -> q.salary);
     }
 
     /**
      * Subquery combined with OR predicate
      */
     public static QuerySpec<TestPerson, Boolean> subqueryWithOrPredicate() {
-        return p -> p.age > 50 || Subqueries.exists(TestPhone.class, ph -> ph.ownerId.equals(p.id));
+        return p -> p.age > 50 || subquery(TestPhone.class).exists(ph -> ph.ownerId.equals(p.id));
     }
 }
