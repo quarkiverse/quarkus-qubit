@@ -896,8 +896,6 @@ When addressing issues, use this template:
 ## Issue: [ID]
 
 **Status**: [ ] Not Started / [ ] In Progress / [ ] Completed
-**Assigned**: [Developer Name]
-**PR**: [Link]
 
 ### Changes Made
 - [ ] Code change 1
