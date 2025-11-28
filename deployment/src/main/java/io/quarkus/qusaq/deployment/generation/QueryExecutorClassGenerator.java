@@ -20,7 +20,7 @@ import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.MethodDescriptor;
 import io.quarkus.gizmo.ResultHandle;
 import io.quarkus.qusaq.deployment.LambdaExpression;
-import io.quarkus.qusaq.deployment.analysis.CallSiteProcessor;
+import io.quarkus.qusaq.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkus.qusaq.runtime.SortDirection;
 import io.quarkus.qusaq.deployment.InvokeDynamicScanner;
 import jakarta.persistence.EntityManager;
@@ -214,7 +214,7 @@ public class QueryExecutorClassGenerator {
             LambdaExpression joinRelationshipExpression,
             LambdaExpression biEntityPredicateExpression,
             LambdaExpression biEntityProjectionExpression,
-            List<CallSiteProcessor.SortExpression> sortExpressions,
+            List<SortExpression> sortExpressions,
             InvokeDynamicScanner.JoinType joinType,
             String className,
             boolean isCountQuery,
@@ -327,7 +327,7 @@ public class QueryExecutorClassGenerator {
             LambdaExpression groupByKeyExpression,
             LambdaExpression havingExpression,
             LambdaExpression groupSelectExpression,
-            List<CallSiteProcessor.SortExpression> groupSortExpressions,
+            List<SortExpression> groupSortExpressions,
             String className,
             boolean isCountQuery) {
 
@@ -406,7 +406,7 @@ public class QueryExecutorClassGenerator {
             LambdaExpression groupByKeyExpression,
             LambdaExpression havingExpression,
             LambdaExpression groupSelectExpression,
-            List<CallSiteProcessor.SortExpression> groupSortExpressions,
+            List<SortExpression> groupSortExpressions,
             ResultHandle capturedValues,
             ResultHandle offset,
             ResultHandle limit,
@@ -635,7 +635,7 @@ public class QueryExecutorClassGenerator {
             int reverseIndex = sortExpressions.size() - 1 - i;
             Object sortExprObj = sortExpressions.get(reverseIndex);
 
-            if (sortExprObj instanceof CallSiteProcessor.SortExpression sortExpr) {
+            if (sortExprObj instanceof SortExpression sortExpr) {
                 // Generate JPA Expression for the group sort key extractor
                 ResultHandle sortKeyExpr = expressionGenerator.generateGroupSortExpression(
                         method, sortExpr.keyExtractor(), cb, root, groupKeyExpr, capturedValues);
@@ -882,7 +882,7 @@ public class QueryExecutorClassGenerator {
             LambdaExpression joinRelationshipExpression,
             LambdaExpression biEntityPredicateExpression,
             InvokeDynamicScanner.JoinType joinType,
-            List<CallSiteProcessor.SortExpression> sortExpressions,
+            List<SortExpression> sortExpressions,
             ResultHandle capturedValues,
             ResultHandle offset,
             ResultHandle limit,
@@ -1059,7 +1059,7 @@ public class QueryExecutorClassGenerator {
             LambdaExpression joinRelationshipExpression,
             LambdaExpression biEntityPredicateExpression,
             InvokeDynamicScanner.JoinType joinType,
-            List<CallSiteProcessor.SortExpression> sortExpressions,
+            List<SortExpression> sortExpressions,
             ResultHandle capturedValues,
             ResultHandle offset,
             ResultHandle limit,
@@ -1156,7 +1156,7 @@ public class QueryExecutorClassGenerator {
             LambdaExpression biEntityPredicateExpression,
             LambdaExpression biEntityProjectionExpression,
             InvokeDynamicScanner.JoinType joinType,
-            List<CallSiteProcessor.SortExpression> sortExpressions,
+            List<SortExpression> sortExpressions,
             ResultHandle capturedValues,
             ResultHandle offset,
             ResultHandle limit,
@@ -1526,7 +1526,7 @@ public class QueryExecutorClassGenerator {
             Object sortExprObj = sortExpressions.get(reverseIndex);
 
             // This is a build-time object, so we can safely cast it
-            if (sortExprObj instanceof CallSiteProcessor.SortExpression sortExpr) {
+            if (sortExprObj instanceof SortExpression sortExpr) {
                 // Generate JPA Expression for the sort key extractor
                 ResultHandle sortKeyExpr = expressionGenerator.generateExpressionAsJpaExpression(
                         method, sortExpr.keyExtractor(), cb, root, capturedValues);
@@ -1592,7 +1592,7 @@ public class QueryExecutorClassGenerator {
             int reverseIndex = sortExpressions.size() - 1 - i;
             Object sortExprObj = sortExpressions.get(reverseIndex);
 
-            if (sortExprObj instanceof CallSiteProcessor.SortExpression sortExpr) {
+            if (sortExprObj instanceof SortExpression sortExpr) {
                 // Generate JPA Expression for the bi-entity sort key extractor
                 ResultHandle sortKeyExpr = expressionGenerator.generateBiEntityExpressionAsJpaExpression(
                         method, sortExpr.keyExtractor(), cb, root, join, capturedValues);

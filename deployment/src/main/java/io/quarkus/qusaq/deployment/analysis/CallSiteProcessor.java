@@ -1,5 +1,10 @@
 package io.quarkus.qusaq.deployment.analysis;
 
+import static io.quarkus.qusaq.deployment.analysis.CapturedVariableHelper.combinePredicatesWithAnd;
+import static io.quarkus.qusaq.deployment.analysis.CapturedVariableHelper.countCapturedVariables;
+import static io.quarkus.qusaq.deployment.analysis.CapturedVariableHelper.countCapturedVariablesInSortExpressions;
+import static io.quarkus.qusaq.deployment.analysis.CapturedVariableHelper.renumberCapturedVariables;
+
 import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.builditem.ApplicationArchivesBuildItem;
 import io.quarkus.deployment.builditem.GeneratedClassBuildItem;
@@ -7,98 +12,25 @@ import io.quarkus.qusaq.deployment.InvokeDynamicScanner;
 import io.quarkus.qusaq.deployment.InvokeDynamicScanner.SortLambda;
 import io.quarkus.qusaq.deployment.LambdaExpression;
 import io.quarkus.qusaq.deployment.QusaqProcessor;
+import io.quarkus.qusaq.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkus.qusaq.deployment.generation.QueryExecutorClassGenerator;
 import io.quarkus.qusaq.deployment.util.BytecodeLoader;
-import io.quarkus.qusaq.runtime.SortDirection;
 import org.jboss.logging.Logger;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Processes lambda call sites: analyzes bytecode, deduplicates, generates executors.
+ * <p>
+ * ARCH-001: Extracted LambdaAnalysisResult to separate file.
+ * ARCH-001: Extracted captured variable utilities to CapturedVariableHelper.
  */
 public class CallSiteProcessor {
 
     private static final Logger log = Logger.getLogger(CallSiteProcessor.class);
-
-    /**
-     * Result of lambda bytecode analysis - sealed interface with specialized result types.
-     * <p>
-     * Refactored from a single 15-field record to a sealed interface hierarchy (ARCH-002).
-     * Each query type now has its own result record with only the relevant fields:
-     * <ul>
-     *   <li>{@link SimpleQueryResult}: where, select, combined, sorting-only queries</li>
-     *   <li>{@link AggregationQueryResult}: min, max, avg, sum* queries</li>
-     *   <li>{@link JoinQueryResult}: join, leftJoin with BiQuerySpec</li>
-     *   <li>{@link GroupQueryResult}: groupBy with GroupQuerySpec</li>
-     * </ul>
-     */
-    private sealed interface LambdaAnalysisResult {
-        /** Total number of captured variables across all expressions in this result. */
-        int totalCapturedVarCount();
-
-        /**
-         * Simple queries: where, select, combined, sorting-only.
-         * Phase 1-3: Basic filtering, projection, and sorting.
-         */
-        record SimpleQueryResult(
-                LambdaExpression predicateExpression,
-                LambdaExpression projectionExpression,
-                List<SortExpression> sortExpressions,
-                int totalCapturedVarCount
-        ) implements LambdaAnalysisResult {}
-
-        /**
-         * Aggregation queries: min, max, avg, sum*.
-         * Phase 5: Aggregation terminals with optional WHERE predicates.
-         */
-        record AggregationQueryResult(
-                LambdaExpression predicateExpression,
-                LambdaExpression aggregationExpression,
-                String aggregationType,  // "MIN", "MAX", "AVG", "SUM_INTEGER", "SUM_LONG", "SUM_DOUBLE"
-                int totalCapturedVarCount
-        ) implements LambdaAnalysisResult {}
-
-        /**
-         * Join queries: join, leftJoin with BiQuerySpec.
-         * Iteration 6: Join relationship, bi-entity predicates/projections.
-         */
-        record JoinQueryResult(
-                LambdaExpression joinRelationshipExpression,
-                LambdaExpression biEntityPredicateExpression,
-                LambdaExpression biEntityProjectionExpression,
-                List<SortExpression> sortExpressions,
-                InvokeDynamicScanner.JoinType joinType,
-                int totalCapturedVarCount
-        ) implements LambdaAnalysisResult {}
-
-        /**
-         * Group queries: groupBy with GroupQuerySpec.
-         * Iteration 7: GROUP BY with having, select, and sort in group context.
-         */
-        record GroupQueryResult(
-                LambdaExpression predicateExpression,  // Pre-grouping WHERE clause
-                LambdaExpression groupByKeyExpression,
-                LambdaExpression havingExpression,
-                LambdaExpression groupSelectExpression,
-                List<SortExpression> groupSortExpressions,
-                int totalCapturedVarCount
-        ) implements LambdaAnalysisResult {}
-    }
-
-    /**
-     * Sort expression with direction (ascending/descending).
-     * Phase 3: Represents analyzed sort key extractor lambda with direction.
-     * Public to allow access from QueryExecutorClassGenerator.
-     */
-    public record SortExpression(
-            LambdaExpression keyExtractor,
-            SortDirection direction) {}
 
     private final LambdaBytecodeAnalyzer bytecodeAnalyzer;
     private final LambdaDeduplicator deduplicator;
@@ -1151,209 +1083,5 @@ public class CallSiteProcessor {
         }
 
         return sortExpressions;
-    }
-
-    /**
-     * Combines multiple predicates with AND operation.
-     * Phase 2.5: Supports multiple where() chaining.
-     */
-    private LambdaExpression combinePredicatesWithAnd(List<LambdaExpression> predicates) {
-        if (predicates.isEmpty()) {
-            throw new IllegalArgumentException("Cannot combine empty predicate list");
-        }
-
-        if (predicates.size() == 1) {
-            return predicates.get(0);
-        }
-
-        // Chain predicates with AND: (p1 AND p2 AND p3 AND ...)
-        LambdaExpression combined = predicates.get(0);
-        for (int i = 1; i < predicates.size(); i++) {
-            combined = new LambdaExpression.BinaryOp(
-                    combined,
-                    LambdaExpression.BinaryOp.Operator.AND,
-                    predicates.get(i));
-        }
-
-        return combined;
-    }
-
-    /**
-     * Counts distinct captured variables in lambda expression.
-     */
-    private int countCapturedVariables(LambdaExpression expression) {
-        Set<Integer> capturedIndices = new HashSet<>();
-        collectCapturedVariableIndices(expression, capturedIndices);
-
-        return capturedIndices.size();
-    }
-
-    /**
-     * Counts total captured variables across all sort expressions.
-     * Returns 0 if sortExpressions is null or empty.
-     */
-    private int countCapturedVariablesInSortExpressions(List<SortExpression> sortExpressions) {
-        if (sortExpressions == null || sortExpressions.isEmpty()) {
-            return 0;
-        }
-
-        int count = 0;
-        for (SortExpression sortExpr : sortExpressions) {
-            count += countCapturedVariables(sortExpr.keyExtractor);
-        }
-        return count;
-    }
-
-    /**
-     * Recursively collects captured variable indices.
-     * <p>
-     * Refactored for Java 21: Uses pattern matching switch for cleaner type dispatch.
-     */
-    private void collectCapturedVariableIndices(LambdaExpression expression, Set<Integer> capturedIndices) {
-        if (expression == null) {
-            return;
-        }
-
-        // Java 21 pattern matching switch for type dispatch
-        switch (expression) {
-            case LambdaExpression.CapturedVariable capturedVar ->
-                capturedIndices.add(capturedVar.index());
-
-            case LambdaExpression.BinaryOp binOp -> {
-                collectCapturedVariableIndices(binOp.left(), capturedIndices);
-                collectCapturedVariableIndices(binOp.right(), capturedIndices);
-            }
-
-            case LambdaExpression.UnaryOp unaryOp ->
-                collectCapturedVariableIndices(unaryOp.operand(), capturedIndices);
-
-            case LambdaExpression.MethodCall methodCall -> {
-                collectCapturedVariableIndices(methodCall.target(), capturedIndices);
-                for (LambdaExpression arg : methodCall.arguments()) {
-                    collectCapturedVariableIndices(arg, capturedIndices);
-                }
-            }
-
-            case LambdaExpression.ConstructorCall constructorCall -> {
-                // Phase 2.4: Handle DTO constructor calls
-                for (LambdaExpression arg : constructorCall.arguments()) {
-                    collectCapturedVariableIndices(arg, capturedIndices);
-                }
-            }
-
-            case LambdaExpression.InExpression inExpr -> {
-                // Iteration 5: Handle IN clause expressions
-                collectCapturedVariableIndices(inExpr.field(), capturedIndices);
-                collectCapturedVariableIndices(inExpr.collection(), capturedIndices);
-            }
-
-            case LambdaExpression.MemberOfExpression memberOfExpr -> {
-                // Iteration 5: Handle MEMBER OF expressions
-                collectCapturedVariableIndices(memberOfExpr.value(), capturedIndices);
-                collectCapturedVariableIndices(memberOfExpr.collectionField(), capturedIndices);
-            }
-
-            // These expression types don't contain captured variables - use separate cases
-            // because multi-pattern cases with unnamed `_` require preview features in Java 21
-            case LambdaExpression.PathExpression ignored1 -> { /* no captured variables */ }
-            case LambdaExpression.BiEntityFieldAccess ignored2 -> { /* no captured variables */ }
-            case LambdaExpression.BiEntityPathExpression ignored3 -> { /* no captured variables */ }
-            case LambdaExpression.BiEntityParameter ignored4 -> { /* no captured variables */ }
-
-            // Other expression types: FieldAccess, Constant, Parameter, NullLiteral, etc.
-            default -> { /* no captured variables */ }
-        }
-    }
-
-    /**
-     * Renumbers captured variable indices in lambda expression tree by adding offset.
-     * This ensures sequential indices when combining multiple lambdas.
-     * <p>
-     * Example: For second predicate with offset=1:
-     * - CapturedVariable(0) becomes CapturedVariable(1)
-     * - CapturedVariable(1) becomes CapturedVariable(2)
-     * <p>
-     * Recursively walks the entire AST tree to renumber all CapturedVariable nodes.
-     * <p>
-     * Refactored for Java 21: Uses pattern matching switch expression for cleaner type dispatch.
-     *
-     * @param expression the lambda expression AST
-     * @param offset the offset to add to each captured variable index
-     * @return new expression tree with renumbered indices
-     */
-    private LambdaExpression renumberCapturedVariables(LambdaExpression expression, int offset) {
-        if (expression == null || offset == 0) {
-            return expression;
-        }
-
-        // Java 21 pattern matching switch expression for type dispatch
-        return switch (expression) {
-            case LambdaExpression.CapturedVariable capturedVar ->
-                new LambdaExpression.CapturedVariable(capturedVar.index() + offset, capturedVar.type());
-
-            case LambdaExpression.BinaryOp binOp ->
-                new LambdaExpression.BinaryOp(
-                        renumberCapturedVariables(binOp.left(), offset),
-                        binOp.operator(),
-                        renumberCapturedVariables(binOp.right(), offset));
-
-            case LambdaExpression.UnaryOp unaryOp ->
-                new LambdaExpression.UnaryOp(
-                        unaryOp.operator(),
-                        renumberCapturedVariables(unaryOp.operand(), offset));
-
-            case LambdaExpression.MethodCall methodCall -> {
-                LambdaExpression newTarget = renumberCapturedVariables(methodCall.target(), offset);
-                List<LambdaExpression> newArgs = new ArrayList<>();
-                for (LambdaExpression arg : methodCall.arguments()) {
-                    newArgs.add(renumberCapturedVariables(arg, offset));
-                }
-                yield new LambdaExpression.MethodCall(newTarget, methodCall.methodName(), newArgs, methodCall.returnType());
-            }
-
-            case LambdaExpression.ConstructorCall constructorCall -> {
-                List<LambdaExpression> newArgs = new ArrayList<>();
-                for (LambdaExpression arg : constructorCall.arguments()) {
-                    newArgs.add(renumberCapturedVariables(arg, offset));
-                }
-                yield new LambdaExpression.ConstructorCall(constructorCall.className(), newArgs, constructorCall.resultType());
-            }
-
-            case LambdaExpression.Cast cast ->
-                new LambdaExpression.Cast(renumberCapturedVariables(cast.expression(), offset), cast.targetType());
-
-            case LambdaExpression.InstanceOf instanceOf ->
-                new LambdaExpression.InstanceOf(renumberCapturedVariables(instanceOf.expression(), offset), instanceOf.targetType());
-
-            case LambdaExpression.Conditional conditional ->
-                new LambdaExpression.Conditional(
-                        renumberCapturedVariables(conditional.condition(), offset),
-                        renumberCapturedVariables(conditional.trueValue(), offset),
-                        renumberCapturedVariables(conditional.falseValue(), offset));
-
-            case LambdaExpression.InExpression inExpr ->
-                // Iteration 5: Handle IN clause expressions
-                new LambdaExpression.InExpression(
-                        renumberCapturedVariables(inExpr.field(), offset),
-                        renumberCapturedVariables(inExpr.collection(), offset),
-                        inExpr.negated());
-
-            case LambdaExpression.MemberOfExpression memberOfExpr ->
-                // Iteration 5: Handle MEMBER OF expressions
-                new LambdaExpression.MemberOfExpression(
-                        renumberCapturedVariables(memberOfExpr.value(), offset),
-                        renumberCapturedVariables(memberOfExpr.collectionField(), offset),
-                        memberOfExpr.negated());
-
-            // These expression types don't contain captured variables, return as-is
-            // Using separate cases because multi-pattern with `_` requires Java 21 preview
-            case LambdaExpression.PathExpression ignored1 -> expression;
-            case LambdaExpression.BiEntityFieldAccess ignored2 -> expression;
-            case LambdaExpression.BiEntityPathExpression ignored3 -> expression;
-            case LambdaExpression.BiEntityParameter ignored4 -> expression;
-
-            // Other expression types: FieldAccess, Constant, Parameter, NullLiteral, etc.
-            default -> expression;
-        };
     }
 }

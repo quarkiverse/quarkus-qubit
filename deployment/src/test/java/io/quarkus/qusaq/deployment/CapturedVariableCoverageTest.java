@@ -1,16 +1,11 @@
 package io.quarkus.qusaq.deployment;
 
-import io.quarkus.qusaq.deployment.analysis.CallSiteProcessor;
-import io.quarkus.qusaq.deployment.analysis.LambdaBytecodeAnalyzer;
-import io.quarkus.qusaq.deployment.analysis.LambdaDeduplicator;
-import io.quarkus.qusaq.deployment.generation.QueryExecutorClassGenerator;
+import io.quarkus.qusaq.deployment.analysis.CapturedVariableHelper;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -45,42 +40,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 class CapturedVariableCoverageTest {
 
     /**
-     * Helper method to invoke the private collectCapturedVariableIndices method via reflection.
+     * Helper method to call collectCapturedVariableIndices from CapturedVariableHelper.
      */
-    private Set<Integer> collectCapturedVariables(LambdaExpression expression) throws Exception {
-        CallSiteProcessor processor = new CallSiteProcessor(
-                new LambdaBytecodeAnalyzer(),
-                new LambdaDeduplicator(),
-                new QueryExecutorClassGenerator(),
-                new AtomicInteger(0));
+    private Set<Integer> collectCapturedVariables(LambdaExpression expression) {
         Set<Integer> capturedIndices = new HashSet<>();
-
-        Method method = CallSiteProcessor.class.getDeclaredMethod(
-                "collectCapturedVariableIndices",
-                LambdaExpression.class,
-                Set.class);
-        method.setAccessible(true);
-        method.invoke(processor, expression, capturedIndices);
-
+        CapturedVariableHelper.collectCapturedVariableIndices(expression, capturedIndices);
         return capturedIndices;
     }
 
     /**
-     * Helper method to invoke the private countCapturedVariables method via reflection.
+     * Helper method to call countCapturedVariables from CapturedVariableHelper.
      */
-    private int countCapturedVariables(LambdaExpression expression) throws Exception {
-        CallSiteProcessor processor = new CallSiteProcessor(
-                new LambdaBytecodeAnalyzer(),
-                new LambdaDeduplicator(),
-                new QueryExecutorClassGenerator(),
-                new AtomicInteger(0));
-
-        Method method = CallSiteProcessor.class.getDeclaredMethod(
-                "countCapturedVariables",
-                LambdaExpression.class);
-        method.setAccessible(true);
-
-        return (int) method.invoke(processor, expression);
+    private int countCapturedVariables(LambdaExpression expression) {
+        return CapturedVariableHelper.countCapturedVariables(expression);
     }
 
     // ========================================================================
@@ -88,7 +60,7 @@ class CapturedVariableCoverageTest {
     // ========================================================================
 
     @Test
-    void testCastExpression_withCapturedVariable_missesVariable() throws Exception {
+    void testCastExpression_withCapturedVariable_missesVariable() {
         // Create a Cast expression containing a captured variable
         // Pattern: (String) capturedVar
         var capturedVar = new LambdaExpression.CapturedVariable(0, Object.class);
@@ -103,7 +75,7 @@ class CapturedVariableCoverageTest {
     }
 
     @Test
-    void testCastExpression_withNestedCapturedVariable_missesVariable() throws Exception {
+    void testCastExpression_withNestedCapturedVariable_missesVariable() {
         // Create a more complex Cast expression with nested captured variable
         // Pattern: (Integer) (capturedVar + 5)
         var capturedVar = new LambdaExpression.CapturedVariable(1, Integer.class);
@@ -124,7 +96,7 @@ class CapturedVariableCoverageTest {
     }
 
     @Test
-    void testCastExpression_countCapturedVariables_returnsZero() throws Exception {
+    void testCastExpression_countCapturedVariables_returnsZero() {
         // Verify that countCapturedVariables also misses variables in Cast expressions
         var capturedVar = new LambdaExpression.CapturedVariable(0, Object.class);
         var cast = new LambdaExpression.Cast(capturedVar, String.class);
@@ -141,7 +113,7 @@ class CapturedVariableCoverageTest {
     // ========================================================================
 
     @Test
-    void testInstanceOfExpression_withCapturedVariable_missesVariable() throws Exception {
+    void testInstanceOfExpression_withCapturedVariable_missesVariable() {
         // Create an InstanceOf expression containing a captured variable
         // Pattern: capturedVar instanceof String
         var capturedVar = new LambdaExpression.CapturedVariable(0, Object.class);
@@ -156,7 +128,7 @@ class CapturedVariableCoverageTest {
     }
 
     @Test
-    void testInstanceOfExpression_withComplexChild_missesVariable() throws Exception {
+    void testInstanceOfExpression_withComplexChild_missesVariable() {
         // Create an InstanceOf expression with a method call containing captured variable
         // Pattern: capturedVar.getValue() instanceof String
         var capturedVar = new LambdaExpression.CapturedVariable(2, Object.class);
@@ -177,7 +149,7 @@ class CapturedVariableCoverageTest {
     }
 
     @Test
-    void testInstanceOfExpression_countCapturedVariables_returnsZero() throws Exception {
+    void testInstanceOfExpression_countCapturedVariables_returnsZero() {
         // Verify that countCapturedVariables also misses variables in InstanceOf expressions
         var capturedVar = new LambdaExpression.CapturedVariable(0, Object.class);
         var instanceOf = new LambdaExpression.InstanceOf(capturedVar, String.class);
@@ -194,7 +166,7 @@ class CapturedVariableCoverageTest {
     // ========================================================================
 
     @Test
-    void testConditionalExpression_withCapturedVariableInCondition_missesVariable() throws Exception {
+    void testConditionalExpression_withCapturedVariableInCondition_missesVariable() {
         // Create a Conditional expression with captured variable in condition
         // Pattern: capturedFlag ? "yes" : "no"
         var capturedVar = new LambdaExpression.CapturedVariable(0, Boolean.class);
@@ -211,7 +183,7 @@ class CapturedVariableCoverageTest {
     }
 
     @Test
-    void testConditionalExpression_withCapturedVariableInTrueValue_missesVariable() throws Exception {
+    void testConditionalExpression_withCapturedVariableInTrueValue_missesVariable() {
         // Create a Conditional expression with captured variable in true value
         // Pattern: active ? capturedName : "Unknown"
         var condition = new LambdaExpression.FieldAccess("active", Boolean.class);
@@ -228,7 +200,7 @@ class CapturedVariableCoverageTest {
     }
 
     @Test
-    void testConditionalExpression_withCapturedVariableInFalseValue_missesVariable() throws Exception {
+    void testConditionalExpression_withCapturedVariableInFalseValue_missesVariable() {
         // Create a Conditional expression with captured variable in false value
         // Pattern: active ? "Active" : capturedStatus
         var condition = new LambdaExpression.FieldAccess("active", Boolean.class);
@@ -245,7 +217,7 @@ class CapturedVariableCoverageTest {
     }
 
     @Test
-    void testConditionalExpression_withMultipleCapturedVariables_missesAll() throws Exception {
+    void testConditionalExpression_withMultipleCapturedVariables_missesAll() {
         // Create a Conditional expression with captured variables in all three positions
         // Pattern: capturedFlag ? capturedName : capturedDefault
         var capturedCondition = new LambdaExpression.CapturedVariable(0, Boolean.class);
@@ -265,7 +237,7 @@ class CapturedVariableCoverageTest {
     }
 
     @Test
-    void testConditionalExpression_countCapturedVariables_returnsZero() throws Exception {
+    void testConditionalExpression_countCapturedVariables_returnsZero() {
         // Verify that countCapturedVariables also misses variables in Conditional expressions
         var capturedVar = new LambdaExpression.CapturedVariable(0, Boolean.class);
         var trueValue = new LambdaExpression.Constant("yes", String.class);
@@ -284,7 +256,7 @@ class CapturedVariableCoverageTest {
     // ========================================================================
 
     @Test
-    void testSupportedTypes_detectCapturedVariables() throws Exception {
+    void testSupportedTypes_detectCapturedVariables() {
         // Verify that the supported expression types DO correctly detect captured variables
         // This serves as a baseline to confirm the test methodology is correct
 
@@ -324,7 +296,7 @@ class CapturedVariableCoverageTest {
     }
 
     @Test
-    void testDirectCapturedVariable_isDetected() throws Exception {
+    void testDirectCapturedVariable_isDetected() {
         // Verify that a direct CapturedVariable is always detected
         var capturedVar = new LambdaExpression.CapturedVariable(5, String.class);
 

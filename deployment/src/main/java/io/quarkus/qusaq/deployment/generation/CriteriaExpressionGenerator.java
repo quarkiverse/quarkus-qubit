@@ -45,13 +45,7 @@ import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.MethodDescriptor;
 import io.quarkus.gizmo.ResultHandle;
 import io.quarkus.qusaq.deployment.LambdaExpression;
-import io.quarkus.qusaq.deployment.LambdaExpression.BiEntityFieldAccess;
-import io.quarkus.qusaq.deployment.LambdaExpression.BiEntityPathExpression;
-import io.quarkus.qusaq.deployment.LambdaExpression.EntityPosition;
 import io.quarkus.qusaq.deployment.LambdaExpression.ExistsSubquery;
-import io.quarkus.qusaq.deployment.LambdaExpression.GroupAggregation;
-import io.quarkus.qusaq.deployment.LambdaExpression.GroupAggregationType;
-import io.quarkus.qusaq.deployment.LambdaExpression.GroupKeyReference;
 import io.quarkus.qusaq.deployment.LambdaExpression.InExpression;
 import io.quarkus.qusaq.deployment.LambdaExpression.InSubquery;
 import io.quarkus.qusaq.deployment.LambdaExpression.MemberOfExpression;
@@ -61,7 +55,10 @@ import io.quarkus.qusaq.deployment.LambdaExpression.ScalarSubquery;
 import io.quarkus.qusaq.deployment.analysis.PatternDetector;
 import io.quarkus.qusaq.deployment.generation.builders.ArithmeticExpressionBuilder;
 import io.quarkus.qusaq.deployment.generation.builders.BigDecimalExpressionBuilder;
+import io.quarkus.qusaq.deployment.generation.builders.BiEntityExpressionBuilder;
 import io.quarkus.qusaq.deployment.generation.builders.ComparisonExpressionBuilder;
+import io.quarkus.qusaq.deployment.generation.builders.ExpressionGeneratorHelper;
+import io.quarkus.qusaq.deployment.generation.builders.GroupExpressionBuilder;
 import io.quarkus.qusaq.deployment.generation.builders.StringExpressionBuilder;
 import io.quarkus.qusaq.deployment.generation.builders.SubqueryExpressionBuilder;
 import io.quarkus.qusaq.deployment.generation.builders.TemporalExpressionBuilder;
@@ -75,8 +72,11 @@ import jakarta.persistence.criteria.Selection;
 
 /**
  * Converts lambda expression AST into JPA Criteria API bytecode using Gizmo.
+ *
+ * <p>Implements ExpressionGeneratorHelper to provide common generation methods
+ * to specialized builders (BiEntityExpressionBuilder, GroupExpressionBuilder).
  */
-public class CriteriaExpressionGenerator {
+public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
     private static final Set<String> BIG_DECIMAL_ARITHMETIC_METHOD_NAMES = Set.of(
         METHOD_ADD, METHOD_SUBTRACT, METHOD_MULTIPLY, METHOD_DIVIDE
@@ -94,6 +94,12 @@ public class CriteriaExpressionGenerator {
     private final TemporalExpressionBuilder temporalBuilder = new TemporalExpressionBuilder();
     private final BigDecimalExpressionBuilder bigDecimalBuilder = new BigDecimalExpressionBuilder();
     private final SubqueryExpressionBuilder subqueryBuilder = new SubqueryExpressionBuilder();
+
+    /**
+     * Delegate builders for bi-entity and group expressions (ARCH-001).
+     */
+    private final BiEntityExpressionBuilder biEntityBuilder = new BiEntityExpressionBuilder();
+    private final GroupExpressionBuilder groupBuilder = new GroupExpressionBuilder();
 
     /** Creates MethodDescriptor for method. */
     private static MethodDescriptor methodDescriptor(Class<?> clazz, String methodName, Class<?> returnType, Class<?>... params) {
@@ -588,6 +594,7 @@ public class CriteriaExpressionGenerator {
     }
 
     /** Generates JPA field access expression. */
+    @Override
     public ResultHandle generateFieldAccess(
             MethodCreator method,
             LambdaExpression.FieldAccess field,
@@ -620,6 +627,7 @@ public class CriteriaExpressionGenerator {
      * @param root the root entity handle (From or Path)
      * @return the final Path handle after all navigation steps
      */
+    @Override
     public ResultHandle generatePathExpression(
             MethodCreator method,
             PathExpression pathExpr,
@@ -642,6 +650,7 @@ public class CriteriaExpressionGenerator {
      * <p>
      * Refactored for Java 21: Uses pattern matching switch for cleaner type dispatch.
      */
+    @Override
     public ResultHandle generateConstant(MethodCreator method, LambdaExpression.Constant constant) {
         Object value = constant.value();
 
@@ -915,7 +924,8 @@ public class CriteriaExpressionGenerator {
     }
 
     /** Generates arithmetic operations. Delegates to ArithmeticExpressionBuilder. */
-    private ResultHandle generateArithmeticOperation(
+    @Override
+    public ResultHandle generateArithmeticOperation(
             MethodCreator method,
             LambdaExpression.BinaryOp.Operator operator,
             ResultHandle cb,
@@ -929,7 +939,8 @@ public class CriteriaExpressionGenerator {
      * Detects if binary operation is string concatenation.
      * Returns true if operator is ADD and at least one operand is a String type.
      */
-    private boolean isStringConcatenation(LambdaExpression.BinaryOp binOp) {
+    @Override
+    public boolean isStringConcatenation(LambdaExpression.BinaryOp binOp) {
         if (binOp.operator() != LambdaExpression.BinaryOp.Operator.ADD) {
             return false;
         }
@@ -955,7 +966,8 @@ public class CriteriaExpressionGenerator {
      * Generates string concatenation using JPA CriteriaBuilder.concat().
      * Handles chaining of multiple concat operations.
      */
-    private ResultHandle generateStringConcatenation(
+    @Override
+    public ResultHandle generateStringConcatenation(
             MethodCreator method,
             ResultHandle cb,
             ResultHandle left,
@@ -972,7 +984,8 @@ public class CriteriaExpressionGenerator {
     }
 
     /** Generates comparison operations. Delegates to ComparisonExpressionBuilder. */
-    private ResultHandle generateComparisonOperation(
+    @Override
+    public ResultHandle generateComparisonOperation(
             MethodCreator method,
             LambdaExpression.BinaryOp.Operator operator,
             ResultHandle cb,
@@ -983,7 +996,8 @@ public class CriteriaExpressionGenerator {
     }
 
     /** Combines two predicates with AND or OR. */
-    private ResultHandle combinePredicates(
+    @Override
+    public ResultHandle combinePredicates(
             MethodCreator method,
             ResultHandle cb,
             ResultHandle left,
@@ -1136,7 +1150,8 @@ public class CriteriaExpressionGenerator {
     }
 
     /** Wraps value as literal Expression. */
-    private ResultHandle wrapAsLiteral(MethodCreator method, ResultHandle cb, ResultHandle value) {
+    @Override
+    public ResultHandle wrapAsLiteral(MethodCreator method, ResultHandle cb, ResultHandle value) {
         return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_LITERAL, Expression.class, Object.class), cb, value);
     }
 
@@ -1159,23 +1174,13 @@ public class CriteriaExpressionGenerator {
     }
 
     // =============================================================================================
-    // BI-ENTITY EXPRESSIONS (Iteration 6: Join Queries)
+    // BI-ENTITY EXPRESSIONS (Iteration 6: Join Queries) - Delegated to BiEntityExpressionBuilder
     // =============================================================================================
 
     /**
      * Generates JPA Predicate from bi-entity lambda expression AST.
      * <p>
-     * Used for join query predicates like {@code (Person p, Phone ph) -> ph.type.equals("mobile")}.
-     * Unlike single-entity predicates, bi-entity predicates need access to both the root entity
-     * and the joined entity to correctly resolve field paths.
-     * <p>
-     * Example:
-     * <pre>
-     * // Lambda: (Person p, Phone ph) -> ph.type.equals("mobile") && p.active
-     * // Generated JPA:
-     * //   - ph.type -> join.get("type")
-     * //   - p.active -> root.get("active")
-     * </pre>
+     * Delegates to BiEntityExpressionBuilder (ARCH-001 extraction).
      *
      * @param method the method creator for bytecode generation
      * @param expression the bi-entity lambda expression AST
@@ -1193,72 +1198,13 @@ public class CriteriaExpressionGenerator {
             ResultHandle join,
             ResultHandle capturedValues) {
 
-        if (expression == null) {
-            return null;
-        }
-
-        // Java 21 pattern matching switch for type dispatch
-        return switch (expression) {
-            case LambdaExpression.BinaryOp binOp ->
-                generateBiEntityBinaryOperation(method, binOp, cb, root, join, capturedValues);
-
-            case LambdaExpression.UnaryOp unOp ->
-                generateBiEntityUnaryOperation(method, unOp, cb, root, join, capturedValues);
-
-            case BiEntityFieldAccess biField -> {
-                ResultHandle base = getBaseForEntityPosition(biField.entityPosition(), root, join);
-                ResultHandle path = generateFieldAccess(method,
-                        new LambdaExpression.FieldAccess(biField.fieldName(), biField.fieldType()), base);
-                if (isBooleanType(biField.fieldType())) {
-                    yield method.invokeInterfaceMethod(
-                            methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
-                }
-                yield path;
-            }
-
-            case BiEntityPathExpression biPath -> {
-                ResultHandle base = getBaseForEntityPosition(biPath.entityPosition(), root, join);
-                ResultHandle path = generatePathExpression(method,
-                        new PathExpression(biPath.segments(), biPath.resultType()), base);
-                if (isBooleanType(biPath.resultType())) {
-                    yield method.invokeInterfaceMethod(
-                            methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
-                }
-                yield path;
-            }
-
-            case LambdaExpression.FieldAccess field -> {
-                // Single-entity field in bi-entity context (from root)
-                ResultHandle path = generateFieldAccess(method, field, root);
-                if (isBooleanType(field.fieldType())) {
-                    yield method.invokeInterfaceMethod(
-                            methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
-                }
-                yield path;
-            }
-
-            case PathExpression pathExpr -> {
-                // Single-entity path in bi-entity context (from root)
-                ResultHandle path = generatePathExpression(method, pathExpr, root);
-                if (isBooleanType(pathExpr.resultType())) {
-                    yield method.invokeInterfaceMethod(
-                            methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
-                }
-                yield path;
-            }
-
-            case LambdaExpression.MethodCall methodCall ->
-                generateBiEntityMethodCall(method, methodCall, cb, root, join, capturedValues);
-
-            default -> null;
-        };
+        return biEntityBuilder.generateBiEntityPredicate(method, expression, cb, root, join, capturedValues, this);
     }
 
     /**
      * Generates JPA Expression from bi-entity lambda expression AST.
      * <p>
-     * Returns the base expression handle (Path, etc.) for bi-entity expressions,
-     * selecting root or join based on entity position.
+     * Delegates to BiEntityExpressionBuilder (ARCH-001 extraction).
      *
      * @param method the method creator for bytecode generation
      * @param expression the bi-entity lambda expression AST
@@ -1276,286 +1222,17 @@ public class CriteriaExpressionGenerator {
             ResultHandle join,
             ResultHandle capturedValues) {
 
-        if (expression == null) {
-            return null;
-        }
-
-        // Java 21 pattern matching switch for type dispatch
-        return switch (expression) {
-            case BiEntityFieldAccess biField -> {
-                ResultHandle base = getBaseForEntityPosition(biField.entityPosition(), root, join);
-                yield generateFieldAccess(method,
-                        new LambdaExpression.FieldAccess(biField.fieldName(), biField.fieldType()), base);
-            }
-
-            case BiEntityPathExpression biPath -> {
-                ResultHandle base = getBaseForEntityPosition(biPath.entityPosition(), root, join);
-                yield generatePathExpression(method,
-                        new PathExpression(biPath.segments(), biPath.resultType()), base);
-            }
-
-            case LambdaExpression.FieldAccess field ->
-                // Single-entity field defaults to root
-                generateFieldAccess(method, field, root);
-
-            case PathExpression pathExpr ->
-                // Single-entity path defaults to root
-                generatePathExpression(method, pathExpr, root);
-
-            case LambdaExpression.Constant constant -> {
-                ResultHandle constantValue = generateConstant(method, constant);
-                yield wrapAsLiteral(method, cb, constantValue);
-            }
-
-            case LambdaExpression.CapturedVariable capturedVar -> {
-                ResultHandle index = method.load(capturedVar.index());
-                ResultHandle value = method.readArrayValue(capturedValues, index);
-                Class<?> targetType = TypeConverter.getBoxedType(capturedVar.type());
-                ResultHandle castedValue = method.checkCast(value, targetType);
-                yield wrapAsLiteral(method, cb, castedValue);
-            }
-
-            case LambdaExpression.MethodCall methodCall ->
-                generateBiEntityMethodCall(method, methodCall, cb, root, join, capturedValues);
-
-            case LambdaExpression.BinaryOp binOp ->
-                generateBiEntityBinaryOperation(method, binOp, cb, root, join, capturedValues);
-
-            default -> null;
-        };
-    }
-
-    /**
-     * Returns the appropriate JPA base handle (root or join) based on entity position.
-     *
-     * @param position the entity position (FIRST or SECOND)
-     * @param root the root entity handle
-     * @param join the joined entity handle
-     * @return root for FIRST position, join for SECOND position
-     */
-    private ResultHandle getBaseForEntityPosition(
-            EntityPosition position,
-            ResultHandle root,
-            ResultHandle join) {
-        return position == EntityPosition.FIRST ? root : join;
-    }
-
-    /**
-     * Generates bi-entity binary operation (comparison, logical, arithmetic).
-     */
-    private ResultHandle generateBiEntityBinaryOperation(
-            MethodCreator method,
-            LambdaExpression.BinaryOp binOp,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle join,
-            ResultHandle capturedValues) {
-
-        // Check for string concatenation
-        if (isStringConcatenation(binOp)) {
-            ResultHandle left = generateBiEntityExpressionAsJpaExpression(method, binOp.left(), cb, root, join, capturedValues);
-            ResultHandle right = generateBiEntityExpressionAsJpaExpression(method, binOp.right(), cb, root, join, capturedValues);
-            return generateStringConcatenation(method, cb, left, right);
-        }
-
-        // Check for arithmetic
-        if (PatternDetector.isArithmeticExpression(binOp)) {
-            ResultHandle left = generateBiEntityExpressionAsJpaExpression(method, binOp.left(), cb, root, join, capturedValues);
-            ResultHandle right = generateBiEntityExpressionAsJpaExpression(method, binOp.right(), cb, root, join, capturedValues);
-            return generateArithmeticOperation(method, binOp.operator(), cb, left, right);
-        }
-
-        // Logical operations
-        if (isLogicalOperation(binOp)) {
-            ResultHandle left = generateBiEntityPredicate(method, binOp.left(), cb, root, join, capturedValues);
-            ResultHandle right = generateBiEntityPredicate(method, binOp.right(), cb, root, join, capturedValues);
-            return combinePredicates(method, cb, left, right, binOp.operator());
-        }
-
-        // Null check
-        if (isNullCheckPattern(binOp)) {
-            return generateBiEntityNullCheckPredicate(method, binOp, cb, root, join, capturedValues);
-        }
-
-        // Default: comparison operation
-        ResultHandle left = generateBiEntityExpressionAsJpaExpression(method, binOp.left(), cb, root, join, capturedValues);
-        ResultHandle right = generateBiEntityExpressionAsJpaExpression(method, binOp.right(), cb, root, join, capturedValues);
-        return generateComparisonOperation(method, binOp.operator(), cb, left, right);
-    }
-
-    /**
-     * Generates bi-entity null check predicate.
-     */
-    private ResultHandle generateBiEntityNullCheckPredicate(
-            MethodCreator method,
-            LambdaExpression.BinaryOp binOp,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle join,
-            ResultHandle capturedValues) {
-
-        boolean leftIsNull = binOp.left() instanceof LambdaExpression.NullLiteral;
-        LambdaExpression nonNullExpr = leftIsNull ? binOp.right() : binOp.left();
-        ResultHandle expression = generateBiEntityExpressionAsJpaExpression(method, nonNullExpr, cb, root, join, capturedValues);
-
-        if (binOp.operator() == EQ) {
-            return method.invokeInterfaceMethod(
-                    methodDescriptor(CriteriaBuilder.class, CB_IS_NULL, Predicate.class, Expression.class), cb, expression);
-        } else {
-            return method.invokeInterfaceMethod(
-                    methodDescriptor(CriteriaBuilder.class, CB_IS_NOT_NULL, Predicate.class, Expression.class), cb, expression);
-        }
-    }
-
-    /**
-     * Generates bi-entity unary NOT operation.
-     */
-    private ResultHandle generateBiEntityUnaryOperation(
-            MethodCreator method,
-            LambdaExpression.UnaryOp unOp,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle join,
-            ResultHandle capturedValues) {
-
-        ResultHandle operand = generateBiEntityPredicate(method, unOp.operand(), cb, root, join, capturedValues);
-
-        return switch (unOp.operator()) {
-            case NOT -> method.invokeInterfaceMethod(
-                    methodDescriptor(CriteriaBuilder.class, CB_NOT, Predicate.class, Expression.class), cb, operand);
-        };
-    }
-
-    /**
-     * Generates bi-entity method call (e.g., ph.type.equals("mobile")).
-     * <p>
-     * Handles string methods like equals(), startsWith(), contains(), etc.
-     * The target of the method call is resolved using bi-entity expression generation.
-     */
-    private ResultHandle generateBiEntityMethodCall(
-            MethodCreator method,
-            LambdaExpression.MethodCall methodCall,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle join,
-            ResultHandle capturedValues) {
-
-        String methodName = methodCall.methodName();
-
-        // Handle equals() method
-        if (METHOD_EQUALS.equals(methodName) && !methodCall.arguments().isEmpty()) {
-            ResultHandle targetExpr = generateBiEntityExpressionAsJpaExpression(
-                    method, methodCall.target(), cb, root, join, capturedValues);
-            ResultHandle argExpr = generateBiEntityExpression(
-                    method, methodCall.arguments().get(0), cb, root, join, capturedValues);
-            return method.invokeInterfaceMethod(
-                    methodDescriptor(CriteriaBuilder.class, CB_EQUAL, Predicate.class, Expression.class, Object.class),
-                    cb, targetExpr, argExpr);
-        }
-
-        // Handle string pattern methods (startsWith, endsWith, contains)
-        if (STRING_PATTERN_METHOD_NAMES.contains(methodName) && !methodCall.arguments().isEmpty()) {
-            ResultHandle fieldExpr = generateBiEntityExpression(
-                    method, methodCall.target(), cb, root, join, capturedValues);
-            ResultHandle argExpr = generateBiEntityExpression(
-                    method, methodCall.arguments().get(0), cb, root, join, capturedValues);
-            return stringBuilder.buildStringPattern(method, methodCall, cb, fieldExpr, argExpr);
-        }
-
-        // Handle temporal comparison methods (isAfter, isBefore, isEqual)
-        if (TEMPORAL_COMPARISON_METHOD_NAMES.contains(methodName) && !methodCall.arguments().isEmpty()) {
-            ResultHandle fieldExpr = generateBiEntityExpressionAsJpaExpression(
-                    method, methodCall.target(), cb, root, join, capturedValues);
-            ResultHandle argExpr = generateBiEntityExpression(
-                    method, methodCall.arguments().get(0), cb, root, join, capturedValues);
-            return temporalBuilder.buildTemporalComparison(method, methodCall, cb, fieldExpr, argExpr);
-        }
-
-        // Handle getter methods (getX, isX)
-        if (methodName.startsWith(PREFIX_GET) || methodName.startsWith(PREFIX_IS)) {
-            String fieldName = extractFieldName(methodName);
-            ResultHandle targetExpr = generateBiEntityExpressionAsJpaExpression(
-                    method, methodCall.target(), cb, root, join, capturedValues);
-            if (targetExpr == null) {
-                targetExpr = root; // Default to root if target cannot be resolved
-            }
-            return generateFieldAccess(method,
-                    new LambdaExpression.FieldAccess(fieldName, methodCall.returnType()), targetExpr);
-        }
-
-        return null;
-    }
-
-    /**
-     * Generates raw value from bi-entity expression.
-     * Used for method arguments and captured variables.
-     */
-    private ResultHandle generateBiEntityExpression(
-            MethodCreator method,
-            LambdaExpression expression,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle join,
-            ResultHandle capturedValues) {
-
-        if (expression == null) {
-            return null;
-        }
-
-        // Java 21 pattern matching switch for type dispatch
-        return switch (expression) {
-            case BiEntityFieldAccess biField -> {
-                ResultHandle base = getBaseForEntityPosition(biField.entityPosition(), root, join);
-                yield generateFieldAccess(method,
-                        new LambdaExpression.FieldAccess(biField.fieldName(), biField.fieldType()), base);
-            }
-
-            case BiEntityPathExpression biPath -> {
-                ResultHandle base = getBaseForEntityPosition(biPath.entityPosition(), root, join);
-                yield generatePathExpression(method,
-                        new PathExpression(biPath.segments(), biPath.resultType()), base);
-            }
-
-            case LambdaExpression.FieldAccess field ->
-                generateFieldAccess(method, field, root);
-
-            case PathExpression pathExpr ->
-                generatePathExpression(method, pathExpr, root);
-
-            case LambdaExpression.Constant constant ->
-                generateConstant(method, constant);
-
-            case LambdaExpression.CapturedVariable capturedVar -> {
-                ResultHandle index = method.load(capturedVar.index());
-                ResultHandle value = method.readArrayValue(capturedValues, index);
-                Class<?> targetType = TypeConverter.getBoxedType(capturedVar.type());
-                yield method.checkCast(value, targetType);
-            }
-
-            default -> null;
-        };
+        return biEntityBuilder.generateBiEntityExpressionAsJpaExpression(method, expression, cb, root, join, capturedValues, this);
     }
 
     // =============================================================================================
-    // BI-ENTITY PROJECTIONS (Iteration 6.6: Join Projections)
+    // BI-ENTITY PROJECTIONS (Iteration 6.6: Join Projections) - Delegated to BiEntityExpressionBuilder
     // =============================================================================================
 
     /**
      * Generates JPA Selection from bi-entity projection expression AST.
      * <p>
-     * Used for join query projections like {@code (p, ph) -> new PersonPhoneDTO(p.firstName, ph.number)}.
-     * Bi-entity projections can reference fields from both the source entity (root) and
-     * joined entity (join).
-     * <p>
-     * Supports:
-     * - Simple field projection: {@code (p, ph) -> ph.number} → query.select(join.get("number"))
-     * - DTO constructor: {@code (p, ph) -> new DTO(p.firstName, ph.number)} → cb.construct(...)
-     * <p>
-     * Example:
-     * <pre>
-     * // Lambda: (p, ph) -> new PersonPhoneDTO(p.firstName, ph.number)
-     * // Generated JPA: cb.construct(PersonPhoneDTO.class, root.get("firstName"), join.get("number"))
-     * </pre>
+     * Delegates to BiEntityExpressionBuilder (ARCH-001 extraction).
      *
      * @param method the method creator for bytecode generation
      * @param expression the bi-entity projection expression AST
@@ -1573,117 +1250,17 @@ public class CriteriaExpressionGenerator {
             ResultHandle join,
             ResultHandle capturedValues) {
 
-        if (expression == null) {
-            return null;
-        }
-
-        // Java 21 pattern matching switch for type dispatch
-        return switch (expression) {
-            case LambdaExpression.ConstructorCall constructorCall ->
-                generateBiEntityConstructorCall(method, constructorCall, cb, root, join, capturedValues);
-
-            case BiEntityFieldAccess biField -> {
-                ResultHandle base = getBaseForEntityPosition(biField.entityPosition(), root, join);
-                yield generateFieldAccess(method,
-                        new LambdaExpression.FieldAccess(biField.fieldName(), biField.fieldType()), base);
-            }
-
-            case BiEntityPathExpression biPath -> {
-                ResultHandle base = getBaseForEntityPosition(biPath.entityPosition(), root, join);
-                yield generatePathExpression(method,
-                        new PathExpression(biPath.segments(), biPath.resultType()), base);
-            }
-
-            case LambdaExpression.FieldAccess field ->
-                generateFieldAccess(method, field, root);
-
-            case PathExpression pathExpr ->
-                generatePathExpression(method, pathExpr, root);
-
-            // For other expression types, delegate to generateBiEntityExpressionAsJpaExpression
-            default -> generateBiEntityExpressionAsJpaExpression(method, expression, cb, root, join, capturedValues);
-        };
-    }
-
-    /**
-     * Generates JPA ConstructorCall for bi-entity projections (Iteration 6.6).
-     * <p>
-     * Converts DTO constructor call with bi-entity field access to JPA cb.construct() call.
-     * <p>
-     * Example:
-     * <pre>
-     * // Lambda: (p, ph) -> new PersonPhoneDTO(p.firstName, ph.number)
-     * // Generated JPA:
-     * Class<?> dtoClass = Class.forName("...PersonPhoneDTO");
-     * cb.construct(dtoClass, root.get("firstName"), join.get("number"))
-     * </pre>
-     *
-     * @param method the method creator for bytecode generation
-     * @param constructorCall the constructor call expression
-     * @param cb the CriteriaBuilder handle
-     * @param root the root entity handle (source entity)
-     * @param join the join handle (joined entity)
-     * @param capturedValues the captured variables array handle
-     * @return the JPA CompoundSelection handle representing the constructor expression
-     */
-    private ResultHandle generateBiEntityConstructorCall(
-            MethodCreator method,
-            LambdaExpression.ConstructorCall constructorCall,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle join,
-            ResultHandle capturedValues) {
-
-        // Get the DTO class name (e.g., "io/quarkus/qusaq/it/dto/PersonPhoneDTO")
-        String className = constructorCall.className();
-
-        // Convert internal class name to fully qualified class name (replace / with .)
-        String fqClassName = className.replace('/', '.');
-
-        // Load the class at runtime using Class.forName()
-        ResultHandle classNameHandle = method.load(fqClassName);
-        ResultHandle resultClassHandle = method.invokeStaticMethod(
-                MethodDescriptor.ofMethod(Class.class, "forName", Class.class, String.class),
-                classNameHandle);
-
-        // Generate JPA expressions for each constructor argument using bi-entity resolution
-        int argCount = constructorCall.arguments().size();
-        ResultHandle selectionsArray = method.newArray(Selection.class, argCount);
-
-        for (int i = 0; i < argCount; i++) {
-            LambdaExpression arg = constructorCall.arguments().get(i);
-            ResultHandle argExpression = generateBiEntityExpressionAsJpaExpression(
-                    method, arg, cb, root, join, capturedValues);
-            method.writeArrayValue(selectionsArray, i, argExpression);
-        }
-
-        // Call cb.construct(resultClass, selections...)
-        MethodDescriptor constructMethod = MethodDescriptor.ofMethod(
-                CriteriaBuilder.class,
-                "construct",
-                CompoundSelection.class,
-                Class.class,
-                Selection[].class);
-
-        return method.invokeInterfaceMethod(constructMethod, cb, resultClassHandle, selectionsArray);
+        return biEntityBuilder.generateBiEntityProjection(method, expression, cb, root, join, capturedValues, this);
     }
 
     // =============================================================================================
-    // GROUP EXPRESSIONS (Iteration 7: GROUP BY)
+    // GROUP EXPRESSIONS (Iteration 7: GROUP BY) - Delegated to GroupExpressionBuilder
     // =============================================================================================
 
     /**
      * Generates JPA Predicate from group lambda expression AST (HAVING clause).
      * <p>
-     * Used for group query HAVING predicates like {@code g -> g.count() > 5}.
-     * Group expressions can reference the grouping key ({@code g.key()}) or
-     * aggregation functions ({@code g.count()}, {@code g.avg()}, etc.).
-     * <p>
-     * Example:
-     * <pre>
-     * // Lambda: g -> g.count() > 5
-     * // Generated JPA: cb.greaterThan(cb.count(root), 5L)
-     * </pre>
+     * Delegates to GroupExpressionBuilder (ARCH-001 extraction).
      *
      * @param method the method creator for bytecode generation
      * @param expression the group lambda expression AST
@@ -1701,47 +1278,13 @@ public class CriteriaExpressionGenerator {
             ResultHandle groupKeyExpr,
             ResultHandle capturedValues) {
 
-        if (expression == null) {
-            return null;
-        }
-
-        // Java 21 pattern matching switch for type dispatch
-        return switch (expression) {
-            case LambdaExpression.BinaryOp binOp ->
-                generateGroupBinaryOperation(method, binOp, cb, root, groupKeyExpr, capturedValues);
-
-            case LambdaExpression.UnaryOp unOp ->
-                generateGroupUnaryOperation(method, unOp, cb, root, groupKeyExpr, capturedValues);
-
-            case GroupAggregation groupAgg ->
-                // Aggregation used as a boolean predicate (rare, but possible)
-                generateGroupAggregationExpression(method, groupAgg, cb, root, capturedValues);
-
-            case GroupKeyReference ignored ->
-                // Key reference as boolean (if key is boolean type)
-                groupKeyExpr;
-
-            default -> null;
-        };
+        return groupBuilder.generateGroupPredicate(method, expression, cb, root, groupKeyExpr, capturedValues, this);
     }
 
     /**
      * Generates JPA Expression from group lambda expression AST (GROUP BY SELECT).
      * <p>
-     * Used for group query select projections like {@code g -> new DeptStats(g.key(), g.count())}.
-     * Converts GroupKeyReference and GroupAggregation nodes to JPA expressions.
-     * <p>
-     * Example:
-     * <pre>
-     * // Lambda: g -> g.count()
-     * // Generated JPA: cb.count(root)
-     *
-     * // Lambda: g -> g.key()
-     * // Generated JPA: groupKeyExpr (the pre-computed grouping key expression)
-     *
-     * // Lambda: g -> g.avg(p -> p.salary)
-     * // Generated JPA: cb.avg(root.get("salary"))
-     * </pre>
+     * Delegates to GroupExpressionBuilder (ARCH-001 extraction).
      *
      * @param method the method creator for bytecode generation
      * @param expression the group lambda expression AST
@@ -1759,65 +1302,13 @@ public class CriteriaExpressionGenerator {
             ResultHandle groupKeyExpr,
             ResultHandle capturedValues) {
 
-        if (expression == null) {
-            return null;
-        }
-
-        // Java 21 pattern matching switch for type dispatch
-        return switch (expression) {
-            case GroupKeyReference ignored ->
-                // g.key() -> use the pre-computed grouping key expression
-                groupKeyExpr;
-
-            case GroupAggregation groupAgg ->
-                // g.count(), g.avg(), etc. -> generate aggregation expression
-                generateGroupAggregationExpression(method, groupAgg, cb, root, capturedValues);
-
-            case LambdaExpression.ArrayCreation arrayCreation ->
-                // Iteration 7: Object[] projection using cb.tuple()
-                generateGroupArrayCreation(method, arrayCreation, cb, root, groupKeyExpr, capturedValues);
-
-            case LambdaExpression.ConstructorCall constructorCall ->
-                // DTO constructor with group elements
-                generateGroupConstructorCall(method, constructorCall, cb, root, groupKeyExpr, capturedValues);
-
-            case LambdaExpression.FieldAccess field ->
-                // Field access in group context (from nested lambda in aggregation)
-                generateFieldAccess(method, field, root);
-
-            case PathExpression pathExpr ->
-                generatePathExpression(method, pathExpr, root);
-
-            case LambdaExpression.Constant constant -> {
-                ResultHandle constantValue = generateConstant(method, constant);
-                yield wrapAsLiteral(method, cb, constantValue);
-            }
-
-            case LambdaExpression.CapturedVariable capturedVar -> {
-                ResultHandle index = method.load(capturedVar.index());
-                ResultHandle value = method.readArrayValue(capturedValues, index);
-                Class<?> targetType = TypeConverter.getBoxedType(capturedVar.type());
-                ResultHandle castedValue = method.checkCast(value, targetType);
-                yield wrapAsLiteral(method, cb, castedValue);
-            }
-
-            case LambdaExpression.BinaryOp binOp ->
-                generateGroupBinaryOperation(method, binOp, cb, root, groupKeyExpr, capturedValues);
-
-            default -> null;
-        };
+        return groupBuilder.generateGroupSelectExpression(method, expression, cb, root, groupKeyExpr, capturedValues, this);
     }
 
     /**
      * Generates JPA Expression for group ORDER BY clause.
      * <p>
-     * Used for sorting group query results by group key or aggregation values.
-     * <p>
-     * Example:
-     * <pre>
-     * // sortedBy(g -> g.count()) -> cb.count(root)
-     * // sortedBy(g -> g.key()) -> groupKeyExpr
-     * </pre>
+     * Delegates to GroupExpressionBuilder (ARCH-001 extraction).
      *
      * @param method the method creator for bytecode generation
      * @param expression the sort key expression AST
@@ -1835,142 +1326,13 @@ public class CriteriaExpressionGenerator {
             ResultHandle groupKeyExpr,
             ResultHandle capturedValues) {
 
-        // Delegate to generateGroupSelectExpression since they handle the same types
-        return generateGroupSelectExpression(method, expression, cb, root, groupKeyExpr, capturedValues);
-    }
-
-    /**
-     * Generates JPA aggregation expression for GroupAggregation AST node.
-     * <p>
-     * Maps GroupAggregationType to JPA CriteriaBuilder aggregation methods:
-     * <ul>
-     *   <li>COUNT -> cb.count(root)</li>
-     *   <li>COUNT_DISTINCT -> cb.countDistinct(fieldExpr)</li>
-     *   <li>AVG -> cb.avg(fieldExpr)</li>
-     *   <li>SUM_INTEGER -> cb.sum(fieldExpr) [returns Integer]</li>
-     *   <li>SUM_LONG -> cb.sumAsLong(fieldExpr)</li>
-     *   <li>SUM_DOUBLE -> cb.sumAsDouble(fieldExpr)</li>
-     *   <li>MIN -> cb.min(fieldExpr) or cb.least(fieldExpr) for non-numeric</li>
-     *   <li>MAX -> cb.max(fieldExpr) or cb.greatest(fieldExpr) for non-numeric</li>
-     * </ul>
-     *
-     * @param method the method creator for bytecode generation
-     * @param groupAgg the group aggregation expression
-     * @param cb the CriteriaBuilder handle
-     * @param root the root entity handle
-     * @param capturedValues the captured variables array handle
-     * @return the JPA Expression handle for the aggregation
-     */
-    private ResultHandle generateGroupAggregationExpression(
-            MethodCreator method,
-            GroupAggregation groupAgg,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle capturedValues) {
-
-        GroupAggregationType aggType = groupAgg.aggregationType();
-
-        // Handle COUNT specially - it operates on the root, not a field
-        if (aggType == GroupAggregationType.COUNT) {
-            return method.invokeInterfaceMethod(
-                    methodDescriptor(CriteriaBuilder.class, "count", Expression.class, Expression.class),
-                    cb, root);
-        }
-
-        // For all other aggregations, we need to extract the field expression
-        // The fieldExpression in GroupAggregation is the analyzed nested lambda (e.g., p -> p.salary)
-        // which should be a FieldAccess or PathExpression
-        LambdaExpression fieldExpr = groupAgg.fieldExpression();
-        ResultHandle fieldPath = generateExpressionAsJpaExpression(method, fieldExpr, cb, root, capturedValues);
-
-        if (fieldPath == null) {
-            // Fallback: if field expression is null, use root
-            fieldPath = root;
-        }
-
-        return switch (aggType) {
-            case COUNT_DISTINCT -> method.invokeInterfaceMethod(
-                    methodDescriptor(CriteriaBuilder.class, "countDistinct", Expression.class, Expression.class),
-                    cb, fieldPath);
-            case AVG -> method.invokeInterfaceMethod(
-                    methodDescriptor(CriteriaBuilder.class, "avg", Expression.class, Expression.class),
-                    cb, fieldPath);
-            case SUM_INTEGER -> method.invokeInterfaceMethod(
-                    methodDescriptor(CriteriaBuilder.class, "sum", Expression.class, Expression.class),
-                    cb, fieldPath);
-            case SUM_LONG -> method.invokeInterfaceMethod(
-                    methodDescriptor(CriteriaBuilder.class, "sumAsLong", Expression.class, Expression.class),
-                    cb, fieldPath);
-            case SUM_DOUBLE -> method.invokeInterfaceMethod(
-                    methodDescriptor(CriteriaBuilder.class, "sumAsDouble", Expression.class, Expression.class),
-                    cb, fieldPath);
-            case MIN -> method.invokeInterfaceMethod(
-                    methodDescriptor(CriteriaBuilder.class, "min", Expression.class, Expression.class),
-                    cb, fieldPath);
-            case MAX -> method.invokeInterfaceMethod(
-                    methodDescriptor(CriteriaBuilder.class, "max", Expression.class, Expression.class),
-                    cb, fieldPath);
-            case COUNT -> throw new IllegalStateException("COUNT should be handled above");
-        };
-    }
-
-    /**
-     * Generates group binary operation (comparison, logical, arithmetic).
-     * <p>
-     * Handles operations like {@code g.count() > 5} or {@code g.avg() < limit}.
-     */
-    private ResultHandle generateGroupBinaryOperation(
-            MethodCreator method,
-            LambdaExpression.BinaryOp binOp,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle groupKeyExpr,
-            ResultHandle capturedValues) {
-
-        // Logical operations (AND, OR)
-        if (isLogicalOperation(binOp)) {
-            ResultHandle left = generateGroupPredicate(method, binOp.left(), cb, root, groupKeyExpr, capturedValues);
-            ResultHandle right = generateGroupPredicate(method, binOp.right(), cb, root, groupKeyExpr, capturedValues);
-            return combinePredicates(method, cb, left, right, binOp.operator());
-        }
-
-        // Arithmetic operations
-        if (PatternDetector.isArithmeticExpression(binOp)) {
-            ResultHandle left = generateGroupSelectExpression(method, binOp.left(), cb, root, groupKeyExpr, capturedValues);
-            ResultHandle right = generateGroupSelectExpression(method, binOp.right(), cb, root, groupKeyExpr, capturedValues);
-            return generateArithmeticOperation(method, binOp.operator(), cb, left, right);
-        }
-
-        // Comparison operations (most common in HAVING)
-        ResultHandle left = generateGroupSelectExpression(method, binOp.left(), cb, root, groupKeyExpr, capturedValues);
-        ResultHandle right = generateGroupSelectExpression(method, binOp.right(), cb, root, groupKeyExpr, capturedValues);
-        return generateComparisonOperation(method, binOp.operator(), cb, left, right);
-    }
-
-    /**
-     * Generates group unary NOT operation.
-     */
-    private ResultHandle generateGroupUnaryOperation(
-            MethodCreator method,
-            LambdaExpression.UnaryOp unOp,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle groupKeyExpr,
-            ResultHandle capturedValues) {
-
-        ResultHandle operand = generateGroupPredicate(method, unOp.operand(), cb, root, groupKeyExpr, capturedValues);
-
-        return switch (unOp.operator()) {
-            case NOT -> method.invokeInterfaceMethod(
-                    methodDescriptor(CriteriaBuilder.class, CB_NOT, Predicate.class, Expression.class), cb, operand);
-        };
+        return groupBuilder.generateGroupSortExpression(method, expression, cb, root, groupKeyExpr, capturedValues, this);
     }
 
     /**
      * Generates JPA multiselect array for Object[] projections in group context.
      * <p>
-     * Iteration 7: Converts {@code new Object[]{g.key(), g.count()}} to an array of
-     * JPA Selection elements that will be used with {@code query.multiselect()}.
+     * Delegates to GroupExpressionBuilder (ARCH-001 extraction).
      *
      * @param method the method creator for bytecode generation
      * @param arrayCreation the array creation expression from the lambda AST
@@ -1988,97 +1350,6 @@ public class CriteriaExpressionGenerator {
             ResultHandle groupKeyExpr,
             ResultHandle capturedValues) {
 
-        int elementCount = arrayCreation.elements().size();
-        ResultHandle selectionsArray = method.newArray(Selection.class, elementCount);
-
-        for (int i = 0; i < elementCount; i++) {
-            LambdaExpression element = arrayCreation.elements().get(i);
-            ResultHandle elementSelection = generateGroupSelectExpression(
-                    method, element, cb, root, groupKeyExpr, capturedValues);
-            method.writeArrayValue(selectionsArray, i, elementSelection);
-        }
-
-        return selectionsArray;
-    }
-
-    /**
-     * Generates JPA tuple for Object[] projections in group context.
-     * <p>
-     * Iteration 7: Uses cb.tuple() to create a compound selection for Object[] projections.
-     * The resulting Tuple objects will be converted to Object[] at runtime.
-     */
-    private ResultHandle generateGroupArrayCreation(
-            MethodCreator method,
-            LambdaExpression.ArrayCreation arrayCreation,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle groupKeyExpr,
-            ResultHandle capturedValues) {
-
-        // Generate Selection array for all elements
-        ResultHandle selectionsArray = generateGroupArraySelections(
-                method, arrayCreation, cb, root, groupKeyExpr, capturedValues);
-
-        // Use cb.tuple() to create a compound selection
-        MethodDescriptor tupleMethod = MethodDescriptor.ofMethod(
-                CriteriaBuilder.class,
-                "tuple",
-                CompoundSelection.class,
-                Selection[].class);
-
-        return method.invokeInterfaceMethod(tupleMethod, cb, selectionsArray);
-    }
-
-    /**
-     * Generates JPA constructor expression for DTO projections in group context.
-     * <p>
-     * Converts {@code new DeptStats(g.key(), g.count())} to
-     * {@code cb.construct(DeptStats.class, groupKeyExpr, cb.count(root))}.
-     *
-     * @param method the method creator for bytecode generation
-     * @param constructorCall the constructor call expression from the lambda AST
-     * @param cb the CriteriaBuilder handle
-     * @param root the root entity handle
-     * @param groupKeyExpr the JPA expression for the grouping key
-     * @param capturedValues the captured variables array handle
-     * @return the JPA CompoundSelection handle representing the constructor expression
-     */
-    private ResultHandle generateGroupConstructorCall(
-            MethodCreator method,
-            LambdaExpression.ConstructorCall constructorCall,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle groupKeyExpr,
-            ResultHandle capturedValues) {
-
-        // Get the DTO class name
-        String className = constructorCall.className();
-        String fqClassName = className.replace('/', '.');
-
-        // Load the class at runtime
-        ResultHandle classNameHandle = method.load(fqClassName);
-        ResultHandle resultClassHandle = method.invokeStaticMethod(
-                MethodDescriptor.ofMethod(Class.class, "forName", Class.class, String.class),
-                classNameHandle);
-
-        // Generate JPA expressions for each constructor argument
-        int argCount = constructorCall.arguments().size();
-        ResultHandle selectionsArray = method.newArray(Selection.class, argCount);
-
-        for (int i = 0; i < argCount; i++) {
-            LambdaExpression arg = constructorCall.arguments().get(i);
-            ResultHandle argExpression = generateGroupSelectExpression(method, arg, cb, root, groupKeyExpr, capturedValues);
-            method.writeArrayValue(selectionsArray, i, argExpression);
-        }
-
-        // Call cb.construct(resultClass, selections...)
-        MethodDescriptor constructMethod = MethodDescriptor.ofMethod(
-                CriteriaBuilder.class,
-                "construct",
-                CompoundSelection.class,
-                Class.class,
-                Selection[].class);
-
-        return method.invokeInterfaceMethod(constructMethod, cb, resultClassHandle, selectionsArray);
+        return groupBuilder.generateGroupArraySelections(method, arrayCreation, cb, root, groupKeyExpr, capturedValues, this);
     }
 }

@@ -3,6 +3,7 @@ package io.quarkus.qusaq.deployment.analysis;
 import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.qusaq.deployment.LambdaExpression;
 import io.quarkus.qusaq.deployment.QusaqProcessor;
+import io.quarkus.qusaq.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import org.jboss.logging.Logger;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -48,7 +49,7 @@ public class LambdaDeduplicator {
     /**
      * Converts sort expressions to comma-separated string representation.
      */
-    private static String buildSortString(List<CallSiteProcessor.SortExpression> sortExpressions) {
+    private static String buildSortString(List<SortExpression> sortExpressions) {
         return sortExpressions.stream()
                 .map(s -> s.keyExtractor().toString() + s.direction().getSuffix())
                 .collect(Collectors.joining(","));
@@ -79,7 +80,7 @@ public class LambdaDeduplicator {
     /**
      * Computes MD5 hash for sorting-only query (Phase 3).
      */
-    public String computeSortingHash(List<CallSiteProcessor.SortExpression> sortExpressions) {
+    public String computeSortingHash(List<SortExpression> sortExpressions) {
         String sortString = buildSortString(sortExpressions);
         String astString = SORT_PREFIX + sortString + QUERY_TYPE + "LIST";
         return computeMd5Hash(astString);
@@ -90,7 +91,7 @@ public class LambdaDeduplicator {
      */
     public String computeQueryWithSortingHash(
             LambdaExpression expression,
-            List<CallSiteProcessor.SortExpression> sortExpressions,
+            List<SortExpression> sortExpressions,
             boolean isCountQuery,
             boolean isProjectionQuery) {
 
@@ -106,7 +107,7 @@ public class LambdaDeduplicator {
     public String computeFullQueryHash(
             LambdaExpression predicateExpression,
             LambdaExpression projectionExpression,
-            List<CallSiteProcessor.SortExpression> sortExpressions,
+            List<SortExpression> sortExpressions,
             boolean isCountQuery) {
 
         String queryType = CallSiteProcessor.getQueryType(isCountQuery, true, true);
@@ -180,7 +181,7 @@ public class LambdaDeduplicator {
     public String computeJoinHash(
             LambdaExpression joinRelationshipExpression,
             LambdaExpression biEntityPredicateExpression,
-            List<CallSiteProcessor.SortExpression> sortExpressions,
+            List<SortExpression> sortExpressions,
             String joinType,
             boolean isCountQuery) {
         return computeJoinHash(joinRelationshipExpression, biEntityPredicateExpression,
@@ -202,7 +203,7 @@ public class LambdaDeduplicator {
     public String computeJoinHash(
             LambdaExpression joinRelationshipExpression,
             LambdaExpression biEntityPredicateExpression,
-            List<CallSiteProcessor.SortExpression> sortExpressions,
+            List<SortExpression> sortExpressions,
             String joinType,
             boolean isCountQuery,
             boolean isSelectJoined) {
@@ -228,7 +229,7 @@ public class LambdaDeduplicator {
             LambdaExpression joinRelationshipExpression,
             LambdaExpression biEntityPredicateExpression,
             LambdaExpression biEntityProjectionExpression,
-            List<CallSiteProcessor.SortExpression> sortExpressions,
+            List<SortExpression> sortExpressions,
             String joinType,
             boolean isCountQuery,
             boolean isSelectJoined,
@@ -329,7 +330,7 @@ public class LambdaDeduplicator {
             LambdaExpression groupByKeyExpression,
             LambdaExpression havingExpression,
             LambdaExpression groupSelectExpression,
-            List<CallSiteProcessor.SortExpression> groupSortExpressions,
+            List<SortExpression> groupSortExpressions,
             boolean isCountQuery) {
 
         StringBuilder astString = new StringBuilder();
