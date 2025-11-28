@@ -323,24 +323,30 @@ public class SubqueryExpressionBuilder {
         if (expr == null) {
             throw new IllegalArgumentException("Field path expression cannot be null");
         }
-        if (expr instanceof FieldAccess field) {
-            ResultHandle fieldName = method.load(field.fieldName());
-            return method.invokeInterfaceMethod(
-                    MethodDescriptor.ofMethod(Path.class, PATH_GET, Path.class, String.class),
-                    root, fieldName);
-        } else if (expr instanceof PathExpression pathExpr) {
-            ResultHandle currentPath = root;
-            for (PathSegment segment : pathExpr.segments()) {
-                ResultHandle fieldName = method.load(segment.fieldName());
-                currentPath = method.invokeInterfaceMethod(
+        // Java 21 pattern matching switch for type dispatch
+        return switch (expr) {
+            case FieldAccess field -> {
+                ResultHandle fieldName = method.load(field.fieldName());
+                yield method.invokeInterfaceMethod(
                         MethodDescriptor.ofMethod(Path.class, PATH_GET, Path.class, String.class),
-                        currentPath, fieldName);
+                        root, fieldName);
             }
-            return currentPath;
-        }
-        throw new IllegalArgumentException(
-                "Unsupported expression type for field path generation: " + expr.getClass().getSimpleName()
-                        + ". Expected FieldAccess or PathExpression.");
+
+            case PathExpression pathExpr -> {
+                ResultHandle currentPath = root;
+                for (PathSegment segment : pathExpr.segments()) {
+                    ResultHandle fieldName = method.load(segment.fieldName());
+                    currentPath = method.invokeInterfaceMethod(
+                            MethodDescriptor.ofMethod(Path.class, PATH_GET, Path.class, String.class),
+                            currentPath, fieldName);
+                }
+                yield currentPath;
+            }
+
+            default -> throw new IllegalArgumentException(
+                    "Unsupported expression type for field path generation: " + expr.getClass().getSimpleName()
+                            + ". Expected FieldAccess or PathExpression.");
+        };
     }
 
     /**
@@ -361,20 +367,22 @@ public class SubqueryExpressionBuilder {
             return null;
         }
 
-        // Handle BinaryOp predicates (most common case)
-        if (predicate instanceof LambdaExpression.BinaryOp binOp) {
-            return generateBinaryOpPredicate(method, binOp, cb, subRoot, outerRoot, capturedValues);
-        }
+        // Java 21 pattern matching switch for type dispatch
+        return switch (predicate) {
+            // Handle BinaryOp predicates (most common case)
+            case LambdaExpression.BinaryOp binOp ->
+                generateBinaryOpPredicate(method, binOp, cb, subRoot, outerRoot, capturedValues);
 
-        // Handle FieldAccess as boolean
-        if (predicate instanceof FieldAccess field) {
-            ResultHandle path = generateFieldPath(method, field, subRoot);
-            return method.invokeInterfaceMethod(
-                    MethodDescriptor.ofMethod(CriteriaBuilder.class, "isTrue", Predicate.class, Expression.class),
-                    cb, path);
-        }
+            // Handle FieldAccess as boolean
+            case FieldAccess field -> {
+                ResultHandle path = generateFieldPath(method, field, subRoot);
+                yield method.invokeInterfaceMethod(
+                        MethodDescriptor.ofMethod(CriteriaBuilder.class, "isTrue", Predicate.class, Expression.class),
+                        cb, path);
+            }
 
-        return null;
+            default -> null;
+        };
     }
 
     /**
@@ -458,26 +466,35 @@ public class SubqueryExpressionBuilder {
             return null;
         }
 
-        if (expr instanceof FieldAccess field) {
-            // Default to subquery root for simple field access
-            return generateFieldPath(method, field, subRoot);
-        } else if (expr instanceof PathExpression pathExpr) {
-            return generateFieldPath(method, pathExpr, subRoot);
-        } else if (expr instanceof LambdaExpression.CorrelatedVariable correlated) {
-            // Correlated reference - use the outer root
-            return generateFieldPath(method, correlated.fieldExpression(), outerRoot);
-        } else if (expr instanceof LambdaExpression.Constant constant) {
-            return generateConstant(method, constant);
-        } else if (expr instanceof LambdaExpression.CapturedVariable capturedVar) {
-            ResultHandle index = method.load(capturedVar.index());
-            ResultHandle value = method.readArrayValue(capturedValues, index);
-            return method.checkCast(value, Object.class);
-        }
+        // Java 21 pattern matching switch for type dispatch
+        return switch (expr) {
+            case FieldAccess field ->
+                // Default to subquery root for simple field access
+                generateFieldPath(method, field, subRoot);
 
-        log.warnf("Unhandled expression type in generateSubqueryExpression: %s. "
-                + "This may indicate a missing case handler or an unexpected AST structure.",
-                expr.getClass().getSimpleName());
-        return null;
+            case PathExpression pathExpr ->
+                generateFieldPath(method, pathExpr, subRoot);
+
+            case LambdaExpression.CorrelatedVariable correlated ->
+                // Correlated reference - use the outer root
+                generateFieldPath(method, correlated.fieldExpression(), outerRoot);
+
+            case LambdaExpression.Constant constant ->
+                generateConstant(method, constant);
+
+            case LambdaExpression.CapturedVariable capturedVar -> {
+                ResultHandle index = method.load(capturedVar.index());
+                ResultHandle value = method.readArrayValue(capturedValues, index);
+                yield method.checkCast(value, Object.class);
+            }
+
+            default -> {
+                log.warnf("Unhandled expression type in generateSubqueryExpression: %s. "
+                        + "This may indicate a missing case handler or an unexpected AST structure.",
+                        expr.getClass().getSimpleName());
+                yield null;
+            }
+        };
     }
 
     /**
@@ -485,34 +502,29 @@ public class SubqueryExpressionBuilder {
      */
     private ResultHandle generateConstant(MethodCreator method, LambdaExpression.Constant constant) {
         Object value = constant.value();
-        if (value == null) {
-            return method.loadNull();
-        } else if (value instanceof String s) {
-            return method.load(s);
-        } else if (value instanceof Integer i) {
-            return method.load(i);
-        } else if (value instanceof Long l) {
-            return method.load(l);
-        } else if (value instanceof Boolean b) {
-            return method.load(b);
-        } else if (value instanceof Double d) {
-            return method.load(d);
-        } else if (value instanceof Float f) {
-            return method.load(f);
-        }
-        return method.loadNull();
+        // Java 21 pattern matching switch for type dispatch
+        return switch (value) {
+            case null -> method.loadNull();
+            case String s -> method.load(s);
+            case Integer i -> method.load(i);
+            case Long l -> method.load(l);
+            case Boolean b -> method.load(b);
+            case Double d -> method.load(d);
+            case Float f -> method.load(f);
+            default -> method.loadNull();
+        };
     }
 
     /**
      * Infers the type of an expression for subquery result type.
      */
     private Class<?> inferExpressionType(LambdaExpression expr) {
-        if (expr instanceof FieldAccess field) {
-            return field.fieldType();
-        } else if (expr instanceof PathExpression pathExpr) {
-            return pathExpr.resultType();
-        }
-        return Object.class;
+        // Java 21 pattern matching switch for type dispatch
+        return switch (expr) {
+            case FieldAccess field -> field.fieldType();
+            case PathExpression pathExpr -> pathExpr.resultType();
+            case null, default -> Object.class;
+        };
     }
 
     /**

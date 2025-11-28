@@ -27,29 +27,69 @@ public class CallSiteProcessor {
     private static final Logger log = Logger.getLogger(CallSiteProcessor.class);
 
     /**
-     * Result of lambda bytecode analysis containing expressions and captured variable count.
-     * Phase 3: Added sortExpressions list for sorting support.
-     * Phase 5: Added aggregationExpression for aggregation queries (min/max/avg/sum*).
-     * Iteration 6: Added joinRelationshipExpression and biEntityPredicateExpression for join queries.
-     * Iteration 6.6: Added biEntityProjectionExpression for join projections.
-     * Iteration 7: Added group-related expressions for GROUP BY queries.
+     * Result of lambda bytecode analysis - sealed interface with specialized result types.
+     * <p>
+     * Refactored from a single 15-field record to a sealed interface hierarchy (ARCH-002).
+     * Each query type now has its own result record with only the relevant fields:
+     * <ul>
+     *   <li>{@link SimpleQueryResult}: where, select, combined, sorting-only queries</li>
+     *   <li>{@link AggregationQueryResult}: min, max, avg, sum* queries</li>
+     *   <li>{@link JoinQueryResult}: join, leftJoin with BiQuerySpec</li>
+     *   <li>{@link GroupQueryResult}: groupBy with GroupQuerySpec</li>
+     * </ul>
      */
-    private record LambdaAnalysisResult(
-            LambdaExpression predicateExpression,
-            LambdaExpression projectionExpression,
-            List<SortExpression> sortExpressions,
-            LambdaExpression aggregationExpression,
-            String aggregationType,  // Phase 5: "MIN", "MAX", "AVG", "SUM_INTEGER", "SUM_LONG", "SUM_DOUBLE"
-            LambdaExpression joinRelationshipExpression,  // Iteration 6: Join relationship field (e.g., p.phones)
-            LambdaExpression biEntityPredicateExpression,  // Iteration 6: BiQuerySpec WHERE predicate
-            LambdaExpression biEntityProjectionExpression,  // Iteration 6.6: BiQuerySpec SELECT projection for join
-            InvokeDynamicScanner.JoinType joinType,  // Iteration 6: INNER or LEFT join
-            boolean isGroupQuery,  // Iteration 7: True if this is a GROUP BY query
-            LambdaExpression groupByKeyExpression,  // Iteration 7: groupBy() key extractor (e.g., p -> p.department)
-            LambdaExpression havingExpression,  // Iteration 7: having() predicate (GroupQuerySpec)
-            LambdaExpression groupSelectExpression,  // Iteration 7: select() projection in group context
-            List<SortExpression> groupSortExpressions,  // Iteration 7: sortedBy() in group context
-            int totalCapturedVarCount) {}
+    private sealed interface LambdaAnalysisResult {
+        /** Total number of captured variables across all expressions in this result. */
+        int totalCapturedVarCount();
+
+        /**
+         * Simple queries: where, select, combined, sorting-only.
+         * Phase 1-3: Basic filtering, projection, and sorting.
+         */
+        record SimpleQueryResult(
+                LambdaExpression predicateExpression,
+                LambdaExpression projectionExpression,
+                List<SortExpression> sortExpressions,
+                int totalCapturedVarCount
+        ) implements LambdaAnalysisResult {}
+
+        /**
+         * Aggregation queries: min, max, avg, sum*.
+         * Phase 5: Aggregation terminals with optional WHERE predicates.
+         */
+        record AggregationQueryResult(
+                LambdaExpression predicateExpression,
+                LambdaExpression aggregationExpression,
+                String aggregationType,  // "MIN", "MAX", "AVG", "SUM_INTEGER", "SUM_LONG", "SUM_DOUBLE"
+                int totalCapturedVarCount
+        ) implements LambdaAnalysisResult {}
+
+        /**
+         * Join queries: join, leftJoin with BiQuerySpec.
+         * Iteration 6: Join relationship, bi-entity predicates/projections.
+         */
+        record JoinQueryResult(
+                LambdaExpression joinRelationshipExpression,
+                LambdaExpression biEntityPredicateExpression,
+                LambdaExpression biEntityProjectionExpression,
+                List<SortExpression> sortExpressions,
+                InvokeDynamicScanner.JoinType joinType,
+                int totalCapturedVarCount
+        ) implements LambdaAnalysisResult {}
+
+        /**
+         * Group queries: groupBy with GroupQuerySpec.
+         * Iteration 7: GROUP BY with having, select, and sort in group context.
+         */
+        record GroupQueryResult(
+                LambdaExpression predicateExpression,  // Pre-grouping WHERE clause
+                LambdaExpression groupByKeyExpression,
+                LambdaExpression havingExpression,
+                LambdaExpression groupSelectExpression,
+                List<SortExpression> groupSortExpressions,
+                int totalCapturedVarCount
+        ) implements LambdaAnalysisResult {}
+    }
 
     /**
      * Sort expression with direction (ascending/descending).
@@ -102,69 +142,77 @@ public class CallSiteProcessor {
                 return;
             }
 
-            if (result.totalCapturedVarCount > 0) {
+            if (result.totalCapturedVarCount() > 0) {
                 log.debugf("Lambda(s) at %s contain %d captured variable(s)",
-                          callSiteId, result.totalCapturedVarCount);
+                          callSiteId, result.totalCapturedVarCount());
             }
 
             String lambdaHash = computeHash(callSite, result);
+            boolean isGroupQuery = result instanceof LambdaAnalysisResult.GroupQueryResult;
             if (deduplicator.handleDuplicateLambda(callSiteId, lambdaHash,
                     callSite.isCountQuery(),
                     callSite.isAggregationQuery(),
                     callSite.isJoinQuery(),
                     callSite.isSelectJoinedQuery(),  // Iteration 6.5: Pass selectJoined flag
                     callSite.isJoinProjectionQuery(),  // Iteration 6.6: Pass joinProjection flag
-                    result.isGroupQuery,
-                    result.totalCapturedVarCount, deduplicatedCount, queryTransformations)) {
+                    isGroupQuery,
+                    result.totalCapturedVarCount(), deduplicatedCount, queryTransformations)) {
                 return;
             }
 
-            String executorClassName;
-
-            // Iteration 7: Handle group queries with special generator
-            if (result.isGroupQuery) {
-                executorClassName = generateAndRegisterGroupExecutor(
-                        result.predicateExpression,
-                        result.groupByKeyExpression,
-                        result.havingExpression,
-                        result.groupSelectExpression,
-                        result.groupSortExpressions,
+            // ARCH-002: Pattern matching switch with sealed interface (Java 21)
+            // Compiler guarantees exhaustiveness - no default case needed
+            String executorClassName = switch (result) {
+                case LambdaAnalysisResult.GroupQueryResult group -> generateAndRegisterGroupExecutor(
+                        group.predicateExpression(),
+                        group.groupByKeyExpression(),
+                        group.havingExpression(),
+                        group.groupSelectExpression(),
+                        group.groupSortExpressions(),
                         callSiteId,
-                        result.totalCapturedVarCount,
+                        group.totalCapturedVarCount(),
                         callSite.isCountQuery(),
                         generatedClass,
                         queryTransformations);
-            }
-            // Iteration 6: Handle join queries with special generator
-            // Iteration 6.5: Pass sort expressions for join query sorting and selectJoined flag
-            // Iteration 6.6: Pass bi-entity projection expression for join projections
-            else if (callSite.isJoinQuery() && result.joinType != null) {
-                executorClassName = generateAndRegisterJoinExecutor(
-                        result.joinRelationshipExpression,
-                        result.biEntityPredicateExpression,
-                        result.biEntityProjectionExpression,
-                        result.sortExpressions,
-                        result.joinType,
+
+                case LambdaAnalysisResult.JoinQueryResult join -> generateAndRegisterJoinExecutor(
+                        join.joinRelationshipExpression(),
+                        join.biEntityPredicateExpression(),
+                        join.biEntityProjectionExpression(),
+                        join.sortExpressions(),
+                        join.joinType(),
                         callSiteId,
-                        result.totalCapturedVarCount,
+                        join.totalCapturedVarCount(),
                         callSite.isCountQuery(),
                         callSite.isSelectJoinedQuery(),
                         callSite.isJoinProjectionQuery(),
                         generatedClass,
                         queryTransformations);
-            } else {
-                executorClassName = generateAndRegisterExecutor(
-                        result.predicateExpression,
-                        result.projectionExpression,
-                        result.sortExpressions,
-                        result.aggregationExpression,
-                        result.aggregationType,
+
+                case LambdaAnalysisResult.AggregationQueryResult agg -> generateAndRegisterExecutor(
+                        agg.predicateExpression(),
+                        null,  // No projection for aggregations
+                        Collections.emptyList(),  // No sorting for aggregations
+                        agg.aggregationExpression(),
+                        agg.aggregationType(),
                         callSite.isCountQuery(),
-                        callSite.isAggregationQuery(),
+                        true,  // isAggregationQuery
                         callSiteId,
                         generatedClass,
                         queryTransformations);
-            }
+
+                case LambdaAnalysisResult.SimpleQueryResult simple -> generateAndRegisterExecutor(
+                        simple.predicateExpression(),
+                        simple.projectionExpression(),
+                        simple.sortExpressions(),
+                        null,  // No aggregation
+                        null,  // No aggregation type
+                        callSite.isCountQuery(),
+                        false,  // Not an aggregation query
+                        callSiteId,
+                        generatedClass,
+                        queryTransformations);
+            };
 
             deduplicator.registerExecutor(lambdaHash, executorClassName);
             generatedCount.incrementAndGet();
@@ -221,72 +269,75 @@ public class CallSiteProcessor {
      * Phase 5: Handles aggregation queries with optional WHERE predicates.
      * Iteration 6: Handles join queries with optional bi-entity predicates.
      * Iteration 7: Handles group queries with groupBy, having, select, and sort.
+     * <p>
+     * Refactored for ARCH-002: Uses pattern matching with sealed interface types.
      */
     private String computeHash(InvokeDynamicScanner.LambdaCallSite callSite, LambdaAnalysisResult result) {
-        // Iteration 7: Group queries have highest priority
-        if (result.isGroupQuery) {
-            return deduplicator.computeGroupHash(
-                    result.predicateExpression,
-                    result.groupByKeyExpression,
-                    result.havingExpression,
-                    result.groupSelectExpression,
-                    result.groupSortExpressions,
+        // ARCH-002: Pattern matching switch with sealed interface (Java 21)
+        return switch (result) {
+            case LambdaAnalysisResult.GroupQueryResult group -> deduplicator.computeGroupHash(
+                    group.predicateExpression(),
+                    group.groupByKeyExpression(),
+                    group.havingExpression(),
+                    group.groupSelectExpression(),
+                    group.groupSortExpressions(),
                     callSite.isCountQuery());
-        }
 
-        // Iteration 6: Join queries have priority
-        // Iteration 6.5: Include sort expressions and selectJoined flag for join queries
-        // Iteration 6.6: Include bi-entity projection expression for join projections
-        if (callSite.isJoinQuery() && result.joinType != null) {
-            String joinTypeStr = result.joinType.name();  // INNER or LEFT
-            return deduplicator.computeJoinHash(
-                    result.joinRelationshipExpression,
-                    result.biEntityPredicateExpression,
-                    result.biEntityProjectionExpression,  // Iteration 6.6: Include projection
-                    result.sortExpressions,
-                    joinTypeStr,
-                    callSite.isCountQuery(),
-                    callSite.isSelectJoinedQuery(),
-                    callSite.isJoinProjectionQuery());  // Iteration 6.6: Include joinProjection flag
-        }
+            case LambdaAnalysisResult.JoinQueryResult join -> {
+                String joinTypeStr = join.joinType().name();  // INNER or LEFT
+                yield deduplicator.computeJoinHash(
+                        join.joinRelationshipExpression(),
+                        join.biEntityPredicateExpression(),
+                        join.biEntityProjectionExpression(),
+                        join.sortExpressions(),
+                        joinTypeStr,
+                        callSite.isCountQuery(),
+                        callSite.isSelectJoinedQuery(),
+                        callSite.isJoinProjectionQuery());
+            }
 
-        // Phase 5: Aggregation queries have priority
-        if (callSite.isAggregationQuery() && result.aggregationExpression != null) {
-            return deduplicator.computeAggregationHash(
-                    result.predicateExpression,
-                    result.aggregationExpression,
-                    result.aggregationType);
-        }
+            case LambdaAnalysisResult.AggregationQueryResult agg -> deduplicator.computeAggregationHash(
+                    agg.predicateExpression(),
+                    agg.aggregationExpression(),
+                    agg.aggregationType());
 
-        // Phase 3: Include sort expressions in hash if present
-        boolean hasSorting = result.sortExpressions != null && !result.sortExpressions.isEmpty();
+            case LambdaAnalysisResult.SimpleQueryResult simple -> computeSimpleQueryHash(callSite, simple);
+        };
+    }
+
+    /**
+     * Computes hash for simple queries (WHERE, SELECT, combined, sorting-only).
+     */
+    private String computeSimpleQueryHash(InvokeDynamicScanner.LambdaCallSite callSite,
+                                          LambdaAnalysisResult.SimpleQueryResult simple) {
+        boolean hasSorting = simple.sortExpressions() != null && !simple.sortExpressions().isEmpty();
 
         if (callSite.isCombinedQuery()) {
             if (hasSorting) {
                 return deduplicator.computeFullQueryHash(
-                        result.predicateExpression,
-                        result.projectionExpression,
-                        result.sortExpressions,
+                        simple.predicateExpression(),
+                        simple.projectionExpression(),
+                        simple.sortExpressions(),
                         callSite.isCountQuery());
             }
             return deduplicator.computeCombinedHash(
-                    result.predicateExpression,
-                    result.projectionExpression,
+                    simple.predicateExpression(),
+                    simple.projectionExpression(),
                     callSite.isCountQuery());
         }
 
         // Phase 3: For sorting-only queries, compute hash from sort expressions
-        if (result.predicateExpression == null && result.projectionExpression == null && hasSorting) {
-            return deduplicator.computeSortingHash(result.sortExpressions);
+        if (simple.predicateExpression() == null && simple.projectionExpression() == null && hasSorting) {
+            return deduplicator.computeSortingHash(simple.sortExpressions());
         }
 
         // Regular WHERE or SELECT query (possibly with sorting)
-        LambdaExpression expr = result.predicateExpression != null
-                ? result.predicateExpression
-                : result.projectionExpression;
+        LambdaExpression expr = simple.predicateExpression() != null
+                ? simple.predicateExpression()
+                : simple.projectionExpression();
 
         if (hasSorting) {
-            return deduplicator.computeQueryWithSortingHash(expr, result.sortExpressions,
+            return deduplicator.computeQueryWithSortingHash(expr, simple.sortExpressions(),
                     callSite.isCountQuery(), callSite.isProjectionQuery());
         }
 
@@ -625,9 +676,8 @@ public class CallSiteProcessor {
         List<SortExpression> sortExpressions = analyzeSortLambdas(classBytes, callSite, callSiteId);
         totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
 
-        return new LambdaAnalysisResult(predicateExpression, projectionExpression, sortExpressions,
-                                       null, null, null, null, null, null,
-                                       false, null, null, null, null, totalCapturedVarCount);
+        return new LambdaAnalysisResult.SimpleQueryResult(
+                predicateExpression, projectionExpression, sortExpressions, totalCapturedVarCount);
     }
 
     /**
@@ -676,9 +726,8 @@ public class CallSiteProcessor {
         List<SortExpression> sortExpressions = analyzeSortLambdas(classBytes, callSite, callSiteId);
         totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
 
-        return new LambdaAnalysisResult(predicateExpression, projectionExpression, sortExpressions,
-                                       null, null, null, null, null, null,
-                                       false, null, null, null, null, totalCapturedVarCount);
+        return new LambdaAnalysisResult.SimpleQueryResult(
+                predicateExpression, projectionExpression, sortExpressions, totalCapturedVarCount);
     }
 
     /**
@@ -705,8 +754,8 @@ public class CallSiteProcessor {
             // Sorting-only query - no WHERE or SELECT clauses
             int totalCapturedVarCount = countCapturedVariablesInSortExpressions(sortExpressions);
             log.debugf("Analyzed sorting-only query at %s: %d sort expression(s)", callSiteId, sortExpressions.size());
-            return new LambdaAnalysisResult(null, null, sortExpressions, null, null, null, null, null, null,
-                                           false, null, null, null, null, totalCapturedVarCount);
+            return new LambdaAnalysisResult.SimpleQueryResult(
+                    null, null, sortExpressions, totalCapturedVarCount);
         }
 
         // Regular WHERE or SELECT query
@@ -730,9 +779,8 @@ public class CallSiteProcessor {
         // Phase 3: Add captured variables from sort expressions
         totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
 
-        return new LambdaAnalysisResult(predicateExpression, projectionExpression, sortExpressions,
-                                       null, null, null, null, null, null,
-                                       false, null, null, null, null, totalCapturedVarCount);
+        return new LambdaAnalysisResult.SimpleQueryResult(
+                predicateExpression, projectionExpression, sortExpressions, totalCapturedVarCount);
     }
 
     /**
@@ -796,19 +844,8 @@ public class CallSiteProcessor {
         log.debugf("Analyzed aggregation query at %s: type=%s, mapper=%s, predicate=%s",
                 callSiteId, aggregationType, aggregationExpression, predicateExpression);
 
-        return new LambdaAnalysisResult(
-                predicateExpression,
-                null,  // No projection for aggregations
-                Collections.emptyList(),  // No sorting for aggregations
-                aggregationExpression,
-                aggregationType,
-                null,  // No join relationship for aggregations
-                null,  // No bi-entity predicate for aggregations
-                null,  // No bi-entity projection for aggregations
-                null,  // No join type for aggregations
-                false,  // Not a group query
-                null, null, null, null,  // No group-related expressions
-                totalCapturedVarCount);
+        return new LambdaAnalysisResult.AggregationQueryResult(
+                predicateExpression, aggregationExpression, aggregationType, totalCapturedVarCount);
     }
 
     /**
@@ -890,18 +927,12 @@ public class CallSiteProcessor {
                 callSiteId, callSite.joinType(), joinRelationshipExpression, biEntityPredicateExpression,
                 biEntityProjectionExpression, sortExpressions.size());
 
-        return new LambdaAnalysisResult(
-                null,  // Regular predicates handled separately
-                null,  // Regular projection handled separately
-                sortExpressions,  // Iteration 6.5: Sort expressions for join queries
-                null,  // No aggregation
-                null,  // No aggregation type
+        return new LambdaAnalysisResult.JoinQueryResult(
                 joinRelationshipExpression,
                 biEntityPredicateExpression,
-                biEntityProjectionExpression,  // Iteration 6.6: BiQuerySpec SELECT projection
+                biEntityProjectionExpression,
+                sortExpressions,
                 callSite.joinType(),
-                false,  // Not a group query
-                null, null, null, null,  // No group-related expressions
                 totalCapturedVarCount);
     }
 
@@ -995,17 +1026,8 @@ public class CallSiteProcessor {
                 callSiteId, groupByKeyExpression, havingExpression, groupSelectExpression,
                 groupSortExpressions.size());
 
-        return new LambdaAnalysisResult(
+        return new LambdaAnalysisResult.GroupQueryResult(
                 predicateExpression,  // Pre-grouping WHERE clause
-                null,  // Regular projection not used for group queries
-                Collections.emptyList(),  // Regular sort not used for group queries
-                null,  // No aggregation (group has its own)
-                null,  // No aggregation type
-                null,  // No join relationship
-                null,  // No bi-entity predicate
-                null,  // No bi-entity projection
-                null,  // No join type
-                true,  // This IS a group query
                 groupByKeyExpression,
                 havingExpression,
                 groupSelectExpression,
@@ -1184,46 +1206,62 @@ public class CallSiteProcessor {
 
     /**
      * Recursively collects captured variable indices.
+     * <p>
+     * Refactored for Java 21: Uses pattern matching switch for cleaner type dispatch.
      */
     private void collectCapturedVariableIndices(LambdaExpression expression, Set<Integer> capturedIndices) {
         if (expression == null) {
             return;
         }
 
-        if (expression instanceof LambdaExpression.CapturedVariable capturedVar) {
-            capturedIndices.add(capturedVar.index());
-        } else if (expression instanceof LambdaExpression.BinaryOp binOp) {
-            collectCapturedVariableIndices(binOp.left(), capturedIndices);
-            collectCapturedVariableIndices(binOp.right(), capturedIndices);
-        } else if (expression instanceof LambdaExpression.UnaryOp unaryOp) {
-            collectCapturedVariableIndices(unaryOp.operand(), capturedIndices);
-        } else if (expression instanceof LambdaExpression.MethodCall methodCall) {
-            collectCapturedVariableIndices(methodCall.target(), capturedIndices);
-            for (LambdaExpression arg : methodCall.arguments()) {
-                collectCapturedVariableIndices(arg, capturedIndices);
+        // Java 21 pattern matching switch for type dispatch
+        switch (expression) {
+            case LambdaExpression.CapturedVariable capturedVar ->
+                capturedIndices.add(capturedVar.index());
+
+            case LambdaExpression.BinaryOp binOp -> {
+                collectCapturedVariableIndices(binOp.left(), capturedIndices);
+                collectCapturedVariableIndices(binOp.right(), capturedIndices);
             }
-        } else if (expression instanceof LambdaExpression.ConstructorCall constructorCall) {
-            // Phase 2.4: Handle DTO constructor calls
-            for (LambdaExpression arg : constructorCall.arguments()) {
-                collectCapturedVariableIndices(arg, capturedIndices);
+
+            case LambdaExpression.UnaryOp unaryOp ->
+                collectCapturedVariableIndices(unaryOp.operand(), capturedIndices);
+
+            case LambdaExpression.MethodCall methodCall -> {
+                collectCapturedVariableIndices(methodCall.target(), capturedIndices);
+                for (LambdaExpression arg : methodCall.arguments()) {
+                    collectCapturedVariableIndices(arg, capturedIndices);
+                }
             }
-        } else if (expression instanceof LambdaExpression.InExpression inExpr) {
-            // Iteration 5: Handle IN clause expressions
-            collectCapturedVariableIndices(inExpr.field(), capturedIndices);
-            collectCapturedVariableIndices(inExpr.collection(), capturedIndices);
-        } else if (expression instanceof LambdaExpression.MemberOfExpression memberOfExpr) {
-            // Iteration 5: Handle MEMBER OF expressions
-            collectCapturedVariableIndices(memberOfExpr.value(), capturedIndices);
-            collectCapturedVariableIndices(memberOfExpr.collectionField(), capturedIndices);
-        } else if (expression instanceof LambdaExpression.PathExpression) {
-            // Iteration 4: PathExpression doesn't contain captured variables
-            // (but traversing for consistency if any fields were added later)
-        } else if (expression instanceof LambdaExpression.BiEntityFieldAccess) {
-            // Iteration 6: BiEntityFieldAccess doesn't contain captured variables
-        } else if (expression instanceof LambdaExpression.BiEntityPathExpression) {
-            // Iteration 6: BiEntityPathExpression doesn't contain captured variables
-        } else if (expression instanceof LambdaExpression.BiEntityParameter) {
-            // Iteration 6: BiEntityParameter doesn't contain captured variables
+
+            case LambdaExpression.ConstructorCall constructorCall -> {
+                // Phase 2.4: Handle DTO constructor calls
+                for (LambdaExpression arg : constructorCall.arguments()) {
+                    collectCapturedVariableIndices(arg, capturedIndices);
+                }
+            }
+
+            case LambdaExpression.InExpression inExpr -> {
+                // Iteration 5: Handle IN clause expressions
+                collectCapturedVariableIndices(inExpr.field(), capturedIndices);
+                collectCapturedVariableIndices(inExpr.collection(), capturedIndices);
+            }
+
+            case LambdaExpression.MemberOfExpression memberOfExpr -> {
+                // Iteration 5: Handle MEMBER OF expressions
+                collectCapturedVariableIndices(memberOfExpr.value(), capturedIndices);
+                collectCapturedVariableIndices(memberOfExpr.collectionField(), capturedIndices);
+            }
+
+            // These expression types don't contain captured variables - use separate cases
+            // because multi-pattern cases with unnamed `_` require preview features in Java 21
+            case LambdaExpression.PathExpression ignored1 -> { /* no captured variables */ }
+            case LambdaExpression.BiEntityFieldAccess ignored2 -> { /* no captured variables */ }
+            case LambdaExpression.BiEntityPathExpression ignored3 -> { /* no captured variables */ }
+            case LambdaExpression.BiEntityParameter ignored4 -> { /* no captured variables */ }
+
+            // Other expression types: FieldAccess, Constant, Parameter, NullLiteral, etc.
+            default -> { /* no captured variables */ }
         }
     }
 
@@ -1236,6 +1274,8 @@ public class CallSiteProcessor {
      * - CapturedVariable(1) becomes CapturedVariable(2)
      * <p>
      * Recursively walks the entire AST tree to renumber all CapturedVariable nodes.
+     * <p>
+     * Refactored for Java 21: Uses pattern matching switch expression for cleaner type dispatch.
      *
      * @param expression the lambda expression AST
      * @param offset the offset to add to each captured variable index
@@ -1246,67 +1286,74 @@ public class CallSiteProcessor {
             return expression;
         }
 
-        if (expression instanceof LambdaExpression.CapturedVariable capturedVar) {
-            return new LambdaExpression.CapturedVariable(capturedVar.index() + offset, capturedVar.type());
-        } else if (expression instanceof LambdaExpression.BinaryOp binOp) {
-            return new LambdaExpression.BinaryOp(
-                    renumberCapturedVariables(binOp.left(), offset),
-                    binOp.operator(),
-                    renumberCapturedVariables(binOp.right(), offset));
-        } else if (expression instanceof LambdaExpression.UnaryOp unaryOp) {
-            return new LambdaExpression.UnaryOp(
-                    unaryOp.operator(),
-                    renumberCapturedVariables(unaryOp.operand(), offset));
-        } else if (expression instanceof LambdaExpression.MethodCall methodCall) {
-            LambdaExpression newTarget = renumberCapturedVariables(methodCall.target(), offset);
-            List<LambdaExpression> newArgs = new ArrayList<>();
-            for (LambdaExpression arg : methodCall.arguments()) {
-                newArgs.add(renumberCapturedVariables(arg, offset));
+        // Java 21 pattern matching switch expression for type dispatch
+        return switch (expression) {
+            case LambdaExpression.CapturedVariable capturedVar ->
+                new LambdaExpression.CapturedVariable(capturedVar.index() + offset, capturedVar.type());
+
+            case LambdaExpression.BinaryOp binOp ->
+                new LambdaExpression.BinaryOp(
+                        renumberCapturedVariables(binOp.left(), offset),
+                        binOp.operator(),
+                        renumberCapturedVariables(binOp.right(), offset));
+
+            case LambdaExpression.UnaryOp unaryOp ->
+                new LambdaExpression.UnaryOp(
+                        unaryOp.operator(),
+                        renumberCapturedVariables(unaryOp.operand(), offset));
+
+            case LambdaExpression.MethodCall methodCall -> {
+                LambdaExpression newTarget = renumberCapturedVariables(methodCall.target(), offset);
+                List<LambdaExpression> newArgs = new ArrayList<>();
+                for (LambdaExpression arg : methodCall.arguments()) {
+                    newArgs.add(renumberCapturedVariables(arg, offset));
+                }
+                yield new LambdaExpression.MethodCall(newTarget, methodCall.methodName(), newArgs, methodCall.returnType());
             }
-            return new LambdaExpression.MethodCall(newTarget, methodCall.methodName(), newArgs, methodCall.returnType());
-        } else if (expression instanceof LambdaExpression.ConstructorCall constructorCall) {
-            List<LambdaExpression> newArgs = new ArrayList<>();
-            for (LambdaExpression arg : constructorCall.arguments()) {
-                newArgs.add(renumberCapturedVariables(arg, offset));
+
+            case LambdaExpression.ConstructorCall constructorCall -> {
+                List<LambdaExpression> newArgs = new ArrayList<>();
+                for (LambdaExpression arg : constructorCall.arguments()) {
+                    newArgs.add(renumberCapturedVariables(arg, offset));
+                }
+                yield new LambdaExpression.ConstructorCall(constructorCall.className(), newArgs, constructorCall.resultType());
             }
-            return new LambdaExpression.ConstructorCall(constructorCall.className(), newArgs, constructorCall.resultType());
-        } else if (expression instanceof LambdaExpression.Cast cast) {
-            return new LambdaExpression.Cast(renumberCapturedVariables(cast.expression(), offset), cast.targetType());
-        } else if (expression instanceof LambdaExpression.InstanceOf instanceOf) {
-            return new LambdaExpression.InstanceOf(renumberCapturedVariables(instanceOf.expression(), offset), instanceOf.targetType());
-        } else if (expression instanceof LambdaExpression.Conditional conditional) {
-            return new LambdaExpression.Conditional(
-                    renumberCapturedVariables(conditional.condition(), offset),
-                    renumberCapturedVariables(conditional.trueValue(), offset),
-                    renumberCapturedVariables(conditional.falseValue(), offset));
-        } else if (expression instanceof LambdaExpression.InExpression inExpr) {
-            // Iteration 5: Handle IN clause expressions
-            return new LambdaExpression.InExpression(
-                    renumberCapturedVariables(inExpr.field(), offset),
-                    renumberCapturedVariables(inExpr.collection(), offset),
-                    inExpr.negated());
-        } else if (expression instanceof LambdaExpression.MemberOfExpression memberOfExpr) {
-            // Iteration 5: Handle MEMBER OF expressions
-            return new LambdaExpression.MemberOfExpression(
-                    renumberCapturedVariables(memberOfExpr.value(), offset),
-                    renumberCapturedVariables(memberOfExpr.collectionField(), offset),
-                    memberOfExpr.negated());
-        } else if (expression instanceof LambdaExpression.PathExpression) {
-            // Iteration 4: PathExpression doesn't contain captured variables
-            return expression;
-        } else if (expression instanceof LambdaExpression.BiEntityFieldAccess) {
-            // Iteration 6: BiEntityFieldAccess doesn't contain captured variables
-            return expression;
-        } else if (expression instanceof LambdaExpression.BiEntityPathExpression) {
-            // Iteration 6: BiEntityPathExpression doesn't contain captured variables
-            return expression;
-        } else if (expression instanceof LambdaExpression.BiEntityParameter) {
-            // Iteration 6: BiEntityParameter doesn't contain captured variables
-            return expression;
-        } else {
-            // These expression types don't contain captured variables, return as-is:
-            // FieldAccess, Constant, Parameter, NullLiteral
-            return expression;
-        }
+
+            case LambdaExpression.Cast cast ->
+                new LambdaExpression.Cast(renumberCapturedVariables(cast.expression(), offset), cast.targetType());
+
+            case LambdaExpression.InstanceOf instanceOf ->
+                new LambdaExpression.InstanceOf(renumberCapturedVariables(instanceOf.expression(), offset), instanceOf.targetType());
+
+            case LambdaExpression.Conditional conditional ->
+                new LambdaExpression.Conditional(
+                        renumberCapturedVariables(conditional.condition(), offset),
+                        renumberCapturedVariables(conditional.trueValue(), offset),
+                        renumberCapturedVariables(conditional.falseValue(), offset));
+
+            case LambdaExpression.InExpression inExpr ->
+                // Iteration 5: Handle IN clause expressions
+                new LambdaExpression.InExpression(
+                        renumberCapturedVariables(inExpr.field(), offset),
+                        renumberCapturedVariables(inExpr.collection(), offset),
+                        inExpr.negated());
+
+            case LambdaExpression.MemberOfExpression memberOfExpr ->
+                // Iteration 5: Handle MEMBER OF expressions
+                new LambdaExpression.MemberOfExpression(
+                        renumberCapturedVariables(memberOfExpr.value(), offset),
+                        renumberCapturedVariables(memberOfExpr.collectionField(), offset),
+                        memberOfExpr.negated());
+
+            // These expression types don't contain captured variables, return as-is
+            // Using separate cases because multi-pattern with `_` requires Java 21 preview
+            case LambdaExpression.PathExpression ignored1 -> expression;
+            case LambdaExpression.BiEntityFieldAccess ignored2 -> expression;
+            case LambdaExpression.BiEntityPathExpression ignored3 -> expression;
+            case LambdaExpression.BiEntityParameter ignored4 -> expression;
+
+            // Other expression types: FieldAccess, Constant, Parameter, NullLiteral, etc.
+            default -> expression;
+        };
     }
 }

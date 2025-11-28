@@ -149,70 +149,75 @@ public class LoadInstructionHandler implements InstructionHandler {
         // will be resolved during JPA generation using RelationshipMetadataExtractor
         PathSegment newSegment = new PathSegment(fieldName, fieldType, RelationType.FIELD);
 
-        // =========================================================================
-        // Bi-entity mode handling (join queries)
-        // =========================================================================
+        // Java 21 pattern matching switch for type dispatch
+        switch (target) {
+            // =========================================================================
+            // Bi-entity mode handling (join queries)
+            // =========================================================================
+            case BiEntityParameter biParam ->
+                // First-level field access from bi-entity parameter: ph.type
+                ctx.push(new BiEntityFieldAccess(fieldName, fieldType, biParam.position()));
 
-        if (target instanceof BiEntityParameter biParam) {
-            // First-level field access from bi-entity parameter: ph.type
-            ctx.push(new BiEntityFieldAccess(fieldName, fieldType, biParam.position()));
+            case BiEntityFieldAccess biField -> {
+                // Second-level field access from bi-entity: ph.owner.firstName
+                // Convert to BiEntityPathExpression
+                PathSegment firstSegment = new PathSegment(
+                        biField.fieldName(),
+                        biField.fieldType(),
+                        RelationType.FIELD);
 
-        } else if (target instanceof BiEntityFieldAccess biField) {
-            // Second-level field access from bi-entity: ph.owner.firstName
-            // Convert to BiEntityPathExpression
-            PathSegment firstSegment = new PathSegment(
-                    biField.fieldName(),
-                    biField.fieldType(),
-                    RelationType.FIELD);
+                List<PathSegment> segments = new ArrayList<>();
+                segments.add(firstSegment);
+                segments.add(newSegment);
 
-            List<PathSegment> segments = new ArrayList<>();
-            segments.add(firstSegment);
-            segments.add(newSegment);
+                ctx.push(new BiEntityPathExpression(segments, fieldType, biField.entityPosition()));
+            }
 
-            ctx.push(new BiEntityPathExpression(segments, fieldType, biField.entityPosition()));
+            case BiEntityPathExpression biPath -> {
+                // Third+ level bi-entity field access: ph.owner.department.name
+                List<PathSegment> segments = new ArrayList<>(biPath.segments());
+                segments.add(newSegment);
 
-        } else if (target instanceof BiEntityPathExpression biPath) {
-            // Third+ level bi-entity field access: ph.owner.department.name
-            List<PathSegment> segments = new ArrayList<>(biPath.segments());
-            segments.add(newSegment);
+                ctx.push(new BiEntityPathExpression(segments, fieldType, biPath.entityPosition()));
+            }
 
-            ctx.push(new BiEntityPathExpression(segments, fieldType, biPath.entityPosition()));
+            // =========================================================================
+            // Single-entity mode handling (original behavior)
+            // =========================================================================
 
-        // =========================================================================
-        // Single-entity mode handling (original behavior)
-        // =========================================================================
+            case LambdaExpression.Parameter ignored ->
+                // First-level field access from entity parameter: p.age
+                // For single-level access, continue using FieldAccess for backward compatibility
+                ctx.push(new FieldAccess(fieldName, fieldType));
 
-        } else if (target instanceof LambdaExpression.Parameter) {
-            // First-level field access from entity parameter: p.age
-            // For single-level access, continue using FieldAccess for backward compatibility
-            ctx.push(new FieldAccess(fieldName, fieldType));
+            case FieldAccess previousField -> {
+                // Second-level field access: p.owner.firstName
+                // Convert previous FieldAccess to PathExpression with two segments
+                PathSegment firstSegment = new PathSegment(
+                        previousField.fieldName(),
+                        previousField.fieldType(),
+                        RelationType.FIELD);
 
-        } else if (target instanceof FieldAccess previousField) {
-            // Second-level field access: p.owner.firstName
-            // Convert previous FieldAccess to PathExpression with two segments
-            PathSegment firstSegment = new PathSegment(
-                    previousField.fieldName(),
-                    previousField.fieldType(),
-                    RelationType.FIELD);
+                List<PathSegment> segments = new ArrayList<>();
+                segments.add(firstSegment);
+                segments.add(newSegment);
 
-            List<PathSegment> segments = new ArrayList<>();
-            segments.add(firstSegment);
-            segments.add(newSegment);
+                ctx.push(new PathExpression(segments, fieldType));
+            }
 
-            ctx.push(new PathExpression(segments, fieldType));
+            case PathExpression pathExpr -> {
+                // Third+ level field access: p.owner.department.name
+                // Extend existing PathExpression with new segment
+                List<PathSegment> segments = new ArrayList<>(pathExpr.segments());
+                segments.add(newSegment);
 
-        } else if (target instanceof PathExpression pathExpr) {
-            // Third+ level field access: p.owner.department.name
-            // Extend existing PathExpression with new segment
-            List<PathSegment> segments = new ArrayList<>(pathExpr.segments());
-            segments.add(newSegment);
+                ctx.push(new PathExpression(segments, fieldType));
+            }
 
-            ctx.push(new PathExpression(segments, fieldType));
-
-        } else {
-            // Fallback: create simple FieldAccess
-            // This handles edge cases like field access on method return values
-            ctx.push(new FieldAccess(fieldName, fieldType));
+            default ->
+                // Fallback: create simple FieldAccess
+                // This handles edge cases like field access on method return values
+                ctx.push(new FieldAccess(fieldName, fieldType));
         }
     }
 }

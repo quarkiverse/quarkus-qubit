@@ -107,6 +107,8 @@ public class CriteriaExpressionGenerator {
 
     /**
      * Generates JPA Predicate from lambda expression AST.
+     * <p>
+     * Refactored for Java 21: Uses pattern matching switch for cleaner type dispatch.
      */
     public ResultHandle generatePredicate(
             MethodCreator method,
@@ -119,31 +121,41 @@ public class CriteriaExpressionGenerator {
             return null;
         }
 
-        if (expression instanceof LambdaExpression.BinaryOp binOp) {
-            return generateBinaryOperation(method, binOp, cb, root, capturedValues);
-        } else if (expression instanceof LambdaExpression.UnaryOp unOp) {
-            return generateUnaryOperation(method, unOp, cb, root, capturedValues);
-        } else if (expression instanceof LambdaExpression.FieldAccess field) {
-            ResultHandle path = generateFieldAccess(method, field, root);
-            if (isBooleanType(field.fieldType())) {
-                return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
-            }
-            return path;
-        } else if (expression instanceof PathExpression pathExpr) {
-            ResultHandle path = generatePathExpression(method, pathExpr, root);
-            if (isBooleanType(pathExpr.resultType())) {
-                return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
-            }
-            return path;
-        } else if (expression instanceof LambdaExpression.MethodCall methodCall) {
-            return generateMethodCall(method, methodCall, cb, root, capturedValues);
-        } else if (expression instanceof InExpression inExpr) {
-            return generateInPredicate(method, inExpr, cb, root, capturedValues);
-        } else if (expression instanceof MemberOfExpression memberOfExpr) {
-            return generateMemberOfPredicate(method, memberOfExpr, cb, root, capturedValues);
-        }
+        // Java 21 pattern matching switch for type dispatch
+        return switch (expression) {
+            case LambdaExpression.BinaryOp binOp ->
+                generateBinaryOperation(method, binOp, cb, root, capturedValues);
 
-        return null;
+            case LambdaExpression.UnaryOp unOp ->
+                generateUnaryOperation(method, unOp, cb, root, capturedValues);
+
+            case LambdaExpression.FieldAccess field -> {
+                ResultHandle path = generateFieldAccess(method, field, root);
+                if (isBooleanType(field.fieldType())) {
+                    yield method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
+                }
+                yield path;
+            }
+
+            case PathExpression pathExpr -> {
+                ResultHandle path = generatePathExpression(method, pathExpr, root);
+                if (isBooleanType(pathExpr.resultType())) {
+                    yield method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
+                }
+                yield path;
+            }
+
+            case LambdaExpression.MethodCall methodCall ->
+                generateMethodCall(method, methodCall, cb, root, capturedValues);
+
+            case InExpression inExpr ->
+                generateInPredicate(method, inExpr, cb, root, capturedValues);
+
+            case MemberOfExpression memberOfExpr ->
+                generateMemberOfPredicate(method, memberOfExpr, cb, root, capturedValues);
+
+            default -> null;
+        };
     }
 
     /**
@@ -173,22 +185,25 @@ public class CriteriaExpressionGenerator {
             return null;
         }
 
-        // Handle subquery expressions first
-        if (expression instanceof ExistsSubquery existsSubquery) {
-            return subqueryBuilder.buildExistsSubquery(method, existsSubquery, cb, query, root, capturedValues);
-        } else if (expression instanceof InSubquery inSubquery) {
-            return subqueryBuilder.buildInSubquery(method, inSubquery, cb, query, root, capturedValues);
-        }
+        // Java 21 pattern matching switch for type dispatch
+        return switch (expression) {
+            // Handle subquery expressions first
+            case ExistsSubquery existsSubquery ->
+                subqueryBuilder.buildExistsSubquery(method, existsSubquery, cb, query, root, capturedValues);
 
-        // Handle binary operations that may contain subqueries
-        if (expression instanceof LambdaExpression.BinaryOp binOp) {
-            return generateBinaryOperationWithSubqueries(method, binOp, cb, query, root, capturedValues);
-        } else if (expression instanceof LambdaExpression.UnaryOp unOp) {
-            return generateUnaryOperationWithSubqueries(method, unOp, cb, query, root, capturedValues);
-        }
+            case InSubquery inSubquery ->
+                subqueryBuilder.buildInSubquery(method, inSubquery, cb, query, root, capturedValues);
 
-        // For non-subquery expressions, delegate to the original method
-        return generatePredicate(method, expression, cb, root, capturedValues);
+            // Handle binary operations that may contain subqueries
+            case LambdaExpression.BinaryOp binOp ->
+                generateBinaryOperationWithSubqueries(method, binOp, cb, query, root, capturedValues);
+
+            case LambdaExpression.UnaryOp unOp ->
+                generateUnaryOperationWithSubqueries(method, unOp, cb, query, root, capturedValues);
+
+            // For non-subquery expressions, delegate to the original method
+            default -> generatePredicate(method, expression, cb, root, capturedValues);
+        };
     }
 
     /**
@@ -217,13 +232,14 @@ public class CriteriaExpressionGenerator {
             return null;
         }
 
-        // Handle scalar subquery
-        if (expression instanceof ScalarSubquery scalarSubquery) {
-            return subqueryBuilder.buildScalarSubquery(method, scalarSubquery, cb, query, root, capturedValues);
-        }
+        // Java 21 pattern matching switch for type dispatch
+        return switch (expression) {
+            case ScalarSubquery scalarSubquery ->
+                subqueryBuilder.buildScalarSubquery(method, scalarSubquery, cb, query, root, capturedValues);
 
-        // For non-subquery expressions, delegate to the original method
-        return generateExpressionAsJpaExpression(method, expression, cb, root, capturedValues);
+            // For non-subquery expressions, delegate to the original method
+            default -> generateExpressionAsJpaExpression(method, expression, cb, root, capturedValues);
+        };
     }
 
     /**
@@ -288,20 +304,22 @@ public class CriteriaExpressionGenerator {
      * Iteration 8: Used to determine if subquery-aware methods should be used.
      */
     private boolean containsSubquery(LambdaExpression expr) {
-        if (expr instanceof ScalarSubquery || expr instanceof ExistsSubquery || expr instanceof InSubquery) {
-            return true;
-        }
-        if (expr instanceof LambdaExpression.BinaryOp binOp) {
-            return containsSubquery(binOp.left()) || containsSubquery(binOp.right());
-        }
-        if (expr instanceof LambdaExpression.UnaryOp unOp) {
-            return containsSubquery(unOp.operand());
-        }
-        return false;
+        // Java 21 pattern matching switch for type dispatch
+        // Using separate cases because multi-pattern with `_` requires Java 21 preview
+        return switch (expr) {
+            case ScalarSubquery ignored1 -> true;
+            case ExistsSubquery ignored2 -> true;
+            case InSubquery ignored3 -> true;
+            case LambdaExpression.BinaryOp binOp -> containsSubquery(binOp.left()) || containsSubquery(binOp.right());
+            case LambdaExpression.UnaryOp unOp -> containsSubquery(unOp.operand());
+            case null, default -> false;
+        };
     }
 
     /**
      * Generates raw value from lambda expression.
+     * <p>
+     * Refactored for Java 21: Uses pattern matching switch for cleaner type dispatch.
      */
     public ResultHandle generateExpression(
             MethodCreator method,
@@ -314,27 +332,36 @@ public class CriteriaExpressionGenerator {
             return null;
         }
 
-        if (expression instanceof LambdaExpression.FieldAccess field) {
-            return generateFieldAccess(method, field, root);
-        } else if (expression instanceof PathExpression pathExpr) {
-            return generatePathExpression(method, pathExpr, root);
-        } else if (expression instanceof LambdaExpression.Constant constant) {
-            return generateConstant(method, constant);
-        } else if (expression instanceof LambdaExpression.CapturedVariable capturedVar) {
-            ResultHandle index = method.load(capturedVar.index());
-            ResultHandle value = method.readArrayValue(capturedValues, index);
-            Class<?> targetType = TypeConverter.getBoxedType(capturedVar.type());
-            return method.checkCast(value, targetType);
-        } else if (expression instanceof LambdaExpression.MethodCall methodCall) {
-            return generateMethodCall(method, methodCall, cb, root, capturedValues);
-        }
+        // Java 21 pattern matching switch for type dispatch
+        return switch (expression) {
+            case LambdaExpression.FieldAccess field ->
+                generateFieldAccess(method, field, root);
 
-        return null;
+            case PathExpression pathExpr ->
+                generatePathExpression(method, pathExpr, root);
+
+            case LambdaExpression.Constant constant ->
+                generateConstant(method, constant);
+
+            case LambdaExpression.CapturedVariable capturedVar -> {
+                ResultHandle index = method.load(capturedVar.index());
+                ResultHandle value = method.readArrayValue(capturedValues, index);
+                Class<?> targetType = TypeConverter.getBoxedType(capturedVar.type());
+                yield method.checkCast(value, targetType);
+            }
+
+            case LambdaExpression.MethodCall methodCall ->
+                generateMethodCall(method, methodCall, cb, root, capturedValues);
+
+            default -> null;
+        };
     }
 
     /**
      * Generates JPA Expression from lambda expression.
      * Phase 3: Added Parameter handling for identity sort functions.
+     * <p>
+     * Refactored for Java 21: Uses pattern matching switch for cleaner type dispatch.
      */
     public ResultHandle generateExpressionAsJpaExpression(
             MethodCreator method,
@@ -347,44 +374,58 @@ public class CriteriaExpressionGenerator {
             return null;
         }
 
-        if (expression instanceof LambdaExpression.FieldAccess field) {
-            return generateFieldAccess(method, field, root);
-        } else if (expression instanceof PathExpression pathExpr) {
-            return generatePathExpression(method, pathExpr, root);
-        } else if (expression instanceof LambdaExpression.Constant constant) {
-            ResultHandle constantValue = generateConstant(method, constant);
-            return wrapAsLiteral(method, cb, constantValue);
-        } else if (expression instanceof LambdaExpression.CapturedVariable capturedVar) {
-            ResultHandle index = method.load(capturedVar.index());
-            ResultHandle value = method.readArrayValue(capturedValues, index);
-            Class<?> targetType = TypeConverter.getBoxedType(capturedVar.type());
-            ResultHandle castedValue = method.checkCast(value, targetType);
-            return wrapAsLiteral(method, cb, castedValue);
-        } else if (expression instanceof LambdaExpression.MethodCall methodCall) {
-            return generateMethodCall(method, methodCall, cb, root, capturedValues);
-        } else if (expression instanceof LambdaExpression.BinaryOp binOp) {
-            return generateBinaryOperation(method, binOp, cb, root, capturedValues);
-        } else if (expression instanceof LambdaExpression.ConstructorCall constructorCall) {
-            return generateConstructorCall(method, constructorCall, cb, root, capturedValues);
-        } else if (expression instanceof LambdaExpression.Parameter) {
-            // Phase 3: Parameter expressions occur in identity sort functions like (String s) -> s
-            // These cannot be directly converted to JPA expressions - return null to signal
-            // to caller that special handling is needed
-            return null;
-        } else if (expression instanceof InExpression inExpr) {
-            // Iteration 5: InExpression is a predicate but Predicate extends Expression<Boolean>
-            // so we can return it as a JPA expression
-            return generateInPredicate(method, inExpr, cb, root, capturedValues);
-        } else if (expression instanceof MemberOfExpression memberOfExpr) {
-            // Iteration 5: MemberOfExpression is also a predicate that can be used as expression
-            return generateMemberOfPredicate(method, memberOfExpr, cb, root, capturedValues);
-        } else if (expression instanceof LambdaExpression.UnaryOp unaryOp) {
-            // Iteration 5: UnaryOp (NOT) is a predicate that can be used as expression
-            // This occurs when IFEQ creates NOT(InExpression) for short-circuit evaluation
-            return generateUnaryOperation(method, unaryOp, cb, root, capturedValues);
-        }
+        // Java 21 pattern matching switch for type dispatch
+        return switch (expression) {
+            case LambdaExpression.FieldAccess field ->
+                generateFieldAccess(method, field, root);
 
-        return null;
+            case PathExpression pathExpr ->
+                generatePathExpression(method, pathExpr, root);
+
+            case LambdaExpression.Constant constant -> {
+                ResultHandle constantValue = generateConstant(method, constant);
+                yield wrapAsLiteral(method, cb, constantValue);
+            }
+
+            case LambdaExpression.CapturedVariable capturedVar -> {
+                ResultHandle index = method.load(capturedVar.index());
+                ResultHandle value = method.readArrayValue(capturedValues, index);
+                Class<?> targetType = TypeConverter.getBoxedType(capturedVar.type());
+                ResultHandle castedValue = method.checkCast(value, targetType);
+                yield wrapAsLiteral(method, cb, castedValue);
+            }
+
+            case LambdaExpression.MethodCall methodCall ->
+                generateMethodCall(method, methodCall, cb, root, capturedValues);
+
+            case LambdaExpression.BinaryOp binOp ->
+                generateBinaryOperation(method, binOp, cb, root, capturedValues);
+
+            case LambdaExpression.ConstructorCall constructorCall ->
+                generateConstructorCall(method, constructorCall, cb, root, capturedValues);
+
+            case LambdaExpression.Parameter ignored ->
+                // Phase 3: Parameter expressions occur in identity sort functions like (String s) -> s
+                // These cannot be directly converted to JPA expressions - return null to signal
+                // to caller that special handling is needed
+                null;
+
+            case InExpression inExpr ->
+                // Iteration 5: InExpression is a predicate but Predicate extends Expression<Boolean>
+                // so we can return it as a JPA expression
+                generateInPredicate(method, inExpr, cb, root, capturedValues);
+
+            case MemberOfExpression memberOfExpr ->
+                // Iteration 5: MemberOfExpression is also a predicate that can be used as expression
+                generateMemberOfPredicate(method, memberOfExpr, cb, root, capturedValues);
+
+            case LambdaExpression.UnaryOp unaryOp ->
+                // Iteration 5: UnaryOp (NOT) is a predicate that can be used as expression
+                // This occurs when IFEQ creates NOT(InExpression) for short-circuit evaluation
+                generateUnaryOperation(method, unaryOp, cb, root, capturedValues);
+
+            default -> null;
+        };
     }
 
     /**
@@ -596,46 +637,56 @@ public class CriteriaExpressionGenerator {
         return currentPath;
     }
 
-    /** Generates constant value bytecode. */
+    /**
+     * Generates constant value bytecode.
+     * <p>
+     * Refactored for Java 21: Uses pattern matching switch for cleaner type dispatch.
+     */
     public ResultHandle generateConstant(MethodCreator method, LambdaExpression.Constant constant) {
         Object value = constant.value();
 
         if (value == null) {
             return method.loadNull();
-        } else if (value instanceof String s) {
-            return method.load(s);
-        } else if (value instanceof Integer i) {
-            return method.load(i);
-        } else if (value instanceof Long l) {
-            return method.load(l);
-        } else if (value instanceof Boolean b) {
-            return method.load(b);
-        } else if (value instanceof Double d) {
-            return method.load(d);
-        } else if (value instanceof Float f) {
-            return method.load(f);
-        } else if (value instanceof BigDecimal bd) {
-            ResultHandle bdString = method.load(bd.toString());
-            return method.newInstance(constructorDescriptor(BigDecimal.class, String.class), bdString);
-        } else if (value instanceof LocalDate ld) {
-            ResultHandle year = method.load(ld.getYear());
-            ResultHandle month = method.load(ld.getMonthValue());
-            ResultHandle day = method.load(ld.getDayOfMonth());
-            return method.invokeStaticMethod(methodDescriptor(LocalDate.class, METHOD_OF, LocalDate.class, int.class, int.class, int.class), year, month, day);
-        } else if (value instanceof LocalDateTime ldt) {
-            ResultHandle year = method.load(ldt.getYear());
-            ResultHandle month = method.load(ldt.getMonthValue());
-            ResultHandle day = method.load(ldt.getDayOfMonth());
-            ResultHandle hour = method.load(ldt.getHour());
-            ResultHandle minute = method.load(ldt.getMinute());
-            return method.invokeStaticMethod(methodDescriptor(LocalDateTime.class, METHOD_OF, LocalDateTime.class, int.class, int.class, int.class, int.class, int.class), year, month, day, hour, minute);
-        } else if (value instanceof LocalTime lt) {
-            ResultHandle hour = method.load(lt.getHour());
-            ResultHandle minute = method.load(lt.getMinute());
-            return method.invokeStaticMethod(methodDescriptor(LocalTime.class, METHOD_OF, LocalTime.class, int.class, int.class), hour, minute);
-        } else {
-            return method.loadNull();
         }
+
+        // Java 21 pattern matching switch for type dispatch
+        return switch (value) {
+            case String s -> method.load(s);
+            case Integer i -> method.load(i);
+            case Long l -> method.load(l);
+            case Boolean b -> method.load(b);
+            case Double d -> method.load(d);
+            case Float f -> method.load(f);
+
+            case BigDecimal bd -> {
+                ResultHandle bdString = method.load(bd.toString());
+                yield method.newInstance(constructorDescriptor(BigDecimal.class, String.class), bdString);
+            }
+
+            case LocalDate ld -> {
+                ResultHandle year = method.load(ld.getYear());
+                ResultHandle month = method.load(ld.getMonthValue());
+                ResultHandle day = method.load(ld.getDayOfMonth());
+                yield method.invokeStaticMethod(methodDescriptor(LocalDate.class, METHOD_OF, LocalDate.class, int.class, int.class, int.class), year, month, day);
+            }
+
+            case LocalDateTime ldt -> {
+                ResultHandle year = method.load(ldt.getYear());
+                ResultHandle month = method.load(ldt.getMonthValue());
+                ResultHandle day = method.load(ldt.getDayOfMonth());
+                ResultHandle hour = method.load(ldt.getHour());
+                ResultHandle minute = method.load(ldt.getMinute());
+                yield method.invokeStaticMethod(methodDescriptor(LocalDateTime.class, METHOD_OF, LocalDateTime.class, int.class, int.class, int.class, int.class, int.class), year, month, day, hour, minute);
+            }
+
+            case LocalTime lt -> {
+                ResultHandle hour = method.load(lt.getHour());
+                ResultHandle minute = method.load(lt.getMinute());
+                yield method.invokeStaticMethod(methodDescriptor(LocalTime.class, METHOD_OF, LocalTime.class, int.class, int.class), hour, minute);
+            }
+
+            default -> method.loadNull();
+        };
     }
 
     /** Generates JPA expression for method call. */
@@ -890,17 +941,14 @@ public class CriteriaExpressionGenerator {
      * Checks if expression evaluates to String type.
      */
     private boolean isStringType(LambdaExpression expr) {
-        if (expr instanceof LambdaExpression.FieldAccess field) {
-            return field.fieldType() == String.class;
-        } else if (expr instanceof LambdaExpression.Constant constant) {
-            return constant.value() instanceof String;
-        } else if (expr instanceof LambdaExpression.CapturedVariable capturedVar) {
-            return capturedVar.type() == String.class;
-        } else if (expr instanceof LambdaExpression.BinaryOp binOp) {
-            // Recursive: concatenation of concatenations
-            return isStringConcatenation(binOp);
-        }
-        return false;
+        // Java 21 pattern matching switch for type dispatch
+        return switch (expr) {
+            case LambdaExpression.FieldAccess field -> field.fieldType() == String.class;
+            case LambdaExpression.Constant constant -> constant.value() instanceof String;
+            case LambdaExpression.CapturedVariable capturedVar -> capturedVar.type() == String.class;
+            case LambdaExpression.BinaryOp binOp -> isStringConcatenation(binOp);  // Recursive: concatenation of concatenations
+            case null, default -> false;
+        };
     }
 
     /**
@@ -1149,49 +1197,61 @@ public class CriteriaExpressionGenerator {
             return null;
         }
 
-        if (expression instanceof LambdaExpression.BinaryOp binOp) {
-            return generateBiEntityBinaryOperation(method, binOp, cb, root, join, capturedValues);
-        } else if (expression instanceof LambdaExpression.UnaryOp unOp) {
-            return generateBiEntityUnaryOperation(method, unOp, cb, root, join, capturedValues);
-        } else if (expression instanceof BiEntityFieldAccess biField) {
-            ResultHandle base = getBaseForEntityPosition(biField.entityPosition(), root, join);
-            ResultHandle path = generateFieldAccess(method,
-                    new LambdaExpression.FieldAccess(biField.fieldName(), biField.fieldType()), base);
-            if (isBooleanType(biField.fieldType())) {
-                return method.invokeInterfaceMethod(
-                        methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
-            }
-            return path;
-        } else if (expression instanceof BiEntityPathExpression biPath) {
-            ResultHandle base = getBaseForEntityPosition(biPath.entityPosition(), root, join);
-            ResultHandle path = generatePathExpression(method,
-                    new PathExpression(biPath.segments(), biPath.resultType()), base);
-            if (isBooleanType(biPath.resultType())) {
-                return method.invokeInterfaceMethod(
-                        methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
-            }
-            return path;
-        } else if (expression instanceof LambdaExpression.FieldAccess field) {
-            // Single-entity field in bi-entity context (from root)
-            ResultHandle path = generateFieldAccess(method, field, root);
-            if (isBooleanType(field.fieldType())) {
-                return method.invokeInterfaceMethod(
-                        methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
-            }
-            return path;
-        } else if (expression instanceof PathExpression pathExpr) {
-            // Single-entity path in bi-entity context (from root)
-            ResultHandle path = generatePathExpression(method, pathExpr, root);
-            if (isBooleanType(pathExpr.resultType())) {
-                return method.invokeInterfaceMethod(
-                        methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
-            }
-            return path;
-        } else if (expression instanceof LambdaExpression.MethodCall methodCall) {
-            return generateBiEntityMethodCall(method, methodCall, cb, root, join, capturedValues);
-        }
+        // Java 21 pattern matching switch for type dispatch
+        return switch (expression) {
+            case LambdaExpression.BinaryOp binOp ->
+                generateBiEntityBinaryOperation(method, binOp, cb, root, join, capturedValues);
 
-        return null;
+            case LambdaExpression.UnaryOp unOp ->
+                generateBiEntityUnaryOperation(method, unOp, cb, root, join, capturedValues);
+
+            case BiEntityFieldAccess biField -> {
+                ResultHandle base = getBaseForEntityPosition(biField.entityPosition(), root, join);
+                ResultHandle path = generateFieldAccess(method,
+                        new LambdaExpression.FieldAccess(biField.fieldName(), biField.fieldType()), base);
+                if (isBooleanType(biField.fieldType())) {
+                    yield method.invokeInterfaceMethod(
+                            methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
+                }
+                yield path;
+            }
+
+            case BiEntityPathExpression biPath -> {
+                ResultHandle base = getBaseForEntityPosition(biPath.entityPosition(), root, join);
+                ResultHandle path = generatePathExpression(method,
+                        new PathExpression(biPath.segments(), biPath.resultType()), base);
+                if (isBooleanType(biPath.resultType())) {
+                    yield method.invokeInterfaceMethod(
+                            methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
+                }
+                yield path;
+            }
+
+            case LambdaExpression.FieldAccess field -> {
+                // Single-entity field in bi-entity context (from root)
+                ResultHandle path = generateFieldAccess(method, field, root);
+                if (isBooleanType(field.fieldType())) {
+                    yield method.invokeInterfaceMethod(
+                            methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
+                }
+                yield path;
+            }
+
+            case PathExpression pathExpr -> {
+                // Single-entity path in bi-entity context (from root)
+                ResultHandle path = generatePathExpression(method, pathExpr, root);
+                if (isBooleanType(pathExpr.resultType())) {
+                    yield method.invokeInterfaceMethod(
+                            methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
+                }
+                yield path;
+            }
+
+            case LambdaExpression.MethodCall methodCall ->
+                generateBiEntityMethodCall(method, methodCall, cb, root, join, capturedValues);
+
+            default -> null;
+        };
     }
 
     /**
@@ -1220,36 +1280,49 @@ public class CriteriaExpressionGenerator {
             return null;
         }
 
-        if (expression instanceof BiEntityFieldAccess biField) {
-            ResultHandle base = getBaseForEntityPosition(biField.entityPosition(), root, join);
-            return generateFieldAccess(method,
-                    new LambdaExpression.FieldAccess(biField.fieldName(), biField.fieldType()), base);
-        } else if (expression instanceof BiEntityPathExpression biPath) {
-            ResultHandle base = getBaseForEntityPosition(biPath.entityPosition(), root, join);
-            return generatePathExpression(method,
-                    new PathExpression(biPath.segments(), biPath.resultType()), base);
-        } else if (expression instanceof LambdaExpression.FieldAccess field) {
-            // Single-entity field defaults to root
-            return generateFieldAccess(method, field, root);
-        } else if (expression instanceof PathExpression pathExpr) {
-            // Single-entity path defaults to root
-            return generatePathExpression(method, pathExpr, root);
-        } else if (expression instanceof LambdaExpression.Constant constant) {
-            ResultHandle constantValue = generateConstant(method, constant);
-            return wrapAsLiteral(method, cb, constantValue);
-        } else if (expression instanceof LambdaExpression.CapturedVariable capturedVar) {
-            ResultHandle index = method.load(capturedVar.index());
-            ResultHandle value = method.readArrayValue(capturedValues, index);
-            Class<?> targetType = TypeConverter.getBoxedType(capturedVar.type());
-            ResultHandle castedValue = method.checkCast(value, targetType);
-            return wrapAsLiteral(method, cb, castedValue);
-        } else if (expression instanceof LambdaExpression.MethodCall methodCall) {
-            return generateBiEntityMethodCall(method, methodCall, cb, root, join, capturedValues);
-        } else if (expression instanceof LambdaExpression.BinaryOp binOp) {
-            return generateBiEntityBinaryOperation(method, binOp, cb, root, join, capturedValues);
-        }
+        // Java 21 pattern matching switch for type dispatch
+        return switch (expression) {
+            case BiEntityFieldAccess biField -> {
+                ResultHandle base = getBaseForEntityPosition(biField.entityPosition(), root, join);
+                yield generateFieldAccess(method,
+                        new LambdaExpression.FieldAccess(biField.fieldName(), biField.fieldType()), base);
+            }
 
-        return null;
+            case BiEntityPathExpression biPath -> {
+                ResultHandle base = getBaseForEntityPosition(biPath.entityPosition(), root, join);
+                yield generatePathExpression(method,
+                        new PathExpression(biPath.segments(), biPath.resultType()), base);
+            }
+
+            case LambdaExpression.FieldAccess field ->
+                // Single-entity field defaults to root
+                generateFieldAccess(method, field, root);
+
+            case PathExpression pathExpr ->
+                // Single-entity path defaults to root
+                generatePathExpression(method, pathExpr, root);
+
+            case LambdaExpression.Constant constant -> {
+                ResultHandle constantValue = generateConstant(method, constant);
+                yield wrapAsLiteral(method, cb, constantValue);
+            }
+
+            case LambdaExpression.CapturedVariable capturedVar -> {
+                ResultHandle index = method.load(capturedVar.index());
+                ResultHandle value = method.readArrayValue(capturedValues, index);
+                Class<?> targetType = TypeConverter.getBoxedType(capturedVar.type());
+                ResultHandle castedValue = method.checkCast(value, targetType);
+                yield wrapAsLiteral(method, cb, castedValue);
+            }
+
+            case LambdaExpression.MethodCall methodCall ->
+                generateBiEntityMethodCall(method, methodCall, cb, root, join, capturedValues);
+
+            case LambdaExpression.BinaryOp binOp ->
+                generateBiEntityBinaryOperation(method, binOp, cb, root, join, capturedValues);
+
+            default -> null;
+        };
     }
 
     /**
@@ -1429,28 +1502,38 @@ public class CriteriaExpressionGenerator {
             return null;
         }
 
-        if (expression instanceof BiEntityFieldAccess biField) {
-            ResultHandle base = getBaseForEntityPosition(biField.entityPosition(), root, join);
-            return generateFieldAccess(method,
-                    new LambdaExpression.FieldAccess(biField.fieldName(), biField.fieldType()), base);
-        } else if (expression instanceof BiEntityPathExpression biPath) {
-            ResultHandle base = getBaseForEntityPosition(biPath.entityPosition(), root, join);
-            return generatePathExpression(method,
-                    new PathExpression(biPath.segments(), biPath.resultType()), base);
-        } else if (expression instanceof LambdaExpression.FieldAccess field) {
-            return generateFieldAccess(method, field, root);
-        } else if (expression instanceof PathExpression pathExpr) {
-            return generatePathExpression(method, pathExpr, root);
-        } else if (expression instanceof LambdaExpression.Constant constant) {
-            return generateConstant(method, constant);
-        } else if (expression instanceof LambdaExpression.CapturedVariable capturedVar) {
-            ResultHandle index = method.load(capturedVar.index());
-            ResultHandle value = method.readArrayValue(capturedValues, index);
-            Class<?> targetType = TypeConverter.getBoxedType(capturedVar.type());
-            return method.checkCast(value, targetType);
-        }
+        // Java 21 pattern matching switch for type dispatch
+        return switch (expression) {
+            case BiEntityFieldAccess biField -> {
+                ResultHandle base = getBaseForEntityPosition(biField.entityPosition(), root, join);
+                yield generateFieldAccess(method,
+                        new LambdaExpression.FieldAccess(biField.fieldName(), biField.fieldType()), base);
+            }
 
-        return null;
+            case BiEntityPathExpression biPath -> {
+                ResultHandle base = getBaseForEntityPosition(biPath.entityPosition(), root, join);
+                yield generatePathExpression(method,
+                        new PathExpression(biPath.segments(), biPath.resultType()), base);
+            }
+
+            case LambdaExpression.FieldAccess field ->
+                generateFieldAccess(method, field, root);
+
+            case PathExpression pathExpr ->
+                generatePathExpression(method, pathExpr, root);
+
+            case LambdaExpression.Constant constant ->
+                generateConstant(method, constant);
+
+            case LambdaExpression.CapturedVariable capturedVar -> {
+                ResultHandle index = method.load(capturedVar.index());
+                ResultHandle value = method.readArrayValue(capturedValues, index);
+                Class<?> targetType = TypeConverter.getBoxedType(capturedVar.type());
+                yield method.checkCast(value, targetType);
+            }
+
+            default -> null;
+        };
     }
 
     // =============================================================================================
@@ -1494,24 +1577,32 @@ public class CriteriaExpressionGenerator {
             return null;
         }
 
-        if (expression instanceof LambdaExpression.ConstructorCall constructorCall) {
-            return generateBiEntityConstructorCall(method, constructorCall, cb, root, join, capturedValues);
-        } else if (expression instanceof BiEntityFieldAccess biField) {
-            ResultHandle base = getBaseForEntityPosition(biField.entityPosition(), root, join);
-            return generateFieldAccess(method,
-                    new LambdaExpression.FieldAccess(biField.fieldName(), biField.fieldType()), base);
-        } else if (expression instanceof BiEntityPathExpression biPath) {
-            ResultHandle base = getBaseForEntityPosition(biPath.entityPosition(), root, join);
-            return generatePathExpression(method,
-                    new PathExpression(biPath.segments(), biPath.resultType()), base);
-        } else if (expression instanceof LambdaExpression.FieldAccess field) {
-            return generateFieldAccess(method, field, root);
-        } else if (expression instanceof PathExpression pathExpr) {
-            return generatePathExpression(method, pathExpr, root);
-        }
+        // Java 21 pattern matching switch for type dispatch
+        return switch (expression) {
+            case LambdaExpression.ConstructorCall constructorCall ->
+                generateBiEntityConstructorCall(method, constructorCall, cb, root, join, capturedValues);
 
-        // For other expression types, delegate to generateBiEntityExpressionAsJpaExpression
-        return generateBiEntityExpressionAsJpaExpression(method, expression, cb, root, join, capturedValues);
+            case BiEntityFieldAccess biField -> {
+                ResultHandle base = getBaseForEntityPosition(biField.entityPosition(), root, join);
+                yield generateFieldAccess(method,
+                        new LambdaExpression.FieldAccess(biField.fieldName(), biField.fieldType()), base);
+            }
+
+            case BiEntityPathExpression biPath -> {
+                ResultHandle base = getBaseForEntityPosition(biPath.entityPosition(), root, join);
+                yield generatePathExpression(method,
+                        new PathExpression(biPath.segments(), biPath.resultType()), base);
+            }
+
+            case LambdaExpression.FieldAccess field ->
+                generateFieldAccess(method, field, root);
+
+            case PathExpression pathExpr ->
+                generatePathExpression(method, pathExpr, root);
+
+            // For other expression types, delegate to generateBiEntityExpressionAsJpaExpression
+            default -> generateBiEntityExpressionAsJpaExpression(method, expression, cb, root, join, capturedValues);
+        };
     }
 
     /**
@@ -1614,19 +1705,24 @@ public class CriteriaExpressionGenerator {
             return null;
         }
 
-        if (expression instanceof LambdaExpression.BinaryOp binOp) {
-            return generateGroupBinaryOperation(method, binOp, cb, root, groupKeyExpr, capturedValues);
-        } else if (expression instanceof LambdaExpression.UnaryOp unOp) {
-            return generateGroupUnaryOperation(method, unOp, cb, root, groupKeyExpr, capturedValues);
-        } else if (expression instanceof GroupAggregation groupAgg) {
-            // Aggregation used as a boolean predicate (rare, but possible)
-            return generateGroupAggregationExpression(method, groupAgg, cb, root, capturedValues);
-        } else if (expression instanceof GroupKeyReference) {
-            // Key reference as boolean (if key is boolean type)
-            return groupKeyExpr;
-        }
+        // Java 21 pattern matching switch for type dispatch
+        return switch (expression) {
+            case LambdaExpression.BinaryOp binOp ->
+                generateGroupBinaryOperation(method, binOp, cb, root, groupKeyExpr, capturedValues);
 
-        return null;
+            case LambdaExpression.UnaryOp unOp ->
+                generateGroupUnaryOperation(method, unOp, cb, root, groupKeyExpr, capturedValues);
+
+            case GroupAggregation groupAgg ->
+                // Aggregation used as a boolean predicate (rare, but possible)
+                generateGroupAggregationExpression(method, groupAgg, cb, root, capturedValues);
+
+            case GroupKeyReference ignored ->
+                // Key reference as boolean (if key is boolean type)
+                groupKeyExpr;
+
+            default -> null;
+        };
     }
 
     /**
@@ -1667,37 +1763,49 @@ public class CriteriaExpressionGenerator {
             return null;
         }
 
-        if (expression instanceof GroupKeyReference) {
-            // g.key() -> use the pre-computed grouping key expression
-            return groupKeyExpr;
-        } else if (expression instanceof GroupAggregation groupAgg) {
-            // g.count(), g.avg(), etc. -> generate aggregation expression
-            return generateGroupAggregationExpression(method, groupAgg, cb, root, capturedValues);
-        } else if (expression instanceof LambdaExpression.ArrayCreation arrayCreation) {
-            // Iteration 7: Object[] projection using cb.tuple()
-            return generateGroupArrayCreation(method, arrayCreation, cb, root, groupKeyExpr, capturedValues);
-        } else if (expression instanceof LambdaExpression.ConstructorCall constructorCall) {
-            // DTO constructor with group elements
-            return generateGroupConstructorCall(method, constructorCall, cb, root, groupKeyExpr, capturedValues);
-        } else if (expression instanceof LambdaExpression.FieldAccess field) {
-            // Field access in group context (from nested lambda in aggregation)
-            return generateFieldAccess(method, field, root);
-        } else if (expression instanceof PathExpression pathExpr) {
-            return generatePathExpression(method, pathExpr, root);
-        } else if (expression instanceof LambdaExpression.Constant constant) {
-            ResultHandle constantValue = generateConstant(method, constant);
-            return wrapAsLiteral(method, cb, constantValue);
-        } else if (expression instanceof LambdaExpression.CapturedVariable capturedVar) {
-            ResultHandle index = method.load(capturedVar.index());
-            ResultHandle value = method.readArrayValue(capturedValues, index);
-            Class<?> targetType = TypeConverter.getBoxedType(capturedVar.type());
-            ResultHandle castedValue = method.checkCast(value, targetType);
-            return wrapAsLiteral(method, cb, castedValue);
-        } else if (expression instanceof LambdaExpression.BinaryOp binOp) {
-            return generateGroupBinaryOperation(method, binOp, cb, root, groupKeyExpr, capturedValues);
-        }
+        // Java 21 pattern matching switch for type dispatch
+        return switch (expression) {
+            case GroupKeyReference ignored ->
+                // g.key() -> use the pre-computed grouping key expression
+                groupKeyExpr;
 
-        return null;
+            case GroupAggregation groupAgg ->
+                // g.count(), g.avg(), etc. -> generate aggregation expression
+                generateGroupAggregationExpression(method, groupAgg, cb, root, capturedValues);
+
+            case LambdaExpression.ArrayCreation arrayCreation ->
+                // Iteration 7: Object[] projection using cb.tuple()
+                generateGroupArrayCreation(method, arrayCreation, cb, root, groupKeyExpr, capturedValues);
+
+            case LambdaExpression.ConstructorCall constructorCall ->
+                // DTO constructor with group elements
+                generateGroupConstructorCall(method, constructorCall, cb, root, groupKeyExpr, capturedValues);
+
+            case LambdaExpression.FieldAccess field ->
+                // Field access in group context (from nested lambda in aggregation)
+                generateFieldAccess(method, field, root);
+
+            case PathExpression pathExpr ->
+                generatePathExpression(method, pathExpr, root);
+
+            case LambdaExpression.Constant constant -> {
+                ResultHandle constantValue = generateConstant(method, constant);
+                yield wrapAsLiteral(method, cb, constantValue);
+            }
+
+            case LambdaExpression.CapturedVariable capturedVar -> {
+                ResultHandle index = method.load(capturedVar.index());
+                ResultHandle value = method.readArrayValue(capturedValues, index);
+                Class<?> targetType = TypeConverter.getBoxedType(capturedVar.type());
+                ResultHandle castedValue = method.checkCast(value, targetType);
+                yield wrapAsLiteral(method, cb, castedValue);
+            }
+
+            case LambdaExpression.BinaryOp binOp ->
+                generateGroupBinaryOperation(method, binOp, cb, root, groupKeyExpr, capturedValues);
+
+            default -> null;
+        };
     }
 
     /**
