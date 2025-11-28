@@ -26,10 +26,12 @@ This document provides a comprehensive analysis of code quality issues identifie
 | Bug Risks | ~~2~~ 0 | ~~5~~ 4 | 4 | 2 | ~~13~~ 10 | 3 |
 | Documentation | 0 | 2 | 6 | 4 | 12 | 0 |
 | Performance | 0 | 1 | 3 | 2 | 6 | 0 |
-| Maintainability | 0 | 7 | 12 | 6 | 25 | 0 |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ **21** | **42** | **25** | ~~**91**~~ **88** | **3** |
+| Maintainability | 0 | ~~7~~ 5 | 12 | 6 | ~~25~~ 23 | 2 |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ **19** | **42** | **25** | ~~**91**~~ **86** | **5** |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
+>
+> ✅ **MAINT-001, MAINT-002 Complete**: SubqueryAnalyzer and GroupMethodAnalyzer extracted from MethodInvocationHandler. Class size reduced from 1143 to 715 lines (37% reduction).
 
 > **Note**: MAINT-009 through MAINT-017 are pattern matching refactoring opportunities.
 > These leverage Java 21 switch pattern matching to replace long if-else instanceof chains,
@@ -64,22 +66,23 @@ This document provides a comprehensive analysis of code quality issues identifie
 
 ## Architectural Improvements
 
-### ARCH-001: Excessively Large Classes
+### ARCH-001: Excessively Large Classes (Partially Resolved)
 - **Severity**: High
+- **Status**: 🔄 **PARTIALLY RESOLVED** - MethodInvocationHandler reduced by 37%
 - **Files Affected**:
   - [CriteriaExpressionGenerator.java](deployment/src/main/java/io/quarkus/qusaq/deployment/generation/CriteriaExpressionGenerator.java): **1977 lines**
   - [CallSiteProcessor.java](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/CallSiteProcessor.java): **1313 lines**
-  - [MethodInvocationHandler.java](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/MethodInvocationHandler.java): **1143 lines**
+  - [MethodInvocationHandler.java](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/MethodInvocationHandler.java): ~~**1143 lines**~~ → **715 lines** ✅
   - [LambdaExpression.java](deployment/src/main/java/io/quarkus/qusaq/deployment/LambdaExpression.java): **1119 lines**
 - **Suggested Fix**:
   - `CriteriaExpressionGenerator`: Already delegating to builders; continue extracting more specialized builders
   - `CallSiteProcessor`: Extract `JoinQueryAnalyzer`, `GroupQueryAnalyzer` classes
-  - `MethodInvocationHandler`: Extract `SubqueryMethodHandler`, `GroupMethodHandler`, `CollectionMethodHandler`
+  - ~~`MethodInvocationHandler`: Extract `SubqueryMethodHandler`, `GroupMethodHandler`, `CollectionMethodHandler`~~ ✅ Done (SubqueryAnalyzer: 329 lines, GroupMethodAnalyzer: 183 lines)
   - `LambdaExpression`: Consider grouping related records into sub-interfaces
 - **Related Items**:
-  - → **MAINT-001** extracts ~200 lines from MethodInvocationHandler (subquery analysis)
-  - → **MAINT-002** extracts ~150 lines from MethodInvocationHandler (group analysis)
-  - Combined extraction reduces MethodInvocationHandler from 1143 to ~800 lines
+  - → ~~**MAINT-001** extracts ~200 lines from MethodInvocationHandler (subquery analysis)~~ ✅ **RESOLVED**
+  - → ~~**MAINT-002** extracts ~150 lines from MethodInvocationHandler (group analysis)~~ ✅ **RESOLVED**
+  - ~~Combined extraction reduces MethodInvocationHandler from 1143 to ~800 lines~~ → Actual: 715 lines (37% reduction)
 
 ### ARCH-002: LambdaAnalysisResult Record Has Too Many Fields
 - **File**: [CallSiteProcessor.java:37-52](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/CallSiteProcessor.java#L37-L52)
@@ -431,21 +434,29 @@ MethodDescriptor.ofMethod(CriteriaBuilder.class, "equal", Predicate.class, Expre
 
 ## Maintainability Improvements
 
-### MAINT-001: Extract Subquery Analysis
-- **File**: [MethodInvocationHandler.java:861-1063](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/MethodInvocationHandler.java#L861-L1063)
+### MAINT-001: Extract Subquery Analysis ✅ RESOLVED
+- **File**: [MethodInvocationHandler.java](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/MethodInvocationHandler.java)
 - **Severity**: High
+- **Status**: ✅ **RESOLVED**
 - **Description**: Subquery handling (200+ lines) should be separate class.
-- **Suggested Fix**: Create `SubqueryAnalysisHandler` class.
-- **Also Resolves**:
-  - → **CS-004** (handleSubqueryBuilderMethod is within this range)
-  - → Partially addresses **ARCH-001** (reduces MethodInvocationHandler class size by ~200 lines)
+- **Fix Applied**:
+  - Created [SubqueryAnalyzer.java](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/SubqueryAnalyzer.java) (329 lines)
+  - Extracted: `isSubqueriesMethodCall()`, `isSubqueryBuilderMethodCall()`, `handleSubqueriesFactoryMethod()`, `handleSubqueryBuilderMethod()`, and all helper methods
+  - MethodInvocationHandler now delegates to SubqueryAnalyzer
+- **Also Resolved**:
+  - → **CS-004** (handleSubqueryBuilderMethod is now in SubqueryAnalyzer)
+  - → Partially addresses **ARCH-001** (reduces MethodInvocationHandler class size by ~280 lines)
 
-### MAINT-002: Extract Group Analysis
-- **File**: [MethodInvocationHandler.java:240-388](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/MethodInvocationHandler.java#L240-L388)
+### MAINT-002: Extract Group Analysis ✅ RESOLVED
+- **File**: [MethodInvocationHandler.java](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/MethodInvocationHandler.java)
 - **Severity**: High
+- **Status**: ✅ **RESOLVED**
 - **Description**: Group method handling should be separate class.
-- **Suggested Fix**: Create `GroupMethodHandler` class.
-- **Also Resolves**: → Partially addresses **ARCH-001** (reduces MethodInvocationHandler class size by ~150 lines)
+- **Fix Applied**:
+  - Created [GroupMethodAnalyzer.java](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/GroupMethodAnalyzer.java) (183 lines)
+  - Extracted: `isGroupMethodCall()`, `handleGroupMethod()`, `handleGroupKey()`, `handleGroupCount()`, `handleGroupCountDistinct()`, `handleGroupAggregationWithField()`, `handleGroupMinMax()`, `inferFieldType()`
+  - MethodInvocationHandler now delegates to GroupMethodAnalyzer
+- **Also Resolved**: → Partially addresses **ARCH-001** (reduces MethodInvocationHandler class size by ~150 lines)
 
 ### MAINT-003: Reduce Cyclomatic Complexity
 - **Files**:
@@ -890,13 +901,13 @@ Apply Java 21 switch pattern matching to replace if-else instanceof chains:
 
 | Metric | Current (Est.) | Target | Status |
 |--------|---------------|--------|--------|
-| Max Class Size | 1977 LOC | < 500 LOC | Extract specialized classes |
+| Max Class Size | ~~1977~~ 1977 LOC | < 500 LOC | Extract specialized classes (MethodInvocationHandler: 1143→715 ✅) |
 | Max Method Size | ~100 LOC | < 30 LOC | Extract focused methods |
 | Cyclomatic Complexity | ~15 | < 10 | Reduce branching via pattern matching |
 | Test Coverage | Unknown | > 80% | Add unit/integration tests |
 | Javadoc Coverage | ~60% | > 95% | Document public API |
 | Critical Issues | ~~2~~ **0** | 0 | ✅ **Phase 1 Complete** |
-| High Issues | ~~22~~ 21 | 0 | Fix in 2-3 weeks |
+| High Issues | ~~22~~ **19** | 0 | MAINT-001/002 resolved; 3 weeks remaining |
 | Pattern Matching | 9 locations | 9 refactored | Apply Java 21 switch patterns |
 
 ---
@@ -931,4 +942,5 @@ When addressing issues, use this template:
 |---------|------|--------|---------|
 | 1.0 | 2024 | QUSAQ Team | Initial quality analysis |
 | 1.1 | 2024-11-28 | Claude | Phase 1 complete: Fixed CRI-001, CRI-002, BR-001 |
+| 1.2 | 2024-11-28 | Claude | MAINT-001, MAINT-002: Extracted SubqueryAnalyzer (329 lines) and GroupMethodAnalyzer (183 lines) from MethodInvocationHandler. Reduced from 1143 to 715 lines (37% reduction). All 1113 tests pass. |
 

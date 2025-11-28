@@ -1,17 +1,8 @@
 package io.quarkus.qusaq.deployment.analysis.handlers;
 
 import io.quarkus.qusaq.deployment.LambdaExpression;
-import io.quarkus.qusaq.deployment.LambdaExpression.ExistsSubquery;
-import io.quarkus.qusaq.deployment.LambdaExpression.GroupAggregation;
-import io.quarkus.qusaq.deployment.LambdaExpression.GroupKeyReference;
-import io.quarkus.qusaq.deployment.LambdaExpression.GroupParameter;
 import io.quarkus.qusaq.deployment.LambdaExpression.InExpression;
-import io.quarkus.qusaq.deployment.LambdaExpression.InSubquery;
 import io.quarkus.qusaq.deployment.LambdaExpression.MemberOfExpression;
-import io.quarkus.qusaq.deployment.LambdaExpression.ScalarSubquery;
-import io.quarkus.qusaq.deployment.LambdaExpression.SubqueryAggregationType;
-import io.quarkus.qusaq.deployment.LambdaExpression.SubqueryBuilderReference;
-import org.objectweb.asm.Type;
 import io.quarkus.qusaq.deployment.util.DescriptorParser;
 import io.quarkus.qusaq.deployment.util.TypeConverter;
 import org.jboss.logging.Logger;
@@ -39,6 +30,16 @@ import static org.objectweb.asm.Opcodes.*;
 public class MethodInvocationHandler implements InstructionHandler {
 
     private static final Logger log = Logger.getLogger(MethodInvocationHandler.class);
+
+    /**
+     * Delegate for subquery analysis (extracted for maintainability - MAINT-001).
+     */
+    private final SubqueryAnalyzer subqueryAnalyzer = new SubqueryAnalyzer();
+
+    /**
+     * Delegate for group method analysis (extracted for maintainability - MAINT-002).
+     */
+    private final GroupMethodAnalyzer groupMethodAnalyzer = new GroupMethodAnalyzer();
 
     /**
      * Collection interface types that support contains() for IN/MEMBER OF detection.
@@ -87,9 +88,9 @@ public class MethodInvocationHandler implements InstructionHandler {
             return;
         }
 
-        // Iteration 8: Handle SubqueryBuilder.* method calls
-        if (isSubqueryBuilderMethodCall(methodInsn)) {
-            handleSubqueryBuilderMethod(ctx, methodInsn);
+        // Iteration 8: Handle SubqueryBuilder.* method calls (delegated to SubqueryAnalyzer)
+        if (subqueryAnalyzer.isSubqueryBuilderMethodCall(methodInsn)) {
+            subqueryAnalyzer.handleSubqueryBuilderMethod(ctx, methodInsn);
             return;
         }
 
@@ -128,9 +129,9 @@ public class MethodInvocationHandler implements InstructionHandler {
             return;
         }
 
-        // Iteration 8: Handle Subqueries.subquery(Class) factory method
-        if (isSubqueriesMethodCall(staticInsn)) {
-            handleSubqueriesFactoryMethod(ctx, staticInsn);
+        // Iteration 8: Handle Subqueries.subquery(Class) factory method (delegated to SubqueryAnalyzer)
+        if (subqueryAnalyzer.isSubqueriesMethodCall(staticInsn)) {
+            subqueryAnalyzer.handleSubqueriesFactoryMethod(ctx, staticInsn);
             return;
         }
 
@@ -213,9 +214,9 @@ public class MethodInvocationHandler implements InstructionHandler {
      * </pre>
      */
     private void handleInvokeInterface(AnalysisContext ctx, MethodInsnNode interfaceInsn) {
-        // Iteration 7: Check if this is a Group interface method call
-        if (isGroupMethodCall(interfaceInsn)) {
-            handleGroupMethod(ctx, interfaceInsn);
+        // Iteration 7: Check if this is a Group interface method call (delegated to GroupMethodAnalyzer)
+        if (groupMethodAnalyzer.isGroupMethodCall(interfaceInsn)) {
+            groupMethodAnalyzer.handleGroupMethod(ctx, interfaceInsn);
             return;
         }
 
@@ -237,155 +238,7 @@ public class MethodInvocationHandler implements InstructionHandler {
         }
     }
 
-    // ========== Group Interface Methods (Iteration 7: GROUP BY) ==========
-
-    /**
-     * Checks if the instruction is a Group interface method call.
-     */
-    private boolean isGroupMethodCall(MethodInsnNode methodInsn) {
-        return methodInsn.owner.equals(GROUP_INTERNAL_NAME);
-    }
-
-    /**
-     * Handles Group interface method calls for GROUP BY queries.
-     * <p>
-     * Supported methods:
-     * <ul>
-     *   <li>{@code g.key()} → GroupKeyReference</li>
-     *   <li>{@code g.count()} → GroupAggregation(COUNT)</li>
-     *   <li>{@code g.countDistinct(field)} → GroupAggregation(COUNT_DISTINCT, field)</li>
-     *   <li>{@code g.avg(field)} → GroupAggregation(AVG, field)</li>
-     *   <li>{@code g.min(field)} → GroupAggregation(MIN, field)</li>
-     *   <li>{@code g.max(field)} → GroupAggregation(MAX, field)</li>
-     *   <li>{@code g.sumInteger(field)} → GroupAggregation(SUM_INTEGER, field)</li>
-     *   <li>{@code g.sumLong(field)} → GroupAggregation(SUM_LONG, field)</li>
-     *   <li>{@code g.sumDouble(field)} → GroupAggregation(SUM_DOUBLE, field)</li>
-     * </ul>
-     */
-    private void handleGroupMethod(AnalysisContext ctx, MethodInsnNode methodInsn) {
-        String methodName = methodInsn.name;
-
-        switch (methodName) {
-            case METHOD_KEY -> handleGroupKey(ctx);
-            case METHOD_COUNT -> handleGroupCount(ctx);
-            case METHOD_COUNT_DISTINCT -> handleGroupCountDistinct(ctx);
-            case METHOD_AVG -> handleGroupAggregationWithField(ctx, GroupAggregation::avg);
-            case METHOD_MIN -> handleGroupMinMax(ctx, true);
-            case METHOD_MAX -> handleGroupMinMax(ctx, false);
-            case METHOD_SUM_INTEGER -> handleGroupAggregationWithField(ctx, GroupAggregation::sumInteger);
-            case METHOD_SUM_LONG -> handleGroupAggregationWithField(ctx, GroupAggregation::sumLong);
-            case METHOD_SUM_DOUBLE -> handleGroupAggregationWithField(ctx, GroupAggregation::sumDouble);
-            default -> log.debugf("Unhandled Group method: %s", methodName);
-        }
-    }
-
-    /**
-     * Handles g.key() - returns the grouping key.
-     */
-    private void handleGroupKey(AnalysisContext ctx) {
-        if (ctx.isStackEmpty()) {
-            return;
-        }
-
-        LambdaExpression target = ctx.pop();
-        if (target instanceof GroupParameter) {
-            // For now, we create a placeholder GroupKeyReference
-            // The actual key expression will be resolved at code generation time
-            ctx.push(new GroupKeyReference(null, Object.class));
-        } else {
-            log.warnf("Unexpected target for g.key(): %s", target);
-        }
-    }
-
-    /**
-     * Handles g.count() - counts entities in the group.
-     */
-    private void handleGroupCount(AnalysisContext ctx) {
-        if (ctx.isStackEmpty()) {
-            return;
-        }
-
-        LambdaExpression target = ctx.pop();
-        if (target instanceof GroupParameter) {
-            ctx.push(GroupAggregation.count());
-        } else {
-            log.warnf("Unexpected target for g.count(): %s", target);
-        }
-    }
-
-    /**
-     * Handles g.countDistinct(field) - counts distinct values.
-     */
-    private void handleGroupCountDistinct(AnalysisContext ctx) {
-        if (ctx.getStackSize() < 2) {
-            return;
-        }
-
-        LambdaExpression fieldArg = ctx.pop();  // The field extractor (analyzed nested lambda)
-        LambdaExpression target = ctx.pop();     // The Group parameter
-
-        if (target instanceof GroupParameter) {
-            ctx.push(GroupAggregation.countDistinct(fieldArg));
-        } else {
-            log.warnf("Unexpected target for g.countDistinct(): %s", target);
-        }
-    }
-
-    /**
-     * Handles g.avg/sumInteger/sumLong/sumDouble(field) - aggregations that return fixed types.
-     */
-    private void handleGroupAggregationWithField(
-            AnalysisContext ctx,
-            java.util.function.Function<LambdaExpression, GroupAggregation> aggregationFactory) {
-        if (ctx.getStackSize() < 2) {
-            return;
-        }
-
-        LambdaExpression fieldArg = ctx.pop();  // The field extractor
-        LambdaExpression target = ctx.pop();     // The Group parameter
-
-        if (target instanceof GroupParameter) {
-            ctx.push(aggregationFactory.apply(fieldArg));
-        } else {
-            log.warnf("Unexpected target for group aggregation: %s", target);
-        }
-    }
-
-    /**
-     * Handles g.min(field) and g.max(field) - aggregations that preserve field type.
-     */
-    private void handleGroupMinMax(AnalysisContext ctx, boolean isMin) {
-        if (ctx.getStackSize() < 2) {
-            return;
-        }
-
-        LambdaExpression fieldArg = ctx.pop();  // The field extractor
-        LambdaExpression target = ctx.pop();     // The Group parameter
-
-        if (target instanceof GroupParameter) {
-            // Determine result type from field expression
-            Class<?> resultType = inferFieldType(fieldArg);
-            if (isMin) {
-                ctx.push(GroupAggregation.min(fieldArg, resultType));
-            } else {
-                ctx.push(GroupAggregation.max(fieldArg, resultType));
-            }
-        } else {
-            log.warnf("Unexpected target for g.%s(): %s", isMin ? "min" : "max", target);
-        }
-    }
-
-    /**
-     * Infers the result type from a field expression.
-     */
-    private Class<?> inferFieldType(LambdaExpression fieldExpr) {
-        if (fieldExpr instanceof LambdaExpression.FieldAccess field) {
-            return field.fieldType();
-        } else if (fieldExpr instanceof LambdaExpression.PathExpression path) {
-            return path.resultType();
-        }
-        return Object.class;
-    }
+    // Note: Group Interface Methods (Iteration 7) have been extracted to GroupMethodAnalyzer
 
     /**
      * Checks if the instruction is a Collection.contains() call.
@@ -858,286 +711,5 @@ public class MethodInvocationHandler implements InstructionHandler {
         ctx.push(new LambdaExpression.ConstructorCall(owner, args, constructedType));
     }
 
-    // ========== Subqueries Methods (Iteration 8: Subqueries) ==========
-
-    /**
-     * Checks if the instruction is a Subqueries.* static method call.
-     */
-    private boolean isSubqueriesMethodCall(MethodInsnNode methodInsn) {
-        return methodInsn.owner.equals(SUBQUERIES_INTERNAL_NAME);
-    }
-
-    /**
-     * Handles Subqueries.subquery(Class) factory method.
-     * <p>
-     * This method creates a SubqueryBuilderReference that will be used by subsequent
-     * INVOKEVIRTUAL calls to SubqueryBuilder methods.
-     * <p>
-     * Bytecode pattern:
-     * <pre>
-     * LDC Person.class                   → Constant(Class)
-     * INVOKESTATIC Subqueries.subquery() → SubqueryBuilderReference(Person.class)
-     * </pre>
-     */
-    private void handleSubqueriesFactoryMethod(AnalysisContext ctx, MethodInsnNode methodInsn) {
-        if (!METHOD_SUBQUERY.equals(methodInsn.name)) {
-            log.warnf("Unexpected Subqueries method: %s", methodInsn.name);
-            return;
-        }
-
-        // Pop the entity class from stack
-        LambdaExpression classExpr = ctx.pop();
-        EntityClassInfo entityInfo = extractEntityClassInfo(classExpr);
-
-        // Push SubqueryBuilderReference onto stack
-        ctx.push(new SubqueryBuilderReference(entityInfo.clazz(), entityInfo.className()));
-        log.debugf("Created SubqueryBuilderReference for %s", entityInfo.clazz().getSimpleName());
-    }
-
-    /**
-     * Checks if the instruction is a SubqueryBuilder.* instance method call.
-     */
-    private boolean isSubqueryBuilderMethodCall(MethodInsnNode methodInsn) {
-        return methodInsn.owner.equals(SUBQUERY_BUILDER_INTERNAL_NAME);
-    }
-
-    /**
-     * Handles SubqueryBuilder.* method calls for subquery expressions.
-     * <p>
-     * Method mappings: avg/sum/min/max → ScalarSubquery, count → ScalarSubquery(COUNT),
-     * exists/notExists → ExistsSubquery, in/notIn → InSubquery.
-     */
-    private void handleSubqueryBuilderMethod(AnalysisContext ctx, MethodInsnNode methodInsn) {
-        String methodName = methodInsn.name;
-        int argCount = DescriptorParser.countMethodArguments(methodInsn.desc);
-
-        // Pop arguments from stack (but keep them for processing)
-        List<LambdaExpression> args = new ArrayList<>();
-        for (int i = 0; i < argCount; i++) {
-            if (!ctx.isStackEmpty()) {
-                args.add(0, ctx.pop()); // Add at beginning to maintain order
-            }
-        }
-
-        // Pop the SubqueryBuilderReference (the target of the method call)
-        if (ctx.isStackEmpty()) {
-            log.warnf("Stack empty when expecting SubqueryBuilderReference for %s", methodName);
-            return;
-        }
-
-        LambdaExpression builderRef = ctx.pop();
-        if (!(builderRef instanceof SubqueryBuilderReference subqueryBuilder)) {
-            log.warnf("Expected SubqueryBuilderReference but got %s for %s",
-                      builderRef.getClass().getSimpleName(), methodName);
-            // Push everything back and return
-            ctx.push(builderRef);
-            for (LambdaExpression arg : args) {
-                ctx.push(arg);
-            }
-            return;
-        }
-
-        Class<?> entityClass = subqueryBuilder.entityClass();
-        String entityClassName = subqueryBuilder.entityClassName();
-        LambdaExpression predicate = subqueryBuilder.predicate();
-
-        // Handle different SubqueryBuilder methods
-        switch (methodName) {
-            case METHOD_WHERE -> handleBuilderWhere(ctx, subqueryBuilder, args);
-            case SUBQUERY_AVG -> handleBuilderScalarSubquery(ctx, entityClass, entityClassName, predicate, args, SubqueryAggregationType.AVG, Double.class);
-            case SUBQUERY_SUM -> handleBuilderScalarSubquery(ctx, entityClass, entityClassName, predicate, args, SubqueryAggregationType.SUM, Number.class);
-            case SUBQUERY_MIN -> handleBuilderScalarSubquery(ctx, entityClass, entityClassName, predicate, args, SubqueryAggregationType.MIN, Comparable.class);
-            case SUBQUERY_MAX -> handleBuilderScalarSubquery(ctx, entityClass, entityClassName, predicate, args, SubqueryAggregationType.MAX, Comparable.class);
-            case SUBQUERY_COUNT -> handleBuilderCountSubquery(ctx, entityClass, entityClassName, predicate, args);
-            case SUBQUERY_EXISTS -> handleBuilderExistsSubquery(ctx, entityClass, entityClassName, args, false);
-            case SUBQUERY_NOT_EXISTS -> handleBuilderExistsSubquery(ctx, entityClass, entityClassName, args, true);
-            case SUBQUERY_IN -> handleBuilderInSubquery(ctx, entityClass, entityClassName, predicate, args, false);
-            case SUBQUERY_NOT_IN -> handleBuilderInSubquery(ctx, entityClass, entityClassName, predicate, args, true);
-            default -> log.debugf("Unhandled SubqueryBuilder method: %s", methodName);
-        }
-    }
-
-    /**
-     * Handles SubqueryBuilder.where(predicate) method.
-     * <p>
-     * This method adds a filtering predicate to the subquery builder.
-     * It returns a new SubqueryBuilderReference with the predicate combined.
-     */
-    private void handleBuilderWhere(AnalysisContext ctx, SubqueryBuilderReference currentBuilder, List<LambdaExpression> args) {
-        if (args.size() != 1) {
-            log.warnf("Expected 1 argument for SubqueryBuilder.where, got %d", args.size());
-            return;
-        }
-
-        LambdaExpression newPredicate = args.get(0);
-        SubqueryBuilderReference updatedBuilder = currentBuilder.withPredicate(newPredicate);
-        ctx.push(updatedBuilder);
-    }
-
-    /**
-     * Handles SubqueryBuilder.avg/sum/min/max(selector) methods.
-     * <p>
-     * The predicate parameter comes from the SubqueryBuilderReference (set via .where() calls).
-     */
-    private void handleBuilderScalarSubquery(AnalysisContext ctx, Class<?> entityClass, String entityClassName,
-                                               LambdaExpression predicate, List<LambdaExpression> args,
-                                               SubqueryAggregationType aggregationType, Class<?> defaultResultType) {
-        if (args.size() != 1) {
-            log.warnf("Expected 1 argument for SubqueryBuilder.%s, got %d", aggregationType, args.size());
-            return;
-        }
-
-        LambdaExpression selector = args.get(0);
-        Class<?> resultType = inferResultType(selector, aggregationType, defaultResultType);
-
-        ctx.push(new ScalarSubquery(aggregationType, entityClass, entityClassName, selector, predicate, resultType));
-    }
-
-    /**
-     * Handles SubqueryBuilder.count() and count(predicate) methods.
-     * <p>
-     * The predicate parameter comes from the SubqueryBuilderReference (set via .where() calls).
-     * If count() is called with a predicate argument, it's combined with the builder's predicate.
-     */
-    private void handleBuilderCountSubquery(AnalysisContext ctx, Class<?> entityClass, String entityClassName,
-                                              LambdaExpression builderPredicate, List<LambdaExpression> args) {
-        LambdaExpression argPredicate = args.isEmpty() ? null : args.get(0);
-
-        // Combine predicates if both exist
-        LambdaExpression finalPredicate;
-        if (builderPredicate != null && argPredicate != null) {
-            finalPredicate = new LambdaExpression.BinaryOp(builderPredicate, LambdaExpression.BinaryOp.Operator.AND, argPredicate);
-        } else if (builderPredicate != null) {
-            finalPredicate = builderPredicate;
-        } else {
-            finalPredicate = argPredicate;
-        }
-
-        ctx.push(new ScalarSubquery(SubqueryAggregationType.COUNT, entityClass, entityClassName, null, finalPredicate, Long.class));
-    }
-
-    /**
-     * Handles SubqueryBuilder.exists/notExists(predicate) methods.
-     * <p>
-     * EXISTS/NOT EXISTS don't use the builder's predicate - they always use the provided predicate.
-     */
-    private void handleBuilderExistsSubquery(AnalysisContext ctx, Class<?> entityClass, String entityClassName,
-                                               List<LambdaExpression> args, boolean negated) {
-        if (args.size() != 1) {
-            log.warnf("Expected 1 argument for SubqueryBuilder.%s, got %d", negated ? "notExists" : "exists", args.size());
-            return;
-        }
-
-        LambdaExpression predicate = args.get(0);
-        ctx.push(new ExistsSubquery(entityClass, entityClassName, predicate, negated));
-    }
-
-    /**
-     * Handles SubqueryBuilder.in/notIn(field, selector) and (field, selector, predicate) methods.
-     * <p>
-     * The builderPredicate parameter comes from the SubqueryBuilderReference (set via .where() calls).
-     * If in/notIn is called with a predicate argument, it's combined with the builder's predicate.
-     */
-    private void handleBuilderInSubquery(AnalysisContext ctx, Class<?> entityClass, String entityClassName,
-                                          LambdaExpression builderPredicate, List<LambdaExpression> args, boolean negated) {
-        if (args.size() < 2 || args.size() > 3) {
-            log.warnf("Expected 2-3 arguments for SubqueryBuilder.%s, got %d", negated ? "notIn" : "in", args.size());
-            return;
-        }
-
-        LambdaExpression field = args.get(0);
-        LambdaExpression selector = args.get(1);
-        LambdaExpression argPredicate = args.size() == 3 ? args.get(2) : null;
-
-        // Combine predicates if both exist
-        LambdaExpression finalPredicate;
-        if (builderPredicate != null && argPredicate != null) {
-            finalPredicate = new LambdaExpression.BinaryOp(builderPredicate, LambdaExpression.BinaryOp.Operator.AND, argPredicate);
-        } else if (builderPredicate != null) {
-            finalPredicate = builderPredicate;
-        } else {
-            finalPredicate = argPredicate;
-        }
-
-        ctx.push(new InSubquery(field, entityClass, entityClassName, selector, finalPredicate, negated));
-    }
-
-    /**
-     * Holds entity class information including both the Class object and optional class name.
-     * The className is only set when the class cannot be loaded at build-time.
-     */
-    private record EntityClassInfo(Class<?> clazz, String className) {}
-
-    /**
-     * Extracts entity class and optional class name from a constant expression.
-     * <p>
-     * Strategy: Extract className early when Type is available, then attempt
-     * class loading. If loading fails, preserve className for runtime resolution.
-     */
-    private EntityClassInfo extractEntityClassInfo(LambdaExpression expr) {
-        if (expr instanceof LambdaExpression.Constant constant) {
-            Object value = constant.value();
-            if (value instanceof Type asmType) {
-                // Extract className FIRST (before attempting class loading)
-                String className = asmType.getClassName();
-
-                // Attempt to load the class
-                Class<?> loadedClass = tryLoadClass(className);
-
-                if (loadedClass != null) {
-                    // Successfully loaded - className not needed
-                    return new EntityClassInfo(loadedClass, null);
-                } else {
-                    // Failed to load - preserve className for code generation
-                    log.debugf("Entity class not loadable at analysis time: %s (will resolve at code generation)", className);
-                    return new EntityClassInfo(Object.class, className);
-                }
-            } else if (value instanceof Class<?> clazz) {
-                return new EntityClassInfo(clazz, null);
-            }
-        }
-        log.warnf("Expected Class constant for entity class, got: %s", expr);
-        return new EntityClassInfo(Object.class, null);
-    }
-
-    /**
-     * Attempts to load class using multiple classloaders.
-     *
-     * @param className the fully qualified class name
-     * @return loaded Class, or null if not loadable
-     */
-    private Class<?> tryLoadClass(String className) {
-        try {
-            // Try context class loader first
-            return Class.forName(className, false, Thread.currentThread().getContextClassLoader());
-        } catch (ClassNotFoundException e1) {
-            try {
-                // Fallback to the handler's class loader
-                return Class.forName(className);
-            } catch (ClassNotFoundException e2) {
-                // Class not loadable at build-time
-                return null;
-            }
-        }
-    }
-
-    /**
-     * Infers the result type for a scalar subquery based on the selector and aggregation type.
-     */
-    private Class<?> inferResultType(LambdaExpression selector, SubqueryAggregationType aggregationType,
-                                      Class<?> defaultResultType) {
-        // AVG always returns Double
-        if (aggregationType == SubqueryAggregationType.AVG) {
-            return Double.class;
-        }
-
-        // Try to infer from the selector expression
-        if (selector instanceof LambdaExpression.FieldAccess field) {
-            return field.fieldType();
-        } else if (selector instanceof LambdaExpression.PathExpression path) {
-            return path.resultType();
-        }
-
-        return defaultResultType;
-    }
+    // Note: Subquery Methods (Iteration 8) have been extracted to SubqueryAnalyzer
 }
