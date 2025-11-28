@@ -32,6 +32,41 @@
 - Use proper error handling
 - Verify code compiles before considering it complete
 
+### Quality Improvement Reporting
+**After each refactor or code quality improvement, present a summary to the user:**
+
+**Current Change Summary:**
+- Files modified and LOC changes (+/- lines)
+- Specific improvements made (pattern applied, duplication removed, etc.)
+- Metrics if applicable (cyclomatic complexity, coupling, etc.)
+
+**Aggregated Session Summary:**
+- Total files modified this session
+- Total LOC added/removed
+- Cumulative improvements (all patterns applied, total duplication removed)
+- Running test status (passes/failures)
+
+**Format Example:**
+```
+📊 Quality Improvement Summary
+
+Current Change:
+- Modified: ExpressionHandler.java (-45 LOC)
+- Improvement: Extracted Template Method pattern, eliminated duplication
+
+Session Aggregate:
+- Files: 5 modified
+- LOC: +120 / -340 (net -220)
+- Patterns: Strategy (1), Template Method (2)
+- Tests: 473/473 passing
+```
+
+**When to Report:**
+- After completing each refactoring task
+- After removing dead code or failed abstractions
+- After applying design patterns
+- After Javadoc/documentation cleanup with LOC reduction
+
 ### Debugging Practices
 - **Mark all debug logging with a `// DEBUG` comment** when inserting logging statements for debugging purposes:
   ```java
@@ -382,12 +417,12 @@ interface CriteriaExpressionBuilder {
 
 4. **Test-Driven Verification**
    - Run full test suite after each major change
-   - Require 100% pass rate (473/473 tests)
+   - Require 100% pass rate
    - Zero regressions tolerated
    - BUILD SUCCESS is mandatory
 
 5. **Document Thoroughly**
-   - Update IMPLEMENTATION_TRACKER.md after each session
+   - Update IMPLEMENTATION_TRACKER.md for new implementations, update code-quality-tracking.md for code quality improvements after each change
    - Record metrics (LOC before/after, test results)
    - Document lessons learned
    - Note anti-patterns to avoid
