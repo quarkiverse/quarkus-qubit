@@ -15,7 +15,6 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.EQ;
 import static io.quarkus.qusaq.runtime.QusaqConstants.*;
@@ -41,22 +40,7 @@ public class MethodInvocationHandler implements InstructionHandler {
      */
     private final GroupMethodAnalyzer groupMethodAnalyzer = new GroupMethodAnalyzer();
 
-    /**
-     * Collection interface types that support contains() for IN/MEMBER OF detection.
-     */
-    private static final Set<String> COLLECTION_INTERFACE_OWNERS = Set.of(
-            "java/util/Collection",
-            "java/util/List",
-            "java/util/Set",
-            "java/util/AbstractCollection",
-            "java/util/AbstractList",
-            "java/util/AbstractSet",
-            "java/util/ArrayList",
-            "java/util/LinkedList",
-            "java/util/HashSet",
-            "java/util/TreeSet",
-            "java/util/LinkedHashSet"
-    );
+    // Note: COLLECTION_INTERFACE_OWNERS moved to QusaqConstants (CS-001)
 
     @Override
     public boolean canHandle(AbstractInsnNode insn) {
@@ -94,7 +78,7 @@ public class MethodInvocationHandler implements InstructionHandler {
             return;
         }
 
-        if (methodInsn.owner.equals("java/lang/String")) {
+        if (methodInsn.owner.equals(JVM_JAVA_LANG_STRING)) {
             handleStringMethods(ctx, methodInsn);
             return;
         }
@@ -109,7 +93,7 @@ public class MethodInvocationHandler implements InstructionHandler {
             return;
         }
 
-        if (methodInsn.owner.startsWith("java/time/Local")) {
+        if (methodInsn.owner.startsWith(JVM_PREFIX_JAVA_TIME_LOCAL)) {
             handleTemporalMethods(ctx, methodInsn);
             return;
         }
@@ -123,7 +107,7 @@ public class MethodInvocationHandler implements InstructionHandler {
      *  and handles Subqueries.subquery() factory method for subquery builder pattern. */
     private void handleInvokeStatic(AnalysisContext ctx, MethodInsnNode staticInsn) {
         // Skip Boolean.valueOf (optimization - we work directly with boolean expressions)
-        if (staticInsn.owner.equals("java/lang/Boolean") &&
+        if (staticInsn.owner.equals(JVM_JAVA_LANG_BOOLEAN) &&
             staticInsn.name.equals(METHOD_VALUE_OF) &&
             staticInsn.desc.equals("(Z)Ljava/lang/Boolean;")) {
             return;
@@ -372,7 +356,7 @@ public class MethodInvocationHandler implements InstructionHandler {
      * Checks if instruction is a BigDecimal arithmetic method call.
      */
     private boolean isBigDecimalArithmeticCall(MethodInsnNode methodInsn) {
-        return methodInsn.owner.equals("java/math/BigDecimal") &&
+        return methodInsn.owner.equals(JVM_JAVA_MATH_BIG_DECIMAL) &&
                methodInsn.desc.equals("(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;");
     }
 
@@ -468,9 +452,9 @@ public class MethodInvocationHandler implements InstructionHandler {
             handleSingleArgumentMethodCall(ctx, methodInsn.name, boolean.class);
         } else {
             switch (methodInsn.owner) {
-                case "java/time/LocalDate" -> handleLocalDateMethods(ctx, methodInsn);
-                case "java/time/LocalDateTime" -> handleLocalDateTimeMethods(ctx, methodInsn);
-                case "java/time/LocalTime" -> handleLocalTimeMethods(ctx, methodInsn);
+                case JVM_JAVA_TIME_LOCAL_DATE -> handleLocalDateMethods(ctx, methodInsn);
+                case JVM_JAVA_TIME_LOCAL_DATE_TIME -> handleLocalDateTimeMethods(ctx, methodInsn);
+                case JVM_JAVA_TIME_LOCAL_TIME -> handleLocalTimeMethods(ctx, methodInsn);
                 default -> { /* No action for unrecognized temporal types */ }
             }
         }
@@ -482,7 +466,7 @@ public class MethodInvocationHandler implements InstructionHandler {
     private void handleLocalDateMethods(AnalysisContext ctx, MethodInsnNode methodInsn) {
         switch (methodInsn.name) {
             case METHOD_GET_YEAR, METHOD_GET_MONTH_VALUE, METHOD_GET_DAY_OF_MONTH ->
-                handleTemporalAccessorMethod(ctx, methodInsn, "java/time/LocalDate",
+                handleTemporalAccessorMethod(ctx, methodInsn, JVM_JAVA_TIME_LOCAL_DATE,
                     METHOD_GET_YEAR, METHOD_GET_MONTH_VALUE, METHOD_GET_DAY_OF_MONTH);
             default -> { /* No action for unrecognized LocalDate methods */ }
         }
@@ -495,7 +479,7 @@ public class MethodInvocationHandler implements InstructionHandler {
         switch (methodInsn.name) {
             case METHOD_GET_YEAR, METHOD_GET_MONTH_VALUE, METHOD_GET_DAY_OF_MONTH,
                  METHOD_GET_HOUR, METHOD_GET_MINUTE, METHOD_GET_SECOND ->
-                handleTemporalAccessorMethod(ctx, methodInsn, "java/time/LocalDateTime",
+                handleTemporalAccessorMethod(ctx, methodInsn, JVM_JAVA_TIME_LOCAL_DATE_TIME,
                     METHOD_GET_YEAR, METHOD_GET_MONTH_VALUE, METHOD_GET_DAY_OF_MONTH,
                     METHOD_GET_HOUR, METHOD_GET_MINUTE, METHOD_GET_SECOND);
             default -> { /* No action for unrecognized LocalDateTime methods */ }
@@ -508,7 +492,7 @@ public class MethodInvocationHandler implements InstructionHandler {
     private void handleLocalTimeMethods(AnalysisContext ctx, MethodInsnNode methodInsn) {
         switch (methodInsn.name) {
             case METHOD_GET_HOUR, METHOD_GET_MINUTE, METHOD_GET_SECOND ->
-                handleTemporalAccessorMethod(ctx, methodInsn, "java/time/LocalTime",
+                handleTemporalAccessorMethod(ctx, methodInsn, JVM_JAVA_TIME_LOCAL_TIME,
                     METHOD_GET_HOUR, METHOD_GET_MINUTE, METHOD_GET_SECOND);
             default -> { /* No action for unrecognized LocalTime methods */ }
         }
@@ -681,7 +665,7 @@ public class MethodInvocationHandler implements InstructionHandler {
      */
     private boolean isBigDecimalStringConstruction(MethodInsnNode specialInsn, int argCount,
                                                     List<LambdaExpression> args) {
-        return specialInsn.owner.equals("java/math/BigDecimal") &&
+        return specialInsn.owner.equals(JVM_JAVA_MATH_BIG_DECIMAL) &&
                argCount == 1 &&
                !args.isEmpty() &&
                args.get(0) instanceof LambdaExpression.Constant constant &&

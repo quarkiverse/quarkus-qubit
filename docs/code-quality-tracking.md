@@ -22,12 +22,12 @@ This document provides a comprehensive analysis of code quality issues identifie
 | Category | Critical | High | Medium | Low | Total | Resolved |
 |----------|----------|------|--------|-----|-------|----------|
 | Architectural | 0 | ~~4~~ 3 | 5 | 3 | 12 | 1 |
-| Code Smells | 0 | 3 | 12 | 8 | 23 | 0 |
+| Code Smells | 0 | ~~3~~ 2 | 12 | 8 | 23 | 1 |
 | Bug Risks | ~~2~~ 0 | ~~5~~ 4 | 4 | 2 | ~~13~~ 10 | 3 |
 | Documentation | 0 | 2 | 6 | 4 | 12 | 0 |
 | Performance | 0 | 1 | 3 | 2 | 6 | 0 |
 | Maintainability | 0 | ~~7~~ 1 | ~~12~~ 0 | ~~6~~ 4 | ~~25~~ 5 | 21 |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ **14** | ~~**42**~~ **30** | ~~**25**~~ **23** | ~~**91**~~ **68** | **25** |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ **13** | ~~**42**~~ **30** | ~~**25**~~ **23** | ~~**91**~~ **67** | **26** |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -36,6 +36,8 @@ This document provides a comprehensive analysis of code quality issues identifie
 > ✅ **ARCH-002 Complete**: LambdaAnalysisResult refactored from 15-field record to sealed interface with 4 specialized result types (SimpleQueryResult, AggregationQueryResult, JoinQueryResult, GroupQueryResult).
 >
 > ✅ **Phase 4 Complete (MAINT-009 through MAINT-017)**: Java 21 pattern matching switch expressions applied across 4 files, 22 methods refactored. Upgraded pom.xml from Java 17 to Java 21. All 375 deployment tests pass.
+>
+> ✅ **CS-001 Complete**: Extracted 11 magic strings from MethodInvocationHandler.java to QusaqConstants.java. Added new JVM_* constants for collection interfaces and standard library classes.
 
 ---
 
@@ -150,21 +152,21 @@ private final ComparisonExpressionBuilder comparisonBuilder = new ComparisonExpr
 
 ## Code Smells
 
-### CS-001: Magic Strings in Multiple Files
+### CS-001: Magic Strings in Multiple Files ✅ RESOLVED
 - **Severity**: High
+- **Status**: ✅ **RESOLVED**
 - **Files Affected**:
-  - [MethodInvocationHandler.java](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/MethodInvocationHandler.java): Multiple hardcoded strings
-  - [CriteriaExpressionGenerator.java](deployment/src/main/java/io/quarkus/qusaq/deployment/generation/CriteriaExpressionGenerator.java): Method names as strings
-- **Examples**:
-```java
-// Line 46-58: Hardcoded collection types
-private static final Set<String> COLLECTION_INTERFACE_OWNERS = Set.of(
-    "java/util/Collection",
-    "java/util/List",
-    // ...
-);
-```
-- **Suggested Fix**: Move to `QusaqConstants` and use consistent naming.
+  - ~~[MethodInvocationHandler.java](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/MethodInvocationHandler.java): Multiple hardcoded strings~~ ✅
+  - [CriteriaExpressionGenerator.java](deployment/src/main/java/io/quarkus/qusaq/deployment/generation/CriteriaExpressionGenerator.java): Already using constants from QusaqConstants ✅
+- **Fix Applied**:
+  - Added new section "JVM Internal Class Names" to QusaqConstants.java with consistent `JVM_*` naming:
+    - `JVM_JAVA_LANG_STRING`, `JVM_JAVA_LANG_BOOLEAN`, `JVM_JAVA_MATH_BIG_DECIMAL`
+    - `JVM_JAVA_TIME_LOCAL_DATE`, `JVM_JAVA_TIME_LOCAL_DATE_TIME`, `JVM_JAVA_TIME_LOCAL_TIME`
+    - `JVM_PREFIX_JAVA_TIME_LOCAL` for startsWith checks
+    - 11 collection interface constants (`JVM_JAVA_UTIL_COLLECTION`, `JVM_JAVA_UTIL_LIST`, etc.)
+    - `COLLECTION_INTERFACE_OWNERS` Set using the new constants
+  - Updated MethodInvocationHandler.java to use all new constants
+  - All 375 deployment tests pass
 
 ### CS-002: Duplicate Catch Blocks in tryLoadClass()
 - **File**: [MethodInvocationHandler.java:1109-1122](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/MethodInvocationHandler.java#L1109-L1122)
@@ -902,7 +904,7 @@ Applied Java 21 switch pattern matching to replace if-else instanceof chains:
 | Test Coverage | Unknown | > 80% | Add unit/integration tests |
 | Javadoc Coverage | ~60% | > 95% | Document public API |
 | Critical Issues | ~~2~~ **0** | 0 | ✅ **Phase 1 Complete** |
-| High Issues | ~~22~~ **14** | 0 | ✅ MAINT-001/002, ARCH-002, MAINT-010/012/013/015 resolved |
+| High Issues | ~~22~~ **13** | 0 | ✅ MAINT-001/002, ARCH-002, MAINT-010/012/013/015, CS-001 resolved |
 | Pattern Matching | ~~9 locations~~ **0** | 0 | ✅ **Phase 4 Complete** - All 9 refactored to Java 21 switch |
 
 ---
@@ -940,4 +942,5 @@ When addressing issues, use this template:
 | 1.2 | 2024-11-28 | Claude | MAINT-001, MAINT-002: Extracted SubqueryAnalyzer (329 lines) and GroupMethodAnalyzer (183 lines) from MethodInvocationHandler. Reduced from 1143 to 715 lines (37% reduction). All 1113 tests pass. |
 | 1.3 | 2024-11-28 | Claude | ARCH-002: Refactored LambdaAnalysisResult from 15-field record to sealed interface with 4 specialized result types: SimpleQueryResult (4 fields), AggregationQueryResult (4 fields), JoinQueryResult (6 fields), GroupQueryResult (6 fields). Uses if-else instanceof pattern matching (Java 17). All 1113 tests pass. |
 | 1.4 | 2024-11-28 | Claude | **Phase 4 Complete (MAINT-009 through MAINT-017)**: Upgraded pom.xml from Java 17 to Java 21. Refactored 22 methods across 4 files (CriteriaExpressionGenerator, CallSiteProcessor, SubqueryExpressionBuilder, LoadInstructionHandler) to use Java 21 pattern matching switch expressions. Note: Multi-pattern cases with unnamed `_` require Java 21 preview, so used separate named variables instead. All 375 deployment tests pass. |
+| 1.5 | 2024-11-28 | Claude | **CS-001 Complete**: Extracted 11 magic strings from MethodInvocationHandler.java to QusaqConstants.java. Added new JVM_* naming convention for JVM internal class names (JVM_JAVA_LANG_STRING, JVM_JAVA_TIME_LOCAL_DATE, etc.). Moved COLLECTION_INTERFACE_OWNERS Set to QusaqConstants. All 375 deployment tests pass. |
 

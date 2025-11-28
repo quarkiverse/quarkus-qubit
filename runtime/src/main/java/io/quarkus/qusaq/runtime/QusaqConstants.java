@@ -334,4 +334,72 @@ public final class QusaqConstants {
      * Eclipse compiler uses: val$1, val$2, val$3, etc.
      */
     public static final String CAPTURED_VAR_PREFIX_ECLIPSE = "val$";
+
+    // ========================================================================
+    // JVM Internal Class Names (CS-001: Extracted magic strings)
+    // ========================================================================
+
+    /**
+     * JVM internal class names for bytecode analysis.
+     *
+     * <p>These constants use the JVM internal format (slash-separated) as required
+     * by ASM for bytecode analysis. They are used to identify class types when
+     * processing method invocations.
+     *
+     * <p><b>Naming Convention:</b>
+     * <ul>
+     *   <li><b>JVM_*</b> - JVM internal name format (slash-separated)</li>
+     *   <li><b>JVM_PREFIX_*</b> - Prefix for pattern matching (e.g., startsWith checks)</li>
+     *   <li><b>COLLECTION_INTERFACE_OWNERS</b> - Set of collection types for contains() detection</li>
+     * </ul>
+     */
+
+    // Java standard library class internal names
+    public static final String JVM_JAVA_LANG_STRING = "java/lang/String";
+    public static final String JVM_JAVA_LANG_BOOLEAN = "java/lang/Boolean";
+    public static final String JVM_JAVA_MATH_BIG_DECIMAL = "java/math/BigDecimal";
+
+    // Temporal class internal names
+    public static final String JVM_JAVA_TIME_LOCAL_DATE = "java/time/LocalDate";
+    public static final String JVM_JAVA_TIME_LOCAL_DATE_TIME = "java/time/LocalDateTime";
+    public static final String JVM_JAVA_TIME_LOCAL_TIME = "java/time/LocalTime";
+
+    /**
+     * Prefix for temporal class internal names (used for startsWith checks).
+     */
+    public static final String JVM_PREFIX_JAVA_TIME_LOCAL = "java/time/Local";
+
+    // Collection interface internal names
+    public static final String JVM_JAVA_UTIL_COLLECTION = "java/util/Collection";
+    public static final String JVM_JAVA_UTIL_LIST = "java/util/List";
+    public static final String JVM_JAVA_UTIL_SET = "java/util/Set";
+    public static final String JVM_JAVA_UTIL_ABSTRACT_COLLECTION = "java/util/AbstractCollection";
+    public static final String JVM_JAVA_UTIL_ABSTRACT_LIST = "java/util/AbstractList";
+    public static final String JVM_JAVA_UTIL_ABSTRACT_SET = "java/util/AbstractSet";
+    public static final String JVM_JAVA_UTIL_ARRAY_LIST = "java/util/ArrayList";
+    public static final String JVM_JAVA_UTIL_LINKED_LIST = "java/util/LinkedList";
+    public static final String JVM_JAVA_UTIL_HASH_SET = "java/util/HashSet";
+    public static final String JVM_JAVA_UTIL_TREE_SET = "java/util/TreeSet";
+    public static final String JVM_JAVA_UTIL_LINKED_HASH_SET = "java/util/LinkedHashSet";
+
+    /**
+     * Collection interface types that support contains() for IN/MEMBER OF detection.
+     *
+     * <p>This set includes all standard Java collection interfaces and their common
+     * implementations that support the {@code contains(Object)} method. Used in
+     * bytecode analysis to detect IN clause and MEMBER OF patterns.
+     */
+    public static final Set<String> COLLECTION_INTERFACE_OWNERS = Set.of(
+            JVM_JAVA_UTIL_COLLECTION,
+            JVM_JAVA_UTIL_LIST,
+            JVM_JAVA_UTIL_SET,
+            JVM_JAVA_UTIL_ABSTRACT_COLLECTION,
+            JVM_JAVA_UTIL_ABSTRACT_LIST,
+            JVM_JAVA_UTIL_ABSTRACT_SET,
+            JVM_JAVA_UTIL_ARRAY_LIST,
+            JVM_JAVA_UTIL_LINKED_LIST,
+            JVM_JAVA_UTIL_HASH_SET,
+            JVM_JAVA_UTIL_TREE_SET,
+            JVM_JAVA_UTIL_LINKED_HASH_SET
+    );
 }
