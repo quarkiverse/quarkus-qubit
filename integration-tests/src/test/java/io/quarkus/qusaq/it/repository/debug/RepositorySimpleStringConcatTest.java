@@ -54,9 +54,6 @@ class RepositorySimpleStringConcatTest {
     void simpleConcatTwoFields() {
         var names = personRepository.select((Person p) -> p.firstName + p.lastName).toList();
 
-        System.out.println("=== Concat Two Fields Results ===");
-        names.forEach(System.out::println);
-
         // If concat works: "JohnDoe", "JaneSmith", etc.
         // If not working: probably just "John", "Jane" or error
         assertThat(names).hasSize(5);
