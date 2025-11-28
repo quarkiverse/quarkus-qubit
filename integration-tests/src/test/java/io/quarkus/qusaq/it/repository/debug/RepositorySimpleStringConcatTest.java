@@ -63,9 +63,6 @@ class RepositorySimpleStringConcatTest {
     void simpleConcatConstantAndField() {
         var names = personRepository.select((Person p) -> "Mr. " + p.firstName).toList();
 
-        System.out.println("=== Concat Constant + Field Results ===");
-        names.forEach(System.out::println);
-
         // Expected: "Mr. John", "Mr. Jane", etc.
         assertThat(names).hasSize(5);
     }
