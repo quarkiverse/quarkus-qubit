@@ -46,7 +46,7 @@ import static io.quarkus.qusaq.runtime.QusaqConstants.PATH_GET;
  * // Used in: cb.greaterThan(root.get("salary"), avgSub)
  * </pre>
  */
-public class SubqueryExpressionBuilder {
+public class SubqueryExpressionBuilder implements ExpressionBuilder {
 
     private static final Logger log = Logger.getLogger(SubqueryExpressionBuilder.class);
 

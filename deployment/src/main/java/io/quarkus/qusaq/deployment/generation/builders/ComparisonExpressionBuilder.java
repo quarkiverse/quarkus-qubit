@@ -23,7 +23,7 @@ import static io.quarkus.qusaq.runtime.QusaqConstants.*;
  *   <li>LE (<=) → {@code CriteriaBuilder.lessThanOrEqualTo()}</li>
  * </ul>
  */
-public class ComparisonExpressionBuilder {
+public class ComparisonExpressionBuilder implements ExpressionBuilder {
 
     /**
      * Generates bytecode for comparison operations.

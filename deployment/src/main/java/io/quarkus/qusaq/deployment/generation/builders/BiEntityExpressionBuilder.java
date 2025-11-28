@@ -47,7 +47,7 @@ import jakarta.persistence.criteria.Selection;
  *
  * @see io.quarkus.qusaq.deployment.generation.CriteriaExpressionGenerator
  */
-public class BiEntityExpressionBuilder {
+public class BiEntityExpressionBuilder implements ExpressionBuilder {
 
     private static final Set<String> STRING_PATTERN_METHOD_NAMES = Set.of(
             METHOD_STARTS_WITH, METHOD_ENDS_WITH, METHOD_CONTAINS

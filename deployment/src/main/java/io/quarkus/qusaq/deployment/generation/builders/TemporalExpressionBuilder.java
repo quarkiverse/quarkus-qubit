@@ -30,7 +30,7 @@ import static io.quarkus.qusaq.runtime.QusaqConstants.*;
  *
  * <p><b>Supported Types:</b> LocalDate, LocalDateTime, LocalTime
  */
-public class TemporalExpressionBuilder {
+public class TemporalExpressionBuilder implements ExpressionBuilder {
 
     /**
      * Temporal accessor methods that extract components from date/time values.

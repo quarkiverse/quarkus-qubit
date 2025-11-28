@@ -46,7 +46,7 @@ import jakarta.persistence.criteria.Predicate;
  * <p><b>Note:</b> Java's substring() uses 0-based indexing, but JPA uses 1-based.
  * This builder automatically adds 1 to the start index.
  */
-public class StringExpressionBuilder {
+public class StringExpressionBuilder implements ExpressionBuilder {
 
     /**
      * String methods that generate LIKE patterns.

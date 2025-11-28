@@ -35,7 +35,7 @@ import jakarta.persistence.criteria.Selection;
  *
  * @see io.quarkus.qusaq.deployment.generation.CriteriaExpressionGenerator
  */
-public class GroupExpressionBuilder {
+public class GroupExpressionBuilder implements ExpressionBuilder {
 
     /**
      * Delegate builders for specialized operations.

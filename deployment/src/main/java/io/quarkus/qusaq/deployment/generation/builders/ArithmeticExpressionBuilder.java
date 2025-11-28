@@ -21,7 +21,7 @@ import static io.quarkus.qusaq.runtime.QusaqConstants.*;
  *   <li>MOD (%) → {@code CriteriaBuilder.mod()}</li>
  * </ul>
  */
-public class ArithmeticExpressionBuilder {
+public class ArithmeticExpressionBuilder implements ExpressionBuilder {
 
     /**
      * Generates bytecode for arithmetic operations.

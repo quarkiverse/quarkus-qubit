@@ -26,7 +26,7 @@ import static io.quarkus.qusaq.runtime.QusaqConstants.*;
  * <p><b>Note:</b> BigDecimal methods are mapped to binary operators and delegated
  * to {@link ArithmeticExpressionBuilder} for actual bytecode generation.
  */
-public class BigDecimalExpressionBuilder {
+public class BigDecimalExpressionBuilder implements ExpressionBuilder {
 
     /**
      * BigDecimal arithmetic method names.
