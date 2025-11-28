@@ -200,12 +200,23 @@ public final class DescriptorParser {
                 currentTypeEnd = position;
                 slotIndex++;
             } else if (c == '[') {
-                position++;
-                if (position < descriptor.length() && descriptor.charAt(position) == 'L') {
-                    while (isNotAtClassReferenceTerminator()) {
+                // Skip all array dimension brackets (e.g., [[[ for 3D array)
+                while (position < descriptor.length() && descriptor.charAt(position) == '[') {
+                    position++;
+                }
+                // Now skip the element type
+                if (position < descriptor.length()) {
+                    char elementType = descriptor.charAt(position);
+                    if (elementType == 'L') {
+                        // Object array: skip to semicolon
+                        while (isNotAtClassReferenceTerminator()) {
+                            position++;
+                        }
+                        position++; // Skip the semicolon
+                    } else {
+                        // Primitive array: skip the single type character
                         position++;
                     }
-                    position++;
                 }
                 currentTypeEnd = position;
                 slotIndex++;
