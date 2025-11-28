@@ -506,11 +506,16 @@ public class AnalysisContext {
      * Called when AASTORE instruction stores a value into the array.
      *
      * @param element the element expression to add
+     * @throws IllegalStateException if called when not in array creation mode
+     *         (i.e., startArrayCreation was not called first)
      */
     public void addArrayElement(LambdaExpression element) {
-        if (pendingArrayElements != null) {
-            pendingArrayElements.add(element);
+        if (pendingArrayElements == null) {
+            throw new IllegalStateException(
+                    "Cannot add array element: not in array creation mode. "
+                            + "Call startArrayCreation() before adding elements.");
         }
+        pendingArrayElements.add(element);
     }
 
     /**

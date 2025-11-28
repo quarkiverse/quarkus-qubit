@@ -18,6 +18,7 @@ import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
+import org.jboss.logging.Logger;
 
 import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.AND;
 import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.OR;
@@ -46,6 +47,8 @@ import static io.quarkus.qusaq.runtime.QusaqConstants.PATH_GET;
  * </pre>
  */
 public class SubqueryExpressionBuilder {
+
+    private static final Logger log = Logger.getLogger(SubqueryExpressionBuilder.class);
 
     /**
      * Loads entity class for JPA FROM clause.
@@ -309,8 +312,17 @@ public class SubqueryExpressionBuilder {
 
     /**
      * Generates a field path expression.
+     *
+     * @param method the method creator for bytecode generation
+     * @param expr the expression to generate a path for (must be FieldAccess or PathExpression)
+     * @param root the root handle to build the path from
+     * @return ResultHandle for the generated path expression
+     * @throws IllegalArgumentException if expr is null or an unsupported expression type
      */
     private ResultHandle generateFieldPath(MethodCreator method, LambdaExpression expr, ResultHandle root) {
+        if (expr == null) {
+            throw new IllegalArgumentException("Field path expression cannot be null");
+        }
         if (expr instanceof FieldAccess field) {
             ResultHandle fieldName = method.load(field.fieldName());
             return method.invokeInterfaceMethod(
@@ -326,8 +338,9 @@ public class SubqueryExpressionBuilder {
             }
             return currentPath;
         }
-        // Fallback: return root (shouldn't happen for well-formed expressions)
-        return root;
+        throw new IllegalArgumentException(
+                "Unsupported expression type for field path generation: " + expr.getClass().getSimpleName()
+                        + ". Expected FieldAccess or PathExpression.");
     }
 
     /**
@@ -424,6 +437,14 @@ public class SubqueryExpressionBuilder {
      *
      * <p>This handles both subquery-local expressions and correlated references
      * to the outer query.
+     *
+     * @param method the method creator for bytecode generation
+     * @param expr the expression to generate
+     * @param cb the CriteriaBuilder handle
+     * @param subRoot the subquery root handle
+     * @param outerRoot the outer query root handle (for correlated subqueries)
+     * @param capturedValues the captured values array handle
+     * @return ResultHandle for the generated expression, or null if expr is null
      */
     private ResultHandle generateSubqueryExpression(
             MethodCreator method,
@@ -432,6 +453,10 @@ public class SubqueryExpressionBuilder {
             ResultHandle subRoot,
             ResultHandle outerRoot,
             ResultHandle capturedValues) {
+
+        if (expr == null) {
+            return null;
+        }
 
         if (expr instanceof FieldAccess field) {
             // Default to subquery root for simple field access
@@ -449,6 +474,9 @@ public class SubqueryExpressionBuilder {
             return method.checkCast(value, Object.class);
         }
 
+        log.warnf("Unhandled expression type in generateSubqueryExpression: %s. "
+                + "This may indicate a missing case handler or an unexpected AST structure.",
+                expr.getClass().getSimpleName());
         return null;
     }
 
