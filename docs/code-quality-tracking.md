@@ -21,13 +21,13 @@ This document provides a comprehensive analysis of code quality issues identifie
 
 | Category | Critical | High | Medium | Low | Total | Resolved |
 |----------|----------|------|--------|-----|-------|----------|
-| Architectural | 0 | ~~4~~ ~~3~~ ~~2~~ ~~1~~ 0 | 5 | 3 | 12 | 4 |
+| Architectural | 0 | ~~4~~ ~~3~~ ~~2~~ ~~1~~ 0 | ~~5~~ 4 | 3 | 12 | 5 |
 | Code Smells | 0 | ~~3~~ 2 | 12 | 8 | 23 | 1 |
 | Bug Risks | ~~2~~ 0 | ~~5~~ 4 | 4 | 2 | ~~13~~ 10 | 3 |
 | Documentation | 0 | 2 | 6 | 4 | 12 | 0 |
 | Performance | 0 | 1 | 3 | 2 | 6 | 0 |
 | Maintainability | 0 | ~~7~~ 1 | ~~12~~ 0 | ~~6~~ 4 | ~~25~~ 5 | 21 |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ ~~**13**~~ ~~**12**~~ ~~**11**~~ **10** | ~~**42**~~ **30** | ~~**25**~~ **23** | ~~**91**~~ ~~**67**~~ ~~**66**~~ ~~**65**~~ **64** | **29** |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ ~~**13**~~ ~~**12**~~ ~~**11**~~ **10** | ~~**42**~~ ~~**30**~~ **29** | ~~**25**~~ **23** | ~~**91**~~ ~~**67**~~ ~~**66**~~ ~~**65**~~ ~~**64**~~ **63** | **30** |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -44,6 +44,8 @@ This document provides a comprehensive analysis of code quality issues identifie
 > ✅ **ARCH-001 Substantially Resolved**: Analyzed LambdaExpression.java (1119 lines) - well-organized sealed interface with clear section separators for Core Expressions, Relationship Navigation, Collection Operations, Join Queries, Grouping Operations, and Subqueries. Extracting to sub-interfaces would break sealed pattern without benefit. All four originally-identified large classes now addressed.
 >
 > ✅ **ARCH-003 Complete**: Created `ExpressionBuilder` marker interface with comprehensive documentation. All 8 expression builders now implement this interface. Analysis determined that a functional interface would add complexity without benefit due to fundamentally different method signatures across builder categories. The marker interface provides type-level documentation, IDE navigation support, and clear organizational pattern.
+>
+> ✅ **ARCH-004 Complete**: Created `ExpressionBuilderRegistry` record for dependency injection of expression builders. CriteriaExpressionGenerator now accepts registry via constructor, enabling testability with mock builders. Default no-arg constructor maintains backward compatibility. All 375 deployment tests pass.
 
 ---
 
@@ -145,17 +147,23 @@ This document provides a comprehensive analysis of code quality issues identifie
     - `BiEntityExpressionBuilder`, `GroupExpressionBuilder`, `SubqueryExpressionBuilder`
   - Benefits: Type-level documentation, IDE "find implementations" support, organizational clarity
 
-### ARCH-004: Hardcoded Builder Instantiation
+### ARCH-004: Hardcoded Builder Instantiation ✅ RESOLVED
 - **File**: [CriteriaExpressionGenerator.java:91-96](deployment/src/main/java/io/quarkus/qusaq/deployment/generation/CriteriaExpressionGenerator.java#L91-L96)
 - **Severity**: Medium
-- **Description**: Builders are instantiated directly, limiting testability.
-- **Current Code**:
-```java
-private final ArithmeticExpressionBuilder arithmeticBuilder = new ArithmeticExpressionBuilder();
-private final ComparisonExpressionBuilder comparisonBuilder = new ComparisonExpressionBuilder();
-// ...
-```
-- **Suggested Fix**: Use constructor injection or a builder registry for better testability.
+- **Status**: ✅ **RESOLVED**
+- **Description**: Builders were instantiated directly, limiting testability.
+- **Fix Applied**:
+  - Created [ExpressionBuilderRegistry.java](deployment/src/main/java/io/quarkus/qusaq/deployment/generation/builders/ExpressionBuilderRegistry.java) record holding all 8 builder instances
+  - Added `createDefault()` static factory method for production use
+  - Added null validation in compact constructor
+  - Added constructor to CriteriaExpressionGenerator accepting registry for DI
+  - Default no-arg constructor uses `ExpressionBuilderRegistry.createDefault()` for backward compatibility
+  - All builder access now through `builderRegistry.arithmeticBuilder()` etc.
+- **Benefits**:
+  - **Testability**: Tests can inject mock builders via registry constructor
+  - **Immutability**: Record provides immutable, thread-safe configuration
+  - **Backward Compatibility**: Existing code works unchanged with no-arg constructor
+  - **Validation**: Null checks prevent misconfiguration
 
 ### ARCH-005: Handler List Not Configurable
 - **File**: [LambdaBytecodeAnalyzer.java:47-54](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/LambdaBytecodeAnalyzer.java#L47-L54)
@@ -984,4 +992,5 @@ When addressing issues, use this template:
 | 1.7 | 2024-11-28 | Claude | **ARCH-001 Progress (CallSiteProcessor)**: Extracted LambdaAnalysisResult.java (84 lines) as public sealed interface and CapturedVariableHelper.java (246 lines) with 5 static utility methods. CallSiteProcessor reduced from 1359 to 1087 lines (20% reduction). Three of four large classes now significantly reduced. All 375 deployment tests pass. |
 | 1.8 | 2024-11-29 | Claude | **ARCH-001 Substantially Resolved**: Analyzed LambdaExpression.java (1119 lines) - determined to be well-organized sealed interface. File has clear section separators dividing 6 logical groups: Core Expressions, Relationship Navigation, Collection Operations, Join Queries, Grouping Operations, and Subqueries. Extracting to sub-interfaces would break sealed pattern without benefit. All four originally-identified large classes now addressed. Updated summary dashboard: Architectural high issues 2→1, total resolved 27→28. |
 | 1.9 | 2024-11-29 | Claude | **ARCH-003 Complete**: Created ExpressionBuilder.java marker interface with comprehensive documentation. Deep analysis found builders fall into 3 categories with fundamentally different APIs: Binary Operators (Arithmetic, Comparison), Method Calls (String, Temporal, BigDecimal), and Higher-Level (BiEntity, Group, Subquery). A functional interface would add complexity without benefit. All 8 builders now implement ExpressionBuilder for type-level documentation and IDE support. All 375 deployment tests pass. Updated: Architectural high 1→0, total 65→64, resolved 28→29. |
+| 2.0 | 2024-11-29 | Claude | **ARCH-004 Complete**: Created ExpressionBuilderRegistry.java record for dependency injection. Registry holds all 8 builder instances with null validation. CriteriaExpressionGenerator now has two constructors: no-arg (backward compatible, uses default registry) and registry-accepting (for testing). All builder access via `builderRegistry.builderName()`. Enables mock injection for unit testing. All 375 deployment tests pass. Updated: Architectural medium 5→4, total 64→63, resolved 29→30. |
 

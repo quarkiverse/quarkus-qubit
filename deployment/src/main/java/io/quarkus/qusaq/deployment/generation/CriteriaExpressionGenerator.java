@@ -53,15 +53,8 @@ import io.quarkus.qusaq.deployment.LambdaExpression.PathExpression;
 import io.quarkus.qusaq.deployment.LambdaExpression.PathSegment;
 import io.quarkus.qusaq.deployment.LambdaExpression.ScalarSubquery;
 import io.quarkus.qusaq.deployment.analysis.PatternDetector;
-import io.quarkus.qusaq.deployment.generation.builders.ArithmeticExpressionBuilder;
-import io.quarkus.qusaq.deployment.generation.builders.BigDecimalExpressionBuilder;
-import io.quarkus.qusaq.deployment.generation.builders.BiEntityExpressionBuilder;
-import io.quarkus.qusaq.deployment.generation.builders.ComparisonExpressionBuilder;
+import io.quarkus.qusaq.deployment.generation.builders.ExpressionBuilderRegistry;
 import io.quarkus.qusaq.deployment.generation.builders.ExpressionGeneratorHelper;
-import io.quarkus.qusaq.deployment.generation.builders.GroupExpressionBuilder;
-import io.quarkus.qusaq.deployment.generation.builders.StringExpressionBuilder;
-import io.quarkus.qusaq.deployment.generation.builders.SubqueryExpressionBuilder;
-import io.quarkus.qusaq.deployment.generation.builders.TemporalExpressionBuilder;
 import io.quarkus.qusaq.deployment.util.TypeConverter;
 import jakarta.persistence.criteria.CompoundSelection;
 import jakarta.persistence.criteria.CriteriaBuilder;
@@ -86,20 +79,32 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
     );
 
     /**
-     * Delegate builders for specialized expression generation.
+     * Registry holding all expression builders for dependency injection (ARCH-004).
      */
-    private final ArithmeticExpressionBuilder arithmeticBuilder = new ArithmeticExpressionBuilder();
-    private final ComparisonExpressionBuilder comparisonBuilder = new ComparisonExpressionBuilder();
-    private final StringExpressionBuilder stringBuilder = new StringExpressionBuilder();
-    private final TemporalExpressionBuilder temporalBuilder = new TemporalExpressionBuilder();
-    private final BigDecimalExpressionBuilder bigDecimalBuilder = new BigDecimalExpressionBuilder();
-    private final SubqueryExpressionBuilder subqueryBuilder = new SubqueryExpressionBuilder();
+    private final ExpressionBuilderRegistry builderRegistry;
 
     /**
-     * Delegate builders for bi-entity and group expressions (ARCH-001).
+     * Creates a generator with the default expression builder registry.
+     *
+     * <p>This is the standard constructor for production use.
      */
-    private final BiEntityExpressionBuilder biEntityBuilder = new BiEntityExpressionBuilder();
-    private final GroupExpressionBuilder groupBuilder = new GroupExpressionBuilder();
+    public CriteriaExpressionGenerator() {
+        this(ExpressionBuilderRegistry.createDefault());
+    }
+
+    /**
+     * Creates a generator with a custom expression builder registry.
+     *
+     * <p>This constructor enables testability by allowing injection of mock
+     * or custom builder implementations.
+     *
+     * @param builderRegistry the registry containing expression builders
+     * @throws NullPointerException if builderRegistry is null
+     */
+    public CriteriaExpressionGenerator(ExpressionBuilderRegistry builderRegistry) {
+        this.builderRegistry = java.util.Objects.requireNonNull(builderRegistry,
+                "builderRegistry cannot be null");
+    }
 
     /** Creates MethodDescriptor for method. */
     private static MethodDescriptor methodDescriptor(Class<?> clazz, String methodName, Class<?> returnType, Class<?>... params) {
@@ -195,10 +200,10 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         return switch (expression) {
             // Handle subquery expressions first
             case ExistsSubquery existsSubquery ->
-                subqueryBuilder.buildExistsSubquery(method, existsSubquery, cb, query, root, capturedValues);
+                builderRegistry.subqueryBuilder().buildExistsSubquery(method, existsSubquery, cb, query, root, capturedValues);
 
             case InSubquery inSubquery ->
-                subqueryBuilder.buildInSubquery(method, inSubquery, cb, query, root, capturedValues);
+                builderRegistry.subqueryBuilder().buildInSubquery(method, inSubquery, cb, query, root, capturedValues);
 
             // Handle binary operations that may contain subqueries
             case LambdaExpression.BinaryOp binOp ->
@@ -241,7 +246,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         // Java 21 pattern matching switch for type dispatch
         return switch (expression) {
             case ScalarSubquery scalarSubquery ->
-                subqueryBuilder.buildScalarSubquery(method, scalarSubquery, cb, query, root, capturedValues);
+                builderRegistry.subqueryBuilder().buildScalarSubquery(method, scalarSubquery, cb, query, root, capturedValues);
 
             // For non-subquery expressions, delegate to the original method
             default -> generateExpressionAsJpaExpression(method, expression, cb, root, capturedValues);
@@ -932,7 +937,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle left,
             ResultHandle right) {
 
-        return arithmeticBuilder.buildArithmeticOperation(method, operator, cb, left, right);
+        return builderRegistry.arithmeticBuilder().buildArithmeticOperation(method, operator, cb, left, right);
     }
 
     /**
@@ -992,7 +997,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle left,
             ResultHandle right) {
 
-        return comparisonBuilder.buildComparisonOperation(method, operator, cb, left, right);
+        return builderRegistry.comparisonBuilder().buildComparisonOperation(method, operator, cb, left, right);
     }
 
     /** Combines two predicates with AND or OR. */
@@ -1024,7 +1029,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle capturedValues) {
 
         ResultHandle fieldExpression = generateExpressionAsJpaExpression(method, methodCall.target(), cb, root, capturedValues);
-        return temporalBuilder.buildTemporalAccessorFunction(method, methodCall, cb, fieldExpression);
+        return builderRegistry.temporalBuilder().buildTemporalAccessorFunction(method, methodCall, cb, fieldExpression);
     }
 
     /** Generates String transformations. */
@@ -1036,7 +1041,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle capturedValues) {
 
         ResultHandle fieldExpression = generateExpressionAsJpaExpression(method, methodCall.target(), cb, root, capturedValues);
-        return stringBuilder.buildStringTransformation(method, methodCall, cb, fieldExpression);
+        return builderRegistry.stringBuilder().buildStringTransformation(method, methodCall, cb, fieldExpression);
     }
 
     /** Generates temporal comparisons. */
@@ -1059,7 +1064,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
         ResultHandle argument = generateExpression(method, methodCall.arguments().get(0), cb, root, capturedValues);
 
-        return temporalBuilder.buildTemporalComparison(method, methodCall, cb, fieldExpression, argument);
+        return builderRegistry.temporalBuilder().buildTemporalComparison(method, methodCall, cb, fieldExpression, argument);
     }
 
     /** Generates BigDecimal arithmetic. */
@@ -1082,7 +1087,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
         ResultHandle argument = generateExpressionAsJpaExpression(method, methodCall.arguments().get(0), cb, root, capturedValues);
 
-        return bigDecimalBuilder.buildBigDecimalArithmetic(method, methodCall, cb, fieldExpression, argument, arithmeticBuilder);
+        return builderRegistry.bigDecimalBuilder().buildBigDecimalArithmetic(method, methodCall, cb, fieldExpression, argument, builderRegistry.arithmeticBuilder());
     }
 
     /** Generates String LIKE patterns. */
@@ -1105,7 +1110,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
         ResultHandle argument = generateExpression(method, methodCall.arguments().get(0), cb, root, capturedValues);
 
-        return stringBuilder.buildStringPattern(method, methodCall, cb, fieldExpression, argument);
+        return builderRegistry.stringBuilder().buildStringPattern(method, methodCall, cb, fieldExpression, argument);
     }
 
     /** Generates String substring with 0-based to 1-based index conversion. */
@@ -1128,7 +1133,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             arguments.add(generateExpressionAsJpaExpression(method, arg, cb, root, capturedValues));
         }
 
-        return stringBuilder.buildStringSubstring(method, methodCall, cb, fieldExpression, arguments);
+        return builderRegistry.stringBuilder().buildStringSubstring(method, methodCall, cb, fieldExpression, arguments);
     }
 
     /** Generates String utility methods. */
@@ -1146,7 +1151,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             argument = generateExpression(method, methodCall.arguments().get(0), cb, root, capturedValues);
         }
 
-        return stringBuilder.buildStringUtility(method, methodCall, cb, fieldExpression, argument);
+        return builderRegistry.stringBuilder().buildStringUtility(method, methodCall, cb, fieldExpression, argument);
     }
 
     /** Wraps value as literal Expression. */
@@ -1198,7 +1203,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle join,
             ResultHandle capturedValues) {
 
-        return biEntityBuilder.generateBiEntityPredicate(method, expression, cb, root, join, capturedValues, this);
+        return builderRegistry.biEntityBuilder().generateBiEntityPredicate(method, expression, cb, root, join, capturedValues, this);
     }
 
     /**
@@ -1222,7 +1227,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle join,
             ResultHandle capturedValues) {
 
-        return biEntityBuilder.generateBiEntityExpressionAsJpaExpression(method, expression, cb, root, join, capturedValues, this);
+        return builderRegistry.biEntityBuilder().generateBiEntityExpressionAsJpaExpression(method, expression, cb, root, join, capturedValues, this);
     }
 
     // =============================================================================================
@@ -1250,7 +1255,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle join,
             ResultHandle capturedValues) {
 
-        return biEntityBuilder.generateBiEntityProjection(method, expression, cb, root, join, capturedValues, this);
+        return builderRegistry.biEntityBuilder().generateBiEntityProjection(method, expression, cb, root, join, capturedValues, this);
     }
 
     // =============================================================================================
@@ -1278,7 +1283,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle groupKeyExpr,
             ResultHandle capturedValues) {
 
-        return groupBuilder.generateGroupPredicate(method, expression, cb, root, groupKeyExpr, capturedValues, this);
+        return builderRegistry.groupBuilder().generateGroupPredicate(method, expression, cb, root, groupKeyExpr, capturedValues, this);
     }
 
     /**
@@ -1302,7 +1307,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle groupKeyExpr,
             ResultHandle capturedValues) {
 
-        return groupBuilder.generateGroupSelectExpression(method, expression, cb, root, groupKeyExpr, capturedValues, this);
+        return builderRegistry.groupBuilder().generateGroupSelectExpression(method, expression, cb, root, groupKeyExpr, capturedValues, this);
     }
 
     /**
@@ -1326,7 +1331,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle groupKeyExpr,
             ResultHandle capturedValues) {
 
-        return groupBuilder.generateGroupSortExpression(method, expression, cb, root, groupKeyExpr, capturedValues, this);
+        return builderRegistry.groupBuilder().generateGroupSortExpression(method, expression, cb, root, groupKeyExpr, capturedValues, this);
     }
 
     /**
@@ -1350,6 +1355,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle groupKeyExpr,
             ResultHandle capturedValues) {
 
-        return groupBuilder.generateGroupArraySelections(method, arrayCreation, cb, root, groupKeyExpr, capturedValues, this);
+        return builderRegistry.groupBuilder().generateGroupArraySelections(method, arrayCreation, cb, root, groupKeyExpr, capturedValues, this);
     }
 }
