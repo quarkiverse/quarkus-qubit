@@ -12,6 +12,7 @@ import org.objectweb.asm.tree.MethodNode;
 
 import java.util.Deque;
 import java.util.List;
+import java.util.Objects;
 
 import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.AND;
 import static org.objectweb.asm.Opcodes.*;
@@ -41,17 +42,32 @@ public class LambdaBytecodeAnalyzer {
     private static final Logger log = Logger.getLogger(LambdaBytecodeAnalyzer.class);
 
     /**
-     * Ordered list of instruction handlers.
-     * Handlers are checked in order until one accepts the instruction.
+     * Registry holding all instruction handlers for dependency injection (ARCH-005).
      */
-    private final List<InstructionHandler> handlers = List.of(
-        new LoadInstructionHandler(),
-        new ConstantInstructionHandler(),
-        new ArithmeticInstructionHandler(),
-        new TypeConversionHandler(),
-        new InvokeDynamicHandler(),  // Java 9+ string concatenation
-        new MethodInvocationHandler()
-    );
+    private final InstructionHandlerRegistry handlerRegistry;
+
+    /**
+     * Creates an analyzer with the default instruction handler registry.
+     *
+     * <p>This is the standard constructor for production use.
+     */
+    public LambdaBytecodeAnalyzer() {
+        this(InstructionHandlerRegistry.createDefault());
+    }
+
+    /**
+     * Creates an analyzer with a custom instruction handler registry.
+     *
+     * <p>This constructor enables testability by allowing injection of mock
+     * or custom handler implementations.
+     *
+     * @param handlerRegistry the registry containing instruction handlers
+     * @throws NullPointerException if handlerRegistry is null
+     */
+    public LambdaBytecodeAnalyzer(InstructionHandlerRegistry handlerRegistry) {
+        this.handlerRegistry = Objects.requireNonNull(handlerRegistry,
+                "handlerRegistry cannot be null");
+    }
 
     /**
      * Analyzes synthetic lambda bytecode and returns expression AST.
@@ -298,7 +314,7 @@ public class LambdaBytecodeAnalyzer {
      * @return true if analysis should terminate early
      */
     private boolean delegateToHandlers(AnalysisContext ctx, AbstractInsnNode insn) {
-        for (InstructionHandler handler : handlers) {
+        for (InstructionHandler handler : handlerRegistry.handlers()) {
             if (handler.canHandle(insn)) {
                 return handler.handle(insn, ctx); // Instruction handled, continue to next instruction
             }

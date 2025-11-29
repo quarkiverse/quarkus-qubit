@@ -21,13 +21,13 @@ This document provides a comprehensive analysis of code quality issues identifie
 
 | Category | Critical | High | Medium | Low | Total | Resolved |
 |----------|----------|------|--------|-----|-------|----------|
-| Architectural | 0 | ~~4~~ ~~3~~ ~~2~~ ~~1~~ 0 | ~~5~~ 4 | 3 | 12 | 5 |
+| Architectural | 0 | ~~4~~ ~~3~~ ~~2~~ ~~1~~ 0 | ~~5~~ ~~4~~ 3 | 3 | 12 | 6 |
 | Code Smells | 0 | ~~3~~ 2 | 12 | 8 | 23 | 1 |
 | Bug Risks | ~~2~~ 0 | ~~5~~ 4 | 4 | 2 | ~~13~~ 10 | 3 |
 | Documentation | 0 | 2 | 6 | 4 | 12 | 0 |
 | Performance | 0 | 1 | 3 | 2 | 6 | 0 |
 | Maintainability | 0 | ~~7~~ 1 | ~~12~~ 0 | ~~6~~ 4 | ~~25~~ 5 | 21 |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ ~~**13**~~ ~~**12**~~ ~~**11**~~ **10** | ~~**42**~~ ~~**30**~~ **29** | ~~**25**~~ **23** | ~~**91**~~ ~~**67**~~ ~~**66**~~ ~~**65**~~ ~~**64**~~ **63** | **30** |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ ~~**13**~~ ~~**12**~~ ~~**11**~~ **10** | ~~**42**~~ ~~**30**~~ ~~**29**~~ **28** | ~~**25**~~ **23** | ~~**91**~~ ~~**67**~~ ~~**66**~~ ~~**65**~~ ~~**64**~~ ~~**63**~~ **62** | **31** |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -46,6 +46,8 @@ This document provides a comprehensive analysis of code quality issues identifie
 > ✅ **ARCH-003 Complete**: Created `ExpressionBuilder` marker interface with comprehensive documentation. All 8 expression builders now implement this interface. Analysis determined that a functional interface would add complexity without benefit due to fundamentally different method signatures across builder categories. The marker interface provides type-level documentation, IDE navigation support, and clear organizational pattern.
 >
 > ✅ **ARCH-004 Complete**: Created `ExpressionBuilderRegistry` record for dependency injection of expression builders. CriteriaExpressionGenerator now accepts registry via constructor, enabling testability with mock builders. Default no-arg constructor maintains backward compatibility. All 375 deployment tests pass.
+>
+> ✅ **ARCH-005 Complete**: Created `InstructionHandlerRegistry` record for dependency injection of instruction handlers. LambdaBytecodeAnalyzer now accepts registry via constructor, enabling testability with mock handlers. Handler order is preserved (chain of responsibility pattern). All 1113 tests pass.
 
 ---
 
@@ -165,11 +167,25 @@ This document provides a comprehensive analysis of code quality issues identifie
   - **Backward Compatibility**: Existing code works unchanged with no-arg constructor
   - **Validation**: Null checks prevent misconfiguration
 
-### ARCH-005: Handler List Not Configurable
+### ARCH-005: Handler List Not Configurable ✅ RESOLVED
 - **File**: [LambdaBytecodeAnalyzer.java:47-54](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/LambdaBytecodeAnalyzer.java#L47-L54)
 - **Severity**: Medium
-- **Description**: Handler list is hardcoded, limiting extensibility.
-- **Suggested Fix**: Accept handlers via constructor or use service loader pattern.
+- **Status**: ✅ **RESOLVED**
+- **Description**: Handler list was hardcoded, limiting extensibility and testability.
+- **Fix Applied**:
+  - Created [InstructionHandlerRegistry.java](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/InstructionHandlerRegistry.java) record holding the ordered handler list
+  - Added `createDefault()` static factory method for production use
+  - Added validation in compact constructor (null check, empty list check)
+  - Creates defensive immutable copy with `List.copyOf()`
+  - Added constructor to LambdaBytecodeAnalyzer accepting registry for DI
+  - Default no-arg constructor uses `InstructionHandlerRegistry.createDefault()` for backward compatibility
+  - Handler access now through `handlerRegistry.handlers()` in `delegateToHandlers()`
+- **Benefits**:
+  - **Testability**: Tests can inject mock handlers via registry constructor
+  - **Extensibility**: Custom handlers can be added without modifying analyzer
+  - **Immutability**: Record provides immutable, thread-safe configuration
+  - **Order Preservation**: Handler order matters for chain of responsibility - registry maintains order
+  - **Backward Compatibility**: Existing code works unchanged with no-arg constructor
 
 ### ARCH-006: Mutable State in AnalysisContext
 - **File**: [AnalysisContext.java](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/AnalysisContext.java)
@@ -993,4 +1009,5 @@ When addressing issues, use this template:
 | 1.8 | 2024-11-29 | Claude | **ARCH-001 Substantially Resolved**: Analyzed LambdaExpression.java (1119 lines) - determined to be well-organized sealed interface. File has clear section separators dividing 6 logical groups: Core Expressions, Relationship Navigation, Collection Operations, Join Queries, Grouping Operations, and Subqueries. Extracting to sub-interfaces would break sealed pattern without benefit. All four originally-identified large classes now addressed. Updated summary dashboard: Architectural high issues 2→1, total resolved 27→28. |
 | 1.9 | 2024-11-29 | Claude | **ARCH-003 Complete**: Created ExpressionBuilder.java marker interface with comprehensive documentation. Deep analysis found builders fall into 3 categories with fundamentally different APIs: Binary Operators (Arithmetic, Comparison), Method Calls (String, Temporal, BigDecimal), and Higher-Level (BiEntity, Group, Subquery). A functional interface would add complexity without benefit. All 8 builders now implement ExpressionBuilder for type-level documentation and IDE support. All 375 deployment tests pass. Updated: Architectural high 1→0, total 65→64, resolved 28→29. |
 | 2.0 | 2024-11-29 | Claude | **ARCH-004 Complete**: Created ExpressionBuilderRegistry.java record for dependency injection. Registry holds all 8 builder instances with null validation. CriteriaExpressionGenerator now has two constructors: no-arg (backward compatible, uses default registry) and registry-accepting (for testing). All builder access via `builderRegistry.builderName()`. Enables mock injection for unit testing. All 375 deployment tests pass. Updated: Architectural medium 5→4, total 64→63, resolved 29→30. |
+| 2.1 | 2024-11-29 | Claude | **ARCH-005 Complete**: Created InstructionHandlerRegistry.java record for dependency injection. Registry holds 6 instruction handlers with order preserved (chain of responsibility). LambdaBytecodeAnalyzer now has two constructors: no-arg (backward compatible, uses default registry) and registry-accepting (for testing). Handler access via `handlerRegistry.handlers()`. Enables mock injection for unit testing and custom handler extensibility. All 1113 tests pass. Updated: Architectural medium 4→3, total 63→62, resolved 30→31. |
 
