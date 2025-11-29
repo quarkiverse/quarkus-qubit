@@ -150,19 +150,10 @@ public class LambdaBytecodeAnalyzer {
             }
 
             // For group context, the Group parameter is at slot 0 (first parameter)
-            // We use a special group context mode in AnalysisContext
+            // ARCH-006: Use constructor-based configuration for immutable state
             int groupParameterIndex = DescriptorParser.calculateEntityParameterSlotIndex(lambdaDescriptor);
-            AnalysisContext ctx = new AnalysisContext(lambdaMethod, groupParameterIndex);
-            ctx.setGroupContextMode(true);
-
-            // Iteration 7: Set up nested lambda analysis support
-            // This allows analyzing field extractor lambdas like (Person p) -> p.salary
-            // inside group aggregations like g.avg((Person p) -> p.salary)
-            ctx.setClassMethods(classNode.methods);
-            ctx.setNestedLambdaAnalyzer((nestedMethod, entityParamIndex) -> {
-                AnalysisContext nestedCtx = new AnalysisContext(nestedMethod, entityParamIndex);
-                return processInstructions(nestedCtx);
-            });
+            AnalysisContext.NestedLambdaSupport nestedLambdaSupport = createNestedLambdaSupport(classNode.methods);
+            AnalysisContext ctx = new AnalysisContext(lambdaMethod, groupParameterIndex, nestedLambdaSupport);
 
             return processInstructions(ctx);
 
@@ -221,6 +212,8 @@ public class LambdaBytecodeAnalyzer {
 
     /**
      * Analyzes method instructions to build lambda expression AST (single-entity).
+     * <p>
+     * ARCH-006: Uses constructor-based configuration for immutable nested lambda support.
      *
      * @param method lambda method to analyze
      * @param entityParameterIndex local variable slot index of the entity parameter
@@ -229,8 +222,8 @@ public class LambdaBytecodeAnalyzer {
      */
     private LambdaExpression analyzeMethodInstructions(MethodNode method, int entityParameterIndex,
                                                         List<MethodNode> classMethods) {
-        AnalysisContext ctx = new AnalysisContext(method, entityParameterIndex);
-        setupNestedLambdaAnalysis(ctx, classMethods);
+        AnalysisContext.NestedLambdaSupport nestedLambdaSupport = createNestedLambdaSupport(classMethods);
+        AnalysisContext ctx = new AnalysisContext(method, entityParameterIndex, false, nestedLambdaSupport);
         return processInstructions(ctx);
     }
 
@@ -238,6 +231,7 @@ public class LambdaBytecodeAnalyzer {
      * Analyzes method instructions to build lambda expression AST (bi-entity).
      * <p>
      * Used for BiQuerySpec lambdas in join queries with two entity parameters.
+     * ARCH-006: Uses constructor-based configuration for immutable nested lambda support.
      *
      * @param method lambda method to analyze
      * @param firstEntityParameterIndex local variable slot index of the first entity parameter
@@ -249,26 +243,29 @@ public class LambdaBytecodeAnalyzer {
                                                         int firstEntityParameterIndex,
                                                         int secondEntityParameterIndex,
                                                         List<MethodNode> classMethods) {
-        AnalysisContext ctx = new AnalysisContext(method, firstEntityParameterIndex, secondEntityParameterIndex);
-        setupNestedLambdaAnalysis(ctx, classMethods);
+        AnalysisContext.NestedLambdaSupport nestedLambdaSupport = createNestedLambdaSupport(classMethods);
+        AnalysisContext ctx = new AnalysisContext(method, firstEntityParameterIndex, secondEntityParameterIndex, nestedLambdaSupport);
         return processInstructions(ctx);
     }
 
     /**
-     * Sets up nested lambda analysis capability for the context.
+     * Creates nested lambda support configuration for the given class methods.
      * <p>
+     * ARCH-006: Factory method to create immutable NestedLambdaSupport configuration.
      * This enables analysis of nested lambdas used in subqueries and group aggregations.
      * For example: {@code subquery(Person.class).avg(q -> q.salary)}
      *
-     * @param ctx the analysis context
      * @param classMethods list of all methods in the class
+     * @return NestedLambdaSupport configuration
      */
-    private void setupNestedLambdaAnalysis(AnalysisContext ctx, List<MethodNode> classMethods) {
-        ctx.setClassMethods(classMethods);
-        ctx.setNestedLambdaAnalyzer((nestedMethod, entityParamIndex) -> {
-            AnalysisContext nestedCtx = new AnalysisContext(nestedMethod, entityParamIndex);
-            return processInstructions(nestedCtx);
-        });
+    private AnalysisContext.NestedLambdaSupport createNestedLambdaSupport(List<MethodNode> classMethods) {
+        return new AnalysisContext.NestedLambdaSupport(
+                classMethods,
+                (nestedMethod, entityParamIndex) -> {
+                    AnalysisContext nestedCtx = new AnalysisContext(nestedMethod, entityParamIndex);
+                    return processInstructions(nestedCtx);
+                }
+        );
     }
 
     /**

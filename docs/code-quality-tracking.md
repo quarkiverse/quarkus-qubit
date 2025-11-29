@@ -21,13 +21,13 @@ This document provides a comprehensive analysis of code quality issues identifie
 
 | Category | Critical | High | Medium | Low | Total | Resolved |
 |----------|----------|------|--------|-----|-------|----------|
-| Architectural | 0 | ~~4~~ ~~3~~ ~~2~~ ~~1~~ 0 | ~~5~~ ~~4~~ 3 | 3 | 12 | 6 |
+| Architectural | 0 | ~~4~~ ~~3~~ ~~2~~ ~~1~~ 0 | ~~5~~ ~~4~~ ~~3~~ 2 | 3 | 12 | 7 |
 | Code Smells | 0 | ~~3~~ 2 | 12 | 8 | 23 | 1 |
 | Bug Risks | ~~2~~ 0 | ~~5~~ 4 | 4 | 2 | ~~13~~ 10 | 3 |
 | Documentation | 0 | 2 | 6 | 4 | 12 | 0 |
 | Performance | 0 | 1 | 3 | 2 | 6 | 0 |
 | Maintainability | 0 | ~~7~~ 1 | ~~12~~ 0 | ~~6~~ 4 | ~~25~~ 5 | 21 |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ ~~**13**~~ ~~**12**~~ ~~**11**~~ **10** | ~~**42**~~ ~~**30**~~ ~~**29**~~ **28** | ~~**25**~~ **23** | ~~**91**~~ ~~**67**~~ ~~**66**~~ ~~**65**~~ ~~**64**~~ ~~**63**~~ **62** | **31** |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ ~~**13**~~ ~~**12**~~ ~~**11**~~ **10** | ~~**42**~~ ~~**30**~~ ~~**29**~~ ~~**28**~~ **27** | ~~**25**~~ **23** | ~~**91**~~ ~~**67**~~ ~~**66**~~ ~~**65**~~ ~~**64**~~ ~~**63**~~ ~~**62**~~ **61** | **32** |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -48,6 +48,8 @@ This document provides a comprehensive analysis of code quality issues identifie
 > ✅ **ARCH-004 Complete**: Created `ExpressionBuilderRegistry` record for dependency injection of expression builders. CriteriaExpressionGenerator now accepts registry via constructor, enabling testability with mock builders. Default no-arg constructor maintains backward compatibility. All 375 deployment tests pass.
 >
 > ✅ **ARCH-005 Complete**: Created `InstructionHandlerRegistry` record for dependency injection of instruction handlers. LambdaBytecodeAnalyzer now accepts registry via constructor, enabling testability with mock handlers. Handler order is preserved (chain of responsibility pattern). All 1113 tests pass.
+>
+> ✅ **ARCH-006 Complete**: Refactored `AnalysisContext` to use constructor-based immutable configuration. Created `NestedLambdaSupport` record to bundle classMethods and analyzer function. Configuration fields (groupContextMode, nestedLambdaSupport) are now final. Processing state (currentInstructionIndex, hasSeenBranch, pendingArray*) remains mutable as required by bytecode analysis. All 1113 tests pass.
 
 ---
 
@@ -187,11 +189,37 @@ This document provides a comprehensive analysis of code quality issues identifie
   - **Order Preservation**: Handler order matters for chain of responsibility - registry maintains order
   - **Backward Compatibility**: Existing code works unchanged with no-arg constructor
 
-### ARCH-006: Mutable State in AnalysisContext
+### ARCH-006: Mutable State in AnalysisContext ✅ RESOLVED
 - **File**: [AnalysisContext.java](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/AnalysisContext.java)
 - **Severity**: Medium
-- **Description**: `AnalysisContext` has multiple mutable fields set after construction.
-- **Suggested Fix**: Use builder pattern or immutable state with copy-on-modify.
+- **Status**: ✅ **RESOLVED**
+- **Description**: `AnalysisContext` had multiple mutable fields set after construction via setters.
+- **Analysis**: AnalysisContext has two categories of state:
+  - **Configuration State**: `groupContextMode`, `classMethods`, `nestedLambdaAnalyzer` - should be immutable
+  - **Processing State**: `currentInstructionIndex`, `hasSeenBranch`, `pendingArrayElementType`, `pendingArrayElements` - must remain mutable (mutated during instruction analysis)
+- **Fix Applied**:
+  - Created `NestedLambdaSupport` record inside AnalysisContext to bundle classMethods and analyzer function
+  - Made `groupContextMode` final (set at construction)
+  - Made `nestedLambdaSupport` final (set at construction, nullable)
+  - Added 4 new constructor overloads for different use cases:
+    - `AnalysisContext(method, entityParamIndex)` - simple single-entity (existing)
+    - `AnalysisContext(method, firstEntityParamIndex, secondEntityParamIndex)` - bi-entity (existing)
+    - `AnalysisContext(method, entityParamIndex, nestedLambdaSupport)` - group context
+    - `AnalysisContext(method, entityParamIndex, groupContextMode, nestedLambdaSupport)` - full config
+    - `AnalysisContext(method, firstEntityParamIndex, secondEntityParamIndex, nestedLambdaSupport)` - bi-entity with nested
+  - Removed setter methods: `setGroupContextMode()`, `setClassMethods()`, `setNestedLambdaAnalyzer()`
+  - Updated `findMethod()` and `analyzeNestedLambda()` to use `nestedLambdaSupport` field
+  - Added `hasNestedLambdaSupport()` method for checking configuration
+  - Updated `LambdaBytecodeAnalyzer` to use new constructors:
+    - Created `createNestedLambdaSupport()` factory method
+    - Updated `analyzeGroupContext()` to use group context constructor
+    - Updated `analyzeMethodInstructions()` methods to pass NestedLambdaSupport
+  - Added ARCH-006 documentation comments throughout
+- **Benefits**:
+  - Configuration state is now immutable and set at construction time
+  - Clear separation between configuration and processing state
+  - No more setter-based initialization anti-pattern
+  - Thread-safety for configuration (processing state is still single-threaded by design)
 
 ### ARCH-007: Missing Central Configuration
 - **Severity**: Medium
@@ -1010,4 +1038,5 @@ When addressing issues, use this template:
 | 1.9 | 2024-11-29 | Claude | **ARCH-003 Complete**: Created ExpressionBuilder.java marker interface with comprehensive documentation. Deep analysis found builders fall into 3 categories with fundamentally different APIs: Binary Operators (Arithmetic, Comparison), Method Calls (String, Temporal, BigDecimal), and Higher-Level (BiEntity, Group, Subquery). A functional interface would add complexity without benefit. All 8 builders now implement ExpressionBuilder for type-level documentation and IDE support. All 375 deployment tests pass. Updated: Architectural high 1→0, total 65→64, resolved 28→29. |
 | 2.0 | 2024-11-29 | Claude | **ARCH-004 Complete**: Created ExpressionBuilderRegistry.java record for dependency injection. Registry holds all 8 builder instances with null validation. CriteriaExpressionGenerator now has two constructors: no-arg (backward compatible, uses default registry) and registry-accepting (for testing). All builder access via `builderRegistry.builderName()`. Enables mock injection for unit testing. All 375 deployment tests pass. Updated: Architectural medium 5→4, total 64→63, resolved 29→30. |
 | 2.1 | 2024-11-29 | Claude | **ARCH-005 Complete**: Created InstructionHandlerRegistry.java record for dependency injection. Registry holds 6 instruction handlers with order preserved (chain of responsibility). LambdaBytecodeAnalyzer now has two constructors: no-arg (backward compatible, uses default registry) and registry-accepting (for testing). Handler access via `handlerRegistry.handlers()`. Enables mock injection for unit testing and custom handler extensibility. All 1113 tests pass. Updated: Architectural medium 4→3, total 63→62, resolved 30→31. |
+| 2.2 | 2024-11-29 | Claude | **ARCH-006 Complete**: Refactored AnalysisContext mutable state to use constructor-based immutable configuration. Created NestedLambdaSupport record to bundle classMethods and analyzer. Made groupContextMode and nestedLambdaSupport fields final. Added 4 new constructor overloads. Removed setter methods (setGroupContextMode, setClassMethods, setNestedLambdaAnalyzer). Updated LambdaBytecodeAnalyzer with createNestedLambdaSupport() factory method. Processing state (currentInstructionIndex, hasSeenBranch, pendingArray*) remains mutable as required. All 1113 tests pass. Updated: Architectural medium 3→2, total 62→61, resolved 31→32. |
 

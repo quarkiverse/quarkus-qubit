@@ -27,9 +27,47 @@ import java.util.function.BiFunction;
  *   <li>Utility methods for common operations</li>
  * </ul>
  *
- * <p>Handlers receive this context and can query/modify state as needed.
+ * <p><b>State Categories (ARCH-006):</b>
+ * <ul>
+ *   <li><b>Configuration State</b>: Set at construction, immutable thereafter
+ *       (groupContextMode, classMethods, nestedLambdaAnalyzer)</li>
+ *   <li><b>Processing State</b>: Mutated during instruction analysis
+ *       (currentInstructionIndex, hasSeenBranch, pendingArray*)</li>
+ * </ul>
+ *
+ * <p>Handlers receive this context and can query/modify processing state as needed.
+ *
+ * @see NestedLambdaSupport
  */
 public class AnalysisContext {
+
+    // ==================== Nested Lambda Support Configuration ====================
+
+    /**
+     * Configuration record for nested lambda analysis support (ARCH-006).
+     *
+     * <p>Bundles the classMethods list and analyzer function together to ensure
+     * they are always set consistently. This configuration is immutable once
+     * the context is created.
+     *
+     * @param classMethods list of all methods in the class (for finding nested lambdas)
+     * @param analyzer function that takes (MethodNode, entityParamIndex) and returns analyzed expression
+     */
+    public record NestedLambdaSupport(
+            List<MethodNode> classMethods,
+            BiFunction<MethodNode, Integer, LambdaExpression> analyzer) {
+
+        /**
+         * Creates nested lambda support with validation.
+         *
+         * @throws NullPointerException if classMethods or analyzer is null
+         */
+        public NestedLambdaSupport {
+            java.util.Objects.requireNonNull(classMethods, "classMethods cannot be null");
+            java.util.Objects.requireNonNull(analyzer, "analyzer cannot be null");
+            classMethods = List.copyOf(classMethods);
+        }
+    }
 
     // ==================== Core State ====================
 
@@ -92,20 +130,16 @@ public class AnalysisContext {
      * True if this is a group context lambda (GroupQuerySpec).
      * In group context, the parameter is a Group<T, K> and supports aggregation methods.
      * Iteration 7: Added for GROUP BY query support.
+     * ARCH-006: Made final - set at construction, immutable thereafter.
      */
-    private boolean groupContextMode = false;
+    private final boolean groupContextMode;
 
     /**
-     * List of all methods in the class (for finding nested lambdas).
-     * Iteration 7: Added for nested lambda analysis in group aggregations.
+     * Configuration for nested lambda analysis (ARCH-006).
+     * Bundles classMethods and nestedLambdaAnalyzer together as immutable configuration.
+     * Null when nested lambda analysis is not supported.
      */
-    private List<MethodNode> classMethods;
-
-    /**
-     * Analyzer function for nested lambdas.
-     * Iteration 7: Added for nested lambda analysis in group aggregations.
-     */
-    private BiFunction<MethodNode, Integer, LambdaExpression> nestedLambdaAnalyzer;
+    private final NestedLambdaSupport nestedLambdaSupport;
 
     /**
      * Current instruction index in the instruction list.
@@ -140,7 +174,7 @@ public class AnalysisContext {
      * @param entityParameterIndex the slot index of the entity parameter
      */
     public AnalysisContext(MethodNode method, int entityParameterIndex) {
-        this(method, entityParameterIndex, -1, false);
+        this(method, entityParameterIndex, -1, false, false, null);
     }
 
     /**
@@ -151,18 +185,66 @@ public class AnalysisContext {
      * @param secondEntityParameterIndex the slot index of the second entity parameter
      */
     public AnalysisContext(MethodNode method, int firstEntityParameterIndex, int secondEntityParameterIndex) {
-        this(method, firstEntityParameterIndex, secondEntityParameterIndex, true);
+        this(method, firstEntityParameterIndex, secondEntityParameterIndex, true, false, null);
     }
 
     /**
-     * Internal constructor for all cases.
+     * Creates a new analysis context for group context lambdas (GroupQuerySpec).
+     * <p>
+     * ARCH-006: Constructor-based configuration for group context mode.
+     *
+     * @param method the lambda method being analyzed
+     * @param entityParameterIndex the slot index of the entity parameter
+     * @param nestedLambdaSupport configuration for nested lambda analysis
+     */
+    public AnalysisContext(MethodNode method, int entityParameterIndex, NestedLambdaSupport nestedLambdaSupport) {
+        this(method, entityParameterIndex, -1, false, true, nestedLambdaSupport);
+    }
+
+    /**
+     * Creates a new analysis context with nested lambda support (single-entity lambda).
+     * <p>
+     * ARCH-006: Constructor-based configuration for nested lambda analysis.
+     *
+     * @param method the lambda method being analyzed
+     * @param entityParameterIndex the slot index of the entity parameter
+     * @param nestedLambdaSupport configuration for nested lambda analysis
+     * @param groupContextMode true if this is a group context lambda
+     */
+    public AnalysisContext(MethodNode method, int entityParameterIndex,
+                           boolean groupContextMode, NestedLambdaSupport nestedLambdaSupport) {
+        this(method, entityParameterIndex, -1, false, groupContextMode, nestedLambdaSupport);
+    }
+
+    /**
+     * Creates a new analysis context for bi-entity lambdas with nested lambda support.
+     * <p>
+     * ARCH-006: Constructor-based configuration for bi-entity with nested lambda analysis.
+     *
+     * @param method the lambda method being analyzed
+     * @param firstEntityParameterIndex the slot index of the first entity parameter
+     * @param secondEntityParameterIndex the slot index of the second entity parameter
+     * @param nestedLambdaSupport configuration for nested lambda analysis
+     */
+    public AnalysisContext(MethodNode method, int firstEntityParameterIndex,
+                           int secondEntityParameterIndex, NestedLambdaSupport nestedLambdaSupport) {
+        this(method, firstEntityParameterIndex, secondEntityParameterIndex, true, false, nestedLambdaSupport);
+    }
+
+    /**
+     * Internal constructor for all cases (ARCH-006).
+     * <p>
+     * All configuration is set at construction time, making configuration state immutable.
      */
     private AnalysisContext(MethodNode method, int entityParameterIndex,
-                            int secondEntityParameterIndex, boolean biEntityMode) {
+                            int secondEntityParameterIndex, boolean biEntityMode,
+                            boolean groupContextMode, NestedLambdaSupport nestedLambdaSupport) {
         this.method = method;
         this.entityParameterIndex = entityParameterIndex;
         this.secondEntityParameterIndex = secondEntityParameterIndex;
         this.biEntityMode = biEntityMode;
+        this.groupContextMode = groupContextMode;
+        this.nestedLambdaSupport = nestedLambdaSupport;
         this.instructions = method.instructions;
         this.instructionCount = instructions.size();
 
@@ -407,52 +489,31 @@ public class AnalysisContext {
     }
 
     /**
-     * Sets the group context mode.
+     * Returns true if nested lambda analysis is supported.
      * <p>
-     * Called during analysis setup for GroupQuerySpec lambdas.
+     * ARCH-006: Replaced setter-based configuration with constructor injection.
      *
-     * @param groupContextMode true to enable group context mode
+     * @return true if nested lambda support is configured
      */
-    public void setGroupContextMode(boolean groupContextMode) {
-        this.groupContextMode = groupContextMode;
-    }
-
-    /**
-     * Sets the list of all methods in the class for nested lambda lookup.
-     * <p>
-     * Iteration 7: Required for analyzing nested lambdas in group aggregations.
-     *
-     * @param methods list of all methods in the class
-     */
-    public void setClassMethods(List<MethodNode> methods) {
-        this.classMethods = methods;
-    }
-
-    /**
-     * Sets the analyzer function for nested lambdas.
-     * <p>
-     * Iteration 7: Required for analyzing nested lambdas in group aggregations.
-     *
-     * @param analyzer function that takes (MethodNode, entityParamIndex) and returns analyzed expression
-     */
-    public void setNestedLambdaAnalyzer(BiFunction<MethodNode, Integer, LambdaExpression> analyzer) {
-        this.nestedLambdaAnalyzer = analyzer;
+    public boolean hasNestedLambdaSupport() {
+        return nestedLambdaSupport != null;
     }
 
     /**
      * Finds a method in the class by name and descriptor.
      * <p>
      * Iteration 7: Used for locating nested lambda methods.
+     * ARCH-006: Updated to use immutable NestedLambdaSupport configuration.
      *
      * @param name method name
      * @param descriptor method descriptor
      * @return the MethodNode if found, null otherwise
      */
     public MethodNode findMethod(String name, String descriptor) {
-        if (classMethods == null) {
+        if (nestedLambdaSupport == null) {
             return null;
         }
-        for (MethodNode m : classMethods) {
+        for (MethodNode m : nestedLambdaSupport.classMethods()) {
             if (m.name.equals(name) && m.desc.equals(descriptor)) {
                 return m;
             }
@@ -465,16 +526,17 @@ public class AnalysisContext {
      * <p>
      * Iteration 7: Used for analyzing field extractor lambdas in group aggregations
      * like {@code g.avg((Person p) -> p.salary)}.
+     * ARCH-006: Updated to use immutable NestedLambdaSupport configuration.
      *
      * @param nestedMethod the nested lambda method to analyze
      * @param entityParamIndex the entity parameter slot index
      * @return the analyzed lambda expression, or null if analysis fails
      */
     public LambdaExpression analyzeNestedLambda(MethodNode nestedMethod, int entityParamIndex) {
-        if (nestedLambdaAnalyzer == null) {
+        if (nestedLambdaSupport == null) {
             return null;
         }
-        return nestedLambdaAnalyzer.apply(nestedMethod, entityParamIndex);
+        return nestedLambdaSupport.analyzer().apply(nestedMethod, entityParamIndex);
     }
 
     // ==================== Array Creation Tracking (Iteration 7) ====================
