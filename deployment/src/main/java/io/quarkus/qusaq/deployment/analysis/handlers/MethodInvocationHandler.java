@@ -16,7 +16,7 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.EQ;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.eq;
 import static io.quarkus.qusaq.runtime.QusaqConstants.*;
 import static org.objectweb.asm.Opcodes.*;
 
@@ -341,7 +341,7 @@ public class MethodInvocationHandler implements InstructionHandler {
         if (ctx.getStackSize() >= 2) {
             LambdaExpression right = ctx.pop();
             LambdaExpression left = ctx.pop();
-            ctx.push(new LambdaExpression.BinaryOp(left, EQ, right));
+            ctx.push(eq(left, right));
         }
     }
 

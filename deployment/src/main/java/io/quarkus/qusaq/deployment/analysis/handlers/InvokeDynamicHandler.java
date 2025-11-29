@@ -11,7 +11,7 @@ import org.objectweb.asm.tree.MethodNode;
 import java.util.ArrayList;
 import java.util.List;
 
-import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.ADD;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.add;
 import static org.objectweb.asm.Opcodes.INVOKEDYNAMIC;
 
 /**
@@ -370,7 +370,7 @@ public class InvokeDynamicHandler implements InstructionHandler {
         if (result == null) {
             return toAdd;
         }
-        return new LambdaExpression.BinaryOp(result, ADD, toAdd);
+        return add(result, toAdd);
     }
 
     /**

@@ -5,13 +5,7 @@ import io.quarkus.qusaq.deployment.analysis.BytecodeAnalysisException;
 import io.quarkus.qusaq.deployment.analysis.BytecodeValidator;
 import org.objectweb.asm.tree.AbstractInsnNode;
 
-import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.ADD;
-import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.AND;
-import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.DIV;
-import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.MOD;
-import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.MUL;
-import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.OR;
-import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.SUB;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.*;
 import static org.objectweb.asm.Opcodes.*;
 
 /**
@@ -66,16 +60,16 @@ public class ArithmeticInstructionHandler implements InstructionHandler {
         LambdaExpression right = ctx.pop();
         LambdaExpression left = ctx.pop();
 
-        LambdaExpression.BinaryOp.Operator arithmeticOp = switch (opcode) {
-            case IADD, LADD, FADD, DADD -> ADD;
-            case ISUB, LSUB, FSUB, DSUB -> SUB;
-            case IMUL, LMUL, FMUL, DMUL -> MUL;
-            case IDIV, LDIV, FDIV, DDIV -> DIV;
-            case IREM, LREM -> MOD;
+        LambdaExpression.BinaryOp result = switch (opcode) {
+            case IADD, LADD, FADD, DADD -> add(left, right);
+            case ISUB, LSUB, FSUB, DSUB -> sub(left, right);
+            case IMUL, LMUL, FMUL, DMUL -> mul(left, right);
+            case IDIV, LDIV, FDIV, DDIV -> div(left, right);
+            case IREM, LREM -> mod(left, right);
             default -> throw BytecodeAnalysisException.unexpectedOpcode("arithmetic operation", opcode);
         };
 
-        ctx.push(new LambdaExpression.BinaryOp(left, arithmeticOp, right));
+        ctx.push(result);
     }
 
     /** Handles logical operations. */
@@ -85,8 +79,8 @@ public class ArithmeticInstructionHandler implements InstructionHandler {
         LambdaExpression right = ctx.pop();
         LambdaExpression left = ctx.pop();
 
-        LambdaExpression.BinaryOp.Operator logicalOp = (opcode == IAND) ? AND : OR;
-        ctx.push(new LambdaExpression.BinaryOp(left, logicalOp, right));
+        LambdaExpression.BinaryOp result = opcode == IAND ? and(left, right) : or(left, right);
+        ctx.push(result);
     }
 
     /** Handles comparison operations: leaves operands on stack for branch handler. */

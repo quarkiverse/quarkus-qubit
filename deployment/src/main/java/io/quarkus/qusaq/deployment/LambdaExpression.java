@@ -33,6 +33,103 @@ public sealed interface LambdaExpression {
                 return symbol;
             }
         }
+
+        // ===== Logical Operations =====
+
+        /**
+         * Creates a logical AND operation.
+         */
+        public static BinaryOp and(LambdaExpression left, LambdaExpression right) {
+            return new BinaryOp(left, Operator.AND, right);
+        }
+
+        /**
+         * Creates a logical OR operation.
+         */
+        public static BinaryOp or(LambdaExpression left, LambdaExpression right) {
+            return new BinaryOp(left, Operator.OR, right);
+        }
+
+        // ===== Comparison Operations =====
+
+        /**
+         * Creates an equality comparison.
+         */
+        public static BinaryOp eq(LambdaExpression left, LambdaExpression right) {
+            return new BinaryOp(left, Operator.EQ, right);
+        }
+
+        /**
+         * Creates a not-equals comparison.
+         */
+        public static BinaryOp ne(LambdaExpression left, LambdaExpression right) {
+            return new BinaryOp(left, Operator.NE, right);
+        }
+
+        /**
+         * Creates a less-than comparison.
+         */
+        public static BinaryOp lt(LambdaExpression left, LambdaExpression right) {
+            return new BinaryOp(left, Operator.LT, right);
+        }
+
+        /**
+         * Creates a less-than-or-equal comparison.
+         */
+        public static BinaryOp le(LambdaExpression left, LambdaExpression right) {
+            return new BinaryOp(left, Operator.LE, right);
+        }
+
+        /**
+         * Creates a greater-than comparison.
+         */
+        public static BinaryOp gt(LambdaExpression left, LambdaExpression right) {
+            return new BinaryOp(left, Operator.GT, right);
+        }
+
+        /**
+         * Creates a greater-than-or-equal comparison.
+         */
+        public static BinaryOp ge(LambdaExpression left, LambdaExpression right) {
+            return new BinaryOp(left, Operator.GE, right);
+        }
+
+        // ===== Arithmetic Operations =====
+
+        /**
+         * Creates an addition operation.
+         */
+        public static BinaryOp add(LambdaExpression left, LambdaExpression right) {
+            return new BinaryOp(left, Operator.ADD, right);
+        }
+
+        /**
+         * Creates a subtraction operation.
+         */
+        public static BinaryOp sub(LambdaExpression left, LambdaExpression right) {
+            return new BinaryOp(left, Operator.SUB, right);
+        }
+
+        /**
+         * Creates a multiplication operation.
+         */
+        public static BinaryOp mul(LambdaExpression left, LambdaExpression right) {
+            return new BinaryOp(left, Operator.MUL, right);
+        }
+
+        /**
+         * Creates a division operation.
+         */
+        public static BinaryOp div(LambdaExpression left, LambdaExpression right) {
+            return new BinaryOp(left, Operator.DIV, right);
+        }
+
+        /**
+         * Creates a modulo operation.
+         */
+        public static BinaryOp mod(LambdaExpression left, LambdaExpression right) {
+            return new BinaryOp(left, Operator.MOD, right);
+        }
     }
 
     /**
@@ -57,6 +154,13 @@ public sealed interface LambdaExpression {
             public String symbol() {
                 return symbol;
             }
+        }
+
+        /**
+         * Creates a logical NOT operation.
+         */
+        public static UnaryOp not(LambdaExpression operand) {
+            return new UnaryOp(Operator.NOT, operand);
         }
     }
 
@@ -343,6 +447,30 @@ public sealed interface LambdaExpression {
         public PathSegment finalSegment() {
             return segments.get(segments.size() - 1);
         }
+
+        /**
+         * Creates a path expression with a single segment (simple field navigation).
+         *
+         * @param fieldName the field name
+         * @param fieldType the field type (also used as result type)
+         * @param relationType the relationship type for this field
+         * @return a PathExpression with one segment
+         */
+        public static PathExpression single(String fieldName, Class<?> fieldType, RelationType relationType) {
+            PathSegment segment = new PathSegment(fieldName, fieldType, relationType);
+            return new PathExpression(List.of(segment), fieldType);
+        }
+
+        /**
+         * Creates a simple field path expression (no relationship, just FIELD access).
+         *
+         * @param fieldName the field name
+         * @param fieldType the field type (also used as result type)
+         * @return a PathExpression with one FIELD segment
+         */
+        public static PathExpression field(String fieldName, Class<?> fieldType) {
+            return single(fieldName, fieldType, RelationType.FIELD);
+        }
     }
 
     // =============================================================================================
@@ -551,6 +679,28 @@ public sealed interface LambdaExpression {
         public boolean isFromSecondEntity() {
             return entityPosition == EntityPosition.SECOND;
         }
+
+        /**
+         * Creates a field access from the first (source/left) entity.
+         *
+         * @param fieldName the field name
+         * @param fieldType the field type
+         * @return a BiEntityFieldAccess from the first entity
+         */
+        public static BiEntityFieldAccess fromFirst(String fieldName, Class<?> fieldType) {
+            return new BiEntityFieldAccess(fieldName, fieldType, EntityPosition.FIRST);
+        }
+
+        /**
+         * Creates a field access from the second (joined/right) entity.
+         *
+         * @param fieldName the field name
+         * @param fieldType the field type
+         * @return a BiEntityFieldAccess from the second entity
+         */
+        public static BiEntityFieldAccess fromSecond(String fieldName, Class<?> fieldType) {
+            return new BiEntityFieldAccess(fieldName, fieldType, EntityPosition.SECOND);
+        }
     }
 
     /**
@@ -596,6 +746,28 @@ public sealed interface LambdaExpression {
          */
         public boolean isFromSecondEntity() {
             return entityPosition == EntityPosition.SECOND;
+        }
+
+        /**
+         * Creates a path expression starting from the first (source/left) entity.
+         *
+         * @param segments the path segments
+         * @param resultType the result type
+         * @return a BiEntityPathExpression from the first entity
+         */
+        public static BiEntityPathExpression fromFirst(List<PathSegment> segments, Class<?> resultType) {
+            return new BiEntityPathExpression(segments, resultType, EntityPosition.FIRST);
+        }
+
+        /**
+         * Creates a path expression starting from the second (joined/right) entity.
+         *
+         * @param segments the path segments
+         * @param resultType the result type
+         * @return a BiEntityPathExpression from the second entity
+         */
+        public static BiEntityPathExpression fromSecond(List<PathSegment> segments, Class<?> resultType) {
+            return new BiEntityPathExpression(segments, resultType, EntityPosition.SECOND);
         }
     }
 

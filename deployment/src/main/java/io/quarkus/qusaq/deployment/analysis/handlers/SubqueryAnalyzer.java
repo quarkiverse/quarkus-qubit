@@ -14,6 +14,7 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import java.util.ArrayList;
 import java.util.List;
 
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.and;
 import static io.quarkus.qusaq.runtime.QusaqConstants.*;
 
 /**
@@ -240,7 +241,7 @@ public class SubqueryAnalyzer {
      */
     private LambdaExpression combinePredicates(LambdaExpression predicate1, LambdaExpression predicate2) {
         if (predicate1 != null && predicate2 != null) {
-            return new LambdaExpression.BinaryOp(predicate1, LambdaExpression.BinaryOp.Operator.AND, predicate2);
+            return and(predicate1, predicate2);
         } else if (predicate1 != null) {
             return predicate1;
         } else {

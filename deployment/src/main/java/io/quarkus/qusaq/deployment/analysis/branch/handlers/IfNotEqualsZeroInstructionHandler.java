@@ -13,6 +13,9 @@ import java.util.Deque;
 import java.util.Map;
 
 import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.EQ;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.eq;
+import static io.quarkus.qusaq.deployment.LambdaExpression.Constant.ZERO_INT;
+import static io.quarkus.qusaq.deployment.LambdaExpression.UnaryOp.Operator.NOT;
 import static java.lang.Boolean.FALSE;
 import static org.objectweb.asm.Opcodes.IFNE;
 
@@ -65,7 +68,7 @@ public class IfNotEqualsZeroInstructionHandler extends AbstractZeroEqualityBranc
                 // Transforms (a - b) != 0 to a == b
                 LambdaExpression right = BytecodeValidator.popSafe(stack, "IFNE-NumericComp");
                 LambdaExpression left = BytecodeValidator.popSafe(stack, "IFNE-NumericComp");
-                stack.push(new LambdaExpression.BinaryOp(left, EQ, right));
+                stack.push(eq(left, right));
                 log.tracef("IFNE: Numeric comparison pattern - created EQ comparison");
                 yield state;
             }
@@ -73,7 +76,7 @@ public class IfNotEqualsZeroInstructionHandler extends AbstractZeroEqualityBranc
                 // Handle compareTo pattern: a.compareTo(b) → IFNE
                 // Transforms compareTo(a, b) != 0 to not-equals check
                 LambdaExpression expr = BytecodeValidator.popSafe(stack, "IFNE-CompareTo");
-                stack.push(new LambdaExpression.BinaryOp(expr, EQ, LambdaExpression.Constant.ZERO_INT));
+                stack.push(eq(expr, ZERO_INT));
                 log.tracef("IFNE: CompareTo pattern - created EQ 0 comparison");
                 yield state;
             }
@@ -81,7 +84,7 @@ public class IfNotEqualsZeroInstructionHandler extends AbstractZeroEqualityBranc
                 // Handle arithmetic pattern: (arithmetic expr) → IFNE
                 // Transforms expr != 0
                 LambdaExpression expr = BytecodeValidator.popSafe(stack, "IFNE-Arithmetic");
-                stack.push(new LambdaExpression.BinaryOp(expr, EQ, LambdaExpression.Constant.ZERO_INT));
+                stack.push(eq(expr, ZERO_INT));
                 log.tracef("IFNE: Arithmetic pattern - created EQ 0 comparison");
                 yield state;
             }
@@ -108,12 +111,12 @@ public class IfNotEqualsZeroInstructionHandler extends AbstractZeroEqualityBranc
 
         // Extract common negate case
         if (FALSE.equals(jumpTarget)) {
-            return new LambdaExpression.UnaryOp(LambdaExpression.UnaryOp.Operator.NOT, fieldAccess);
+            return new LambdaExpression.UnaryOp(NOT, fieldAccess);
         }
 
         // Handle non-negate cases
         return isAlreadyComparison ?
                 fieldAccess :
-                new LambdaExpression.BinaryOp(fieldAccess, EQ, LambdaExpression.Constant.TRUE);
+                eq(fieldAccess, LambdaExpression.Constant.TRUE);
     }
 }

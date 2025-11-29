@@ -7,6 +7,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.and;
+
 /**
  * Utility class for captured variable operations in lambda expressions.
  * <p>
@@ -235,10 +237,7 @@ public final class CapturedVariableHelper {
         // Chain predicates with AND: (p1 AND p2 AND p3 AND ...)
         LambdaExpression combined = predicates.get(0);
         for (int i = 1; i < predicates.size(); i++) {
-            combined = new LambdaExpression.BinaryOp(
-                    combined,
-                    LambdaExpression.BinaryOp.Operator.AND,
-                    predicates.get(i));
+            combined = and(combined, predicates.get(i));
         }
 
         return combined;

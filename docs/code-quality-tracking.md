@@ -21,13 +21,13 @@ This document provides a comprehensive analysis of code quality issues identifie
 
 | Category | Critical | High | Medium | Low | Total | Resolved |
 |----------|----------|------|--------|-----|-------|----------|
-| Architectural | 0 | ~~4~~ ~~3~~ ~~2~~ ~~1~~ 0 | ~~5~~ ~~4~~ ~~3~~ 2 | 3 | 12 | 7 |
+| Architectural | 0 | ~~4~~ ~~3~~ ~~2~~ ~~1~~ 0 | ~~5~~ ~~4~~ ~~3~~ 2 | ~~3~~ 2 | 12 | 8 |
 | Code Smells | 0 | ~~3~~ 2 | 12 | 8 | 23 | 1 |
 | Bug Risks | ~~2~~ 0 | ~~5~~ 4 | 4 | 2 | ~~13~~ 10 | 3 |
 | Documentation | 0 | 2 | 6 | 4 | 12 | 0 |
 | Performance | 0 | 1 | 3 | 2 | 6 | 0 |
 | Maintainability | 0 | ~~7~~ 1 | ~~12~~ 0 | ~~6~~ 4 | ~~25~~ 5 | 21 |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ ~~**13**~~ ~~**12**~~ ~~**11**~~ **10** | ~~**42**~~ ~~**30**~~ ~~**29**~~ ~~**28**~~ **27** | ~~**25**~~ **23** | ~~**91**~~ ~~**67**~~ ~~**66**~~ ~~**65**~~ ~~**64**~~ ~~**63**~~ ~~**62**~~ **61** | **32** |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ ~~**13**~~ ~~**12**~~ ~~**11**~~ **10** | ~~**42**~~ ~~**30**~~ ~~**29**~~ ~~**28**~~ **27** | ~~**25**~~ ~~**23**~~ **22** | ~~**91**~~ ~~**67**~~ ~~**66**~~ ~~**65**~~ ~~**64**~~ ~~**63**~~ ~~**62**~~ ~~**61**~~ **60** | **33** |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -50,6 +50,8 @@ This document provides a comprehensive analysis of code quality issues identifie
 > ✅ **ARCH-005 Complete**: Created `InstructionHandlerRegistry` record for dependency injection of instruction handlers. LambdaBytecodeAnalyzer now accepts registry via constructor, enabling testability with mock handlers. Handler order is preserved (chain of responsibility pattern). All 1113 tests pass.
 >
 > ✅ **ARCH-006 Complete**: Refactored `AnalysisContext` to use constructor-based immutable configuration. Created `NestedLambdaSupport` record to bundle classMethods and analyzer function. Configuration fields (groupContextMode, nestedLambdaSupport) are now final. Processing state (currentInstructionIndex, hasSeenBranch, pendingArray*) remains mutable as required by bytecode analysis. All 1113 tests pass.
+>
+> ✅ **ARCH-009 Complete**: Added 20 factory methods to 5 AST node types in LambdaExpression.java: BinaryOp (13 methods for logical, comparison, arithmetic ops), UnaryOp (1 method), PathExpression (2 methods), BiEntityFieldAccess (2 methods), BiEntityPathExpression (2 methods). All 375 deployment tests pass.
 
 ---
 
@@ -231,11 +233,42 @@ This document provides a comprehensive analysis of code quality issues identifie
 - **Description**: Package structure exists but responsibilities overlap.
 - **Suggested Fix**: Document module responsibilities, consider sub-modules.
 
-### ARCH-009: Missing Factory Methods for Complex AST Nodes
+### ARCH-009: Missing Factory Methods for Complex AST Nodes ✅ RESOLVED
 - **File**: [LambdaExpression.java](deployment/src/main/java/io/quarkus/qusaq/deployment/LambdaExpression.java)
 - **Severity**: Low
+- **Status**: ✅ **RESOLVED**
 - **Description**: Some records have factory methods (e.g., `InExpression.in()`), others don't.
-- **Suggested Fix**: Add factory methods consistently to all complex AST nodes.
+- **Fix Applied**:
+  - Added 20 factory methods to 5 AST node types:
+  - **BinaryOp** (13 factory methods):
+    - Logical: `and()`, `or()`
+    - Comparison: `eq()`, `ne()`, `lt()`, `le()`, `gt()`, `ge()`
+    - Arithmetic: `add()`, `sub()`, `mul()`, `div()`, `mod()`
+  - **UnaryOp** (1 factory method):
+    - `not()` for logical NOT operation
+  - **PathExpression** (2 factory methods):
+    - `single(fieldName, fieldType, relationType)` - single-segment path
+    - `field(fieldName, fieldType)` - simple field path (FIELD relation)
+  - **BiEntityFieldAccess** (2 factory methods):
+    - `fromFirst(fieldName, fieldType)` - field from first entity
+    - `fromSecond(fieldName, fieldType)` - field from second entity
+  - **BiEntityPathExpression** (2 factory methods):
+    - `fromFirst(segments, resultType)` - path from first entity
+    - `fromSecond(segments, resultType)` - path from second entity
+  - All 375 deployment tests pass
+- **Codebase Refactored to Use Factory Methods**:
+  - 9 files updated to use `BinaryOp` factory methods instead of constructor:
+    - `LambdaBytecodeAnalyzer.java` - `and()`
+    - `ArithmeticInstructionHandler.java` - `add()`, `sub()`, `mul()`, `div()`, `mod()`, `and()`, `or()`
+    - `BranchHandler.java` - `and()`, `or()`
+    - `MethodInvocationHandler.java` - `eq()`
+    - `CapturedVariableHelper.java` - `and()`
+    - `IfEqualsZeroInstructionHandler.java` - `ne()`, `eq()`
+    - `IfNotEqualsZeroInstructionHandler.java` - `eq()`
+    - `SubqueryAnalyzer.java` - `and()`
+    - `InvokeDynamicHandler.java` - `add()`
+  - Removed unused operator constant static imports from all files
+  - All 1488 tests pass (375 deployment + 1113 integration)
 
 ---
 
@@ -1039,4 +1072,6 @@ When addressing issues, use this template:
 | 2.0 | 2024-11-29 | Claude | **ARCH-004 Complete**: Created ExpressionBuilderRegistry.java record for dependency injection. Registry holds all 8 builder instances with null validation. CriteriaExpressionGenerator now has two constructors: no-arg (backward compatible, uses default registry) and registry-accepting (for testing). All builder access via `builderRegistry.builderName()`. Enables mock injection for unit testing. All 375 deployment tests pass. Updated: Architectural medium 5→4, total 64→63, resolved 29→30. |
 | 2.1 | 2024-11-29 | Claude | **ARCH-005 Complete**: Created InstructionHandlerRegistry.java record for dependency injection. Registry holds 6 instruction handlers with order preserved (chain of responsibility). LambdaBytecodeAnalyzer now has two constructors: no-arg (backward compatible, uses default registry) and registry-accepting (for testing). Handler access via `handlerRegistry.handlers()`. Enables mock injection for unit testing and custom handler extensibility. All 1113 tests pass. Updated: Architectural medium 4→3, total 63→62, resolved 30→31. |
 | 2.2 | 2024-11-29 | Claude | **ARCH-006 Complete**: Refactored AnalysisContext mutable state to use constructor-based immutable configuration. Created NestedLambdaSupport record to bundle classMethods and analyzer. Made groupContextMode and nestedLambdaSupport fields final. Added 4 new constructor overloads. Removed setter methods (setGroupContextMode, setClassMethods, setNestedLambdaAnalyzer). Updated LambdaBytecodeAnalyzer with createNestedLambdaSupport() factory method. Processing state (currentInstructionIndex, hasSeenBranch, pendingArray*) remains mutable as required. All 1113 tests pass. Updated: Architectural medium 3→2, total 62→61, resolved 31→32. |
+| 2.3 | 2024-11-29 | Claude | **ARCH-009 Complete**: Added 20 factory methods to 5 AST node types in LambdaExpression.java for consistent creation patterns. BinaryOp: 13 methods (logical: and/or, comparison: eq/ne/lt/le/gt/ge, arithmetic: add/sub/mul/div/mod). UnaryOp: not() method. PathExpression: single()/field() for single-segment paths. BiEntityFieldAccess: fromFirst()/fromSecond() for entity-specific access. BiEntityPathExpression: fromFirst()/fromSecond() for entity-specific paths. All 375 deployment tests pass. Updated: Architectural low 3→2, total 61→60, resolved 32→33. |
+| 2.4 | 2024-11-29 | Claude | **ARCH-009 Usage Complete**: Refactored 9 files to use BinaryOp factory methods instead of direct constructor calls. Files updated: LambdaBytecodeAnalyzer (and), ArithmeticInstructionHandler (add/sub/mul/div/mod/and/or), BranchHandler (and/or), MethodInvocationHandler (eq), CapturedVariableHelper (and), IfEqualsZeroInstructionHandler (ne/eq), IfNotEqualsZeroInstructionHandler (eq), SubqueryAnalyzer (and), InvokeDynamicHandler (add). Removed unused operator constant imports from all files. All 1488 tests pass (375 deployment + 1113 integration). |
 

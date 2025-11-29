@@ -10,6 +10,8 @@ import java.util.Map;
 
 import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.AND;
 import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.OR;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.and;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.or;
 
 /**
  * Handler for specific branch instruction types during bytecode analysis.
@@ -91,8 +93,9 @@ public interface BranchHandler {
             LambdaExpression previousCondition,
             LambdaExpression newExpression) {
 
-        LambdaExpression combined = new LambdaExpression.BinaryOp(
-                previousCondition, combineOp, newExpression);
+        LambdaExpression combined = (combineOp == AND)
+                ? and(previousCondition, newExpression)
+                : or(previousCondition, newExpression);
 
         // RESTRUCTURING: Fix precedence when combining ((a OR b) AND c) OR d
         // Should be: (a OR b) AND (c OR d) to maintain proper grouping
@@ -107,8 +110,8 @@ public interface BranchHandler {
             LambdaExpression x = prevBinOp.left();  // (a OR b)
             LambdaExpression y = prevBinOp.right(); // c
             LambdaExpression z = newExpression;     // d
-            LambdaExpression yOrZ = new LambdaExpression.BinaryOp(y, OR, z);
-            return new LambdaExpression.BinaryOp(x, AND, yOrZ);
+            LambdaExpression yOrZ = or(y, z);
+            return and(x, yOrZ);
         }
 
         return combined;

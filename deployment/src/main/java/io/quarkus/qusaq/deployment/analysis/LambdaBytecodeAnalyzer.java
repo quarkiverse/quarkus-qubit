@@ -14,7 +14,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Objects;
 
-import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.AND;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.and;
 import static org.objectweb.asm.Opcodes.*;
 
 /**
@@ -416,7 +416,7 @@ public class LambdaBytecodeAnalyzer {
         while (stack.size() > 1) {
             LambdaExpression right = stack.pop();
             LambdaExpression left = stack.pop();
-            stack.push(new LambdaExpression.BinaryOp(left, AND, right));
+            stack.push(and(left, right));
         }
         return stack.isEmpty() ? null : stack.peek();
     }

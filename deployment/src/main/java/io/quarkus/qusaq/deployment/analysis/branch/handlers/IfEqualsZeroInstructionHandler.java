@@ -12,8 +12,10 @@ import org.objectweb.asm.tree.LabelNode;
 import java.util.Deque;
 import java.util.Map;
 
-import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.EQ;
-import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.Operator.NE;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.eq;
+import static io.quarkus.qusaq.deployment.LambdaExpression.BinaryOp.ne;
+import static io.quarkus.qusaq.deployment.LambdaExpression.Constant.ZERO_INT;
+import static io.quarkus.qusaq.deployment.LambdaExpression.UnaryOp.Operator.NOT;
 import static java.lang.Boolean.TRUE;
 import static org.objectweb.asm.Opcodes.IFEQ;
 
@@ -66,7 +68,7 @@ public class IfEqualsZeroInstructionHandler extends AbstractZeroEqualityBranchHa
                 // Transforms (a - b) == 0 to a != b
                 LambdaExpression right = BytecodeValidator.popSafe(stack, "IFEQ-NumericComp");
                 LambdaExpression left = BytecodeValidator.popSafe(stack, "IFEQ-NumericComp");
-                stack.push(new LambdaExpression.BinaryOp(left, NE, right));
+                stack.push(ne(left, right));
                 log.tracef("IFEQ: Numeric comparison pattern - created NE comparison");
                 yield state;
             }
@@ -74,7 +76,7 @@ public class IfEqualsZeroInstructionHandler extends AbstractZeroEqualityBranchHa
                 // Handle compareTo pattern: a.compareTo(b) → IFEQ
                 // Transforms compareTo(a, b) == 0 to equals check
                 LambdaExpression expr = BytecodeValidator.popSafe(stack, "IFEQ-CompareTo");
-                stack.push(new LambdaExpression.BinaryOp(expr, EQ, LambdaExpression.Constant.TRUE));
+                stack.push(eq(expr, LambdaExpression.Constant.TRUE));
                 log.tracef("IFEQ: CompareTo pattern - created EQ true comparison");
                 yield state;
             }
@@ -82,7 +84,7 @@ public class IfEqualsZeroInstructionHandler extends AbstractZeroEqualityBranchHa
                 // Handle arithmetic pattern: (arithmetic expr) → IFEQ
                 // Transforms expr == 0
                 LambdaExpression expr = BytecodeValidator.popSafe(stack, "IFEQ-Arithmetic");
-                stack.push(new LambdaExpression.BinaryOp(expr, EQ, LambdaExpression.Constant.ZERO_INT));
+                stack.push(eq(expr, ZERO_INT));
                 log.tracef("IFEQ: Arithmetic pattern - created EQ 0 comparison");
                 yield state;
             }
@@ -106,10 +108,9 @@ public class IfEqualsZeroInstructionHandler extends AbstractZeroEqualityBranchHa
         // - Jump to FALSE → field is true (field EQ true)
         if (TRUE.equals(jumpTarget)) {
             // Jump to TRUE means field is false → NOT field
-            return new LambdaExpression.UnaryOp(
-                    LambdaExpression.UnaryOp.Operator.NOT, fieldAccess);
+            return new LambdaExpression.UnaryOp(NOT, fieldAccess);
         }
         // Jump to FALSE means field is true → field EQ true
-        return new LambdaExpression.BinaryOp(fieldAccess, EQ, LambdaExpression.Constant.TRUE);
+        return eq(fieldAccess, LambdaExpression.Constant.TRUE);
     }
 }
