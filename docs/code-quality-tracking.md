@@ -21,13 +21,13 @@ This document provides a comprehensive analysis of code quality issues identifie
 
 | Category | Critical | High | Medium | Low | Total | Resolved |
 |----------|----------|------|--------|-----|-------|----------|
-| Architectural | 0 | ~~4~~ ~~3~~ ~~2~~ ~~1~~ 0 | ~~5~~ ~~4~~ ~~3~~ 2 | ~~3~~ ~~2~~ 1 | 12 | 9 |
-| Code Smells | 0 | ~~3~~ 2 | 12 | 8 | 23 | 1 |
+| Architectural | 0 | ~~4~~ 1 | 12 | 9 |
+| Code Smells | 0 | ~~3~~ 1 | 12 | 8 | 23 | 2 |
 | Bug Risks | ~~2~~ 0 | ~~5~~ 4 | 4 | 2 | ~~13~~ 10 | 3 |
 | Documentation | 0 | ~~2~~ 1 | 6 | 4 | 12 | 1 |
 | Performance | 0 | 1 | 3 | 2 | 6 | 0 |
 | Maintainability | 0 | ~~7~~ 1 | ~~12~~ 0 | ~~6~~ 4 | ~~25~~ 5 | 21 |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ ~~**13**~~ ~~**12**~~ ~~**11**~~ ~~**10**~~ **9** | ~~**42**~~ ~~**30**~~ ~~**29**~~ ~~**28**~~ **27** | ~~**25**~~ ~~**23**~~ ~~**22**~~ **21** | ~~**91**~~ ~~**67**~~ ~~**66**~~ ~~**65**~~ ~~**64**~~ ~~**63**~~ ~~**62**~~ ~~**61**~~ ~~**60**~~ ~~**59**~~ **58** | **35** |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ **8** | ~~**42**~~ **27** | ~~**25**~~ **21** | ~~**91**~~ **57** | **36** |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -54,6 +54,8 @@ This document provides a comprehensive analysis of code quality issues identifie
 > ✅ **ARCH-009 Complete**: Added 20 factory methods to 5 AST node types in LambdaExpression.java: BinaryOp (13 methods for logical, comparison, arithmetic ops), UnaryOp (1 method), PathExpression (2 methods), BiEntityFieldAccess (2 methods), BiEntityPathExpression (2 methods). All 375 deployment tests pass.
 >
 > ✅ **ARCH-008 Complete**: Full module boundary refactoring implemented. Created `ast/` package (LambdaExpression), moved `InvokeDynamicScanner` to `analysis/`, created `common/` package (PatternDetector, BytecodeValidator, BytecodeAnalysisException, BytecodeAnalysisConstants), flattened `branch/handlers/` into `branch/`, renamed `handlers/` to `instruction/` and `builders/` to `expression/`, removed orphaned BytecodeInstructionHandler.java. Added package-info.java for all 9 packages. All tests pass.
+>
+> ✅ **CS-002 Complete**: Refactored `tryLoadClass()` in ClassLoaderHelper from nested try-catch blocks to classloader list iteration pattern. Uses `initialize=false` consistently for build-time safety. All 1113 tests pass.
 
 ---
 
@@ -314,24 +316,42 @@ This document provides a comprehensive analysis of code quality issues identifie
   - Updated MethodInvocationHandler.java to use all new constants
   - All 375 deployment tests pass
 
-### CS-002: Duplicate Catch Blocks in tryLoadClass()
-- **File**: [MethodInvocationHandler.java:1109-1122](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/MethodInvocationHandler.java#L1109-L1122)
+### CS-002: Duplicate Catch Blocks in tryLoadClass() ✅ RESOLVED
+- **File**: ~~[MethodInvocationHandler.java:1109-1122](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/MethodInvocationHandler.java#L1109-L1122)~~ → [ClassLoaderHelper.java:46-70](deployment/src/main/java/io/quarkiverse/qubit/deployment/common/ClassLoaderHelper.java#L46-L70)
 - **Severity**: High
-- **Current Code**:
+- **Status**: ✅ **RESOLVED**
+- **Description**: Nested try-catch blocks for ClassNotFoundException.
+- **Fix Applied**:
+  - Method extracted to `ClassLoaderHelper.java` (ARCH-008)
+  - Refactored nested try-catch to classloader list iteration pattern
+  - Uses `initialize=false` consistently for build-time safety
+  - Added null check for context classloader
+- **New Code**:
 ```java
-private Class<?> tryLoadClass(String className) {
-    try {
-        return Class.forName(className, false, Thread.currentThread().getContextClassLoader());
-    } catch (ClassNotFoundException e1) {
+public static Class<?> tryLoadClass(String className) {
+    if (className == null || className.isEmpty()) {
+        return null;
+    }
+    // Try classloaders in preference order
+    ClassLoader[] loaders = {
+        Thread.currentThread().getContextClassLoader(),
+        ClassLoaderHelper.class.getClassLoader()
+    };
+    for (ClassLoader loader : loaders) {
+        if (loader == null) {
+            continue;  // Context classloader may be null
+        }
         try {
-            return Class.forName(className);
-        } catch (ClassNotFoundException e2) {
-            return null;
+            return Class.forName(className, false, loader);
+        } catch (ClassNotFoundException ignored) {
+            // Try next classloader
         }
     }
+    log.debugf("Class not loadable at build-time: %s", className);
+    return null;
 }
 ```
-- **Suggested Fix**: Use multi-catch or extract to utility method with classloader list.
+- **Benefits**: Cleaner code, easier to extend with more classloaders, no nested catches.
 
 ### CS-003: Inconsistent Null Handling
 - **Severity**: High
@@ -1106,4 +1126,5 @@ When addressing issues, use this template:
 | 2.3 | 2024-11-29 | Claude | **ARCH-009 Complete**: Added 20 factory methods to 5 AST node types in LambdaExpression.java for consistent creation patterns. BinaryOp: 13 methods (logical: and/or, comparison: eq/ne/lt/le/gt/ge, arithmetic: add/sub/mul/div/mod). UnaryOp: not() method. PathExpression: single()/field() for single-segment paths. BiEntityFieldAccess: fromFirst()/fromSecond() for entity-specific access. BiEntityPathExpression: fromFirst()/fromSecond() for entity-specific paths. All 375 deployment tests pass. Updated: Architectural low 3→2, total 61→60, resolved 32→33. |
 | 2.4 | 2024-11-29 | Claude | **ARCH-009 Usage Complete**: Refactored 9 files to use BinaryOp factory methods instead of direct constructor calls. Files updated: LambdaBytecodeAnalyzer (and), ArithmeticInstructionHandler (add/sub/mul/div/mod/and/or), BranchHandler (and/or), MethodInvocationHandler (eq), CapturedVariableHelper (and), IfEqualsZeroInstructionHandler (ne/eq), IfNotEqualsZeroInstructionHandler (eq), SubqueryAnalyzer (and), InvokeDynamicHandler (add). Removed unused operator constant imports from all files. All 1488 tests pass (375 deployment + 1113 integration). |
 | 2.5 | 2025-11-29 | Claude | **ARCH-008 Complete + DOC-001 Complete**: Full module boundary refactoring. Created `ast/` package (LambdaExpression), moved `InvokeDynamicScanner` to `analysis/`, created `common/` package (PatternDetector, BytecodeValidator, BytecodeAnalysisException, BytecodeAnalysisConstants), flattened `branch/handlers/` into `branch/`, renamed `handlers/` to `instruction/` and `builders/` to `expression/`, removed orphaned BytecodeInstructionHandler.java. Added `package-info.java` for all 9 packages (resolves DOC-001). Updated: Architectural low 2→1, Documentation high 2→1, total 59→58, resolved 34→35. All tests pass. |
+| 2.6 | 2025-12-01 | Claude | **CS-002 Complete**: Refactored `tryLoadClass()` in ClassLoaderHelper.java from nested try-catch blocks to classloader list iteration pattern. Uses `initialize=false` consistently for build-time safety. Added null check for context classloader. Updated: Code Smells high 2→1, total 58→57, resolved 35→36. All 1113 tests pass. |
 

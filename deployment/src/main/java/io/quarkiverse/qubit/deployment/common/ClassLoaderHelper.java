@@ -30,9 +30,15 @@ public final class ClassLoaderHelper {
      * <p>Strategy:
      * <ol>
      *   <li>Try the context class loader first</li>
-     *   <li>Fall back to the current class's class loader</li>
+     *   <li>Fall back to this class's class loader</li>
      *   <li>Return null if the class cannot be loaded</li>
      * </ol>
+     *
+     * <p>Uses {@code initialize=false} to avoid running static initializers,
+     * which is appropriate for build-time analysis.
+     *
+     * <p>CS-002: Refactored from nested try-catch to classloader iteration
+     * for improved readability and maintainability.
      *
      * @param className the fully qualified class name
      * @return the loaded Class, or null if not loadable
@@ -42,19 +48,25 @@ public final class ClassLoaderHelper {
             return null;
         }
 
-        try {
-            // Try context class loader first
-            return Class.forName(className, false, Thread.currentThread().getContextClassLoader());
-        } catch (ClassNotFoundException e1) {
+        // Try classloaders in preference order
+        ClassLoader[] loaders = {
+            Thread.currentThread().getContextClassLoader(),
+            ClassLoaderHelper.class.getClassLoader()
+        };
+
+        for (ClassLoader loader : loaders) {
+            if (loader == null) {
+                continue;  // Context classloader may be null in some environments
+            }
             try {
-                // Fallback to this class's class loader
-                return Class.forName(className);
-            } catch (ClassNotFoundException e2) {
-                // Class not loadable at build-time
-                log.debugf("Class not loadable at build-time: %s", className);
-                return null;
+                return Class.forName(className, false, loader);
+            } catch (ClassNotFoundException ignored) {
+                // Try next classloader
             }
         }
+
+        log.debugf("Class not loadable at build-time: %s", className);
+        return null;
     }
 
     /**
