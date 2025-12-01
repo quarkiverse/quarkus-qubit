@@ -4,6 +4,8 @@ import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.MethodDescriptor;
 import io.quarkus.gizmo.ResultHandle;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer;
+import io.quarkiverse.qubit.deployment.generation.GizmoHelper;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.ExistsSubquery;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.FieldAccess;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.InSubquery;
@@ -51,31 +53,6 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
     private static final Logger log = Logger.getLogger(SubqueryExpressionBuilder.class);
 
     /**
-     * Loads entity class for JPA FROM clause.
-     * Handles both direct class references and placeholder class names.
-     *
-     * @param method the method creator for bytecode generation
-     * @param entityClass the entity class (may be Object.class for placeholders)
-     * @param entityClassName optional entity class name (for placeholders)
-     * @return ResultHandle for the entity class
-     */
-    private ResultHandle loadEntityClass(MethodCreator method, Class<?> entityClass, String entityClassName) {
-        if (entityClassName != null) {
-            // Placeholder case: Load class by name at runtime
-            // Generates: Class.forName("io.quarkiverse.qubit.it.Person")
-            ResultHandle classNameHandle = method.load(entityClassName);
-            return method.invokeStaticMethod(
-                MethodDescriptor.ofMethod(Class.class, "forName", Class.class, String.class),
-                classNameHandle
-            );
-        } else {
-            // Normal case: Direct class reference
-            // Generates: Person.class
-            return method.loadClass(entityClass);
-        }
-    }
-
-    /**
      * Generates JPA scalar aggregation subquery.
      *
      * <p>Creates a subquery that returns a single aggregated value (AVG, SUM, MIN, MAX, COUNT).
@@ -106,7 +83,7 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
                 query, resultTypeHandle);
 
         // Create from clause: subquery.from(entityClass)
-        ResultHandle entityClassHandle = loadEntityClass(method, scalar.entityClass(), scalar.entityClassName());
+        ResultHandle entityClassHandle = GizmoHelper.loadEntityClass(method, scalar.entityClass(), scalar.entityClassName());
         ResultHandle subRoot = method.invokeInterfaceMethod(
                 MethodDescriptor.ofMethod(Subquery.class, "from", Root.class, Class.class),
                 subquery, entityClassHandle);
@@ -153,7 +130,7 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
             ResultHandle capturedValues) {
 
         // Create subquery: query.subquery(entityClass)
-        ResultHandle entityClassHandle = loadEntityClass(method, exists.entityClass(), exists.entityClassName());
+        ResultHandle entityClassHandle = GizmoHelper.loadEntityClass(method, exists.entityClass(), exists.entityClassName());
         ResultHandle subquery = method.invokeInterfaceMethod(
                 MethodDescriptor.ofMethod(CriteriaQuery.class, "subquery", Subquery.class, Class.class),
                 query, entityClassHandle);
@@ -215,7 +192,7 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
         ResultHandle fieldPath = generateFieldPath(method, inSubquery.field(), outerRoot);
 
         // Determine the result type from the select expression
-        Class<?> selectType = inferExpressionType(inSubquery.selectExpression());
+        Class<?> selectType = ExpressionTypeInferrer.inferFieldType(inSubquery.selectExpression());
 
         // Create subquery: query.subquery(selectType)
         ResultHandle selectTypeHandle = method.loadClass(selectType);
@@ -224,7 +201,7 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
                 query, selectTypeHandle);
 
         // Create from clause: subquery.from(entityClass)
-        ResultHandle entityClassHandle = loadEntityClass(method, inSubquery.entityClass(), inSubquery.entityClassName());
+        ResultHandle entityClassHandle = GizmoHelper.loadEntityClass(method, inSubquery.entityClass(), inSubquery.entityClassName());
         ResultHandle subRoot = method.invokeInterfaceMethod(
                 MethodDescriptor.ofMethod(Subquery.class, "from", Root.class, Class.class),
                 subquery, entityClassHandle);
@@ -512,18 +489,6 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
             case Double d -> method.load(d);
             case Float f -> method.load(f);
             default -> method.loadNull();
-        };
-    }
-
-    /**
-     * Infers the type of an expression for subquery result type.
-     */
-    private Class<?> inferExpressionType(LambdaExpression expr) {
-        // Java 21 pattern matching switch for type dispatch
-        return switch (expr) {
-            case FieldAccess field -> field.fieldType();
-            case PathExpression pathExpr -> pathExpr.resultType();
-            case null, default -> Object.class;
         };
     }
 

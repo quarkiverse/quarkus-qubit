@@ -1,6 +1,7 @@
 package io.quarkiverse.qubit.deployment.common;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.util.TypeConverter;
 
 import java.util.Deque;
 import java.util.Iterator;
@@ -214,7 +215,7 @@ public final class PatternDetector {
             return false;
         }
 
-        if (!isBooleanType(fieldAccess.fieldType())) {
+        if (!TypeConverter.isBooleanType(fieldAccess.fieldType())) {
             return false;
         }
 
@@ -238,7 +239,7 @@ public final class PatternDetector {
             return false;
         }
 
-        if (!isBooleanType(fieldAccess.fieldType())) {
+        if (!TypeConverter.isBooleanType(fieldAccess.fieldType())) {
             return false;
         }
 
@@ -246,7 +247,7 @@ public final class PatternDetector {
             return false;
         }
 
-        return isBooleanType(capturedVar.type());
+        return TypeConverter.isBooleanType(capturedVar.type());
     }
 
     /**
@@ -266,12 +267,5 @@ public final class PatternDetector {
         }
 
         return binOp.right() instanceof LambdaExpression.Constant;
-    }
-
-    /**
-     * Returns true if type is boolean (primitive or wrapper).
-     */
-    private static boolean isBooleanType(Class<?> type) {
-        return type == boolean.class || type == Boolean.class;
     }
 }

@@ -4,6 +4,7 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupAggregation;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupKeyReference;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupParameter;
+import io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer;
 import org.jboss.logging.Logger;
 import org.objectweb.asm.tree.MethodInsnNode;
 
@@ -155,7 +156,7 @@ public class GroupMethodAnalyzer {
 
         if (target instanceof GroupParameter) {
             // Determine result type from field expression
-            Class<?> resultType = inferFieldType(fieldArg);
+            Class<?> resultType = ExpressionTypeInferrer.inferFieldType(fieldArg);
             if (isMin) {
                 ctx.push(GroupAggregation.min(fieldArg, resultType));
             } else {
@@ -164,20 +165,5 @@ public class GroupMethodAnalyzer {
         } else {
             log.warnf("Unexpected target for g.%s(): %s", isMin ? "min" : "max", target);
         }
-    }
-
-    /**
-     * Infers the result type from a field expression.
-     *
-     * @param fieldExpr the field expression
-     * @return the inferred type, or Object.class if unknown
-     */
-    public Class<?> inferFieldType(LambdaExpression fieldExpr) {
-        if (fieldExpr instanceof LambdaExpression.FieldAccess field) {
-            return field.fieldType();
-        } else if (fieldExpr instanceof LambdaExpression.PathExpression path) {
-            return path.resultType();
-        }
-        return Object.class;
     }
 }

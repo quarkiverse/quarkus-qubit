@@ -242,4 +242,32 @@ public final class CapturedVariableHelper {
 
         return combined;
     }
+
+    /**
+     * Combines two predicates with AND operator if both are non-null.
+     *
+     * <p>Extracted from SubqueryAnalyzer (ARCH-008 continuation) for reuse.
+     *
+     * <p>This is a convenience method for combining exactly two predicates,
+     * handling null cases gracefully:
+     * <ul>
+     *   <li>Both non-null: returns {@code AND(predicate1, predicate2)}</li>
+     *   <li>Only predicate1 non-null: returns {@code predicate1}</li>
+     *   <li>Only predicate2 non-null: returns {@code predicate2}</li>
+     *   <li>Both null: returns {@code null}</li>
+     * </ul>
+     *
+     * @param predicate1 the first predicate (may be null)
+     * @param predicate2 the second predicate (may be null)
+     * @return combined expression with AND, or single non-null predicate, or null
+     */
+    public static LambdaExpression combinePredicatesWithAnd(LambdaExpression predicate1, LambdaExpression predicate2) {
+        if (predicate1 != null && predicate2 != null) {
+            return and(predicate1, predicate2);
+        } else if (predicate1 != null) {
+            return predicate1;
+        } else {
+            return predicate2;
+        }
+    }
 }

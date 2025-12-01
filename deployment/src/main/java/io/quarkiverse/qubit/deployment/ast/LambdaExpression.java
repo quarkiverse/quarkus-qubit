@@ -2,11 +2,55 @@ package io.quarkiverse.qubit.deployment.ast;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Parsed lambda expression AST.
  */
 public sealed interface LambdaExpression {
+
+    // ========================================
+    // Common AST Operations (ARCH-008 continuation)
+    // ========================================
+
+    /**
+     * Extracts the field name from this expression if applicable.
+     *
+     * <p>This method provides a unified way to extract field names from
+     * different expression types, avoiding instanceof checks scattered
+     * throughout the codebase.
+     *
+     * <p>Supported expression types:
+     * <ul>
+     *   <li>{@link FieldAccess} - returns the field name</li>
+     *   <li>{@link PathExpression} - returns the first segment's field name</li>
+     *   <li>{@link BiEntityFieldAccess} - returns the field name</li>
+     *   <li>{@link BiEntityPathExpression} - returns the first segment's field name</li>
+     *   <li>All other types - returns empty Optional</li>
+     * </ul>
+     *
+     * @return Optional containing the field name, or empty if not applicable
+     */
+    default Optional<String> getFieldName() {
+        return Optional.empty();
+    }
+
+    /**
+     * Extracts the field name from this expression, throwing if not available.
+     *
+     * <p>This is a convenience method for cases where a field name is required.
+     *
+     * @return the field name
+     * @throws IllegalArgumentException if this expression doesn't have a field name
+     */
+    default String getFieldNameOrThrow() {
+        return getFieldName().orElseThrow(() ->
+            new IllegalArgumentException("Cannot extract field name from expression: " + this));
+    }
+
+    // ========================================
+    // Core Expressions
+    // ========================================
 
     /**
      * Binary operation (comparison, logical, or arithmetic).
@@ -171,6 +215,11 @@ public sealed interface LambdaExpression {
         public FieldAccess {
             Objects.requireNonNull(fieldName, "Field name cannot be null");
             Objects.requireNonNull(fieldType, "Field type cannot be null");
+        }
+
+        @Override
+        public Optional<String> getFieldName() {
+            return Optional.of(fieldName);
         }
     }
 
@@ -471,6 +520,12 @@ public sealed interface LambdaExpression {
         public static PathExpression field(String fieldName, Class<?> fieldType) {
             return single(fieldName, fieldType, RelationType.FIELD);
         }
+
+        @Override
+        public Optional<String> getFieldName() {
+            // Return the first segment's field name (the relationship/field name)
+            return segments.isEmpty() ? Optional.empty() : Optional.of(segments.get(0).fieldName());
+        }
     }
 
     // =============================================================================================
@@ -701,6 +756,11 @@ public sealed interface LambdaExpression {
         public static BiEntityFieldAccess fromSecond(String fieldName, Class<?> fieldType) {
             return new BiEntityFieldAccess(fieldName, fieldType, EntityPosition.SECOND);
         }
+
+        @Override
+        public Optional<String> getFieldName() {
+            return Optional.of(fieldName);
+        }
     }
 
     /**
@@ -768,6 +828,12 @@ public sealed interface LambdaExpression {
          */
         public static BiEntityPathExpression fromSecond(List<PathSegment> segments, Class<?> resultType) {
             return new BiEntityPathExpression(segments, resultType, EntityPosition.SECOND);
+        }
+
+        @Override
+        public Optional<String> getFieldName() {
+            // Return the first segment's field name (the relationship/field name)
+            return segments.isEmpty() ? Optional.empty() : Optional.of(segments.get(0).fieldName());
         }
     }
 

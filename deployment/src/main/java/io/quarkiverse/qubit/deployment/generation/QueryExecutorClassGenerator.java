@@ -15,14 +15,14 @@ import static io.quarkiverse.qubit.runtime.QubitConstants.TQ_GET_SINGLE_RESULT;
 import java.util.List;
 
 import io.quarkus.gizmo.ClassCreator;
-import io.quarkus.gizmo.ClassOutput;
 import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.MethodDescriptor;
 import io.quarkus.gizmo.ResultHandle;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
-import io.quarkiverse.qubit.runtime.SortDirection;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner;
+import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.util.ByteArrayClassOutput;
+import io.quarkiverse.qubit.runtime.SortDirection;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
@@ -132,19 +132,6 @@ public class QueryExecutorClassGenerator {
             boolean isCountQuery,
             boolean isAggregationQuery) {
 
-        class ByteArrayClassOutput implements ClassOutput {
-            private byte[] data;
-
-            @Override
-            public void write(String name, byte[] data) {
-                this.data = data;
-            }
-
-            public byte[] getData() {
-                return data;
-            }
-        }
-
         ByteArrayClassOutput classOutput = new ByteArrayClassOutput();
 
         try (ClassCreator classCreator = ClassCreator.builder()
@@ -220,19 +207,6 @@ public class QueryExecutorClassGenerator {
             boolean isCountQuery,
             boolean isSelectJoined,
             boolean isJoinProjection) {
-
-        class ByteArrayClassOutput implements ClassOutput {
-            private byte[] data;
-
-            @Override
-            public void write(String name, byte[] data) {
-                this.data = data;
-            }
-
-            public byte[] getData() {
-                return data;
-            }
-        }
 
         ByteArrayClassOutput classOutput = new ByteArrayClassOutput();
 
@@ -330,19 +304,6 @@ public class QueryExecutorClassGenerator {
             List<SortExpression> groupSortExpressions,
             String className,
             boolean isCountQuery) {
-
-        class ByteArrayClassOutput implements ClassOutput {
-            private byte[] data;
-
-            @Override
-            public void write(String name, byte[] data) {
-                this.data = data;
-            }
-
-            public byte[] getData() {
-                return data;
-            }
-        }
 
         ByteArrayClassOutput classOutput = new ByteArrayClassOutput();
 
@@ -903,11 +864,11 @@ public class QueryExecutorClassGenerator {
 
         // Extract relationship field name from join relationship expression
         // The expression should be a FieldAccess like "phones" from p -> p.phones
-        String relationshipFieldName = extractRelationshipFieldName(joinRelationshipExpression);
+        String relationshipFieldName = joinRelationshipExpression.getFieldNameOrThrow();
 
         // Create Join by calling root.join(relationshipFieldName, JoinType)
         ResultHandle relationshipName = method.load(relationshipFieldName);
-        ResultHandle jpaJoinType = loadJpaJoinType(method, joinType);
+        ResultHandle jpaJoinType = GizmoHelper.loadJpaJoinType(method, joinType);
         ResultHandle joinHandle = method.invokeInterfaceMethod(FROM_JOIN, root, relationshipName, jpaJoinType);
 
         // Apply bi-entity predicate if present
@@ -989,11 +950,11 @@ public class QueryExecutorClassGenerator {
                 md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class), query, entityClass);
 
         // Extract relationship field name from join relationship expression
-        String relationshipFieldName = extractRelationshipFieldName(joinRelationshipExpression);
+        String relationshipFieldName = joinRelationshipExpression.getFieldNameOrThrow();
 
         // Create Join by calling root.join(relationshipFieldName, JoinType)
         ResultHandle relationshipName = method.load(relationshipFieldName);
-        ResultHandle jpaJoinType = loadJpaJoinType(method, joinType);
+        ResultHandle jpaJoinType = GizmoHelper.loadJpaJoinType(method, joinType);
         ResultHandle joinHandle = method.invokeInterfaceMethod(FROM_JOIN, root, relationshipName, jpaJoinType);
 
         // SELECT COUNT(root)
@@ -1080,11 +1041,11 @@ public class QueryExecutorClassGenerator {
                 md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class), query, entityClass);
 
         // Extract relationship field name from join relationship expression
-        String relationshipFieldName = extractRelationshipFieldName(joinRelationshipExpression);
+        String relationshipFieldName = joinRelationshipExpression.getFieldNameOrThrow();
 
         // Create Join by calling root.join(relationshipFieldName, JoinType)
         ResultHandle relationshipName = method.load(relationshipFieldName);
-        ResultHandle jpaJoinType = loadJpaJoinType(method, joinType);
+        ResultHandle jpaJoinType = GizmoHelper.loadJpaJoinType(method, joinType);
         ResultHandle joinHandle = method.invokeInterfaceMethod(FROM_JOIN, root, relationshipName, jpaJoinType);
 
         // SELECT the joined entity (joinHandle) instead of root
@@ -1177,11 +1138,11 @@ public class QueryExecutorClassGenerator {
                 md(CriteriaQuery.class, CQ_FROM, Root.class, Class.class), query, entityClass);
 
         // Extract relationship field name from join relationship expression
-        String relationshipFieldName = extractRelationshipFieldName(joinRelationshipExpression);
+        String relationshipFieldName = joinRelationshipExpression.getFieldNameOrThrow();
 
         // Create Join by calling root.join(relationshipFieldName, JoinType)
         ResultHandle relationshipName = method.load(relationshipFieldName);
-        ResultHandle jpaJoinType = loadJpaJoinType(method, joinType);
+        ResultHandle jpaJoinType = GizmoHelper.loadJpaJoinType(method, joinType);
         ResultHandle joinHandle = method.invokeInterfaceMethod(FROM_JOIN, root, relationshipName, jpaJoinType);
 
         // Generate and apply bi-entity projection
@@ -1214,39 +1175,6 @@ public class QueryExecutorClassGenerator {
         // Return getResultList() containing projected objects
         return method.invokeInterfaceMethod(
                 md(TypedQuery.class, TQ_GET_RESULT_LIST, List.class), typedQuery);
-    }
-
-    /**
-     * Extracts the relationship field name from a join relationship lambda expression.
-     * <p>
-     * Example: For lambda {@code p -> p.phones}, returns "phones".
-     *
-     * @param expression the join relationship lambda expression
-     * @return the relationship field name
-     */
-    private String extractRelationshipFieldName(LambdaExpression expression) {
-        if (expression instanceof LambdaExpression.FieldAccess fieldAccess) {
-            return fieldAccess.fieldName();
-        } else if (expression instanceof LambdaExpression.PathExpression pathExpr) {
-            // For path expressions, use the first segment (the relationship name)
-            if (!pathExpr.segments().isEmpty()) {
-                return pathExpr.segments().get(0).fieldName();
-            }
-        }
-        throw new IllegalArgumentException("Cannot extract relationship field name from expression: " + expression);
-    }
-
-    /**
-     * Loads JPA JoinType enum value based on Qubit JoinType.
-     *
-     * @param method the method creator
-     * @param joinType the Qubit join type (INNER or LEFT)
-     * @return ResultHandle to the JPA JoinType enum value
-     */
-    private ResultHandle loadJpaJoinType(MethodCreator method, InvokeDynamicScanner.JoinType joinType) {
-        String jpaJoinTypeName = (joinType == InvokeDynamicScanner.JoinType.LEFT) ? "LEFT" : "INNER";
-        return method.readStaticField(
-                io.quarkus.gizmo.FieldDescriptor.of(JoinType.class, jpaJoinTypeName, JoinType.class));
     }
 
     /**

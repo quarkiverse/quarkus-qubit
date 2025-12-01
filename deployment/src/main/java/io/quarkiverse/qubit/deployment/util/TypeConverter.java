@@ -77,4 +77,44 @@ public final class TypeConverter {
             return type;
         }
     }
+
+    /**
+     * Returns true if type is boolean (primitive or wrapper).
+     *
+     * <p>Extracted from PatternDetector (ARCH-008 continuation) for reuse.
+     *
+     * @param type the class to check
+     * @return true if type is boolean or Boolean
+     */
+    public static boolean isBooleanType(Class<?> type) {
+        return type == boolean.class || type == Boolean.class;
+    }
+
+    /**
+     * Returns true if type is numeric (primitive or wrapper).
+     *
+     * @param type the class to check
+     * @return true if type is a numeric type
+     */
+    public static boolean isNumericType(Class<?> type) {
+        return type == int.class || type == Integer.class ||
+               type == long.class || type == Long.class ||
+               type == double.class || type == Double.class ||
+               type == float.class || type == Float.class ||
+               type == short.class || type == Short.class ||
+               type == byte.class || type == Byte.class ||
+               Number.class.isAssignableFrom(type);
+    }
+
+    /**
+     * Returns true if type is a temporal type (LocalDate, LocalDateTime, LocalTime).
+     *
+     * @param type the class to check
+     * @return true if type is a temporal type
+     */
+    public static boolean isTemporalType(Class<?> type) {
+        return type == LocalDate.class ||
+               type == LocalDateTime.class ||
+               type == LocalTime.class;
+    }
 }

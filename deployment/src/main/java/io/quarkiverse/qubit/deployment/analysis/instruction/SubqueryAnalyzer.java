@@ -1,20 +1,22 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
+import io.quarkiverse.qubit.deployment.analysis.CapturedVariableHelper;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.ExistsSubquery;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.InSubquery;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.ScalarSubquery;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.SubqueryAggregationType;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.SubqueryBuilderReference;
+import io.quarkiverse.qubit.deployment.common.ClassLoaderHelper;
+import io.quarkiverse.qubit.deployment.common.EntityClassInfo;
+import io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer;
 import io.quarkiverse.qubit.deployment.util.DescriptorParser;
 import org.jboss.logging.Logger;
-import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.MethodInsnNode;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.and;
 import static io.quarkiverse.qubit.runtime.QubitConstants.*;
 
 /**
@@ -79,7 +81,7 @@ public class SubqueryAnalyzer {
 
         // Pop the entity class from stack
         LambdaExpression classExpr = ctx.pop();
-        EntityClassInfo entityInfo = extractEntityClassInfo(classExpr);
+        EntityClassInfo entityInfo = ClassLoaderHelper.extractEntityClassInfo(classExpr);
 
         // Push SubqueryBuilderReference onto stack
         ctx.push(new SubqueryBuilderReference(entityInfo.clazz(), entityInfo.className()));
@@ -176,7 +178,10 @@ public class SubqueryAnalyzer {
         }
 
         LambdaExpression selector = args.get(0);
-        Class<?> resultType = inferResultType(selector, aggregationType, defaultResultType);
+        // AVG always returns Double, otherwise infer from selector
+        Class<?> resultType = (aggregationType == SubqueryAggregationType.AVG)
+            ? Double.class
+            : ExpressionTypeInferrer.inferFieldType(selector, defaultResultType);
 
         ctx.push(new ScalarSubquery(aggregationType, entityClass, entityClassName, selector, predicate, resultType));
     }
@@ -192,7 +197,7 @@ public class SubqueryAnalyzer {
         LambdaExpression argPredicate = args.isEmpty() ? null : args.get(0);
 
         // Combine predicates if both exist
-        LambdaExpression finalPredicate = combinePredicates(builderPredicate, argPredicate);
+        LambdaExpression finalPredicate = CapturedVariableHelper.combinePredicatesWithAnd(builderPredicate, argPredicate);
 
         ctx.push(new ScalarSubquery(SubqueryAggregationType.COUNT, entityClass, entityClassName, null, finalPredicate, Long.class));
     }
@@ -231,100 +236,8 @@ public class SubqueryAnalyzer {
         LambdaExpression argPredicate = args.size() == 3 ? args.get(2) : null;
 
         // Combine predicates if both exist
-        LambdaExpression finalPredicate = combinePredicates(builderPredicate, argPredicate);
+        LambdaExpression finalPredicate = CapturedVariableHelper.combinePredicatesWithAnd(builderPredicate, argPredicate);
 
         ctx.push(new InSubquery(field, entityClass, entityClassName, selector, finalPredicate, negated));
-    }
-
-    /**
-     * Combines two predicates with AND operator if both are non-null.
-     */
-    private LambdaExpression combinePredicates(LambdaExpression predicate1, LambdaExpression predicate2) {
-        if (predicate1 != null && predicate2 != null) {
-            return and(predicate1, predicate2);
-        } else if (predicate1 != null) {
-            return predicate1;
-        } else {
-            return predicate2;
-        }
-    }
-
-    /**
-     * Holds entity class information including both the Class object and optional class name.
-     * The className is only set when the class cannot be loaded at build-time.
-     */
-    record EntityClassInfo(Class<?> clazz, String className) {}
-
-    /**
-     * Extracts entity class and optional class name from a constant expression.
-     * <p>
-     * Strategy: Extract className early when Type is available, then attempt
-     * class loading. If loading fails, preserve className for runtime resolution.
-     */
-    private EntityClassInfo extractEntityClassInfo(LambdaExpression expr) {
-        if (expr instanceof LambdaExpression.Constant constant) {
-            Object value = constant.value();
-            if (value instanceof Type asmType) {
-                // Extract className FIRST (before attempting class loading)
-                String className = asmType.getClassName();
-
-                // Attempt to load the class
-                Class<?> loadedClass = tryLoadClass(className);
-
-                if (loadedClass != null) {
-                    // Successfully loaded - className not needed
-                    return new EntityClassInfo(loadedClass, null);
-                } else {
-                    // Failed to load - preserve className for code generation
-                    log.debugf("Entity class not loadable at analysis time: %s (will resolve at code generation)", className);
-                    return new EntityClassInfo(Object.class, className);
-                }
-            } else if (value instanceof Class<?> clazz) {
-                return new EntityClassInfo(clazz, null);
-            }
-        }
-        log.warnf("Expected Class constant for entity class, got: %s", expr);
-        return new EntityClassInfo(Object.class, null);
-    }
-
-    /**
-     * Attempts to load class using multiple classloaders.
-     *
-     * @param className the fully qualified class name
-     * @return loaded Class, or null if not loadable
-     */
-    private Class<?> tryLoadClass(String className) {
-        try {
-            // Try context class loader first
-            return Class.forName(className, false, Thread.currentThread().getContextClassLoader());
-        } catch (ClassNotFoundException e1) {
-            try {
-                // Fallback to this class's class loader
-                return Class.forName(className);
-            } catch (ClassNotFoundException e2) {
-                // Class not loadable at build-time
-                return null;
-            }
-        }
-    }
-
-    /**
-     * Infers the result type for a scalar subquery based on the selector and aggregation type.
-     */
-    private Class<?> inferResultType(LambdaExpression selector, SubqueryAggregationType aggregationType,
-                                      Class<?> defaultResultType) {
-        // AVG always returns Double
-        if (aggregationType == SubqueryAggregationType.AVG) {
-            return Double.class;
-        }
-
-        // Try to infer from the selector expression
-        if (selector instanceof LambdaExpression.FieldAccess field) {
-            return field.fieldType();
-        } else if (selector instanceof LambdaExpression.PathExpression path) {
-            return path.resultType();
-        }
-
-        return defaultResultType;
     }
 }
