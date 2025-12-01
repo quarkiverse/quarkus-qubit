@@ -1,10 +1,10 @@
-# Quarkus Qusaq - Lambda-based Panache Query Extension
+# Quarkus Qubit - Lambda-based Panache Query Extension
 
 A Quarkus extension that enables type-safe, lambda-based queries on Panache entities with build-time transformation to JPA Criteria Queries.
 
 ## Overview
 
-**Qusaq** (Query Using SAfe Queries) transforms lambda expressions into optimized JPA Criteria Queries at build time, providing:
+**Qubit** (Query Using SAfe Queries) transforms lambda expressions into optimized JPA Criteria Queries at build time, providing:
 
 - **Type-safe queries**: Write queries in plain Java using lambda expressions with explicit types
 - **Build-time transformation**: Lambda expressions are analyzed and transformed during compilation
@@ -39,18 +39,18 @@ Add the extension to your Quarkus project:
 ```xml
 <dependency>
     <groupId>io.quarkus.extension</groupId>
-    <artifactId>quarkus-qusaq</artifactId>
+    <artifactId>quarkus-qubit</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 </dependency>
 ```
 
 ## Quick Start
 
-### Option 1: ActiveRecord Pattern (QusaqEntity)
+### Option 1: ActiveRecord Pattern (QubitEntity)
 
 ```java
 @Entity
-public class Person extends QusaqEntity {
+public class Person extends QubitEntity {
     public String firstName;
     public String lastName;
     public int age;
@@ -70,11 +70,11 @@ List<String> topCities = Person.where((Person p) -> p.active && p.salary > 10000
                                .toList();
 ```
 
-### Option 2: Repository Pattern (QusaqRepository) - Recommended
+### Option 2: Repository Pattern (QubitRepository) - Recommended
 
 ```java
 @ApplicationScoped
-public class PersonRepository implements QusaqRepository<Person, Long> {
+public class PersonRepository implements QubitRepository<Person, Long> {
 }
 
 @Path("/persons")
@@ -304,7 +304,7 @@ List<Person> doubleAge = personRepository.where((Person p) -> p.age * 2 > 60).to
 
 ### Build-Time Transformation
 
-1. **Lambda Detection**: During compilation, Qusaq scans bytecode for `invokedynamic` instructions
+1. **Lambda Detection**: During compilation, Qubit scans bytecode for `invokedynamic` instructions
 2. **AST Analysis**: Lambda expressions are analyzed to build an Abstract Syntax Tree
 3. **Query Generation**: AST is transformed into JPA Criteria Query using Gizmo bytecode generation
 4. **Entity/Repository Enhancement**: Static methods are injected at build time
@@ -319,7 +319,7 @@ User Code:
          |
   [Bytecode Enhancement - generates query executor at build time]
          |
-  QusaqStreamImpl.where(QuerySpec spec)
+  QubitStreamImpl.where(QuerySpec spec)
          |
   QueryExecutorRegistry.executeListQuery(callSiteId, Person.class)
          |
@@ -428,8 +428,8 @@ Test categories:
 ## Building from Source
 
 ```bash
-git clone https://github.com/your-org/quarkus-qusaq.git
-cd quarkus-qusaq
+git clone https://github.com/your-org/quarkus-qubit.git
+cd quarkus-qubit
 mvn clean install
 ```
 

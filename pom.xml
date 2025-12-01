@@ -4,13 +4,13 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.quarkus.extension</groupId>
-    <artifactId>quarkus-qusaq-parent</artifactId>
+    <groupId>io.quarkiverse.qubit</groupId>
+    <artifactId>quarkus-qubit-parent</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>Quarkus - Qusaq - Parent</name>
-    <description>Quarkus extension for lambda-based Panache queries with build-time Criteria Query transformation</description>
+    <name>Quarkus - Qubit - Parent</name>
+    <description>Quarkus extension for lambda-based Panache queries with build-time Criteria Query transformation (QUery Bytecode Into Typed-queries)</description>
 
     <properties>
         <maven.compiler.release>21</maven.compiler.release>

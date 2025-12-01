@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "========================================="
-echo "Quarkus Qusaq Extension - Build Verification"
+echo "Quarkus Qubit Extension - Build Verification"
 echo "========================================="
 echo ""
 

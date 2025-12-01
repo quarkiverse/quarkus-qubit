@@ -1,6 +1,6 @@
-# QUSAQ Code Quality Tracking Document
+# QUBIT Code Quality Tracking Document
 
-This document provides a comprehensive analysis of code quality issues identified in the QUSAQ codebase, organized by category, severity, and file location. Each issue includes a description, location, suggested improvement, and priority level.
+This document provides a comprehensive analysis of code quality issues identified in the QUBIT codebase, organized by category, severity, and file location. Each issue includes a description, location, suggested improvement, and priority level.
 
 ## Table of Contents
 
@@ -21,13 +21,13 @@ This document provides a comprehensive analysis of code quality issues identifie
 
 | Category | Critical | High | Medium | Low | Total | Resolved |
 |----------|----------|------|--------|-----|-------|----------|
-| Architectural | 0 | ~~4~~ ~~3~~ ~~2~~ ~~1~~ 0 | ~~5~~ ~~4~~ ~~3~~ 2 | ~~3~~ 2 | 12 | 8 |
+| Architectural | 0 | ~~4~~ ~~3~~ ~~2~~ ~~1~~ 0 | ~~5~~ ~~4~~ ~~3~~ 2 | ~~3~~ ~~2~~ 1 | 12 | 9 |
 | Code Smells | 0 | ~~3~~ 2 | 12 | 8 | 23 | 1 |
 | Bug Risks | ~~2~~ 0 | ~~5~~ 4 | 4 | 2 | ~~13~~ 10 | 3 |
-| Documentation | 0 | 2 | 6 | 4 | 12 | 0 |
+| Documentation | 0 | ~~2~~ 1 | 6 | 4 | 12 | 1 |
 | Performance | 0 | 1 | 3 | 2 | 6 | 0 |
 | Maintainability | 0 | ~~7~~ 1 | ~~12~~ 0 | ~~6~~ 4 | ~~25~~ 5 | 21 |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ ~~**13**~~ ~~**12**~~ ~~**11**~~ **10** | ~~**42**~~ ~~**30**~~ ~~**29**~~ ~~**28**~~ **27** | ~~**25**~~ ~~**23**~~ **22** | ~~**91**~~ ~~**67**~~ ~~**66**~~ ~~**65**~~ ~~**64**~~ ~~**63**~~ ~~**62**~~ ~~**61**~~ **60** | **33** |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ ~~**13**~~ ~~**12**~~ ~~**11**~~ ~~**10**~~ **9** | ~~**42**~~ ~~**30**~~ ~~**29**~~ ~~**28**~~ **27** | ~~**25**~~ ~~**23**~~ ~~**22**~~ **21** | ~~**91**~~ ~~**67**~~ ~~**66**~~ ~~**65**~~ ~~**64**~~ ~~**63**~~ ~~**62**~~ ~~**61**~~ ~~**60**~~ ~~**59**~~ **58** | **35** |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -37,7 +37,7 @@ This document provides a comprehensive analysis of code quality issues identifie
 >
 > ✅ **Phase 4 Complete (MAINT-009 through MAINT-017)**: Java 21 pattern matching switch expressions applied across 4 files, 22 methods refactored. Upgraded pom.xml from Java 17 to Java 21. All 375 deployment tests pass.
 >
-> ✅ **CS-001 Complete**: Extracted 11 magic strings from MethodInvocationHandler.java to QusaqConstants.java. Added new JVM_* constants for collection interfaces and standard library classes.
+> ✅ **CS-001 Complete**: Extracted 11 magic strings from MethodInvocationHandler.java to QubitConstants.java. Added new JVM_* constants for collection interfaces and standard library classes.
 >
 > ✅ **ARCH-001 Progress (CriteriaExpressionGenerator)**: Extracted BiEntityExpressionBuilder (555 lines) and GroupExpressionBuilder (411 lines). CriteriaExpressionGenerator reduced from 1977 to 1355 lines (31% reduction). All 375 deployment tests pass.
 >
@@ -52,13 +52,15 @@ This document provides a comprehensive analysis of code quality issues identifie
 > ✅ **ARCH-006 Complete**: Refactored `AnalysisContext` to use constructor-based immutable configuration. Created `NestedLambdaSupport` record to bundle classMethods and analyzer function. Configuration fields (groupContextMode, nestedLambdaSupport) are now final. Processing state (currentInstructionIndex, hasSeenBranch, pendingArray*) remains mutable as required by bytecode analysis. All 1113 tests pass.
 >
 > ✅ **ARCH-009 Complete**: Added 20 factory methods to 5 AST node types in LambdaExpression.java: BinaryOp (13 methods for logical, comparison, arithmetic ops), UnaryOp (1 method), PathExpression (2 methods), BiEntityFieldAccess (2 methods), BiEntityPathExpression (2 methods). All 375 deployment tests pass.
+>
+> ✅ **ARCH-008 Complete**: Full module boundary refactoring implemented. Created `ast/` package (LambdaExpression), moved `InvokeDynamicScanner` to `analysis/`, created `common/` package (PatternDetector, BytecodeValidator, BytecodeAnalysisException, BytecodeAnalysisConstants), flattened `branch/handlers/` into `branch/`, renamed `handlers/` to `instruction/` and `builders/` to `expression/`, removed orphaned BytecodeInstructionHandler.java. Added package-info.java for all 9 packages. All tests pass.
 
 ---
 
 ## Critical Issues
 
 ### CRI-001: Silent Fallback in SubqueryExpressionBuilder.generateFieldPath() ✅ RESOLVED
-- **File**: [SubqueryExpressionBuilder.java:322-344](deployment/src/main/java/io/quarkus/qusaq/deployment/generation/builders/SubqueryExpressionBuilder.java#L322-L344)
+- **File**: [SubqueryExpressionBuilder.java:322-344](deployment/src/main/java/io/quarkus/qubit/deployment/generation/builders/SubqueryExpressionBuilder.java#L322-L344)
 - **Severity**: Critical
 - **Status**: ✅ **RESOLVED** (Phase 1)
 - **Description**: The method returns `root` as a fallback when expression type is unrecognized, which could produce incorrect JPA queries silently.
@@ -68,7 +70,7 @@ This document provides a comprehensive analysis of code quality issues identifie
   - Added proper Javadoc with `@throws` documentation
 
 ### CRI-002: Null Return in generateSubqueryExpression() Without Warning ✅ RESOLVED
-- **File**: [SubqueryExpressionBuilder.java:449-481](deployment/src/main/java/io/quarkus/qusaq/deployment/generation/builders/SubqueryExpressionBuilder.java#L449-L481)
+- **File**: [SubqueryExpressionBuilder.java:449-481](deployment/src/main/java/io/quarkus/qubit/deployment/generation/builders/SubqueryExpressionBuilder.java#L449-L481)
 - **Severity**: Critical
 - **Status**: ✅ **RESOLVED** (Phase 1)
 - **Description**: Returns `null` for unhandled expression types without logging, making debugging difficult.
@@ -86,18 +88,18 @@ This document provides a comprehensive analysis of code quality issues identifie
 - **Severity**: High
 - **Status**: ✅ **SUBSTANTIALLY RESOLVED** - Three major classes reduced by 20-37%, fourth is well-organized
 - **Files Affected**:
-  - [CriteriaExpressionGenerator.java](deployment/src/main/java/io/quarkus/qusaq/deployment/generation/CriteriaExpressionGenerator.java): ~~**1977 lines**~~ → **1355 lines** ✅ (31% reduction)
-  - [CallSiteProcessor.java](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/CallSiteProcessor.java): ~~**1359 lines**~~ → **1087 lines** ✅ (20% reduction)
-  - [MethodInvocationHandler.java](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/MethodInvocationHandler.java): ~~**1143 lines**~~ → **715 lines** ✅ (37% reduction)
-  - [LambdaExpression.java](deployment/src/main/java/io/quarkus/qusaq/deployment/LambdaExpression.java): **1119 lines** ✅ (well-organized, see analysis below)
+  - [CriteriaExpressionGenerator.java](deployment/src/main/java/io/quarkus/qubit/deployment/generation/CriteriaExpressionGenerator.java): ~~**1977 lines**~~ → **1355 lines** ✅ (31% reduction)
+  - [CallSiteProcessor.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java): ~~**1359 lines**~~ → **1087 lines** ✅ (20% reduction)
+  - [MethodInvocationHandler.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/instruction/MethodInvocationHandler.java): ~~**1143 lines**~~ → **715 lines** ✅ (37% reduction)
+  - [LambdaExpression.java](deployment/src/main/java/io/quarkus/qubit/deployment/ast/LambdaExpression.java): **1119 lines** ✅ (well-organized, see analysis below)
 - **Fix Applied (CriteriaExpressionGenerator)**:
-  - Created [BiEntityExpressionBuilder.java](deployment/src/main/java/io/quarkus/qusaq/deployment/generation/builders/BiEntityExpressionBuilder.java) (555 lines) - handles bi-entity (join) query expressions
-  - Created [GroupExpressionBuilder.java](deployment/src/main/java/io/quarkus/qusaq/deployment/generation/builders/GroupExpressionBuilder.java) (411 lines) - handles GROUP BY query expressions
-  - Created [ExpressionGeneratorHelper.java](deployment/src/main/java/io/quarkus/qusaq/deployment/generation/builders/ExpressionGeneratorHelper.java) interface for clean delegation
+  - Created [BiEntityExpressionBuilder.java](deployment/src/main/java/io/quarkus/qubit/deployment/generation/builders/BiEntityExpressionBuilder.java) (555 lines) - handles bi-entity (join) query expressions
+  - Created [GroupExpressionBuilder.java](deployment/src/main/java/io/quarkus/qubit/deployment/generation/builders/GroupExpressionBuilder.java) (411 lines) - handles GROUP BY query expressions
+  - Created [ExpressionGeneratorHelper.java](deployment/src/main/java/io/quarkus/qubit/deployment/generation/builders/ExpressionGeneratorHelper.java) interface for clean delegation
   - CriteriaExpressionGenerator now delegates to these specialized builders
 - **Fix Applied (CallSiteProcessor)**:
-  - Created [LambdaAnalysisResult.java](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/LambdaAnalysisResult.java) (84 lines) - extracted sealed interface with 4 result types and SortExpression record
-  - Created [CapturedVariableHelper.java](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/CapturedVariableHelper.java) (246 lines) - extracted 5 static utility methods for captured variable operations
+  - Created [LambdaAnalysisResult.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/LambdaAnalysisResult.java) (84 lines) - extracted sealed interface with 4 result types and SortExpression record
+  - Created [CapturedVariableHelper.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CapturedVariableHelper.java) (246 lines) - extracted 5 static utility methods for captured variable operations
   - CallSiteProcessor now uses static imports for helper methods
 - **LambdaExpression Analysis** (1119 lines - acceptable as-is):
   - Well-organized sealed interface defining AST node types for lambda expressions
@@ -117,7 +119,7 @@ This document provides a comprehensive analysis of code quality issues identifie
   - ~~Combined extraction reduces MethodInvocationHandler from 1143 to ~800 lines~~ → Actual: 715 lines (37% reduction)
 
 ### ARCH-002: LambdaAnalysisResult Record Has Too Many Fields ✅ RESOLVED
-- **File**: [CallSiteProcessor.java:41-92](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/CallSiteProcessor.java#L41-L92)
+- **File**: [CallSiteProcessor.java:41-92](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java#L41-L92)
 - **Severity**: High
 - **Status**: ✅ **RESOLVED**
 - **Description**: Record with 15 fields violated Single Responsibility Principle.
@@ -143,7 +145,7 @@ This document provides a comprehensive analysis of code quality issues identifie
   - **Category C (Higher-Level)**: `BiEntityExpressionBuilder`, `GroupExpressionBuilder`, `SubqueryExpressionBuilder` use delegation to `ExpressionGeneratorHelper`
   - A functional interface would force artificial method unification, adding complexity without real polymorphic benefit
 - **Fix Applied**:
-  - Created [ExpressionBuilder.java](deployment/src/main/java/io/quarkus/qusaq/deployment/generation/builders/ExpressionBuilder.java) - marker interface with comprehensive Javadoc documenting:
+  - Created [ExpressionBuilder.java](deployment/src/main/java/io/quarkus/qubit/deployment/generation/builders/ExpressionBuilder.java) - marker interface with comprehensive Javadoc documenting:
     - Three categories of expression builders (Binary Operators, Method Calls, Higher-Level)
     - Design rationale explaining why a functional interface was not appropriate
     - Clear organization of the builders package
@@ -154,12 +156,12 @@ This document provides a comprehensive analysis of code quality issues identifie
   - Benefits: Type-level documentation, IDE "find implementations" support, organizational clarity
 
 ### ARCH-004: Hardcoded Builder Instantiation ✅ RESOLVED
-- **File**: [CriteriaExpressionGenerator.java:91-96](deployment/src/main/java/io/quarkus/qusaq/deployment/generation/CriteriaExpressionGenerator.java#L91-L96)
+- **File**: [CriteriaExpressionGenerator.java:91-96](deployment/src/main/java/io/quarkus/qubit/deployment/generation/CriteriaExpressionGenerator.java#L91-L96)
 - **Severity**: Medium
 - **Status**: ✅ **RESOLVED**
 - **Description**: Builders were instantiated directly, limiting testability.
 - **Fix Applied**:
-  - Created [ExpressionBuilderRegistry.java](deployment/src/main/java/io/quarkus/qusaq/deployment/generation/builders/ExpressionBuilderRegistry.java) record holding all 8 builder instances
+  - Created [ExpressionBuilderRegistry.java](deployment/src/main/java/io/quarkus/qubit/deployment/generation/builders/ExpressionBuilderRegistry.java) record holding all 8 builder instances
   - Added `createDefault()` static factory method for production use
   - Added null validation in compact constructor
   - Added constructor to CriteriaExpressionGenerator accepting registry for DI
@@ -172,12 +174,12 @@ This document provides a comprehensive analysis of code quality issues identifie
   - **Validation**: Null checks prevent misconfiguration
 
 ### ARCH-005: Handler List Not Configurable ✅ RESOLVED
-- **File**: [LambdaBytecodeAnalyzer.java:47-54](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/LambdaBytecodeAnalyzer.java#L47-L54)
+- **File**: [LambdaBytecodeAnalyzer.java:47-54](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/LambdaBytecodeAnalyzer.java#L47-L54)
 - **Severity**: Medium
 - **Status**: ✅ **RESOLVED**
 - **Description**: Handler list was hardcoded, limiting extensibility and testability.
 - **Fix Applied**:
-  - Created [InstructionHandlerRegistry.java](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/InstructionHandlerRegistry.java) record holding the ordered handler list
+  - Created [InstructionHandlerRegistry.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/InstructionHandlerRegistry.java) record holding the ordered handler list
   - Added `createDefault()` static factory method for production use
   - Added validation in compact constructor (null check, empty list check)
   - Creates defensive immutable copy with `List.copyOf()`
@@ -192,7 +194,7 @@ This document provides a comprehensive analysis of code quality issues identifie
   - **Backward Compatibility**: Existing code works unchanged with no-arg constructor
 
 ### ARCH-006: Mutable State in AnalysisContext ✅ RESOLVED
-- **File**: [AnalysisContext.java](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/AnalysisContext.java)
+- **File**: [AnalysisContext.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/AnalysisContext.java)
 - **Severity**: Medium
 - **Status**: ✅ **RESOLVED**
 - **Description**: `AnalysisContext` had multiple mutable fields set after construction via setters.
@@ -226,15 +228,37 @@ This document provides a comprehensive analysis of code quality issues identifie
 ### ARCH-007: Missing Central Configuration
 - **Severity**: Medium
 - **Description**: No centralized configuration for analysis/generation options.
-- **Suggested Fix**: Create `QusaqConfiguration` class for tunable parameters.
+- **Suggested Fix**: Create `QubitConfiguration` class for tunable parameters.
 
-### ARCH-008: No Clear Module Boundaries Within Deployment
+### ARCH-008: No Clear Module Boundaries Within Deployment ✅ RESOLVED
 - **Severity**: Low
-- **Description**: Package structure exists but responsibilities overlap.
-- **Suggested Fix**: Document module responsibilities, consider sub-modules.
+- **Status**: ✅ **RESOLVED**
+- **Description**: Package structure existed but responsibilities overlapped.
+- **Fix Applied**:
+  - Created `ast/` package: Moved `LambdaExpression.java` to dedicated AST package
+  - Moved `InvokeDynamicScanner.java` from root to `analysis/` where it belongs
+  - Created `common/` package: Moved shared utilities (`PatternDetector`, `BytecodeValidator`, `BytecodeAnalysisException`, `BytecodeAnalysisConstants`)
+  - Flattened `analysis/branch/handlers/` into `analysis/branch/` (reduced nesting from 4 to 3 levels)
+  - Renamed `analysis/handlers/` to `analysis/instruction/` for clarity
+  - Renamed `generation/builders/` to `generation/expression/` for clarity
+  - Removed orphaned `BytecodeInstructionHandler.java` (dead code)
+  - Added `package-info.java` for all 9 packages with comprehensive Javadoc
+- **New Package Structure**:
+  ```
+  deployment/
+  ├── ast/                    # AST node types (LambdaExpression)
+  ├── analysis/               # Bytecode analysis
+  │   ├── instruction/        # Instruction handlers (renamed from handlers/)
+  │   └── branch/             # Branch handlers (flattened from branch/handlers/)
+  ├── generation/             # Code generation
+  │   └── expression/         # Expression builders (renamed from builders/)
+  ├── common/                 # Shared utilities
+  └── util/                   # Low-level utilities
+  ```
+- **See Also**: [ARCH-008-module-boundaries.md](ARCH-008-module-boundaries.md) for full design document
 
 ### ARCH-009: Missing Factory Methods for Complex AST Nodes ✅ RESOLVED
-- **File**: [LambdaExpression.java](deployment/src/main/java/io/quarkus/qusaq/deployment/LambdaExpression.java)
+- **File**: [LambdaExpression.java](deployment/src/main/java/io/quarkus/qubit/deployment/LambdaExpression.java)
 - **Severity**: Low
 - **Status**: ✅ **RESOLVED**
 - **Description**: Some records have factory methods (e.g., `InExpression.in()`), others don't.
@@ -278,10 +302,10 @@ This document provides a comprehensive analysis of code quality issues identifie
 - **Severity**: High
 - **Status**: ✅ **RESOLVED**
 - **Files Affected**:
-  - ~~[MethodInvocationHandler.java](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/MethodInvocationHandler.java): Multiple hardcoded strings~~ ✅
-  - [CriteriaExpressionGenerator.java](deployment/src/main/java/io/quarkus/qusaq/deployment/generation/CriteriaExpressionGenerator.java): Already using constants from QusaqConstants ✅
+  - ~~[MethodInvocationHandler.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/MethodInvocationHandler.java): Multiple hardcoded strings~~ ✅
+  - [CriteriaExpressionGenerator.java](deployment/src/main/java/io/quarkus/qubit/deployment/generation/CriteriaExpressionGenerator.java): Already using constants from QubitConstants ✅
 - **Fix Applied**:
-  - Added new section "JVM Internal Class Names" to QusaqConstants.java with consistent `JVM_*` naming:
+  - Added new section "JVM Internal Class Names" to QubitConstants.java with consistent `JVM_*` naming:
     - `JVM_JAVA_LANG_STRING`, `JVM_JAVA_LANG_BOOLEAN`, `JVM_JAVA_MATH_BIG_DECIMAL`
     - `JVM_JAVA_TIME_LOCAL_DATE`, `JVM_JAVA_TIME_LOCAL_DATE_TIME`, `JVM_JAVA_TIME_LOCAL_TIME`
     - `JVM_PREFIX_JAVA_TIME_LOCAL` for startsWith checks
@@ -291,7 +315,7 @@ This document provides a comprehensive analysis of code quality issues identifie
   - All 375 deployment tests pass
 
 ### CS-002: Duplicate Catch Blocks in tryLoadClass()
-- **File**: [MethodInvocationHandler.java:1109-1122](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/MethodInvocationHandler.java#L1109-L1122)
+- **File**: [MethodInvocationHandler.java:1109-1122](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/MethodInvocationHandler.java#L1109-L1122)
 - **Severity**: High
 - **Current Code**:
 ```java
@@ -319,21 +343,21 @@ private Class<?> tryLoadClass(String className) {
 - **Suggested Fix**: Define clear null policy, consider `Optional<>` for uncertain returns.
 
 ### CS-004: Long Method: handleSubqueryBuilderMethod()
-- **File**: [MethodInvocationHandler.java:910-958](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/MethodInvocationHandler.java#L910-L958)
+- **File**: [MethodInvocationHandler.java:910-958](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/MethodInvocationHandler.java#L910-L958)
 - **Severity**: Medium
 - **Description**: Method is 48 lines with large switch statement.
 - **Suggested Fix**: Extract each case to named method, use enum dispatch.
 - **Subsumed By**: → **MAINT-001** (entire subquery handling [861-1063] moved to separate class)
 
 ### CS-005: Deep Nesting in processCallSite()
-- **File**: [CallSiteProcessor.java:85-178](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/CallSiteProcessor.java#L85-L178)
+- **File**: [CallSiteProcessor.java:85-178](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java#L85-L178)
 - **Severity**: Medium
 - **Description**: Multiple if-else nesting levels make code hard to follow.
 - **Suggested Fix**: Use early returns, extract to strategy methods.
 - **Duplicate Of**: → **MAINT-006** (same method, same fix approach)
 
 ### CS-006: Excessive Boolean Parameters
-- **File**: [CallSiteProcessor.java:111-118](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/CallSiteProcessor.java#L111-L118)
+- **File**: [CallSiteProcessor.java:111-118](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java#L111-L118)
 - **Severity**: Medium
 - **Description**: `deduplicator.handleDuplicateLambda()` has many boolean parameters.
 - **Suggested Fix**: Create parameter object `QueryCharacteristics` record.
@@ -345,13 +369,13 @@ private Class<?> tryLoadClass(String className) {
 - **Suggested Fix**: Remove or document why retained.
 
 ### CS-008: Switch Expressions Without Default Cases
-- **File**: [MethodInvocationHandler.java:268-279](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/MethodInvocationHandler.java#L268-L279)
+- **File**: [MethodInvocationHandler.java:268-279](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/MethodInvocationHandler.java#L268-L279)
 - **Severity**: Medium
 - **Description**: Some switch expressions rely on exhaustive enum matching but don't have explicit default.
 - **Suggested Fix**: Add explicit default case even for enums (for future-proofing).
 
 ### CS-009: Repeated Pattern: Pop Multiple Items From Stack
-- **File**: [MethodInvocationHandler.java](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/MethodInvocationHandler.java)
+- **File**: [MethodInvocationHandler.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/MethodInvocationHandler.java)
 - **Severity**: Medium
 - **Description**: Pattern of checking stack size and popping multiple items repeated often.
 - **Suggested Fix**: Extract helper method `popN(int n)` or `popPair()`.
@@ -368,7 +392,7 @@ private Class<?> tryLoadClass(String className) {
 - **Suggested Fix**: Ensure proper error handling chain.
 
 ### CS-012: Long Parameter Lists
-- **File**: [CallSiteProcessor.java:302-312](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/CallSiteProcessor.java#L302-L312)
+- **File**: [CallSiteProcessor.java:302-312](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java#L302-L312)
 - **Severity**: Low
 - **Description**: `generateAndRegisterExecutor()` has 11 parameters.
 - **Suggested Fix**: Create parameter object or builder.
@@ -389,7 +413,7 @@ private Class<?> tryLoadClass(String className) {
 ## Bug Risks
 
 ### BR-001: Potential ArrayIndexOutOfBoundsException ✅ RESOLVED
-- **File**: [AnalysisContext.java:512-519](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/AnalysisContext.java#L512-L519)
+- **File**: [AnalysisContext.java:512-519](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/AnalysisContext.java#L512-L519)
 - **Severity**: High
 - **Status**: ✅ **RESOLVED** (Phase 1)
 - **Description**: Array element tracking doesn't validate index bounds.
@@ -398,31 +422,31 @@ private Class<?> tryLoadClass(String className) {
   - Added `@throws` documentation
 
 ### BR-002: Race Condition in queryCounter
-- **File**: [CallSiteProcessor.java:327-328](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/CallSiteProcessor.java#L327-L328)
+- **File**: [CallSiteProcessor.java:327-328](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java#L327-L328)
 - **Severity**: High
 - **Description**: `AtomicInteger` used but class name generation could still collide in edge cases.
 - **Suggested Fix**: Include additional uniqueness factor (timestamp, hash).
 
 ### BR-003: Null Check After Dereference
-- **File**: [SubqueryExpressionBuilder.java:347-349](deployment/src/main/java/io/quarkus/qusaq/deployment/generation/builders/SubqueryExpressionBuilder.java#L347-L349)
+- **File**: [SubqueryExpressionBuilder.java:347-349](deployment/src/main/java/io/quarkus/qubit/deployment/generation/builders/SubqueryExpressionBuilder.java#L347-L349)
 - **Severity**: High
 - **Description**: Null check comes after potential dereference in some code paths.
 - **Suggested Fix**: Move null checks to method entry.
 
 ### BR-004: Missing Validation for PathSegment
-- **File**: [LambdaExpression.java:271-288](deployment/src/main/java/io/quarkus/qusaq/deployment/LambdaExpression.java#L271-L288)
+- **File**: [LambdaExpression.java:271-288](deployment/src/main/java/io/quarkus/qubit/deployment/LambdaExpression.java#L271-L288)
 - **Severity**: Medium
 - **Description**: `PathSegment` doesn't validate that `fieldName` is not empty.
 - **Suggested Fix**: Add validation in compact constructor.
 
 ### BR-005: GroupKeyReference Allows Null keyExpression
-- **File**: [LambdaExpression.java:624-633](deployment/src/main/java/io/quarkus/qusaq/deployment/LambdaExpression.java#L624-L633)
+- **File**: [LambdaExpression.java:624-633](deployment/src/main/java/io/quarkus/qubit/deployment/LambdaExpression.java#L624-L633)
 - **Severity**: Medium
 - **Description**: `keyExpression` can be null by design, but this may cause NPE in code generation.
 - **Suggested Fix**: Add null-safety documentation and handling.
 
 ### BR-006: Unchecked Cast in generateConstant()
-- **File**: [SubqueryExpressionBuilder.java:458-476](deployment/src/main/java/io/quarkus/qusaq/deployment/generation/builders/SubqueryExpressionBuilder.java#L458-L476)
+- **File**: [SubqueryExpressionBuilder.java:458-476](deployment/src/main/java/io/quarkus/qubit/deployment/generation/builders/SubqueryExpressionBuilder.java#L458-L476)
 - **Severity**: Medium
 - **Description**: Multiple instanceof checks but no else branch for unknown types.
 - **Suggested Fix**: Add validation or throw for unsupported types.
@@ -435,13 +459,13 @@ private Class<?> tryLoadClass(String className) {
 - **Suggested Fix**: Add validation before array access.
 
 ### BR-008: Potential Integer Overflow in Index Calculation
-- **File**: [CallSiteProcessor.java:554-576](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/CallSiteProcessor.java#L554-L576)
+- **File**: [CallSiteProcessor.java:554-576](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java#L554-L576)
 - **Severity**: Low
 - **Description**: `indexOffset` accumulation could overflow for very large lambda chains.
 - **Suggested Fix**: Use long or add overflow check.
 
 ### BR-009: Thread Safety of classMethods Field
-- **File**: [AnalysisContext.java:102](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/AnalysisContext.java#L102)
+- **File**: [AnalysisContext.java:102](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/AnalysisContext.java#L102)
 - **Severity**: Low
 - **Description**: `classMethods` is set after construction without synchronization.
 - **Suggested Fix**: Document thread-safety requirements or make immutable.
@@ -450,20 +474,27 @@ private Class<?> tryLoadClass(String className) {
 
 ## Documentation Gaps
 
-### DOC-001: Missing Package-Level Documentation
+### DOC-001: Missing Package-Level Documentation ✅ RESOLVED
 - **Severity**: High
+- **Status**: ✅ **RESOLVED** (as part of ARCH-008)
 - **Description**: No `package-info.java` files explaining package purposes.
-- **Affected Packages**:
-  - `io.quarkus.qusaq.deployment`
-  - `io.quarkus.qusaq.deployment.analysis`
-  - `io.quarkus.qusaq.deployment.generation`
-- **Suggested Fix**: Add `package-info.java` with architecture overview.
+- **Fix Applied**: Added `package-info.java` with comprehensive Javadoc for all 9 packages:
+  - `io.quarkiverse.qubit.deployment` - Main deployment package overview
+  - `io.quarkiverse.qubit.deployment.ast` - AST node type definitions
+  - `io.quarkiverse.qubit.deployment.analysis` - Bytecode analysis
+  - `io.quarkiverse.qubit.deployment.analysis.instruction` - Instruction handlers
+  - `io.quarkiverse.qubit.deployment.analysis.branch` - Branch handlers
+  - `io.quarkiverse.qubit.deployment.generation` - Code generation
+  - `io.quarkiverse.qubit.deployment.generation.expression` - Expression builders
+  - `io.quarkiverse.qubit.deployment.common` - Shared utilities
+  - `io.quarkiverse.qubit.deployment.util` - Low-level utilities
+- **See Also**: → **ARCH-008** for full module boundary refactoring
 
 ### DOC-002: Incomplete Javadoc on Public API
 - **Severity**: High
 - **Files**:
-  - `QusaqStream.java`: Some methods missing parameter documentation
-  - `QusaqEntity.java`: Missing class-level design rationale
+  - `QubitStream.java`: Some methods missing parameter documentation
+  - `QubitEntity.java`: Missing class-level design rationale
 - **Suggested Fix**: Complete Javadoc for all public methods.
 
 ### DOC-003: Missing Error Handling Documentation
@@ -515,7 +546,7 @@ MethodDescriptor.ofMethod(CriteriaBuilder.class, "equal", Predicate.class, Expre
 - **Suggested Fix**: Cache common `MethodDescriptor` instances as static finals.
 
 ### PERF-002: Unnecessary List Copies
-- **File**: [LambdaExpression.java](deployment/src/main/java/io/quarkus/qusaq/deployment/LambdaExpression.java)
+- **File**: [LambdaExpression.java](deployment/src/main/java/io/quarkus/qubit/deployment/LambdaExpression.java)
 - **Severity**: Medium
 - **Description**: `List.copyOf()` in record constructors creates defensive copies even when input is already immutable.
 - **Suggested Fix**: Check if input is already unmodifiable list.
@@ -543,12 +574,12 @@ MethodDescriptor.ofMethod(CriteriaBuilder.class, "equal", Predicate.class, Expre
 ## Maintainability Improvements
 
 ### MAINT-001: Extract Subquery Analysis ✅ RESOLVED
-- **File**: [MethodInvocationHandler.java](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/MethodInvocationHandler.java)
+- **File**: [MethodInvocationHandler.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/MethodInvocationHandler.java)
 - **Severity**: High
 - **Status**: ✅ **RESOLVED**
 - **Description**: Subquery handling (200+ lines) should be separate class.
 - **Fix Applied**:
-  - Created [SubqueryAnalyzer.java](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/SubqueryAnalyzer.java) (329 lines)
+  - Created [SubqueryAnalyzer.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/SubqueryAnalyzer.java) (329 lines)
   - Extracted: `isSubqueriesMethodCall()`, `isSubqueryBuilderMethodCall()`, `handleSubqueriesFactoryMethod()`, `handleSubqueryBuilderMethod()`, and all helper methods
   - MethodInvocationHandler now delegates to SubqueryAnalyzer
 - **Also Resolved**:
@@ -556,12 +587,12 @@ MethodDescriptor.ofMethod(CriteriaBuilder.class, "equal", Predicate.class, Expre
   - → Partially addresses **ARCH-001** (reduces MethodInvocationHandler class size by ~280 lines)
 
 ### MAINT-002: Extract Group Analysis ✅ RESOLVED
-- **File**: [MethodInvocationHandler.java](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/MethodInvocationHandler.java)
+- **File**: [MethodInvocationHandler.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/MethodInvocationHandler.java)
 - **Severity**: High
 - **Status**: ✅ **RESOLVED**
 - **Description**: Group method handling should be separate class.
 - **Fix Applied**:
-  - Created [GroupMethodAnalyzer.java](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/GroupMethodAnalyzer.java) (183 lines)
+  - Created [GroupMethodAnalyzer.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/GroupMethodAnalyzer.java) (183 lines)
   - Extracted: `isGroupMethodCall()`, `handleGroupMethod()`, `handleGroupKey()`, `handleGroupCount()`, `handleGroupCountDistinct()`, `handleGroupAggregationWithField()`, `handleGroupMinMax()`, `inferFieldType()`
   - MethodInvocationHandler now delegates to GroupMethodAnalyzer
 - **Also Resolved**: → Partially addresses **ARCH-001** (reduces MethodInvocationHandler class size by ~150 lines)
@@ -575,7 +606,7 @@ MethodDescriptor.ofMethod(CriteriaBuilder.class, "equal", Predicate.class, Expre
 - **Addressed By**: Pattern matching items **MAINT-009 through MAINT-017** reduce cyclomatic complexity by converting if-else instanceof chains to exhaustive switch expressions
 
 ### MAINT-004: Constants Consolidation
-- **File**: [QusaqConstants.java](runtime/src/main/java/io/quarkus/qusaq/runtime/QusaqConstants.java)
+- **File**: [QubitConstants.java](runtime/src/main/java/io/quarkus/qubit/runtime/QubitConstants.java)
 - **Severity**: Medium
 - **Description**: Some constants defined locally instead of in central constants file.
 - **Suggested Fix**: Audit and consolidate all constants.
@@ -603,7 +634,7 @@ MethodDescriptor.ofMethod(CriteriaBuilder.class, "equal", Predicate.class, Expre
 - **Suggested Fix**: Add context to assertion messages.
 
 ### MAINT-009: Pattern Matching in generatePredicate() ✅ RESOLVED
-- **File**: [CriteriaExpressionGenerator.java:122-147](deployment/src/main/java/io/quarkus/qusaq/deployment/generation/CriteriaExpressionGenerator.java#L122-L147)
+- **File**: [CriteriaExpressionGenerator.java:122-147](deployment/src/main/java/io/quarkus/qubit/deployment/generation/CriteriaExpressionGenerator.java#L122-L147)
 - **Severity**: Medium
 - **Status**: ✅ **RESOLVED** (Phase 4)
 - **Description**: 7 consecutive `if-else instanceof` branches for expression type dispatch.
@@ -633,7 +664,7 @@ return switch (expression) {
 - **Benefits**: Exhaustiveness checking by compiler, cleaner syntax, easier to add new cases.
 
 ### MAINT-010: Pattern Matching in generateExpressionAsJpaExpression() ✅ RESOLVED
-- **File**: [CriteriaExpressionGenerator.java:350-388](deployment/src/main/java/io/quarkus/qusaq/deployment/generation/CriteriaExpressionGenerator.java#L350-L388)
+- **File**: [CriteriaExpressionGenerator.java:350-388](deployment/src/main/java/io/quarkus/qubit/deployment/generation/CriteriaExpressionGenerator.java#L350-L388)
 - **Severity**: High
 - **Status**: ✅ **RESOLVED** (Phase 4)
 - **Description**: 11 consecutive `if-else instanceof` branches handling all expression types.
@@ -666,7 +697,7 @@ return switch (expression) {
 - **Benefits**: Single expression, no fallthrough risk, compiler-enforced exhaustiveness.
 
 ### MAINT-011: Pattern Matching in generateConstant() ✅ RESOLVED
-- **File**: [CriteriaExpressionGenerator.java:645-690](deployment/src/main/java/io/quarkus/qusaq/deployment/generation/CriteriaExpressionGenerator.java#L645-L690)
+- **File**: [CriteriaExpressionGenerator.java:645-690](deployment/src/main/java/io/quarkus/qubit/deployment/generation/CriteriaExpressionGenerator.java#L645-L690)
 - **Severity**: Medium
 - **Status**: ✅ **RESOLVED** (Phase 4)
 - **Description**: 11 consecutive `if-else instanceof` branches for value type dispatch.
@@ -700,7 +731,7 @@ return switch (value) {
 - **Benefits**: Cleaner handling of null case, exhaustive type checking, easier maintenance.
 
 ### MAINT-012: Pattern Matching in collectCapturedVariableIndices() ✅ RESOLVED
-- **File**: [CallSiteProcessor.java:1210-1270](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/CallSiteProcessor.java#L1210-L1270)
+- **File**: [CallSiteProcessor.java:1210-1270](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java#L1210-L1270)
 - **Severity**: High
 - **Status**: ✅ **RESOLVED** (Phase 4)
 - **Description**: 12+ consecutive `if-else instanceof` branches for AST visitor traversal.
@@ -742,7 +773,7 @@ switch (expression) {
 - **Benefits**: Compiler-enforced exhaustiveness over sealed interface, pattern guards available.
 
 ### MAINT-013: Pattern Matching in renumberCapturedVariables() ✅ RESOLVED
-- **File**: [CallSiteProcessor.java:1285-1365](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/CallSiteProcessor.java#L1285-L1365)
+- **File**: [CallSiteProcessor.java:1285-1365](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java#L1285-L1365)
 - **Severity**: High
 - **Status**: ✅ **RESOLVED** (Phase 4)
 - **Description**: 15+ consecutive `if-else instanceof` branches for AST transformation.
@@ -791,7 +822,7 @@ return switch (expression) {
 - **Benefits**: Sealed interface ensures exhaustiveness, unified return expression, cleaner code.
 
 ### MAINT-014: Pattern Matching in generateSubqueryExpression() ✅ RESOLVED
-- **File**: [SubqueryExpressionBuilder.java:457-498](deployment/src/main/java/io/quarkus/qusaq/deployment/generation/builders/SubqueryExpressionBuilder.java#L457-L498)
+- **File**: [SubqueryExpressionBuilder.java:457-498](deployment/src/main/java/io/quarkus/qubit/deployment/generation/builders/SubqueryExpressionBuilder.java#L457-L498)
 - **Severity**: Medium
 - **Status**: ✅ **RESOLVED** (Phase 4)
 - **Description**: 5 consecutive `if-else instanceof` branches with null fallback (relates to CRI-002).
@@ -832,7 +863,7 @@ return switch (expr) {
 - **Benefits**: Addresses CRI-002 by adding logging for unhandled cases, cleaner structure.
 
 ### MAINT-015: Pattern Matching in generateFieldPath() ✅ RESOLVED
-- **File**: [SubqueryExpressionBuilder.java:322-350](deployment/src/main/java/io/quarkus/qusaq/deployment/generation/builders/SubqueryExpressionBuilder.java#L322-L350)
+- **File**: [SubqueryExpressionBuilder.java:322-350](deployment/src/main/java/io/quarkus/qubit/deployment/generation/builders/SubqueryExpressionBuilder.java#L322-L350)
 - **Severity**: High (relates to CRI-001)
 - **Status**: ✅ **RESOLVED** (Phase 4)
 - **Description**: Silent fallback returning `root` for unrecognized expression types.
@@ -870,7 +901,7 @@ return switch (expr) {
 - **Benefits**: Addresses CRI-001 by replacing silent fallback with explicit error, compiler exhaustiveness checking.
 
 ### MAINT-016: Pattern Matching in inferFieldType() ✅ RESOLVED
-- **File**: [GroupMethodAnalyzer.java:170-177](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/GroupMethodAnalyzer.java#L170-L177)
+- **File**: [GroupMethodAnalyzer.java:170-177](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/GroupMethodAnalyzer.java#L170-L177)
 - **Severity**: Low
 - **Status**: ✅ **RESOLVED** (Phase 4) - Method moved to GroupMethodAnalyzer during MAINT-002
 - **Description**: Simple 2-branch instanceof check for field type inference.
@@ -894,7 +925,7 @@ return switch (fieldExpr) {
 - **Benefits**: Concise single expression, consistent with other pattern matching refactors.
 
 ### MAINT-017: Pattern Matching in extractEntityClassInfo() ✅ RESOLVED
-- **File**: [SubqueryAnalyzer.java:290-315](deployment/src/main/java/io/quarkus/qusaq/deployment/analysis/handlers/SubqueryAnalyzer.java#L290-L315)
+- **File**: [SubqueryAnalyzer.java:290-315](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/SubqueryAnalyzer.java#L290-L315)
 - **Severity**: Medium
 - **Status**: ✅ **RESOLVED** (Phase 4) - Method moved to SubqueryAnalyzer during MAINT-001
 - **Description**: Nested instanceof checks for entity class extraction from constants.
@@ -1059,12 +1090,12 @@ When addressing issues, use this template:
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
-| 1.0 | 2024 | QUSAQ Team | Initial quality analysis |
+| 1.0 | 2024 | QUBIT Team | Initial quality analysis |
 | 1.1 | 2024-11-28 | Claude | Phase 1 complete: Fixed CRI-001, CRI-002, BR-001 |
 | 1.2 | 2024-11-28 | Claude | MAINT-001, MAINT-002: Extracted SubqueryAnalyzer (329 lines) and GroupMethodAnalyzer (183 lines) from MethodInvocationHandler. Reduced from 1143 to 715 lines (37% reduction). All 1113 tests pass. |
 | 1.3 | 2024-11-28 | Claude | ARCH-002: Refactored LambdaAnalysisResult from 15-field record to sealed interface with 4 specialized result types: SimpleQueryResult (4 fields), AggregationQueryResult (4 fields), JoinQueryResult (6 fields), GroupQueryResult (6 fields). Uses if-else instanceof pattern matching (Java 17). All 1113 tests pass. |
 | 1.4 | 2024-11-28 | Claude | **Phase 4 Complete (MAINT-009 through MAINT-017)**: Upgraded pom.xml from Java 17 to Java 21. Refactored 22 methods across 4 files (CriteriaExpressionGenerator, CallSiteProcessor, SubqueryExpressionBuilder, LoadInstructionHandler) to use Java 21 pattern matching switch expressions. Note: Multi-pattern cases with unnamed `_` require Java 21 preview, so used separate named variables instead. All 375 deployment tests pass. |
-| 1.5 | 2024-11-28 | Claude | **CS-001 Complete**: Extracted 11 magic strings from MethodInvocationHandler.java to QusaqConstants.java. Added new JVM_* naming convention for JVM internal class names (JVM_JAVA_LANG_STRING, JVM_JAVA_TIME_LOCAL_DATE, etc.). Moved COLLECTION_INTERFACE_OWNERS Set to QusaqConstants. All 375 deployment tests pass. |
+| 1.5 | 2024-11-28 | Claude | **CS-001 Complete**: Extracted 11 magic strings from MethodInvocationHandler.java to QubitConstants.java. Added new JVM_* naming convention for JVM internal class names (JVM_JAVA_LANG_STRING, JVM_JAVA_TIME_LOCAL_DATE, etc.). Moved COLLECTION_INTERFACE_OWNERS Set to QubitConstants. All 375 deployment tests pass. |
 | 1.6 | 2024-11-28 | Claude | **ARCH-001 Progress (CriteriaExpressionGenerator)**: Extracted BiEntityExpressionBuilder.java (555 lines) and GroupExpressionBuilder.java (411 lines). Created ExpressionGeneratorHelper interface for clean delegation. CriteriaExpressionGenerator reduced from 1977 to 1355 lines (31% reduction). Combined with previous MethodInvocationHandler reduction (37%), two major large classes now significantly reduced. All 375 deployment tests pass. |
 | 1.7 | 2024-11-28 | Claude | **ARCH-001 Progress (CallSiteProcessor)**: Extracted LambdaAnalysisResult.java (84 lines) as public sealed interface and CapturedVariableHelper.java (246 lines) with 5 static utility methods. CallSiteProcessor reduced from 1359 to 1087 lines (20% reduction). Three of four large classes now significantly reduced. All 375 deployment tests pass. |
 | 1.8 | 2024-11-29 | Claude | **ARCH-001 Substantially Resolved**: Analyzed LambdaExpression.java (1119 lines) - determined to be well-organized sealed interface. File has clear section separators dividing 6 logical groups: Core Expressions, Relationship Navigation, Collection Operations, Join Queries, Grouping Operations, and Subqueries. Extracting to sub-interfaces would break sealed pattern without benefit. All four originally-identified large classes now addressed. Updated summary dashboard: Architectural high issues 2→1, total resolved 27→28. |
@@ -1074,4 +1105,5 @@ When addressing issues, use this template:
 | 2.2 | 2024-11-29 | Claude | **ARCH-006 Complete**: Refactored AnalysisContext mutable state to use constructor-based immutable configuration. Created NestedLambdaSupport record to bundle classMethods and analyzer. Made groupContextMode and nestedLambdaSupport fields final. Added 4 new constructor overloads. Removed setter methods (setGroupContextMode, setClassMethods, setNestedLambdaAnalyzer). Updated LambdaBytecodeAnalyzer with createNestedLambdaSupport() factory method. Processing state (currentInstructionIndex, hasSeenBranch, pendingArray*) remains mutable as required. All 1113 tests pass. Updated: Architectural medium 3→2, total 62→61, resolved 31→32. |
 | 2.3 | 2024-11-29 | Claude | **ARCH-009 Complete**: Added 20 factory methods to 5 AST node types in LambdaExpression.java for consistent creation patterns. BinaryOp: 13 methods (logical: and/or, comparison: eq/ne/lt/le/gt/ge, arithmetic: add/sub/mul/div/mod). UnaryOp: not() method. PathExpression: single()/field() for single-segment paths. BiEntityFieldAccess: fromFirst()/fromSecond() for entity-specific access. BiEntityPathExpression: fromFirst()/fromSecond() for entity-specific paths. All 375 deployment tests pass. Updated: Architectural low 3→2, total 61→60, resolved 32→33. |
 | 2.4 | 2024-11-29 | Claude | **ARCH-009 Usage Complete**: Refactored 9 files to use BinaryOp factory methods instead of direct constructor calls. Files updated: LambdaBytecodeAnalyzer (and), ArithmeticInstructionHandler (add/sub/mul/div/mod/and/or), BranchHandler (and/or), MethodInvocationHandler (eq), CapturedVariableHelper (and), IfEqualsZeroInstructionHandler (ne/eq), IfNotEqualsZeroInstructionHandler (eq), SubqueryAnalyzer (and), InvokeDynamicHandler (add). Removed unused operator constant imports from all files. All 1488 tests pass (375 deployment + 1113 integration). |
+| 2.5 | 2025-11-29 | Claude | **ARCH-008 Complete + DOC-001 Complete**: Full module boundary refactoring. Created `ast/` package (LambdaExpression), moved `InvokeDynamicScanner` to `analysis/`, created `common/` package (PatternDetector, BytecodeValidator, BytecodeAnalysisException, BytecodeAnalysisConstants), flattened `branch/handlers/` into `branch/`, renamed `handlers/` to `instruction/` and `builders/` to `expression/`, removed orphaned BytecodeInstructionHandler.java. Added `package-info.java` for all 9 packages (resolves DOC-001). Updated: Architectural low 2→1, Documentation high 2→1, total 59→58, resolved 34→35. All tests pass. |
 

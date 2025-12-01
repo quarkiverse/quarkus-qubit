@@ -5,13 +5,13 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>io.quarkus.extension</groupId>
-        <artifactId>quarkus-qusaq-parent</artifactId>
+        <groupId>io.quarkiverse.qubit</groupId>
+        <artifactId>quarkus-qubit-parent</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>quarkus-qusaq</artifactId>
-    <name>Quarkus - Qusaq - Runtime</name>
+    <artifactId>quarkus-qubit</artifactId>
+    <name>Quarkus - Qubit - Runtime</name>
     <description>Runtime module for lambda-based Panache query extension</description>
 
     <dependencies>

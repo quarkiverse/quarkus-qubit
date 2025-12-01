@@ -1,0 +1,129 @@
+package io.quarkiverse.qubit.runtime;
+
+import io.quarkus.runtime.annotations.Recorder;
+import org.jboss.logging.Logger;
+
+import java.util.List;
+import java.util.function.Consumer;
+
+/**
+ * Registers build-time generated query executors during static initialization.
+ */
+@Recorder
+public class QueryExecutorRecorder {
+
+    private static final Logger log = Logger.getLogger(QueryExecutorRecorder.class);
+
+    /**
+     * Registers list query executor during static initialization.
+     */
+    public void registerListExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
+        registerExecutor(callSiteId, executorClassName, capturedVarCount, "list",
+            (QueryExecutor<List<?>> executor) -> QueryExecutorRegistry.registerListExecutor(callSiteId, executor, capturedVarCount));
+    }
+
+    /**
+     * Registers count query executor during static initialization.
+     */
+    public void registerCountExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
+        registerExecutor(callSiteId, executorClassName, capturedVarCount, "count",
+            (QueryExecutor<Long> executor) -> QueryExecutorRegistry.registerCountExecutor(callSiteId, executor, capturedVarCount));
+    }
+
+    /**
+     * Registers aggregation query executor during static initialization.
+     * Phase 5: Supports MIN, MAX, AVG, SUM* aggregation operations.
+     */
+    public void registerAggregationExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
+        registerExecutor(callSiteId, executorClassName, capturedVarCount, "aggregation",
+            (QueryExecutor<Object> executor) -> QueryExecutorRegistry.registerAggregationExecutor(callSiteId, executor, capturedVarCount));
+    }
+
+    /**
+     * Registers join list query executor during static initialization.
+     * Iteration 6: Join Queries
+     */
+    public void registerJoinListExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
+        registerExecutor(callSiteId, executorClassName, capturedVarCount, "join-list",
+            (QueryExecutor<List<?>> executor) -> QueryExecutorRegistry.registerJoinListExecutor(callSiteId, executor, capturedVarCount));
+    }
+
+    /**
+     * Registers join count query executor during static initialization.
+     * Iteration 6: Join Queries
+     */
+    public void registerJoinCountExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
+        registerExecutor(callSiteId, executorClassName, capturedVarCount, "join-count",
+            (QueryExecutor<Long> executor) -> QueryExecutorRegistry.registerJoinCountExecutor(callSiteId, executor, capturedVarCount));
+    }
+
+    /**
+     * Registers join selectJoined query executor during static initialization.
+     * Iteration 6.5: selectJoined() - returns joined entities instead of source entities.
+     */
+    public void registerJoinSelectJoinedExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
+        registerExecutor(callSiteId, executorClassName, capturedVarCount, "join-selectJoined",
+            (QueryExecutor<List<?>> executor) -> QueryExecutorRegistry.registerJoinSelectJoinedExecutor(callSiteId, executor, capturedVarCount));
+    }
+
+    /**
+     * Registers join projection query executor during static initialization.
+     * Iteration 6.6: select() with BiQuerySpec - returns projected objects from both entities.
+     */
+    public void registerJoinProjectionExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
+        registerExecutor(callSiteId, executorClassName, capturedVarCount, "join-projection",
+            (QueryExecutor<List<?>> executor) -> QueryExecutorRegistry.registerJoinProjectionExecutor(callSiteId, executor, capturedVarCount));
+    }
+
+    /**
+     * Registers group list query executor during static initialization.
+     * Iteration 7: Group Queries (GROUP BY)
+     */
+    public void registerGroupListExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
+        registerExecutor(callSiteId, executorClassName, capturedVarCount, "group-list",
+            (QueryExecutor<List<?>> executor) -> QueryExecutorRegistry.registerGroupListExecutor(callSiteId, executor, capturedVarCount));
+    }
+
+    /**
+     * Registers group count query executor during static initialization.
+     * Iteration 7: Group Queries (GROUP BY)
+     */
+    public void registerGroupCountExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
+        registerExecutor(callSiteId, executorClassName, capturedVarCount, "group-count",
+            (QueryExecutor<Long> executor) -> QueryExecutorRegistry.registerGroupCountExecutor(callSiteId, executor, capturedVarCount));
+    }
+
+    /**
+     * Generic executor registration method that handles the common logic for all executor types.
+     */
+    private <T> void registerExecutor(
+            String callSiteId,
+            String executorClassName,
+            int capturedVarCount,
+            String executorType,
+            Consumer<QueryExecutor<T>> registrar) {
+
+        try {
+            log.debugf("Registering %s executor: %s -> %s (captured vars: %d)",
+                       executorType, callSiteId, executorClassName, capturedVarCount);
+
+            Class<?> executorClass = Thread.currentThread()
+                    .getContextClassLoader()
+                    .loadClass(executorClassName);
+
+            @SuppressWarnings("unchecked")
+            QueryExecutor<T> executor = (QueryExecutor<T>) executorClass
+                    .getDeclaredConstructor()
+                    .newInstance();
+
+            registrar.accept(executor);
+            log.debugf("Successfully registered %s executor: %s", executorType, callSiteId);
+
+        } catch (Exception e) {
+            log.errorf(e, "Failed to register %s executor for call site: %s", executorType, callSiteId);
+            throw new QueryExecutorRegistrationException(
+                    "Failed to register " + executorType + " executor: " + callSiteId +
+                    " (executor class: " + executorClassName + ")", e);
+        }
+    }
+}

@@ -1,6 +1,6 @@
-# QUSAQ Architecture Diagrams
+# QUBIT Architecture Diagrams
 
-This document provides comprehensive architectural diagrams for the QUSAQ (Quarkus USAQ) extension - a JINQ-inspired type-safe query DSL that transforms Java lambda expressions into JPA Criteria Queries at build time.
+This document provides comprehensive architectural diagrams for the QUBIT (Quarkus USAQ) extension - a JINQ-inspired type-safe query DSL that transforms Java lambda expressions into JPA Criteria Queries at build time.
 
 ## Table of Contents
 
@@ -26,7 +26,7 @@ flowchart TB
     end
 
     subgraph "Build Time &#40;Deployment Module&#41;"
-        QP[QusaqProcessor<br/>@BuildStep orchestrator]
+        QP[QubitProcessor<br/>@BuildStep orchestrator]
         IDS[InvokeDynamicScanner<br/>Lambda call site detection]
         CSP[CallSiteProcessor<br/>Analysis coordination]
         LBA[LambdaBytecodeAnalyzer<br/>Bytecode → AST]
@@ -35,8 +35,8 @@ flowchart TB
     end
 
     subgraph "Runtime Module"
-        QS[QusaqStream<br/>Fluent query interface]
-        QE[QusaqEntity<br/>ActiveRecord base]
+        QS[QubitStream<br/>Fluent query interface]
+        QE[QubitEntity<br/>ActiveRecord base]
         RE[RuntimeExecutor<br/>Generated executors]
         EM[EntityManager<br/>JPA execution]
     end
@@ -69,8 +69,8 @@ flowchart TB
 ```mermaid
 flowchart LR
     subgraph "deployment/"
-        subgraph "io.quarkus.qusaq.deployment"
-            QP[QusaqProcessor]
+        subgraph "io.quarkiverse.qubit.deployment"
+            QP[QubitProcessor]
             LE[LambdaExpression<br/>&#40;sealed interface&#41;]
         end
 
@@ -118,9 +118,9 @@ flowchart LR
     end
 
     subgraph "runtime/"
-        subgraph "io.quarkus.qusaq.runtime"
-            QS[QusaqStream]
-            QE[QusaqEntity]
+        subgraph "io.quarkiverse.qubit.runtime"
+            QS[QubitStream]
+            QE[QubitEntity]
             GR[Group &#40;interface&#41;]
             SQ[Subqueries]
             SQB[SubqueryBuilder]
@@ -157,7 +157,7 @@ flowchart LR
 ```mermaid
 sequenceDiagram
     participant Q as Quarkus Build
-    participant QP as QusaqProcessor
+    participant QP as QubitProcessor
     participant IDS as InvokeDynamicScanner
     participant CSP as CallSiteProcessor
     participant LBA as LambdaBytecodeAnalyzer
@@ -549,8 +549,8 @@ flowchart TB
 ```mermaid
 sequenceDiagram
     participant UC as User Code
-    participant QE as QusaqEntity
-    participant QS as QusaqStream
+    participant QE as QubitEntity
+    participant QS as QubitStream
     participant RE as RuntimeExecutor
     participant GE as Generated Executor
     participant EM as EntityManager
@@ -560,7 +560,7 @@ sequenceDiagram
     participant DB as Database
 
     UC->>QE: Person.where(p -> p.age > 21)
-    QE->>QS: new QusaqStream(Person.class, executor)
+    QE->>QS: new QubitStream(Person.class, executor)
 
     UC->>QS: .sortedBy(p -> p.name)
     QS-->>QS: Chain method
@@ -804,5 +804,5 @@ classDiagram
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
-| 1.0 | 2024 | QUSAQ Team | Initial architecture documentation |
+| 1.0 | 2024 | QUBIT Team | Initial architecture documentation |
 

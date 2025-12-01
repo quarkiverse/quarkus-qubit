@@ -1,4 +1,4 @@
-# Quarkus Qusaq Project - Claude Code Instructions
+# Quarkus Qubit Project - Claude Code Instructions
 
 ## Core Principles
 
@@ -663,7 +663,7 @@ Person.join(p -> p.phones)           // Returns JoinStream<Person, Phone>
 ```
 
 **Key Components:**
-- `JoinStream<T, R>` - Fluent API for join operations (separate from QusaqStream)
+- `JoinStream<T, R>` - Fluent API for join operations (separate from QubitStream)
 - `JoinStreamImpl<T, R>` - Runtime implementation
 - `BiQuerySpec<T, R, U>` - Functional interface for two-entity lambdas
 - `JoinType` enum - INNER or LEFT join types
@@ -761,7 +761,7 @@ private Object[] extractCapturedVariables() {
 
 ### Testing Join Queries
 
-**Test organization:** `integration-tests/src/test/java/io/quarkus/qusaq/it/join/JoinQueryTest.java`
+**Test organization:** `integration-tests/src/test/java/io/quarkus/qubit/it/join/JoinQueryTest.java`
 
 **Key test patterns:**
 ```java
@@ -812,7 +812,7 @@ Person.join((Person p) -> p.phones)
 - Regular queries: `applyOrderBy()` uses `generateExpressionAsJpaExpression()` with root only
 - Join queries: `applyBiEntityOrderBy()` uses `generateBiEntityExpressionAsJpaExpression()` with root + join handle
 
-**Test File:** `integration-tests/src/test/java/io/quarkus/qusaq/it/join/JoinSortingTest.java`
+**Test File:** `integration-tests/src/test/java/io/quarkus/qubit/it/join/JoinSortingTest.java`
 
 ### Common Join Query Errors and Fixes
 
@@ -825,12 +825,12 @@ Person.join((Person p) -> p.phones)
 
 ---
 
-## Qusaq Extension Architecture Reference
+## Qubit Extension Architecture Reference
 
 ### Build-Time Processing Flow
 
 ```
-1. QusaqProcessor.generateQueryExecutors() - Entry point
+1. QubitProcessor.generateQueryExecutors() - Entry point
 2. InvokeDynamicScanner.scanClass() - Find lambda call sites
 3. CallSiteProcessor.processCallSite() - Analyze each call site
    a. LambdaBytecodeAnalyzer.analyze() - Parse lambda bytecode
@@ -843,7 +843,7 @@ Person.join((Person p) -> p.phones)
 ### Runtime Execution Flow
 
 ```
-1. QusaqStreamImpl.toList() / count() / etc. - Terminal operation
+1. QubitStreamImpl.toList() / count() / etc. - Terminal operation
 2. getCallSiteId() - Stack walk to find caller
 3. extractCapturedVariables() - Reflection to get lambda values
 4. QueryExecutorRegistry.executeListQuery() - Lookup executor
@@ -901,13 +901,13 @@ Person.join((Person p) -> p.phones)
 
 #### Dimension 2: Entity API vs Repository API (Integration Tests)
 
-The Qusaq extension exposes functionality through two parallel APIs:
+The Qubit extension exposes functionality through two parallel APIs:
 1. **Entity API** (Static methods): `Person.stream().where(...)`
 2. **Repository API** (Injected beans): `personRepository.stream().where(...)`
 
 **Mandatory Test Organization:**
 ```
-integration-tests/src/test/java/io/quarkus/qusaq/it/
+integration-tests/src/test/java/io/quarkus/qubit/it/
 ├── <feature>/                    # Entity API tests
 │   ├── BasicQueryTest.java
 │   ├── FeatureATest.java
@@ -1021,8 +1021,8 @@ Before marking a feature as complete, verify:
 - [ ] **Edge cases covered** - Boolean optimizations, null handling, etc.
 
 **Integration Tests (End-to-End):**
-- [ ] **Entity API tests exist** in `integration-tests/src/test/java/io/quarkus/qusaq/it/<feature>/`
-- [ ] **Repository API tests exist** in `integration-tests/src/test/java/io/quarkus/qusaq/it/repository/<feature>/`
+- [ ] **Entity API tests exist** in `integration-tests/src/test/java/io/quarkus/qubit/it/<feature>/`
+- [ ] **Repository API tests exist** in `integration-tests/src/test/java/io/quarkus/qubit/it/repository/<feature>/`
 - [ ] **Entity ↔ Repository parity verified** - Every entity test has corresponding repository test
 
 **Coverage Requirements:**
@@ -1110,7 +1110,7 @@ mvn test
 mvn test -Dtest="JoinQueryTest"
 
 # Run tests in a package
-mvn test -Dtest="io.quarkus.qusaq.it.repository.**"
+mvn test -Dtest="io.quarkiverse.qubit.it.repository.**"
 
 # Run with verbose output
 mvn test -Dtest="JoinQueryTest" -X
@@ -1155,7 +1155,7 @@ Person.groupBy((Person p) -> p.department.name)     // Returns GroupStream<Perso
 ```
 
 **Key Components:**
-- `GroupStream<T, K>` - Fluent API for group operations (separate from QusaqStream)
+- `GroupStream<T, K>` - Fluent API for group operations (separate from QubitStream)
 - `GroupStreamImpl<T, K>` - Runtime implementation
 - `GroupQuerySpec<T, K, U>` - Functional interface for group context lambdas (takes `Group<T, K>`)
 - `Group<T, K>` - Context interface providing `key()`, `count()`, `avg()`, `sum*()`, `min()`, `max()`
@@ -1341,7 +1341,7 @@ if (havingConditions.isEmpty()) {
 
 ### Testing GROUP BY Queries
 
-**Test File:** `integration-tests/src/test/java/io/quarkus/qusaq/it/fluent/GroupQueryTest.java`
+**Test File:** `integration-tests/src/test/java/io/quarkus/qubit/it/fluent/GroupQueryTest.java`
 
 **Key test patterns:**
 ```java
@@ -1393,7 +1393,7 @@ Person.groupBy((Person p) -> p.department.name)
 **When implementing complex stream types with multiple lambda sources:**
 
 1. **Identify all lambda sources** in the stream implementation:
-   - QusaqStream: predicates, sortOrders, selector
+   - QubitStream: predicates, sortOrders, selector
    - JoinStream: biPredicates, sourcePredicates, onConditions, sortOrders
    - GroupStream: predicates, keyExtractor, havingConditions, selector, sortOrders
 
@@ -1484,7 +1484,7 @@ astString.append("|QUERY_TYPE=").append(isCountQuery ? "COUNT" : "LIST");
 **Deduplication silently reuses wrong executor:**
 ```
 Deduplicated lambda at JoinQueryTest:selectJoinedReturnsPhones:325
-    (reusing io.quarkus.qusaq.generated.QueryExecutor_248)
+    (reusing io.quarkiverse.qubit.generated.QueryExecutor_248)
 Registering join-list executor: JoinQueryTest:selectJoinedReturnsPhones:325
 // ^^^^^^ Wrong! Should be join-selectJoined executor
 ```
@@ -1569,7 +1569,7 @@ Person.join(p -> p.phones).selectJoined().toList();
    - `executeJoinSelectJoinedQuery()` method
 
 6. **JoinStreamImpl** - Runtime execution
-   - `selectJoined()` returns `ListJoinedQusaqStream` wrapper
+   - `selectJoined()` returns `ListJoinedQubitStream` wrapper
    - Calls `registry.executeJoinSelectJoinedQuery()`
 
 ### Key Files Modified
@@ -1581,14 +1581,14 @@ Person.join(p -> p.phones).selectJoined().toList();
 | `CallSiteProcessor.java` | Hash computation, executor generation |
 | `LambdaDeduplicator.java` | New computeJoinHash() overload with isSelectJoined |
 | `QueryExecutorClassGenerator.java` | generateJoinSelectJoinedQueryBody() |
-| `QusaqProcessor.java` | QueryTransformationBuildItem with isSelectJoined |
+| `QubitProcessor.java` | QueryTransformationBuildItem with isSelectJoined |
 | `QueryExecutorRegistry.java` | New executor map and execution method |
 | `QueryExecutorRecorder.java` | registerJoinSelectJoinedExecutor() |
-| `JoinStreamImpl.java` | selectJoined() implementation, ListJoinedQusaqStream |
+| `JoinStreamImpl.java` | selectJoined() implementation, ListJoinedQubitStream |
 
 ### Test Coverage
 
-**Test File:** `integration-tests/src/test/java/io/quarkus/qusaq/it/join/JoinQueryTest.java`
+**Test File:** `integration-tests/src/test/java/io/quarkus/qubit/it/join/JoinQueryTest.java`
 
 ```java
 // Basic selectJoined
@@ -1657,7 +1657,7 @@ Person.join(p -> p.phones)
    - `executeJoinProjectionQuery()` method
 
 7. **JoinStreamImpl** - Runtime execution
-   - `select(BiQuerySpec<T, R, S>)` returns `ListProjectionQusaqStream<S>`
+   - `select(BiQuerySpec<T, R, S>)` returns `ListProjectionQubitStream<S>`
    - Calls `registry.executeJoinProjectionQuery()`
 
 ### Key Files Modified
@@ -1670,9 +1670,9 @@ Person.join(p -> p.phones)
 | `LambdaDeduplicator.java` | 8-arg computeJoinHash() with projection |
 | `CriteriaExpressionGenerator.java` | generateBiEntityProjection(), generateBiEntityConstructorCall() |
 | `QueryExecutorClassGenerator.java` | generateJoinProjectionQueryBody() |
-| `QusaqProcessor.java` | QueryTransformationBuildItem with isJoinProjection |
+| `QubitProcessor.java` | QueryTransformationBuildItem with isJoinProjection |
 | `QueryExecutorRegistry.java` | New executor map and execution method |
-| `JoinStreamImpl.java` | select(BiQuerySpec) implementation, ListProjectionQusaqStream |
+| `JoinStreamImpl.java` | select(BiQuerySpec) implementation, ListProjectionQubitStream |
 
 ### Critical Bug Patterns and Fixes
 
@@ -1754,7 +1754,7 @@ When adding parameters to `QueryTransformationBuildItem` or hash methods:
    Generated join query executor: QueryExecutor_123 (INNER JOIN PROJECTION, 0 captured vars)
    ```
 
-2. **Executor registration** (QusaqProcessor):
+2. **Executor registration** (QubitProcessor):
    ```
    Registered join projection executor for call site: TestClass:method:line
    ```
@@ -1775,7 +1775,7 @@ When adding parameters to `QueryTransformationBuildItem` or hash methods:
 
 ### Test Coverage
 
-**Test File:** `integration-tests/src/test/java/io/quarkus/qusaq/it/join/JoinQueryTest.java`
+**Test File:** `integration-tests/src/test/java/io/quarkus/qubit/it/join/JoinQueryTest.java`
 
 ```java
 // Basic DTO projection

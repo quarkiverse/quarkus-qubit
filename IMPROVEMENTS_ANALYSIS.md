@@ -1,4 +1,4 @@
-# Quarkus Qusaq Codebase Analysis: Improvements and Findings
+# Quarkus Qubit Codebase Analysis: Improvements and Findings
 
 **Date**: 2025-11-28 (Updated)
 **Analyst**: Claude (Sonnet 4.5)
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-A thorough analysis of the Quarkus Qusaq codebase identified and **successfully resolved** one critical correctness bug, implemented multiple code quality improvements, and **discovered that all Phase 3-5 features are already fully implemented** (contrary to the outdated Long-term Roadmap).
+A thorough analysis of the Quarkus Qubit codebase identified and **successfully resolved** one critical correctness bug, implemented multiple code quality improvements, and **discovered that all Phase 3-5 features are already fully implemented** (contrary to the outdated Long-term Roadmap).
 
 **Current Status**:
 - ✅ **2 Bugs RESOLVED**: Captured variable index renumbering + array type parsing in DescriptorParser
@@ -29,7 +29,7 @@ A thorough analysis of the Quarkus Qusaq codebase identified and **successfully 
 
 **Files Modified**:
 - `deployment/.../CallSiteProcessor.java` - Added `renumberCapturedVariables()` method
-- `runtime/.../QusaqStreamImpl.java` - Enhanced `extractCapturedVariables()` for multiple predicates
+- `runtime/.../QubitStreamImpl.java` - Enhanced `extractCapturedVariables()` for multiple predicates
 - `integration-tests/.../CapturedVariablesTest.java` - Added 7 comprehensive regression tests
 
 **Result**: Phase 2.5 multiple predicates with captured variables now fully working ✅
@@ -227,7 +227,7 @@ A thorough analysis of the Quarkus Qusaq codebase identified and **successfully 
 ### Iteration 1-2: Critical Bug Fix + Initial Code Quality (Completed ✅)
 
 1. `CallSiteProcessor.java` - AST index renumbering for captured variables
-2. `QusaqStreamImpl.java` - Multi-predicate captured variable extraction
+2. `QubitStreamImpl.java` - Multi-predicate captured variable extraction
 3. `InvokeDynamicHandler.java` - Cognitive complexity reduction
 4. `SingleResultTest.java` - Enhanced test implementation
 5. `CapturedVariablesTest.java` - Fixed assertion chaining + 7 new regression tests
@@ -247,7 +247,7 @@ A thorough analysis of the Quarkus Qusaq codebase identified and **successfully 
 
 ## 🏆 Conclusion
 
-**Overall Assessment**: The Quarkus Qusaq codebase demonstrates **strong architectural design** with clean separation of concerns. All critical bugs have been resolved, and **all query features (Phases 1-5) are fully implemented, tested, and production-ready**.
+**Overall Assessment**: The Quarkus Qubit codebase demonstrates **strong architectural design** with clean separation of concerns. All critical bugs have been resolved, and **all query features (Phases 1-5) are fully implemented, tested, and production-ready**.
 
 **Feature Completeness**:
 - ✅ Phase 1-2: Basic queries, filtering, projections

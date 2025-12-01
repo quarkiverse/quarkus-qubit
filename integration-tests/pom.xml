@@ -5,18 +5,18 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>io.quarkus.extension</groupId>
-        <artifactId>quarkus-qusaq-parent</artifactId>
+        <groupId>io.quarkiverse.qubit</groupId>
+        <artifactId>quarkus-qubit-parent</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>quarkus-qusaq-integration-tests</artifactId>
-    <name>Quarkus - Qusaq - Integration Tests</name>
+    <artifactId>quarkus-qubit-integration-tests</artifactId>
+    <name>Quarkus - Qubit - Integration Tests</name>
 
     <dependencies>
         <dependency>
-            <groupId>io.quarkus.extension</groupId>
-            <artifactId>quarkus-qusaq</artifactId>
+            <groupId>io.quarkiverse.qubit</groupId>
+            <artifactId>quarkus-qubit</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
