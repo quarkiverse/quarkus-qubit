@@ -74,6 +74,11 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
             ResultHandle outerRoot,
             ResultHandle capturedValues) {
 
+        // BR-003: Null check at method entry to prevent NPE on scalar.aggregationType()
+        if (scalar == null) {
+            throw new IllegalArgumentException("ScalarSubquery cannot be null");
+        }
+
         // Determine the subquery result type based on aggregation
         Class<?> resultType = getAggregationResultType(scalar.aggregationType());
 
@@ -129,6 +134,11 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
             ResultHandle query,
             ResultHandle outerRoot,
             ResultHandle capturedValues) {
+
+        // BR-003: Null check at method entry to prevent NPE on exists.entityClass()
+        if (exists == null) {
+            throw new IllegalArgumentException("ExistsSubquery cannot be null");
+        }
 
         // Create subquery: query.subquery(entityClass)
         ResultHandle entityClassHandle = GizmoHelper.loadEntityClass(method, exists.entityClass(), exists.entityClassName());
@@ -188,6 +198,11 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
             ResultHandle query,
             ResultHandle outerRoot,
             ResultHandle capturedValues) {
+
+        // BR-003: Null check at method entry to prevent NPE on inSubquery.field()
+        if (inSubquery == null) {
+            throw new IllegalArgumentException("InSubquery cannot be null");
+        }
 
         // Generate the left-hand field expression from the outer query
         ResultHandle fieldPath = generateFieldPath(method, inSubquery.field(), outerRoot);
