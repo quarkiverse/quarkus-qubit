@@ -428,6 +428,10 @@ public sealed interface LambdaExpression {
 
         public PathSegment {
             Objects.requireNonNull(fieldName, "Field name cannot be null");
+            // BR-004: Validate that fieldName is not empty (blank/whitespace-only)
+            if (fieldName.isBlank()) {
+                throw new IllegalArgumentException("Field name cannot be empty or blank");
+            }
             Objects.requireNonNull(fieldType, "Field type cannot be null");
             Objects.requireNonNull(relationType, "Relation type cannot be null");
         }
