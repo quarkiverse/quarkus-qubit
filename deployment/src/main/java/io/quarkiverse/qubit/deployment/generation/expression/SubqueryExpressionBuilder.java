@@ -20,7 +20,7 @@ import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.AND;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.OR;
@@ -47,10 +47,11 @@ import static io.quarkiverse.qubit.runtime.QubitConstants.PATH_GET;
  * avgSub.select(cb.avg(subRoot.get("salary")));
  * // Used in: cb.greaterThan(root.get("salary"), avgSub)
  * </pre>
+ *
+ * internal generate* methods return ResultHandle, but callers
+ * typically know the result is non-null in their specific context.
  */
 public class SubqueryExpressionBuilder implements ExpressionBuilder {
-
-    private static final Logger log = Logger.getLogger(SubqueryExpressionBuilder.class);
 
     /**
      * Generates JPA scalar aggregation subquery.
@@ -331,6 +332,14 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
      *
      * <p>This handles both simple predicates (using only subquery root) and
      * correlated predicates (referencing the outer query's root).
+     *
+     * @param method the method creator for bytecode generation
+     * @param predicate the predicate expression, or null
+     * @param cb the CriteriaBuilder handle
+     * @param subRoot the subquery root handle
+     * @param outerRoot the outer query root handle
+     * @param capturedValues the captured values array handle
+     * @return the generated predicate handle, or null if predicate is null or unhandled
      */
     private ResultHandle generateSubqueryPredicate(
             MethodCreator method,
@@ -364,6 +373,14 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
 
     /**
      * Generates a binary operation predicate for subquery WHERE clause.
+     *
+     * @param method the method creator for bytecode generation
+     * @param binOp the binary operation expression
+     * @param cb the CriteriaBuilder handle
+     * @param subRoot the subquery root handle
+     * @param outerRoot the outer query root handle
+     * @param capturedValues the captured values array handle
+     * @return the generated predicate, or null for unsupported operators
      */
     private ResultHandle generateBinaryOpPredicate(
             MethodCreator method,
@@ -424,12 +441,12 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
      * to the outer query.
      *
      * @param method the method creator for bytecode generation
-     * @param expr the expression to generate
+     * @param expr the expression to generate, or null
      * @param cb the CriteriaBuilder handle
      * @param subRoot the subquery root handle
      * @param outerRoot the outer query root handle (for correlated subqueries)
      * @param capturedValues the captured values array handle
-     * @return ResultHandle for the generated expression, or null if expr is null
+     * @return ResultHandle for the generated expression, or null if expr is null or unhandled
      */
     private ResultHandle generateSubqueryExpression(
             MethodCreator method,
@@ -466,7 +483,7 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
             }
 
             default -> {
-                log.warnf("Unhandled expression type in generateSubqueryExpression: %s. "
+                Log.warnf("Unhandled expression type in generateSubqueryExpression: %s. "
                         + "This may indicate a missing case handler or an unexpected AST structure.",
                         expr.getClass().getSimpleName());
                 yield null;

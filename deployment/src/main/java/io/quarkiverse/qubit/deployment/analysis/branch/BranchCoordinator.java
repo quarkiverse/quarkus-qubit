@@ -2,7 +2,7 @@ package io.quarkiverse.qubit.deployment.analysis.branch;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
 
@@ -33,8 +33,6 @@ import static org.objectweb.asm.Opcodes.*;
  */
 public class BranchCoordinator {
 
-    private static final Logger log = Logger.getLogger(BranchCoordinator.class);
-
     private final List<BranchHandler> handlers;
     private BranchState state;
 
@@ -50,7 +48,7 @@ public class BranchCoordinator {
             new NullCheckHandler()
         );
         this.state = new BranchState.Initial();
-        log.tracef("BranchCoordinator initialized with %d handlers", handlers.size());
+        Log.tracef("BranchCoordinator initialized with %d handlers", handlers.size());
     }
 
     /**
@@ -69,7 +67,7 @@ public class BranchCoordinator {
 
         for (BranchHandler handler : handlers) {
             if (handler.canHandle(jumpInsn)) {
-                log.tracef("Processing %s with %s (state: %s)",
+                Log.tracef("Processing %s with %s (state: %s)",
                         getOpcodeName(jumpInsn.getOpcode()),
                         handler.getName(),
                         state.getClass().getSimpleName());
@@ -78,7 +76,7 @@ public class BranchCoordinator {
                 BranchState newState = handler.handle(stack, jumpInsn, labelToValue, labelClassifications, state);
 
                 if (newState != state) {
-                    log.tracef("State transition: %s -> %s",
+                    Log.tracef("State transition: %s -> %s",
                             state.getClass().getSimpleName(),
                             newState.getClass().getSimpleName());
                     state = newState;
@@ -88,7 +86,7 @@ public class BranchCoordinator {
             }
         }
 
-        log.warnf("No handler found for branch instruction opcode: %d (%s)",
+        Log.warnf("No handler found for branch instruction opcode: %d (%s)",
                 jumpInsn.getOpcode(), getOpcodeName(jumpInsn.getOpcode()));
     }
 
@@ -98,7 +96,7 @@ public class BranchCoordinator {
      */
     public void reset() {
         this.state = new BranchState.Initial();
-        log.tracef("BranchCoordinator reset to Initial state");
+        Log.tracef("BranchCoordinator reset to Initial state");
     }
 
     /**

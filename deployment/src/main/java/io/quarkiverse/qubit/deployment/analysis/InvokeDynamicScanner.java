@@ -1,7 +1,7 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
 import io.quarkiverse.qubit.runtime.SortDirection;
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Handle;
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -52,8 +52,6 @@ public class InvokeDynamicScanner {
         /** Group query context (after groupBy()). */
         GROUP
     }
-
-    private static final Logger log = Logger.getLogger(InvokeDynamicScanner.class);
 
     /**
      * Pair of lambda method name and descriptor.
@@ -198,7 +196,7 @@ public class InvokeDynamicScanner {
                 return false;
             }
 
-            log.warnf("Treating as projection (non-boolean): descriptor=%s, fluent=%s", lambdaMethodDescriptor, fluentMethodName);
+            Log.warnf("Treating as projection (non-boolean): descriptor=%s, fluent=%s", lambdaMethodDescriptor, fluentMethodName);
             return true;
         }
 
@@ -258,7 +256,7 @@ public class InvokeDynamicScanner {
                 scanMethod(classNode, method, callSites);
             }
         } catch (Exception e) {
-            log.warnf(e, "Failed to scan class %s for lambda call sites", className);
+            Log.warnf(e, "Failed to scan class %s for lambda call sites", className);
         }
 
         return callSites;
@@ -370,7 +368,7 @@ public class InvokeDynamicScanner {
             if (insn instanceof MethodInsnNode methodCall && isJoinSelectMethod(methodCall)) {
                 pendingJoinSelect = true;
                 joinSelectLine = currentLine;  // Record line of select()
-                log.infof("Join context: detected JoinStream.select() at line %d", currentLine);
+                Log.infof("Join context: detected JoinStream.select() at line %d", currentLine);
             }
 
             // Iteration 7: Detect groupBy method calls
@@ -405,10 +403,10 @@ public class InvokeDynamicScanner {
                                                           pendingLambdas, pendingAggregation, pendingJoinType,
                                                           pendingJoinSelectJoined, pendingGroupQuery, effectiveLine, i);
                 callSites.add(callSite);
-                log.debugf("Found fluent API terminal operation: %s", callSite);
+                Log.debugf("Found fluent API terminal operation: %s", callSite);
                 // Temporary debug: log group call sites at info level
                 if (pendingGroupQuery) {
-                    log.infof("Detected GROUP call site: %s (groupSelect=%d, hasSelectKey=%b, usedLine=%d)",
+                    Log.infof("Detected GROUP call site: %s (groupSelect=%d, hasSelectKey=%b, usedLine=%d)",
                              callSite.getCallSiteId(),
                              callSite.groupSelectLambdas() != null ? callSite.groupSelectLambdas().size() : 0,
                              pendingGroupSelectKey, effectiveLine);
@@ -440,7 +438,7 @@ public class InvokeDynamicScanner {
                 // Determine lambda spec type
                 LambdaSpecType specType = determineLambdaSpecType(invokeDynamic);
                 pendingLambdas.add(new PendingLambda(handle.getName(), handle.getDesc(), fluentMethod, specType));
-                log.debugf("Detected lambda: method=%s, fluent=%s, specType=%s, desc=%s",
+                Log.debugf("Detected lambda: method=%s, fluent=%s, specType=%s, desc=%s",
                           handle.getName(), fluentMethod, specType, invokeDynamic.desc);
             }
         }
@@ -479,7 +477,7 @@ public class InvokeDynamicScanner {
         if (isGroupQuery) {
             // Check GroupStream terminals (toList, count on GroupStream)
             if (isGroupStreamTerminalCall(methodCall)) {
-                log.debugf("Group context: detected GroupStream terminal %s.%s", methodCall.owner, methodCall.name);
+                Log.debugf("Group context: detected GroupStream terminal %s.%s", methodCall.owner, methodCall.name);
                 return true;
             }
             // Also check QubitStream terminals after select() or selectKey() in group context
@@ -487,10 +485,10 @@ public class InvokeDynamicScanner {
             // So the terminal operation (toList, etc.) is on QubitStream
             boolean hasSelectLambda = hasGroupSelectLambda(pendingLambdas);
             boolean isQubitTerminal = isQubitStreamTerminalCall(methodCall);
-            log.debugf("Group context check: hasSelectLambda=%b, hasSelectKey=%b, isQubitTerminal=%b, method=%s.%s",
+            Log.debugf("Group context check: hasSelectLambda=%b, hasSelectKey=%b, isQubitTerminal=%b, method=%s.%s",
                       hasSelectLambda, hasGroupSelectKey, isQubitTerminal, methodCall.owner, methodCall.name);
             if ((hasSelectLambda || hasGroupSelectKey) && isQubitTerminal) {
-                log.debugf("Group context: detected QubitStream terminal after select %s.%s", methodCall.owner, methodCall.name);
+                Log.debugf("Group context: detected QubitStream terminal after select %s.%s", methodCall.owner, methodCall.name);
                 return true;
             }
             return false;
@@ -504,7 +502,7 @@ public class InvokeDynamicScanner {
             }
             // Iteration 6.6: If select() with BiQuerySpec was called, look for QubitStream terminals
             if (hasJoinSelect || hasJoinSelectLambda(pendingLambdas)) {
-                log.infof("Join context: hasJoinSelect=%b, hasJoinSelectLambda=%b, checking terminal %s.%s",
+                Log.infof("Join context: hasJoinSelect=%b, hasJoinSelectLambda=%b, checking terminal %s.%s",
                          hasJoinSelect, hasJoinSelectLambda(pendingLambdas), methodCall.owner, methodCall.name);
                 return isQubitStreamTerminalCall(methodCall);
             }
@@ -734,6 +732,10 @@ public class InvokeDynamicScanner {
      * Looks forward from invokedynamic to find the fluent method call (where/select/join/groupBy).
      * Iteration 6: Also recognizes join methods.
      * Iteration 7: Also recognizes group methods.
+     *
+     * @param instructions the instruction list
+     * @param startIndex the starting index to look forward from
+     * @return the fluent method name, or null if not found within lookahead
      */
     private String findFluentMethodForward(InsnList instructions, int startIndex) {
         // Look ahead a few instructions to find where/select/join/groupBy call
@@ -764,6 +766,12 @@ public class InvokeDynamicScanner {
                desc.contains(GROUP_QUERY_SPEC_DESCRIPTOR);
     }
 
+    /**
+     * Extracts the lambda method handle from an invokedynamic instruction.
+     *
+     * @param invokeDynamic the invokedynamic instruction
+     * @return the lambda method handle, or null if not found
+     */
     private Handle extractLambdaHandle(InvokeDynamicInsnNode invokeDynamic) {
         Object[] bsmArgs = invokeDynamic.bsmArgs;
 

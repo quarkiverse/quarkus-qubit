@@ -4,7 +4,7 @@ import org.jboss.jandex.ClassInfo;
 import org.jboss.jandex.DotName;
 import org.jboss.jandex.IndexView;
 import org.jboss.jandex.ParameterizedType;
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
@@ -36,7 +36,6 @@ import static io.quarkiverse.qubit.runtime.QubitConstants.QUBIT_REPOSITORY_INTER
  */
 public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor, ClassVisitor> {
 
-    private static final Logger log = Logger.getLogger(QubitRepositoryEnhancer.class);
     private final IndexView indexView;
 
     public QubitRepositoryEnhancer(IndexView indexView) {
@@ -48,7 +47,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
      */
     @Override
     public ClassVisitor apply(String className, ClassVisitor outputClassVisitor) {
-        log.debugf("Checking class: %s for QubitRepository interface implementation", className);
+        Log.debugf("Checking class: %s for QubitRepository interface implementation", className);
         return new QubitRepositoryClassVisitor(
                 Opcodes.ASM9,
                 outputClassVisitor,
@@ -81,7 +80,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
                         implementsQubitRepository = true;
                         extractEntityType();
                         if (entityType != null) {
-                            log.debugf("Repository %s implements QubitRepository<%s> - will generate bridge methods",
+                            Log.debugf("Repository %s implements QubitRepository<%s> - will generate bridge methods",
                                     className, entityType.getClassName());
                         }
                         break;
@@ -103,7 +102,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             }
 
             if (isGenerateBridgeMethod(name)) {
-                log.debugf("Generating bridge implementation for %s.%s%s", className, name, descriptor);
+                Log.debugf("Generating bridge implementation for %s.%s%s", className, name, descriptor);
                 return new BridgeMethodReplacer(api, mv, name, entityType);
             }
 
@@ -115,7 +114,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
                 DotName classNameDot = DotName.createSimple(className);
                 ClassInfo classInfo = indexView.getClassByName(classNameDot);
                 if (classInfo == null) {
-                    log.warnf("Could not find ClassInfo for %s", className);
+                    Log.warnf("Could not find ClassInfo for %s", className);
                     return;
                 }
 
@@ -129,15 +128,15 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
                             org.jboss.jandex.Type jandexType = typeArguments.get(0);
                             String entityClassName = jandexType.name().toString();
                             this.entityType = Type.getObjectType(entityClassName.replace('.', '/'));
-                            log.debugf("Extracted entity type: %s", entityClassName);
+                            Log.debugf("Extracted entity type: %s", entityClassName);
                             return;
                         }
                     }
                 }
 
-                log.warnf("Could not extract entity type for repository %s", className);
+                Log.warnf("Could not extract entity type for repository %s", className);
             } catch (Exception e) {
-                log.warnf(e, "Failed to extract entity type for %s", className);
+                Log.warnf(e, "Failed to extract entity type for %s", className);
             }
         }
 
@@ -155,7 +154,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
         @Override
         public void visitEnd() {
             if (implementsQubitRepository && entityType != null) {
-                log.debugf("Generating bridge methods for empty repository: %s", className);
+                Log.debugf("Generating bridge methods for empty repository: %s", className);
 
                 // Generate all fluent API entry point methods
                 for (String methodName : FLUENT_ENTRY_POINT_METHODS) {
@@ -197,7 +196,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
                 case METHOD_SUM_DOUBLE -> QubitBytecodeGenerator.FluentMethodConfig.forSumDouble(
                         entityType, entityInternalName);
                 default -> {
-                    log.warnf("Unknown fluent entry point method: %s", methodName);
+                    Log.warnf("Unknown fluent entry point method: %s", methodName);
                     yield null;
                 }
             };
@@ -206,7 +205,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
                 return;
             }
 
-            log.tracef("Generating method %s with descriptor %s", methodName, config.methodDescriptor());
+            Log.tracef("Generating method %s with descriptor %s", methodName, config.methodDescriptor());
 
             // Generate method: public QubitStream methodName(QuerySpec spec)
             MethodVisitor mv = cv.visitMethod(
@@ -249,7 +248,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
 
             mv.visitMaxs(4, 2);
             mv.visitEnd();
-            log.infof("    Successfully generated method: %s", methodName);
+            Log.infof("    Successfully generated method: %s", methodName);
         }
 
         /**
@@ -276,7 +275,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
                     entityType.getInternalName() + ";Ljava/util/Collection<TR;>;>;)Lio/quarkiverse/qubit/runtime/JoinStream<L" +
                     entityType.getInternalName() + ";TR;>;";
 
-            log.tracef("Generating join method %s with descriptor %s", methodName, methodDescriptor);
+            Log.tracef("Generating join method %s with descriptor %s", methodName, methodDescriptor);
 
             MethodVisitor mv = cv.visitMethod(
                     Opcodes.ACC_PUBLIC,
@@ -321,7 +320,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
 
             mv.visitMaxs(6, 2);
             mv.visitEnd();
-            log.infof("    Successfully generated join method: %s", methodName);
+            Log.infof("    Successfully generated join method: %s", methodName);
         }
     }
 
@@ -369,7 +368,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
                 case METHOD_SUM_DOUBLE -> QubitBytecodeGenerator.FluentMethodConfig.forSumDouble(
                         entityType, entityInternalName);
                 default -> {
-                    log.warnf("Unknown fluent entry point method: %s", methodName);
+                    Log.warnf("Unknown fluent entry point method: %s", methodName);
                     yield null;
                 }
             };

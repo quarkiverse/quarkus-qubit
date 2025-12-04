@@ -2,7 +2,7 @@ package io.quarkiverse.qubit.deployment.analysis.branch;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.common.BytecodeValidator;
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
 
@@ -19,14 +19,12 @@ import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Oper
  */
 public abstract class AbstractZeroEqualityBranchHandler implements BranchHandler {
 
-    protected final Logger log;
-
-    protected AbstractZeroEqualityBranchHandler(Logger log) {
-        this.log = log;
-    }
-
     /**
      * Creates boolean evaluation expression based on instruction semantics.
+     *
+     * @param fieldAccess the field access expression from the stack
+     * @param jumpTarget the target value from label-to-value mapping (null if label not found)
+     * @return the boolean evaluation expression
      */
     protected abstract LambdaExpression createBooleanEvaluationExpression(
             LambdaExpression fieldAccess,
@@ -51,7 +49,7 @@ public abstract class AbstractZeroEqualityBranchHandler implements BranchHandler
 
         LambdaExpression boolExpr = createBooleanEvaluationExpression(fieldAccess, jumpTarget);
 
-        log.tracef("%s boolean field: jumpTarget=%s, boolExpr=%s", getInstructionName(), jumpTarget, boolExpr);
+        Log.tracef("%s boolean field: jumpTarget=%s, boolExpr=%s", getInstructionName(), jumpTarget, boolExpr);
 
         Optional<Boolean> previousJumpTarget = state.getLastJumpTarget();
 
@@ -65,10 +63,10 @@ public abstract class AbstractZeroEqualityBranchHandler implements BranchHandler
             LambdaExpression combined = combineAndRestructureIfNeeded(combineOp, previousCondition, boolExpr);
             stack.push(combined);
             newState = newState.afterCombination(TRUE.equals(jumpTarget), previousJumpTarget, combineOp);
-            log.debugf("%s: Combined with %s: %s", getInstructionName(), combineOp, combined);
+            Log.debugf("%s: Combined with %s: %s", getInstructionName(), combineOp, combined);
         } else {
             stack.push(boolExpr);
-            log.debugf("%s: Pushed without combining: %s", getInstructionName(), boolExpr);
+            Log.debugf("%s: Pushed without combining: %s", getInstructionName(), boolExpr);
         }
 
         return newState;

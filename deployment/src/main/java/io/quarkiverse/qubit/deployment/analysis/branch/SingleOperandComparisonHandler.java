@@ -5,7 +5,7 @@ import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
 import io.quarkiverse.qubit.deployment.common.BytecodeValidator;
 import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
 import io.quarkiverse.qubit.deployment.common.PatternDetector;
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
 
@@ -44,7 +44,6 @@ import static org.objectweb.asm.Opcodes.*;
  */
 public class SingleOperandComparisonHandler implements BranchHandler {
 
-    private static final Logger log = Logger.getLogger(SingleOperandComparisonHandler.class);
     private static final String INSTRUCTION_NAME = "IFLE/IFLT/IFGE/IFGT";
 
     @Override
@@ -62,7 +61,7 @@ public class SingleOperandComparisonHandler implements BranchHandler {
             BranchState state) {
 
         if (stack.isEmpty()) {
-            log.tracef(INSTRUCTION_NAME + ": Stack empty, skipping");
+            Log.tracef(INSTRUCTION_NAME + ": Stack empty, skipping");
             return state;
         }
 
@@ -98,7 +97,7 @@ public class SingleOperandComparisonHandler implements BranchHandler {
         Operator op = determineComparisonOperator(jumpLabelClass, jumpTarget, willCombine, state, jumpInsn.getOpcode());
         LambdaExpression comparison = new LambdaExpression.BinaryOp(left, op, right);
 
-        log.tracef(INSTRUCTION_NAME + ": opcode=%d, jumpTarget=%s, operator=%s, comparison=%s",
+        Log.tracef(INSTRUCTION_NAME + ": opcode=%d, jumpTarget=%s, operator=%s, comparison=%s",
                 jumpInsn.getOpcode(), jumpTarget, op, comparison);
 
         // Get previous jump target BEFORE processing current branch (needed for afterCombination)
@@ -117,11 +116,11 @@ public class SingleOperandComparisonHandler implements BranchHandler {
             stack.push(combined);
             // CRITICAL: Apply post-combination state transition (shouldEnterOrModeAfterAndGroup logic)
             newState = newState.afterCombination(TRUE.equals(jumpTarget), previousJumpTarget, combineOp);
-            log.debugf(INSTRUCTION_NAME + ": Combined with %s: %s", combineOp, combined);
+            Log.debugf(INSTRUCTION_NAME + ": Combined with %s: %s", combineOp, combined);
         } else {
             // Push standalone
             stack.push(comparison);
-            log.debugf(INSTRUCTION_NAME + ": Pushed without combining: %s", comparison);
+            Log.debugf(INSTRUCTION_NAME + ": Pushed without combining: %s", comparison);
         }
 
         // Return state after post-combination transition

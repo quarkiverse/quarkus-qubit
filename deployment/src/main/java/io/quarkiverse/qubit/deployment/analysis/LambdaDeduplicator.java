@@ -4,7 +4,7 @@ import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.QubitProcessor;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -27,8 +27,6 @@ public class LambdaDeduplicator {
     private static final String SELECT_PREFIX = "|SELECT=";
     private static final String SORT_PREFIX = "SORT=";
     private static final String SORT_SEPARATOR = "|SORT=";
-
-    private static final Logger log = Logger.getLogger(LambdaDeduplicator.class);
 
     private final Map<String, String> lambdaHashToExecutor = new HashMap<>();
 
@@ -301,7 +299,7 @@ public class LambdaDeduplicator {
 
         if (lambdaHashToExecutor.containsKey(lambdaHash)) {
             String existingExecutor = lambdaHashToExecutor.get(lambdaHash);
-            log.debugf("Deduplicated lambda at %s (reusing %s)", callSiteId, existingExecutor);
+            Log.debugf("Deduplicated lambda at %s (reusing %s)", callSiteId, existingExecutor);
             deduplicatedCount.incrementAndGet();
 
             queryTransformations.produce(

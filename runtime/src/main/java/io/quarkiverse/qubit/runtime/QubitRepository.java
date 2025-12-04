@@ -6,6 +6,8 @@ import io.quarkus.panache.common.impl.GenerateBridge;
 
 import static io.quarkus.hibernate.orm.panache.common.runtime.AbstractJpaOperations.implementationInjectionMissing;
 
+import java.util.Collection;
+
 /**
  * Repository interface with fluent API query methods extending PanacheRepositoryBase.
  * <p>
@@ -274,7 +276,7 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * @return a JoinStream for composing join predicates and projections
      */
     @GenerateBridge
-    default <R> JoinStream<E, R> join(QuerySpec<E, java.util.Collection<R>> relationship) {
+    default <R> JoinStream<E, R> join(QuerySpec<E, Collection<R>> relationship) {
         throw implementationInjectionMissing();
     }
 
@@ -306,7 +308,7 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * @return a JoinStream for composing join predicates and projections
      */
     @GenerateBridge
-    default <R> JoinStream<E, R> leftJoin(QuerySpec<E, java.util.Collection<R>> relationship) {
+    default <R> JoinStream<E, R> leftJoin(QuerySpec<E, Collection<R>> relationship) {
         throw implementationInjectionMissing();
     }
 }

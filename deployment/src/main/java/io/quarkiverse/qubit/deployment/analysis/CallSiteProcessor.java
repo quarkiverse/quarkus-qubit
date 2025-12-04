@@ -14,7 +14,7 @@ import io.quarkiverse.qubit.deployment.QubitProcessor;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkiverse.qubit.deployment.generation.QueryExecutorClassGenerator;
 import io.quarkiverse.qubit.deployment.util.BytecodeLoader;
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -28,8 +28,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * ARCH-001: Extracted captured variable utilities to CapturedVariableHelper.
  */
 public class CallSiteProcessor {
-
-    private static final Logger log = Logger.getLogger(CallSiteProcessor.class);
 
     private final LambdaBytecodeAnalyzer bytecodeAnalyzer;
     private final LambdaDeduplicator deduplicator;
@@ -63,7 +61,7 @@ public class CallSiteProcessor {
         try {
             byte[] classBytes = BytecodeLoader.loadClassBytecode(callSite.ownerClassName(), applicationArchives);
             if (classBytes == null) {
-                log.warnf("Could not load bytecode for class: %s", callSite.ownerClassName());
+                Log.warnf("Could not load bytecode for class: %s", callSite.ownerClassName());
                 return;
             }
 
@@ -74,7 +72,7 @@ public class CallSiteProcessor {
             }
 
             if (result.totalCapturedVarCount() > 0) {
-                log.debugf("Lambda(s) at %s contain %d captured variable(s)",
+                Log.debugf("Lambda(s) at %s contain %d captured variable(s)",
                           callSiteId, result.totalCapturedVarCount());
             }
 
@@ -148,11 +146,11 @@ public class CallSiteProcessor {
             deduplicator.registerExecutor(lambdaHash, executorClassName);
             generatedCount.incrementAndGet();
 
-            log.debugf("Generated executor: %s for call site %s (hash: %s)",
+            Log.debugf("Generated executor: %s for call site %s (hash: %s)",
                     executorClassName, callSiteId, lambdaHash.substring(0, 8));
 
         } catch (Exception e) {
-            log.errorf(e, "Failed to process call site: %s", callSite);
+            Log.errorf(e, "Failed to process call site: %s", callSite);
         }
     }
 
@@ -326,7 +324,7 @@ public class CallSiteProcessor {
         String queryTypeDesc = getQueryTypeDescription(predicateExpression, projectionExpression, sortExpressions,
                                                        aggregationExpression, aggregationType, isCountQuery, isAggregationQuery);
 
-        log.debugf("Generated query executor: %s (%s, %d captured vars)",
+        Log.debugf("Generated query executor: %s (%s, %d captured vars)",
                    className, queryTypeDesc, capturedVarCount);
 
         return className;
@@ -390,7 +388,7 @@ public class CallSiteProcessor {
         String queryTypeDesc = isCountQuery ? joinTypeDesc + " COUNT" :
                 (isJoinProjection ? joinTypeDesc + " PROJECTION" :
                 (isSelectJoined ? joinTypeDesc + " SELECT JOINED" : joinTypeDesc));
-        log.debugf("Generated join query executor: %s (%s, %d captured vars)",
+        Log.debugf("Generated join query executor: %s (%s, %d captured vars)",
                    className, queryTypeDesc, capturedVarCount);
 
         return className;
@@ -451,7 +449,7 @@ public class CallSiteProcessor {
         if (groupSelectExpression != null) {
             queryTypeDesc += "+SELECT";
         }
-        log.debugf("Generated group query executor: %s (%s, %d captured vars)",
+        Log.debugf("Generated group query executor: %s (%s, %d captured vars)",
                    className, queryTypeDesc, capturedVarCount);
 
         return className;
@@ -542,7 +540,7 @@ public class CallSiteProcessor {
                     lambdaPair.descriptor());
 
             if (expr == null) {
-                log.warnf("Could not analyze predicate lambda %s at: %s", lambdaPair.methodName(), callSiteId);
+                Log.warnf("Could not analyze predicate lambda %s at: %s", lambdaPair.methodName(), callSiteId);
                 return null;
             }
 
@@ -558,7 +556,7 @@ public class CallSiteProcessor {
         int totalCapturedVarCount = indexOffset; // Total from all predicates
         LambdaExpression combinedExpression = combinePredicatesWithAnd(predicateExpressions);
 
-        log.debugf("Combined %d predicates with AND at %s (total %d captured variables)",
+        Log.debugf("Combined %d predicates with AND at %s (total %d captured variables)",
                 Integer.valueOf(predicateExpressions.size()), callSiteId, Integer.valueOf(totalCapturedVarCount));
 
         return new PredicateAnalysisResult(combinedExpression, totalCapturedVarCount);
@@ -597,7 +595,7 @@ public class CallSiteProcessor {
                     callSite.projectionLambdaMethodDescriptor());
 
             if (projectionExpression == null) {
-                log.warnf("Could not analyze projection lambda at: %s", callSiteId);
+                Log.warnf("Could not analyze projection lambda at: %s", callSiteId);
                 return null;
             }
             totalCapturedVarCount += countCapturedVariables(projectionExpression);
@@ -625,7 +623,7 @@ public class CallSiteProcessor {
         // For combined queries, use the first predicate (or combine if multiple)
         var predicateLambdas = callSite.predicateLambdas();
         if (predicateLambdas == null || predicateLambdas.isEmpty()) {
-            log.warnf("Combined query without predicates at: %s", callSiteId);
+            Log.warnf("Combined query without predicates at: %s", callSiteId);
             return null;
         }
 
@@ -644,11 +642,11 @@ public class CallSiteProcessor {
                 callSite.projectionLambdaMethodDescriptor());
 
         if (projectionExpression == null) {
-            log.warnf("Could not analyze projection lambda at: %s", callSiteId);
+            Log.warnf("Could not analyze projection lambda at: %s", callSiteId);
             return null;
         }
 
-        log.debugf("Analyzed combined query at %s: WHERE=%s, SELECT=%s",
+        Log.debugf("Analyzed combined query at %s: WHERE=%s, SELECT=%s",
                 callSiteId, predicateExpression, projectionExpression);
 
         totalCapturedVarCount += countCapturedVariables(projectionExpression);
@@ -684,7 +682,7 @@ public class CallSiteProcessor {
         if (hasSortLambdas && !hasPredicates && !hasProjection) {
             // Sorting-only query - no WHERE or SELECT clauses
             int totalCapturedVarCount = countCapturedVariablesInSortExpressions(sortExpressions);
-            log.debugf("Analyzed sorting-only query at %s: %d sort expression(s)", callSiteId, sortExpressions.size());
+            Log.debugf("Analyzed sorting-only query at %s: %d sort expression(s)", callSiteId, sortExpressions.size());
             return new LambdaAnalysisResult.SimpleQueryResult(
                     null, null, sortExpressions, totalCapturedVarCount);
         }
@@ -696,11 +694,11 @@ public class CallSiteProcessor {
                 callSite.lambdaMethodDescriptor());
 
         if (lambdaExpression == null) {
-            log.warnf("Could not analyze lambda expression at: %s", callSiteId);
+            Log.warnf("Could not analyze lambda expression at: %s", callSiteId);
             return null;
         }
 
-        log.debugf("Analyzed lambda at %s: %s", callSiteId, lambdaExpression);
+        Log.debugf("Analyzed lambda at %s: %s", callSiteId, lambdaExpression);
 
         // Assign to appropriate expression based on query type
         LambdaExpression predicateExpression = isProjectionQuery ? null : lambdaExpression;
@@ -730,7 +728,7 @@ public class CallSiteProcessor {
 
         // Analyze aggregation mapper lambda (e.g., p -> p.salary)
         if (callSite.aggregationLambdaMethodName() == null) {
-            log.warnf("Aggregation query missing mapper lambda at: %s", callSiteId);
+            Log.warnf("Aggregation query missing mapper lambda at: %s", callSiteId);
             return null;
         }
 
@@ -740,7 +738,7 @@ public class CallSiteProcessor {
                 callSite.aggregationLambdaMethodDescriptor());
 
         if (aggregationExpression == null) {
-            log.warnf("Could not analyze aggregation mapper lambda at: %s", callSiteId);
+            Log.warnf("Could not analyze aggregation mapper lambda at: %s", callSiteId);
             return null;
         }
 
@@ -772,7 +770,7 @@ public class CallSiteProcessor {
             default -> methodName.toUpperCase(); // Fallback
         };
 
-        log.debugf("Analyzed aggregation query at %s: type=%s, mapper=%s, predicate=%s",
+        Log.debugf("Analyzed aggregation query at %s: type=%s, mapper=%s, predicate=%s",
                 callSiteId, aggregationType, aggregationExpression, predicateExpression);
 
         return new LambdaAnalysisResult.AggregationQueryResult(
@@ -804,7 +802,7 @@ public class CallSiteProcessor {
                     callSite.joinRelationshipLambdaDescriptor());
 
             if (joinRelationshipExpression == null) {
-                log.warnf("Could not analyze join relationship lambda at: %s", callSiteId);
+                Log.warnf("Could not analyze join relationship lambda at: %s", callSiteId);
                 return null;
             }
             totalCapturedVarCount += countCapturedVariables(joinRelationshipExpression);
@@ -815,7 +813,7 @@ public class CallSiteProcessor {
         var biEntityPredicateLambdas = callSite.biEntityPredicateLambdas();
         if (biEntityPredicateLambdas != null && !biEntityPredicateLambdas.isEmpty()) {
             // Analyze each bi-entity predicate and combine with AND
-            List<LambdaExpression> biPredicates = new java.util.ArrayList<>();
+            List<LambdaExpression> biPredicates = new ArrayList<>();
             for (var lambdaPair : biEntityPredicateLambdas) {
                 LambdaExpression expr = bytecodeAnalyzer.analyzeBiEntity(
                         classBytes,
@@ -823,7 +821,7 @@ public class CallSiteProcessor {
                         lambdaPair.descriptor());
 
                 if (expr == null) {
-                    log.warnf("Could not analyze bi-entity predicate lambda %s at: %s",
+                    Log.warnf("Could not analyze bi-entity predicate lambda %s at: %s",
                             lambdaPair.methodName(), callSiteId);
                     return null;
                 }
@@ -848,13 +846,13 @@ public class CallSiteProcessor {
                     callSite.biEntityProjectionLambdaDescriptor());
 
             if (biEntityProjectionExpression == null) {
-                log.warnf("Could not analyze bi-entity projection lambda at: %s", callSiteId);
+                Log.warnf("Could not analyze bi-entity projection lambda at: %s", callSiteId);
                 return null;
             }
             totalCapturedVarCount += countCapturedVariables(biEntityProjectionExpression);
         }
 
-        log.debugf("Analyzed join query at %s: type=%s, relationship=%s, biPredicate=%s, biProjection=%s, sortExpressions=%d",
+        Log.debugf("Analyzed join query at %s: type=%s, relationship=%s, biPredicate=%s, biProjection=%s, sortExpressions=%d",
                 callSiteId, callSite.joinType(), joinRelationshipExpression, biEntityPredicateExpression,
                 biEntityProjectionExpression, sortExpressions.size());
 
@@ -891,7 +889,7 @@ public class CallSiteProcessor {
                     callSite.groupByLambdaDescriptor());
 
             if (groupByKeyExpression == null) {
-                log.warnf("Could not analyze groupBy key lambda at: %s", callSiteId);
+                Log.warnf("Could not analyze groupBy key lambda at: %s", callSiteId);
                 return null;
             }
             totalCapturedVarCount += countCapturedVariables(groupByKeyExpression);
@@ -901,7 +899,7 @@ public class CallSiteProcessor {
         LambdaExpression havingExpression = null;
         var havingLambdas = callSite.havingLambdas();
         if (havingLambdas != null && !havingLambdas.isEmpty()) {
-            List<LambdaExpression> havingPredicates = new java.util.ArrayList<>();
+            List<LambdaExpression> havingPredicates = new ArrayList<>();
             for (var lambdaPair : havingLambdas) {
                 LambdaExpression expr = bytecodeAnalyzer.analyzeGroupQuerySpec(
                         classBytes,
@@ -909,7 +907,7 @@ public class CallSiteProcessor {
                         lambdaPair.descriptor());
 
                 if (expr == null) {
-                    log.warnf("Could not analyze having lambda %s at: %s",
+                    Log.warnf("Could not analyze having lambda %s at: %s",
                             lambdaPair.methodName(), callSiteId);
                     return null;
                 }
@@ -931,7 +929,7 @@ public class CallSiteProcessor {
                     firstSelect.descriptor());
 
             if (groupSelectExpression == null) {
-                log.warnf("Could not analyze group select lambda at: %s", callSiteId);
+                Log.warnf("Could not analyze group select lambda at: %s", callSiteId);
                 return null;
             }
             totalCapturedVarCount += countCapturedVariables(groupSelectExpression);
@@ -953,7 +951,7 @@ public class CallSiteProcessor {
             }
         }
 
-        log.debugf("Analyzed group query at %s: key=%s, having=%s, select=%s, sortCount=%d",
+        Log.debugf("Analyzed group query at %s: key=%s, having=%s, select=%s, sortCount=%d",
                 callSiteId, groupByKeyExpression, havingExpression, groupSelectExpression,
                 groupSortExpressions.size());
 
@@ -994,12 +992,12 @@ public class CallSiteProcessor {
                     sortLambda.descriptor());
 
             if (keyExtractor == null) {
-                log.warnf("Could not analyze group sort lambda %s at: %s", sortLambda.methodName(), callSiteId);
+                Log.warnf("Could not analyze group sort lambda %s at: %s", sortLambda.methodName(), callSiteId);
                 return Collections.emptyList();
             }
 
             sortExpressions.add(new SortExpression(keyExtractor, sortLambda.direction()));
-            log.debugf("Analyzed group sort lambda at %s: %s (direction=%s)",
+            Log.debugf("Analyzed group sort lambda at %s: %s (direction=%s)",
                     callSiteId, keyExtractor, sortLambda.direction());
         }
 
@@ -1032,12 +1030,12 @@ public class CallSiteProcessor {
                     sortLambda.descriptor());
 
             if (keyExtractor == null) {
-                log.warnf("Could not analyze sort lambda %s at: %s", sortLambda.methodName(), callSiteId);
+                Log.warnf("Could not analyze sort lambda %s at: %s", sortLambda.methodName(), callSiteId);
                 return Collections.emptyList();
             }
 
             sortExpressions.add(new SortExpression(keyExtractor, sortLambda.direction()));
-            log.debugf("Analyzed sort lambda at %s: %s (direction=%s)",
+            Log.debugf("Analyzed sort lambda at %s: %s (direction=%s)",
                     callSiteId, keyExtractor, sortLambda.direction());
         }
 
@@ -1072,12 +1070,12 @@ public class CallSiteProcessor {
                     sortLambda.descriptor());
 
             if (keyExtractor == null) {
-                log.warnf("Could not analyze bi-entity sort lambda %s at: %s", sortLambda.methodName(), callSiteId);
+                Log.warnf("Could not analyze bi-entity sort lambda %s at: %s", sortLambda.methodName(), callSiteId);
                 return Collections.emptyList();
             }
 
             sortExpressions.add(new SortExpression(keyExtractor, sortLambda.direction()));
-            log.debugf("Analyzed bi-entity sort lambda at %s: %s (direction=%s)",
+            Log.debugf("Analyzed bi-entity sort lambda at %s: %s (direction=%s)",
                     callSiteId, keyExtractor, sortLambda.direction());
         }
 

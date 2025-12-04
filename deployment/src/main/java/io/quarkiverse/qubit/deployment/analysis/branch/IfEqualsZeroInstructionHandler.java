@@ -4,7 +4,7 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.common.BytecodeValidator;
 import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
 import io.quarkiverse.qubit.deployment.common.PatternDetector;
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
 
@@ -35,12 +35,6 @@ import static org.objectweb.asm.Opcodes.IFEQ;
  */
 public class IfEqualsZeroInstructionHandler extends AbstractZeroEqualityBranchHandler {
 
-    private static final Logger log = Logger.getLogger(IfEqualsZeroInstructionHandler.class);
-
-    public IfEqualsZeroInstructionHandler() {
-        super(log);
-    }
-
     @Override
     public boolean canHandle(JumpInsnNode jumpInsn) {
         return jumpInsn.getOpcode() == IFEQ;
@@ -55,7 +49,7 @@ public class IfEqualsZeroInstructionHandler extends AbstractZeroEqualityBranchHa
             BranchState state) {
 
         if (stack.isEmpty()) {
-            log.tracef("IFEQ: Stack empty, skipping");
+            Log.tracef("IFEQ: Stack empty, skipping");
             return state;
         }
 
@@ -68,7 +62,7 @@ public class IfEqualsZeroInstructionHandler extends AbstractZeroEqualityBranchHa
                 LambdaExpression right = BytecodeValidator.popSafe(stack, "IFEQ-NumericComp");
                 LambdaExpression left = BytecodeValidator.popSafe(stack, "IFEQ-NumericComp");
                 stack.push(ne(left, right));
-                log.tracef("IFEQ: Numeric comparison pattern - created NE comparison");
+                Log.tracef("IFEQ: Numeric comparison pattern - created NE comparison");
                 yield state;
             }
             case COMPARE_TO -> {
@@ -76,7 +70,7 @@ public class IfEqualsZeroInstructionHandler extends AbstractZeroEqualityBranchHa
                 // Transforms compareTo(a, b) == 0 to equals check
                 LambdaExpression expr = BytecodeValidator.popSafe(stack, "IFEQ-CompareTo");
                 stack.push(eq(expr, LambdaExpression.Constant.TRUE));
-                log.tracef("IFEQ: CompareTo pattern - created EQ true comparison");
+                Log.tracef("IFEQ: CompareTo pattern - created EQ true comparison");
                 yield state;
             }
             case ARITHMETIC -> {
@@ -84,7 +78,7 @@ public class IfEqualsZeroInstructionHandler extends AbstractZeroEqualityBranchHa
                 // Transforms expr == 0
                 LambdaExpression expr = BytecodeValidator.popSafe(stack, "IFEQ-Arithmetic");
                 stack.push(eq(expr, ZERO_INT));
-                log.tracef("IFEQ: Arithmetic pattern - created EQ 0 comparison");
+                Log.tracef("IFEQ: Arithmetic pattern - created EQ 0 comparison");
                 yield state;
             }
             case OTHER -> {

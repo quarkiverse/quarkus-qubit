@@ -1,7 +1,7 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.IntInsnNode;
 import org.objectweb.asm.tree.LdcInsnNode;
@@ -13,8 +13,6 @@ import static org.objectweb.asm.Opcodes.*;
  * Handles constant load instructions with special ICONST_0/1 post-branch handling.
  */
 public class ConstantInstructionHandler implements InstructionHandler {
-
-    private static final Logger log = Logger.getLogger(ConstantInstructionHandler.class);
 
     @Override
     public boolean canHandle(AbstractInsnNode insn) {
@@ -92,11 +90,11 @@ public class ConstantInstructionHandler implements InstructionHandler {
 
             if (!isUsedInExpression) {
                 if (ctx.getStackSize() >= 1 && isFinalResult(ctx)) {
-                    log.tracef("ICONST_%d: Final boolean result marker, terminating analysis", constValue);
+                    Log.tracef("ICONST_%d: Final boolean result marker, terminating analysis", constValue);
                     return true;
                 }
 
-                log.debugf("Skipping intermediate boolean marker ICONST_%d", constValue);
+                Log.debugf("Skipping intermediate boolean marker ICONST_%d", constValue);
                 return false;
             }
         }

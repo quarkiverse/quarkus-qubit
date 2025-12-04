@@ -53,7 +53,7 @@ public class TemporalExpressionBuilder implements ExpressionBuilder {
      * Maps temporal accessor method names to SQL function names.
      *
      * @param methodName the Java method name (e.g., "getYear")
-     * @return the SQL function name (e.g., "YEAR"), or null
+     * @return the SQL function name (e.g., "YEAR"), or null if not a temporal accessor
      */
     public static String mapTemporalAccessorToSqlFunction(String methodName) {
         return switch (methodName) {
@@ -106,7 +106,7 @@ public class TemporalExpressionBuilder implements ExpressionBuilder {
      * @param methodCall the method call expression
      * @param cb the CriteriaBuilder handle
      * @param fieldExpression the target field expression
-     * @return the SQL function Expression
+     * @return the SQL function Expression, or null if target is not a supported temporal type
      */
     public ResultHandle buildTemporalAccessorFunction(
             MethodCreator method,
@@ -147,7 +147,7 @@ public class TemporalExpressionBuilder implements ExpressionBuilder {
      * @param cb the CriteriaBuilder handle
      * @param fieldExpression the target field expression
      * @param argument the comparison argument
-     * @return the comparison Predicate
+     * @return the comparison Predicate, or null if not a temporal comparison
      */
     public ResultHandle buildTemporalComparison(
             MethodCreator method,

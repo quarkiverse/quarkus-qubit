@@ -1,7 +1,7 @@
 package io.quarkiverse.qubit.deployment.common;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 import org.objectweb.asm.Type;
 
 /**
@@ -17,8 +17,6 @@ import org.objectweb.asm.Type;
  * @see EntityClassInfo
  */
 public final class ClassLoaderHelper {
-
-    private static final Logger log = Logger.getLogger(ClassLoaderHelper.class);
 
     private ClassLoaderHelper() {
         // Utility class
@@ -65,7 +63,7 @@ public final class ClassLoaderHelper {
             }
         }
 
-        log.debugf("Class not loadable at build-time: %s", className);
+        Log.debugf("Class not loadable at build-time: %s", className);
         return null;
     }
 
@@ -93,14 +91,14 @@ public final class ClassLoaderHelper {
                     return new EntityClassInfo(loadedClass, null);
                 } else {
                     // Failed to load - preserve className for code generation
-                    log.debugf("Entity class not loadable at analysis time: %s (will resolve at code generation)", className);
+                    Log.debugf("Entity class not loadable at analysis time: %s (will resolve at code generation)", className);
                     return new EntityClassInfo(Object.class, className);
                 }
             } else if (value instanceof Class<?> clazz) {
                 return new EntityClassInfo(clazz, null);
             }
         }
-        log.warnf("Expected Class constant for entity class, got: %s", expr);
+        Log.warnf("Expected Class constant for entity class, got: %s", expr);
         return new EntityClassInfo(Object.class, null);
     }
 

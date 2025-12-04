@@ -7,7 +7,7 @@ import org.jboss.jandex.DotName;
 import org.jboss.jandex.FieldInfo;
 import org.jboss.jandex.IndexView;
 import org.jboss.jandex.Type;
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -23,8 +23,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * Thread-safe and supports caching to avoid repeated Jandex lookups.
  */
 public class RelationshipMetadataExtractor {
-
-    private static final Logger log = Logger.getLogger(RelationshipMetadataExtractor.class);
 
     // JPA relationship annotation names
     private static final DotName MANY_TO_ONE = DotName.createSimple("jakarta.persistence.ManyToOne");
@@ -139,7 +137,7 @@ public class RelationshipMetadataExtractor {
         Map<String, FieldRelationship> relationships = new HashMap<>();
 
         if (classInfo == null) {
-            log.tracef("Entity class not found in Jandex index: %s", entityClassName);
+            Log.tracef("Entity class not found in Jandex index: %s", entityClassName);
             return new EntityRelationshipInfo(entityClassName, relationships);
         }
 
@@ -148,7 +146,7 @@ public class RelationshipMetadataExtractor {
             FieldRelationship relationship = extractFieldRelationship(field);
             if (relationship != null) {
                 relationships.put(field.name(), relationship);
-                log.tracef("Found %s relationship: %s.%s -> %s",
+                Log.tracef("Found %s relationship: %s.%s -> %s",
                         relationship.relationType(), entityClassName, field.name(), relationship.targetEntity());
             }
         }
@@ -166,7 +164,7 @@ public class RelationshipMetadataExtractor {
                     FieldRelationship relationship = extractFieldRelationship(field);
                     if (relationship != null) {
                         relationships.put(field.name(), relationship);
-                        log.tracef("Found inherited %s relationship: %s.%s -> %s",
+                        Log.tracef("Found inherited %s relationship: %s.%s -> %s",
                                 relationship.relationType(), entityClassName, field.name(), relationship.targetEntity());
                     }
                 }
@@ -175,12 +173,15 @@ public class RelationshipMetadataExtractor {
             superName = superClass.superName();
         }
 
-        log.debugf("Extracted %d relationships from entity %s", relationships.size(), entityClassName);
+        Log.debugf("Extracted %d relationships from entity %s", relationships.size(), entityClassName);
         return new EntityRelationshipInfo(entityClassName, relationships);
     }
 
     /**
      * Extracts relationship info from a single field.
+     *
+     * @param field the field to examine
+     * @return relationship info, or null if field is not a relationship
      */
     private FieldRelationship extractFieldRelationship(FieldInfo field) {
         // Check for @ManyToOne
@@ -261,6 +262,9 @@ public class RelationshipMetadataExtractor {
 
     /**
      * Extracts the mappedBy attribute from a relationship annotation.
+     *
+     * @param annotation the relationship annotation
+     * @return the mappedBy attribute value, or null if not specified or empty
      */
     private String extractMappedBy(AnnotationInstance annotation) {
         var mappedByValue = annotation.value("mappedBy");

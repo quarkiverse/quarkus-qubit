@@ -11,7 +11,7 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Handle;
 import org.objectweb.asm.tree.ClassNode;
@@ -53,8 +53,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * </pre>
  */
 public abstract class CriteriaQueryTestBase {
-
-    private static final Logger log = Logger.getLogger(CriteriaQueryTestBase.class);
 
     private static final String SOURCES_CLASS_NAME = "io.quarkiverse.qubit.deployment.testutil.LambdaTestSources";
     private static ClassNode sourcesClassNode;
@@ -153,7 +151,7 @@ public abstract class CriteriaQueryTestBase {
             }
 
         } catch (Exception e) {
-            log.errorf(e, "Failed to generate Criteria query for expression: %s", expression);
+            Log.errorf(e, "Failed to generate Criteria query for expression: %s", expression);
             structure.setGenerationSuccessful(false);
             structure.setErrorMessage(e.getMessage());
         }

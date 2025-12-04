@@ -7,6 +7,7 @@ import jakarta.persistence.NonUniqueResultException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -502,7 +503,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <R> JoinStream<T, R> join(QuerySpec<T, java.util.Collection<R>> relationship) {
+    public <R> JoinStream<T, R> join(QuerySpec<T, Collection<R>> relationship) {
         // Infer joined entity class from the relationship
         // For now, use Object.class as placeholder - actual type is resolved at build time
         Class<R> joinedClass = (Class<R>) Object.class;
@@ -511,7 +512,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <R> JoinStream<T, R> leftJoin(QuerySpec<T, java.util.Collection<R>> relationship) {
+    public <R> JoinStream<T, R> leftJoin(QuerySpec<T, Collection<R>> relationship) {
         // Infer joined entity class from the relationship
         // For now, use Object.class as placeholder - actual type is resolved at build time
         Class<R> joinedClass = (Class<R>) Object.class;

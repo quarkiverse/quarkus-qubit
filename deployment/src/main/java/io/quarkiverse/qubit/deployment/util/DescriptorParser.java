@@ -1,13 +1,11 @@
 package io.quarkiverse.qubit.deployment.util;
 
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 
 /**
  * Parses JVM method descriptors accounting for wide types (long/double take 2 slots).
  */
 public final class DescriptorParser {
-
-    private static final Logger log = Logger.getLogger(DescriptorParser.class);
 
     private DescriptorParser() {
     }
@@ -51,7 +49,7 @@ public final class DescriptorParser {
      * @param descriptor the method descriptor (e.g., "(LPerson;LPhone;)Z")
      * @return array of [firstEntitySlot, secondEntitySlot], or null if less than 2 params
      */
-    public static int[] calculateBiEntityParameterSlotIndices(String descriptor) {
+    public static int [] calculateBiEntityParameterSlotIndices(String descriptor) {
         int paramCount = countMethodArguments(descriptor);
         if (paramCount < 2) {
             return null;
@@ -136,7 +134,7 @@ public final class DescriptorParser {
                     try {
                         return Class.forName(className);
                     } catch (ClassNotFoundException e) {
-                        log.debugf("Could not load class %s, using Object.class", className);
+                        Log.debugf("Could not load class %s, using Object.class", className);
                         return Object.class;
                     }
                 } else if (c == '[') {

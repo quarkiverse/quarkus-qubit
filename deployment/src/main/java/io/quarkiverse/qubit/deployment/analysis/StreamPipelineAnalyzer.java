@@ -1,6 +1,6 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 import org.objectweb.asm.Handle;
 import org.objectweb.asm.tree.*;
 
@@ -17,8 +17,6 @@ import static io.quarkiverse.qubit.runtime.QubitConstants.*;
  * and their lambda expressions.
  */
 public class StreamPipelineAnalyzer {
-
-    private static final Logger log = Logger.getLogger(StreamPipelineAnalyzer.class);
 
     /**
      * Represents a single operation in a fluent API pipeline.
@@ -72,7 +70,7 @@ public class StreamPipelineAnalyzer {
      * @param terminalInsnIndex instruction index of the terminal operation
      * @param terminalOperation name of terminal operation (e.g., "toList")
      * @param lineNumber source line number
-     * @return the complete pipeline, or null if analysis fails
+     * @return the complete pipeline, or null if analysis fails or no operations found
      */
     public StreamPipeline analyzePipeline(
             ClassNode classNode,
@@ -99,7 +97,7 @@ public class StreamPipelineAnalyzer {
                     if (lambdaHandle != null) {
                         pendingLambdaMethod = lambdaHandle.getName();
                         pendingLambdaDescriptor = lambdaHandle.getDesc();
-                        log.tracef("Found lambda at index %d: %s", currentIndex, pendingLambdaMethod);
+                        Log.tracef("Found lambda at index %d: %s", currentIndex, pendingLambdaMethod);
                     }
                 }
             }
@@ -117,14 +115,14 @@ public class StreamPipelineAnalyzer {
                             currentIndex
                     );
                     operations.add(op);
-                    log.tracef("Found operation at index %d: %s", currentIndex, op);
+                    Log.tracef("Found operation at index %d: %s", currentIndex, op);
 
                     pendingLambdaMethod = null;
                     pendingLambdaDescriptor = null;
                 }
                 // Check if this is an entry point - we've reached the start of the pipeline
                 else if (FLUENT_ENTRY_POINT_METHODS.contains(methodName)) {
-                    log.tracef("Reached entry point at index %d: %s", currentIndex, methodName);
+                    Log.tracef("Reached entry point at index %d: %s", currentIndex, methodName);
                     break;
                 }
             }
@@ -133,7 +131,7 @@ public class StreamPipelineAnalyzer {
         }
 
         if (operations.isEmpty()) {
-            log.warnf("No operations found in pipeline for %s.%s line %d",
+            Log.warnf("No operations found in pipeline for %s.%s line %d",
                     classNode.name, method.name, lineNumber);
             return null;
         }
@@ -150,7 +148,7 @@ public class StreamPipelineAnalyzer {
                 lineNumber
         );
 
-        log.debugf("Analyzed pipeline: %s", pipeline);
+        Log.debugf("Analyzed pipeline: %s", pipeline);
         return pipeline;
     }
 
@@ -159,6 +157,12 @@ public class StreamPipelineAnalyzer {
         return desc.contains(QUERY_SPEC_DESCRIPTOR);
     }
 
+    /**
+     * Extracts the lambda method handle from an invokedynamic instruction.
+     *
+     * @param invokeDynamic the invokedynamic instruction
+     * @return the lambda method handle, or null if not found
+     */
     private Handle extractLambdaHandle(InvokeDynamicInsnNode invokeDynamic) {
         Object[] bsmArgs = invokeDynamic.bsmArgs;
         if (bsmArgs != null && bsmArgs.length >= 2 && bsmArgs[1] instanceof Handle handle) {

@@ -1,5 +1,6 @@
 package io.quarkiverse.qubit.runtime;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -449,7 +450,7 @@ public interface QubitStream<T> {
      * @param relationship lambda expression accessing the collection relationship
      * @return a JoinStream for composing join operations
      */
-    <R> JoinStream<T, R> join(QuerySpec<T, java.util.Collection<R>> relationship);
+    <R> JoinStream<T, R> join(QuerySpec<T, Collection<R>> relationship);
 
     /**
      * Creates a left outer join with a related collection.
@@ -475,7 +476,7 @@ public interface QubitStream<T> {
      * @param relationship lambda expression accessing the collection relationship
      * @return a JoinStream for composing join operations
      */
-    <R> JoinStream<T, R> leftJoin(QuerySpec<T, java.util.Collection<R>> relationship);
+    <R> JoinStream<T, R> leftJoin(QuerySpec<T, Collection<R>> relationship);
 
     // =============================================================================================
     // GROUPING OPERATIONS

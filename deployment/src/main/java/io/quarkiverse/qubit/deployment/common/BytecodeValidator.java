@@ -2,6 +2,8 @@ package io.quarkiverse.qubit.deployment.common;
 
 import java.util.Deque;
 
+import org.jspecify.annotations.NonNull;
+
 /**
  * Defensive validation utilities for bytecode analysis.
  * Provides clear error messages for common analysis failures.
@@ -70,25 +72,8 @@ public class BytecodeValidator {
      * @return the popped element
      * @throws BytecodeAnalysisException if stack is empty
      */
-    public static <T> T popSafe(Deque<T> stack, String instruction) {
+    public static @NonNull <T> T popSafe(Deque<T> stack, String instruction) {
         requireStackSize(stack, 1, instruction);
         return stack.pop();
-    }
-
-    /**
-     * Safely pops two elements from the stack with validation.
-     *
-     * @param stack the evaluation stack
-     * @param instruction the name of the instruction (for error messages)
-     * @param <T> the type of elements in the stack
-     * @return array containing [left, right] operands
-     * @throws BytecodeAnalysisException if stack has fewer than 2 elements
-     */
-    @SuppressWarnings("unchecked")
-    public static <T> T[] popTwoSafe(Deque<T> stack, String instruction) {
-        requireStackSize(stack, 2, instruction);
-        T right = stack.pop();
-        T left = stack.pop();
-        return (T[]) new Object[]{left, right};
     }
 }

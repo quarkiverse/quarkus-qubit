@@ -5,7 +5,7 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupAggregation;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupKeyReference;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupParameter;
 import io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer;
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 import org.objectweb.asm.tree.MethodInsnNode;
 
 import java.util.function.Function;
@@ -36,8 +36,6 @@ import static io.quarkiverse.qubit.runtime.QubitConstants.*;
  */
 public class GroupMethodAnalyzer {
 
-    private static final Logger log = Logger.getLogger(GroupMethodAnalyzer.class);
-
     /**
      * Checks if the instruction is a Group interface method call.
      *
@@ -67,7 +65,7 @@ public class GroupMethodAnalyzer {
             case METHOD_SUM_INTEGER -> handleGroupAggregationWithField(ctx, GroupAggregation::sumInteger);
             case METHOD_SUM_LONG -> handleGroupAggregationWithField(ctx, GroupAggregation::sumLong);
             case METHOD_SUM_DOUBLE -> handleGroupAggregationWithField(ctx, GroupAggregation::sumDouble);
-            default -> log.debugf("Unhandled Group method: %s", methodName);
+            default -> Log.debugf("Unhandled Group method: %s", methodName);
         }
     }
 
@@ -85,7 +83,7 @@ public class GroupMethodAnalyzer {
             // The actual key expression will be resolved at code generation time
             ctx.push(new GroupKeyReference(null, Object.class));
         } else {
-            log.warnf("Unexpected target for g.key(): %s", target);
+            Log.warnf("Unexpected target for g.key(): %s", target);
         }
     }
 
@@ -101,7 +99,7 @@ public class GroupMethodAnalyzer {
         if (target instanceof GroupParameter) {
             ctx.push(GroupAggregation.count());
         } else {
-            log.warnf("Unexpected target for g.count(): %s", target);
+            Log.warnf("Unexpected target for g.count(): %s", target);
         }
     }
 
@@ -119,7 +117,7 @@ public class GroupMethodAnalyzer {
         if (target instanceof GroupParameter) {
             ctx.push(GroupAggregation.countDistinct(fieldArg));
         } else {
-            log.warnf("Unexpected target for g.countDistinct(): %s", target);
+            Log.warnf("Unexpected target for g.countDistinct(): %s", target);
         }
     }
 
@@ -139,7 +137,7 @@ public class GroupMethodAnalyzer {
         if (target instanceof GroupParameter) {
             ctx.push(aggregationFactory.apply(fieldArg));
         } else {
-            log.warnf("Unexpected target for group aggregation: %s", target);
+            Log.warnf("Unexpected target for group aggregation: %s", target);
         }
     }
 
@@ -163,7 +161,7 @@ public class GroupMethodAnalyzer {
                 ctx.push(GroupAggregation.max(fieldArg, resultType));
             }
         } else {
-            log.warnf("Unexpected target for g.%s(): %s", isMin ? "min" : "max", target);
+            Log.warnf("Unexpected target for g.%s(): %s", isMin ? "min" : "max", target);
         }
     }
 }

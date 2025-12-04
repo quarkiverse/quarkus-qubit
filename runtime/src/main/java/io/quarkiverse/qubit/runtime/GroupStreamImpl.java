@@ -1,12 +1,16 @@
 package io.quarkiverse.qubit.runtime;
 
 import io.quarkus.arc.Arc;
+import jakarta.persistence.NoResultException;
+import jakarta.persistence.NonUniqueResultException;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Default implementation of {@link GroupStream} using JPA Criteria Queries.
@@ -419,17 +423,17 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
         @Override
         public T getSingleResult() {
             if (results.isEmpty()) {
-                throw new jakarta.persistence.NoResultException("getSingleResult() expected exactly one result but found none");
+                throw new NoResultException("getSingleResult() expected exactly one result but found none");
             }
             if (results.size() > 1) {
-                throw new jakarta.persistence.NonUniqueResultException("getSingleResult() expected exactly one result but found " + results.size());
+                throw new NonUniqueResultException("getSingleResult() expected exactly one result but found " + results.size());
             }
             return results.get(0);
         }
 
         @Override
-        public java.util.Optional<T> findFirst() {
-            return results.isEmpty() ? java.util.Optional.empty() : java.util.Optional.of(results.get(0));
+        public Optional<T> findFirst() {
+            return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
         }
 
         @Override
@@ -438,12 +442,12 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
         }
 
         @Override
-        public <R> JoinStream<T, R> join(QuerySpec<T, java.util.Collection<R>> relationship) {
+        public <R> JoinStream<T, R> join(QuerySpec<T, Collection<R>> relationship) {
             throw new UnsupportedOperationException("Cannot join after group projection");
         }
 
         @Override
-        public <R> JoinStream<T, R> leftJoin(QuerySpec<T, java.util.Collection<R>> relationship) {
+        public <R> JoinStream<T, R> leftJoin(QuerySpec<T, Collection<R>> relationship) {
             throw new UnsupportedOperationException("Cannot join after group projection");
         }
 

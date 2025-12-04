@@ -122,7 +122,7 @@ public interface ExpressionGeneratorHelper {
      * @param cb the CriteriaBuilder handle
      * @param root the root entity handle
      * @param capturedValues the captured variables array handle
-     * @return the JPA Expression handle
+     * @return the JPA Expression handle, or null if the expression type is not supported
      */
     ResultHandle generateExpressionAsJpaExpression(MethodCreator method, LambdaExpression expression,
             ResultHandle cb, ResultHandle root, ResultHandle capturedValues);

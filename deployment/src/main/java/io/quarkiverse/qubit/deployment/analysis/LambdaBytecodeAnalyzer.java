@@ -3,7 +3,7 @@ package io.quarkiverse.qubit.deployment.analysis;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.analysis.instruction.*;
 import io.quarkiverse.qubit.deployment.util.DescriptorParser;
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
@@ -38,8 +38,6 @@ import static org.objectweb.asm.Opcodes.*;
  * label classifications, branch coordinator, and method metadata.
  */
 public class LambdaBytecodeAnalyzer {
-
-    private static final Logger log = Logger.getLogger(LambdaBytecodeAnalyzer.class);
 
     /**
      * Registry holding all instruction handlers for dependency injection (ARCH-005).
@@ -145,7 +143,7 @@ public class LambdaBytecodeAnalyzer {
             }
 
             if (lambdaMethod == null) {
-                log.warnf("Could not find group lambda method %s%s in class", lambdaMethodName, lambdaDescriptor);
+                Log.warnf("Could not find group lambda method %s%s in class", lambdaMethodName, lambdaDescriptor);
                 return null;
             }
 
@@ -158,7 +156,7 @@ public class LambdaBytecodeAnalyzer {
             return processInstructions(ctx);
 
         } catch (Exception e) {
-            log.warnf(e, "Failed to analyze group lambda method %s", lambdaMethodName);
+            Log.warnf(e, "Failed to analyze group lambda method %s", lambdaMethodName);
             return null;
         }
     }
@@ -188,14 +186,14 @@ public class LambdaBytecodeAnalyzer {
             }
 
             if (lambdaMethod == null) {
-                log.warnf("Could not find lambda method %s%s in class", lambdaMethodName, lambdaDescriptor);
+                Log.warnf("Could not find lambda method %s%s in class", lambdaMethodName, lambdaDescriptor);
                 return null;
             }
 
             if (biEntityMode) {
                 int[] biEntitySlots = DescriptorParser.calculateBiEntityParameterSlotIndices(lambdaDescriptor);
                 if (biEntitySlots == null) {
-                    log.warnf("Bi-entity mode requires at least 2 parameters in descriptor: %s", lambdaDescriptor);
+                    Log.warnf("Bi-entity mode requires at least 2 parameters in descriptor: %s", lambdaDescriptor);
                     return null;
                 }
                 return analyzeMethodInstructions(lambdaMethod, biEntitySlots[0], biEntitySlots[1], classNode.methods);
@@ -205,7 +203,7 @@ public class LambdaBytecodeAnalyzer {
             }
 
         } catch (Exception e) {
-            log.warnf(e, "Failed to analyze lambda method %s", lambdaMethodName);
+            Log.warnf(e, "Failed to analyze lambda method %s", lambdaMethodName);
             return null;
         }
     }
@@ -319,7 +317,7 @@ public class LambdaBytecodeAnalyzer {
 
         // No handler accepted this instruction - log and continue
         if (insn.getOpcode() != -1) { // Ignore pseudo-instructions (labels, line numbers, etc.)
-            log.tracef("Unhandled instruction: opcode=%d at index=%d",
+            Log.tracef("Unhandled instruction: opcode=%d at index=%d",
                        insn.getOpcode(), ctx.getCurrentInstructionIndex());
         }
 

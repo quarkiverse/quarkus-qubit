@@ -1,6 +1,6 @@
 package io.quarkiverse.qubit.deployment;
 
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Type;
 
@@ -10,8 +10,6 @@ import static io.quarkiverse.qubit.runtime.QubitConstants.QUBIT_ENTITY_INTERNAL_
  * Injects static query methods into QubitEntity subclasses.
  */
 public class QubitEntityOperationGenerationVisitor extends ClassVisitor {
-
-    private static final Logger log = Logger.getLogger(QubitEntityOperationGenerationVisitor.class);
 
     private final String entityClassName;
     private final String entityInternalName;
@@ -35,7 +33,7 @@ public class QubitEntityOperationGenerationVisitor extends ClassVisitor {
         if (QUBIT_ENTITY_INTERNAL_NAME.equals(superName)) {
             extendsQubitEntity = true;
             entityType = Type.getObjectType(entityInternalName);
-            log.debugf("Entity %s extends QubitEntity - will replace abstract methods", entityClassName);
+            Log.debugf("Entity %s extends QubitEntity - will replace abstract methods", entityClassName);
         }
 
         super.visit(version, access, name, signature, superName, interfaces);

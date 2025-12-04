@@ -38,7 +38,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import io.quarkus.gizmo.MethodCreator;
@@ -68,6 +70,9 @@ import jakarta.persistence.criteria.Selection;
  *
  * <p>Implements ExpressionGeneratorHelper to provide common generation methods
  * to specialized builders (BiEntityExpressionBuilder, GroupExpressionBuilder).
+ *
+ * many internal generate* methods return ResultHandle, but callers
+ * typically know the result is non-null in their specific context.
  */
 public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
@@ -102,7 +107,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
      * @throws NullPointerException if builderRegistry is null
      */
     public CriteriaExpressionGenerator(ExpressionBuilderRegistry builderRegistry) {
-        this.builderRegistry = java.util.Objects.requireNonNull(builderRegistry,
+        this.builderRegistry = Objects.requireNonNull(builderRegistry,
                 "builderRegistry cannot be null");
     }
 
@@ -555,7 +560,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         }
     }
 
-    /** Generates compareTo equality pattern predicate. */
+    /** Generates compareTo equality pattern predicate. Returns null if not applicable. */
     private ResultHandle generateCompareToEqualityPredicate(
             MethodCreator method,
             LambdaExpression.BinaryOp binOp,
@@ -659,10 +664,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
     public ResultHandle generateConstant(MethodCreator method, LambdaExpression.Constant constant) {
         Object value = constant.value();
 
-        if (value == null) {
-            return method.loadNull();
-        }
-
         // Java 21 pattern matching switch for type dispatch
         return switch (value) {
             case String s -> method.load(s);
@@ -703,7 +704,16 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         };
     }
 
-    /** Generates JPA expression for method call. */
+    /**
+     * Generates JPA expression for method call.
+     *
+     * @param method the method creator for bytecode generation
+     * @param methodCall the method call expression
+     * @param cb the CriteriaBuilder handle
+     * @param root the root entity handle
+     * @param capturedValues the captured variables array handle
+     * @return the JPA expression, or null if the method is not recognized
+     */
     public ResultHandle generateMethodCall(
             MethodCreator method,
             LambdaExpression.MethodCall methodCall,
@@ -864,7 +874,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
                 Expression.class,
                 "in",
                 Predicate.class,
-                java.util.Collection.class);
+                Collection.class);
 
         ResultHandle inPredicate = method.invokeInterfaceMethod(inMethod, fieldExpr, collectionExpr);
 
@@ -1020,7 +1030,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         };
     }
 
-    /** Generates temporal accessor functions. */
+    /** Generates temporal accessor functions. Returns null if not a temporal accessor. */
     private ResultHandle generateTemporalAccessorFunction(
             MethodCreator method,
             LambdaExpression.MethodCall methodCall,
@@ -1032,7 +1042,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         return builderRegistry.temporalBuilder().buildTemporalAccessorFunction(method, methodCall, cb, fieldExpression);
     }
 
-    /** Generates String transformations. */
+    /** Generates String transformations. Returns null if not a transformation. */
     private ResultHandle generateStringTransformation(
             MethodCreator method,
             LambdaExpression.MethodCall methodCall,
@@ -1044,7 +1054,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         return builderRegistry.stringBuilder().buildStringTransformation(method, methodCall, cb, fieldExpression);
     }
 
-    /** Generates temporal comparisons. */
+    /** Generates temporal comparisons. Returns null if not a temporal comparison. */
     private ResultHandle generateTemporalComparison(
             MethodCreator method,
             LambdaExpression.MethodCall methodCall,
@@ -1067,7 +1077,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         return builderRegistry.temporalBuilder().buildTemporalComparison(method, methodCall, cb, fieldExpression, argument);
     }
 
-    /** Generates BigDecimal arithmetic. */
+    /** Generates BigDecimal arithmetic. Returns null if not a BigDecimal method. */
     private ResultHandle generateBigDecimalArithmetic(
             MethodCreator method,
             LambdaExpression.MethodCall methodCall,
@@ -1090,7 +1100,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         return builderRegistry.bigDecimalBuilder().buildBigDecimalArithmetic(method, methodCall, cb, fieldExpression, argument, builderRegistry.arithmeticBuilder());
     }
 
-    /** Generates String LIKE patterns. */
+    /** Generates String LIKE patterns. Returns null if not a pattern method. */
     private ResultHandle generateStringLikePattern(
             MethodCreator method,
             LambdaExpression.MethodCall methodCall,
@@ -1113,7 +1123,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         return builderRegistry.stringBuilder().buildStringPattern(method, methodCall, cb, fieldExpression, argument);
     }
 
-    /** Generates String substring with 0-based to 1-based index conversion. */
+    /** Generates String substring. Returns null if not substring. */
     private ResultHandle generateStringSubstring(
             MethodCreator method,
             LambdaExpression.MethodCall methodCall,
@@ -1136,7 +1146,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         return builderRegistry.stringBuilder().buildStringSubstring(method, methodCall, cb, fieldExpression, arguments);
     }
 
-    /** Generates String utility methods. */
+    /** Generates String utility methods. Returns null if not recognized. */
     private ResultHandle generateStringUtilityMethod(
             MethodCreator method,
             LambdaExpression.MethodCall methodCall,

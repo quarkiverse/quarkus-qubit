@@ -3,7 +3,7 @@ package io.quarkiverse.qubit.deployment.analysis.branch;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.common.BytecodeValidator;
 import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
 
@@ -35,7 +35,6 @@ import static org.objectweb.asm.Opcodes.*;
  */
 public class TwoOperandComparisonHandler implements BranchHandler {
 
-    private static final Logger log = Logger.getLogger(TwoOperandComparisonHandler.class);
     private static final String INSTRUCTION_NAME = "IF_ICMP*/IF_ACMP*";
 
     @Override
@@ -61,7 +60,7 @@ public class TwoOperandComparisonHandler implements BranchHandler {
         LambdaExpression left = BytecodeValidator.popSafe(stack, INSTRUCTION_NAME + "-left");
 
         Boolean jumpTarget = labelToValue.get(jumpInsn.label);
-        log.debugf(INSTRUCTION_NAME + ": Jump target label %s -> %s",
+        Log.debugf(INSTRUCTION_NAME + ": Jump target label %s -> %s",
                 System.identityHashCode(jumpInsn.label), jumpTarget);
 
         ControlFlowAnalyzer.LabelClassification jumpLabelClass = labelClassifications.get(jumpInsn.label);
@@ -86,11 +85,11 @@ public class TwoOperandComparisonHandler implements BranchHandler {
             stack.push(combined);
             // CRITICAL: Apply post-combination state transition (shouldEnterOrModeAfterAndGroup logic)
             newState = newState.afterCombination(TRUE.equals(jumpTarget), previousJumpTarget, combineOp);
-            log.debugf(INSTRUCTION_NAME + ": Combined with %s: %s", combineOp, combined);
+            Log.debugf(INSTRUCTION_NAME + ": Combined with %s: %s", combineOp, combined);
         } else {
             // Push standalone
             stack.push(result);
-            log.debugf(INSTRUCTION_NAME + ": Pushed without combining: %s", result);
+            Log.debugf(INSTRUCTION_NAME + ": Pushed without combining: %s", result);
         }
 
         // Return state after post-combination transition

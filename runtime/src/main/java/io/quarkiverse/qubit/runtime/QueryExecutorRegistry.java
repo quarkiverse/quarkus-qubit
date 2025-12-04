@@ -3,11 +3,14 @@ package io.quarkiverse.qubit.runtime;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
-import org.jboss.logging.Logger;
+import jakarta.persistence.Tuple;
+
+import io.quarkus.logging.Log;
 
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * Registry of build-time generated query executors keyed by call site ID.
@@ -15,11 +18,9 @@ import java.util.concurrent.ConcurrentHashMap;
 @ApplicationScoped
 public class QueryExecutorRegistry {
 
-    private static final Logger log = Logger.getLogger(QueryExecutorRegistry.class);
-
     private static final Map<String, QueryExecutor<List<?>>> LIST_EXECUTORS = new ConcurrentHashMap<>();
     private static final Map<String, QueryExecutor<Long>> COUNT_EXECUTORS = new ConcurrentHashMap<>();
-    private static final Map<String, QueryExecutor<Object>> AGGREGATION_EXECUTORS = new ConcurrentHashMap<>();
+    private static final Map<String, QueryExecutor<?>> AGGREGATION_EXECUTORS = new ConcurrentHashMap<>();
     private static final Map<String, QueryExecutor<List<?>>> JOIN_LIST_EXECUTORS = new ConcurrentHashMap<>();
     private static final Map<String, QueryExecutor<Long>> JOIN_COUNT_EXECUTORS = new ConcurrentHashMap<>();
     private static final Map<String, QueryExecutor<List<?>>> JOIN_SELECT_JOINED_EXECUTORS = new ConcurrentHashMap<>();
@@ -40,7 +41,7 @@ public class QueryExecutorRegistry {
             int capturedVarCount) {
         LIST_EXECUTORS.put(callSiteId, executor);
         CAPTURED_VAR_COUNTS.put(callSiteId, capturedVarCount);
-        log.debugf("Registered list executor for call site: %s (captured variables: %d)",
+        Log.debugf("Registered list executor for call site: %s (captured variables: %d)",
                    callSiteId, capturedVarCount);
     }
 
@@ -53,7 +54,7 @@ public class QueryExecutorRegistry {
             int capturedVarCount) {
         COUNT_EXECUTORS.put(callSiteId, executor);
         CAPTURED_VAR_COUNTS.put(callSiteId, capturedVarCount);
-        log.debugf("Registered count executor for call site: %s (captured variables: %d)",
+        Log.debugf("Registered count executor for call site: %s (captured variables: %d)",
                    callSiteId, capturedVarCount);
     }
 
@@ -67,7 +68,7 @@ public class QueryExecutorRegistry {
             int capturedVarCount) {
         AGGREGATION_EXECUTORS.put(callSiteId, executor);
         CAPTURED_VAR_COUNTS.put(callSiteId, capturedVarCount);
-        log.debugf("Registered aggregation executor for call site: %s (captured variables: %d)",
+        Log.debugf("Registered aggregation executor for call site: %s (captured variables: %d)",
                    callSiteId, capturedVarCount);
     }
 
@@ -110,7 +111,7 @@ public class QueryExecutorRegistry {
             throw new IllegalStateException("EntityManager not available");
         }
 
-        log.tracef("Executing list query for call site: %s with %d captured variables (offset=%s, limit=%s, distinct=%s)",
+        Log.tracef("Executing list query for call site: %s with %d captured variables (offset=%s, limit=%s, distinct=%s)",
                    callSiteId, capturedValues.length, offset, limit, distinct);
 
         // Execute query and apply pagination and distinct parameters
@@ -146,7 +147,7 @@ public class QueryExecutorRegistry {
             throw new IllegalStateException("EntityManager not available");
         }
 
-        log.tracef("Executing count query for call site: %s with %d captured variables",
+        Log.tracef("Executing count query for call site: %s with %d captured variables",
                    callSiteId, capturedValues.length);
 
         // Count queries don't use pagination or distinct (count is always distinct counts)
@@ -173,7 +174,7 @@ public class QueryExecutorRegistry {
      */
     @SuppressWarnings("unchecked")
     public <T, R> R executeAggregationQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues) {
-        QueryExecutor<Object> executor = AGGREGATION_EXECUTORS.get(callSiteId);
+        QueryExecutor<R> executor = (QueryExecutor<R>) AGGREGATION_EXECUTORS.get(callSiteId);
 
         if (executor == null) {
             throw new IllegalStateException(String.format(
@@ -198,12 +199,12 @@ public class QueryExecutorRegistry {
             throw new IllegalStateException("EntityManager not available");
         }
 
-        log.tracef("Executing aggregation query for call site: %s with %d captured variables",
+        Log.tracef("Executing aggregation query for call site: %s with %d captured variables",
                    callSiteId, capturedValues.length);
 
         // Aggregation queries don't use pagination or distinct
-        Object result = executor.execute(entityManager, entityClass, capturedValues, null, null, null);
-        return (R) result;
+        R result = executor.execute(entityManager, entityClass, capturedValues, null, null, null);
+        return result;
     }
 
     /**
@@ -242,7 +243,7 @@ public class QueryExecutorRegistry {
             int capturedVarCount) {
         JOIN_LIST_EXECUTORS.put(callSiteId, executor);
         CAPTURED_VAR_COUNTS.put(callSiteId, capturedVarCount);
-        log.debugf("Registered join list executor for call site: %s (captured variables: %d)",
+        Log.debugf("Registered join list executor for call site: %s (captured variables: %d)",
                    callSiteId, capturedVarCount);
     }
 
@@ -256,7 +257,7 @@ public class QueryExecutorRegistry {
             int capturedVarCount) {
         JOIN_COUNT_EXECUTORS.put(callSiteId, executor);
         CAPTURED_VAR_COUNTS.put(callSiteId, capturedVarCount);
-        log.debugf("Registered join count executor for call site: %s (captured variables: %d)",
+        Log.debugf("Registered join count executor for call site: %s (captured variables: %d)",
                    callSiteId, capturedVarCount);
     }
 
@@ -292,7 +293,7 @@ public class QueryExecutorRegistry {
             throw new IllegalStateException("EntityManager not available");
         }
 
-        log.tracef("Executing join list query for call site: %s with %d captured variables (offset=%s, limit=%s, distinct=%s)",
+        Log.tracef("Executing join list query for call site: %s with %d captured variables (offset=%s, limit=%s, distinct=%s)",
                    callSiteId, capturedValues.length, offset, limit, distinct);
 
         return (List<T>) executor.execute(entityManager, entityClass, capturedValues, offset, limit, distinct);
@@ -328,7 +329,7 @@ public class QueryExecutorRegistry {
             throw new IllegalStateException("EntityManager not available");
         }
 
-        log.tracef("Executing join count query for call site: %s with %d captured variables",
+        Log.tracef("Executing join count query for call site: %s with %d captured variables",
                    callSiteId, capturedValues.length);
 
         return executor.execute(entityManager, entityClass, capturedValues, null, null, null);
@@ -358,7 +359,7 @@ public class QueryExecutorRegistry {
             int capturedVarCount) {
         JOIN_SELECT_JOINED_EXECUTORS.put(callSiteId, executor);
         CAPTURED_VAR_COUNTS.put(callSiteId, capturedVarCount);
-        log.debugf("Registered join selectJoined executor for call site: %s (captured variables: %d)",
+        Log.debugf("Registered join selectJoined executor for call site: %s (captured variables: %d)",
                    callSiteId, capturedVarCount);
     }
 
@@ -394,7 +395,7 @@ public class QueryExecutorRegistry {
             throw new IllegalStateException("EntityManager not available");
         }
 
-        log.tracef("Executing join selectJoined query for call site: %s with %d captured variables (offset=%s, limit=%s, distinct=%s)",
+        Log.tracef("Executing join selectJoined query for call site: %s with %d captured variables (offset=%s, limit=%s, distinct=%s)",
                    callSiteId, capturedValues.length, offset, limit, distinct);
 
         return (List<R>) executor.execute(entityManager, entityClass, capturedValues, offset, limit, distinct);
@@ -417,7 +418,7 @@ public class QueryExecutorRegistry {
             int capturedVarCount) {
         JOIN_PROJECTION_EXECUTORS.put(callSiteId, executor);
         CAPTURED_VAR_COUNTS.put(callSiteId, capturedVarCount);
-        log.debugf("Registered join projection executor for call site: %s (captured variables: %d)",
+        Log.debugf("Registered join projection executor for call site: %s (captured variables: %d)",
                    callSiteId, capturedVarCount);
     }
 
@@ -456,7 +457,7 @@ public class QueryExecutorRegistry {
             throw new IllegalStateException("EntityManager not available");
         }
 
-        log.tracef("Executing join projection query for call site: %s with %d captured variables (offset=%s, limit=%s, distinct=%s)",
+        Log.tracef("Executing join projection query for call site: %s with %d captured variables (offset=%s, limit=%s, distinct=%s)",
                    callSiteId, capturedValues.length, offset, limit, distinct);
 
         return (List<S>) executor.execute(entityManager, entityClass, capturedValues, offset, limit, distinct);
@@ -483,7 +484,7 @@ public class QueryExecutorRegistry {
             int capturedVarCount) {
         GROUP_LIST_EXECUTORS.put(callSiteId, executor);
         CAPTURED_VAR_COUNTS.put(callSiteId, capturedVarCount);
-        log.debugf("Registered group list executor for call site: %s (captured variables: %d)",
+        Log.debugf("Registered group list executor for call site: %s (captured variables: %d)",
                    callSiteId, capturedVarCount);
     }
 
@@ -497,7 +498,7 @@ public class QueryExecutorRegistry {
             int capturedVarCount) {
         GROUP_COUNT_EXECUTORS.put(callSiteId, executor);
         CAPTURED_VAR_COUNTS.put(callSiteId, capturedVarCount);
-        log.debugf("Registered group count executor for call site: %s (captured variables: %d)",
+        Log.debugf("Registered group count executor for call site: %s (captured variables: %d)",
                    callSiteId, capturedVarCount);
     }
 
@@ -533,19 +534,19 @@ public class QueryExecutorRegistry {
             throw new IllegalStateException("EntityManager not available");
         }
 
-        log.tracef("Executing group list query for call site: %s with %d captured variables (offset=%s, limit=%s)",
+        Log.tracef("Executing group list query for call site: %s with %d captured variables (offset=%s, limit=%s)",
                    callSiteId, capturedValues.length, offset, limit);
 
         List<?> rawResults = executor.execute(entityManager, entityClass, capturedValues, offset, limit, null);
 
         // Iteration 7: Convert Tuple results to Object[] if needed (for Object[] projections)
-        if (!rawResults.isEmpty() && rawResults.get(0) instanceof jakarta.persistence.Tuple) {
-            List<jakarta.persistence.Tuple> tuples = rawResults.stream()
-                    .map(o -> (jakarta.persistence.Tuple) o)
-                    .collect(java.util.stream.Collectors.toList());
+        if (!rawResults.isEmpty() && rawResults.get(0) instanceof Tuple) {
+            List<Tuple> tuples = rawResults.stream()
+                    .map(o -> (Tuple) o)
+                    .collect(Collectors.toList());
             return (List<R>) tuples.stream()
-                    .map(jakarta.persistence.Tuple::toArray)
-                    .collect(java.util.stream.Collectors.toList());
+                    .map(Tuple::toArray)
+                    .collect(Collectors.toList());
         }
 
         return (List<R>) rawResults;
@@ -583,7 +584,7 @@ public class QueryExecutorRegistry {
             throw new IllegalStateException("EntityManager not available");
         }
 
-        log.tracef("Executing group key query for call site: %s with %d captured variables (offset=%s, limit=%s)",
+        Log.tracef("Executing group key query for call site: %s with %d captured variables (offset=%s, limit=%s)",
                    callSiteId, capturedValues.length, offset, limit);
 
         return (List<K>) executor.execute(entityManager, entityClass, capturedValues, offset, limit, null);
@@ -619,7 +620,7 @@ public class QueryExecutorRegistry {
             throw new IllegalStateException("EntityManager not available");
         }
 
-        log.tracef("Executing group count query for call site: %s with %d captured variables",
+        Log.tracef("Executing group count query for call site: %s with %d captured variables",
                    callSiteId, capturedValues.length);
 
         return executor.execute(entityManager, entityClass, capturedValues, null, null, null);

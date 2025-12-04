@@ -22,6 +22,7 @@ import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_TO_UPPER_CASE;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_TRIM;
 import static io.quarkiverse.qubit.runtime.QubitConstants.STRING_CONCAT;
 
+import java.util.List;
 import java.util.Set;
 
 import io.quarkus.gizmo.MethodCreator;
@@ -111,7 +112,7 @@ public class StringExpressionBuilder implements ExpressionBuilder {
      * @param methodCall the method call expression
      * @param cb the CriteriaBuilder handle
      * @param fieldExpression the target field expression
-     * @return the transformation Expression
+     * @return the transformation Expression, or null if not a recognized transformation
      */
     public ResultHandle buildStringTransformation(
             MethodCreator method,
@@ -141,7 +142,7 @@ public class StringExpressionBuilder implements ExpressionBuilder {
      * @param cb the CriteriaBuilder handle
      * @param fieldExpression the target field expression
      * @param argument the pattern argument
-     * @return the LIKE Predicate
+     * @return the LIKE Predicate, or null if not a pattern method
      */
     public ResultHandle buildStringPattern(
             MethodCreator method,
@@ -180,14 +181,14 @@ public class StringExpressionBuilder implements ExpressionBuilder {
      * @param cb the CriteriaBuilder handle
      * @param fieldExpression the target field expression
      * @param arguments the argument expressions (start or start+end)
-     * @return the substring Expression
+     * @return the substring Expression, or null if not a substring method or wrong arg count
      */
     public ResultHandle buildStringSubstring(
             MethodCreator method,
             LambdaExpression.MethodCall methodCall,
             ResultHandle cb,
             ResultHandle fieldExpression,
-            java.util.List<ResultHandle> arguments) {
+            List<ResultHandle> arguments) {
 
         if (!methodCall.methodName().equals(METHOD_SUBSTRING)) {
             return null;
@@ -227,7 +228,7 @@ public class StringExpressionBuilder implements ExpressionBuilder {
      * @param cb the CriteriaBuilder handle
      * @param fieldExpression the target field expression
      * @param argument the argument (for equals), or null for length/isEmpty
-     * @return the Predicate or Expression
+     * @return the Predicate or Expression, or null if not a recognized utility method
      */
     public ResultHandle buildStringUtility(
             MethodCreator method,

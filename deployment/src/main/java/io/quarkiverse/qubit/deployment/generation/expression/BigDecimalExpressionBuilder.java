@@ -42,7 +42,7 @@ public class BigDecimalExpressionBuilder implements ExpressionBuilder {
      * Maps BigDecimal method names to binary operators.
      *
      * @param methodName the BigDecimal method name (add, subtract, multiply, divide)
-     * @return the corresponding binary operator, or null
+     * @return the corresponding binary operator, or null if not a recognized BigDecimal method
      */
     public static LambdaExpression.BinaryOp.Operator mapMethodToOperator(String methodName) {
         return switch (methodName) {
@@ -75,7 +75,7 @@ public class BigDecimalExpressionBuilder implements ExpressionBuilder {
      * @param fieldExpression the target field expression
      * @param argument the argument expression
      * @param arithmeticBuilder the arithmetic builder to delegate to
-     * @return the arithmetic Expression
+     * @return the arithmetic Expression, or null if not a BigDecimal arithmetic method
      */
     public ResultHandle buildBigDecimalArithmetic(
             MethodCreator method,

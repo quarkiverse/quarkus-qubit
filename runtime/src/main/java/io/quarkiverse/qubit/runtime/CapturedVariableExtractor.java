@@ -1,6 +1,6 @@
 package io.quarkiverse.qubit.runtime;
 
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -18,7 +18,6 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class CapturedVariableExtractor {
 
-    private static final Logger log = Logger.getLogger(CapturedVariableExtractor.class);
     private static final Object[] EMPTY_ARRAY = new Object[0];
     private static final Map<String, Field[]> FIELD_CACHE = new ConcurrentHashMap<>();
 
@@ -57,7 +56,7 @@ public final class CapturedVariableExtractor {
                 values[i] = fields[i].get(lambdaInstance);
             }
 
-            log.tracef("Extracted %d captured variables from %s", count, lambdaClass.getName());
+            Log.tracef("Extracted %d captured variables from %s", count, lambdaClass.getName());
             return values;
 
         } catch (IllegalAccessException | NoSuchFieldException e) {
@@ -86,7 +85,7 @@ public final class CapturedVariableExtractor {
         }
 
         FIELD_CACHE.put(cacheKey, fields);
-        log.debugf("Cached field lookups for %s (%d fields)", lambdaClass.getName(), count);
+        Log.debugf("Cached field lookups for %s (%d fields)", lambdaClass.getName(), count);
         return fields;
     }
 
@@ -102,13 +101,13 @@ public final class CapturedVariableExtractor {
         for (FieldNamingStrategy strategy : STRATEGIES) {
             Optional<Field> field = strategy.findCapturedField(lambdaClass, index);
             if (field.isPresent()) {
-                log.tracef("Resolved captured variable field at index %d in %s using strategy: %s (field name: %s)",
+                Log.tracef("Resolved captured variable field at index %d in %s using strategy: %s (field name: %s)",
                         index, lambdaClass.getName(), strategy.getStrategyName(), field.get().getName());
                 return field.get();
             }
         }
 
-        log.debugf("No strategy found field at index %d in lambda class %s", index, lambdaClass.getName());
+        Log.debugf("No strategy found field at index %d in lambda class %s", index, lambdaClass.getName());
         return null;
     }
 
@@ -132,7 +131,7 @@ public final class CapturedVariableExtractor {
      */
     public static void clearCache() {
         FIELD_CACHE.clear();
-        log.debug("Cleared captured variable field cache");
+        Log.debug("Cleared captured variable field cache");
     }
 
     /**

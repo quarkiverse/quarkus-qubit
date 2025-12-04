@@ -1,5 +1,7 @@
 package io.quarkiverse.qubit.runtime;
 
+import java.util.Collection;
+
 import io.quarkus.hibernate.orm.panache.PanacheEntity;
 import jakarta.persistence.MappedSuperclass;
 
@@ -427,7 +429,7 @@ public abstract class QubitEntity extends PanacheEntity {
      * @throws IllegalStateException if called at runtime without build-time enhancement
      */
     public static <T extends QubitEntity, R> JoinStream<T, R> join(
-            QuerySpec<T, java.util.Collection<R>> relationship) {
+            QuerySpec<T, Collection<R>> relationship) {
         throw new IllegalStateException(
                 "This method is normally automatically overridden in subclasses at build time. " +
                 "Did you forget to annotate your entity with @Entity? " +
@@ -464,7 +466,7 @@ public abstract class QubitEntity extends PanacheEntity {
      * @throws IllegalStateException if called at runtime without build-time enhancement
      */
     public static <T extends QubitEntity, R> JoinStream<T, R> leftJoin(
-            QuerySpec<T, java.util.Collection<R>> relationship) {
+            QuerySpec<T, Collection<R>> relationship) {
         throw new IllegalStateException(
                 "This method is normally automatically overridden in subclasses at build time. " +
                 "Did you forget to annotate your entity with @Entity? " +

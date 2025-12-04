@@ -5,7 +5,7 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.InExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.MemberOfExpression;
 import io.quarkiverse.qubit.deployment.util.DescriptorParser;
 import io.quarkiverse.qubit.deployment.util.TypeConverter;
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 
@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.eq;
 import static io.quarkiverse.qubit.runtime.QubitConstants.*;
@@ -27,8 +28,6 @@ import static org.objectweb.asm.Opcodes.*;
  * INVOKEINTERFACE (Collection.contains for IN and MEMBER OF expressions).
  */
 public class MethodInvocationHandler implements InstructionHandler {
-
-    private static final Logger log = Logger.getLogger(MethodInvocationHandler.class);
 
     /**
      * Delegate for subquery analysis (extracted for maintainability - MAINT-001).
@@ -157,7 +156,7 @@ public class MethodInvocationHandler implements InstructionHandler {
                 pushConstructorCall(ctx, args, specialInsn.owner);
             }
         } catch (Exception e) {
-            log.errorf(e, "Error processing INVOKESPECIAL %s for %s", CONSTRUCTOR, specialInsn.owner);
+            Log.errorf(e, "Error processing INVOKESPECIAL %s for %s", CONSTRUCTOR, specialInsn.owner);
             throw e;
         }
     }
@@ -612,7 +611,7 @@ public class MethodInvocationHandler implements InstructionHandler {
             MethodInsnNode staticInsn,
             Class<T> temporalClass,
             int expectedArgCount,
-            java.util.function.Function<int[], T> evaluator) {
+            Function<int[], T> evaluator) {
 
         String expectedOwner = "java/time/" + temporalClass.getSimpleName();
         if (!staticInsn.owner.equals(expectedOwner) || !staticInsn.name.equals(METHOD_OF)) {
@@ -649,7 +648,7 @@ public class MethodInvocationHandler implements InstructionHandler {
                 ctx.push(new LambdaExpression.Constant(value, temporalClass));
                 return;
             } catch (Exception e) {
-                log.debugf("Failed to evaluate constant temporal value, will create method call instead: %s",
+                Log.debugf("Failed to evaluate constant temporal value, will create method call instead: %s",
                            e.getMessage());
             }
         }

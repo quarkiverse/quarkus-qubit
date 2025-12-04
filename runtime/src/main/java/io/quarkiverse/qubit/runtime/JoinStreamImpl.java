@@ -7,6 +7,7 @@ import jakarta.persistence.NonUniqueResultException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -526,12 +527,12 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         }
 
         @Override
-        public <R> JoinStream<T, R> join(QuerySpec<T, java.util.Collection<R>> relationship) {
+        public <R> JoinStream<T, R> join(QuerySpec<T, Collection<R>> relationship) {
             throw new UnsupportedOperationException("Cannot join after join projection");
         }
 
         @Override
-        public <R> JoinStream<T, R> leftJoin(QuerySpec<T, java.util.Collection<R>> relationship) {
+        public <R> JoinStream<T, R> leftJoin(QuerySpec<T, Collection<R>> relationship) {
             throw new UnsupportedOperationException("Cannot join after join projection");
         }
 
@@ -649,12 +650,12 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         }
 
         @Override
-        public <R> JoinStream<T, R> join(QuerySpec<T, java.util.Collection<R>> relationship) {
+        public <R> JoinStream<T, R> join(QuerySpec<T, Collection<R>> relationship) {
             throw new UnsupportedOperationException("Cannot join after selectJoined projection");
         }
 
         @Override
-        public <R> JoinStream<T, R> leftJoin(QuerySpec<T, java.util.Collection<R>> relationship) {
+        public <R> JoinStream<T, R> leftJoin(QuerySpec<T, Collection<R>> relationship) {
             throw new UnsupportedOperationException("Cannot join after selectJoined projection");
         }
 

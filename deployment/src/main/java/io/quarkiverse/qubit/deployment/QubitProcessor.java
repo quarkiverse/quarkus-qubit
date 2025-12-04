@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.jboss.jandex.ClassInfo;
 import org.jboss.jandex.DotName;
 import org.jboss.jandex.IndexView;
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 import io.quarkus.arc.deployment.AdditionalBeanBuildItem;
 import io.quarkus.builder.item.MultiBuildItem;
 import io.quarkus.deployment.annotations.BuildProducer;
@@ -39,7 +39,6 @@ import io.quarkiverse.qubit.deployment.util.BytecodeLoader;
 /** Qubit extension build processor. Generates query executor classes at build time from lambda expressions. */
 public class QubitProcessor {
 
-    private static final Logger log = Logger.getLogger(QubitProcessor.class);
     private static final String FEATURE = "qubit";
     private static final AtomicInteger queryCounter = new AtomicInteger(0);
 
@@ -85,11 +84,11 @@ public class QubitProcessor {
         // Find all entities extending QubitEntity
         Collection<ClassInfo> entities = index.getAllKnownSubclasses(qubitEntityName);
 
-        log.debugf("Qubit: Informing Panache about %d QubitEntity subclasses for enhancement", entities.size());
+        Log.debugf("Qubit: Informing Panache about %d QubitEntity subclasses for enhancement", entities.size());
 
         for (ClassInfo entity : entities) {
             panacheEntities.produce(new PanacheEntityClassBuildItem(entity));
-            log.tracef("Qubit: Registered %s for Panache enhancement", entity.name());
+            Log.tracef("Qubit: Registered %s for Panache enhancement", entity.name());
         }
     }
 
@@ -105,13 +104,13 @@ public class QubitProcessor {
         // Find all entities extending QubitEntity
         Collection<ClassInfo> entities = index.getAllKnownSubclasses(qubitEntityName);
 
-        log.debugf("Qubit: Enhancing %d QubitEntity subclasses with lambda-based query methods", entities.size());
+        Log.debugf("Qubit: Enhancing %d QubitEntity subclasses with lambda-based query methods", entities.size());
 
         QubitEntityEnhancer enhancer = new QubitEntityEnhancer();
 
         for (ClassInfo entity : entities) {
             String entityClassName = entity.name().toString();
-            log.tracef("Qubit: Replacing abstract methods in entity: %s", entityClassName);
+            Log.tracef("Qubit: Replacing abstract methods in entity: %s", entityClassName);
 
             transformers.produce(new BytecodeTransformerBuildItem(entityClassName, enhancer));
         }
@@ -129,18 +128,18 @@ public class QubitProcessor {
         Collection<ClassInfo> repositories = index.getAllKnownImplementations(qubitRepositoryName);
 
         if (repositories.isEmpty()) {
-            log.debugf("Qubit: No QubitRepository implementations found");
+            Log.debugf("Qubit: No QubitRepository implementations found");
             return;
         }
 
-        log.debugf("Qubit: Enhancing %d QubitRepository implementations with @GenerateBridge methods",
+        Log.debugf("Qubit: Enhancing %d QubitRepository implementations with @GenerateBridge methods",
                 repositories.size());
 
         QubitRepositoryEnhancer enhancer = new QubitRepositoryEnhancer(index);
 
         for (ClassInfo repository : repositories) {
             String repositoryClassName = repository.name().toString();
-            log.tracef("Qubit: Generating bridge methods for repository: %s", repositoryClassName);
+            Log.tracef("Qubit: Generating bridge methods for repository: %s", repositoryClassName);
 
             transformers.produce(new BytecodeTransformerBuildItem(repositoryClassName, enhancer));
         }
@@ -154,34 +153,34 @@ public class QubitProcessor {
             BuildProducer<GeneratedClassBuildItem> generatedClass,
             BuildProducer<QueryTransformationBuildItem> queryTransformations) {
 
-        log.debugf("Qubit: Scanning for lambda call sites using invokedynamic analysis");
+        Log.debugf("Qubit: Scanning for lambda call sites using invokedynamic analysis");
 
         IndexView index = combinedIndex.getIndex();
         InvokeDynamicScanner scanner = new InvokeDynamicScanner();
 
         Collection<ClassInfo> allClasses = index.getKnownClasses();
 
-        log.debugf("Qubit: Scanning %d classes for lambda call sites", allClasses.size());
+        Log.debugf("Qubit: Scanning %d classes for lambda call sites", allClasses.size());
 
         List<ClassInfo> filteredClasses = allClasses.stream()
                 .filter(QubitProcessor::isNotFrameworkClass)
                 .toList();
 
-        log.infof("Qubit: Filtered to %d application classes (from %d total)",
+        Log.infof("Qubit: Filtered to %d application classes (from %d total)",
                 filteredClasses.size(), allClasses.size());
 
         // Log test classes found
         long testClassCount = filteredClasses.stream()
                 .filter(c -> c.name().toString().contains(".it."))
                 .count();
-        log.infof("Qubit: Found %d integration test classes", testClassCount);
+        Log.infof("Qubit: Found %d integration test classes", testClassCount);
 
         List<InvokeDynamicScanner.LambdaCallSite> allCallSites = filteredClasses.stream()
                 .flatMap(classInfo -> scanClassForCallSites(classInfo, scanner, applicationArchives).stream())
-                .peek(c -> log.tracef("Qubit: Found callSite %s", c.getCallSiteId()))
+                .peek(c -> Log.tracef("Qubit: Found callSite %s", c.getCallSiteId()))
                 .toList();
 
-        log.debugf("Qubit: Found %d total lambda call site(s)", allCallSites.size());
+        Log.debugf("Qubit: Found %d total lambda call site(s)", allCallSites.size());
 
         AtomicInteger generatedCount = new AtomicInteger(0);
         AtomicInteger deduplicatedCount = new AtomicInteger(0);
@@ -192,7 +191,7 @@ public class QubitProcessor {
                         generatedCount, deduplicatedCount,
                         generatedClass, queryTransformations));
 
-        log.infof("Qubit extension initialized - Call sites: %d | Query executors: %d generated, %d deduplicated",
+        Log.infof("Qubit extension initialized - Call sites: %d | Query executors: %d generated, %d deduplicated",
                 allCallSites.size(), generatedCount.get(), deduplicatedCount.get());
     }
 
@@ -229,13 +228,13 @@ public class QubitProcessor {
             List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(classBytes, className);
 
             if (!callSites.isEmpty()) {
-                log.debugf("Found %d lambda call site(s) in %s", callSites.size(), className);
+                Log.debugf("Found %d lambda call site(s) in %s", callSites.size(), className);
             }
 
             return callSites;
 
         } catch (Exception e) {
-            log.debugf(e, "Error scanning class: %s", classInfo.name());
+            Log.debugf(e, "Error scanning class: %s", classInfo.name());
             return Collections.emptyList();
         }
     }
@@ -247,7 +246,7 @@ public class QubitProcessor {
             QueryExecutorRecorder recorder,
             List<QueryTransformationBuildItem> transformations) {
 
-        log.debugf("Qubit: Registering %d query executors in registry", transformations.size());
+        Log.debugf("Qubit: Registering %d query executors in registry", transformations.size());
 
         for (QueryTransformationBuildItem transformation : transformations) {
             String callSiteId = transformation.getQueryId();
@@ -308,7 +307,7 @@ public class QubitProcessor {
                         transformation.getCapturedVarCount());
             }
 
-            log.tracef("Registered executor for call site: %s → %s (captured variables: %d)",
+            Log.tracef("Registered executor for call site: %s → %s (captured variables: %d)",
                     callSiteId,
                     transformation.getGeneratedClassName(),
                     transformation.getCapturedVarCount());

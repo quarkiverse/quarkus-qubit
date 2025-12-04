@@ -27,6 +27,7 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathExpression;
 import io.quarkiverse.qubit.deployment.common.PatternDetector;
 import io.quarkiverse.qubit.deployment.util.TypeConverter;
+import jakarta.persistence.criteria.CompoundSelection;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
@@ -44,6 +45,9 @@ import jakarta.persistence.criteria.Selection;
  *   <li>Bi-entity expressions: {@code (p, ph) -> new DTO(p.firstName, ph.number)}</li>
  *   <li>Bi-entity projections for SELECT clauses</li>
  * </ul>
+ *
+ * internal generate* methods return ResultHandle, but callers
+ * typically know the result is non-null in their specific context.
  *
  * @see io.quarkiverse.qubit.deployment.generation.CriteriaExpressionGenerator
  */
@@ -69,13 +73,13 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
      * and the joined entity to correctly resolve field paths.
      *
      * @param method the method creator for bytecode generation
-     * @param expression the bi-entity lambda expression AST
+     * @param expression the bi-entity lambda expression AST, or null
      * @param cb the CriteriaBuilder handle
      * @param root the root entity handle (FIRST entity in join)
      * @param join the joined entity handle (SECOND entity in join)
      * @param capturedValues the captured variables array handle
      * @param helper the helper for common expression generation
-     * @return the JPA Predicate handle
+     * @return the JPA Predicate handle, or null if expression is null or unhandled
      */
     public ResultHandle generateBiEntityPredicate(
             MethodCreator method,
@@ -151,13 +155,13 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
      * Generates JPA Expression from bi-entity lambda expression AST.
      *
      * @param method the method creator for bytecode generation
-     * @param expression the bi-entity lambda expression AST
+     * @param expression the bi-entity lambda expression AST, or null
      * @param cb the CriteriaBuilder handle
      * @param root the root entity handle (FIRST entity in join)
      * @param join the joined entity handle (SECOND entity in join)
      * @param capturedValues the captured variables array handle
      * @param helper the helper for common expression generation
-     * @return the JPA Expression handle
+     * @return the JPA Expression handle, or null if expression is null or unhandled
      */
     public ResultHandle generateBiEntityExpressionAsJpaExpression(
             MethodCreator method,
@@ -223,13 +227,13 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
      * Used for join query projections like {@code (p, ph) -> new PersonPhoneDTO(p.firstName, ph.number)}.
      *
      * @param method the method creator for bytecode generation
-     * @param expression the bi-entity projection expression AST
+     * @param expression the bi-entity projection expression AST, or null
      * @param cb the CriteriaBuilder handle
      * @param root the root entity handle (source entity)
      * @param join the join handle (joined entity)
      * @param capturedValues the captured variables array handle
      * @param helper the helper for common expression generation
-     * @return the JPA Selection handle representing the projection
+     * @return the JPA Selection handle representing the projection, or null if expression is null
      */
     public ResultHandle generateBiEntityProjection(
             MethodCreator method,
@@ -275,6 +279,15 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
     /**
      * Generates raw value from bi-entity expression.
      * Used for method arguments and captured variables.
+     *
+     * @param method the method creator for bytecode generation
+     * @param expression the bi-entity expression, or null
+     * @param cb the CriteriaBuilder handle
+     * @param root the root entity handle
+     * @param join the join handle
+     * @param capturedValues the captured variables array handle
+     * @param helper the helper for common expression generation
+     * @return the generated expression, or null if expression is null or unhandled
      */
     public ResultHandle generateBiEntityExpression(
             MethodCreator method,
@@ -423,6 +436,15 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
 
     /**
      * Generates bi-entity method call (e.g., ph.type.equals("mobile")).
+     *
+     * @param method the method creator for bytecode generation
+     * @param methodCall the method call expression
+     * @param cb the CriteriaBuilder handle
+     * @param root the root entity handle
+     * @param join the join handle
+     * @param capturedValues the captured variables array handle
+     * @param helper the helper for common expression generation
+     * @return the generated expression, or null if method is not recognized
      */
     private ResultHandle generateBiEntityMethodCall(
             MethodCreator method,
@@ -516,7 +538,7 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
         MethodDescriptor constructMethod = MethodDescriptor.ofMethod(
                 CriteriaBuilder.class,
                 "construct",
-                jakarta.persistence.criteria.CompoundSelection.class,
+                CompoundSelection.class,
                 Class.class,
                 Selection[].class);
 

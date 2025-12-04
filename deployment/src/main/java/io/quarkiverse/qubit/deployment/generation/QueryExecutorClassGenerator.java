@@ -14,6 +14,8 @@ import static io.quarkiverse.qubit.runtime.QubitConstants.TQ_GET_SINGLE_RESULT;
 
 import java.util.List;
 
+import io.quarkus.gizmo.BranchResult;
+import io.quarkus.gizmo.BytecodeCreator;
 import io.quarkus.gizmo.ClassCreator;
 import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.MethodDescriptor;
@@ -31,6 +33,7 @@ import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.From;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
@@ -46,17 +49,17 @@ public class QueryExecutorClassGenerator {
     /**
      * Creates MethodDescriptor for method.
      */
-    private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> returnType, Class<?>... params) {
+private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> returnType, Class<?>... params) {
         return MethodDescriptor.ofMethod(clazz, methodName, returnType, params);
     }
 
     // Method descriptors for ORDER BY generation
     private static final MethodDescriptor CB_ASC = md(CriteriaBuilder.class, "asc",
-            jakarta.persistence.criteria.Order.class, jakarta.persistence.criteria.Expression.class);
+            Order.class, Expression.class);
     private static final MethodDescriptor CB_DESC = md(CriteriaBuilder.class, "desc",
-            jakarta.persistence.criteria.Order.class, jakarta.persistence.criteria.Expression.class);
+            Order.class, Expression.class);
     private static final MethodDescriptor CQ_ORDER_BY = md(CriteriaQuery.class, "orderBy",
-            CriteriaQuery.class, jakarta.persistence.criteria.Order[].class);
+            CriteriaQuery.class, Order[].class);
 
     // Method descriptors for pagination
     private static final MethodDescriptor TQ_SET_FIRST_RESULT = md(TypedQuery.class, "setFirstResult",
@@ -589,7 +592,7 @@ public class QueryExecutorClassGenerator {
         }
 
         // Create array to hold Order objects
-        ResultHandle ordersArray = method.newArray(jakarta.persistence.criteria.Order.class, sortExpressions.size());
+        ResultHandle ordersArray = method.newArray(Order.class, sortExpressions.size());
 
         // Generate Order objects in REVERSE order for "last call wins" semantics
         for (int i = 0; i < sortExpressions.size(); i++) {
@@ -1371,8 +1374,9 @@ public class QueryExecutorClassGenerator {
                     root, fieldName);
         } else {
             // Phase 2.3: Expression projection - use expression generator
-            projectionExpr = expressionGenerator.generateExpressionAsJpaExpression(
+            ResultHandle expr = expressionGenerator.generateExpressionAsJpaExpression(
                     ctx.method(), projectionExpression, cb, root, ctx.capturedValues());
+            projectionExpr = expr;
         }
 
         // query.select(projectionExpr)
@@ -1444,7 +1448,7 @@ public class QueryExecutorClassGenerator {
         }
 
         // Create array to hold Order objects
-        ResultHandle ordersArray = method.newArray(jakarta.persistence.criteria.Order.class, sortExpressions.size());
+        ResultHandle ordersArray = method.newArray(Order.class, sortExpressions.size());
 
         // Generate Order objects in REVERSE order for "last call wins" semantics
         // Example: .sortedBy(firstName).sortedBy(lastName) should order by lastName first
@@ -1511,7 +1515,7 @@ public class QueryExecutorClassGenerator {
         }
 
         // Create array to hold Order objects
-        ResultHandle ordersArray = method.newArray(jakarta.persistence.criteria.Order.class, sortExpressions.size());
+        ResultHandle ordersArray = method.newArray(Order.class, sortExpressions.size());
 
         // Generate Order objects in REVERSE order for "last call wins" semantics
         // Example: .sortedBy(sourceField).sortedBy(joinedField) should order by joinedField first
@@ -1562,16 +1566,16 @@ public class QueryExecutorClassGenerator {
 
         // Apply distinct if present and true: if (distinct != null && distinct) query.distinct(true);
         if (distinct != null) {
-            io.quarkus.gizmo.BranchResult distinctBranch = method.ifNotNull(distinct);
-            try (io.quarkus.gizmo.BytecodeCreator distinctNotNull = distinctBranch.trueBranch()) {
+            BranchResult distinctBranch = method.ifNotNull(distinct);
+            try (BytecodeCreator distinctNotNull = distinctBranch.trueBranch()) {
                 // Unbox Boolean to boolean
                 ResultHandle distinctValue = distinctNotNull.invokeVirtualMethod(
                         MethodDescriptor.ofMethod(Boolean.class, "booleanValue", boolean.class),
                         distinct);
 
                 // Only call query.distinct(true) if the value is true
-                io.quarkus.gizmo.BranchResult trueBranch = distinctNotNull.ifTrue(distinctValue);
-                try (io.quarkus.gizmo.BytecodeCreator applyDistinct = trueBranch.trueBranch()) {
+                BranchResult trueBranch = distinctNotNull.ifTrue(distinctValue);
+                try (BytecodeCreator applyDistinct = trueBranch.trueBranch()) {
                     applyDistinct.invokeInterfaceMethod(CQ_DISTINCT, query,
                             applyDistinct.load(true));
                 }
@@ -1602,8 +1606,8 @@ public class QueryExecutorClassGenerator {
 
         // Apply offset if present: if (offset != null) query.setFirstResult(offset);
         if (offset != null) {
-            io.quarkus.gizmo.BranchResult offsetBranch = method.ifNotNull(offset);
-            try (io.quarkus.gizmo.BytecodeCreator offsetTrue = offsetBranch.trueBranch()) {
+            BranchResult offsetBranch = method.ifNotNull(offset);
+            try (BytecodeCreator offsetTrue = offsetBranch.trueBranch()) {
                 // Unbox Integer to int
                 ResultHandle offsetValue = offsetTrue.invokeVirtualMethod(
                         MethodDescriptor.ofMethod(Integer.class, "intValue", int.class),
@@ -1614,8 +1618,8 @@ public class QueryExecutorClassGenerator {
 
         // Apply limit if present: if (limit != null) query.setMaxResults(limit);
         if (limit != null) {
-            io.quarkus.gizmo.BranchResult limitBranch = method.ifNotNull(limit);
-            try (io.quarkus.gizmo.BytecodeCreator limitTrue = limitBranch.trueBranch()) {
+            BranchResult limitBranch = method.ifNotNull(limit);
+            try (BytecodeCreator limitTrue = limitBranch.trueBranch()) {
                 // Unbox Integer to int
                 ResultHandle limitValue = limitTrue.invokeVirtualMethod(
                         MethodDescriptor.ofMethod(Integer.class, "intValue", int.class),

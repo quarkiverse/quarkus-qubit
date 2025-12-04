@@ -1,8 +1,9 @@
 package io.quarkiverse.qubit.deployment;
 
-import org.jboss.logging.Logger;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Opcodes;
+
+import io.quarkus.logging.Log;
 
 import java.util.function.BiFunction;
 
@@ -11,14 +12,12 @@ import java.util.function.BiFunction;
  */
 public class QubitEntityEnhancer implements BiFunction<String, ClassVisitor, ClassVisitor> {
 
-    private static final Logger log = Logger.getLogger(QubitEntityEnhancer.class);
-
     /**
      * Creates class visitor that generates query methods for QubitEntity subclass.
      */
     @Override
     public ClassVisitor apply(String className, ClassVisitor outputClassVisitor) {
-        log.debugf("Checking entity: %s for QubitEntity extension", className);
+        Log.debugf("Checking entity: %s for QubitEntity extension", className);
         return new QubitEntityOperationGenerationVisitor(
                 Opcodes.ASM9,
                 outputClassVisitor,

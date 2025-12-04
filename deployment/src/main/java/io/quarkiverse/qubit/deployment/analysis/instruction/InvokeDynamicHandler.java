@@ -2,7 +2,7 @@ package io.quarkiverse.qubit.deployment.analysis.instruction;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.util.DescriptorParser;
-import org.jboss.logging.Logger;
+import io.quarkus.logging.Log;
 import org.objectweb.asm.Handle;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.InvokeDynamicInsnNode;
@@ -48,8 +48,6 @@ import static org.objectweb.asm.Opcodes.INVOKEDYNAMIC;
  */
 public class InvokeDynamicHandler implements InstructionHandler {
 
-    private static final Logger log = Logger.getLogger(InvokeDynamicHandler.class);
-
     /** Marker for dynamic argument in StringConcatFactory recipe. */
     private static final char RECIPE_DYNAMIC_ARG = '\u0001';
 
@@ -80,7 +78,7 @@ public class InvokeDynamicHandler implements InstructionHandler {
             return handleNestedLambda(indy, ctx);
         }
 
-        log.tracef("INVOKEDYNAMIC not handled: %s (bsm=%s)", indy.name,
+        Log.tracef("INVOKEDYNAMIC not handled: %s (bsm=%s)", indy.name,
                    indy.bsm != null ? indy.bsm.getOwner() : "null");
         return false;
     }
@@ -92,11 +90,11 @@ public class InvokeDynamicHandler implements InstructionHandler {
         // Parse the recipe string from bootstrap method arguments
         String recipe = extractRecipe(indy);
         if (recipe == null) {
-            log.warnf("Could not extract recipe from StringConcatFactory: %s", indy.name);
+            Log.warnf("Could not extract recipe from StringConcatFactory: %s", indy.name);
             return false;
         }
 
-        log.tracef("StringConcatFactory recipe: '%s'", escapeRecipe(recipe));
+        Log.tracef("StringConcatFactory recipe: '%s'", escapeRecipe(recipe));
 
         // Build concatenation expression from recipe and stack operands
         LambdaExpression result = buildConcatenationFromRecipe(ctx, recipe);
@@ -128,14 +126,14 @@ public class InvokeDynamicHandler implements InstructionHandler {
         // The impl method handle is typically bsmArgs[1] for LambdaMetafactory
         Handle implMethodHandle = extractImplMethodHandle(indy);
         if (implMethodHandle == null) {
-            log.debugf("Could not extract impl method handle from LambdaMetafactory: %s", indy.name);
+            Log.debugf("Could not extract impl method handle from LambdaMetafactory: %s", indy.name);
             return false;
         }
 
         String nestedLambdaMethodName = implMethodHandle.getName();
         String nestedLambdaDescriptor = implMethodHandle.getDesc();
 
-        log.debugf("Nested lambda detected: %s%s", nestedLambdaMethodName, nestedLambdaDescriptor);
+        Log.debugf("Nested lambda detected: %s%s", nestedLambdaMethodName, nestedLambdaDescriptor);
 
         // Pop any captured variables from the stack
         // The INVOKEDYNAMIC descriptor tells us how many captured variables there are
@@ -150,7 +148,7 @@ public class InvokeDynamicHandler implements InstructionHandler {
         // Find the nested lambda method in the current class
         MethodNode nestedMethod = ctx.findMethod(nestedLambdaMethodName, nestedLambdaDescriptor);
         if (nestedMethod == null) {
-            log.warnf("Could not find nested lambda method %s%s", nestedLambdaMethodName, nestedLambdaDescriptor);
+            Log.warnf("Could not find nested lambda method %s%s", nestedLambdaMethodName, nestedLambdaDescriptor);
             return false;
         }
 
@@ -161,9 +159,9 @@ public class InvokeDynamicHandler implements InstructionHandler {
 
         if (nestedExpression != null) {
             ctx.push(nestedExpression);
-            log.debugf("Nested lambda analyzed: %s", nestedExpression);
+            Log.debugf("Nested lambda analyzed: %s", nestedExpression);
         } else {
-            log.warnf("Failed to analyze nested lambda %s", nestedLambdaMethodName);
+            Log.warnf("Failed to analyze nested lambda %s", nestedLambdaMethodName);
         }
 
         return false; // Continue processing
@@ -204,6 +202,9 @@ public class InvokeDynamicHandler implements InstructionHandler {
     /**
      * Extracts the implementation method handle from LambdaMetafactory bootstrap args.
      * The impl method handle is typically at index 1 in bsmArgs.
+     *
+     * @param indy the INVOKEDYNAMIC instruction
+     * @return the implementation method handle, or null if not found
      */
     private Handle extractImplMethodHandle(InvokeDynamicInsnNode indy) {
         if (indy.bsmArgs == null || indy.bsmArgs.length < 2) {
@@ -231,6 +232,9 @@ public class InvokeDynamicHandler implements InstructionHandler {
     /**
      * Extracts the recipe string from bootstrap method arguments.
      * The recipe is typically the first bootstrap argument.
+     *
+     * @param indy the INVOKEDYNAMIC instruction
+     * @return the recipe string, or null if not found
      */
     private String extractRecipe(InvokeDynamicInsnNode indy) {
         if (indy.bsmArgs == null || indy.bsmArgs.length == 0) {
@@ -264,7 +268,7 @@ public class InvokeDynamicHandler implements InstructionHandler {
      *
      * @param ctx analysis context (provides expression stack)
      * @param recipe concatenation recipe string
-     * @return concatenation expression tree, or null if parsing fails
+     * @return concatenation expression tree, or null if stack underflow occurs
      */
     private LambdaExpression buildConcatenationFromRecipe(AnalysisContext ctx, String recipe) {
         // Count dynamic arguments (\u0001 markers)
@@ -274,7 +278,7 @@ public class InvokeDynamicHandler implements InstructionHandler {
         List<LambdaExpression> operands = new ArrayList<>();
         for (int i = 0; i < dynamicArgCount; i++) {
             if (ctx.isStackEmpty()) {
-                log.warnf("Stack underflow while parsing StringConcatFactory recipe: '%s'", escapeRecipe(recipe));
+                Log.warnf("Stack underflow while parsing StringConcatFactory recipe: '%s'", escapeRecipe(recipe));
                 return null;
             }
             operands.add(0, ctx.pop()); // Insert at beginning to reverse order
@@ -316,7 +320,7 @@ public class InvokeDynamicHandler implements InstructionHandler {
      *
      * @param recipe concatenation recipe
      * @param operands dynamic operands (popped from stack)
-     * @return concatenation expression tree
+     * @return concatenation expression tree, or null if recipe is empty
      */
     private LambdaExpression parseRecipe(String recipe, List<LambdaExpression> operands) {
         LambdaExpression result = null;
@@ -345,8 +349,8 @@ public class InvokeDynamicHandler implements InstructionHandler {
      * Clears the buffer after flushing.
      *
      * @param buffer constant accumulator
-     * @param result current expression tree
-     * @return updated expression tree
+     * @param result current expression tree, or null
+     * @return updated expression tree, or null if buffer is empty and result is null
      */
     private LambdaExpression flushConstantBuffer(StringBuilder buffer, LambdaExpression result) {
         if (buffer.isEmpty()) {
@@ -362,7 +366,7 @@ public class InvokeDynamicHandler implements InstructionHandler {
      * Appends expression to result tree using ADD operator.
      * If result is null, returns toAdd directly (first element).
      *
-     * @param result current expression tree (may be null)
+     * @param result current expression tree, or null
      * @param toAdd expression to append
      * @return updated expression tree
      */

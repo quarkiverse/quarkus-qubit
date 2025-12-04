@@ -8,9 +8,11 @@ import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.MethodNode;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.BiFunction;
 
 /**
@@ -63,8 +65,8 @@ public class AnalysisContext {
          * @throws NullPointerException if classMethods or analyzer is null
          */
         public NestedLambdaSupport {
-            java.util.Objects.requireNonNull(classMethods, "classMethods cannot be null");
-            java.util.Objects.requireNonNull(analyzer, "analyzer cannot be null");
+            Objects.requireNonNull(classMethods, "classMethods cannot be null");
+            Objects.requireNonNull(analyzer, "analyzer cannot be null");
             classMethods = List.copyOf(classMethods);
         }
     }
@@ -550,7 +552,7 @@ public class AnalysisContext {
      */
     public void startArrayCreation(String elementType) {
         this.pendingArrayElementType = elementType;
-        this.pendingArrayElements = new java.util.ArrayList<>();
+        this.pendingArrayElements = new ArrayList<>();
     }
 
     /**

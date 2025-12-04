@@ -33,6 +33,9 @@ import jakarta.persistence.criteria.Selection;
  *   <li>Group key references: {@code g.key()}</li>
  * </ul>
  *
+ * internal generate* methods return ResultHandle, but callers
+ * typically know the result is non-null in their specific context.
+ *
  * @see io.quarkiverse.qubit.deployment.generation.CriteriaExpressionGenerator
  */
 public class GroupExpressionBuilder implements ExpressionBuilder {
@@ -49,13 +52,13 @@ public class GroupExpressionBuilder implements ExpressionBuilder {
      * Used for group query HAVING predicates like {@code g -> g.count() > 5}.
      *
      * @param method the method creator for bytecode generation
-     * @param expression the group lambda expression AST
+     * @param expression the group lambda expression AST, or null
      * @param cb the CriteriaBuilder handle
      * @param root the root entity handle
      * @param groupKeyExpr the JPA expression for the grouping key
      * @param capturedValues the captured variables array handle
      * @param helper the helper for common expression generation
-     * @return the JPA Predicate handle for the HAVING clause
+     * @return the JPA Predicate handle for the HAVING clause, or null if expression is null or unhandled
      */
     public ResultHandle generateGroupPredicate(
             MethodCreator method,
@@ -96,13 +99,13 @@ public class GroupExpressionBuilder implements ExpressionBuilder {
      * Used for group query select projections like {@code g -> new DeptStats(g.key(), g.count())}.
      *
      * @param method the method creator for bytecode generation
-     * @param expression the group lambda expression AST
+     * @param expression the group lambda expression AST, or null
      * @param cb the CriteriaBuilder handle
      * @param root the root entity handle
      * @param groupKeyExpr the JPA expression for the grouping key
      * @param capturedValues the captured variables array handle
      * @param helper the helper for common expression generation
-     * @return the JPA Expression handle for the SELECT clause
+     * @return the JPA Expression handle for the SELECT clause, or null if expression is null or unhandled
      */
     public ResultHandle generateGroupSelectExpression(
             MethodCreator method,
