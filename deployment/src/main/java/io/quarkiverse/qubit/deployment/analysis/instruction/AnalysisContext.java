@@ -312,6 +312,86 @@ public class AnalysisContext {
         return stack.size();
     }
 
+    /**
+     * Pops two expressions from the stack for binary operations.
+     *
+     * <p>CS-009: Helper method to reduce repeated pop patterns like:
+     * <pre>
+     * if (ctx.getStackSize() >= 2) {
+     *     LambdaExpression right = ctx.pop();
+     *     LambdaExpression left = ctx.pop();
+     *     // use left and right
+     * }
+     * </pre>
+     *
+     * @return record containing [left, right] where left was second-to-top and right was top,
+     *         or null if stack has fewer than 2 elements
+     */
+    public PopPairResult popPair() {
+        if (stack.size() < 2) {
+            return null;
+        }
+        LambdaExpression right = stack.pop();
+        LambdaExpression left = stack.pop();
+        return new PopPairResult(left, right);
+    }
+
+    /**
+     * Result of a popPair() operation containing two expressions.
+     *
+     * <p>CS-009: Provides semantic naming (left/right) instead of array indices.
+     *
+     * @param left the second-to-top element (left operand in binary ops)
+     * @param right the top element (right operand in binary ops)
+     */
+    public record PopPairResult(LambdaExpression left, LambdaExpression right) {}
+
+    /**
+     * Pops N expressions from the stack.
+     *
+     * <p>CS-009: Helper method to reduce repeated pop loops like:
+     * <pre>
+     * for (int i = 0; i < argCount; i++) {
+     *     args.add(0, ctx.pop());
+     * }
+     * </pre>
+     *
+     * @param n number of elements to pop
+     * @return list of N expressions in reverse stack order (first element was deepest),
+     *         or null if stack has fewer than N elements
+     */
+    public List<LambdaExpression> popN(int n) {
+        if (stack.size() < n) {
+            return null;
+        }
+        List<LambdaExpression> result = new ArrayList<>(n);
+        for (int i = 0; i < n; i++) {
+            result.add(0, stack.pop()); // Insert at beginning to reverse order
+        }
+        return result;
+    }
+
+    /**
+     * Discards up to N elements from the stack without returning them.
+     *
+     * <p>CS-009: Helper method to reduce repeated discard patterns like:
+     * <pre>
+     * if (!ctx.isStackEmpty()) ctx.pop();
+     * if (!ctx.isStackEmpty()) ctx.pop();
+     * </pre>
+     *
+     * @param n maximum number of elements to discard
+     * @return actual number of elements discarded
+     */
+    public int discardN(int n) {
+        int discarded = 0;
+        while (discarded < n && !stack.isEmpty()) {
+            stack.pop();
+            discarded++;
+        }
+        return discarded;
+    }
+
     // ==================== Instruction Access ====================
 
     /**

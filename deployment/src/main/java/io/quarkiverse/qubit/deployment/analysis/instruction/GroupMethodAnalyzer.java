@@ -4,6 +4,7 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupAggregation;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupKeyReference;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupParameter;
+import io.quarkiverse.qubit.deployment.analysis.instruction.AnalysisContext.PopPairResult;
 import io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer;
 import io.quarkus.logging.Log;
 import org.objectweb.asm.tree.MethodInsnNode;
@@ -107,12 +108,14 @@ public class GroupMethodAnalyzer {
      * Handles g.countDistinct(field) - counts distinct values.
      */
     private void handleGroupCountDistinct(AnalysisContext ctx) {
-        if (ctx.getStackSize() < 2) {
+        // CS-009: Use popPair() helper to reduce code repetition
+        PopPairResult pair = ctx.popPair();
+        if (pair == null) {
             return;
         }
 
-        LambdaExpression fieldArg = ctx.pop();  // The field extractor (analyzed nested lambda)
-        LambdaExpression target = ctx.pop();     // The Group parameter
+        LambdaExpression fieldArg = pair.right();  // The field extractor (was on top)
+        LambdaExpression target = pair.left();     // The Group parameter
 
         if (target instanceof GroupParameter) {
             ctx.push(GroupAggregation.countDistinct(fieldArg));
@@ -127,12 +130,14 @@ public class GroupMethodAnalyzer {
     private void handleGroupAggregationWithField(
             AnalysisContext ctx,
             Function<LambdaExpression, GroupAggregation> aggregationFactory) {
-        if (ctx.getStackSize() < 2) {
+        // CS-009: Use popPair() helper to reduce code repetition
+        PopPairResult pair = ctx.popPair();
+        if (pair == null) {
             return;
         }
 
-        LambdaExpression fieldArg = ctx.pop();  // The field extractor
-        LambdaExpression target = ctx.pop();     // The Group parameter
+        LambdaExpression fieldArg = pair.right();  // The field extractor (was on top)
+        LambdaExpression target = pair.left();     // The Group parameter
 
         if (target instanceof GroupParameter) {
             ctx.push(aggregationFactory.apply(fieldArg));
@@ -145,12 +150,14 @@ public class GroupMethodAnalyzer {
      * Handles g.min(field) and g.max(field) - aggregations that preserve field type.
      */
     private void handleGroupMinMax(AnalysisContext ctx, boolean isMin) {
-        if (ctx.getStackSize() < 2) {
+        // CS-009: Use popPair() helper to reduce code repetition
+        PopPairResult pair = ctx.popPair();
+        if (pair == null) {
             return;
         }
 
-        LambdaExpression fieldArg = ctx.pop();  // The field extractor
-        LambdaExpression target = ctx.pop();     // The Group parameter
+        LambdaExpression fieldArg = pair.right();  // The field extractor (was on top)
+        LambdaExpression target = pair.left();     // The Group parameter
 
         if (target instanceof GroupParameter) {
             // Determine result type from field expression

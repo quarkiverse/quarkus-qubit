@@ -9,6 +9,8 @@ import io.quarkus.logging.Log;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 
+import io.quarkiverse.qubit.deployment.analysis.instruction.AnalysisContext.PopPairResult;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -136,16 +138,14 @@ public class MethodInvocationHandler implements InstructionHandler {
         try {
             int argCount = DescriptorParser.countMethodArguments(specialInsn.desc);
 
-            List<LambdaExpression> args = new ArrayList<>();
-            for (int i = 0; i < argCount; i++) {
-                if (!ctx.isStackEmpty()) {
-                    args.add(0, ctx.pop());
-                }
+            // CS-009: Use popN() helper to pop constructor arguments
+            List<LambdaExpression> args = ctx.popN(argCount);
+            if (args == null) {
+                args = new ArrayList<>();
             }
 
-            // Pop NEW and DUP markers
-            if (!ctx.isStackEmpty()) ctx.pop();
-            if (!ctx.isStackEmpty()) ctx.pop();
+            // CS-009: Use discardN() helper to pop NEW and DUP markers
+            ctx.discardN(2);
 
             // Special handling: BigDecimal(String) constructor with constant folding
             if (isBigDecimalStringConstruction(specialInsn, argCount, args)) {
@@ -244,12 +244,14 @@ public class MethodInvocationHandler implements InstructionHandler {
      * </ul>
      */
     private void handleCollectionContains(AnalysisContext ctx) {
-        if (ctx.getStackSize() < 2) {
+        // CS-009: Use popPair() helper to reduce code repetition
+        PopPairResult pair = ctx.popPair();
+        if (pair == null) {
             return;
         }
 
-        LambdaExpression argument = ctx.pop();  // The contains() argument
-        LambdaExpression target = ctx.pop();    // The collection (target of contains())
+        LambdaExpression argument = pair.right();  // The contains() argument (was on top)
+        LambdaExpression target = pair.left();     // The collection (target of contains())
 
         // Determine if this is IN clause or MEMBER OF pattern
         if (isInClausePattern(target, argument)) {
@@ -337,10 +339,10 @@ public class MethodInvocationHandler implements InstructionHandler {
      * Handles equals() method call by converting to equality comparison.
      */
     private void handleEqualsMethod(AnalysisContext ctx) {
-        if (ctx.getStackSize() >= 2) {
-            LambdaExpression right = ctx.pop();
-            LambdaExpression left = ctx.pop();
-            ctx.push(eq(left, right));
+        // CS-009: Use popPair() helper to reduce code repetition
+        PopPairResult pair = ctx.popPair();
+        if (pair != null) {
+            ctx.push(eq(pair.left(), pair.right()));
         }
     }
 
@@ -579,13 +581,13 @@ public class MethodInvocationHandler implements InstructionHandler {
      * Handles single-argument method calls (e.g., startsWith(), compareTo()).
      */
     private void handleSingleArgumentMethodCall(AnalysisContext ctx, String methodName, Class<?> returnType) {
-        if (ctx.getStackSize() >= 2) {
-            LambdaExpression argument = ctx.pop();  // The method argument
-            LambdaExpression target = ctx.pop();    // The object calling the method
+        // CS-009: Use popPair() helper to reduce code repetition
+        PopPairResult pair = ctx.popPair();
+        if (pair != null) {
             ctx.push(new LambdaExpression.MethodCall(
-                target,
+                pair.left(),   // The object calling the method (was second-to-top)
                 methodName,
-                List.of(argument),
+                List.of(pair.right()),  // The method argument (was on top)
                 returnType
             ));
         }

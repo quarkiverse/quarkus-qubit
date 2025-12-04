@@ -23,13 +23,13 @@ This document provides a comprehensive analysis of code quality issues identifie
 | Category | Critical | High | Medium | Low | Total | Resolved |
 |----------|----------|------|--------|-----|-------|----------|
 | Architectural | 0 | ~~4~~ 1 | 12 | 9 |
-| Code Smells | 0 | ~~3~~ 1 | ~~12~~ ~~11~~ ~~10~~ 9 | 8 | ~~23~~ ~~22~~ ~~21~~ 20 | ~~2~~ ~~3~~ ~~4~~ 5 |
+| Code Smells | 0 | ~~3~~ 1 | ~~12~~  8 | 8 | ~~23~~  19 | ~~2~~  6 |
 | Enum/Type-Safety | 0 | 0 | 2 | 4 | 6 | 0 |
 | Bug Risks | ~~2~~ 0 | ~~5~~ 4 | 4 | 2 | ~~13~~ 10 | 3 |
 | Documentation | 0 | ~~2~~ 1 | 6 | 4 | 12 | 1 |
 | Performance | 0 | 1 | 3 | 2 | 6 | 0 |
 | Maintainability | 0 | ~~7~~ 1 | ~~12~~ 0 | ~~6~~ 4 | ~~25~~ 5 | 21 |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ **8** | ~~**42**~~ ~~**28**~~ ~~**27**~~ **26** | ~~**25**~~ **25** | ~~**91**~~ ~~**62**~~ ~~**61**~~ **60** | **39** |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ **8** | ~~**42**~~ **25** | ~~**25**~~ **25** | ~~**91**~~ **59** | **40** |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -446,11 +446,31 @@ public static Class<?> tryLoadClass(String className) {
   - **Defensive programming**: Catches unexpected states at runtime
   - **Consistent pattern**: All enum switches now follow the same convention
 
-### CS-009: Repeated Pattern: Pop Multiple Items From Stack
-- **File**: [MethodInvocationHandler.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/MethodInvocationHandler.java)
+### CS-009: Repeated Pattern: Pop Multiple Items From Stack ✅ RESOLVED
+- **File**: [MethodInvocationHandler.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/instruction/MethodInvocationHandler.java)
 - **Severity**: Medium
+- **Status**: ✅ **RESOLVED**
 - **Description**: Pattern of checking stack size and popping multiple items repeated often.
-- **Suggested Fix**: Extract helper method `popN(int n)` or `popPair()`.
+- **Fix Applied**:
+  - Added 3 helper methods to [AnalysisContext.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/instruction/AnalysisContext.java):
+    - `popPair()`: Returns `PopPairResult(left, right)` if stack has >= 2 elements, null otherwise
+    - `popN(int n)`: Returns list of N elements in reverse order, null if insufficient
+    - `discardN(int n)`: Discards up to N elements without returning them
+  - Created `PopPairResult` record for semantic naming (left/right instead of array indices)
+  - Refactored MethodInvocationHandler.java (4 methods):
+    - `handleCollectionContains()`: Uses `popPair()`
+    - `handleEqualsMethod()`: Uses `popPair()`
+    - `handleSingleArgumentMethodCall()`: Uses `popPair()`
+    - `handleInvokeSpecial()`: Uses `popN()` and `discardN()`
+  - Refactored GroupMethodAnalyzer.java (3 methods):
+    - `handleGroupCountDistinct()`: Uses `popPair()`
+    - `handleGroupAggregationWithField()`: Uses `popPair()`
+    - `handleGroupMinMax()`: Uses `popPair()`
+- **Benefits**:
+  - Reduced code repetition (7 methods refactored)
+  - Consistent null-checking pattern
+  - Self-documenting code with semantic naming (left/right vs indices)
+  - Single point of maintenance for stack operations
 
 ### CS-010: Raw Type Usage
 - **Files**: Various generated code paths
@@ -1506,4 +1526,5 @@ When addressing issues, use this template:
 | 3.2 | 2025-12-04 | Claude | **CS-006 Complete**: Created `QueryCharacteristics` record to replace 6 boolean parameters in `handleDuplicateLambda()`. Record bundles isCountQuery, isAggregationQuery, isJoinQuery, isSelectJoined, isJoinProjection, isGroupQuery flags. Added 9 factory methods (forList, forCount, forAggregation, forJoinList, forJoinCount, forSelectJoined, forJoinProjection, forGroupList, forGroupCount) and fromCallSite() extractor. Updated LambdaDeduplicator (11→6 parameters), QueryTransformationBuildItem (6→3 constructors), and CallSiteProcessor call sites. Updated: Code Smells medium 12→11, total 63→62, resolved 36→37. All 1,113 tests pass. |
 | 3.3 | 2025-12-04 | Claude | **CS-007 N/A (Clean Codebase)**: Comprehensive investigation for commented-out code blocks using 15+ grep patterns across deployment and runtime modules. Searched for: commented return/if/for/while/try statements, commented method calls with semicolons, commented variable assignments, block comments with code structures, debug logging comments, TODO/FIXME markers, consecutive comment blocks. **Finding**: No actual commented-out code blocks found. All matches were legitimate explanatory comments (Javadoc examples, operation descriptions like `// cb.concat(left, right)`, section separators). Issue marked as N/A - codebase maintains clean comment hygiene. Updated: Code Smells medium 11→10, total 62→61, resolved 37→38. |
 | 3.4 | 2025-12-04 | Claude | **CS-008 Complete**: Added default cases to 4 exhaustive enum switches for future-proofing. Files modified: ControlFlowAnalyzer.java (LabelClassification enum), SubqueryExpressionBuilder.java (2 SubqueryAggregationType switches), GroupExpressionBuilder.java (GroupAggregationType enum). All default cases throw IllegalStateException with descriptive message. Benefits: fail-fast behavior if new enum values added, defensive programming, consistent pattern. Updated: Code Smells medium 10→9, total 61→60, resolved 38→39. All 1,113 tests pass. |
+| 3.5 | 2025-12-04 | Claude | **CS-009 Complete**: Added 3 helper methods to AnalysisContext.java for repeated stack pop patterns: `popPair()` returns `PopPairResult(left, right)` record, `popN(int n)` returns list, `discardN(int n)` discards without returning. Refactored 7 methods across 2 files: MethodInvocationHandler (handleCollectionContains, handleEqualsMethod, handleSingleArgumentMethodCall, handleInvokeSpecial) and GroupMethodAnalyzer (handleGroupCountDistinct, handleGroupAggregationWithField, handleGroupMinMax). Benefits: reduced code repetition, consistent null-checking, semantic naming. Updated: Code Smells medium 9→8, total 60→59, resolved 39→40. All 375 tests pass. |
 
