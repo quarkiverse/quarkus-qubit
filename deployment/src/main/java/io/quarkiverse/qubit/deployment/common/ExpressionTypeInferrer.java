@@ -108,4 +108,50 @@ public final class ExpressionTypeInferrer {
         Class<?> type = inferFieldType(expression);
         return Comparable.class.isAssignableFrom(type) || type.isPrimitive();
     }
+
+    /**
+     * Checks if the class represents a boolean type.
+     *
+     * <p>CS-014: Extracted from CriteriaExpressionGenerator and BiEntityExpressionBuilder
+     * to eliminate duplication.
+     *
+     * @param type the class to check
+     * @return true if the class is boolean or Boolean
+     */
+    public static boolean isBooleanType(Class<?> type) {
+        return type == boolean.class || type == Boolean.class;
+    }
+
+    /**
+     * Extracts the field name from a getter method name.
+     *
+     * <p>Handles standard JavaBean naming conventions:
+     * <ul>
+     *   <li>{@code getAge} → {@code age}</li>
+     *   <li>{@code getName} → {@code name}</li>
+     *   <li>{@code isActive} → {@code active}</li>
+     *   <li>{@code isEnabled} → {@code enabled}</li>
+     *   <li>{@code other} → {@code other} (returned as-is)</li>
+     * </ul>
+     *
+     * <p>CS-014: Extracted from CriteriaExpressionGenerator, BiEntityExpressionBuilder,
+     * and MethodInvocationHandler to eliminate duplication.
+     *
+     * @param methodName the getter method name
+     * @return the extracted field name, or the original method name if not a getter
+     */
+    public static String extractFieldName(String methodName) {
+        if (methodName == null) {
+            return null;
+        }
+        if (methodName.startsWith("get") && methodName.length() > 3) {
+            String fieldName = methodName.substring(3);
+            return Character.toLowerCase(fieldName.charAt(0)) + fieldName.substring(1);
+        }
+        if (methodName.startsWith("is") && methodName.length() > 2) {
+            String fieldName = methodName.substring(2);
+            return Character.toLowerCase(fieldName.charAt(0)) + fieldName.substring(1);
+        }
+        return methodName;
+    }
 }

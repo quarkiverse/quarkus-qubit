@@ -27,6 +27,8 @@ import static io.quarkiverse.qubit.runtime.QubitConstants.PATH_GET;
 import static io.quarkiverse.qubit.runtime.QubitConstants.PREFIX_GET;
 import static io.quarkiverse.qubit.runtime.QubitConstants.PREFIX_IS;
 import static io.quarkiverse.qubit.runtime.QubitConstants.TEMPORAL_COMPARISON_METHOD_NAMES;
+import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.extractFieldName;
+import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.isBooleanType;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isBooleanFieldCapturedVariableComparison;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isBooleanFieldConstantComparison;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isCompareToEqualityPattern;
@@ -1170,23 +1172,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_LITERAL, Expression.class, Object.class), cb, value);
     }
 
-    /** Checks if type is boolean (primitive or wrapper). */
-    private static boolean isBooleanType(Class<?> type) {
-        return type == boolean.class || type == Boolean.class;
-    }
-
-    /** Extracts field name from getter: "getAge" to "age". */
-    private String extractFieldName(String methodName) {
-        if (methodName.startsWith(PREFIX_GET) && methodName.length() > 3) {
-            String fieldName = methodName.substring(3);
-            return Character.toLowerCase(fieldName.charAt(0)) + fieldName.substring(1);
-        }
-        if (methodName.startsWith(PREFIX_IS) && methodName.length() > 2) {
-            String fieldName = methodName.substring(2);
-            return Character.toLowerCase(fieldName.charAt(0)) + fieldName.substring(1);
-        }
-        return methodName;
-    }
+    // CS-014: isBooleanType() and extractFieldName() moved to ExpressionTypeInferrer
 
     // =============================================================================================
     // BI-ENTITY EXPRESSIONS (Iteration 6: Join Queries) - Delegated to BiEntityExpressionBuilder

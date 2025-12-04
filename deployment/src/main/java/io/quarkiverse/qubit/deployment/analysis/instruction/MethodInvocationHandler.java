@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.function.Function;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.eq;
+import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.extractFieldName;
 import static io.quarkiverse.qubit.runtime.QubitConstants.*;
 import static org.objectweb.asm.Opcodes.*;
 
@@ -547,20 +548,7 @@ public class MethodInvocationHandler implements InstructionHandler {
         }
     }
 
-    /**
-     * Extracts field name from getter (getAge -> age, isActive -> active).
-     */
-    private String extractFieldName(String methodName) {
-        if (methodName.startsWith("get") && methodName.length() > 3) {
-            String fieldName = methodName.substring(3);
-            return Character.toLowerCase(fieldName.charAt(0)) + fieldName.substring(1);
-        }
-        if (methodName.startsWith("is") && methodName.length() > 2) {
-            String fieldName = methodName.substring(2);
-            return Character.toLowerCase(fieldName.charAt(0)) + fieldName.substring(1);
-        }
-        return methodName;
-    }
+    // CS-014: extractFieldName() moved to ExpressionTypeInferrer
 
     /**
      * Handles zero-argument method calls (e.g., length(), isEmpty()).

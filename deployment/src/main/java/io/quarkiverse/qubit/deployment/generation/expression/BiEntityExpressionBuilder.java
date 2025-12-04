@@ -1,5 +1,7 @@
 package io.quarkiverse.qubit.deployment.generation.expression;
 
+import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.extractFieldName;
+import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.isBooleanType;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isLogicalOperation;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isNullCheckPattern;
 import static io.quarkiverse.qubit.runtime.QubitConstants.CB_EQUAL;
@@ -545,27 +547,7 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
         return method.invokeInterfaceMethod(constructMethod, cb, resultClassHandle, selectionsArray);
     }
 
-    /**
-     * Extracts field name from getter: "getAge" to "age".
-     */
-    private String extractFieldName(String methodName) {
-        if (methodName.startsWith(PREFIX_GET) && methodName.length() > 3) {
-            String fieldName = methodName.substring(3);
-            return Character.toLowerCase(fieldName.charAt(0)) + fieldName.substring(1);
-        }
-        if (methodName.startsWith(PREFIX_IS) && methodName.length() > 2) {
-            String fieldName = methodName.substring(2);
-            return Character.toLowerCase(fieldName.charAt(0)) + fieldName.substring(1);
-        }
-        return methodName;
-    }
-
-    /**
-     * Checks if type is boolean (primitive or wrapper).
-     */
-    private static boolean isBooleanType(Class<?> type) {
-        return type == boolean.class || type == Boolean.class;
-    }
+    // CS-014: isBooleanType() and extractFieldName() moved to ExpressionTypeInferrer
 
     /**
      * Creates MethodDescriptor for method.
