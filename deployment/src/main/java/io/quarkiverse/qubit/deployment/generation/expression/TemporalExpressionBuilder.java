@@ -14,7 +14,14 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Set;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.*;
+import static io.quarkiverse.qubit.runtime.QubitConstants.CB_EQUAL;
+import static io.quarkiverse.qubit.runtime.QubitConstants.CB_FUNCTION;
+import static io.quarkiverse.qubit.runtime.QubitConstants.CB_GREATER_THAN;
+import static io.quarkiverse.qubit.runtime.QubitConstants.CB_LESS_THAN;
+import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_IS_AFTER;
+import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_IS_BEFORE;
+import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_IS_EQUAL;
+import static io.quarkiverse.qubit.runtime.QubitConstants.TEMPORAL_COMPARISON_METHOD_NAMES;
 
 /**
  * Builds JPA Criteria API expressions for temporal (date/time) operations.
@@ -29,53 +36,11 @@ import static io.quarkiverse.qubit.runtime.QubitConstants.*;
  * </ul>
  *
  * <p><b>Supported Types:</b> LocalDate, LocalDateTime, LocalTime
+ *
+ * <p><b>ENUM-002:</b> Temporal accessor method-to-SQL function mapping is now
+ * encapsulated in {@link TemporalAccessorMethod} enum for type safety.
  */
 public class TemporalExpressionBuilder implements ExpressionBuilder {
-
-    /**
-     * Temporal accessor methods that extract components from date/time values.
-     */
-    private static final Set<String> TEMPORAL_ACCESSOR_METHODS = Set.of(
-        METHOD_GET_YEAR,
-        METHOD_GET_MONTH_VALUE,
-        METHOD_GET_DAY_OF_MONTH,
-        METHOD_GET_HOUR,
-        METHOD_GET_MINUTE,
-        METHOD_GET_SECOND
-    );
-
-    /**
-     * Temporal comparison methods (isAfter, isBefore, isEqual).
-     */
-    private static final Set<String> TEMPORAL_COMPARISON_METHODS = TEMPORAL_COMPARISON_METHOD_NAMES;
-
-    /**
-     * Maps temporal accessor method names to SQL function names.
-     *
-     * @param methodName the Java method name (e.g., "getYear")
-     * @return the SQL function name (e.g., "YEAR"), or null if not a temporal accessor
-     */
-    public static String mapTemporalAccessorToSqlFunction(String methodName) {
-        return switch (methodName) {
-            case METHOD_GET_YEAR -> SQL_YEAR;
-            case METHOD_GET_MONTH_VALUE -> SQL_MONTH;
-            case METHOD_GET_DAY_OF_MONTH -> SQL_DAY;
-            case METHOD_GET_HOUR -> SQL_HOUR;
-            case METHOD_GET_MINUTE -> SQL_MINUTE;
-            case METHOD_GET_SECOND -> SQL_SECOND;
-            default -> null;
-        };
-    }
-
-    /**
-     * Checks if a method call is a temporal accessor function.
-     *
-     * @param methodCall the method call expression
-     * @return true if temporal accessor (getYear, getMonth, etc.)
-     */
-    public boolean isTemporalAccessor(LambdaExpression.MethodCall methodCall) {
-        return TEMPORAL_ACCESSOR_METHODS.contains(methodCall.methodName());
-    }
 
     /**
      * Checks if a method call is a temporal comparison.
@@ -84,7 +49,7 @@ public class TemporalExpressionBuilder implements ExpressionBuilder {
      * @return true if temporal comparison (isAfter, isBefore, isEqual)
      */
     public boolean isTemporalComparison(LambdaExpression.MethodCall methodCall) {
-        return TEMPORAL_COMPARISON_METHODS.contains(methodCall.methodName());
+        return TEMPORAL_COMPARISON_METHOD_NAMES.contains(methodCall.methodName());
     }
 
     /**
@@ -123,7 +88,7 @@ public class TemporalExpressionBuilder implements ExpressionBuilder {
             return null;
         }
 
-        String functionName = mapTemporalAccessorToSqlFunction(methodCall.methodName());
+        String functionName = TemporalAccessorMethod.toSqlFunction(methodCall.methodName());
         if (functionName == null) {
             return null;
         }

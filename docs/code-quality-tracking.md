@@ -24,12 +24,12 @@ This document provides a comprehensive analysis of code quality issues identifie
 |----------|----------|------|--------|-----|-------|----------|
 | Architectural | 0 | ~~4~~ 1 | 12 | 9 |
 | Code Smells | 0 | ~~3~~ 1 | ~~12~~  7 | ~~8~~ 5 | ~~23~~ 15 | ~~2~~ 10 |
-| Enum/Type-Safety | 0 | 0 | ~~2~~ 1 | 4 | ~~6~~ 5 | 1 |
+| Enum/Type-Safety | 0 | 0 | ~~2~~ 1 | ~~4~~ 3 | ~~6~~ 4 | 2 |
 | Bug Risks | ~~2~~ 0 | ~~5~~ 4 | 4 | 2 | ~~13~~ 10 | 3 |
 | Documentation | 0 | ~~2~~ 1 | 6 | 4 | 12 | 1 |
 | Performance | 0 | 1 | 3 | 2 | 6 | 0 |
 | Maintainability | 0 | ~~7~~ 1 | ~~12~~ 0 | ~~6~~ 4 | ~~25~~ 5 | 21 |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ **8** | ~~**42**~~ **23** | ~~**25**~~ **22** | ~~**91**~~ **54** | ~~**40**~~ **45** |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ **8** | ~~**42**~~ **23** | ~~**25**~~ **21** | ~~**91**~~ **53** | ~~**40**~~ **46** |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -717,53 +717,32 @@ public enum FluentMethodType {
   - **Design Decision**: String constants retained in QubitConstants for `InvokeDynamicScanner` bytecode analysis (requires string comparison)
   - All 375 deployment tests pass
 
-### ENUM-002: Create `TemporalAccessorMethod` Enum
-- **Files**: [TemporalExpressionBuilder.java:38-68](deployment/src/main/java/io/quarkiverse/qubit/deployment/generation/expression/TemporalExpressionBuilder.java#L38-L68), [QubitConstants.java:174-179](runtime/src/main/java/io/quarkiverse/qubit/runtime/QubitConstants.java#L174-L179)
+### ENUM-002: Create `TemporalAccessorMethod` Enum ✅ RESOLVED
+- **Files**: [TemporalAccessorMethod.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/generation/expression/TemporalAccessorMethod.java) (NEW), [TemporalExpressionBuilder.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/generation/expression/TemporalExpressionBuilder.java)
 - **Severity**: Low
 - **Priority**: Medium
+- **Status**: ✅ **RESOLVED**
 - **Description**: Temporal accessor methods mapped to SQL functions via string constants and switch statement.
-- **Current Pattern**:
-```java
-// QubitConstants.java
-public static final String METHOD_GET_YEAR = "getYear";
-public static final String SQL_YEAR = "YEAR";
-// ... 6 pairs
-
-// TemporalExpressionBuilder.java
-private static final Set<String> TEMPORAL_ACCESSOR_METHODS = Set.of(
-    METHOD_GET_YEAR, METHOD_GET_MONTH_VALUE, ...);
-
-public static String mapTemporalAccessorToSqlFunction(String methodName) {
-    return switch (methodName) {
-        case METHOD_GET_YEAR -> SQL_YEAR;
-        case METHOD_GET_MONTH_VALUE -> SQL_MONTH;
-        // ... 6 cases
-    };
-}
-```
-- **Suggested Fix**: Create `TemporalAccessorMethod` enum:
-```java
-public enum TemporalAccessorMethod {
-    GET_YEAR("getYear", "YEAR"),
-    GET_MONTH_VALUE("getMonthValue", "MONTH"),
-    GET_DAY_OF_MONTH("getDayOfMonth", "DAY"),
-    GET_HOUR("getHour", "HOUR"),
-    GET_MINUTE("getMinute", "MINUTE"),
-    GET_SECOND("getSecond", "SECOND");
-
-    private final String javaMethod;
-    private final String sqlFunction;
-
-    public String toSqlFunction() { return sqlFunction; }
-
-    public static Optional<TemporalAccessorMethod> fromJavaMethod(String name) {
-        return Arrays.stream(values())
-            .filter(m -> m.javaMethod.equals(name))
-            .findFirst();
-    }
-}
-```
-- **Benefits**: Eliminates 12 string constants, type-safe mapping, single source of truth.
+- **Fix Applied**:
+  - Created [TemporalAccessorMethod.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/generation/expression/TemporalAccessorMethod.java) (161 lines) with 6 enum values:
+    - **Date methods**: `GET_YEAR`, `GET_MONTH_VALUE`, `GET_DAY_OF_MONTH`
+    - **Time methods**: `GET_HOUR`, `GET_MINUTE`, `GET_SECOND`
+  - Each enum value encapsulates Java method name and corresponding SQL function name
+  - Added utility methods:
+    - `getJavaMethod()` - returns the Java method name
+    - `getSqlFunction()` - returns the SQL function name
+    - `fromJavaMethod(String)` - lookup method returning Optional
+    - `isTemporalAccessor(String)` - convenience check method
+    - `toSqlFunction(String)` - static mapping method for backward compatibility
+  - Added `EnumSet` constants: `DATE_METHODS`, `TIME_METHODS`, `ALL`
+  - Updated `TemporalExpressionBuilder.java`:
+    - Removed `TEMPORAL_ACCESSOR_METHODS` Set (replaced by enum)
+    - Removed delegation methods `mapTemporalAccessorToSqlFunction()` and `isTemporalAccessor()`
+    - Direct calls to `TemporalAccessorMethod.toSqlFunction()` and `TemporalAccessorMethod.isTemporalAccessor()` used instead
+  - METHOD_GET_* constants retained in QubitConstants (required for switch case labels in MethodInvocationHandler)
+  - SQL_* constants retained in QubitConstants (may be useful for other purposes)
+  - All 1,113 tests pass
+- **Benefits**: Type-safe Java→SQL function mapping, EnumSet for type-specific method groups, single source of truth for temporal accessor metadata.
 
 ### ENUM-003: Create `ExecutorType` Enum for QueryExecutorRegistry
 - **File**: [QueryExecutorRegistry.java:21-30](runtime/src/main/java/io/quarkiverse/qubit/runtime/QueryExecutorRegistry.java#L21-L30)
@@ -1664,4 +1643,5 @@ When addressing issues, use this template:
 | 4.0 | 2025-12-04 | Claude | **CS-014 Partially Addressed (Good Design)**: Deep investigation of "static utility method candidates". **Finding**: Codebase already follows good utility class patterns with 7 static utility classes (ExpressionTypeInferrer, PatternDetector, BytecodeValidator, DescriptorParser, BytecodeLoader, TypeConverter, ClassLoaderHelper). Identified 2 minor duplications: `extractFieldName()` duplicated in 3 files (could be consolidated), `isBooleanType()` duplicated in 2 files (already static). Instance methods without direct `this` usage (e.g., ControlFlowAnalyzer, generator methods) are intentionally instance-based for testability, extensibility, and composition. **Conclusion**: Most are intentional design choices; minor consolidation opportunity exists but low ROI. No count changes (issue remains open but analyzed). |
 | 4.1 | 2025-12-04 | Claude | **CS-014 Complete**: Consolidated duplicated utility methods into `ExpressionTypeInferrer.java`. Added `isBooleanType(Class<?> type)` for boolean/Boolean type checking and `extractFieldName(String methodName)` for JavaBean getter-to-field conversion (getAge→age, isActive→active). Updated 3 files to use static imports: `CriteriaExpressionGenerator.java`, `BiEntityExpressionBuilder.java`, `MethodInvocationHandler.java`. Removed 5 duplicate method definitions. Benefits: single source of truth, reduced duplication, consistent behavior. Updated: Code Smells low 6→5, total 56→55, resolved 43→44. All 1,113 tests pass. |
 | 4.2 | 2025-12-04 | Claude | **ENUM-001 Complete**: Created behavior-rich `FluentMethodType` enum (282 lines) with 10 values: WHERE, SELECT, SORTED_BY, SORTED_DESCENDING_BY, MIN, MAX, AVG, SUM_INTEGER, SUM_LONG, SUM_DOUBLE. Each value implements abstract `createConfig()` method (Strategy pattern). Added `fromMethodName()` lookup, `EnumSet` constants (ENTRY_POINTS, AGGREGATIONS, SORTING), and nested `MethodCategory` enum. Updated `QubitRepositoryEnhancer.java` to use enum dispatch: `isGenerateBridgeMethod()` uses Optional lookup, `visitEnd()` iterates EnumSet, `generateBridgeMethod()` accepts enum type. Eliminated duplicate switch statements. String constants retained in QubitConstants for InvokeDynamicScanner bytecode analysis. Updated: Enum/Type-Safety medium 2→1, total 55→54, resolved 44→45. All 375 deployment tests pass. |
+| 4.3 | 2025-12-04 | Claude | **ENUM-002 Complete**: Created `TemporalAccessorMethod` enum (161 lines) with 6 values: GET_YEAR, GET_MONTH_VALUE, GET_DAY_OF_MONTH, GET_HOUR, GET_MINUTE, GET_SECOND. Each value encapsulates Java method name and SQL function name. Added utility methods: `getJavaMethod()`, `getSqlFunction()`, `fromJavaMethod()`, `isTemporalAccessor()`, `toSqlFunction()`. Added `EnumSet` constants: DATE_METHODS, TIME_METHODS, ALL. Updated `TemporalExpressionBuilder.java`: removed `TEMPORAL_ACCESSOR_METHODS` Set, removed delegation methods `mapTemporalAccessorToSqlFunction()` and `isTemporalAccessor()`, replaced with direct enum calls (`TemporalAccessorMethod.toSqlFunction()`, `TemporalAccessorMethod.isTemporalAccessor()`). METHOD_GET_* and SQL_* constants retained in QubitConstants (used for switch case labels in MethodInvocationHandler). Updated: Enum/Type-Safety low 4→3, total 54→53, resolved 45→46. All 1,113 tests pass. |
 
