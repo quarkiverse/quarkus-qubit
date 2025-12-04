@@ -23,13 +23,13 @@ This document provides a comprehensive analysis of code quality issues identifie
 | Category | Critical | High | Medium | Low | Total | Resolved |
 |----------|----------|------|--------|-----|-------|----------|
 | Architectural | 0 | ~~4~~ 1 | 12 | 9 |
-| Code Smells | 0 | ~~3~~ 1 | ~~12~~ 11 | 8 | ~~23~~ 22 | ~~2~~ 3 |
+| Code Smells | 0 | ~~3~~ 1 | ~~12~~ ~~11~~ ~~10~~ 9 | 8 | ~~23~~ ~~22~~ ~~21~~ 20 | ~~2~~ ~~3~~ ~~4~~ 5 |
 | Enum/Type-Safety | 0 | 0 | 2 | 4 | 6 | 0 |
 | Bug Risks | ~~2~~ 0 | ~~5~~ 4 | 4 | 2 | ~~13~~ 10 | 3 |
 | Documentation | 0 | ~~2~~ 1 | 6 | 4 | 12 | 1 |
 | Performance | 0 | 1 | 3 | 2 | 6 | 0 |
 | Maintainability | 0 | ~~7~~ 1 | ~~12~~ 0 | ~~6~~ 4 | ~~25~~ 5 | 21 |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ **8** | ~~**42**~~ **28** | ~~**25**~~ **25** | ~~**91**~~ **62** | **37** |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ **8** | ~~**42**~~ ~~**28**~~ ~~**27**~~ **26** | ~~**25**~~ **25** | ~~**91**~~ ~~**62**~~ ~~**61**~~ **60** | **39** |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -415,17 +415,36 @@ public static Class<?> tryLoadClass(String className) {
   - **Type Safety**: `QueryCharacteristics` record provides compile-time type checking
   - **Reduced Boilerplate**: Eliminated 6 telescoping constructors in `QueryTransformationBuildItem`
 
-### CS-007: Commented Code Blocks
+### CS-007: Commented Code Blocks ✅ N/A (Clean Codebase)
 - **Files**: Various
 - **Severity**: Medium
-- **Description**: Some files contain commented-out code blocks.
-- **Suggested Fix**: Remove or document why retained.
+- **Status**: ✅ **N/A** - Codebase is clean (no commented-out code found)
+- **Description**: Original issue suggested some files contain commented-out code blocks.
+- **Investigation Results**:
+  - Comprehensive grep search performed using 15+ patterns across deployment and runtime modules
+  - Patterns searched: commented return/if/for/while/try statements, commented method calls, commented variable assignments, block comments with code, debug logging, TODO/FIXME markers
+  - **Finding**: No actual commented-out code blocks found
+  - **Legitimate comments found** (not issues):
+    - Javadoc documentation with code examples
+    - Explanatory comments describing operations (e.g., `// cb.concat(left, right)`)
+    - Section separator comments (e.g., `// ===...===`)
+    - Active code with "temporary debug" comments (logging is active, not commented out)
+- **Conclusion**: Issue is not applicable - codebase maintains clean comment hygiene
 
-### CS-008: Switch Expressions Without Default Cases
-- **File**: [MethodInvocationHandler.java:268-279](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/MethodInvocationHandler.java#L268-L279)
+### CS-008: Switch Expressions Without Default Cases ✅ RESOLVED
 - **Severity**: Medium
-- **Description**: Some switch expressions rely on exhaustive enum matching but don't have explicit default.
-- **Suggested Fix**: Add explicit default case even for enums (for future-proofing).
+- **Status**: ✅ **RESOLVED**
+- **Description**: Some switch expressions relied on exhaustive enum matching but had no explicit default case.
+- **Files Fixed**:
+  - [ControlFlowAnalyzer.java:150-156](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/ControlFlowAnalyzer.java#L150-L156): Added default for `LabelClassification` enum switch
+  - [SubqueryExpressionBuilder.java:246-253](deployment/src/main/java/io/quarkiverse/qubit/deployment/generation/expression/SubqueryExpressionBuilder.java#L246-L253): Added default for `SubqueryAggregationType` enum switch
+  - [SubqueryExpressionBuilder.java:276-292](deployment/src/main/java/io/quarkiverse/qubit/deployment/generation/expression/SubqueryExpressionBuilder.java#L276-L292): Added default for `SubqueryAggregationType` enum switch
+  - [GroupExpressionBuilder.java:260-285](deployment/src/main/java/io/quarkiverse/qubit/deployment/generation/expression/GroupExpressionBuilder.java#L260-L285): Added default for `GroupAggregationType` enum switch
+- **Fix Applied**: Added `default -> throw new IllegalStateException("Unexpected enum value: " + enumVar)` to all exhaustive enum switches for future-proofing. If a new enum value is added, the code will fail fast with a clear error message rather than silently producing incorrect behavior.
+- **Benefits**:
+  - **Future-proofing**: New enum values cause immediate, clear failures
+  - **Defensive programming**: Catches unexpected states at runtime
+  - **Consistent pattern**: All enum switches now follow the same convention
 
 ### CS-009: Repeated Pattern: Pop Multiple Items From Stack
 - **File**: [MethodInvocationHandler.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/MethodInvocationHandler.java)
@@ -1485,4 +1504,6 @@ When addressing issues, use this template:
 | 3.0 | 2025-12-04 | Claude | **CS-003 Reverted/Deferred**: JSpecify null-safety annotations reverted due to VSCode JDT.LS compatibility issues. External annotations (.eea files) for Gizmo, ASM, and Jandex cannot be loaded - VSCode reports "Invalid external annotation path" for any path format. Without EEA support, 700+ warnings from third-party library interop cannot be suppressed. EEA files preserved in `.eea/` for future Eclipse IDE use. Updated: Code Smells high 0→1, total 56→57, resolved 37→36. |
 | 3.1 | 2025-12-04 | Claude | **Enum and Type-Safety Analysis Complete**: Added new section documenting 6 opportunities for enum-based improvements. Catalogued 13 existing enums. Identified: ENUM-001 (FluentMethodType - High priority, eliminates 10+ string constants), ENUM-002 (TemporalAccessorMethod - 6 Java→SQL mappings), ENUM-003 (ExecutorType - consolidates 10 ConcurrentHashMaps into EnumMap), ENUM-004 (SubqueryMethod - 9 dispatch methods), ENUM-005 (EnumMap/EnumSet usage opportunities), ENUM-006 (behavior-rich StringMethod). Added new category to Summary Dashboard: 2 Medium, 4 Low = 6 total. Updated total issues: 57→63. |
 | 3.2 | 2025-12-04 | Claude | **CS-006 Complete**: Created `QueryCharacteristics` record to replace 6 boolean parameters in `handleDuplicateLambda()`. Record bundles isCountQuery, isAggregationQuery, isJoinQuery, isSelectJoined, isJoinProjection, isGroupQuery flags. Added 9 factory methods (forList, forCount, forAggregation, forJoinList, forJoinCount, forSelectJoined, forJoinProjection, forGroupList, forGroupCount) and fromCallSite() extractor. Updated LambdaDeduplicator (11→6 parameters), QueryTransformationBuildItem (6→3 constructors), and CallSiteProcessor call sites. Updated: Code Smells medium 12→11, total 63→62, resolved 36→37. All 1,113 tests pass. |
+| 3.3 | 2025-12-04 | Claude | **CS-007 N/A (Clean Codebase)**: Comprehensive investigation for commented-out code blocks using 15+ grep patterns across deployment and runtime modules. Searched for: commented return/if/for/while/try statements, commented method calls with semicolons, commented variable assignments, block comments with code structures, debug logging comments, TODO/FIXME markers, consecutive comment blocks. **Finding**: No actual commented-out code blocks found. All matches were legitimate explanatory comments (Javadoc examples, operation descriptions like `// cb.concat(left, right)`, section separators). Issue marked as N/A - codebase maintains clean comment hygiene. Updated: Code Smells medium 11→10, total 62→61, resolved 37→38. |
+| 3.4 | 2025-12-04 | Claude | **CS-008 Complete**: Added default cases to 4 exhaustive enum switches for future-proofing. Files modified: ControlFlowAnalyzer.java (LabelClassification enum), SubqueryExpressionBuilder.java (2 SubqueryAggregationType switches), GroupExpressionBuilder.java (GroupAggregationType enum). All default cases throw IllegalStateException with descriptive message. Benefits: fail-fast behavior if new enum values added, defensive programming, consistent pattern. Updated: Code Smells medium 10→9, total 61→60, resolved 38→39. All 1,113 tests pass. |
 

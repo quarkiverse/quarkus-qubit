@@ -243,11 +243,13 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
      * Returns the JPA result type for an aggregation.
      */
     private Class<?> getAggregationResultType(SubqueryAggregationType aggType) {
+        // CS-008: Added default case for future-proofing
         return switch (aggType) {
             case AVG -> Double.class;
             case SUM -> Number.class;  // Could be Integer, Long, Double, etc.
             case MIN, MAX -> Comparable.class;
             case COUNT -> Long.class;
+            default -> throw new IllegalStateException("Unexpected aggregation type: " + aggType);
         };
     }
 
@@ -271,6 +273,7 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
         ResultHandle fieldPath = generateFieldPath(method, scalar.fieldExpression(), subRoot);
 
         // Generate the appropriate aggregation
+        // CS-008: Added default case for future-proofing
         return switch (scalar.aggregationType()) {
             case AVG -> method.invokeInterfaceMethod(
                     MethodDescriptor.ofMethod(CriteriaBuilder.class, "avg", Expression.class, Expression.class),
@@ -285,6 +288,7 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
                     MethodDescriptor.ofMethod(CriteriaBuilder.class, "max", Expression.class, Expression.class),
                     cb, fieldPath);
             case COUNT -> throw new IllegalStateException("COUNT should be handled above");
+            default -> throw new IllegalStateException("Unexpected aggregation type: " + scalar.aggregationType());
         };
     }
 

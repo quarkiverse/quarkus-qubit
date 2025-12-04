@@ -147,10 +147,12 @@ public final class ControlFlowAnalyzer {
             Map<LabelNode, LabelClassification> classifications,
             Map<LabelNode, Boolean> labelToValue) {
 
+        // CS-008: Added default case for future-proofing
         switch (classification) {
             case TRUE_SINK -> labelToValue.put(label, true);
             case FALSE_SINK -> labelToValue.put(label, false);
             case INTERMEDIATE -> resolveIntermediateLabel(label, instructions, labelToIndex, classifications, labelToValue);
+            default -> throw new IllegalStateException("Unexpected label classification: " + classification);
         }
     }
 

@@ -257,6 +257,7 @@ public class GroupExpressionBuilder implements ExpressionBuilder {
             fieldPath = root;
         }
 
+        // CS-008: Added default case for future-proofing
         return switch (aggType) {
             case COUNT_DISTINCT -> method.invokeInterfaceMethod(
                     methodDescriptor(CriteriaBuilder.class, "countDistinct", Expression.class, Expression.class),
@@ -280,6 +281,7 @@ public class GroupExpressionBuilder implements ExpressionBuilder {
                     methodDescriptor(CriteriaBuilder.class, "max", Expression.class, Expression.class),
                     cb, fieldPath);
             case COUNT -> throw new IllegalStateException("COUNT should be handled above");
+            default -> throw new IllegalStateException("Unexpected group aggregation type: " + aggType);
         };
     }
 
