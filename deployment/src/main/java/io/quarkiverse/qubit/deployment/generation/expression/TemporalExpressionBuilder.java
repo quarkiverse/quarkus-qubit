@@ -121,7 +121,7 @@ public class TemporalExpressionBuilder implements ExpressionBuilder {
             ResultHandle fieldExpression,
             ResultHandle argument) {
 
-        if (!TEMPORAL_COMPARISON_METHODS.contains(methodCall.methodName())) {
+        if (!TEMPORAL_COMPARISON_METHOD_NAMES.contains(methodCall.methodName())) {
             return null;
         }
 

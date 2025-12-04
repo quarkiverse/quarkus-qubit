@@ -24,12 +24,12 @@ This document provides a comprehensive analysis of code quality issues identifie
 |----------|----------|------|--------|-----|-------|----------|
 | Architectural | 0 | ~~4~~ 1 | 12 | 9 |
 | Code Smells | 0 | ~~3~~ 1 | ~~12~~  7 | ~~8~~ 5 | ~~23~~ 15 | ~~2~~ 10 |
-| Enum/Type-Safety | 0 | 0 | ~~2~~ 1 | ~~4~~ 3 | ~~6~~ 4 | 2 |
+| Enum/Type-Safety | 0 | 0 | ~~2~~ 0 | ~~4~~ 3 | ~~6~~ 3 | 2 + 1 deferred |
 | Bug Risks | ~~2~~ 0 | ~~5~~ 4 | 4 | 2 | ~~13~~ 10 | 3 |
 | Documentation | 0 | ~~2~~ 1 | 6 | 4 | 12 | 1 |
 | Performance | 0 | 1 | 3 | 2 | 6 | 0 |
 | Maintainability | 0 | ~~7~~ 1 | ~~12~~ 0 | ~~6~~ 4 | ~~25~~ 5 | 21 |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ **8** | ~~**42**~~ **23** | ~~**25**~~ **21** | ~~**91**~~ **53** | ~~**40**~~ **46** |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ **8** | ~~**42**~~ **22** | ~~**25**~~ **21** | ~~**91**~~ **52** | ~~**40**~~ **46** + 1 deferred |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -60,6 +60,8 @@ This document provides a comprehensive analysis of code quality issues identifie
 > ✅ **CS-002 Complete**: Refactored `tryLoadClass()` in ClassLoaderHelper from nested try-catch blocks to classloader list iteration pattern. Uses `initialize=false` consistently for build-time safety. All 1113 tests pass.
 >
 > ⏸️ **CS-003 Deferred**: JSpecify null-safety annotations were implemented but reverted due to VSCode JDT.LS compatibility issues. External annotations (.eea files) for third-party libraries cannot be loaded in VSCode, causing 700+ unresolvable warnings. EEA files preserved in `.eea/` directory for future use with Eclipse IDE.
+>
+> ⏸️ **ENUM-003 Deferred**: Deep analysis of QueryExecutorRegistry.java (643 lines) determined that consolidating 9 executor maps into EnumMap would sacrifice compile-time type safety. The 9 executor types have 3 different return types (`List<?>`, `Long`, `?`), execution methods have different signatures and post-processing, and TypeToken approach would require Guava dependency with extensive unsafe casts. Current type-safe design is intentional.
 
 ---
 
@@ -744,10 +746,11 @@ public enum FluentMethodType {
   - All 1,113 tests pass
 - **Benefits**: Type-safe Java→SQL function mapping, EnumSet for type-specific method groups, single source of truth for temporal accessor metadata.
 
-### ENUM-003: Create `ExecutorType` Enum for QueryExecutorRegistry
+### ENUM-003: Create `ExecutorType` Enum for QueryExecutorRegistry ⏸️ DEFERRED
 - **File**: [QueryExecutorRegistry.java:21-30](runtime/src/main/java/io/quarkiverse/qubit/runtime/QueryExecutorRegistry.java#L21-L30)
 - **Severity**: Medium
 - **Priority**: Medium
+- **Status**: ⏸️ **DEFERRED** - Type safety constraints prevent meaningful consolidation
 - **Description**: Ten separate `ConcurrentHashMap` instances for different executor types with repetitive registration/execution methods.
 - **Current Pattern**:
 ```java
@@ -759,39 +762,43 @@ private static final Map<String, QueryExecutor<List<?>>> JOIN_LIST_EXECUTORS = n
 
 // Then 10 pairs of register/execute methods with nearly identical code
 ```
-- **Suggested Fix**: Create `ExecutorType` enum with type tokens:
+- **Deep Analysis Findings**:
+  - **Type Safety Constraint**: The 9 executor types have 3 different return types:
+    - `QueryExecutor<List<?>>` - 5 types (LIST, JOIN_LIST, JOIN_SELECT_JOINED, JOIN_PROJECTION, GROUP_LIST)
+    - `QueryExecutor<Long>` - 3 types (COUNT, JOIN_COUNT, GROUP_COUNT)
+    - `QueryExecutor<?>` - 1 type (AGGREGATION)
+  - **Execution Methods Cannot Be Unified**: Each has different:
+    - Return types (`List<T>`, `long`, `R`)
+    - Method signatures (`offset, limit, distinct` vs `offset, limit` vs none)
+    - Post-processing logic (`executeGroupQuery` converts `Tuple` → `Object[]`)
+    - Error message content (lists relevant executor counts)
+  - **TypeToken Approach**: Would require Guava dependency and extensive `@SuppressWarnings("unchecked")` annotations, trading compile-time safety for runtime casting
+  - **Registration Methods**: Could be consolidated but savings are marginal (~30 lines) and would lose type safety on executor parameter
+- **ROI Assessment**:
+  - Current implementation: 643 lines, type-safe, well-documented
+  - EnumMap consolidation: Would save ~50-80 lines but require:
+    - `@SuppressWarnings("unchecked")` on all executor retrievals
+    - Runtime type casting with potential `ClassCastException`
+    - Additional complexity in type token infrastructure
+  - **Conclusion**: The type safety loss outweighs the DRY benefits
+- **Design Rationale**: The current design prioritizes:
+  - **Compile-time type safety**: Each executor type has correct generic signature
+  - **Clear error messages**: Each execution method lists relevant executor counts
+  - **Runtime performance**: Direct map access without type casting
+  - **Maintainability**: Each executor type has explicit, self-documenting code
+- **Potential Future Improvement**: If a 10th or 11th executor type is added, reconsider with a marker interface approach:
 ```java
-public enum ExecutorType {
-    LIST(new TypeToken<QueryExecutor<List<?>>>() {}),
-    COUNT(new TypeToken<QueryExecutor<Long>>() {}),
-    AGGREGATION(new TypeToken<QueryExecutor<?>>() {}),
-    JOIN_LIST(new TypeToken<QueryExecutor<List<?>>>() {}),
-    JOIN_COUNT(new TypeToken<QueryExecutor<Long>>() {}),
-    JOIN_SELECT_JOINED(new TypeToken<QueryExecutor<List<?>>>() {}),
-    JOIN_PROJECTION(new TypeToken<QueryExecutor<List<?>>>() {}),
-    GROUP_LIST(new TypeToken<QueryExecutor<List<?>>>() {}),
-    GROUP_COUNT(new TypeToken<QueryExecutor<Long>>() {});
-
-    // Single unified map
-    private static final Map<ExecutorType, Map<String, QueryExecutor<?>>> EXECUTORS =
-        new EnumMap<>(ExecutorType.class);
-
-    static {
-        for (ExecutorType type : values()) {
-            EXECUTORS.put(type, new ConcurrentHashMap<>());
-        }
-    }
-
-    public static void register(ExecutorType type, String callSiteId, QueryExecutor<?> executor) {
-        EXECUTORS.get(type).put(callSiteId, executor);
-    }
+// Alternative: Marker interface with explicit type methods
+public interface ExecutorRegistry<T> {
+    void register(String callSiteId, QueryExecutor<T> executor, int capturedVarCount);
+    QueryExecutor<T> get(String callSiteId);
+    int size();
 }
+// Separate registry instances per type (still type-safe)
+private static final ExecutorRegistry<List<?>> LIST_REGISTRY = new DefaultExecutorRegistry<>();
+private static final ExecutorRegistry<Long> COUNT_REGISTRY = new DefaultExecutorRegistry<>();
 ```
-- **Benefits**:
-  - `EnumMap` provides O(1) lookup with minimal memory overhead (array-backed)
-  - Reduces 10 static fields to 1
-  - Eliminates ~300 lines of repetitive registration/execution code
-  - Easier to add new executor types
+  This would extract the common registration pattern while preserving type safety, but adds abstraction overhead that isn't justified for 9 types.
 
 ### ENUM-004: Create `SubqueryMethod` Enum
 - **Files**: [SubqueryAnalyzer.java:133-145](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/instruction/SubqueryAnalyzer.java#L133-L145), [QubitConstants.java:101-115](runtime/src/main/java/io/quarkiverse/qubit/runtime/QubitConstants.java#L101-L115)
@@ -1644,4 +1651,5 @@ When addressing issues, use this template:
 | 4.1 | 2025-12-04 | Claude | **CS-014 Complete**: Consolidated duplicated utility methods into `ExpressionTypeInferrer.java`. Added `isBooleanType(Class<?> type)` for boolean/Boolean type checking and `extractFieldName(String methodName)` for JavaBean getter-to-field conversion (getAge→age, isActive→active). Updated 3 files to use static imports: `CriteriaExpressionGenerator.java`, `BiEntityExpressionBuilder.java`, `MethodInvocationHandler.java`. Removed 5 duplicate method definitions. Benefits: single source of truth, reduced duplication, consistent behavior. Updated: Code Smells low 6→5, total 56→55, resolved 43→44. All 1,113 tests pass. |
 | 4.2 | 2025-12-04 | Claude | **ENUM-001 Complete**: Created behavior-rich `FluentMethodType` enum (282 lines) with 10 values: WHERE, SELECT, SORTED_BY, SORTED_DESCENDING_BY, MIN, MAX, AVG, SUM_INTEGER, SUM_LONG, SUM_DOUBLE. Each value implements abstract `createConfig()` method (Strategy pattern). Added `fromMethodName()` lookup, `EnumSet` constants (ENTRY_POINTS, AGGREGATIONS, SORTING), and nested `MethodCategory` enum. Updated `QubitRepositoryEnhancer.java` to use enum dispatch: `isGenerateBridgeMethod()` uses Optional lookup, `visitEnd()` iterates EnumSet, `generateBridgeMethod()` accepts enum type. Eliminated duplicate switch statements. String constants retained in QubitConstants for InvokeDynamicScanner bytecode analysis. Updated: Enum/Type-Safety medium 2→1, total 55→54, resolved 44→45. All 375 deployment tests pass. |
 | 4.3 | 2025-12-04 | Claude | **ENUM-002 Complete**: Created `TemporalAccessorMethod` enum (161 lines) with 6 values: GET_YEAR, GET_MONTH_VALUE, GET_DAY_OF_MONTH, GET_HOUR, GET_MINUTE, GET_SECOND. Each value encapsulates Java method name and SQL function name. Added utility methods: `getJavaMethod()`, `getSqlFunction()`, `fromJavaMethod()`, `isTemporalAccessor()`, `toSqlFunction()`. Added `EnumSet` constants: DATE_METHODS, TIME_METHODS, ALL. Updated `TemporalExpressionBuilder.java`: removed `TEMPORAL_ACCESSOR_METHODS` Set, removed delegation methods `mapTemporalAccessorToSqlFunction()` and `isTemporalAccessor()`, replaced with direct enum calls (`TemporalAccessorMethod.toSqlFunction()`, `TemporalAccessorMethod.isTemporalAccessor()`). METHOD_GET_* and SQL_* constants retained in QubitConstants (used for switch case labels in MethodInvocationHandler). Updated: Enum/Type-Safety low 4→3, total 54→53, resolved 45→46. All 1,113 tests pass. |
+| 4.4 | 2025-12-04 | Claude | **ENUM-003 Deferred (Type Safety Constraint)**: Deep analysis of QueryExecutorRegistry.java (643 lines) determined that consolidating 9 ConcurrentHashMap instances into EnumMap would sacrifice compile-time type safety. **Findings**: (1) 9 executor types have 3 different return types: `QueryExecutor<List<?>>` (5 types), `QueryExecutor<Long>` (3 types), `QueryExecutor<?>` (1 type); (2) Execution methods have different signatures (`offset, limit, distinct` vs `offset, limit` vs none), return types (`List<T>`, `long`, `R`), and post-processing (`executeGroupQuery` converts Tuple→Object[]); (3) TypeToken approach would require Guava dependency and extensive `@SuppressWarnings("unchecked")` with potential ClassCastException; (4) Registration method consolidation saves ~30 lines but loses type safety. **ROI Assessment**: Current 643-line type-safe design is preferable to 560-line design with runtime casting. Proposed alternative marker interface approach documented for future consideration if 10th+ executor type added. Updated: Enum/Type-Safety medium 1→0, total 53→52, deferred count +1. |
 
