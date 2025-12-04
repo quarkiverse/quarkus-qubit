@@ -24,12 +24,12 @@ This document provides a comprehensive analysis of code quality issues identifie
 |----------|----------|------|--------|-----|-------|----------|
 | Architectural | 0 | ~~4~~ 1 | 12 | 9 |
 | Code Smells | 0 | ~~3~~ 1 | ~~12~~  7 | ~~8~~ 5 | ~~23~~ 15 | ~~2~~ 10 |
-| Enum/Type-Safety | 0 | 0 | 2 | 4 | 6 | 0 |
+| Enum/Type-Safety | 0 | 0 | ~~2~~ 1 | 4 | ~~6~~ 5 | 1 |
 | Bug Risks | ~~2~~ 0 | ~~5~~ 4 | 4 | 2 | ~~13~~ 10 | 3 |
 | Documentation | 0 | ~~2~~ 1 | 6 | 4 | 12 | 1 |
 | Performance | 0 | 1 | 3 | 2 | 6 | 0 |
 | Maintainability | 0 | ~~7~~ 1 | ~~12~~ 0 | ~~6~~ 4 | ~~25~~ 5 | 21 |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ **8** | ~~**42**~~ **24** | ~~**25**~~ **22** | ~~**91**~~ **55** | ~~**40**~~ **44** |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ **8** | ~~**42**~~ **23** | ~~**25**~~ **22** | ~~**91**~~ **54** | ~~**40**~~ **45** |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -618,7 +618,7 @@ This section documents opportunities to improve code quality through better use 
 
 ### Current Enum Inventory
 
-The codebase has 13 well-designed enums:
+The codebase has 14 well-designed enums:
 
 | Enum | Location | Purpose |
 |------|----------|---------|
@@ -635,11 +635,13 @@ The codebase has 13 well-designed enums:
 | `BranchPattern` | PatternDetector.java:31 | Branch patterns (AND_PATTERN, OR_PATTERN, COMPLEX) |
 | `SortDirection` | SortDirection.java:12 | Sort directions (ASC, DESC) |
 | `JoinType` (runtime) | JoinType.java:6 | Runtime join types (INNER, LEFT) |
+| `FluentMethodType` | FluentMethodType.java:31 | Fluent API method types with behavior (WHERE, SELECT, SORTED_BY, MIN, MAX, AVG, SUM_*) |
 
-### ENUM-001: Create `FluentMethodType` Enum for API Method Dispatch
-- **Files**: [QubitRepositoryEnhancer.java:177-202](deployment/src/main/java/io/quarkiverse/qubit/deployment/QubitRepositoryEnhancer.java#L177-L202), [QubitConstants.java:22-67](runtime/src/main/java/io/quarkiverse/qubit/runtime/QubitConstants.java#L22-L67)
+### ENUM-001: Create `FluentMethodType` Enum for API Method Dispatch ✅ RESOLVED
+- **Files**: [QubitRepositoryEnhancer.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/QubitRepositoryEnhancer.java), [FluentMethodType.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/FluentMethodType.java) (NEW)
 - **Severity**: Medium
 - **Priority**: High (affects multiple files, enables EnumMap usage)
+- **Status**: ✅ **RESOLVED**
 - **Description**: Method name dispatch uses string constants with switch statements. Multiple `Set.of()` collections (`FLUENT_ENTRY_POINT_METHODS`, `FLUENT_INTERMEDIATE_METHODS`, `FLUENT_TERMINAL_METHODS`) categorize methods.
 - **Current Pattern**:
 ```java
@@ -696,6 +698,24 @@ public enum FluentMethodType {
   - Behavior attached to enum values (Strategy pattern)
   - `EnumSet` replaces `Set.of()` for category membership (faster, type-safe)
   - Single source of truth for method metadata
+- **Fix Applied**:
+  - Created [FluentMethodType.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/FluentMethodType.java) (282 lines) with 10 behavior-rich enum values:
+    - **Predicate**: `WHERE`
+    - **Projection**: `SELECT`
+    - **Sorting**: `SORTED_BY`, `SORTED_DESCENDING_BY`
+    - **Aggregation**: `MIN`, `MAX`, `AVG`, `SUM_INTEGER`, `SUM_LONG`, `SUM_DOUBLE`
+  - Each enum value implements abstract `createConfig(Type entityType, String entityInternalName)` method
+  - Added `fromMethodName(String)` lookup method returning `Optional<FluentMethodType>`
+  - Added `EnumSet` constants: `ENTRY_POINTS`, `AGGREGATIONS`, `SORTING`
+  - Added nested `MethodCategory` enum for semantic grouping
+  - Updated [QubitRepositoryEnhancer.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/QubitRepositoryEnhancer.java):
+    - `isGenerateBridgeMethod()` now uses `FluentMethodType.fromMethodName().isPresent()`
+    - `visitEnd()` iterates over `FluentMethodType.ENTRY_POINTS` EnumSet
+    - `generateBridgeMethod()` accepts `FluentMethodType` and uses `methodType.createConfig()`
+    - `BridgeMethodReplacer.generateBridgeImplementation()` uses enum lookup with `Optional.map()`
+  - Removed 10 METHOD_* static imports from QubitRepositoryEnhancer (kept METHOD_JOIN, METHOD_LEFT_JOIN for join methods)
+  - **Design Decision**: String constants retained in QubitConstants for `InvokeDynamicScanner` bytecode analysis (requires string comparison)
+  - All 375 deployment tests pass
 
 ### ENUM-002: Create `TemporalAccessorMethod` Enum
 - **Files**: [TemporalExpressionBuilder.java:38-68](deployment/src/main/java/io/quarkiverse/qubit/deployment/generation/expression/TemporalExpressionBuilder.java#L38-L68), [QubitConstants.java:174-179](runtime/src/main/java/io/quarkiverse/qubit/runtime/QubitConstants.java#L174-L179)
@@ -1643,4 +1663,5 @@ When addressing issues, use this template:
 | 3.9 | 2025-12-04 | Claude | **CS-013 N/A (Issue Does Not Exist)**: Deep investigation of "entityParameterIndex vs entityParameterSlot" naming. **Critical Finding**: `entityParameterSlot` does not exist anywhere in the codebase! Comprehensive grep search found 0 occurrences. The actual terminology follows a **semantically meaningful pattern**: (1) Method names use `SlotIndex` for JVM slot calculations (`calculateEntityParameterSlotIndex()`, `slotIndexToParameterIndex()`); (2) Variable/field names use generic `Index` suffix to store values (`entityParameterIndex` field stores a slot index). Javadoc consistently documents values as "slot index". Minor abbreviation variation (`entityParameterIndex` vs `entityParamIndex`) is standard Java practice. **Conclusion**: Issue does not exist - the stated comparison is incorrect and the actual terminology is semantically meaningful and consistent. Updated: Code Smells low 7→6, total 57→56, resolved 42→43. |
 | 4.0 | 2025-12-04 | Claude | **CS-014 Partially Addressed (Good Design)**: Deep investigation of "static utility method candidates". **Finding**: Codebase already follows good utility class patterns with 7 static utility classes (ExpressionTypeInferrer, PatternDetector, BytecodeValidator, DescriptorParser, BytecodeLoader, TypeConverter, ClassLoaderHelper). Identified 2 minor duplications: `extractFieldName()` duplicated in 3 files (could be consolidated), `isBooleanType()` duplicated in 2 files (already static). Instance methods without direct `this` usage (e.g., ControlFlowAnalyzer, generator methods) are intentionally instance-based for testability, extensibility, and composition. **Conclusion**: Most are intentional design choices; minor consolidation opportunity exists but low ROI. No count changes (issue remains open but analyzed). |
 | 4.1 | 2025-12-04 | Claude | **CS-014 Complete**: Consolidated duplicated utility methods into `ExpressionTypeInferrer.java`. Added `isBooleanType(Class<?> type)` for boolean/Boolean type checking and `extractFieldName(String methodName)` for JavaBean getter-to-field conversion (getAge→age, isActive→active). Updated 3 files to use static imports: `CriteriaExpressionGenerator.java`, `BiEntityExpressionBuilder.java`, `MethodInvocationHandler.java`. Removed 5 duplicate method definitions. Benefits: single source of truth, reduced duplication, consistent behavior. Updated: Code Smells low 6→5, total 56→55, resolved 43→44. All 1,113 tests pass. |
+| 4.2 | 2025-12-04 | Claude | **ENUM-001 Complete**: Created behavior-rich `FluentMethodType` enum (282 lines) with 10 values: WHERE, SELECT, SORTED_BY, SORTED_DESCENDING_BY, MIN, MAX, AVG, SUM_INTEGER, SUM_LONG, SUM_DOUBLE. Each value implements abstract `createConfig()` method (Strategy pattern). Added `fromMethodName()` lookup, `EnumSet` constants (ENTRY_POINTS, AGGREGATIONS, SORTING), and nested `MethodCategory` enum. Updated `QubitRepositoryEnhancer.java` to use enum dispatch: `isGenerateBridgeMethod()` uses Optional lookup, `visitEnd()` iterates EnumSet, `generateBridgeMethod()` accepts enum type. Eliminated duplicate switch statements. String constants retained in QubitConstants for InvokeDynamicScanner bytecode analysis. Updated: Enum/Type-Safety medium 2→1, total 55→54, resolved 44→45. All 375 deployment tests pass. |
 

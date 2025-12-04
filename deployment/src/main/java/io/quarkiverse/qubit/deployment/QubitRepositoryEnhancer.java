@@ -15,17 +15,6 @@ import static org.jboss.jandex.Type.Kind.PARAMETERIZED_TYPE;
 import java.util.List;
 import java.util.function.BiFunction;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.FLUENT_ENTRY_POINT_METHODS;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_WHERE;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SELECT;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SORTED_BY;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SORTED_DESCENDING_BY;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_MIN;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_MAX;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_AVG;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SUM_INTEGER;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SUM_LONG;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SUM_DOUBLE;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_JOIN;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_LEFT_JOIN;
 import static io.quarkiverse.qubit.runtime.QubitConstants.QUBIT_REPOSITORY_CLASS_NAME;
@@ -140,8 +129,9 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             }
         }
 
+        // ENUM-001: Use FluentMethodType enum for method identification
         private boolean isGenerateBridgeMethod(String methodName) {
-            return FLUENT_ENTRY_POINT_METHODS.contains(methodName) ||
+            return FluentMethodType.fromMethodName(methodName).isPresent() ||
                    METHOD_JOIN.equals(methodName) ||
                    METHOD_LEFT_JOIN.equals(methodName);
         }
@@ -156,9 +146,9 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             if (implementsQubitRepository && entityType != null) {
                 Log.debugf("Generating bridge methods for empty repository: %s", className);
 
-                // Generate all fluent API entry point methods
-                for (String methodName : FLUENT_ENTRY_POINT_METHODS) {
-                    generateBridgeMethod(methodName);
+                // ENUM-001: Generate all fluent API entry point methods using enum
+                for (FluentMethodType methodType : FluentMethodType.ENTRY_POINTS) {
+                    generateBridgeMethod(methodType);
                 }
 
                 // Generate join methods (Iteration 6)
@@ -169,41 +159,19 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
         }
 
         /**
-         * Generates a bridge method implementation for the given fluent API method.
+         * Generates a bridge method implementation for the given fluent API method type.
+         *
+         * <p>ENUM-001: Refactored to use {@link FluentMethodType} enum with behavior-attached
+         * factory methods, eliminating the switch statement duplication.
+         *
+         * @param methodType the fluent method type to generate
          */
-        private void generateBridgeMethod(String methodName) {
+        private void generateBridgeMethod(FluentMethodType methodType) {
             String entityInternalName = entityType.getInternalName();
+            String methodName = methodType.getMethodName();
 
-            QubitBytecodeGenerator.FluentMethodConfig config = switch (methodName) {
-                case METHOD_WHERE -> QubitBytecodeGenerator.FluentMethodConfig.forWhere(
-                        entityType, entityInternalName);
-                case METHOD_SELECT -> QubitBytecodeGenerator.FluentMethodConfig.forSelect(
-                        entityType, entityInternalName);
-                case METHOD_SORTED_BY -> QubitBytecodeGenerator.FluentMethodConfig.forSortedBy(
-                        entityType, entityInternalName);
-                case METHOD_SORTED_DESCENDING_BY -> QubitBytecodeGenerator.FluentMethodConfig.forSortedDescendingBy(
-                        entityType, entityInternalName);
-                case METHOD_MIN -> QubitBytecodeGenerator.FluentMethodConfig.forMin(
-                        entityType, entityInternalName);
-                case METHOD_MAX -> QubitBytecodeGenerator.FluentMethodConfig.forMax(
-                        entityType, entityInternalName);
-                case METHOD_AVG -> QubitBytecodeGenerator.FluentMethodConfig.forAvg(
-                        entityType, entityInternalName);
-                case METHOD_SUM_INTEGER -> QubitBytecodeGenerator.FluentMethodConfig.forSumInteger(
-                        entityType, entityInternalName);
-                case METHOD_SUM_LONG -> QubitBytecodeGenerator.FluentMethodConfig.forSumLong(
-                        entityType, entityInternalName);
-                case METHOD_SUM_DOUBLE -> QubitBytecodeGenerator.FluentMethodConfig.forSumDouble(
-                        entityType, entityInternalName);
-                default -> {
-                    Log.warnf("Unknown fluent entry point method: %s", methodName);
-                    yield null;
-                }
-            };
-
-            if (config == null) {
-                return;
-            }
+            // ENUM-001: Use enum's createConfig() instead of switch statement
+            QubitBytecodeGenerator.FluentMethodConfig config = methodType.createConfig(entityType, entityInternalName);
 
             Log.tracef("Generating method %s with descriptor %s", methodName, config.methodDescriptor());
 
@@ -341,39 +309,22 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             generateBridgeImplementation();
         }
 
+        /**
+         * ENUM-001: Refactored to use {@link FluentMethodType} enum with behavior-attached
+         * factory methods, eliminating the switch statement duplication.
+         */
         private void generateBridgeImplementation() {
             mv.visitCode();
 
             String entityInternalName = entityType.getInternalName();
 
-            QubitBytecodeGenerator.FluentMethodConfig config = switch (methodName) {
-                case METHOD_WHERE -> QubitBytecodeGenerator.FluentMethodConfig.forWhere(
-                        entityType, entityInternalName);
-                case METHOD_SELECT -> QubitBytecodeGenerator.FluentMethodConfig.forSelect(
-                        entityType, entityInternalName);
-                case METHOD_SORTED_BY -> QubitBytecodeGenerator.FluentMethodConfig.forSortedBy(
-                        entityType, entityInternalName);
-                case METHOD_SORTED_DESCENDING_BY -> QubitBytecodeGenerator.FluentMethodConfig.forSortedDescendingBy(
-                        entityType, entityInternalName);
-                case METHOD_MIN -> QubitBytecodeGenerator.FluentMethodConfig.forMin(
-                        entityType, entityInternalName);
-                case METHOD_MAX -> QubitBytecodeGenerator.FluentMethodConfig.forMax(
-                        entityType, entityInternalName);
-                case METHOD_AVG -> QubitBytecodeGenerator.FluentMethodConfig.forAvg(
-                        entityType, entityInternalName);
-                case METHOD_SUM_INTEGER -> QubitBytecodeGenerator.FluentMethodConfig.forSumInteger(
-                        entityType, entityInternalName);
-                case METHOD_SUM_LONG -> QubitBytecodeGenerator.FluentMethodConfig.forSumLong(
-                        entityType, entityInternalName);
-                case METHOD_SUM_DOUBLE -> QubitBytecodeGenerator.FluentMethodConfig.forSumDouble(
-                        entityType, entityInternalName);
-                default -> {
-                    Log.warnf("Unknown fluent entry point method: %s", methodName);
-                    yield null;
-                }
-            };
+            // ENUM-001: Use enum lookup and createConfig() instead of switch statement
+            QubitBytecodeGenerator.FluentMethodConfig config = FluentMethodType.fromMethodName(methodName)
+                    .map(type -> type.createConfig(entityType, entityInternalName))
+                    .orElse(null);
 
             if (config == null) {
+                Log.warnf("Unknown fluent entry point method: %s", methodName);
                 return;
             }
 
