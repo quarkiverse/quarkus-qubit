@@ -26,23 +26,21 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <p>
  * ARCH-001: Extracted LambdaAnalysisResult to separate file.
  * ARCH-001: Extracted captured variable utilities to CapturedVariableHelper.
+ * BR-002: Removed queryCounter dependency - class names now use deterministic hash-based naming.
  */
 public class CallSiteProcessor {
 
     private final LambdaBytecodeAnalyzer bytecodeAnalyzer;
     private final LambdaDeduplicator deduplicator;
     private final QueryExecutorClassGenerator classGenerator;
-    private final AtomicInteger queryCounter;
 
     public CallSiteProcessor(
             LambdaBytecodeAnalyzer bytecodeAnalyzer,
             LambdaDeduplicator deduplicator,
-            QueryExecutorClassGenerator classGenerator,
-            AtomicInteger queryCounter) {
+            QueryExecutorClassGenerator classGenerator) {
         this.bytecodeAnalyzer = bytecodeAnalyzer;
         this.deduplicator = deduplicator;
         this.classGenerator = classGenerator;
-        this.queryCounter = queryCounter;
     }
 
     /**
@@ -88,6 +86,7 @@ public class CallSiteProcessor {
 
             // ARCH-002: Pattern matching switch with sealed interface (Java 21)
             // Compiler guarantees exhaustiveness - no default case needed
+            // BR-002: Pass lambdaHash for deterministic class naming
             String executorClassName = switch (result) {
                 case LambdaAnalysisResult.GroupQueryResult group -> generateAndRegisterGroupExecutor(
                         group.predicateExpression(),
@@ -95,6 +94,7 @@ public class CallSiteProcessor {
                         group.havingExpression(),
                         group.groupSelectExpression(),
                         group.groupSortExpressions(),
+                        lambdaHash,
                         callSiteId,
                         group.totalCapturedVarCount(),
                         callSite.isCountQuery(),
@@ -107,6 +107,7 @@ public class CallSiteProcessor {
                         join.biEntityProjectionExpression(),
                         join.sortExpressions(),
                         join.joinType(),
+                        lambdaHash,
                         callSiteId,
                         join.totalCapturedVarCount(),
                         callSite.isCountQuery(),
@@ -123,6 +124,7 @@ public class CallSiteProcessor {
                         agg.aggregationType(),
                         callSite.isCountQuery(),
                         true,  // isAggregationQuery
+                        lambdaHash,
                         callSiteId,
                         generatedClass,
                         queryTransformations);
@@ -135,6 +137,7 @@ public class CallSiteProcessor {
                         null,  // No aggregation type
                         callSite.isCountQuery(),
                         false,  // Not an aggregation query
+                        lambdaHash,
                         callSiteId,
                         generatedClass,
                         queryTransformations);
@@ -275,6 +278,9 @@ public class CallSiteProcessor {
      * Phase 2.2: Accepts both predicate and projection expressions.
      * Phase 3: Accepts sort expressions for ORDER BY generation.
      * Phase 5: Accepts aggregation expression and type for aggregation queries.
+     * BR-002: Uses lambdaHash for deterministic class naming (reproducible builds).
+     *
+     * @param lambdaHash MD5 hash of the lambda expression (used for deterministic class naming)
      */
     private String generateAndRegisterExecutor(
             LambdaExpression predicateExpression,
@@ -284,6 +290,7 @@ public class CallSiteProcessor {
             String aggregationType,
             boolean isCountQuery,
             boolean isAggregationQuery,
+            String lambdaHash,
             String queryId,
             BuildProducer<GeneratedClassBuildItem> generatedClass,
             BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations) {
@@ -301,8 +308,10 @@ public class CallSiteProcessor {
             capturedVarCount += countCapturedVariables(aggregationExpression);
         }
 
+        // BR-002: Use hash prefix for deterministic class naming instead of counter
+        // 16 hex chars = 64 bits of entropy, effectively collision-free
         String className = "io.quarkiverse.qubit.generated.QueryExecutor_" +
-                           queryCounter.getAndIncrement();
+                           lambdaHash.substring(0, 16);
 
         byte[] bytecode = classGenerator.generateQueryExecutorClass(
                 predicateExpression,
@@ -331,12 +340,14 @@ public class CallSiteProcessor {
      * Generates and registers a JOIN query executor class (Iteration 6).
      * <p>
      * Creates a query executor that performs a JPA join between two related entities.
+     * BR-002: Uses lambdaHash for deterministic class naming (reproducible builds).
      *
      * @param joinRelationshipExpression Lambda for the join relationship (e.g., p -> p.phones)
      * @param biEntityPredicateExpression Lambda for bi-entity predicate (e.g., (p, ph) -> ph.type.equals("mobile"))
      * @param biEntityProjectionExpression Iteration 6.6: BiQuerySpec SELECT projection (e.g., (p, ph) -> new DTO(...))
      * @param sortExpressions Iteration 6.5: List of sort expressions for ORDER BY
      * @param joinType The type of join (INNER or LEFT)
+     * @param lambdaHash MD5 hash of the lambda expression (used for deterministic class naming)
      * @param queryId Unique identifier for the query
      * @param capturedVarCount Number of captured variables
      * @param isCountQuery True if this is a count query (JoinStream.count())
@@ -352,6 +363,7 @@ public class CallSiteProcessor {
             LambdaExpression biEntityProjectionExpression,
             List<SortExpression> sortExpressions,
             InvokeDynamicScanner.JoinType joinType,
+            String lambdaHash,
             String queryId,
             int capturedVarCount,
             boolean isCountQuery,
@@ -360,8 +372,9 @@ public class CallSiteProcessor {
             BuildProducer<GeneratedClassBuildItem> generatedClass,
             BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations) {
 
+        // BR-002: Use hash prefix for deterministic class naming instead of counter
         String className = "io.quarkiverse.qubit.generated.QueryExecutor_" +
-                           queryCounter.getAndIncrement();
+                           lambdaHash.substring(0, 16);
 
         byte[] bytecode = classGenerator.generateJoinQueryExecutorClass(
                 joinRelationshipExpression,
@@ -399,12 +412,14 @@ public class CallSiteProcessor {
      * <p>
      * Creates a query executor that performs JPA GROUP BY operations with optional
      * HAVING clause, aggregations, and sorting.
+     * BR-002: Uses lambdaHash for deterministic class naming (reproducible builds).
      *
      * @param predicateExpression Pre-grouping WHERE clause (null if no filtering)
      * @param groupByKeyExpression groupBy() key extractor lambda (e.g., p -> p.department)
      * @param havingExpression having() predicate (null if no having)
      * @param groupSelectExpression select() projection in group context (null if no select)
      * @param groupSortExpressions sortedBy() in group context (null or empty if no sorting)
+     * @param lambdaHash MD5 hash of the lambda expression (used for deterministic class naming)
      * @param queryId Unique identifier for the query
      * @param capturedVarCount Number of captured variables
      * @param isCountQuery True if this is a count query (GroupStream.count())
@@ -418,14 +433,16 @@ public class CallSiteProcessor {
             LambdaExpression havingExpression,
             LambdaExpression groupSelectExpression,
             List<SortExpression> groupSortExpressions,
+            String lambdaHash,
             String queryId,
             int capturedVarCount,
             boolean isCountQuery,
             BuildProducer<GeneratedClassBuildItem> generatedClass,
             BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations) {
 
+        // BR-002: Use hash prefix for deterministic class naming instead of counter
         String className = "io.quarkiverse.qubit.generated.QueryExecutor_" +
-                           queryCounter.getAndIncrement();
+                           lambdaHash.substring(0, 16);
 
         byte[] bytecode = classGenerator.generateGroupQueryExecutorClass(
                 predicateExpression,

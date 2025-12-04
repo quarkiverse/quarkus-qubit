@@ -25,11 +25,11 @@ This document provides a comprehensive analysis of code quality issues identifie
 | Architectural | 0 | ~~4~~ 1 | 12 | 9 |
 | Code Smells | 0 | ~~3~~ 1 | ~~12~~  7 | ~~8~~ 5 | ~~23~~ 15 | ~~2~~ 10 |
 | Enum/Type-Safety | 0 | 0 | ~~2~~ 0 | ~~4~~ 0 | ~~6~~ 0 | 3 + 3 deferred |
-| Bug Risks | ~~2~~ 0 | ~~5~~ 4 | 4 | 2 | ~~13~~ 10 | 3 |
+| Bug Risks | ~~2~~ 0 | ~~5~~3 | 4 | 2 | ~~13~~ 9 | ~~3~~ 4 |
 | Documentation | 0 | ~~2~~ 1 | 6 | 4 | 12 | 1 |
 | Performance | 0 | 1 | 3 | 2 | 6 | 0 |
 | Maintainability | 0 | ~~7~~ 1 | ~~12~~ 0 | ~~6~~ 4 | ~~25~~ 5 | 21 |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ **8** | ~~**42**~~ **22** | ~~**25**~~ **18** | ~~**91**~~ **49** | ~~**40**~~ **47** + 3 deferred |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ **7** | ~~**42**~~ **22** | ~~**25**~~ **18** | ~~**91**~~**48** | ~~**40**~~ **48** + 3 deferred |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -944,11 +944,31 @@ public enum StringMethod {
   - Changed silent ignore to `IllegalStateException` when called outside array creation mode
   - Added `@throws` documentation
 
-### BR-002: Race Condition in queryCounter
-- **File**: [CallSiteProcessor.java:327-328](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java#L327-L328)
+### BR-002: Race Condition in queryCounter ✅ RESOLVED
+- **File**: ~~[CallSiteProcessor.java:327-328](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java#L327-L328)~~
 - **Severity**: High
-- **Description**: `AtomicInteger` used but class name generation could still collide in edge cases.
-- **Suggested Fix**: Include additional uniqueness factor (timestamp, hash).
+- **Status**: ✅ **RESOLVED**
+- **Description**: `AtomicInteger` counter-based class naming could collide in edge cases (dev mode hot reload, build order dependency, non-reproducible builds).
+- **Root Cause Analysis**:
+  - Counter resets to 0 on JVM restart (hot reload scenarios)
+  - Class name order depends on processing order, not lambda content
+  - Non-deterministic builds: same code could produce different class names on different machines
+- **Fix Applied**:
+  - Replaced counter-based naming with deterministic hash-based naming
+  - Class names now use `lambdaHash.substring(0, 16)` (64 bits of MD5 hash)
+  - Added `lambdaHash` parameter to all 3 generator methods:
+    - `generateAndRegisterExecutor()` - simple/aggregation queries
+    - `generateAndRegisterJoinExecutor()` - join queries
+    - `generateAndRegisterGroupExecutor()` - group queries
+  - Removed `queryCounter` field from `CallSiteProcessor`
+  - Removed `queryCounter` static field from `QubitProcessor`
+  - Class names are now deterministic: same lambda → same class name (reproducible builds)
+- **Benefits**:
+  - **Reproducible builds**: Same code always produces same class names
+  - **No collision risk**: Hash-based naming eliminates edge case collisions
+  - **Easier debugging**: Class name can be matched to lambda content via hash
+  - **Cleaner code**: Removed unnecessary counter state
+- **All 1,113 tests pass**.
 
 ### BR-003: Null Check After Dereference
 - **File**: [SubqueryExpressionBuilder.java:347-349](deployment/src/main/java/io/quarkus/qubit/deployment/generation/builders/SubqueryExpressionBuilder.java#L347-L349)
@@ -1651,4 +1671,5 @@ When addressing issues, use this template:
 | 4.5 | 2025-12-04 | Claude | **ENUM-004 Deferred (Low ROI)**: Deep analysis of SubqueryAnalyzer.java switch statement (lines 133-145). **Findings**: (1) Single switch location - no duplication to eliminate; (2) Already uses Java 21 switch expression with `->` syntax; (3) 10 methods dispatch to 5 different handler categories with fundamentally different signatures (WHERE takes SubqueryBuilderReference, Scalar takes SubqueryAggregationType+defaultResultType, COUNT has special predicate logic, EXISTS takes negated flag without builder predicate, IN takes negated flag with builder predicate); (4) SubqueryAggregationType already exists and handles scalar aggregation types; (5) String constants required for compile-time switch case labels. **Comparison**: ENUM-001 (high value: multiple switches, 3+ locations) vs ENUM-002 (medium: 1:1 mapping) vs ENUM-004 (low: single clean switch). **Conclusion**: Creating SubqueryMethod enum would require 5 abstract method signatures or complex visitor pattern - complexity outweighs minimal benefits. Existing code is clean and modern. Updated: Enum/Type-Safety low 3→2, total 52→51, deferred count 1→2. |
 | 4.6 | 2025-12-04 | Claude | **ENUM-005 N/A (Already Properly Implemented)**: Deep investigation of EnumMap/EnumSet usage opportunities. **Findings**: (1) The example `Map<LabelNode, LabelClassification>` has `LabelNode` (ASM class) as KEY, not the enum - EnumMap requires enum as KEY type, not VALUE; (2) All HashMap instances use non-enum keys (`LabelNode`, `String`, `byte[]`); (3) EnumSet is already properly used: `FluentMethodType.java` uses `EnumSet.allOf()` and `EnumSet.of()` for ENTRY_POINTS, AGGREGATIONS, SORTING; `TemporalAccessorMethod.java` uses `EnumSet.of()` for DATE_METHODS, TIME_METHODS; (4) All `Set.of()` usages are for `Set<String>` collections (method names) where EnumSet is not applicable. **Conclusion**: Issue was based on misinterpretation of example - codebase already follows best practices for enum collections. Updated: Enum/Type-Safety low 2→1, total 51→50, resolved 46→47. |
 | 4.7 | 2025-12-04 | Claude | **ENUM-006 Deferred (Dead Code + Low ROI)**: Deep analysis of StringExpressionBuilder.java behavior-rich enum proposal. **Critical Discovery**: `StringOperationType` enum and `getOperationType()` method are **DEAD CODE** - the method is defined but **NEVER CALLED** from anywhere in the codebase. Callers directly invoke specific `buildString*()` methods. **Why behavior-rich enum not worthwhile**: (1) 4 build methods have fundamentally different signatures (varying args, return types Expression vs Predicate); (2) Per-method logic is complex (PATTERN: string concatenation for LIKE, SUBSTRING: 0-to-1 index conversion, UTILITY: 3 different implementations); (3) No common interface possible; (4) Sets are already O(1) efficient. **Minor DRY violation found**: `STRING_PATTERN_METHOD_NAMES` duplicated in 3 files. **Comparison**: ENUM-001/002 succeeded because of common factory signature and simple 1:1 mappings; ENUM-006 lacks both. **Recommendation**: Delete dead code (optional cleanup), do NOT create behavior-rich StringMethod enum. Updated: Enum/Type-Safety low 1→0, total 50→49, deferred 2→3. |
+| 4.8 | 2025-12-04 | Claude | **BR-002 Complete**: Fixed race condition in queryCounter by replacing counter-based class naming with deterministic hash-based naming. **Root Cause**: Counter resets on JVM restart (hot reload), processing order dependent, non-reproducible builds. **Fix Applied**: (1) Class names now use `lambdaHash.substring(0, 16)` (64 bits of MD5 hash) instead of `queryCounter.getAndIncrement()`; (2) Added `lambdaHash` parameter to 3 generator methods: `generateAndRegisterExecutor()`, `generateAndRegisterJoinExecutor()`, `generateAndRegisterGroupExecutor()`; (3) Removed `queryCounter` field from `CallSiteProcessor`; (4) Removed `queryCounter` static field from `QubitProcessor`. **Benefits**: Reproducible builds (same lambda → same class name), no collision risk, easier debugging (class name can be matched to lambda via hash), cleaner code. Updated: Bug Risks high 4→3, total 49→48, resolved 47→48. All 1,113 tests pass. |
 

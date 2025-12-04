@@ -37,17 +37,20 @@ import io.quarkiverse.qubit.deployment.analysis.QueryCharacteristics;
 import io.quarkiverse.qubit.deployment.generation.QueryExecutorClassGenerator;
 import io.quarkiverse.qubit.deployment.util.BytecodeLoader;
 
-/** Qubit extension build processor. Generates query executor classes at build time from lambda expressions. */
+/**
+ * Qubit extension build processor. Generates query executor classes at build time from lambda expressions.
+ * <p>
+ * BR-002: Removed queryCounter - CallSiteProcessor now uses deterministic hash-based class naming.
+ */
 public class QubitProcessor {
 
     private static final String FEATURE = "qubit";
-    private static final AtomicInteger queryCounter = new AtomicInteger(0);
 
     private final QueryExecutorClassGenerator classGenerator = new QueryExecutorClassGenerator();
     private final LambdaBytecodeAnalyzer bytecodeAnalyzer = new LambdaBytecodeAnalyzer();
     private final LambdaDeduplicator deduplicator = new LambdaDeduplicator();
     private final CallSiteProcessor callSiteProcessor = new CallSiteProcessor(
-            bytecodeAnalyzer, deduplicator, classGenerator, queryCounter);
+            bytecodeAnalyzer, deduplicator, classGenerator);
 
     /** Registers Qubit feature. */
     @BuildStep
