@@ -10,7 +10,6 @@ import static io.quarkiverse.qubit.runtime.QubitConstants.CB_SUBSTRING;
 import static io.quarkiverse.qubit.runtime.QubitConstants.CB_SUM;
 import static io.quarkiverse.qubit.runtime.QubitConstants.CB_TRIM;
 import static io.quarkiverse.qubit.runtime.QubitConstants.CB_UPPER;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_CONTAINS;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_ENDS_WITH;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_EQUALS;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_IS_EMPTY;
@@ -21,6 +20,7 @@ import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_TO_LOWER_CASE;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_TO_UPPER_CASE;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_TRIM;
 import static io.quarkiverse.qubit.runtime.QubitConstants.STRING_CONCAT;
+import static io.quarkiverse.qubit.runtime.QubitConstants.STRING_PATTERN_METHOD_NAMES;
 
 import java.util.List;
 import java.util.Set;
@@ -50,13 +50,6 @@ import jakarta.persistence.criteria.Predicate;
 public class StringExpressionBuilder implements ExpressionBuilder {
 
     /**
-     * String methods that generate LIKE patterns.
-     */
-    private static final Set<String> STRING_PATTERN_METHODS = Set.of(
-        METHOD_STARTS_WITH, METHOD_ENDS_WITH, METHOD_CONTAINS
-    );
-
-    /**
      * String transformation methods.
      */
     private static final Set<String> STRING_TRANSFORMATION_METHODS = Set.of(
@@ -82,7 +75,7 @@ public class StringExpressionBuilder implements ExpressionBuilder {
         if (STRING_TRANSFORMATION_METHODS.contains(methodName)) {
             return StringOperationType.TRANSFORMATION;
         }
-        if (STRING_PATTERN_METHODS.contains(methodName)) {
+        if (STRING_PATTERN_METHOD_NAMES.contains(methodName)) {
             return StringOperationType.PATTERN;
         }
         if (methodName.equals(METHOD_SUBSTRING)) {
@@ -151,7 +144,7 @@ public class StringExpressionBuilder implements ExpressionBuilder {
             ResultHandle fieldExpression,
             ResultHandle argument) {
 
-        if (!STRING_PATTERN_METHODS.contains(methodCall.methodName())) {
+        if (!STRING_PATTERN_METHOD_NAMES.contains(methodCall.methodName())) {
             return null;
         }
 

@@ -164,6 +164,14 @@ public final class QubitConstants {
     public static final String METHOD_STARTS_WITH = "startsWith";
     public static final String METHOD_ENDS_WITH = "endsWith";
     public static final String METHOD_CONTAINS = "contains";
+
+    /**
+     * String methods that generate LIKE patterns (startsWith, endsWith, contains).
+     */
+    public static final Set<String> STRING_PATTERN_METHOD_NAMES = Set.of(
+        METHOD_STARTS_WITH, METHOD_ENDS_WITH, METHOD_CONTAINS
+    );
+
     public static final String METHOD_TO_LOWER_CASE = "toLowerCase";
     public static final String METHOD_TO_UPPER_CASE = "toUpperCase";
     public static final String METHOD_TRIM = "trim";

@@ -9,15 +9,11 @@ import static io.quarkiverse.qubit.runtime.QubitConstants.CB_IS_NOT_NULL;
 import static io.quarkiverse.qubit.runtime.QubitConstants.CB_IS_NULL;
 import static io.quarkiverse.qubit.runtime.QubitConstants.CB_IS_TRUE;
 import static io.quarkiverse.qubit.runtime.QubitConstants.CB_NOT;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_CONTAINS;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_ENDS_WITH;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_EQUALS;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_STARTS_WITH;
 import static io.quarkiverse.qubit.runtime.QubitConstants.PREFIX_GET;
 import static io.quarkiverse.qubit.runtime.QubitConstants.PREFIX_IS;
+import static io.quarkiverse.qubit.runtime.QubitConstants.STRING_PATTERN_METHOD_NAMES;
 import static io.quarkiverse.qubit.runtime.QubitConstants.TEMPORAL_COMPARISON_METHOD_NAMES;
-
-import java.util.Set;
 
 import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.MethodDescriptor;
@@ -54,10 +50,6 @@ import jakarta.persistence.criteria.Selection;
  * @see io.quarkiverse.qubit.deployment.generation.CriteriaExpressionGenerator
  */
 public class BiEntityExpressionBuilder implements ExpressionBuilder {
-
-    private static final Set<String> STRING_PATTERN_METHOD_NAMES = Set.of(
-            METHOD_STARTS_WITH, METHOD_ENDS_WITH, METHOD_CONTAINS
-    );
 
     /**
      * Delegate builders for specialized operations.

@@ -2,15 +2,13 @@ package io.quarkiverse.qubit.deployment.generation;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.EQ;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_ADD;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_CONTAINS;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_DIVIDE;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_ENDS_WITH;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_EQUALS;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_MULTIPLY;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_OF;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_STARTS_WITH;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SUBSTRING;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SUBTRACT;
+import static io.quarkiverse.qubit.runtime.QubitConstants.STRING_PATTERN_METHOD_NAMES;
 import static io.quarkiverse.qubit.runtime.QubitConstants.CB_AND;
 import static io.quarkiverse.qubit.runtime.QubitConstants.CB_EQUAL;
 import static io.quarkiverse.qubit.runtime.QubitConstants.CB_IS_FALSE;
@@ -80,9 +78,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
     private static final Set<String> BIG_DECIMAL_ARITHMETIC_METHOD_NAMES = Set.of(
         METHOD_ADD, METHOD_SUBTRACT, METHOD_MULTIPLY, METHOD_DIVIDE
-    );
-    private static final Set<String> STRING_PATTERN_METHOD_NAMES = Set.of(
-        METHOD_STARTS_WITH, METHOD_ENDS_WITH, METHOD_CONTAINS
     );
 
     /**

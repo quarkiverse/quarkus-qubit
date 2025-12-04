@@ -24,12 +24,12 @@ This document provides a comprehensive analysis of code quality issues identifie
 |----------|----------|------|--------|-----|-------|----------|
 | Architectural | 0 | ~~4~~ 1 | 12 | 9 |
 | Code Smells | 0 | ~~3~~ 1 | ~~12~~  7 | ~~8~~ 5 | ~~23~~ 15 | ~~2~~ 10 |
-| Enum/Type-Safety | 0 | 0 | ~~2~~ 0 | ~~4~~ 3 | ~~6~~ 3 | 2 + 1 deferred |
+| Enum/Type-Safety | 0 | 0 | ~~2~~ 0 | ~~4~~ 0 | ~~6~~ 0 | 3 + 3 deferred |
 | Bug Risks | ~~2~~ 0 | ~~5~~ 4 | 4 | 2 | ~~13~~ 10 | 3 |
 | Documentation | 0 | ~~2~~ 1 | 6 | 4 | 12 | 1 |
 | Performance | 0 | 1 | 3 | 2 | 6 | 0 |
 | Maintainability | 0 | ~~7~~ 1 | ~~12~~ 0 | ~~6~~ 4 | ~~25~~ 5 | 21 |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ **8** | ~~**42**~~ **22** | ~~**25**~~ **21** | ~~**91**~~ **52** | ~~**40**~~ **46** + 1 deferred |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ **8** | ~~**42**~~ **22** | ~~**25**~~ **18** | ~~**91**~~ **49** | ~~**40**~~ **47** + 3 deferred |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -800,140 +800,136 @@ private static final ExecutorRegistry<Long> COUNT_REGISTRY = new DefaultExecutor
 ```
   This would extract the common registration pattern while preserving type safety, but adds abstraction overhead that isn't justified for 9 types.
 
-### ENUM-004: Create `SubqueryMethod` Enum
+### ENUM-004: Create `SubqueryMethod` Enum ⏸️ DEFERRED
 - **Files**: [SubqueryAnalyzer.java:133-145](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/instruction/SubqueryAnalyzer.java#L133-L145), [QubitConstants.java:101-115](runtime/src/main/java/io/quarkiverse/qubit/runtime/QubitConstants.java#L101-L115)
 - **Severity**: Low
 - **Priority**: Low
+- **Status**: ⏸️ **DEFERRED** - Low ROI, handler signature complexity prevents meaningful abstraction
 - **Description**: Subquery method dispatch uses string constants with switch statement.
-- **Current Pattern**:
-```java
-// QubitConstants.java
-public static final String SUBQUERY_AVG = "avg";
-public static final String SUBQUERY_EXISTS = "exists";
-// ... 9 constants
-
-public static final Set<String> SUBQUERY_METHODS = Set.of(...);
-
-// SubqueryAnalyzer.java
-switch (methodName) {
-    case METHOD_WHERE -> handleBuilderWhere(...);
-    case SUBQUERY_AVG -> handleBuilderScalarSubquery(..., SubqueryAggregationType.AVG, ...);
-    // ... 9 cases
-}
-```
-- **Suggested Fix**: Create `SubqueryMethod` enum with handler dispatch:
+- **Deep Analysis Findings**:
+  - **Switch Statement Location**: Single switch at SubqueryAnalyzer.java:133-145 (no duplication)
+  - **Already Java 21 Pattern**: Uses modern switch expression with `->` syntax
+  - **Handler Categories** (5 distinct patterns):
+    | Category | Methods | Handler Signature |
+    |----------|---------|-------------------|
+    | WHERE | where | Takes `SubqueryBuilderReference` |
+    | Scalar | avg, sum, min, max | Takes `SubqueryAggregationType` + `defaultResultType` |
+    | COUNT | count | Special predicate combination logic |
+    | EXISTS | exists, notExists | Takes `negated` flag, no builder predicate |
+    | IN | in, notIn | Takes `negated` flag, uses builder predicate |
+  - **SubqueryAggregationType Already Exists**: Lines 135-138 already use a well-designed enum for scalar aggregations
+  - **Constants Required for Switch**: String constants must remain in QubitConstants for compile-time switch case labels
+- **Why Enum Would Not Help**:
+  1. **Handler signatures are fundamentally different** - no common interface possible
+  2. **Single switch location** - no duplication to eliminate
+  3. **SubqueryAggregationType handles the complex case** - scalar methods already delegate to existing enum
+  4. **Existing code is clean** - Java 21 switch expression is concise and readable
+- **Comparison with Successful Enum Implementations**:
+  - ENUM-001 (FluentMethodType): Multiple switch statements, factory methods, used in 3+ places → **High value**
+  - ENUM-002 (TemporalAccessorMethod): Simple 1:1 Java→SQL mapping, EnumSets → **Medium value**
+  - ENUM-004 (SubqueryMethod): Single switch, complex handlers, no duplication → **Low value**
+- **Original Suggestion** (preserved for reference):
 ```java
 public enum SubqueryMethod {
-    WHERE("where") {
-        @Override
-        public void handle(SubqueryAnalyzer analyzer, AnalysisContext ctx, ...) {
-            analyzer.handleBuilderWhere(ctx, ...);
-        }
-    },
+    WHERE("where") { @Override public void handle(...) { ... } },
     AVG("avg", SubqueryAggregationType.AVG, Double.class),
-    SUM("sum", SubqueryAggregationType.SUM, Number.class),
-    MIN("min", SubqueryAggregationType.MIN, Comparable.class),
-    MAX("max", SubqueryAggregationType.MAX, Comparable.class),
-    COUNT("count", SubqueryAggregationType.COUNT, Long.class),
-    EXISTS("exists", false),
-    NOT_EXISTS("notExists", true),
-    IN("in", false),
-    NOT_IN("notIn", true);
-
-    private final String methodName;
-
-    public static Optional<SubqueryMethod> fromName(String name) { ... }
+    // ... would require 5 different abstract method signatures or complex visitor pattern
 }
 ```
-- **Benefits**: Type-safe dispatch, eliminates 9 string constants, compile-time exhaustiveness.
+- **Conclusion**: The refactoring complexity outweighs minimal benefits. The existing switch is already clean, uses modern Java 21 syntax, and properly delegates to `SubqueryAggregationType` for scalar operations.
 
-### ENUM-005: Missing EnumMap/EnumSet Usage
+### ENUM-005: Missing EnumMap/EnumSet Usage ✅ N/A (Already Properly Implemented)
 - **Severity**: Low
 - **Priority**: Low (optimization)
-- **Description**: Codebase uses `HashMap` and `Set.of()` where `EnumMap`/`EnumSet` would be more efficient.
-- **Current Pattern**:
+- **Status**: ✅ **N/A** - Codebase already uses EnumSet properly; no EnumMap candidates exist
+- **Description**: Original issue suggested codebase uses `HashMap` and `Set.of()` where `EnumMap`/`EnumSet` would be more efficient.
+- **Investigation Results**:
+  - **EnumMap Analysis**:
+    - The example `Map<LabelNode, LabelClassification>` has `LabelNode` (ASM class) as the KEY, not the enum
+    - `EnumMap<K extends Enum<K>, V>` requires the KEY type to be an enum, not the VALUE
+    - All HashMap instances in codebase use non-enum keys: `LabelNode`, `String`, `byte[]`
+    - **Conclusion**: No candidates for EnumMap conversion exist
+  - **EnumSet Analysis**:
+    - `FluentMethodType.java` (ENUM-001): Already uses `EnumSet.allOf()`, `EnumSet.of()` for ENTRY_POINTS, AGGREGATIONS, SORTING
+    - `TemporalAccessorMethod.java` (ENUM-002): Already uses `EnumSet.of()` for DATE_METHODS, TIME_METHODS, ALL
+    - **Conclusion**: EnumSet is already properly used for enum collections
+  - **Set.of() Analysis**:
+    - All `Set.of()` usages are for `Set<String>` collections (method names like "getYear", "startsWith")
+    - EnumSet cannot be used for String collections - these are correct as-is
+    - **Conclusion**: No candidates for EnumSet conversion
+- **Original Example Analysis**:
 ```java
-// ControlFlowAnalyzer.java:60
+// ControlFlowAnalyzer.java:60 - MISINTERPRETED
 Map<LabelNode, LabelClassification> classifications = new HashMap<>();
-
-// Various files
-private static final Set<String> STRING_PATTERN_METHODS = Set.of(...);
+//     ^^^^^^^                       ^^^^^^^^^^^^^
+//     KEY is LabelNode (ASM class)  VALUE is enum (not KEY!)
+// EnumMap only works when KEY is enum, not when VALUE is enum
 ```
-- **Suggested Improvements**:
-  1. Where keys are enum values, use `EnumMap` instead of `HashMap`
-  2. For enum membership checks, use `EnumSet` instead of `Set.of()`
-- **Benefits**:
-  - `EnumMap`: Array-backed, O(1) access, cache-friendly, ~3x faster than HashMap for enum keys
-  - `EnumSet`: Bit-vector implementation, extremely compact, O(1) operations
-- **Example**:
-```java
-// Instead of:
-private static final Set<String> TEMPORAL_ACCESSOR_METHODS = Set.of(...);
+- **Finding**: The issue was based on a misinterpretation of the example code. The enum `LabelClassification` is the VALUE type, not the KEY type. EnumMap provides no benefit here.
 
-// With enum:
-private static final EnumSet<TemporalAccessorMethod> TEMPORAL_ACCESSOR_METHODS =
-    EnumSet.allOf(TemporalAccessorMethod.class);
-```
-
-### ENUM-006: Behavior-Rich Enums for Expression Builders
+### ENUM-006: Behavior-Rich Enums for Expression Builders ⏸️ DEFERRED (Dead Code Identified)
 - **Files**: [StringExpressionBuilder.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/generation/expression/StringExpressionBuilder.java)
 - **Severity**: Low
 - **Priority**: Low (design improvement)
-- **Description**: `StringOperationType` enum exists but doesn't carry behavior. Method dispatch still uses string switches.
-- **Current Pattern**:
+- **Status**: ⏸️ **DEFERRED** - Behavior-rich enum not worthwhile; dead code cleanup recommended
+- **Description**: Original issue suggested `StringOperationType` enum doesn't carry behavior. Method dispatch uses string switches.
+- **Deep Analysis Findings**:
+  - **Critical Discovery**: `StringOperationType` enum and `getOperationType()` method are **DEAD CODE**
+  - `getOperationType()` is defined at line 79 but **NEVER CALLED** from anywhere in the codebase
+  - The enum values (TRANSFORMATION, PATTERN, SUBSTRING, UTILITY) are only referenced within this unused method
+  - Callers directly invoke specific `buildString*()` methods without checking operation type
+  - **Build Method Signature Analysis**:
+    | Method | Signature | Return Type |
+    |--------|-----------|-------------|
+    | `buildStringTransformation` | (method, methodCall, cb, fieldExpr) | Expression |
+    | `buildStringPattern` | (method, methodCall, cb, fieldExpr, argument) | Predicate |
+    | `buildStringSubstring` | (method, methodCall, cb, fieldExpr, List<args>) | Expression |
+    | `buildStringUtility` | (method, methodCall, cb, fieldExpr, argument?) | Predicate\|Expression |
+  - Each method has **fundamentally different** parameter signatures - no common interface possible
+  - Each has **complex per-method logic**:
+    - PATTERN: String concatenation for LIKE patterns (`%prefix`, `suffix%`, `%contains%`)
+    - SUBSTRING: 0-to-1 index conversion, overloaded variants
+    - UTILITY: 3 different implementations (equals needs arg, length doesn't, isEmpty is `length==0`)
+  - **Minor DRY violation**: `STRING_PATTERN_METHOD_NAMES` is duplicated in 3 files:
+    - StringExpressionBuilder.java:55
+    - CriteriaExpressionGenerator.java:84
+    - BiEntityExpressionBuilder.java:58
+- **Why Behavior-Rich Enum Would NOT Help**:
+  1. **No common interface**: Build methods have different signatures (args, return types)
+  2. **Complex per-method logic**: Cannot be reduced to enum metadata + simple dispatch
+  3. **CriteriaExpressionGenerator owns dispatch**: Category checking happens in caller, not builder
+  4. **Sets are already efficient**: O(1) `contains()` check, no benefit from enum lookup
+- **Comparison with Successful Enum Refactorings**:
+  | Implementation | Value | Reason |
+  |----------------|-------|--------|
+  | ENUM-001 (FluentMethodType) | High | Common factory signature, multiple switches eliminated |
+  | ENUM-002 (TemporalAccessorMethod) | Medium | Simple 1:1 Java→SQL mapping |
+  | ENUM-006 (StringMethod) | Low | No common interface, complex per-method logic |
+- **Recommended Actions** (if pursued):
+  1. ~~Delete dead code: Remove `StringOperationType` enum and `getOperationType()` method~~ (optional cleanup)
+  2. ~~Consolidate `STRING_PATTERN_METHOD_NAMES` into single location~~ (minor DRY improvement)
+  3. **Do NOT create behavior-rich StringMethod enum** - complexity outweighs benefits
+- **Original Suggested Fix** (preserved for reference, but NOT recommended):
 ```java
-public enum StringOperationType {
-    TRANSFORMATION,  // toLowerCase, toUpperCase, trim
-    PATTERN,         // startsWith, endsWith, contains
-    SUBSTRING,       // substring
-    UTILITY          // equals, length, isEmpty
-}
-
-// Separate sets for categorization
-private static final Set<String> STRING_PATTERN_METHODS = Set.of(...);
-private static final Set<String> STRING_TRANSFORMATION_METHODS = Set.of(...);
-```
-- **Suggested Fix**: Create behavior-rich enum with method mapping:
-```java
+// This approach was evaluated but deemed LOW ROI due to:
+// - Different build method signatures prevent unified dispatch
+// - Complex per-method logic cannot be expressed as enum metadata
 public enum StringMethod {
     TO_LOWER_CASE("toLowerCase", StringOperationType.TRANSFORMATION, CB_LOWER),
-    TO_UPPER_CASE("toUpperCase", StringOperationType.TRANSFORMATION, CB_UPPER),
-    TRIM("trim", StringOperationType.TRANSFORMATION, CB_TRIM),
-    STARTS_WITH("startsWith", StringOperationType.PATTERN, "%s%%"),
-    ENDS_WITH("endsWith", StringOperationType.PATTERN, "%%%s"),
-    CONTAINS("contains", StringOperationType.PATTERN, "%%%s%%"),
-    SUBSTRING("substring", StringOperationType.SUBSTRING, null),
-    EQUALS("equals", StringOperationType.UTILITY, CB_EQUAL),
-    LENGTH("length", StringOperationType.UTILITY, CB_LENGTH),
-    IS_EMPTY("isEmpty", StringOperationType.UTILITY, null);
-
-    private final String methodName;
-    private final StringOperationType category;
-    private final String criteriaBuilderMethod;
-
-    public StringOperationType getCategory() { return category; }
-
-    public static Optional<StringMethod> fromName(String name) { ... }
-
-    public static EnumSet<StringMethod> byCategory(StringOperationType type) {
-        return Arrays.stream(values())
-            .filter(m -> m.category == type)
-            .collect(Collectors.toCollection(() -> EnumSet.noneOf(StringMethod.class)));
-    }
+    // ... other values
 }
 ```
-- **Benefits**: Single source of truth, compile-time safety, EnumSet for category filtering.
 
 ### Summary: Enum Improvement Priorities
 
-| ID | Priority | Impact | Effort | Description |
-|----|----------|--------|--------|-------------|
-| ENUM-001 | High | High | Medium | FluentMethodType - affects multiple files, high repetition |
-| ENUM-003 | Medium | High | Medium | ExecutorType - eliminates 10 maps, ~300 lines |
-| ENUM-002 | Medium | Medium | Low | TemporalAccessorMethod - simple 1:1 mapping |
-| ENUM-004 | Low | Medium | Low | SubqueryMethod - 9 method dispatch |
-| ENUM-005 | Low | Low | Low | EnumMap/EnumSet usage - optimization |
-| ENUM-006 | Low | Low | Medium | Behavior-rich StringMethod - design improvement |
+| ID | Priority | Impact | Effort | Status | Description |
+|----|----------|--------|--------|--------|-------------|
+| ENUM-001 | High | High | Medium | ✅ Resolved | FluentMethodType - affects multiple files, high repetition |
+| ENUM-002 | Medium | Medium | Low | ✅ Resolved | TemporalAccessorMethod - simple 1:1 mapping |
+| ENUM-003 | Medium | High | Medium | ⏸️ Deferred | ExecutorType - type safety constraint prevents consolidation |
+| ENUM-004 | Low | Medium | Low | ⏸️ Deferred | SubqueryMethod - single switch, low ROI |
+| ENUM-005 | Low | Low | Low | ✅ N/A | EnumMap/EnumSet - already properly implemented |
+| ENUM-006 | Low | Low | Medium | ⏸️ Deferred | StringMethod - dead code found, behavior-rich enum low ROI |
 
 ---
 
@@ -1652,4 +1648,7 @@ When addressing issues, use this template:
 | 4.2 | 2025-12-04 | Claude | **ENUM-001 Complete**: Created behavior-rich `FluentMethodType` enum (282 lines) with 10 values: WHERE, SELECT, SORTED_BY, SORTED_DESCENDING_BY, MIN, MAX, AVG, SUM_INTEGER, SUM_LONG, SUM_DOUBLE. Each value implements abstract `createConfig()` method (Strategy pattern). Added `fromMethodName()` lookup, `EnumSet` constants (ENTRY_POINTS, AGGREGATIONS, SORTING), and nested `MethodCategory` enum. Updated `QubitRepositoryEnhancer.java` to use enum dispatch: `isGenerateBridgeMethod()` uses Optional lookup, `visitEnd()` iterates EnumSet, `generateBridgeMethod()` accepts enum type. Eliminated duplicate switch statements. String constants retained in QubitConstants for InvokeDynamicScanner bytecode analysis. Updated: Enum/Type-Safety medium 2→1, total 55→54, resolved 44→45. All 375 deployment tests pass. |
 | 4.3 | 2025-12-04 | Claude | **ENUM-002 Complete**: Created `TemporalAccessorMethod` enum (161 lines) with 6 values: GET_YEAR, GET_MONTH_VALUE, GET_DAY_OF_MONTH, GET_HOUR, GET_MINUTE, GET_SECOND. Each value encapsulates Java method name and SQL function name. Added utility methods: `getJavaMethod()`, `getSqlFunction()`, `fromJavaMethod()`, `isTemporalAccessor()`, `toSqlFunction()`. Added `EnumSet` constants: DATE_METHODS, TIME_METHODS, ALL. Updated `TemporalExpressionBuilder.java`: removed `TEMPORAL_ACCESSOR_METHODS` Set, removed delegation methods `mapTemporalAccessorToSqlFunction()` and `isTemporalAccessor()`, replaced with direct enum calls (`TemporalAccessorMethod.toSqlFunction()`, `TemporalAccessorMethod.isTemporalAccessor()`). METHOD_GET_* and SQL_* constants retained in QubitConstants (used for switch case labels in MethodInvocationHandler). Updated: Enum/Type-Safety low 4→3, total 54→53, resolved 45→46. All 1,113 tests pass. |
 | 4.4 | 2025-12-04 | Claude | **ENUM-003 Deferred (Type Safety Constraint)**: Deep analysis of QueryExecutorRegistry.java (643 lines) determined that consolidating 9 ConcurrentHashMap instances into EnumMap would sacrifice compile-time type safety. **Findings**: (1) 9 executor types have 3 different return types: `QueryExecutor<List<?>>` (5 types), `QueryExecutor<Long>` (3 types), `QueryExecutor<?>` (1 type); (2) Execution methods have different signatures (`offset, limit, distinct` vs `offset, limit` vs none), return types (`List<T>`, `long`, `R`), and post-processing (`executeGroupQuery` converts Tuple→Object[]); (3) TypeToken approach would require Guava dependency and extensive `@SuppressWarnings("unchecked")` with potential ClassCastException; (4) Registration method consolidation saves ~30 lines but loses type safety. **ROI Assessment**: Current 643-line type-safe design is preferable to 560-line design with runtime casting. Proposed alternative marker interface approach documented for future consideration if 10th+ executor type added. Updated: Enum/Type-Safety medium 1→0, total 53→52, deferred count +1. |
+| 4.5 | 2025-12-04 | Claude | **ENUM-004 Deferred (Low ROI)**: Deep analysis of SubqueryAnalyzer.java switch statement (lines 133-145). **Findings**: (1) Single switch location - no duplication to eliminate; (2) Already uses Java 21 switch expression with `->` syntax; (3) 10 methods dispatch to 5 different handler categories with fundamentally different signatures (WHERE takes SubqueryBuilderReference, Scalar takes SubqueryAggregationType+defaultResultType, COUNT has special predicate logic, EXISTS takes negated flag without builder predicate, IN takes negated flag with builder predicate); (4) SubqueryAggregationType already exists and handles scalar aggregation types; (5) String constants required for compile-time switch case labels. **Comparison**: ENUM-001 (high value: multiple switches, 3+ locations) vs ENUM-002 (medium: 1:1 mapping) vs ENUM-004 (low: single clean switch). **Conclusion**: Creating SubqueryMethod enum would require 5 abstract method signatures or complex visitor pattern - complexity outweighs minimal benefits. Existing code is clean and modern. Updated: Enum/Type-Safety low 3→2, total 52→51, deferred count 1→2. |
+| 4.6 | 2025-12-04 | Claude | **ENUM-005 N/A (Already Properly Implemented)**: Deep investigation of EnumMap/EnumSet usage opportunities. **Findings**: (1) The example `Map<LabelNode, LabelClassification>` has `LabelNode` (ASM class) as KEY, not the enum - EnumMap requires enum as KEY type, not VALUE; (2) All HashMap instances use non-enum keys (`LabelNode`, `String`, `byte[]`); (3) EnumSet is already properly used: `FluentMethodType.java` uses `EnumSet.allOf()` and `EnumSet.of()` for ENTRY_POINTS, AGGREGATIONS, SORTING; `TemporalAccessorMethod.java` uses `EnumSet.of()` for DATE_METHODS, TIME_METHODS; (4) All `Set.of()` usages are for `Set<String>` collections (method names) where EnumSet is not applicable. **Conclusion**: Issue was based on misinterpretation of example - codebase already follows best practices for enum collections. Updated: Enum/Type-Safety low 2→1, total 51→50, resolved 46→47. |
+| 4.7 | 2025-12-04 | Claude | **ENUM-006 Deferred (Dead Code + Low ROI)**: Deep analysis of StringExpressionBuilder.java behavior-rich enum proposal. **Critical Discovery**: `StringOperationType` enum and `getOperationType()` method are **DEAD CODE** - the method is defined but **NEVER CALLED** from anywhere in the codebase. Callers directly invoke specific `buildString*()` methods. **Why behavior-rich enum not worthwhile**: (1) 4 build methods have fundamentally different signatures (varying args, return types Expression vs Predicate); (2) Per-method logic is complex (PATTERN: string concatenation for LIKE, SUBSTRING: 0-to-1 index conversion, UTILITY: 3 different implementations); (3) No common interface possible; (4) Sets are already O(1) efficient. **Minor DRY violation found**: `STRING_PATTERN_METHOD_NAMES` duplicated in 3 files. **Comparison**: ENUM-001/002 succeeded because of common factory signature and simple 1:1 mappings; ENUM-006 lacks both. **Recommendation**: Delete dead code (optional cleanup), do NOT create behavior-rich StringMethod enum. Updated: Enum/Type-Safety low 1→0, total 50→49, deferred 2→3. |
 
