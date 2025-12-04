@@ -23,13 +23,13 @@ This document provides a comprehensive analysis of code quality issues identifie
 | Category | Critical | High | Medium | Low | Total | Resolved |
 |----------|----------|------|--------|-----|-------|----------|
 | Architectural | 0 | ~~4~~ 1 | 12 | 9 |
-| Code Smells | 0 | ~~3~~ 1 | 12 | 8 | 23 | 2 |
+| Code Smells | 0 | ~~3~~ 1 | ~~12~~ 11 | 8 | ~~23~~ 22 | ~~2~~ 3 |
 | Enum/Type-Safety | 0 | 0 | 2 | 4 | 6 | 0 |
 | Bug Risks | ~~2~~ 0 | ~~5~~ 4 | 4 | 2 | ~~13~~ 10 | 3 |
 | Documentation | 0 | ~~2~~ 1 | 6 | 4 | 12 | 1 |
 | Performance | 0 | 1 | 3 | 2 | 6 | 0 |
 | Maintainability | 0 | ~~7~~ 1 | ~~12~~ 0 | ~~6~~ 4 | ~~25~~ 5 | 21 |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ **8** | ~~**42**~~ **29** | ~~**25**~~ **25** | ~~**91**~~ **63** | **36** |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ **8** | ~~**42**~~ **28** | ~~**25**~~ **25** | ~~**91**~~ **62** | **37** |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -396,11 +396,24 @@ public static Class<?> tryLoadClass(String className) {
 - **Suggested Fix**: Use early returns, extract to strategy methods.
 - **Duplicate Of**: → **MAINT-006** (same method, same fix approach)
 
-### CS-006: Excessive Boolean Parameters
-- **File**: [CallSiteProcessor.java:111-118](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java#L111-L118)
+### CS-006: Excessive Boolean Parameters ✅ RESOLVED
+- **File**: ~~[CallSiteProcessor.java:111-118](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java#L111-L118)~~
 - **Severity**: Medium
-- **Description**: `deduplicator.handleDuplicateLambda()` has many boolean parameters.
-- **Suggested Fix**: Create parameter object `QueryCharacteristics` record.
+- **Status**: ✅ **RESOLVED**
+- **Description**: `deduplicator.handleDuplicateLambda()` had 6 boolean parameters (isCountQuery, isAggregationQuery, isJoinQuery, isSelectJoined, isJoinProjection, isGroupQuery).
+- **Fix Applied**:
+  - Created [QueryCharacteristics.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/QueryCharacteristics.java) record bundling all 6 boolean flags
+  - Added factory methods for common query types: `forList()`, `forCount()`, `forAggregation()`, `forJoinList()`, `forJoinCount()`, `forSelectJoined()`, `forJoinProjection()`, `forGroupList()`, `forGroupCount()`
+  - Added `fromCallSite()` factory method for extracting characteristics from `LambdaCallSite`
+  - Updated `LambdaDeduplicator.handleDuplicateLambda()` to accept `QueryCharacteristics` (reduced from 11 to 6 parameters)
+  - Updated `QueryTransformationBuildItem` to use `QueryCharacteristics` internally (reduced from 6 telescoping constructors to 3)
+  - Updated call sites in `CallSiteProcessor` to use `QueryCharacteristics.fromCallSite()` and factory methods
+  - All 1,113 tests pass
+- **Benefits**:
+  - **Readability**: Query type intent is now explicit (e.g., `QueryCharacteristics.forGroupCount()` vs `isCountQuery=true, isGroupQuery=true`)
+  - **Maintainability**: Adding new query type flags requires only updating `QueryCharacteristics` record
+  - **Type Safety**: `QueryCharacteristics` record provides compile-time type checking
+  - **Reduced Boilerplate**: Eliminated 6 telescoping constructors in `QueryTransformationBuildItem`
 
 ### CS-007: Commented Code Blocks
 - **Files**: Various
@@ -1371,12 +1384,12 @@ return switch (expr) {
 ### Phase 2: High-Priority Improvements (Week 1-2)
 1. ~~`ARCH-001`: Begin extracting large classes~~
 2. ~~`ARCH-002`: Refactor `LambdaAnalysisResult` to sealed interface~~
-3. `CS-001`: Consolidate magic strings
+3. ~~`CS-001`: Consolidate magic strings~~
 4. `DOC-001`: Add package documentation
 
 ### Phase 3: Medium-Priority Improvements (Week 3-4)
-1. `MAINT-001`: Extract `SubqueryAnalysisHandler`
-2. `MAINT-002`: Extract `GroupMethodHandler`
+1. ~~`MAINT-001`: Extract `SubqueryAnalysisHandler`~~
+2. ~~`MAINT-002`: Extract `GroupMethodHandler`~~
 3. `PERF-001`: Cache MethodDescriptor instances
 4. Complete Javadoc coverage
 
@@ -1471,4 +1484,5 @@ When addressing issues, use this template:
 | 2.9 | 2025-12-01 | Claude | **CS-003 Full Audit Complete**: Comprehensive null safety audit verified 21 files have @Nullable annotations, all 9 packages have @NullMarked, 18 files with `return null;` statements properly annotated. Updated summary dashboard: Code Smells high 1→0, total 57→56, resolved 36→37. All high-severity code smells (CS-001, CS-002, CS-003) now resolved. |
 | 3.0 | 2025-12-04 | Claude | **CS-003 Reverted/Deferred**: JSpecify null-safety annotations reverted due to VSCode JDT.LS compatibility issues. External annotations (.eea files) for Gizmo, ASM, and Jandex cannot be loaded - VSCode reports "Invalid external annotation path" for any path format. Without EEA support, 700+ warnings from third-party library interop cannot be suppressed. EEA files preserved in `.eea/` for future Eclipse IDE use. Updated: Code Smells high 0→1, total 56→57, resolved 37→36. |
 | 3.1 | 2025-12-04 | Claude | **Enum and Type-Safety Analysis Complete**: Added new section documenting 6 opportunities for enum-based improvements. Catalogued 13 existing enums. Identified: ENUM-001 (FluentMethodType - High priority, eliminates 10+ string constants), ENUM-002 (TemporalAccessorMethod - 6 Java→SQL mappings), ENUM-003 (ExecutorType - consolidates 10 ConcurrentHashMaps into EnumMap), ENUM-004 (SubqueryMethod - 9 dispatch methods), ENUM-005 (EnumMap/EnumSet usage opportunities), ENUM-006 (behavior-rich StringMethod). Added new category to Summary Dashboard: 2 Medium, 4 Low = 6 total. Updated total issues: 57→63. |
+| 3.2 | 2025-12-04 | Claude | **CS-006 Complete**: Created `QueryCharacteristics` record to replace 6 boolean parameters in `handleDuplicateLambda()`. Record bundles isCountQuery, isAggregationQuery, isJoinQuery, isSelectJoined, isJoinProjection, isGroupQuery flags. Added 9 factory methods (forList, forCount, forAggregation, forJoinList, forJoinCount, forSelectJoined, forJoinProjection, forGroupList, forGroupCount) and fromCallSite() extractor. Updated LambdaDeduplicator (11→6 parameters), QueryTransformationBuildItem (6→3 constructors), and CallSiteProcessor call sites. Updated: Code Smells medium 12→11, total 63→62, resolved 36→37. All 1,113 tests pass. |
 

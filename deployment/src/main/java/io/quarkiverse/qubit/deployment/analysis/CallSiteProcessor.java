@@ -78,14 +78,11 @@ public class CallSiteProcessor {
 
             String lambdaHash = computeHash(callSite, result);
             boolean isGroupQuery = result instanceof LambdaAnalysisResult.GroupQueryResult;
+
+            // CS-006: Use QueryCharacteristics parameter object instead of 6 boolean parameters
+            QueryCharacteristics characteristics = QueryCharacteristics.fromCallSite(callSite, isGroupQuery);
             if (deduplicator.handleDuplicateLambda(callSiteId, lambdaHash,
-                    callSite.isCountQuery(),
-                    callSite.isAggregationQuery(),
-                    callSite.isJoinQuery(),
-                    callSite.isSelectJoinedQuery(),  // Iteration 6.5: Pass selectJoined flag
-                    callSite.isJoinProjectionQuery(),  // Iteration 6.6: Pass joinProjection flag
-                    isGroupQuery,
-                    result.totalCapturedVarCount(), deduplicatedCount, queryTransformations)) {
+                    characteristics, result.totalCapturedVarCount(), deduplicatedCount, queryTransformations)) {
                 return;
             }
 
@@ -381,8 +378,11 @@ public class CallSiteProcessor {
         // Iteration 6: Create join query build item with isJoinQuery=true
         // Iteration 6.5: Create selectJoined query build item if isSelectJoined is true
         // Iteration 6.6: Create join projection query build item if isJoinProjection is true
+        // CS-006: Use QueryCharacteristics instead of boolean parameters
+        QueryCharacteristics joinCharacteristics = new QueryCharacteristics(
+                isCountQuery, false, true, isSelectJoined, isJoinProjection, false);
         queryTransformations.produce(
-                new QubitProcessor.QueryTransformationBuildItem(queryId, className, Object.class, isCountQuery, false, true, isSelectJoined, isJoinProjection, capturedVarCount));
+                new QubitProcessor.QueryTransformationBuildItem(queryId, className, Object.class, joinCharacteristics, capturedVarCount));
 
         String joinTypeDesc = (joinType == InvokeDynamicScanner.JoinType.LEFT) ? "LEFT JOIN" : "INNER JOIN";
         String queryTypeDesc = isCountQuery ? joinTypeDesc + " COUNT" :
@@ -438,9 +438,12 @@ public class CallSiteProcessor {
 
         generatedClass.produce(new GeneratedClassBuildItem(true, className, bytecode));
         // Iteration 7: Create group query build item with isGroupQuery=true
-        // Iteration 6.6: Updated to include isJoinProjection=false parameter before isGroupQuery
+        // CS-006: Use QueryCharacteristics instead of boolean parameters
+        QueryCharacteristics groupCharacteristics = isCountQuery
+                ? QueryCharacteristics.forGroupCount()
+                : QueryCharacteristics.forGroupList();
         queryTransformations.produce(
-                new QubitProcessor.QueryTransformationBuildItem(queryId, className, Object.class, isCountQuery, false, false, false, false, true, capturedVarCount));
+                new QubitProcessor.QueryTransformationBuildItem(queryId, className, Object.class, groupCharacteristics, capturedVarCount));
 
         String queryTypeDesc = isCountQuery ? "GROUP BY COUNT" : "GROUP BY";
         if (havingExpression != null) {

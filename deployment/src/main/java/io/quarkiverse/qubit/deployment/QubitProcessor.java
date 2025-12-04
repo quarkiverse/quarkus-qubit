@@ -33,6 +33,7 @@ import io.quarkiverse.qubit.deployment.analysis.CallSiteProcessor;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner;
 import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
 import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator;
+import io.quarkiverse.qubit.deployment.analysis.QueryCharacteristics;
 import io.quarkiverse.qubit.deployment.generation.QueryExecutorClassGenerator;
 import io.quarkiverse.qubit.deployment.util.BytecodeLoader;
 
@@ -314,111 +315,69 @@ public class QubitProcessor {
         }
     }
 
-    /** Build item linking call site to generated executor class. */
+    /**
+     * Build item representing a query transformation.
+     *
+     * <p>CS-006: Refactored to use QueryCharacteristics for query type flags,
+     * eliminating 6 telescoping constructors and excessive boolean parameters.
+     */
     public static final class QueryTransformationBuildItem extends MultiBuildItem {
         private final String queryId;
         private final String generatedClassName;
         private final Class<?> entityClass;
-        private final boolean isCountQuery;
-        private final boolean isAggregationQuery;
-        private final boolean isJoinQuery;  // Iteration 6: Join Queries
-        private final boolean isSelectJoined; // Iteration 6.5: selectJoined() queries
-        private final boolean isJoinProjection; // Iteration 6.6: join projection queries
-        private final boolean isGroupQuery; // Iteration 7: Group Queries
+        private final QueryCharacteristics characteristics;
         private final int capturedVarCount;
 
-        public QueryTransformationBuildItem(
-                String queryId,
-                String generatedClassName,
-                Class<?> entityClass,
-                boolean isCountQuery,
-                int capturedVarCount) {
-            this(queryId, generatedClassName, entityClass, isCountQuery, false, false, false, false, false, capturedVarCount);
-        }
-
-        public QueryTransformationBuildItem(
-                String queryId,
-                String generatedClassName,
-                Class<?> entityClass,
-                boolean isCountQuery,
-                boolean isAggregationQuery,
-                int capturedVarCount) {
-            this(queryId, generatedClassName, entityClass, isCountQuery, isAggregationQuery, false, false, false, false, capturedVarCount);
-        }
-
         /**
-         * Constructor with join query support.
-         * Iteration 6: Added isJoinQuery parameter.
+         * Primary constructor using QueryCharacteristics (CS-006).
+         *
+         * @param queryId unique query identifier (call site ID)
+         * @param generatedClassName generated executor class name
+         * @param entityClass entity class for this query
+         * @param characteristics query type characteristics
+         * @param capturedVarCount number of captured variables
          */
         public QueryTransformationBuildItem(
                 String queryId,
                 String generatedClassName,
                 Class<?> entityClass,
-                boolean isCountQuery,
-                boolean isAggregationQuery,
-                boolean isJoinQuery,
-                int capturedVarCount) {
-            this(queryId, generatedClassName, entityClass, isCountQuery, isAggregationQuery, isJoinQuery, false, false, false, capturedVarCount);
-        }
-
-        /**
-         * Constructor with join query and selectJoined support.
-         * Iteration 6.5: Added isSelectJoined parameter.
-         */
-        public QueryTransformationBuildItem(
-                String queryId,
-                String generatedClassName,
-                Class<?> entityClass,
-                boolean isCountQuery,
-                boolean isAggregationQuery,
-                boolean isJoinQuery,
-                boolean isSelectJoined,
-                int capturedVarCount) {
-            this(queryId, generatedClassName, entityClass, isCountQuery, isAggregationQuery, isJoinQuery, isSelectJoined, false, false, capturedVarCount);
-        }
-
-        /**
-         * Constructor with join query, selectJoined, and joinProjection support.
-         * Iteration 6.6: Added isJoinProjection parameter.
-         */
-        public QueryTransformationBuildItem(
-                String queryId,
-                String generatedClassName,
-                Class<?> entityClass,
-                boolean isCountQuery,
-                boolean isAggregationQuery,
-                boolean isJoinQuery,
-                boolean isSelectJoined,
-                boolean isJoinProjection,
-                int capturedVarCount) {
-            this(queryId, generatedClassName, entityClass, isCountQuery, isAggregationQuery, isJoinQuery, isSelectJoined, isJoinProjection, false, capturedVarCount);
-        }
-
-        /**
-         * Full constructor with all flags including group query support.
-         * Iteration 7: Added isGroupQuery parameter.
-         */
-        public QueryTransformationBuildItem(
-                String queryId,
-                String generatedClassName,
-                Class<?> entityClass,
-                boolean isCountQuery,
-                boolean isAggregationQuery,
-                boolean isJoinQuery,
-                boolean isSelectJoined,
-                boolean isJoinProjection,
-                boolean isGroupQuery,
+                QueryCharacteristics characteristics,
                 int capturedVarCount) {
             this.queryId = queryId;
             this.generatedClassName = generatedClassName;
             this.entityClass = entityClass;
-            this.isCountQuery = isCountQuery;
-            this.isAggregationQuery = isAggregationQuery;
-            this.isJoinQuery = isJoinQuery;
-            this.isSelectJoined = isSelectJoined;
-            this.isJoinProjection = isJoinProjection;
-            this.isGroupQuery = isGroupQuery;
+            this.characteristics = characteristics;
             this.capturedVarCount = capturedVarCount;
+        }
+
+        /**
+         * Convenience constructor for simple list/count queries.
+         * Creates QueryCharacteristics with only isCountQuery set.
+         */
+        public QueryTransformationBuildItem(
+                String queryId,
+                String generatedClassName,
+                Class<?> entityClass,
+                boolean isCountQuery,
+                int capturedVarCount) {
+            this(queryId, generatedClassName, entityClass,
+                    isCountQuery ? QueryCharacteristics.forCount() : QueryCharacteristics.forList(),
+                    capturedVarCount);
+        }
+
+        /**
+         * Convenience constructor for aggregation queries.
+         */
+        public QueryTransformationBuildItem(
+                String queryId,
+                String generatedClassName,
+                Class<?> entityClass,
+                boolean isCountQuery,
+                boolean isAggregationQuery,
+                int capturedVarCount) {
+            this(queryId, generatedClassName, entityClass,
+                    new QueryCharacteristics(isCountQuery, isAggregationQuery, false, false, false, false),
+                    capturedVarCount);
         }
 
         /** Returns unique query identifier (call site ID). */
@@ -436,34 +395,39 @@ public class QubitProcessor {
             return entityClass;
         }
 
+        /** Returns query characteristics (CS-006: replaces 6 boolean getters). */
+        public QueryCharacteristics getCharacteristics() {
+            return characteristics;
+        }
+
         /** Returns true if this is a count query. */
         public boolean isCountQuery() {
-            return isCountQuery;
+            return characteristics.isCountQuery();
         }
 
         /** Returns true if this is an aggregation query (Phase 5). */
         public boolean isAggregationQuery() {
-            return isAggregationQuery;
+            return characteristics.isAggregationQuery();
         }
 
         /** Returns true if this is a join query (Iteration 6). */
         public boolean isJoinQuery() {
-            return isJoinQuery;
+            return characteristics.isJoinQuery();
         }
 
         /** Returns true if this is a selectJoined query (Iteration 6.5). */
         public boolean isSelectJoined() {
-            return isSelectJoined;
+            return characteristics.isSelectJoined();
         }
 
         /** Returns true if this is a join projection query (Iteration 6.6). */
         public boolean isJoinProjection() {
-            return isJoinProjection;
+            return characteristics.isJoinProjection();
         }
 
         /** Returns true if this is a group query (Iteration 7). */
         public boolean isGroupQuery() {
-            return isGroupQuery;
+            return characteristics.isGroupQuery();
         }
 
         /** Returns number of captured variables. */
