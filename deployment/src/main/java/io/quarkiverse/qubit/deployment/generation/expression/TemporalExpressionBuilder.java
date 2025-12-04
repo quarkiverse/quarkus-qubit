@@ -12,7 +12,6 @@ import jakarta.persistence.criteria.Predicate;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.Set;
 
 import static io.quarkiverse.qubit.runtime.QubitConstants.CB_EQUAL;
 import static io.quarkiverse.qubit.runtime.QubitConstants.CB_FUNCTION;
