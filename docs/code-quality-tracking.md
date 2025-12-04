@@ -8,12 +8,13 @@ This document provides a comprehensive analysis of code quality issues identifie
 2. [Critical Issues](#critical-issues)
 3. [Architectural Improvements](#architectural-improvements)
 4. [Code Smells](#code-smells)
-5. [Bug Risks](#bug-risks)
-6. [Documentation Gaps](#documentation-gaps)
-7. [Performance Optimizations](#performance-optimizations)
-8. [Maintainability Improvements](#maintainability-improvements)
-9. [Testing Recommendations](#testing-recommendations)
-10. [Refactoring Roadmap](#refactoring-roadmap)
+5. [Enum and Type-Safety Improvements](#enum-and-type-safety-improvements)
+6. [Bug Risks](#bug-risks)
+7. [Documentation Gaps](#documentation-gaps)
+8. [Performance Optimizations](#performance-optimizations)
+9. [Maintainability Improvements](#maintainability-improvements)
+10. [Testing Recommendations](#testing-recommendations)
+11. [Refactoring Roadmap](#refactoring-roadmap)
 
 ---
 
@@ -23,11 +24,12 @@ This document provides a comprehensive analysis of code quality issues identifie
 |----------|----------|------|--------|-----|-------|----------|
 | Architectural | 0 | ~~4~~ 1 | 12 | 9 |
 | Code Smells | 0 | ~~3~~ 1 | 12 | 8 | 23 | 2 |
+| Enum/Type-Safety | 0 | 0 | 2 | 4 | 6 | 0 |
 | Bug Risks | ~~2~~ 0 | ~~5~~ 4 | 4 | 2 | ~~13~~ 10 | 3 |
 | Documentation | 0 | ~~2~~ 1 | 6 | 4 | 12 | 1 |
 | Performance | 0 | 1 | 3 | 2 | 6 | 0 |
 | Maintainability | 0 | ~~7~~ 1 | ~~12~~ 0 | ~~6~~ 4 | ~~25~~ 5 | 21 |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ **8** | ~~**42**~~ **27** | ~~**25**~~ **21** | ~~**91**~~ **57** | **36** |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ **8** | ~~**42**~~ **29** | ~~**25**~~ **25** | ~~**91**~~ **63** | **36** |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -445,6 +447,325 @@ public static Class<?> tryLoadClass(String className) {
 - **Severity**: Low
 - **Description**: Some private methods don't use instance state.
 - **Suggested Fix**: Consider extracting to utility classes.
+
+---
+
+## Enum and Type-Safety Improvements
+
+This section documents opportunities to improve code quality through better use of enums, EnumMap/EnumSet, and type-safe dispatch patterns. These improvements offer performance benefits (O(1) lookup, cache-friendly arrays), memory efficiency, and enhanced compile-time safety.
+
+### Current Enum Inventory
+
+The codebase has 13 well-designed enums:
+
+| Enum | Location | Purpose |
+|------|----------|---------|
+| `BinaryOp.Operator` | LambdaExpression.java:62 | Binary operation types (EQ, NE, LT, LE, GT, GE, AND, OR, ADD, SUB, MUL, DIV, MOD) |
+| `UnaryOp.Operator` | LambdaExpression.java:186 | Unary operation types (NOT) |
+| `RelationType` | LambdaExpression.java:401 | Relationship navigation types (FIELD, ONE_TO_MANY, MANY_TO_ONE, ONE_TO_ONE, MANY_TO_MANY) |
+| `EntityPosition` | LambdaExpression.java:636 | Bi-entity parameter position (FIRST, SECOND) |
+| `GroupAggregationType` | LambdaExpression.java:876 | Group aggregation functions (COUNT, COUNT_DISTINCT, AVG, SUM, MIN, MAX) |
+| `SubqueryAggregationType` | LambdaExpression.java:1034 | Subquery aggregation functions (AVG, SUM, MIN, MAX, COUNT) |
+| `JoinType` | InvokeDynamicScanner.java:36 | Join types (INNER, LEFT) |
+| `QueryContext` | InvokeDynamicScanner.java:47 | Query context types (SIMPLE, BI_ENTITY, GROUP) |
+| `LabelClassification` | ControlFlowAnalyzer.java:40 | Label roles (TRUE_SINK, FALSE_SINK, INTERMEDIATE) |
+| `StringOperationType` | StringExpressionBuilder.java:101 | String operation categories (TRANSFORMATION, PATTERN, SUBSTRING, UTILITY) |
+| `BranchPattern` | PatternDetector.java:31 | Branch patterns (AND_PATTERN, OR_PATTERN, COMPLEX) |
+| `SortDirection` | SortDirection.java:12 | Sort directions (ASC, DESC) |
+| `JoinType` (runtime) | JoinType.java:6 | Runtime join types (INNER, LEFT) |
+
+### ENUM-001: Create `FluentMethodType` Enum for API Method Dispatch
+- **Files**: [QubitRepositoryEnhancer.java:177-202](deployment/src/main/java/io/quarkiverse/qubit/deployment/QubitRepositoryEnhancer.java#L177-L202), [QubitConstants.java:22-67](runtime/src/main/java/io/quarkiverse/qubit/runtime/QubitConstants.java#L22-L67)
+- **Severity**: Medium
+- **Priority**: High (affects multiple files, enables EnumMap usage)
+- **Description**: Method name dispatch uses string constants with switch statements. Multiple `Set.of()` collections (`FLUENT_ENTRY_POINT_METHODS`, `FLUENT_INTERMEDIATE_METHODS`, `FLUENT_TERMINAL_METHODS`) categorize methods.
+- **Current Pattern**:
+```java
+// QubitConstants.java - string constants
+public static final String METHOD_WHERE = "where";
+public static final String METHOD_SELECT = "select";
+// ... 10+ more constants
+
+public static final Set<String> FLUENT_ENTRY_POINT_METHODS = Set.of(
+    METHOD_WHERE, METHOD_SELECT, METHOD_SORTED_BY, ...);
+
+// QubitRepositoryEnhancer.java - string switch
+QubitBytecodeGenerator.FluentMethodConfig config = switch (methodName) {
+    case METHOD_WHERE -> FluentMethodConfig.forWhere(...);
+    case METHOD_SELECT -> FluentMethodConfig.forSelect(...);
+    // ... 10 cases
+    default -> null;
+};
+```
+- **Suggested Fix**: Create `FluentMethodType` enum with behavior:
+```java
+public enum FluentMethodType {
+    WHERE("where", MethodCategory.ENTRY_POINT) {
+        @Override
+        public FluentMethodConfig createConfig(Type entityType, String internalName) {
+            return FluentMethodConfig.forWhere(entityType, internalName);
+        }
+    },
+    SELECT("select", MethodCategory.ENTRY_POINT) {
+        @Override
+        public FluentMethodConfig createConfig(Type entityType, String internalName) {
+            return FluentMethodConfig.forSelect(entityType, internalName);
+        }
+    },
+    // ... other values
+
+    private final String methodName;
+    private final MethodCategory category;
+
+    public abstract FluentMethodConfig createConfig(Type entityType, String internalName);
+
+    public static Optional<FluentMethodType> fromMethodName(String name) {
+        return Arrays.stream(values())
+            .filter(m -> m.methodName.equals(name))
+            .findFirst();
+    }
+
+    public enum MethodCategory { ENTRY_POINT, INTERMEDIATE, TERMINAL }
+}
+```
+- **Benefits**:
+  - Eliminates 10+ string constants from `QubitConstants`
+  - Compile-time exhaustiveness checking in switch expressions
+  - Behavior attached to enum values (Strategy pattern)
+  - `EnumSet` replaces `Set.of()` for category membership (faster, type-safe)
+  - Single source of truth for method metadata
+
+### ENUM-002: Create `TemporalAccessorMethod` Enum
+- **Files**: [TemporalExpressionBuilder.java:38-68](deployment/src/main/java/io/quarkiverse/qubit/deployment/generation/expression/TemporalExpressionBuilder.java#L38-L68), [QubitConstants.java:174-179](runtime/src/main/java/io/quarkiverse/qubit/runtime/QubitConstants.java#L174-L179)
+- **Severity**: Low
+- **Priority**: Medium
+- **Description**: Temporal accessor methods mapped to SQL functions via string constants and switch statement.
+- **Current Pattern**:
+```java
+// QubitConstants.java
+public static final String METHOD_GET_YEAR = "getYear";
+public static final String SQL_YEAR = "YEAR";
+// ... 6 pairs
+
+// TemporalExpressionBuilder.java
+private static final Set<String> TEMPORAL_ACCESSOR_METHODS = Set.of(
+    METHOD_GET_YEAR, METHOD_GET_MONTH_VALUE, ...);
+
+public static String mapTemporalAccessorToSqlFunction(String methodName) {
+    return switch (methodName) {
+        case METHOD_GET_YEAR -> SQL_YEAR;
+        case METHOD_GET_MONTH_VALUE -> SQL_MONTH;
+        // ... 6 cases
+    };
+}
+```
+- **Suggested Fix**: Create `TemporalAccessorMethod` enum:
+```java
+public enum TemporalAccessorMethod {
+    GET_YEAR("getYear", "YEAR"),
+    GET_MONTH_VALUE("getMonthValue", "MONTH"),
+    GET_DAY_OF_MONTH("getDayOfMonth", "DAY"),
+    GET_HOUR("getHour", "HOUR"),
+    GET_MINUTE("getMinute", "MINUTE"),
+    GET_SECOND("getSecond", "SECOND");
+
+    private final String javaMethod;
+    private final String sqlFunction;
+
+    public String toSqlFunction() { return sqlFunction; }
+
+    public static Optional<TemporalAccessorMethod> fromJavaMethod(String name) {
+        return Arrays.stream(values())
+            .filter(m -> m.javaMethod.equals(name))
+            .findFirst();
+    }
+}
+```
+- **Benefits**: Eliminates 12 string constants, type-safe mapping, single source of truth.
+
+### ENUM-003: Create `ExecutorType` Enum for QueryExecutorRegistry
+- **File**: [QueryExecutorRegistry.java:21-30](runtime/src/main/java/io/quarkiverse/qubit/runtime/QueryExecutorRegistry.java#L21-L30)
+- **Severity**: Medium
+- **Priority**: Medium
+- **Description**: Ten separate `ConcurrentHashMap` instances for different executor types with repetitive registration/execution methods.
+- **Current Pattern**:
+```java
+private static final Map<String, QueryExecutor<List<?>>> LIST_EXECUTORS = new ConcurrentHashMap<>();
+private static final Map<String, QueryExecutor<Long>> COUNT_EXECUTORS = new ConcurrentHashMap<>();
+private static final Map<String, QueryExecutor<?>> AGGREGATION_EXECUTORS = new ConcurrentHashMap<>();
+private static final Map<String, QueryExecutor<List<?>>> JOIN_LIST_EXECUTORS = new ConcurrentHashMap<>();
+// ... 6 more maps
+
+// Then 10 pairs of register/execute methods with nearly identical code
+```
+- **Suggested Fix**: Create `ExecutorType` enum with type tokens:
+```java
+public enum ExecutorType {
+    LIST(new TypeToken<QueryExecutor<List<?>>>() {}),
+    COUNT(new TypeToken<QueryExecutor<Long>>() {}),
+    AGGREGATION(new TypeToken<QueryExecutor<?>>() {}),
+    JOIN_LIST(new TypeToken<QueryExecutor<List<?>>>() {}),
+    JOIN_COUNT(new TypeToken<QueryExecutor<Long>>() {}),
+    JOIN_SELECT_JOINED(new TypeToken<QueryExecutor<List<?>>>() {}),
+    JOIN_PROJECTION(new TypeToken<QueryExecutor<List<?>>>() {}),
+    GROUP_LIST(new TypeToken<QueryExecutor<List<?>>>() {}),
+    GROUP_COUNT(new TypeToken<QueryExecutor<Long>>() {});
+
+    // Single unified map
+    private static final Map<ExecutorType, Map<String, QueryExecutor<?>>> EXECUTORS =
+        new EnumMap<>(ExecutorType.class);
+
+    static {
+        for (ExecutorType type : values()) {
+            EXECUTORS.put(type, new ConcurrentHashMap<>());
+        }
+    }
+
+    public static void register(ExecutorType type, String callSiteId, QueryExecutor<?> executor) {
+        EXECUTORS.get(type).put(callSiteId, executor);
+    }
+}
+```
+- **Benefits**:
+  - `EnumMap` provides O(1) lookup with minimal memory overhead (array-backed)
+  - Reduces 10 static fields to 1
+  - Eliminates ~300 lines of repetitive registration/execution code
+  - Easier to add new executor types
+
+### ENUM-004: Create `SubqueryMethod` Enum
+- **Files**: [SubqueryAnalyzer.java:133-145](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/instruction/SubqueryAnalyzer.java#L133-L145), [QubitConstants.java:101-115](runtime/src/main/java/io/quarkiverse/qubit/runtime/QubitConstants.java#L101-L115)
+- **Severity**: Low
+- **Priority**: Low
+- **Description**: Subquery method dispatch uses string constants with switch statement.
+- **Current Pattern**:
+```java
+// QubitConstants.java
+public static final String SUBQUERY_AVG = "avg";
+public static final String SUBQUERY_EXISTS = "exists";
+// ... 9 constants
+
+public static final Set<String> SUBQUERY_METHODS = Set.of(...);
+
+// SubqueryAnalyzer.java
+switch (methodName) {
+    case METHOD_WHERE -> handleBuilderWhere(...);
+    case SUBQUERY_AVG -> handleBuilderScalarSubquery(..., SubqueryAggregationType.AVG, ...);
+    // ... 9 cases
+}
+```
+- **Suggested Fix**: Create `SubqueryMethod` enum with handler dispatch:
+```java
+public enum SubqueryMethod {
+    WHERE("where") {
+        @Override
+        public void handle(SubqueryAnalyzer analyzer, AnalysisContext ctx, ...) {
+            analyzer.handleBuilderWhere(ctx, ...);
+        }
+    },
+    AVG("avg", SubqueryAggregationType.AVG, Double.class),
+    SUM("sum", SubqueryAggregationType.SUM, Number.class),
+    MIN("min", SubqueryAggregationType.MIN, Comparable.class),
+    MAX("max", SubqueryAggregationType.MAX, Comparable.class),
+    COUNT("count", SubqueryAggregationType.COUNT, Long.class),
+    EXISTS("exists", false),
+    NOT_EXISTS("notExists", true),
+    IN("in", false),
+    NOT_IN("notIn", true);
+
+    private final String methodName;
+
+    public static Optional<SubqueryMethod> fromName(String name) { ... }
+}
+```
+- **Benefits**: Type-safe dispatch, eliminates 9 string constants, compile-time exhaustiveness.
+
+### ENUM-005: Missing EnumMap/EnumSet Usage
+- **Severity**: Low
+- **Priority**: Low (optimization)
+- **Description**: Codebase uses `HashMap` and `Set.of()` where `EnumMap`/`EnumSet` would be more efficient.
+- **Current Pattern**:
+```java
+// ControlFlowAnalyzer.java:60
+Map<LabelNode, LabelClassification> classifications = new HashMap<>();
+
+// Various files
+private static final Set<String> STRING_PATTERN_METHODS = Set.of(...);
+```
+- **Suggested Improvements**:
+  1. Where keys are enum values, use `EnumMap` instead of `HashMap`
+  2. For enum membership checks, use `EnumSet` instead of `Set.of()`
+- **Benefits**:
+  - `EnumMap`: Array-backed, O(1) access, cache-friendly, ~3x faster than HashMap for enum keys
+  - `EnumSet`: Bit-vector implementation, extremely compact, O(1) operations
+- **Example**:
+```java
+// Instead of:
+private static final Set<String> TEMPORAL_ACCESSOR_METHODS = Set.of(...);
+
+// With enum:
+private static final EnumSet<TemporalAccessorMethod> TEMPORAL_ACCESSOR_METHODS =
+    EnumSet.allOf(TemporalAccessorMethod.class);
+```
+
+### ENUM-006: Behavior-Rich Enums for Expression Builders
+- **Files**: [StringExpressionBuilder.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/generation/expression/StringExpressionBuilder.java)
+- **Severity**: Low
+- **Priority**: Low (design improvement)
+- **Description**: `StringOperationType` enum exists but doesn't carry behavior. Method dispatch still uses string switches.
+- **Current Pattern**:
+```java
+public enum StringOperationType {
+    TRANSFORMATION,  // toLowerCase, toUpperCase, trim
+    PATTERN,         // startsWith, endsWith, contains
+    SUBSTRING,       // substring
+    UTILITY          // equals, length, isEmpty
+}
+
+// Separate sets for categorization
+private static final Set<String> STRING_PATTERN_METHODS = Set.of(...);
+private static final Set<String> STRING_TRANSFORMATION_METHODS = Set.of(...);
+```
+- **Suggested Fix**: Create behavior-rich enum with method mapping:
+```java
+public enum StringMethod {
+    TO_LOWER_CASE("toLowerCase", StringOperationType.TRANSFORMATION, CB_LOWER),
+    TO_UPPER_CASE("toUpperCase", StringOperationType.TRANSFORMATION, CB_UPPER),
+    TRIM("trim", StringOperationType.TRANSFORMATION, CB_TRIM),
+    STARTS_WITH("startsWith", StringOperationType.PATTERN, "%s%%"),
+    ENDS_WITH("endsWith", StringOperationType.PATTERN, "%%%s"),
+    CONTAINS("contains", StringOperationType.PATTERN, "%%%s%%"),
+    SUBSTRING("substring", StringOperationType.SUBSTRING, null),
+    EQUALS("equals", StringOperationType.UTILITY, CB_EQUAL),
+    LENGTH("length", StringOperationType.UTILITY, CB_LENGTH),
+    IS_EMPTY("isEmpty", StringOperationType.UTILITY, null);
+
+    private final String methodName;
+    private final StringOperationType category;
+    private final String criteriaBuilderMethod;
+
+    public StringOperationType getCategory() { return category; }
+
+    public static Optional<StringMethod> fromName(String name) { ... }
+
+    public static EnumSet<StringMethod> byCategory(StringOperationType type) {
+        return Arrays.stream(values())
+            .filter(m -> m.category == type)
+            .collect(Collectors.toCollection(() -> EnumSet.noneOf(StringMethod.class)));
+    }
+}
+```
+- **Benefits**: Single source of truth, compile-time safety, EnumSet for category filtering.
+
+### Summary: Enum Improvement Priorities
+
+| ID | Priority | Impact | Effort | Description |
+|----|----------|--------|--------|-------------|
+| ENUM-001 | High | High | Medium | FluentMethodType - affects multiple files, high repetition |
+| ENUM-003 | Medium | High | Medium | ExecutorType - eliminates 10 maps, ~300 lines |
+| ENUM-002 | Medium | Medium | Low | TemporalAccessorMethod - simple 1:1 mapping |
+| ENUM-004 | Low | Medium | Low | SubqueryMethod - 9 method dispatch |
+| ENUM-005 | Low | Low | Low | EnumMap/EnumSet usage - optimization |
+| ENUM-006 | Low | Low | Medium | Behavior-rich StringMethod - design improvement |
 
 ---
 
@@ -1149,4 +1470,5 @@ When addressing issues, use this template:
 | 2.8 | 2025-12-01 | Claude | **CS-003 Complete**: Extended null safety audit to cover record nullable fields. Added @Nullable to 4 records with nullable fields: InvokeDynamicScanner.LambdaCallSite (18 nullable fields including projectionLambdaMethodName, aggregationLambdaMethodName, joinType, groupByLambdaMethodName, etc.), PatternDetector.BranchPatternAnalysis (top field), EntityClassInfo (className field), RelationshipMetadataExtractor.FieldRelationship (mappedBy field). All tests pass. IDE null-safety warnings eliminated. |
 | 2.9 | 2025-12-01 | Claude | **CS-003 Full Audit Complete**: Comprehensive null safety audit verified 21 files have @Nullable annotations, all 9 packages have @NullMarked, 18 files with `return null;` statements properly annotated. Updated summary dashboard: Code Smells high 1→0, total 57→56, resolved 36→37. All high-severity code smells (CS-001, CS-002, CS-003) now resolved. |
 | 3.0 | 2025-12-04 | Claude | **CS-003 Reverted/Deferred**: JSpecify null-safety annotations reverted due to VSCode JDT.LS compatibility issues. External annotations (.eea files) for Gizmo, ASM, and Jandex cannot be loaded - VSCode reports "Invalid external annotation path" for any path format. Without EEA support, 700+ warnings from third-party library interop cannot be suppressed. EEA files preserved in `.eea/` for future Eclipse IDE use. Updated: Code Smells high 0→1, total 56→57, resolved 37→36. |
+| 3.1 | 2025-12-04 | Claude | **Enum and Type-Safety Analysis Complete**: Added new section documenting 6 opportunities for enum-based improvements. Catalogued 13 existing enums. Identified: ENUM-001 (FluentMethodType - High priority, eliminates 10+ string constants), ENUM-002 (TemporalAccessorMethod - 6 Java→SQL mappings), ENUM-003 (ExecutorType - consolidates 10 ConcurrentHashMaps into EnumMap), ENUM-004 (SubqueryMethod - 9 dispatch methods), ENUM-005 (EnumMap/EnumSet usage opportunities), ENUM-006 (behavior-rich StringMethod). Added new category to Summary Dashboard: 2 Medium, 4 Low = 6 total. Updated total issues: 57→63. |
 
