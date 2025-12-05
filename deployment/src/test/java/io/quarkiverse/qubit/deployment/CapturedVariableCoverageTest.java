@@ -5,9 +5,9 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
+import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -37,6 +37,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * same information). During removal, we identified that both methods had the same gap in
  * coverage for these three expression types. These tests document this gap and verify that
  * it exists as expected.
+ *
+ * <p>Uses {@link io.quarkiverse.qubit.deployment.testutil.AstBuilders} for fluent AST construction.
  */
 class CapturedVariableCoverageTest {
 
@@ -64,11 +66,11 @@ class CapturedVariableCoverageTest {
     void testCastExpression_withCapturedVariable_missesVariable() {
         // Create a Cast expression containing a captured variable
         // Pattern: (String) capturedVar
-        var capturedVar = new LambdaExpression.CapturedVariable(0, Object.class);
-        var cast = new LambdaExpression.Cast(capturedVar, String.class);
+        var capturedVar = captured(0, Object.class);
+        var castExpr = cast(capturedVar, String.class);
 
         // Verify that the captured variable is MISSED (not detected)
-        Set<Integer> capturedIndices = collectCapturedVariables(cast);
+        Set<Integer> capturedIndices = collectCapturedVariables(castExpr);
 
         assertThat(capturedIndices)
                 .as("Cast expression should NOT detect captured variables in its child expression")
@@ -79,17 +81,13 @@ class CapturedVariableCoverageTest {
     void testCastExpression_withNestedCapturedVariable_missesVariable() {
         // Create a more complex Cast expression with nested captured variable
         // Pattern: (Integer) (capturedVar + 5)
-        var capturedVar = new LambdaExpression.CapturedVariable(1, Integer.class);
-        var constant = new LambdaExpression.Constant(5, Integer.class);
-        var addition = new LambdaExpression.BinaryOp(
-                capturedVar,
-                LambdaExpression.BinaryOp.Operator.ADD,
-                constant);
-        var cast = new LambdaExpression.Cast(addition, Integer.class);
+        var capturedVar = captured(1, Integer.class);
+        var addition = add(capturedVar, constant(5));
+        var castExpr = cast(addition, Integer.class);
 
         // The BinaryOp would normally traverse its children, but since it's wrapped in Cast,
         // the Cast is the entry point and it doesn't traverse its child
-        Set<Integer> capturedIndices = collectCapturedVariables(cast);
+        Set<Integer> capturedIndices = collectCapturedVariables(castExpr);
 
         assertThat(capturedIndices)
                 .as("Cast expression should NOT detect captured variables even when nested in supported types")
@@ -99,10 +97,10 @@ class CapturedVariableCoverageTest {
     @Test
     void testCastExpression_countCapturedVariables_returnsZero() {
         // Verify that countCapturedVariables also misses variables in Cast expressions
-        var capturedVar = new LambdaExpression.CapturedVariable(0, Object.class);
-        var cast = new LambdaExpression.Cast(capturedVar, String.class);
+        var capturedVar = captured(0, Object.class);
+        var castExpr = cast(capturedVar, String.class);
 
-        int count = countCapturedVariables(cast);
+        int count = countCapturedVariables(castExpr);
 
         assertThat(count)
                 .as("countCapturedVariables should return 0 for Cast expressions")
@@ -117,11 +115,11 @@ class CapturedVariableCoverageTest {
     void testInstanceOfExpression_withCapturedVariable_missesVariable() {
         // Create an InstanceOf expression containing a captured variable
         // Pattern: capturedVar instanceof String
-        var capturedVar = new LambdaExpression.CapturedVariable(0, Object.class);
-        var instanceOf = new LambdaExpression.InstanceOf(capturedVar, String.class);
+        var capturedVar = captured(0, Object.class);
+        var instanceOfExpr = instanceOf(capturedVar, String.class);
 
         // Verify that the captured variable is MISSED (not detected)
-        Set<Integer> capturedIndices = collectCapturedVariables(instanceOf);
+        Set<Integer> capturedIndices = collectCapturedVariables(instanceOfExpr);
 
         assertThat(capturedIndices)
                 .as("InstanceOf expression should NOT detect captured variables in its child expression")
@@ -132,17 +130,13 @@ class CapturedVariableCoverageTest {
     void testInstanceOfExpression_withComplexChild_missesVariable() {
         // Create an InstanceOf expression with a method call containing captured variable
         // Pattern: capturedVar.getValue() instanceof String
-        var capturedVar = new LambdaExpression.CapturedVariable(2, Object.class);
-        var methodCall = new LambdaExpression.MethodCall(
-                capturedVar,
-                "getValue",
-                List.of(),
-                Object.class);
-        var instanceOf = new LambdaExpression.InstanceOf(methodCall, String.class);
+        var capturedVar = captured(2, Object.class);
+        var methodCallExpr = methodCall(capturedVar, "getValue", Object.class);
+        var instanceOfExpr = instanceOf(methodCallExpr, String.class);
 
         // The MethodCall would normally traverse its target, but since it's wrapped in InstanceOf,
         // the InstanceOf is the entry point and it doesn't traverse its child
-        Set<Integer> capturedIndices = collectCapturedVariables(instanceOf);
+        Set<Integer> capturedIndices = collectCapturedVariables(instanceOfExpr);
 
         assertThat(capturedIndices)
                 .as("InstanceOf expression should NOT detect captured variables even in complex child expressions")
@@ -152,10 +146,10 @@ class CapturedVariableCoverageTest {
     @Test
     void testInstanceOfExpression_countCapturedVariables_returnsZero() {
         // Verify that countCapturedVariables also misses variables in InstanceOf expressions
-        var capturedVar = new LambdaExpression.CapturedVariable(0, Object.class);
-        var instanceOf = new LambdaExpression.InstanceOf(capturedVar, String.class);
+        var capturedVar = captured(0, Object.class);
+        var instanceOfExpr = instanceOf(capturedVar, String.class);
 
-        int count = countCapturedVariables(instanceOf);
+        int count = countCapturedVariables(instanceOfExpr);
 
         assertThat(count)
                 .as("countCapturedVariables should return 0 for InstanceOf expressions")
@@ -170,13 +164,13 @@ class CapturedVariableCoverageTest {
     void testConditionalExpression_withCapturedVariableInCondition_missesVariable() {
         // Create a Conditional expression with captured variable in condition
         // Pattern: capturedFlag ? "yes" : "no"
-        var capturedVar = new LambdaExpression.CapturedVariable(0, Boolean.class);
-        var trueValue = new LambdaExpression.Constant("yes", String.class);
-        var falseValue = new LambdaExpression.Constant("no", String.class);
-        var conditional = new LambdaExpression.Conditional(capturedVar, trueValue, falseValue);
+        var capturedVar = captured(0, Boolean.class);
+        var trueValue = constant("yes");
+        var falseValue = constant("no");
+        var conditionalExpr = conditional(capturedVar, trueValue, falseValue);
 
         // Verify that the captured variable in condition is MISSED
-        Set<Integer> capturedIndices = collectCapturedVariables(conditional);
+        Set<Integer> capturedIndices = collectCapturedVariables(conditionalExpr);
 
         assertThat(capturedIndices)
                 .as("Conditional expression should NOT detect captured variables in condition")
@@ -187,13 +181,13 @@ class CapturedVariableCoverageTest {
     void testConditionalExpression_withCapturedVariableInTrueValue_missesVariable() {
         // Create a Conditional expression with captured variable in true value
         // Pattern: active ? capturedName : "Unknown"
-        var condition = new LambdaExpression.FieldAccess("active", Boolean.class);
-        var capturedVar = new LambdaExpression.CapturedVariable(1, String.class);
-        var falseValue = new LambdaExpression.Constant("Unknown", String.class);
-        var conditional = new LambdaExpression.Conditional(condition, capturedVar, falseValue);
+        var condition = field("active", Boolean.class);
+        var capturedVar = captured(1, String.class);
+        var falseValue = constant("Unknown");
+        var conditionalExpr = conditional(condition, capturedVar, falseValue);
 
         // Verify that the captured variable in true value is MISSED
-        Set<Integer> capturedIndices = collectCapturedVariables(conditional);
+        Set<Integer> capturedIndices = collectCapturedVariables(conditionalExpr);
 
         assertThat(capturedIndices)
                 .as("Conditional expression should NOT detect captured variables in true value")
@@ -204,13 +198,13 @@ class CapturedVariableCoverageTest {
     void testConditionalExpression_withCapturedVariableInFalseValue_missesVariable() {
         // Create a Conditional expression with captured variable in false value
         // Pattern: active ? "Active" : capturedStatus
-        var condition = new LambdaExpression.FieldAccess("active", Boolean.class);
-        var trueValue = new LambdaExpression.Constant("Active", String.class);
-        var capturedVar = new LambdaExpression.CapturedVariable(2, String.class);
-        var conditional = new LambdaExpression.Conditional(condition, trueValue, capturedVar);
+        var condition = field("active", Boolean.class);
+        var trueValue = constant("Active");
+        var capturedVar = captured(2, String.class);
+        var conditionalExpr = conditional(condition, trueValue, capturedVar);
 
         // Verify that the captured variable in false value is MISSED
-        Set<Integer> capturedIndices = collectCapturedVariables(conditional);
+        Set<Integer> capturedIndices = collectCapturedVariables(conditionalExpr);
 
         assertThat(capturedIndices)
                 .as("Conditional expression should NOT detect captured variables in false value")
@@ -221,16 +215,13 @@ class CapturedVariableCoverageTest {
     void testConditionalExpression_withMultipleCapturedVariables_missesAll() {
         // Create a Conditional expression with captured variables in all three positions
         // Pattern: capturedFlag ? capturedName : capturedDefault
-        var capturedCondition = new LambdaExpression.CapturedVariable(0, Boolean.class);
-        var capturedTrue = new LambdaExpression.CapturedVariable(1, String.class);
-        var capturedFalse = new LambdaExpression.CapturedVariable(2, String.class);
-        var conditional = new LambdaExpression.Conditional(
-                capturedCondition,
-                capturedTrue,
-                capturedFalse);
+        var capturedCondition = captured(0, Boolean.class);
+        var capturedTrue = captured(1, String.class);
+        var capturedFalse = captured(2, String.class);
+        var conditionalExpr = conditional(capturedCondition, capturedTrue, capturedFalse);
 
         // Verify that ALL three captured variables are MISSED
-        Set<Integer> capturedIndices = collectCapturedVariables(conditional);
+        Set<Integer> capturedIndices = collectCapturedVariables(conditionalExpr);
 
         assertThat(capturedIndices)
                 .as("Conditional expression should NOT detect captured variables in any position")
@@ -240,12 +231,12 @@ class CapturedVariableCoverageTest {
     @Test
     void testConditionalExpression_countCapturedVariables_returnsZero() {
         // Verify that countCapturedVariables also misses variables in Conditional expressions
-        var capturedVar = new LambdaExpression.CapturedVariable(0, Boolean.class);
-        var trueValue = new LambdaExpression.Constant("yes", String.class);
-        var falseValue = new LambdaExpression.Constant("no", String.class);
-        var conditional = new LambdaExpression.Conditional(capturedVar, trueValue, falseValue);
+        var capturedVar = captured(0, Boolean.class);
+        var trueValue = constant("yes");
+        var falseValue = constant("no");
+        var conditionalExpr = conditional(capturedVar, trueValue, falseValue);
 
-        int count = countCapturedVariables(conditional);
+        int count = countCapturedVariables(conditionalExpr);
 
         assertThat(count)
                 .as("countCapturedVariables should return 0 for Conditional expressions")
@@ -262,36 +253,26 @@ class CapturedVariableCoverageTest {
         // This serves as a baseline to confirm the test methodology is correct
 
         // Test BinaryOp (supported)
-        var capturedVar1 = new LambdaExpression.CapturedVariable(0, Integer.class);
-        var constant = new LambdaExpression.Constant(5, Integer.class);
-        var binaryOp = new LambdaExpression.BinaryOp(
-                capturedVar1,
-                LambdaExpression.BinaryOp.Operator.GT,
-                constant);
+        var capturedVar1 = captured(0, Integer.class);
+        var binaryOp = gt(capturedVar1, constant(5));
 
         assertThat(collectCapturedVariables(binaryOp))
                 .as("BinaryOp should correctly detect captured variables")
                 .containsExactly(0);
 
         // Test UnaryOp (supported)
-        var capturedVar2 = new LambdaExpression.CapturedVariable(1, Boolean.class);
-        var unaryOp = new LambdaExpression.UnaryOp(
-                LambdaExpression.UnaryOp.Operator.NOT,
-                capturedVar2);
+        var capturedVar2 = captured(1, Boolean.class);
+        var unaryOp = not(capturedVar2);
 
         assertThat(collectCapturedVariables(unaryOp))
                 .as("UnaryOp should correctly detect captured variables")
                 .containsExactly(1);
 
         // Test MethodCall (supported)
-        var capturedVar3 = new LambdaExpression.CapturedVariable(2, String.class);
-        var methodCall = new LambdaExpression.MethodCall(
-                capturedVar3,
-                "toLowerCase",
-                List.of(),
-                String.class);
+        var capturedVar3 = captured(2, String.class);
+        var methodCallExpr = methodCall(capturedVar3, "toLowerCase", String.class);
 
-        assertThat(collectCapturedVariables(methodCall))
+        assertThat(collectCapturedVariables(methodCallExpr))
                 .as("MethodCall should correctly detect captured variables in target")
                 .containsExactly(2);
     }
@@ -299,7 +280,7 @@ class CapturedVariableCoverageTest {
     @Test
     void testDirectCapturedVariable_isDetected() {
         // Verify that a direct CapturedVariable is always detected
-        var capturedVar = new LambdaExpression.CapturedVariable(5, String.class);
+        var capturedVar = captured(5, String.class);
 
         assertThat(collectCapturedVariables(capturedVar))
                 .as("Direct CapturedVariable should be detected")

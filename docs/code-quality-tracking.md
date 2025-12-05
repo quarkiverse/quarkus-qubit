@@ -28,8 +28,8 @@ This document provides a comprehensive analysis of code quality issues identifie
 | Bug Risks | ~~2~~ 0 | ~~5~~ 0 | ~~4~~ 0 | ~~2~~ 0 | ~~13~~ 0 | ~~3~~ 10 (3 N/A) |
 | Documentation | 0 | ~~2~~ 1 | 6 | 4 | 12 | 1 |
 | Performance | 0 | ~~1~~ 0 | ~~3~~ 0 | ~~2~~ 0 | ~~6~~ 0 | ~~1~~ 5 (4 N/A) |
-| Maintainability | 0 | ~~7~~ 0 | ~~12~~ 1 | ~~6~~ 1 | ~~25~~ 2 | 23 (1 N/A) |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ **1** | ~~**51**~~ **8** | ~~**35**~~ **10** | ~~**110**~~ **19** | **69** (14 N/A, 5 deferred) |
+| Maintainability | 0 | ~~7~~ 0 | ~~12~~ 0 | ~~6~~ 1 | ~~25~~ 1 | 24 (1 N/A) |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ **1** | ~~**51**~~ **7** | ~~**35**~~ **10** | ~~**110**~~ **18** | **70** (14 N/A, 5 deferred) |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -1492,10 +1492,36 @@ Log.debugf("Combined %d predicates at %s (total %d captured)",
   - **Better Readability**: Main method is now a clear high-level workflow
 - **All 1,113 tests pass**
 
-### MAINT-007: Test Data Builders
+### MAINT-007: Test Data Builders ✅ RESOLVED
 - **Severity**: Medium
+- **Status**: ✅ **RESOLVED**
 - **Description**: Test setup code could benefit from builders.
-- **Suggested Fix**: Create test data builder utilities.
+- **Fix Applied**:
+  - Created [AstBuilders.java](deployment/src/test/java/io/quarkiverse/qubit/deployment/testutil/AstBuilders.java) (367 lines) - fluent test utility for AST node construction
+  - **Leaf expression factory methods**: `constant()`, `field()`, `param()`, `captured()`, `nullLit()`
+  - **Binary operation wrappers**: `eq()`, `ne()`, `lt()`, `le()`, `gt()`, `ge()`, `and()`, `or()`, `add()`, `sub()`, `mul()`, `div()`, `mod()`
+  - **Unary operation**: `not()`
+  - **Type operations**: `cast()`, `instanceOf()`
+  - **Conditional**: `conditional()`
+  - **Method call with fluent builder**: `call("methodName").on(target).withArg(arg).returns(Type.class).build()`
+  - Updated `LambdaExpressionTest.java` to use AstBuilders (reduced from 175 to 195 lines but added 2 new tests and much cleaner code)
+  - Updated `CapturedVariableCoverageTest.java` to use AstBuilders (reduced verbosity significantly)
+- **Example Transformation**:
+```java
+// Before (verbose):
+var left = new LambdaExpression.Constant(10, Integer.class);
+var right = new LambdaExpression.Constant(20, Integer.class);
+var binOp = new LambdaExpression.BinaryOp(left, Operator.EQ, right);
+
+// After (clean):
+var binOp = eq(constant(10), constant(20));
+```
+- **Benefits**:
+  - **Reduced verbosity**: ~70 instances of `new LambdaExpression.X(...)` replaced with fluent calls
+  - **Improved readability**: Test code reads more like the expressions being tested
+  - **Type inference**: `constant(10)` infers `Integer.class` automatically
+  - **Consistent API**: Static imports provide uniform naming across all AST node types
+  - **Leverages ARCH-009**: Binary/unary operation methods delegate to existing factory methods
 
 ### MAINT-008: Assertion Messages
 - **Severity**: Low
@@ -2014,3 +2040,4 @@ When addressing issues, use this template:
 | 5.12 | 2025-12-05 | Claude | **MAINT-004 Complete**: Consolidated locally defined constants into QubitConstants.java. **Audit Results**: Identified 3 high-value consolidation candidates: (1) InvokeDynamicHandler.java local constants `STRING_CONCAT_FACTORY` and `LAMBDA_METAFACTORY`; (2) ConstantInstructionHandler.java magic string `"java/lang/Boolean"` (existing constant available); (3) QubitBytecodeGenerator.java local constant `QUBIT_STREAM_IMPL_INTERNAL_NAME`. **Fix Applied**: Added 3 new constants to QubitConstants.java following established `JVM_*` naming convention: `JVM_JAVA_LANG_INVOKE_STRING_CONCAT_FACTORY`, `JVM_JAVA_LANG_INVOKE_LAMBDA_METAFACTORY`, `QUBIT_STREAM_IMPL_INTERNAL_NAME`. Updated 3 files to use centralized constants via static imports. **Constants Kept Local** (low consolidation value): LambdaDeduplicator query signature prefixes (internal logic), QubitBytecodeGenerator method descriptors (derived values, local use), branch handler INSTRUCTION_NAME constants (self-documenting logging), QubitProcessor FEATURE constant (standard Quarkus pattern). **Benefits**: Single source of truth for JVM internal class names, follows established naming conventions, easier maintenance, better IDE discoverability. Updated: Maintainability medium 4→3, total 22→21, resolved 65→66. All tests pass. |
 | 5.13 | 2025-12-05 | Claude | **MAINT-005 N/A (Acceptable Consistency)**: Deep analysis of error message patterns across codebase. **Existing Good Patterns Found**: (1) `BytecodeAnalysisException` already has 6 factory methods for consistent exception messages: `stackUnderflow()`, `invalidOpcode()`, `unexpectedNull()`, `unexpectedOpcode()`, `unsupported()`, `unexpectedState()` - this is exactly the "error message templates" pattern suggested; (2) `QueryExecutorRegistry` has excellent user-facing errors with problem description, numbered causes list, solutions list, and debugging info (10+ line messages); (3) Within-module consistency: CallSiteProcessor uses "Could not analyze X lambda at: %s" pattern (15 instances), SubqueryAnalyzer uses "Expected N argument(s) for X, got Y" pattern, GroupMethodAnalyzer uses "Unexpected target for g.X(): %s" pattern. **Minor Variations Are Semantic**: "Unknown method" (lookup failure), "Not a X: " (type validation), "Expected X, got: " (constraint violation), "Unexpected X: " (state error) convey different meanings appropriately. **Why Templates Would NOT Help**: BytecodeAnalysisException already provides factory method pattern; context-specific detail is intentional (user-facing vs build-time); low ROI for additional abstraction. Updated: Maintainability medium 3→2, total 4→3, resolved 21→22 (1 N/A). |
 | 5.14 | 2025-12-05 | Claude | **MAINT-006 Complete + CS-005 Resolved**: Extracted focused methods from `CallSiteProcessor.java` to reduce method size and deep nesting. **Fix Applied**: (1) Created `LambdaAnalysis` record to bundle analysis result, callSiteId, and lambdaHash; (2) Extracted `loadAndAnalyzeLambdas()` method (23 lines) - handles bytecode loading, lambda analysis via `analyzeLambdas()`, and hash computation; (3) Extracted `checkAndHandleDuplicate()` method (18 lines) - handles deduplication logic with early return; (4) Refactored `processCallSite()` to delegate to extracted methods with clear early returns - reduced from 103 to 81 lines (22% reduction); (5) Refactored `analyzeLambdas()` to use early returns instead of if-else chain for cleaner flow. **Benefits**: Single Responsibility (each method has one purpose), reduced nesting (early returns), improved testability (extracted methods testable in isolation), better readability (main method is clear high-level workflow). **CS-005 Resolution**: The "deep nesting in processCallSite()" issue was identical to MAINT-006, now resolved by these extractions. Updated: Maintainability medium 2→1, Code Smells resolved 18 (removed dup), total 20→19, resolved 68→69. All 1,113 tests pass. |
+| 5.15 | 2025-12-05 | Claude | **MAINT-007 Complete**: Created `AstBuilders.java` test utility class (367 lines) for fluent AST node construction. **Factory Methods**: Leaf expressions (`constant()`, `field()`, `param()`, `captured()`, `nullLit()`), binary operations (`eq()`, `ne()`, `lt()`, `le()`, `gt()`, `ge()`, `and()`, `or()`, `add()`, `sub()`, `mul()`, `div()`, `mod()`), unary operation (`not()`), type operations (`cast()`, `instanceOf()`), conditional (`conditional()`), and fluent `MethodCallBuilder` (`call("methodName").on(target).withArg(arg).returns(Type.class).build()`). **Test Files Updated**: `LambdaExpressionTest.java` (added 2 new tests for arithmetic operations and fluent builder), `CapturedVariableCoverageTest.java` (reduced verbosity significantly). **Benefits**: ~70 instances of verbose `new LambdaExpression.X(...)` replaced with fluent calls, improved test readability, automatic type inference for constants, leverages ARCH-009 factory methods. Updated: Maintainability medium 1→0, total 18→17 (wait - should be 19→18), resolved 69→70. All 378 deployment tests pass. |

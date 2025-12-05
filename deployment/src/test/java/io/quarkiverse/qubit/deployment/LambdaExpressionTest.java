@@ -3,24 +3,24 @@ package io.quarkiverse.qubit.deployment;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
+import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.List;
+
 /**
  * Unit tests for LambdaExpression AST classes.
+ *
+ * <p>Uses {@link io.quarkiverse.qubit.deployment.testutil.AstBuilders} for fluent AST construction.
  */
 class LambdaExpressionTest {
 
     @Test
     void testBinaryOpCreation() {
-        var left = new LambdaExpression.Constant(10, Integer.class);
-        var right = new LambdaExpression.Constant(20, Integer.class);
-        var binOp = new LambdaExpression.BinaryOp(
-                left,
-                LambdaExpression.BinaryOp.Operator.EQ,
-                right);
+        var left = constant(10);
+        var right = constant(20);
+        var binOp = eq(left, right);
 
         assertThat(binOp.left()).isEqualTo(left);
         assertThat(binOp.right()).isEqualTo(right);
@@ -29,7 +29,7 @@ class LambdaExpressionTest {
 
     @Test
     void testFieldAccess() {
-        var fieldAccess = new LambdaExpression.FieldAccess("name", String.class);
+        var fieldAccess = field("name", String.class);
 
         assertThat(fieldAccess.fieldName()).isEqualTo("name");
         assertThat(fieldAccess.fieldType()).isEqualTo(String.class);
@@ -45,85 +45,100 @@ class LambdaExpressionTest {
 
     @Test
     void testMethodCall() {
-        var target = new LambdaExpression.Parameter("entity", Object.class, 0);
-        var arg = new LambdaExpression.Constant("test", String.class);
-        var methodCall = new LambdaExpression.MethodCall(
-                target,
-                "equals",
-                List.of(arg),
-                Boolean.class);
+        var target = param("entity", Object.class, 0);
+        var arg = constant("test", String.class);
+        var methodCallExpr = methodCall(target, "equals", List.of(arg), Boolean.class);
 
-        assertThat(methodCall.target()).isEqualTo(target);
-        assertThat(methodCall.methodName()).isEqualTo("equals");
-        assertThat(methodCall.arguments()).containsExactly(arg);
-        assertThat(methodCall.returnType()).isEqualTo(Boolean.class);
+        assertThat(methodCallExpr.target()).isEqualTo(target);
+        assertThat(methodCallExpr.methodName()).isEqualTo("equals");
+        assertThat(methodCallExpr.arguments()).containsExactly(arg);
+        assertThat(methodCallExpr.returnType()).isEqualTo(Boolean.class);
+    }
+
+    @Test
+    void testMethodCallFluentBuilder() {
+        var target = param("entity", Object.class, 0);
+        var arg = constant("test");
+        var methodCallExpr = call("equals")
+                .on(target)
+                .withArg(arg)
+                .returns(Boolean.class)
+                .build();
+
+        assertThat(methodCallExpr.target()).isEqualTo(target);
+        assertThat(methodCallExpr.methodName()).isEqualTo("equals");
+        assertThat(methodCallExpr.arguments()).containsExactly(arg);
+        assertThat(methodCallExpr.returnType()).isEqualTo(Boolean.class);
     }
 
     @Test
     void testConstant() {
-        var constant = new LambdaExpression.Constant("test", String.class);
+        var constantExpr = constant("test", String.class);
 
-        assertThat(constant.value()).isEqualTo("test");
-        assertThat(constant.type()).isEqualTo(String.class);
+        assertThat(constantExpr.value()).isEqualTo("test");
+        assertThat(constantExpr.type()).isEqualTo(String.class);
+    }
+
+    @Test
+    void testConstantInferredType() {
+        var constantExpr = constant("test");
+
+        assertThat(constantExpr.value()).isEqualTo("test");
+        assertThat(constantExpr.type()).isEqualTo(String.class);
     }
 
     @Test
     void testParameter() {
-        var param = new LambdaExpression.Parameter("entity", Object.class, 0);
+        var paramExpr = param("entity", Object.class, 0);
 
-        assertThat(param.name()).isEqualTo("entity");
-        assertThat(param.type()).isEqualTo(Object.class);
-        assertThat(param.index()).isZero();
+        assertThat(paramExpr.name()).isEqualTo("entity");
+        assertThat(paramExpr.type()).isEqualTo(Object.class);
+        assertThat(paramExpr.index()).isZero();
     }
 
     @Test
     void testNullLiteral() {
-        var nullLit = new LambdaExpression.NullLiteral(String.class);
+        var nullLitExpr = nullLit(String.class);
 
-        assertThat(nullLit.expectedType()).isEqualTo(String.class);
+        assertThat(nullLitExpr.expectedType()).isEqualTo(String.class);
     }
 
     @Test
     void testCast() {
-        var expr = new LambdaExpression.Constant(10, Integer.class);
-        var cast = new LambdaExpression.Cast(expr, Long.class);
+        var expr = constant(10);
+        var castExpr = cast(expr, Long.class);
 
-        assertThat(cast.expression()).isEqualTo(expr);
-        assertThat(cast.targetType()).isEqualTo(Long.class);
+        assertThat(castExpr.expression()).isEqualTo(expr);
+        assertThat(castExpr.targetType()).isEqualTo(Long.class);
     }
 
     @Test
     void testInstanceOf() {
-        var expr = new LambdaExpression.Parameter("obj", Object.class, 0);
-        var instanceOf = new LambdaExpression.InstanceOf(expr, String.class);
+        var expr = param("obj", Object.class, 0);
+        var instanceOfExpr = instanceOf(expr, String.class);
 
-        assertThat(instanceOf.expression()).isEqualTo(expr);
-        assertThat(instanceOf.targetType()).isEqualTo(String.class);
+        assertThat(instanceOfExpr.expression()).isEqualTo(expr);
+        assertThat(instanceOfExpr.targetType()).isEqualTo(String.class);
     }
 
     @Test
     void testConditional() {
-        var condition = new LambdaExpression.BinaryOp(
-                new LambdaExpression.Constant(5, Integer.class),
-                LambdaExpression.BinaryOp.Operator.GT,
-                new LambdaExpression.Constant(3, Integer.class));
+        // Build: 5 > 3 ? "yes" : "no"
+        var condition = gt(constant(5), constant(3));
+        var trueValue = constant("yes");
+        var falseValue = constant("no");
 
-        var trueValue = new LambdaExpression.Constant("yes", String.class);
-        var falseValue = new LambdaExpression.Constant("no", String.class);
+        var conditionalExpr = conditional(condition, trueValue, falseValue);
 
-        var conditional = new LambdaExpression.Conditional(condition, trueValue, falseValue);
-
-        assertThat(conditional.condition()).isEqualTo(condition);
-        assertThat(conditional.trueValue()).isEqualTo(trueValue);
-        assertThat(conditional.falseValue()).isEqualTo(falseValue);
+        assertThat(conditionalExpr.condition()).isEqualTo(condition);
+        assertThat(conditionalExpr.trueValue()).isEqualTo(trueValue);
+        assertThat(conditionalExpr.falseValue()).isEqualTo(falseValue);
     }
 
     @Test
     void testUnaryOp() {
-        var operand = new LambdaExpression.Constant(true, Boolean.class);
-        var unaryOp = new LambdaExpression.UnaryOp(
-                LambdaExpression.UnaryOp.Operator.NOT,
-                operand);
+        var operand = constant(true);
+        var unaryOp = not(operand);
 
         assertThat(unaryOp.operator()).isEqualTo(LambdaExpression.UnaryOp.Operator.NOT);
         assertThat(unaryOp.operand()).isEqualTo(operand);
@@ -145,31 +160,38 @@ class LambdaExpressionTest {
     @Test
     void testComplexExpressionTree() {
         // Build: (age > 25 && active) || salary > 50000
-        var age = new LambdaExpression.FieldAccess("age", Integer.class);
-        var ageComparison = new LambdaExpression.BinaryOp(
-                age,
-                LambdaExpression.BinaryOp.Operator.GT,
-                new LambdaExpression.Constant(25, Integer.class));
+        var age = field("age", Integer.class);
+        var ageComparison = gt(age, constant(25));
 
-        var active = new LambdaExpression.FieldAccess("active", Boolean.class);
+        var active = field("active", Boolean.class);
+        var leftSide = and(ageComparison, active);
 
-        var leftSide = new LambdaExpression.BinaryOp(
-                ageComparison,
-                LambdaExpression.BinaryOp.Operator.AND,
-                active);
+        var salary = field("salary", Double.class);
+        var salaryComparison = gt(salary, constant(50000.0));
 
-        var salary = new LambdaExpression.FieldAccess("salary", Double.class);
-        var salaryComparison = new LambdaExpression.BinaryOp(
-                salary,
-                LambdaExpression.BinaryOp.Operator.GT,
-                new LambdaExpression.Constant(50000.0, Double.class));
-
-        var fullExpression = new LambdaExpression.BinaryOp(
-                leftSide,
-                LambdaExpression.BinaryOp.Operator.OR,
-                salaryComparison);
+        var fullExpression = or(leftSide, salaryComparison);
 
         assertThat(fullExpression).isNotNull();
         assertThat(fullExpression.operator()).isEqualTo(LambdaExpression.BinaryOp.Operator.OR);
+    }
+
+    @Test
+    void testArithmeticOperations() {
+        // Build: (a + b) * (c - d) / e % f
+        var a = field("a", Integer.class);
+        var b = field("b", Integer.class);
+        var c = field("c", Integer.class);
+        var d = field("d", Integer.class);
+        var e = field("e", Integer.class);
+        var f = field("f", Integer.class);
+
+        var sum = add(a, b);
+        var diff = sub(c, d);
+        var product = mul(sum, diff);
+        var quotient = div(product, e);
+        var remainder = mod(quotient, f);
+
+        assertThat(remainder.operator()).isEqualTo(LambdaExpression.BinaryOp.Operator.MOD);
+        assertThat(remainder.left()).isInstanceOf(LambdaExpression.BinaryOp.class);
     }
 }

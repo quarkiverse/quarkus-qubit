@@ -1,5 +1,7 @@
 package io.quarkiverse.qubit.deployment.generation;
 
+import java.util.Collection;
+
 import io.quarkus.gizmo.MethodDescriptor;
 import jakarta.persistence.criteria.*;
 
@@ -385,7 +387,7 @@ public final class MethodDescriptors {
      * {@code Expression.in(Collection)} - IN predicate with collection.
      */
     public static final MethodDescriptor EXPRESSION_IN_COLLECTION =
-            MethodDescriptor.ofMethod(Expression.class, "in", Predicate.class, java.util.Collection.class);
+            MethodDescriptor.ofMethod(Expression.class, "in", Predicate.class, Collection.class);
 
     // =========================================================================
     // CriteriaQuery Methods

@@ -5,6 +5,7 @@ import io.quarkiverse.qubit.deployment.util.TypeConverter;
 
 import java.util.Deque;
 import java.util.Iterator;
+import java.util.function.Predicate;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.ADD;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.AND;
@@ -196,7 +197,7 @@ public final class PatternDetector {
          */
         public static BinaryOperationCategory categorize(
                 LambdaExpression.BinaryOp binOp,
-                java.util.function.Predicate<LambdaExpression.BinaryOp> isStringConcatenation) {
+                Predicate<LambdaExpression.BinaryOp> isStringConcatenation) {
 
             // Priority 1: String concatenation (must check before arithmetic, both use ADD)
             if (isStringConcatenation.test(binOp)) {
