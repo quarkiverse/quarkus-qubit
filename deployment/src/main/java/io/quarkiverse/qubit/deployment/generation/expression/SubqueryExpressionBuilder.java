@@ -512,6 +512,8 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
 
     /**
      * Generates a constant value.
+     *
+     * <p>BR-006: Added warning logging for unhandled types to prevent silent failures.
      */
     private ResultHandle generateConstant(MethodCreator method, LambdaExpression.Constant constant) {
         Object value = constant.value();
@@ -524,7 +526,13 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
             case Boolean b -> method.load(b);
             case Double d -> method.load(d);
             case Float f -> method.load(f);
-            default -> method.loadNull();
+            // BR-006: Log warning for unhandled constant types instead of silently returning null
+            default -> {
+                Log.warnf("Unhandled constant type in subquery generateConstant: %s. "
+                        + "This may indicate a missing case handler. Returning null literal.",
+                        value.getClass().getSimpleName());
+                yield method.loadNull();
+            }
         };
     }
 

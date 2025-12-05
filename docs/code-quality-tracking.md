@@ -25,11 +25,11 @@ This document provides a comprehensive analysis of code quality issues identifie
 | Architectural | 0 | ~~4~~ 1 | 12 | 9 |
 | Code Smells | 0 | ~~3~~ 1 | ~~12~~  7 | ~~8~~ 5 | ~~23~~ 15 | ~~2~~ 10 |
 | Enum/Type-Safety | 0 | 0 | ~~2~~ 0 | ~~4~~ 0 | ~~6~~ 0 | 3 + 3 deferred |
-| Bug Risks | ~~2~~ 0 | ~~5~~ 2 | ~~4~~ 3 | 2 | ~~13~~ 7 | ~~3~~ 6 |
+| Bug Risks | ~~2~~ 0 | ~~5~~ 2 | ~~4~~ ~~3~~ ~~2~~ 1 | 2 | ~~13~~ ~~7~~ ~~6~~ 5 | ~~3~~ ~~6~~ ~~7~~ 8 |
 | Documentation | 0 | ~~2~~ 1 | 6 | 4 | 12 | 1 |
 | Performance | 0 | 1 | 3 | 2 | 6 | 0 |
 | Maintainability | 0 | ~~7~~ 1 | ~~12~~ 0 | ~~6~~ 4 | ~~25~~ 5 | 21 |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ **6** | ~~**42**~~ **21** | ~~**25**~~ **18** | ~~**91**~~ **46** | ~~**40**~~ **50** + 3 deferred |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ **6** | ~~**42**~~ ~~**21**~~ ~~**20**~~ **19** | ~~**25**~~ **18** | ~~**91**~~ ~~**46**~~ ~~**45**~~ **44** | ~~**40**~~ ~~**50**~~ ~~**51**~~ **52** + 3 deferred |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -1012,18 +1012,47 @@ public PathSegment {
   - **Defensive programming**: Prevents subtle bugs from whitespace-only field names
   - **Consistent pattern**: Matches validation approach used in other record constructors
 
-### BR-005: GroupKeyReference Allows Null keyExpression
-- **File**: [LambdaExpression.java:624-633](deployment/src/main/java/io/quarkus/qubit/deployment/LambdaExpression.java#L624-L633)
+### BR-005: GroupKeyReference Allows Null keyExpression ✅ N/A (By Design)
+- **File**: [LambdaExpression.java:866-874](deployment/src/main/java/io/quarkiverse/qubit/deployment/ast/LambdaExpression.java#L866-L874)
 - **Severity**: Medium
+- **Status**: ✅ **N/A** - Intentional design, null keyExpression is never accessed
 - **Description**: `keyExpression` can be null by design, but this may cause NPE in code generation.
-- **Suggested Fix**: Add null-safety documentation and handling.
+- **Deep Analysis Findings**:
+  - **Creation** (GroupMethodAnalyzer.java:85): `new GroupKeyReference(null, Object.class)`
+    - The `g.key()` call is analyzed in isolation within select/having lambdas
+    - The actual key expression comes from the `groupBy()` lambda analyzed separately
+  - **Usage** (GroupExpressionBuilder.java:88-90 and 125-127):
+    ```java
+    case GroupKeyReference ignored ->
+        // g.key() -> use the pre-computed grouping key expression
+        groupKeyExpr;
+    ```
+    - The code explicitly uses `ignored` pattern binding
+    - Returns `groupKeyExpr` (parameter passed from CallSiteProcessor), NOT `keyExpression`
+  - **Existing Documentation** (LambdaExpression.java:862-863):
+    ```java
+    * @param keyExpression The expression used for grouping (from groupBy() lambda), may be null
+    *                      when analyzed in isolation (resolved at code generation time)
+    ```
+- **Conclusion**: The concern about NPE is unfounded because:
+  1. Code generation never accesses `keyExpression` field
+  2. Uses `groupKeyExpr` parameter instead (provided by CallSiteProcessor)
+  3. Current Javadoc documentation is correct and sufficient
+  4. This is the "placeholder" design pattern for deferred resolution
 
-### BR-006: Unchecked Cast in generateConstant()
-- **File**: [SubqueryExpressionBuilder.java:458-476](deployment/src/main/java/io/quarkus/qubit/deployment/generation/builders/SubqueryExpressionBuilder.java#L458-L476)
+### BR-006: Unchecked Cast in generateConstant() ✅ RESOLVED
+- **File**: [SubqueryExpressionBuilder.java:518-537](deployment/src/main/java/io/quarkiverse/qubit/deployment/generation/expression/SubqueryExpressionBuilder.java#L518-L537)
 - **Severity**: Medium
-- **Description**: Multiple instanceof checks but no else branch for unknown types.
-- **Suggested Fix**: Add validation or throw for unsupported types.
-- **Related**: Pattern matching refactoring (like MAINT-011) would address this with exhaustive switch
+- **Status**: ✅ **RESOLVED**
+- **Description**: Original issue: "Multiple instanceof checks but no else branch for unknown types." The pattern matching switch (MAINT-011) was already applied, but the `default` case silently returned `method.loadNull()` without logging.
+- **Fix Applied**:
+  - Added warning logging to the `default` case in `generateConstant()` method
+  - Consistent with the pattern used in `generateSubqueryExpression()` at lines 504-508
+  - Now logs: `"Unhandled constant type in subquery generateConstant: %s. This may indicate a missing case handler."`
+- **Benefits**:
+  - **Debugging visibility**: Unhandled constant types are now logged instead of silently converting to null
+  - **Consistent pattern**: Matches warning logging approach used elsewhere in the file
+  - **Fail-visible**: Developers can identify missing case handlers during testing
 
 ### BR-007: Missing Bounds Check in readArrayValue
 - **Files**: Various code generation files
@@ -1704,3 +1733,5 @@ When addressing issues, use this template:
 | 4.8 | 2025-12-04 | Claude | **BR-002 Complete**: Fixed race condition in queryCounter by replacing counter-based class naming with deterministic hash-based naming. **Root Cause**: Counter resets on JVM restart (hot reload), processing order dependent, non-reproducible builds. **Fix Applied**: (1) Class names now use `lambdaHash.substring(0, 16)` (64 bits of MD5 hash) instead of `queryCounter.getAndIncrement()`; (2) Added `lambdaHash` parameter to 3 generator methods: `generateAndRegisterExecutor()`, `generateAndRegisterJoinExecutor()`, `generateAndRegisterGroupExecutor()`; (3) Removed `queryCounter` field from `CallSiteProcessor`; (4) Removed `queryCounter` static field from `QubitProcessor`. **Benefits**: Reproducible builds (same lambda → same class name), no collision risk, easier debugging (class name can be matched to lambda via hash), cleaner code. Updated: Bug Risks high 4→3, total 49→48, resolved 47→48. All 1,113 tests pass. |
 | 4.9 | 2025-12-04 | Claude | **BR-003 Complete**: Fixed null check after dereference in SubqueryExpressionBuilder.java. **Issue**: 3 public methods dereferenced their main parameters before null validation: `buildScalarSubquery()` accessed `scalar.aggregationType()`, `buildExistsSubquery()` accessed `exists.entityClass()`, `buildInSubquery()` accessed `inSubquery.field()`. **Fix Applied**: Added null checks with `IllegalArgumentException` at method entry for all 3 methods (consistent with existing `generateFieldPath()` pattern). **Benefits**: Fail-fast with clear error message, consistent defensive programming pattern, public API methods now validate inputs. Updated: Bug Risks high 3→2, total 48→47, resolved 48→49. All 375 deployment tests pass. |
 | 5.0 | 2025-12-04 | Claude | **BR-004 Complete**: Added empty/blank string validation to PathSegment record compact constructor. **Issue**: PathSegment validated null but not empty field names, which could cause subtle bugs during JPA query generation. **Fix Applied**: Added `isBlank()` validation after null check - throws `IllegalArgumentException` for empty or whitespace-only field names. Validation order ensures null check precedes isBlank() to avoid NPE. **Benefits**: Fail-fast at AST construction instead of cryptic failures in JPA query generation, prevents subtle bugs from whitespace-only field names, matches validation pattern used elsewhere. Updated: Bug Risks medium 4→3, total 47→46, resolved 49→50. All 375 deployment tests pass. |
+| 5.1 | 2025-12-04 | Claude | **BR-005 N/A (By Design)**: Deep analysis of GroupKeyReference null keyExpression concern. **Findings**: (1) **Creation** (GroupMethodAnalyzer.java:85): `new GroupKeyReference(null, Object.class)` - keyExpression is intentionally null because g.key() is analyzed in isolation, actual key comes from groupBy() lambda; (2) **Usage** (GroupExpressionBuilder.java:88-90 and 125-127): Code uses `ignored` pattern binding and returns `groupKeyExpr` parameter (passed from CallSiteProcessor), never accessing `keyExpression` field; (3) **Existing Documentation** (LambdaExpression.java:862-863): Javadoc correctly states "may be null when analyzed in isolation (resolved at code generation time)". **Conclusion**: Concern about NPE is unfounded - code generation never accesses `keyExpression`, uses `groupKeyExpr` parameter instead. This is the "placeholder" design pattern for deferred resolution. Updated: Bug Risks medium 3→2, total 46→45, resolved 50→51. |
+| 5.2 | 2025-12-04 | Claude | **BR-006 Complete**: Added warning logging to `generateConstant()` default case in SubqueryExpressionBuilder.java. **Issue**: The pattern matching switch (from MAINT-011) had a silent `default -> method.loadNull()` that could mask bugs when unhandled constant types are passed. **Fix Applied**: Added `Log.warnf()` before returning null in default case, consistent with `generateSubqueryExpression()` pattern at lines 504-508. Now logs: `"Unhandled constant type in subquery generateConstant: %s. This may indicate a missing case handler."` **Benefits**: Debugging visibility for unhandled types, consistent logging pattern, fail-visible approach. Updated: Bug Risks medium 2→1, total 45→44, resolved 51→52. All 375 deployment tests pass. |
