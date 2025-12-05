@@ -137,72 +137,101 @@ public abstract class PrecompiledLambdaAnalyzer {
     }
 
     // ==================== ASSERTION HELPERS ====================
+    // MAINT-008: All assertion helpers include descriptive messages for better debugging
 
     /**
      * Asserts that an expression is a binary operation with the expected operator.
      */
     protected void assertBinaryOp(LambdaExpression expr, LambdaExpression.BinaryOp.Operator expectedOp) {
-        assertThat(expr).isInstanceOf(LambdaExpression.BinaryOp.class);
+        assertThat(expr)
+                .as("Expression should be a BinaryOp but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .isInstanceOf(LambdaExpression.BinaryOp.class);
         LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertThat(binOp.operator()).isEqualTo(expectedOp);
+        assertThat(binOp.operator())
+                .as("BinaryOp operator should be %s", expectedOp)
+                .isEqualTo(expectedOp);
     }
 
     /**
      * Asserts that an expression is a field access with the expected field name.
      */
     protected void assertFieldAccess(LambdaExpression expr, String expectedFieldName) {
-        assertThat(expr).isInstanceOf(LambdaExpression.FieldAccess.class);
+        assertThat(expr)
+                .as("Expression should be a FieldAccess but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .isInstanceOf(LambdaExpression.FieldAccess.class);
         LambdaExpression.FieldAccess fieldAccess = (LambdaExpression.FieldAccess) expr;
-        assertThat(fieldAccess.fieldName()).isEqualTo(expectedFieldName);
+        assertThat(fieldAccess.fieldName())
+                .as("FieldAccess field name should be '%s'", expectedFieldName)
+                .isEqualTo(expectedFieldName);
     }
 
     /**
      * Asserts that an expression is a constant with the expected value.
      */
     protected void assertConstant(LambdaExpression expr, Object expectedValue) {
-        assertThat(expr).isInstanceOf(LambdaExpression.Constant.class);
+        assertThat(expr)
+                .as("Expression should be a Constant but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .isInstanceOf(LambdaExpression.Constant.class);
         LambdaExpression.Constant constant = (LambdaExpression.Constant) expr;
-        assertThat(constant.value()).isEqualTo(expectedValue);
+        assertThat(constant.value())
+                .as("Constant value should be '%s'", expectedValue)
+                .isEqualTo(expectedValue);
     }
 
     /**
      * Asserts that an expression is a method call with the expected method name.
      */
     protected void assertMethodCall(LambdaExpression expr, String expectedMethodName) {
-        assertThat(expr).isInstanceOf(LambdaExpression.MethodCall.class);
+        assertThat(expr)
+                .as("Expression should be a MethodCall but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .isInstanceOf(LambdaExpression.MethodCall.class);
         LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) expr;
-        assertThat(methodCall.methodName()).isEqualTo(expectedMethodName);
+        assertThat(methodCall.methodName())
+                .as("MethodCall method name should be '%s'", expectedMethodName)
+                .isEqualTo(expectedMethodName);
     }
 
     /**
      * Asserts that an expression is a unary operation with the expected operator.
      */
     protected void assertUnaryOp(LambdaExpression expr, LambdaExpression.UnaryOp.Operator expectedOp) {
-        assertThat(expr).isInstanceOf(LambdaExpression.UnaryOp.class);
+        assertThat(expr)
+                .as("Expression should be a UnaryOp but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .isInstanceOf(LambdaExpression.UnaryOp.class);
         LambdaExpression.UnaryOp unaryOp = (LambdaExpression.UnaryOp) expr;
-        assertThat(unaryOp.operator()).isEqualTo(expectedOp);
+        assertThat(unaryOp.operator())
+                .as("UnaryOp operator should be %s", expectedOp)
+                .isEqualTo(expectedOp);
     }
 
     /**
      * Asserts that an expression is a captured variable.
      */
     protected void assertCapturedVariable(LambdaExpression expr) {
-        assertThat(expr).isInstanceOf(LambdaExpression.CapturedVariable.class);
+        assertThat(expr)
+                .as("Expression should be a CapturedVariable but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .isInstanceOf(LambdaExpression.CapturedVariable.class);
     }
 
     /**
      * Asserts that an expression is a captured variable with a specific index.
      */
     protected void assertCapturedVariable(LambdaExpression expr, int expectedIndex) {
-        assertThat(expr).isInstanceOf(LambdaExpression.CapturedVariable.class);
+        assertThat(expr)
+                .as("Expression should be a CapturedVariable but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .isInstanceOf(LambdaExpression.CapturedVariable.class);
         LambdaExpression.CapturedVariable capturedVar = (LambdaExpression.CapturedVariable) expr;
-        assertThat(capturedVar.index()).isEqualTo(expectedIndex);
+        assertThat(capturedVar.index())
+                .as("CapturedVariable index should be %d", expectedIndex)
+                .isEqualTo(expectedIndex);
     }
 
     /**
      * Asserts that an expression is a null literal.
      */
     protected void assertNullLiteral(LambdaExpression expr) {
-        assertThat(expr).isInstanceOf(LambdaExpression.NullLiteral.class);
+        assertThat(expr)
+                .as("Expression should be a NullLiteral but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .isInstanceOf(LambdaExpression.NullLiteral.class);
     }
 }

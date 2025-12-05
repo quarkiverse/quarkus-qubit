@@ -138,59 +138,84 @@ public abstract class PrecompiledSubqueryLambdaAnalyzer {
     }
 
     // ==================== ASSERTION HELPERS ====================
+    // MAINT-008: All assertion helpers include descriptive messages for better debugging
 
     /**
      * Asserts that an expression is a ScalarSubquery with the expected aggregation type.
      */
     protected void assertScalarSubquery(LambdaExpression expr,
                                          LambdaExpression.SubqueryAggregationType expectedType) {
-        assertThat(expr).isInstanceOf(LambdaExpression.ScalarSubquery.class);
+        assertThat(expr)
+                .as("Expression should be a ScalarSubquery but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .isInstanceOf(LambdaExpression.ScalarSubquery.class);
         var subquery = (LambdaExpression.ScalarSubquery) expr;
-        assertThat(subquery.aggregationType()).isEqualTo(expectedType);
+        assertThat(subquery.aggregationType())
+                .as("ScalarSubquery aggregation type should be %s", expectedType)
+                .isEqualTo(expectedType);
     }
 
     /**
      * Asserts that an expression is an ExistsSubquery.
      */
     protected void assertExistsSubquery(LambdaExpression expr, boolean expectedNegated) {
-        assertThat(expr).isInstanceOf(LambdaExpression.ExistsSubquery.class);
+        assertThat(expr)
+                .as("Expression should be an ExistsSubquery but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .isInstanceOf(LambdaExpression.ExistsSubquery.class);
         var subquery = (LambdaExpression.ExistsSubquery) expr;
-        assertThat(subquery.negated()).isEqualTo(expectedNegated);
+        assertThat(subquery.negated())
+                .as("ExistsSubquery negated flag should be %s", expectedNegated)
+                .isEqualTo(expectedNegated);
     }
 
     /**
      * Asserts that an expression is an InSubquery.
      */
     protected void assertInSubquery(LambdaExpression expr, boolean expectedNegated) {
-        assertThat(expr).isInstanceOf(LambdaExpression.InSubquery.class);
+        assertThat(expr)
+                .as("Expression should be an InSubquery but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .isInstanceOf(LambdaExpression.InSubquery.class);
         var subquery = (LambdaExpression.InSubquery) expr;
-        assertThat(subquery.negated()).isEqualTo(expectedNegated);
+        assertThat(subquery.negated())
+                .as("InSubquery negated flag should be %s", expectedNegated)
+                .isEqualTo(expectedNegated);
     }
 
     /**
      * Asserts that an expression is a binary operation with the expected operator.
      */
     protected void assertBinaryOp(LambdaExpression expr, LambdaExpression.BinaryOp.Operator expectedOp) {
-        assertThat(expr).isInstanceOf(LambdaExpression.BinaryOp.class);
+        assertThat(expr)
+                .as("Expression should be a BinaryOp but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .isInstanceOf(LambdaExpression.BinaryOp.class);
         var binOp = (LambdaExpression.BinaryOp) expr;
-        assertThat(binOp.operator()).isEqualTo(expectedOp);
+        assertThat(binOp.operator())
+                .as("BinaryOp operator should be %s", expectedOp)
+                .isEqualTo(expectedOp);
     }
 
     /**
      * Asserts that an expression is a constant with the expected value.
      */
     protected void assertConstant(LambdaExpression expr, Object expectedValue) {
-        assertThat(expr).isInstanceOf(LambdaExpression.Constant.class);
+        assertThat(expr)
+                .as("Expression should be a Constant but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .isInstanceOf(LambdaExpression.Constant.class);
         var constant = (LambdaExpression.Constant) expr;
-        assertThat(constant.value()).isEqualTo(expectedValue);
+        assertThat(constant.value())
+                .as("Constant value should be '%s'", expectedValue)
+                .isEqualTo(expectedValue);
     }
 
     /**
      * Asserts that an expression is a FieldAccess with the expected field name.
      */
     protected void assertFieldAccess(LambdaExpression expr, String expectedFieldName) {
-        assertThat(expr).isInstanceOf(LambdaExpression.FieldAccess.class);
+        assertThat(expr)
+                .as("Expression should be a FieldAccess but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .isInstanceOf(LambdaExpression.FieldAccess.class);
         var fieldAccess = (LambdaExpression.FieldAccess) expr;
-        assertThat(fieldAccess.fieldName()).isEqualTo(expectedFieldName);
+        assertThat(fieldAccess.fieldName())
+                .as("FieldAccess field name should be '%s'", expectedFieldName)
+                .isEqualTo(expectedFieldName);
     }
 }

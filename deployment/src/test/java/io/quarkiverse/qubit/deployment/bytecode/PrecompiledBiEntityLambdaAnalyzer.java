@@ -140,14 +140,19 @@ public abstract class PrecompiledBiEntityLambdaAnalyzer {
     }
 
     // ==================== ASSERTION HELPERS ====================
+    // MAINT-008: All assertion helpers include descriptive messages for better debugging
 
     /**
      * Asserts that an expression is a BiEntityFieldAccess with the expected field name.
      */
     protected void assertBiEntityFieldAccess(LambdaExpression expr, String expectedFieldName) {
-        assertThat(expr).isInstanceOf(LambdaExpression.BiEntityFieldAccess.class);
+        assertThat(expr)
+                .as("Expression should be a BiEntityFieldAccess but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .isInstanceOf(LambdaExpression.BiEntityFieldAccess.class);
         var fieldAccess = (LambdaExpression.BiEntityFieldAccess) expr;
-        assertThat(fieldAccess.fieldName()).isEqualTo(expectedFieldName);
+        assertThat(fieldAccess.fieldName())
+                .as("BiEntityFieldAccess field name should be '%s'", expectedFieldName)
+                .isEqualTo(expectedFieldName);
     }
 
     /**
@@ -155,61 +160,89 @@ public abstract class PrecompiledBiEntityLambdaAnalyzer {
      */
     protected void assertBiEntityFieldAccess(LambdaExpression expr, String expectedFieldName,
                                               LambdaExpression.EntityPosition expectedPosition) {
-        assertThat(expr).isInstanceOf(LambdaExpression.BiEntityFieldAccess.class);
+        assertThat(expr)
+                .as("Expression should be a BiEntityFieldAccess but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .isInstanceOf(LambdaExpression.BiEntityFieldAccess.class);
         var fieldAccess = (LambdaExpression.BiEntityFieldAccess) expr;
-        assertThat(fieldAccess.fieldName()).isEqualTo(expectedFieldName);
-        assertThat(fieldAccess.entityPosition()).isEqualTo(expectedPosition);
+        assertThat(fieldAccess.fieldName())
+                .as("BiEntityFieldAccess field name should be '%s'", expectedFieldName)
+                .isEqualTo(expectedFieldName);
+        assertThat(fieldAccess.entityPosition())
+                .as("BiEntityFieldAccess entity position should be %s for field '%s'", expectedPosition, expectedFieldName)
+                .isEqualTo(expectedPosition);
     }
 
     /**
      * Asserts that an expression is a binary operation with the expected operator.
      */
     protected void assertBinaryOp(LambdaExpression expr, LambdaExpression.BinaryOp.Operator expectedOp) {
-        assertThat(expr).isInstanceOf(LambdaExpression.BinaryOp.class);
+        assertThat(expr)
+                .as("Expression should be a BinaryOp but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .isInstanceOf(LambdaExpression.BinaryOp.class);
         var binOp = (LambdaExpression.BinaryOp) expr;
-        assertThat(binOp.operator()).isEqualTo(expectedOp);
+        assertThat(binOp.operator())
+                .as("BinaryOp operator should be %s", expectedOp)
+                .isEqualTo(expectedOp);
     }
 
     /**
      * Asserts that an expression is a method call with the expected method name.
      */
     protected void assertMethodCall(LambdaExpression expr, String expectedMethodName) {
-        assertThat(expr).isInstanceOf(LambdaExpression.MethodCall.class);
+        assertThat(expr)
+                .as("Expression should be a MethodCall but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .isInstanceOf(LambdaExpression.MethodCall.class);
         var methodCall = (LambdaExpression.MethodCall) expr;
-        assertThat(methodCall.methodName()).isEqualTo(expectedMethodName);
+        assertThat(methodCall.methodName())
+                .as("MethodCall method name should be '%s'", expectedMethodName)
+                .isEqualTo(expectedMethodName);
     }
 
     /**
      * Asserts that an expression is a constant with the expected value.
      */
     protected void assertConstant(LambdaExpression expr, Object expectedValue) {
-        assertThat(expr).isInstanceOf(LambdaExpression.Constant.class);
+        assertThat(expr)
+                .as("Expression should be a Constant but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .isInstanceOf(LambdaExpression.Constant.class);
         var constant = (LambdaExpression.Constant) expr;
-        assertThat(constant.value()).isEqualTo(expectedValue);
+        assertThat(constant.value())
+                .as("Constant value should be '%s'", expectedValue)
+                .isEqualTo(expectedValue);
     }
 
     /**
      * Asserts that an expression is a unary operation with the expected operator.
      */
     protected void assertUnaryOp(LambdaExpression expr, LambdaExpression.UnaryOp.Operator expectedOp) {
-        assertThat(expr).isInstanceOf(LambdaExpression.UnaryOp.class);
+        assertThat(expr)
+                .as("Expression should be a UnaryOp but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .isInstanceOf(LambdaExpression.UnaryOp.class);
         var unaryOp = (LambdaExpression.UnaryOp) expr;
-        assertThat(unaryOp.operator()).isEqualTo(expectedOp);
+        assertThat(unaryOp.operator())
+                .as("UnaryOp operator should be %s", expectedOp)
+                .isEqualTo(expectedOp);
     }
 
     /**
      * Asserts that an expression is a captured variable.
      */
     protected void assertCapturedVariable(LambdaExpression expr) {
-        assertThat(expr).isInstanceOf(LambdaExpression.CapturedVariable.class);
+        assertThat(expr)
+                .as("Expression should be a CapturedVariable but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .isInstanceOf(LambdaExpression.CapturedVariable.class);
     }
 
     /**
      * Asserts that an expression is a captured variable with a specific index.
      */
     protected void assertCapturedVariable(LambdaExpression expr, int expectedIndex) {
-        assertThat(expr).isInstanceOf(LambdaExpression.CapturedVariable.class);
+        assertThat(expr)
+                .as("Expression should be a CapturedVariable but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .isInstanceOf(LambdaExpression.CapturedVariable.class);
         var capturedVar = (LambdaExpression.CapturedVariable) expr;
-        assertThat(capturedVar.index()).isEqualTo(expectedIndex);
+        assertThat(capturedVar.index())
+                .as("CapturedVariable index should be %d", expectedIndex)
+                .isEqualTo(expectedIndex);
     }
 }

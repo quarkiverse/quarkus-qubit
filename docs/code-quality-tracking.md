@@ -28,8 +28,8 @@ This document provides a comprehensive analysis of code quality issues identifie
 | Bug Risks | ~~2~~ 0 | ~~5~~ 0 | ~~4~~ 0 | ~~2~~ 0 | ~~13~~ 0 | ~~3~~ 10 (3 N/A) |
 | Documentation | 0 | ~~2~~ 1 | 6 | 4 | 12 | 1 |
 | Performance | 0 | ~~1~~ 0 | ~~3~~ 0 | ~~2~~ 0 | ~~6~~ 0 | ~~1~~ 5 (4 N/A) |
-| Maintainability | 0 | ~~7~~ 0 | ~~12~~ 0 | ~~6~~ 1 | ~~25~~ 1 | 24 (1 N/A) |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ **1** | ~~**51**~~ **7** | ~~**35**~~ **10** | ~~**110**~~ **18** | **70** (14 N/A, 5 deferred) |
+| Maintainability | 0 | ~~7~~ 0 | ~~12~~ 0 | ~~6~~ 0 | ~~25~~ 0 | 25 (1 N/A) |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ **1** | ~~**51**~~ **7** | ~~**35**~~ **9** | ~~**110**~~ **17** | **71** (14 N/A, 5 deferred) |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -1523,10 +1523,23 @@ var binOp = eq(constant(10), constant(20));
   - **Consistent API**: Static imports provide uniform naming across all AST node types
   - **Leverages ARCH-009**: Binary/unary operation methods delegate to existing factory methods
 
-### MAINT-008: Assertion Messages
+### MAINT-008: Assertion Messages ✅ RESOLVED
 - **Severity**: Low
+- **Status**: ✅ **RESOLVED**
 - **Description**: Some assertions lack descriptive messages.
-- **Suggested Fix**: Add context to assertion messages.
+- **Fix Applied**:
+  - Added `.as()` descriptive messages to 23 assertion helper methods across 3 test base classes:
+  - **PrecompiledLambdaAnalyzer.java** (8 methods): `assertBinaryOp`, `assertFieldAccess`, `assertConstant`, `assertMethodCall`, `assertUnaryOp`, `assertCapturedVariable` (2 overloads), `assertNullLiteral`
+  - **PrecompiledBiEntityLambdaAnalyzer.java** (9 methods): `assertBiEntityFieldAccess` (2 overloads), `assertBinaryOp`, `assertMethodCall`, `assertConstant`, `assertUnaryOp`, `assertCapturedVariable` (2 overloads)
+  - **PrecompiledSubqueryLambdaAnalyzer.java** (6 methods): `assertScalarSubquery`, `assertExistsSubquery`, `assertInSubquery`, `assertBinaryOp`, `assertConstant`, `assertFieldAccess`
+  - Each assertion now includes context about:
+    - What type was expected vs. actual type received
+    - Expected values for comparison assertions
+  - Messages automatically propagate to all 180+ bytecode analysis tests using these helpers
+- **Benefits**:
+  - **Better debugging**: Failed assertions now show clear context (e.g., "Expression should be a BinaryOp but was FieldAccess")
+  - **Faster diagnosis**: No need to manually trace back which assertion helper failed
+  - **Consistent pattern**: All assertion helpers follow the same `.as()` message format
 
 ### MAINT-009: Pattern Matching in generatePredicate() ✅ RESOLVED
 - **File**: [CriteriaExpressionGenerator.java:122-147](deployment/src/main/java/io/quarkus/qubit/deployment/generation/CriteriaExpressionGenerator.java#L122-L147)
@@ -2041,3 +2054,4 @@ When addressing issues, use this template:
 | 5.13 | 2025-12-05 | Claude | **MAINT-005 N/A (Acceptable Consistency)**: Deep analysis of error message patterns across codebase. **Existing Good Patterns Found**: (1) `BytecodeAnalysisException` already has 6 factory methods for consistent exception messages: `stackUnderflow()`, `invalidOpcode()`, `unexpectedNull()`, `unexpectedOpcode()`, `unsupported()`, `unexpectedState()` - this is exactly the "error message templates" pattern suggested; (2) `QueryExecutorRegistry` has excellent user-facing errors with problem description, numbered causes list, solutions list, and debugging info (10+ line messages); (3) Within-module consistency: CallSiteProcessor uses "Could not analyze X lambda at: %s" pattern (15 instances), SubqueryAnalyzer uses "Expected N argument(s) for X, got Y" pattern, GroupMethodAnalyzer uses "Unexpected target for g.X(): %s" pattern. **Minor Variations Are Semantic**: "Unknown method" (lookup failure), "Not a X: " (type validation), "Expected X, got: " (constraint violation), "Unexpected X: " (state error) convey different meanings appropriately. **Why Templates Would NOT Help**: BytecodeAnalysisException already provides factory method pattern; context-specific detail is intentional (user-facing vs build-time); low ROI for additional abstraction. Updated: Maintainability medium 3→2, total 4→3, resolved 21→22 (1 N/A). |
 | 5.14 | 2025-12-05 | Claude | **MAINT-006 Complete + CS-005 Resolved**: Extracted focused methods from `CallSiteProcessor.java` to reduce method size and deep nesting. **Fix Applied**: (1) Created `LambdaAnalysis` record to bundle analysis result, callSiteId, and lambdaHash; (2) Extracted `loadAndAnalyzeLambdas()` method (23 lines) - handles bytecode loading, lambda analysis via `analyzeLambdas()`, and hash computation; (3) Extracted `checkAndHandleDuplicate()` method (18 lines) - handles deduplication logic with early return; (4) Refactored `processCallSite()` to delegate to extracted methods with clear early returns - reduced from 103 to 81 lines (22% reduction); (5) Refactored `analyzeLambdas()` to use early returns instead of if-else chain for cleaner flow. **Benefits**: Single Responsibility (each method has one purpose), reduced nesting (early returns), improved testability (extracted methods testable in isolation), better readability (main method is clear high-level workflow). **CS-005 Resolution**: The "deep nesting in processCallSite()" issue was identical to MAINT-006, now resolved by these extractions. Updated: Maintainability medium 2→1, Code Smells resolved 18 (removed dup), total 20→19, resolved 68→69. All 1,113 tests pass. |
 | 5.15 | 2025-12-05 | Claude | **MAINT-007 Complete**: Created `AstBuilders.java` test utility class (367 lines) for fluent AST node construction. **Factory Methods**: Leaf expressions (`constant()`, `field()`, `param()`, `captured()`, `nullLit()`), binary operations (`eq()`, `ne()`, `lt()`, `le()`, `gt()`, `ge()`, `and()`, `or()`, `add()`, `sub()`, `mul()`, `div()`, `mod()`), unary operation (`not()`), type operations (`cast()`, `instanceOf()`), conditional (`conditional()`), and fluent `MethodCallBuilder` (`call("methodName").on(target).withArg(arg).returns(Type.class).build()`). **Test Files Updated**: `LambdaExpressionTest.java` (added 2 new tests for arithmetic operations and fluent builder), `CapturedVariableCoverageTest.java` (reduced verbosity significantly). **Benefits**: ~70 instances of verbose `new LambdaExpression.X(...)` replaced with fluent calls, improved test readability, automatic type inference for constants, leverages ARCH-009 factory methods. Updated: Maintainability medium 1→0, total 18→17 (wait - should be 19→18), resolved 69→70. All 378 deployment tests pass. |
+| 5.16 | 2025-12-05 | Claude | **MAINT-008 Complete**: Added descriptive messages to 23 assertion helper methods across 3 test base classes. **Files Modified**: (1) `PrecompiledLambdaAnalyzer.java` - 8 helpers: `assertBinaryOp`, `assertFieldAccess`, `assertConstant`, `assertMethodCall`, `assertUnaryOp`, `assertCapturedVariable` (2 overloads), `assertNullLiteral`; (2) `PrecompiledBiEntityLambdaAnalyzer.java` - 9 helpers: `assertBiEntityFieldAccess` (2 overloads), `assertBinaryOp`, `assertMethodCall`, `assertConstant`, `assertUnaryOp`, `assertCapturedVariable` (2 overloads); (3) `PrecompiledSubqueryLambdaAnalyzer.java` - 6 helpers: `assertScalarSubquery`, `assertExistsSubquery`, `assertInSubquery`, `assertBinaryOp`, `assertConstant`, `assertFieldAccess`. **Pattern Applied**: All assertions now use `.as()` with format strings showing expected type/value and actual result. Messages propagate to 180+ bytecode analysis tests. **Benefits**: Better debugging (clear context on failure), faster diagnosis (no manual trace-back needed), consistent pattern across all test helpers. Updated: Maintainability low 1→0, total 17→16, resolved 70→71. All 378 deployment tests pass. |
