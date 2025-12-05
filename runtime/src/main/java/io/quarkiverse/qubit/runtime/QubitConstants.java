@@ -410,4 +410,38 @@ public final class QubitConstants {
             JVM_JAVA_UTIL_TREE_SET,
             JVM_JAVA_UTIL_LINKED_HASH_SET
     );
+
+    // ========================================================================
+    // JVM Bootstrap Method Factory Class Names (MAINT-004: Constants Consolidation)
+    // ========================================================================
+
+    /**
+     * StringConcatFactory bootstrap method owner for Java 9+ string concatenation.
+     * <p>
+     * Java 9+ compiles string concatenation using invokedynamic with StringConcatFactory
+     * as the bootstrap method, not traditional StringBuilder bytecode.
+     */
+    public static final String JVM_JAVA_LANG_INVOKE_STRING_CONCAT_FACTORY =
+            "java/lang/invoke/StringConcatFactory";
+
+    /**
+     * LambdaMetafactory bootstrap method owner for lambda expressions.
+     * <p>
+     * Used to detect nested lambda creation for group aggregations and subqueries
+     * (e.g., g.avg(p -> p.salary) or subquery(Person.class).avg(q -> q.salary)).
+     */
+    public static final String JVM_JAVA_LANG_INVOKE_LAMBDA_METAFACTORY =
+            "java/lang/invoke/LambdaMetafactory";
+
+    // ========================================================================
+    // Qubit Runtime Implementation Class Names (MAINT-004: Constants Consolidation)
+    // ========================================================================
+
+    /**
+     * QubitStreamImpl internal name for bytecode generation.
+     * <p>
+     * Used when generating fluent API entry point methods that return QubitStreamImpl.
+     */
+    public static final String QUBIT_STREAM_IMPL_INTERNAL_NAME =
+            "io/quarkiverse/qubit/runtime/QubitStreamImpl";
 }

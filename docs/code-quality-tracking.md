@@ -28,8 +28,8 @@ This document provides a comprehensive analysis of code quality issues identifie
 | Bug Risks | ~~2~~ 0 | ~~5~~ 0 | ~~4~~ 0 | ~~2~~ 0 | ~~13~~ 0 | ~~3~~ 10 (3 N/A) |
 | Documentation | 0 | ~~2~~ 1 | 6 | 4 | 12 | 1 |
 | Performance | 0 | ~~1~~ 0 | ~~3~~ 0 | ~~2~~ 0 | ~~6~~ 0 | ~~1~~ 5 (4 N/A) |
-| Maintainability | 0 | ~~7~~ 0 | ~~12~~ 4 | ~~6~~ 1 | ~~25~~ 5 | 20 |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ **1** | ~~**51**~~ **11** | ~~**35**~~ **10** | ~~**110**~~ **22** | **65** (13 N/A, 5 deferred, 1 dup) |
+| Maintainability | 0 | ~~7~~ 0 | ~~12~~ 3 | ~~6~~ 1 | ~~25~~ 4 | 21 |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ **1** | ~~**51**~~ **10** | ~~**35**~~ **10** | ~~**110**~~ **21** | **66** (13 N/A, 5 deferred, 1 dup) |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -1404,11 +1404,35 @@ Log.debugf("Combined %d predicates at %s (total %d captured)",
   - **Consistent pattern**: Follows established `BranchPattern` enum design
 - **Previously Noted**: Pattern matching items MAINT-009 through MAINT-017 addressed instanceof chains; this issue targeted condition-based if-else chains
 
-### MAINT-004: Constants Consolidation
-- **File**: [QubitConstants.java](runtime/src/main/java/io/quarkus/qubit/runtime/QubitConstants.java)
+### MAINT-004: Constants Consolidation ✅ RESOLVED
+- **File**: [QubitConstants.java](runtime/src/main/java/io/quarkiverse/qubit/runtime/QubitConstants.java)
 - **Severity**: Medium
+- **Status**: ✅ **RESOLVED**
 - **Description**: Some constants defined locally instead of in central constants file.
-- **Suggested Fix**: Audit and consolidate all constants.
+- **Fix Applied**:
+  - Audited codebase for locally defined string constants using grep patterns
+  - Identified 3 high-value consolidation candidates:
+    1. **InvokeDynamicHandler.java**: `STRING_CONCAT_FACTORY` and `LAMBDA_METAFACTORY` JVM bootstrap factory names
+    2. **ConstantInstructionHandler.java**: Magic string `"java/lang/Boolean"` (already exists as `JVM_JAVA_LANG_BOOLEAN`)
+    3. **QubitBytecodeGenerator.java**: `QUBIT_STREAM_IMPL_INTERNAL_NAME` implementation class name
+  - Added 3 new constants to QubitConstants.java:
+    - `JVM_JAVA_LANG_INVOKE_STRING_CONCAT_FACTORY` - StringConcatFactory for Java 9+ string concatenation
+    - `JVM_JAVA_LANG_INVOKE_LAMBDA_METAFACTORY` - LambdaMetafactory for nested lambda detection
+    - `QUBIT_STREAM_IMPL_INTERNAL_NAME` - QubitStreamImpl internal name for bytecode generation
+  - Updated 3 files to use centralized constants:
+    - `InvokeDynamicHandler.java` - Removed local constants, added static imports
+    - `ConstantInstructionHandler.java` - Uses `JVM_JAVA_LANG_BOOLEAN` and `METHOD_VALUE_OF`
+    - `QubitBytecodeGenerator.java` - Uses `QUBIT_STREAM_IMPL_INTERNAL_NAME` via static import
+  - **Constants intentionally kept local** (low consolidation value):
+    - `LambdaDeduplicator.java` query signature prefixes - internal to deduplicator logic
+    - `QubitBytecodeGenerator.java` method descriptors - derived from multiple constants, only used locally
+    - Branch handler `INSTRUCTION_NAME` constants - self-documenting for logging
+    - `QubitProcessor.java` `FEATURE = "qubit"` - standard Quarkus pattern
+- **Benefits**:
+  - Single source of truth for JVM internal class names
+  - Follows established `JVM_*` naming convention
+  - Easier to update if package names change
+  - Better discoverability through IDE "find usages"
 
 ### MAINT-005: Consistent Error Messages
 - **Severity**: Medium
@@ -1941,3 +1965,4 @@ When addressing issues, use this template:
 | 5.9 | 2025-12-05 | Claude | **PERF-003 N/A (Modern Java Optimization)**: Deep analysis of StringBuilder usage in LambdaDeduplicator.java hash computation methods. **Findings**: (1) 8 hash methods examined: 3 already use StringBuilder (`computeAggregationHash`, `computeJoinHash`, `computeGroupHash`) because they have conditional appending (null checks); 5 use `+` operator (`computeLambdaHash`, `computeCombinedHash`, `computeSortingHash`, `computeQueryWithSortingHash`, `computeFullQueryHash`) with no conditionals; (2) **No loops found**: Despite original issue mentioning "loops", there are no loops doing string concatenation - `buildSortString()` uses `stream().collect(Collectors.joining())` which internally uses StringJoiner backed by StringBuilder; (3) **JEP 280 (JDK 9+)**: Modern Java compiler optimizes `+` concatenation via `invokedynamic` and `StringConcatFactory` - simple non-looping concatenations are already well-optimized; (4) Build-time code with unmeasurable performance impact. **Consistency Note**: The 5 methods using `+` could be refactored to StringBuilder for code consistency, but this provides zero performance benefit. Updated: Performance medium 2→1, total 38→37, resolved 58→59 (4 N/A). |
 | 5.10 | 2025-12-05 | Claude | **CS-004 Resolved (by MAINT-001), CS-005 Duplicate (of MAINT-006)**: Updated tracking for two Code Smells issues. **CS-004** (handleSubqueryBuilderMethod long method) was already resolved when MAINT-001 extracted entire subquery handling (200+ lines) to SubqueryAnalyzer.java. **CS-005** (processCallSite deep nesting) is identical to MAINT-006 and marked as duplicate to avoid double-counting. Updated: Code Smells medium 2→0, total 25→23, resolved 62→64 (1 dup added). |
 | 5.11 | 2025-12-05 | Claude | **MAINT-003 Complete**: Reduced cyclomatic complexity in `generateBinaryOperation()` and `handleInvokeVirtual()` by introducing category-based dispatch enums. **Fix Applied**: (1) Created `BinaryOperationCategory` enum in PatternDetector.java with 8 values (STRING_CONCATENATION, ARITHMETIC, LOGICAL, NULL_CHECK, BOOLEAN_FIELD_CONSTANT, BOOLEAN_FIELD_CAPTURED_VARIABLE, COMPARE_TO_EQUALITY, COMPARISON) and `categorize()` method encapsulating priority-ordered pattern detection; (2) Created `VirtualMethodCategory` enum in MethodInvocationHandler.java with 8 values (EQUALS, SUBQUERY_BUILDER, STRING_METHOD, COMPARE_TO, BIG_DECIMAL_ARITHMETIC, TEMPORAL_METHOD, GETTER, UNHANDLED); (3) Refactored `generateBinaryOperation()` to use switch expression on category (extracted `generateDefaultComparison()` for COMPARE_TO_EQUALITY fallthrough); (4) Refactored `handleInvokeVirtual()` to use switch statement on category. **Benefits**: Compile-time exhaustiveness, single point of truth for pattern priority, testable categorization, consistent with existing BranchPattern enum design. Updated: Maintainability high 1→0, total 22→21, resolved 64→65. |
+| 5.12 | 2025-12-05 | Claude | **MAINT-004 Complete**: Consolidated locally defined constants into QubitConstants.java. **Audit Results**: Identified 3 high-value consolidation candidates: (1) InvokeDynamicHandler.java local constants `STRING_CONCAT_FACTORY` and `LAMBDA_METAFACTORY`; (2) ConstantInstructionHandler.java magic string `"java/lang/Boolean"` (existing constant available); (3) QubitBytecodeGenerator.java local constant `QUBIT_STREAM_IMPL_INTERNAL_NAME`. **Fix Applied**: Added 3 new constants to QubitConstants.java following established `JVM_*` naming convention: `JVM_JAVA_LANG_INVOKE_STRING_CONCAT_FACTORY`, `JVM_JAVA_LANG_INVOKE_LAMBDA_METAFACTORY`, `QUBIT_STREAM_IMPL_INTERNAL_NAME`. Updated 3 files to use centralized constants via static imports. **Constants Kept Local** (low consolidation value): LambdaDeduplicator query signature prefixes (internal logic), QubitBytecodeGenerator method descriptors (derived values, local use), branch handler INSTRUCTION_NAME constants (self-documenting logging), QubitProcessor FEATURE constant (standard Quarkus pattern). **Benefits**: Single source of truth for JVM internal class names, follows established naming conventions, easier maintenance, better IDE discoverability. Updated: Maintainability medium 4→3, total 22→21, resolved 65→66. All tests pass. |

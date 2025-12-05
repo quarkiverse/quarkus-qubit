@@ -5,6 +5,8 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 
+import static io.quarkiverse.qubit.runtime.QubitConstants.QUBIT_STREAM_IMPL_INTERNAL_NAME;
+
 /**
  * Generates fluent API entry point methods for QubitEntity and QubitRepository.
  */
@@ -13,7 +15,6 @@ public final class QubitBytecodeGenerator {
     private static final String DESC_QUERY_SPEC_TO_STREAM = "(Lio/quarkiverse/qubit/runtime/QuerySpec;)Lio/quarkiverse/qubit/runtime/QubitStream;";
     private static final String DESC_QUERY_SPEC_TO_JOIN_STREAM = "(Lio/quarkiverse/qubit/runtime/QuerySpec;)Lio/quarkiverse/qubit/runtime/JoinStream;";
     private static final String DESC_QUERY_SPEC_TO_GROUP_STREAM = "(Lio/quarkiverse/qubit/runtime/QuerySpec;)Lio/quarkiverse/qubit/runtime/GroupStream;";
-    private static final String QUBIT_STREAM_IMPL_INTERNAL_NAME = "io/quarkiverse/qubit/runtime/QubitStreamImpl";
 
     private QubitBytecodeGenerator() {
     }

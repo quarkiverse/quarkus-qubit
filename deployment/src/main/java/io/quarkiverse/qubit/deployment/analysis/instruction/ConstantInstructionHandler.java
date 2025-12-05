@@ -7,6 +7,8 @@ import org.objectweb.asm.tree.IntInsnNode;
 import org.objectweb.asm.tree.LdcInsnNode;
 
 import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.LOOKAHEAD_WINDOW_SIZE;
+import static io.quarkiverse.qubit.runtime.QubitConstants.JVM_JAVA_LANG_BOOLEAN;
+import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_VALUE_OF;
 import static org.objectweb.asm.Opcodes.*;
 
 /**
@@ -180,8 +182,8 @@ public class ConstantInstructionHandler implements InstructionHandler {
     /** Checks if instruction is Boolean.valueOf(). */
     private boolean isBooleanValueOfCall(AbstractInsnNode insn) {
         if (insn.getOpcode() == INVOKESTATIC && insn instanceof org.objectweb.asm.tree.MethodInsnNode methodInsn) {
-            return methodInsn.owner.equals("java/lang/Boolean") &&
-                   methodInsn.name.equals("valueOf") &&
+            return methodInsn.owner.equals(JVM_JAVA_LANG_BOOLEAN) &&
+                   methodInsn.name.equals(METHOD_VALUE_OF) &&
                    methodInsn.desc.equals("(Z)Ljava/lang/Boolean;");
         }
         return false;

@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.add;
+import static io.quarkiverse.qubit.runtime.QubitConstants.JVM_JAVA_LANG_INVOKE_LAMBDA_METAFACTORY;
+import static io.quarkiverse.qubit.runtime.QubitConstants.JVM_JAVA_LANG_INVOKE_STRING_CONCAT_FACTORY;
 import static org.objectweb.asm.Opcodes.INVOKEDYNAMIC;
 
 /**
@@ -50,12 +52,6 @@ public class InvokeDynamicHandler implements InstructionHandler {
 
     /** Marker for dynamic argument in StringConcatFactory recipe. */
     private static final char RECIPE_DYNAMIC_ARG = '\u0001';
-
-    /** StringConcatFactory bootstrap method owner. */
-    private static final String STRING_CONCAT_FACTORY = "java/lang/invoke/StringConcatFactory";
-
-    /** LambdaMetafactory bootstrap method owner (Iteration 7: nested lambda support). */
-    private static final String LAMBDA_METAFACTORY = "java/lang/invoke/LambdaMetafactory";
 
     @Override
     public boolean canHandle(AbstractInsnNode insn) {
@@ -183,7 +179,7 @@ public class InvokeDynamicHandler implements InstructionHandler {
      */
     private boolean isLambdaMetafactory(InvokeDynamicInsnNode indy) {
         return indy.bsm != null &&
-               indy.bsm.getOwner().equals(LAMBDA_METAFACTORY);
+               indy.bsm.getOwner().equals(JVM_JAVA_LANG_INVOKE_LAMBDA_METAFACTORY);
     }
 
     /**
@@ -226,7 +222,7 @@ public class InvokeDynamicHandler implements InstructionHandler {
     private boolean isStringConcatFactory(InvokeDynamicInsnNode indy) {
         // Check bootstrap method handle owner
         return indy.bsm != null &&
-               indy.bsm.getOwner().equals(STRING_CONCAT_FACTORY);
+               indy.bsm.getOwner().equals(JVM_JAVA_LANG_INVOKE_STRING_CONCAT_FACTORY);
     }
 
     /**
