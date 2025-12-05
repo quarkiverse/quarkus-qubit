@@ -11,6 +11,8 @@ import static io.quarkiverse.qubit.runtime.QubitConstants.QE_EXECUTE;
 import static io.quarkiverse.qubit.runtime.QubitConstants.QUERY_EXECUTOR_CLASS_NAME;
 import static io.quarkiverse.qubit.runtime.QubitConstants.TQ_GET_RESULT_LIST;
 import static io.quarkiverse.qubit.runtime.QubitConstants.TQ_GET_SINGLE_RESULT;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.BOOLEAN_BOOLEAN_VALUE;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.INTEGER_INT_VALUE;
 
 import java.util.List;
 
@@ -1569,9 +1571,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
             BranchResult distinctBranch = method.ifNotNull(distinct);
             try (BytecodeCreator distinctNotNull = distinctBranch.trueBranch()) {
                 // Unbox Boolean to boolean
-                ResultHandle distinctValue = distinctNotNull.invokeVirtualMethod(
-                        MethodDescriptor.ofMethod(Boolean.class, "booleanValue", boolean.class),
-                        distinct);
+                ResultHandle distinctValue = distinctNotNull.invokeVirtualMethod(BOOLEAN_BOOLEAN_VALUE, distinct);
 
                 // Only call query.distinct(true) if the value is true
                 BranchResult trueBranch = distinctNotNull.ifTrue(distinctValue);
@@ -1609,9 +1609,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
             BranchResult offsetBranch = method.ifNotNull(offset);
             try (BytecodeCreator offsetTrue = offsetBranch.trueBranch()) {
                 // Unbox Integer to int
-                ResultHandle offsetValue = offsetTrue.invokeVirtualMethod(
-                        MethodDescriptor.ofMethod(Integer.class, "intValue", int.class),
-                        offset);
+                ResultHandle offsetValue = offsetTrue.invokeVirtualMethod(INTEGER_INT_VALUE, offset);
                 offsetTrue.invokeInterfaceMethod(TQ_SET_FIRST_RESULT, typedQuery, offsetValue);
             }
         }
@@ -1621,9 +1619,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
             BranchResult limitBranch = method.ifNotNull(limit);
             try (BytecodeCreator limitTrue = limitBranch.trueBranch()) {
                 // Unbox Integer to int
-                ResultHandle limitValue = limitTrue.invokeVirtualMethod(
-                        MethodDescriptor.ofMethod(Integer.class, "intValue", int.class),
-                        limit);
+                ResultHandle limitValue = limitTrue.invokeVirtualMethod(INTEGER_INT_VALUE, limit);
                 limitTrue.invokeInterfaceMethod(TQ_SET_MAX_RESULTS, typedQuery, limitValue);
             }
         }

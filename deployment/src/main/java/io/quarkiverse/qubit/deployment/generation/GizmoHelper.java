@@ -1,9 +1,10 @@
 package io.quarkiverse.qubit.deployment.generation;
 
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.*;
+
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner;
 import io.quarkus.gizmo.FieldDescriptor;
 import io.quarkus.gizmo.MethodCreator;
-import io.quarkus.gizmo.MethodDescriptor;
 import io.quarkus.gizmo.ResultHandle;
 import jakarta.persistence.criteria.JoinType;
 
@@ -46,10 +47,7 @@ public final class GizmoHelper {
         // Placeholder case: Load class by name at runtime
         if (entityClassName != null) {
             ResultHandle classNameHandle = method.load(entityClassName);
-            return method.invokeStaticMethod(
-                MethodDescriptor.ofMethod(Class.class, "forName", Class.class, String.class),
-                classNameHandle
-            );
+            return method.invokeStaticMethod(CLASS_FOR_NAME, classNameHandle);
         }
         // Normal case: Direct class reference
         return method.loadClass(entityClass);
@@ -114,10 +112,7 @@ public final class GizmoHelper {
      * @return ResultHandle for the unboxed int value
      */
     public static ResultHandle unboxInteger(MethodCreator method, ResultHandle boxedValue) {
-        return method.invokeVirtualMethod(
-            MethodDescriptor.ofMethod(Integer.class, "intValue", int.class),
-            boxedValue
-        );
+        return method.invokeVirtualMethod(INTEGER_INT_VALUE, boxedValue);
     }
 
     /**
@@ -128,10 +123,7 @@ public final class GizmoHelper {
      * @return ResultHandle for the unboxed boolean value
      */
     public static ResultHandle unboxBoolean(MethodCreator method, ResultHandle boxedValue) {
-        return method.invokeVirtualMethod(
-            MethodDescriptor.ofMethod(Boolean.class, "booleanValue", boolean.class),
-            boxedValue
-        );
+        return method.invokeVirtualMethod(BOOLEAN_BOOLEAN_VALUE, boxedValue);
     }
 
     /**
@@ -142,9 +134,6 @@ public final class GizmoHelper {
      * @return ResultHandle for the unboxed long value
      */
     public static ResultHandle unboxLong(MethodCreator method, ResultHandle boxedValue) {
-        return method.invokeVirtualMethod(
-            MethodDescriptor.ofMethod(Long.class, "longValue", long.class),
-            boxedValue
-        );
+        return method.invokeVirtualMethod(LONG_LONG_VALUE, boxedValue);
     }
 }

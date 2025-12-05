@@ -25,11 +25,11 @@ This document provides a comprehensive analysis of code quality issues identifie
 | Architectural | 0 | ~~4~~ 1 | 12 | 9 |
 | Code Smells | 0 | ~~3~~ 1 | ~~12~~  7 | ~~8~~ 5 | ~~23~~ 15 | ~~2~~ 10 |
 | Enum/Type-Safety | 0 | 0 | ~~2~~ 0 | ~~4~~ 0 | ~~6~~ 0 | 3 + 3 deferred |
-| Bug Risks | ~~2~~ 0 | ~~5~~ 2 | ~~4~~ ~~3~~ ~~2~~ 1 | 2 | ~~13~~ ~~7~~ ~~6~~ 5 | ~~3~~ ~~6~~ ~~7~~ 8 |
+| Bug Risks | ~~2~~ 0 | ~~5~~ 2 | ~~4~~ 1 | ~~2~~ 0 | ~~13~~ 3 | ~~3~~ 10 |
 | Documentation | 0 | ~~2~~ 1 | 6 | 4 | 12 | 1 |
-| Performance | 0 | 1 | 3 | 2 | 6 | 0 |
+| Performance | 0 | ~~1~~ 0 | 3 | 2 | ~~6~~ 5 | 1 |
 | Maintainability | 0 | ~~7~~ 1 | ~~12~~ 0 | ~~6~~ 4 | ~~25~~ 5 | 21 |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ **6** | ~~**42**~~ ~~**21**~~ ~~**20**~~ **19** | ~~**25**~~ **18** | ~~**91**~~ ~~**46**~~ ~~**45**~~ **44** | ~~**40**~~ ~~**50**~~ ~~**51**~~ **52** + 3 deferred |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ **5** | ~~**42**~~ **19** | ~~**25**~~ **16** | ~~**91**~~ **41** | ~~**40**~~ **55** + 3 deferred |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -1087,17 +1087,47 @@ public PathSegment {
   - **Defensive programming**: Bounds validated at AST construction (CapturedVariable) AND at creation site (LoadInstructionHandler)
   - **Design clarification**: Documented that lambda local variables are not supported, only captured variables from enclosing scope
 
-### BR-008: Potential Integer Overflow in Index Calculation
-- **File**: [CallSiteProcessor.java:554-576](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java#L554-L576)
+### BR-008: Potential Integer Overflow in Index Calculation ✅ N/A (Physically Impossible)
+- **File**: [CallSiteProcessor.java:554-576](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/CallSiteProcessor.java#L554-L576)
 - **Severity**: Low
-- **Description**: `indexOffset` accumulation could overflow for very large lambda chains.
-- **Suggested Fix**: Use long or add overflow check.
+- **Status**: ✅ **N/A** - Overflow is physically impossible due to JVM constraints
+- **Description**: Original concern: `indexOffset` accumulation could overflow for very large lambda chains.
+- **Deep Analysis Findings**:
+  - **Accumulation Pattern**: `indexOffset` accumulates `capturedCount` for each predicate lambda during WHERE clause combination
+  - **Integer.MAX_VALUE**: 2,147,483,647 - the threshold for overflow
+  - **JVM Constraints That Make Overflow Impossible**:
+    1. **Method Parameter Limit**: Each lambda can have at most 255 parameters (JVM specification §4.3.3)
+    2. **Method Bytecode Limit**: Method code size limited to 65,535 bytes (JVM specification §4.7.3)
+    3. **Practical Lambda Count**: ~1,300 lambdas max per method (bytecode limit ÷ ~50 bytes per lambda invocation)
+    4. **Local Variable Limit**: Method can have at most 65,535 local variable slots (JVM specification §4.7.3)
+  - **Maximum Theoretical indexOffset**: 255 captured vars × 1,300 lambdas = 331,500
+  - **Comparison**: 331,500 << 2,147,483,647 (0.015% of overflow threshold)
+  - **Realistic Maximum**: In practice, queries have 1-10 chained where() calls with 0-5 captured variables each = ~50 max
+- **Additional Accumulation Pattern** (lines 299-309):
+  - `capturedVarCount` accumulates from predicates, projections, sorts, and aggregations
+  - Same JVM constraints apply: maximum cannot exceed ~65,535 (local variable limit)
+- **Why No Fix Is Needed**:
+  - The JVM bytecode and parameter limits are enforced at class load time
+  - Code that could cause overflow cannot be compiled or loaded by the JVM
+  - Adding an overflow check would be dead code (never executed)
+- **Conclusion**: The concern is theoretically valid but practically impossible. The JVM enforces constraints that prevent any code path from reaching overflow. Marking as N/A rather than adding defensive code that can never execute.
 
-### BR-009: Thread Safety of classMethods Field
-- **File**: [AnalysisContext.java:102](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/AnalysisContext.java#L102)
+### BR-009: Thread Safety of classMethods Field ✅ RESOLVED (by ARCH-006)
+- **File**: ~~[AnalysisContext.java:102](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/AnalysisContext.java#L102)~~ → [AnalysisContext.java:58-72,144](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/instruction/AnalysisContext.java#L58-L72)
 - **Severity**: Low
-- **Description**: `classMethods` is set after construction without synchronization.
-- **Suggested Fix**: Document thread-safety requirements or make immutable.
+- **Status**: ✅ **RESOLVED** (by ARCH-006)
+- **Description**: Original concern was that `classMethods` was set after construction without synchronization.
+- **Resolution**: ARCH-006 refactored this to use constructor-based immutable configuration:
+  1. **Immutable Record**: `classMethods` is now bundled in `NestedLambdaSupport` record with `List.copyOf()` for defensive copying
+  2. **Final Field**: `private final NestedLambdaSupport nestedLambdaSupport;` - can only be set at construction
+  3. **No Setters**: All setter methods (`setClassMethods()`, `setNestedLambdaAnalyzer()`) were removed
+  4. **Documented**: Class-level Javadoc (lines 32-38) explicitly documents state categories:
+     - **Configuration State**: Set at construction, immutable thereafter (groupContextMode, classMethods, nestedLambdaAnalyzer)
+     - **Processing State**: Mutated during instruction analysis (single-threaded by design)
+- **Thread-Safety Guarantees**:
+  - Configuration state is immutable after construction - safe for concurrent reads
+  - Processing state is mutable but only accessed during single-threaded bytecode analysis
+  - Build-time code runs in a single thread per lambda, so no synchronization needed
 
 ---
 
@@ -1163,16 +1193,39 @@ public PathSegment {
 
 ## Performance Optimizations
 
-### PERF-001: Repeated MethodDescriptor Creation
+### PERF-001: Repeated MethodDescriptor Creation ✅ RESOLVED
 - **Severity**: High
+- **Status**: ✅ **RESOLVED**
 - **Files**: Various generation files
-- **Description**: `MethodDescriptor.ofMethod()` called repeatedly with same arguments.
+- **Description**: `MethodDescriptor.ofMethod()` called repeatedly with same arguments, creating unnecessary object allocations at build time.
+- **Fix Applied**:
+  - Created [MethodDescriptors.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/generation/MethodDescriptors.java) utility class with 50+ cached static final constants
+  - Constants organized by category: CriteriaBuilder methods, Path/Root navigation, Query operations, Subquery operations, Type operations
+  - Updated 7 files to use cached descriptors:
+    - `SubqueryExpressionBuilder.java` - subquery generation
+    - `CriteriaExpressionGenerator.java` - main expression generation (major refactoring)
+    - `QueryExecutorClassGenerator.java` - executor class generation
+    - `GroupExpressionBuilder.java` - GROUP BY expressions
+    - `BiEntityExpressionBuilder.java` - join expressions
+    - `ArithmeticExpressionBuilder.java` - arithmetic operations
+    - `GizmoHelper.java` - shared utilities
+  - Added CB_SUM_BINARY constant for binary arithmetic (distinct from CB_SUM aggregation)
+  - Static imports provide clean usage pattern
+- **Benefits**:
+  - **Reduced allocations**: Single MethodDescriptor instance per method signature
+  - **Improved readability**: Semantic constant names (CB_EQUAL, PATH_GET) vs inline method calls
+  - **Single source of truth**: All JPA method descriptors in one location
+  - **Easier maintenance**: Add new descriptors to one file
 - **Example**:
 ```java
-// Called many times with same arguments
+// Before: Called many times with same arguments
 MethodDescriptor.ofMethod(CriteriaBuilder.class, "equal", Predicate.class, Expression.class, Object.class)
+
+// After: Cached constant with static import
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_EQUAL;
+method.invokeInterfaceMethod(CB_EQUAL, cb, left, right);
 ```
-- **Suggested Fix**: Cache common `MethodDescriptor` instances as static finals.
+- **All 1,113 tests pass**
 
 ### PERF-002: Unnecessary List Copies
 - **File**: [LambdaExpression.java](deployment/src/main/java/io/quarkus/qubit/deployment/LambdaExpression.java)
@@ -1762,3 +1815,6 @@ When addressing issues, use this template:
 | 5.0 | 2025-12-04 | Claude | **BR-004 Complete**: Added empty/blank string validation to PathSegment record compact constructor. **Issue**: PathSegment validated null but not empty field names, which could cause subtle bugs during JPA query generation. **Fix Applied**: Added `isBlank()` validation after null check - throws `IllegalArgumentException` for empty or whitespace-only field names. Validation order ensures null check precedes isBlank() to avoid NPE. **Benefits**: Fail-fast at AST construction instead of cryptic failures in JPA query generation, prevents subtle bugs from whitespace-only field names, matches validation pattern used elsewhere. Updated: Bug Risks medium 4→3, total 47→46, resolved 49→50. All 375 deployment tests pass. |
 | 5.1 | 2025-12-04 | Claude | **BR-005 N/A (By Design)**: Deep analysis of GroupKeyReference null keyExpression concern. **Findings**: (1) **Creation** (GroupMethodAnalyzer.java:85): `new GroupKeyReference(null, Object.class)` - keyExpression is intentionally null because g.key() is analyzed in isolation, actual key comes from groupBy() lambda; (2) **Usage** (GroupExpressionBuilder.java:88-90 and 125-127): Code uses `ignored` pattern binding and returns `groupKeyExpr` parameter (passed from CallSiteProcessor), never accessing `keyExpression` field; (3) **Existing Documentation** (LambdaExpression.java:862-863): Javadoc correctly states "may be null when analyzed in isolation (resolved at code generation time)". **Conclusion**: Concern about NPE is unfounded - code generation never accesses `keyExpression`, uses `groupKeyExpr` parameter instead. This is the "placeholder" design pattern for deferred resolution. Updated: Bug Risks medium 3→2, total 46→45, resolved 50→51. |
 | 5.2 | 2025-12-04 | Claude | **BR-006 Complete**: Added warning logging to `generateConstant()` default case in SubqueryExpressionBuilder.java. **Issue**: The pattern matching switch (from MAINT-011) had a silent `default -> method.loadNull()` that could mask bugs when unhandled constant types are passed. **Fix Applied**: Added `Log.warnf()` before returning null in default case, consistent with `generateSubqueryExpression()` pattern at lines 504-508. Now logs: `"Unhandled constant type in subquery generateConstant: %s. This may indicate a missing case handler."` **Benefits**: Debugging visibility for unhandled types, consistent logging pattern, fail-visible approach. Updated: Bug Risks medium 2→1, total 45→44, resolved 51→52. All 375 deployment tests pass. |
+| 5.3 | 2025-12-05 | Claude | **BR-008 N/A (Physically Impossible)**: Deep analysis of `indexOffset` overflow concern in CallSiteProcessor.java. **Findings**: (1) `indexOffset` accumulates captured variable counts for each predicate lambda during WHERE clause combination; (2) **JVM Constraints make overflow impossible**: Method parameter limit = 255 (JVM §4.3.3), Method bytecode limit = 65,535 bytes (JVM §4.7.3), Local variable limit = 65,535 slots; (3) **Maximum theoretical indexOffset**: 255 captured vars × ~1,300 lambdas = 331,500; (4) **Comparison**: 331,500 is 0.015% of Integer.MAX_VALUE (2,147,483,647); (5) Realistic maximum in practice: ~50 (1-10 where() calls × 0-5 captured vars each). **Why no fix needed**: JVM bytecode constraints are enforced at class load time - code that could cause overflow cannot be compiled or loaded by JVM. Adding overflow check would be dead code. Similar pattern at lines 299-309 also constrained by same JVM limits. Updated: Bug Risks low 2→1, total 44→43, resolved 52→53. |
+| 5.4 | 2025-12-05 | Claude | **BR-009 Resolved (by ARCH-006)**: Deep analysis confirmed that thread safety concern for `classMethods` field was already resolved by ARCH-006. **Findings**: (1) `classMethods` is now bundled in immutable `NestedLambdaSupport` record with `List.copyOf()` defensive copying; (2) Field `nestedLambdaSupport` is `final` - set only at construction; (3) All setter methods (`setClassMethods()`, `setNestedLambdaAnalyzer()`) were removed; (4) Class-level Javadoc documents state categories (Configuration State vs Processing State). **Thread-Safety Guarantees**: Configuration state is immutable after construction (safe for concurrent reads), processing state is mutable but single-threaded by design (bytecode analysis runs in single thread per lambda). Updated: Bug Risks low 1→0, total 43→42, resolved 53→54. |
+| 5.5 | 2025-12-05 | Claude | **PERF-001 Complete**: Created `MethodDescriptors.java` utility class with 50+ cached static final MethodDescriptor constants for JPA Criteria API methods. Constants organized by category: CriteriaBuilder methods (comparisons, predicates, aggregations, arithmetic), Path/Root navigation, Query operations, Subquery operations, Type operations. Updated 7 files to use cached descriptors: SubqueryExpressionBuilder, CriteriaExpressionGenerator (major refactoring), QueryExecutorClassGenerator, GroupExpressionBuilder, BiEntityExpressionBuilder, ArithmeticExpressionBuilder, GizmoHelper. Added CB_SUM_BINARY for binary arithmetic (distinct from CB_SUM aggregation). Static imports provide clean `method.invokeInterfaceMethod(CB_EQUAL, cb, left, right)` pattern. **Benefits**: Reduced object allocations, improved readability with semantic names, single source of truth for method descriptors. Updated: Performance high 1→0, total 42→41, resolved 54→55. All 1,113 tests pass. |

@@ -1,11 +1,10 @@
 package io.quarkiverse.qubit.deployment.generation.expression;
 
-import io.quarkus.gizmo.MethodCreator;
-import io.quarkus.gizmo.MethodDescriptor;
-import io.quarkus.gizmo.ResultHandle;
+import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.AND;
+import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.OR;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.*;
+
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer;
-import io.quarkiverse.qubit.deployment.generation.GizmoHelper;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.ExistsSubquery;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.FieldAccess;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.InSubquery;
@@ -13,19 +12,13 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.ScalarSubquery;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.SubqueryAggregationType;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.Expression;
-import jakarta.persistence.criteria.Path;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
-import jakarta.persistence.criteria.Subquery;
+import io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer;
+import io.quarkiverse.qubit.deployment.generation.GizmoHelper;
+import io.quarkus.gizmo.MethodCreator;
+import io.quarkus.gizmo.MethodDescriptor;
+import io.quarkus.gizmo.ResultHandle;
 import io.quarkus.logging.Log;
-
-import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.AND;
-import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.OR;
-import static io.quarkiverse.qubit.runtime.QubitConstants.CB_NOT;
-import static io.quarkiverse.qubit.runtime.QubitConstants.PATH_GET;
+import jakarta.persistence.criteria.Predicate;
 
 /**
  * Generates JPA Criteria API bytecode for subquery expressions.
@@ -85,22 +78,18 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
         // Create subquery: query.subquery(resultType)
         ResultHandle resultTypeHandle = method.loadClass(resultType);
         ResultHandle subquery = method.invokeInterfaceMethod(
-                MethodDescriptor.ofMethod(CriteriaQuery.class, "subquery", Subquery.class, Class.class),
-                query, resultTypeHandle);
+                CRITERIA_QUERY_SUBQUERY, query, resultTypeHandle);
 
         // Create from clause: subquery.from(entityClass)
         ResultHandle entityClassHandle = GizmoHelper.loadEntityClass(method, scalar.entityClass(), scalar.entityClassName());
         ResultHandle subRoot = method.invokeInterfaceMethod(
-                MethodDescriptor.ofMethod(Subquery.class, "from", Root.class, Class.class),
-                subquery, entityClassHandle);
+                SUBQUERY_FROM, subquery, entityClassHandle);
 
         // Generate the select expression with aggregation
         ResultHandle aggregation = generateAggregation(method, scalar, cb, subRoot);
 
         // Set the select: subquery.select(aggregation)
-        method.invokeInterfaceMethod(
-                MethodDescriptor.ofMethod(Subquery.class, "select", Subquery.class, Expression.class),
-                subquery, aggregation);
+        method.invokeInterfaceMethod(SUBQUERY_SELECT, subquery, aggregation);
 
         // Generate the where clause if there's a predicate
         if (scalar.hasPredicate()) {
@@ -143,18 +132,14 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
         // Create subquery: query.subquery(entityClass)
         ResultHandle entityClassHandle = GizmoHelper.loadEntityClass(method, exists.entityClass(), exists.entityClassName());
         ResultHandle subquery = method.invokeInterfaceMethod(
-                MethodDescriptor.ofMethod(CriteriaQuery.class, "subquery", Subquery.class, Class.class),
-                query, entityClassHandle);
+                CRITERIA_QUERY_SUBQUERY, query, entityClassHandle);
 
         // Create from clause: subquery.from(entityClass)
         ResultHandle subRoot = method.invokeInterfaceMethod(
-                MethodDescriptor.ofMethod(Subquery.class, "from", Root.class, Class.class),
-                subquery, entityClassHandle);
+                SUBQUERY_FROM, subquery, entityClassHandle);
 
         // Select the subquery root (EXISTS just needs any selection)
-        method.invokeInterfaceMethod(
-                MethodDescriptor.ofMethod(Subquery.class, "select", Subquery.class, Expression.class),
-                subquery, subRoot);
+        method.invokeInterfaceMethod(SUBQUERY_SELECT, subquery, subRoot);
 
         // Generate the where clause from the predicate
         ResultHandle wherePredicate = generateSubqueryPredicate(
@@ -164,15 +149,11 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
         }
 
         // Generate cb.exists(subquery)
-        ResultHandle existsPredicate = method.invokeInterfaceMethod(
-                MethodDescriptor.ofMethod(CriteriaBuilder.class, "exists", Predicate.class, Subquery.class),
-                cb, subquery);
+        ResultHandle existsPredicate = method.invokeInterfaceMethod(CB_EXISTS, cb, subquery);
 
         // If negated, wrap with cb.not()
         if (exists.negated()) {
-            return method.invokeInterfaceMethod(
-                    MethodDescriptor.ofMethod(CriteriaBuilder.class, CB_NOT, Predicate.class, Expression.class),
-                    cb, existsPredicate);
+            return method.invokeInterfaceMethod(CB_NOT, cb, existsPredicate);
         }
 
         return existsPredicate;
@@ -213,22 +194,18 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
         // Create subquery: query.subquery(selectType)
         ResultHandle selectTypeHandle = method.loadClass(selectType);
         ResultHandle subquery = method.invokeInterfaceMethod(
-                MethodDescriptor.ofMethod(CriteriaQuery.class, "subquery", Subquery.class, Class.class),
-                query, selectTypeHandle);
+                CRITERIA_QUERY_SUBQUERY, query, selectTypeHandle);
 
         // Create from clause: subquery.from(entityClass)
         ResultHandle entityClassHandle = GizmoHelper.loadEntityClass(method, inSubquery.entityClass(), inSubquery.entityClassName());
         ResultHandle subRoot = method.invokeInterfaceMethod(
-                MethodDescriptor.ofMethod(Subquery.class, "from", Root.class, Class.class),
-                subquery, entityClassHandle);
+                SUBQUERY_FROM, subquery, entityClassHandle);
 
         // Generate the select expression
         ResultHandle selectExpr = generateFieldPath(method, inSubquery.selectExpression(), subRoot);
 
         // Set the select: subquery.select(selectExpr)
-        method.invokeInterfaceMethod(
-                MethodDescriptor.ofMethod(Subquery.class, "select", Subquery.class, Expression.class),
-                subquery, selectExpr);
+        method.invokeInterfaceMethod(SUBQUERY_SELECT, subquery, selectExpr);
 
         // Generate the where clause if there's a predicate
         if (inSubquery.hasPredicate()) {
@@ -241,14 +218,11 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
 
         // Generate fieldPath.in(subquery)
         ResultHandle inPredicate = method.invokeInterfaceMethod(
-                MethodDescriptor.ofMethod(Expression.class, "in", Predicate.class, Expression.class),
-                fieldPath, subquery);
+                EXPRESSION_IN, fieldPath, subquery);
 
         // If negated, wrap with cb.not()
         if (inSubquery.negated()) {
-            return method.invokeInterfaceMethod(
-                    MethodDescriptor.ofMethod(CriteriaBuilder.class, CB_NOT, Predicate.class, Expression.class),
-                    cb, inPredicate);
+            return method.invokeInterfaceMethod(CB_NOT, cb, inPredicate);
         }
 
         return inPredicate;
@@ -279,9 +253,7 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
 
         // For COUNT, we don't need a field expression
         if (scalar.isCount()) {
-            return method.invokeInterfaceMethod(
-                    MethodDescriptor.ofMethod(CriteriaBuilder.class, "count", Expression.class, Expression.class),
-                    cb, subRoot);
+            return method.invokeInterfaceMethod(CB_COUNT, cb, subRoot);
         }
 
         // Generate the field path from the field expression
@@ -290,18 +262,10 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
         // Generate the appropriate aggregation
         // CS-008: Added default case for future-proofing
         return switch (scalar.aggregationType()) {
-            case AVG -> method.invokeInterfaceMethod(
-                    MethodDescriptor.ofMethod(CriteriaBuilder.class, "avg", Expression.class, Expression.class),
-                    cb, fieldPath);
-            case SUM -> method.invokeInterfaceMethod(
-                    MethodDescriptor.ofMethod(CriteriaBuilder.class, "sum", Expression.class, Expression.class),
-                    cb, fieldPath);
-            case MIN -> method.invokeInterfaceMethod(
-                    MethodDescriptor.ofMethod(CriteriaBuilder.class, "min", Expression.class, Expression.class),
-                    cb, fieldPath);
-            case MAX -> method.invokeInterfaceMethod(
-                    MethodDescriptor.ofMethod(CriteriaBuilder.class, "max", Expression.class, Expression.class),
-                    cb, fieldPath);
+            case AVG -> method.invokeInterfaceMethod(CB_AVG, cb, fieldPath);
+            case SUM -> method.invokeInterfaceMethod(CB_SUM, cb, fieldPath);
+            case MIN -> method.invokeInterfaceMethod(CB_MIN, cb, fieldPath);
+            case MAX -> method.invokeInterfaceMethod(CB_MAX, cb, fieldPath);
             case COUNT -> throw new IllegalStateException("COUNT should be handled above");
             default -> throw new IllegalStateException("Unexpected aggregation type: " + scalar.aggregationType());
         };
@@ -324,18 +288,14 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
         return switch (expr) {
             case FieldAccess field -> {
                 ResultHandle fieldName = method.load(field.fieldName());
-                yield method.invokeInterfaceMethod(
-                        MethodDescriptor.ofMethod(Path.class, PATH_GET, Path.class, String.class),
-                        root, fieldName);
+                yield method.invokeInterfaceMethod(PATH_GET, root, fieldName);
             }
 
             case PathExpression pathExpr -> {
                 ResultHandle currentPath = root;
                 for (PathSegment segment : pathExpr.segments()) {
                     ResultHandle fieldName = method.load(segment.fieldName());
-                    currentPath = method.invokeInterfaceMethod(
-                            MethodDescriptor.ofMethod(Path.class, PATH_GET, Path.class, String.class),
-                            currentPath, fieldName);
+                    currentPath = method.invokeInterfaceMethod(PATH_GET, currentPath, fieldName);
                 }
                 yield currentPath;
             }
@@ -381,9 +341,7 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
             // Handle FieldAccess as boolean
             case FieldAccess field -> {
                 ResultHandle path = generateFieldPath(method, field, subRoot);
-                yield method.invokeInterfaceMethod(
-                        MethodDescriptor.ofMethod(CriteriaBuilder.class, "isTrue", Predicate.class, Expression.class),
-                        cb, path);
+                yield method.invokeInterfaceMethod(CB_IS_TRUE, cb, path);
             }
 
             default -> null;
@@ -419,10 +377,8 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
             method.writeArrayValue(predicateArray, 0, leftPredicate);
             method.writeArrayValue(predicateArray, 1, rightPredicate);
 
-            String methodName = binOp.operator() == AND ? "and" : "or";
-            return method.invokeInterfaceMethod(
-                    MethodDescriptor.ofMethod(CriteriaBuilder.class, methodName, Predicate.class, Predicate[].class),
-                    cb, predicateArray);
+            MethodDescriptor cbOperator = binOp.operator() == AND ? CB_AND : CB_OR;
+            return method.invokeInterfaceMethod(cbOperator, cb, predicateArray);
         }
 
         // For comparison operators, generate expressions
@@ -431,24 +387,12 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
 
         // Generate the appropriate comparison
         return switch (binOp.operator()) {
-            case EQ -> method.invokeInterfaceMethod(
-                    MethodDescriptor.ofMethod(CriteriaBuilder.class, "equal", Predicate.class, Expression.class, Object.class),
-                    cb, left, right);
-            case NE -> method.invokeInterfaceMethod(
-                    MethodDescriptor.ofMethod(CriteriaBuilder.class, "notEqual", Predicate.class, Expression.class, Object.class),
-                    cb, left, right);
-            case GT -> method.invokeInterfaceMethod(
-                    MethodDescriptor.ofMethod(CriteriaBuilder.class, "greaterThan", Predicate.class, Expression.class, Comparable.class),
-                    cb, left, right);
-            case GE -> method.invokeInterfaceMethod(
-                    MethodDescriptor.ofMethod(CriteriaBuilder.class, "greaterThanOrEqualTo", Predicate.class, Expression.class, Comparable.class),
-                    cb, left, right);
-            case LT -> method.invokeInterfaceMethod(
-                    MethodDescriptor.ofMethod(CriteriaBuilder.class, "lessThan", Predicate.class, Expression.class, Comparable.class),
-                    cb, left, right);
-            case LE -> method.invokeInterfaceMethod(
-                    MethodDescriptor.ofMethod(CriteriaBuilder.class, "lessThanOrEqualTo", Predicate.class, Expression.class, Comparable.class),
-                    cb, left, right);
+            case EQ -> method.invokeInterfaceMethod(CB_EQUAL, cb, left, right);
+            case NE -> method.invokeInterfaceMethod(CB_NOT_EQUAL, cb, left, right);
+            case GT -> method.invokeInterfaceMethod(CB_GREATER_THAN, cb, left, right);
+            case GE -> method.invokeInterfaceMethod(CB_GREATER_THAN_OR_EQUAL, cb, left, right);
+            case LT -> method.invokeInterfaceMethod(CB_LESS_THAN, cb, left, right);
+            case LE -> method.invokeInterfaceMethod(CB_LESS_THAN_OR_EQUAL, cb, left, right);
             default -> null;
         };
     }
@@ -479,22 +423,15 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
             return null;
         }
 
-        // Java 21 pattern matching switch for type dispatch
         return switch (expr) {
             case FieldAccess field ->
-                // Default to subquery root for simple field access
                 generateFieldPath(method, field, subRoot);
-
             case PathExpression pathExpr ->
                 generateFieldPath(method, pathExpr, subRoot);
-
             case LambdaExpression.CorrelatedVariable correlated ->
-                // Correlated reference - use the outer root
                 generateFieldPath(method, correlated.fieldExpression(), outerRoot);
-
             case LambdaExpression.Constant constant ->
                 generateConstant(method, constant);
-
             case LambdaExpression.CapturedVariable capturedVar -> {
                 ResultHandle index = method.load(capturedVar.index());
                 ResultHandle value = method.readArrayValue(capturedValues, index);
@@ -548,8 +485,6 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
         method.writeArrayValue(predicateArray, 0, predicate);
 
         // Call subquery.where(predicateArray)
-        method.invokeInterfaceMethod(
-                MethodDescriptor.ofMethod(Subquery.class, "where", Subquery.class, Predicate[].class),
-                subquery, predicateArray);
+        method.invokeInterfaceMethod(SUBQUERY_WHERE, subquery, predicateArray);
     }
 }

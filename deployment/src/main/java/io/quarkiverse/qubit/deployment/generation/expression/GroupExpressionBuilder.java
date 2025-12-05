@@ -1,6 +1,9 @@
 package io.quarkiverse.qubit.deployment.generation.expression;
 
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isLogicalOperation;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_CONSTRUCT;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_TUPLE;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CLASS_FOR_NAME;
 import static io.quarkiverse.qubit.runtime.QubitConstants.CB_NOT;
 
 import io.quarkus.gizmo.MethodCreator;
@@ -13,7 +16,6 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupKeyReference;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathExpression;
 import io.quarkiverse.qubit.deployment.common.PatternDetector;
 import io.quarkiverse.qubit.deployment.util.TypeConverter;
-import jakarta.persistence.criteria.CompoundSelection;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
@@ -353,14 +355,8 @@ public class GroupExpressionBuilder implements ExpressionBuilder {
         ResultHandle selectionsArray = generateGroupArraySelections(
                 method, arrayCreation, cb, root, groupKeyExpr, capturedValues, helper);
 
-        // Use cb.tuple() to create a compound selection
-        MethodDescriptor tupleMethod = MethodDescriptor.ofMethod(
-                CriteriaBuilder.class,
-                "tuple",
-                CompoundSelection.class,
-                Selection[].class);
-
-        return method.invokeInterfaceMethod(tupleMethod, cb, selectionsArray);
+        // Use cb.tuple() to create a compound selection (PERF-001: cached descriptor)
+        return method.invokeInterfaceMethod(CB_TUPLE, cb, selectionsArray);
     }
 
     /**
@@ -379,11 +375,9 @@ public class GroupExpressionBuilder implements ExpressionBuilder {
         String className = constructorCall.className();
         String fqClassName = className.replace('/', '.');
 
-        // Load the class at runtime
+        // Load the class at runtime (PERF-001: cached descriptor)
         ResultHandle classNameHandle = method.load(fqClassName);
-        ResultHandle resultClassHandle = method.invokeStaticMethod(
-                MethodDescriptor.ofMethod(Class.class, "forName", Class.class, String.class),
-                classNameHandle);
+        ResultHandle resultClassHandle = method.invokeStaticMethod(CLASS_FOR_NAME, classNameHandle);
 
         // Generate JPA expressions for each constructor argument
         int argCount = constructorCall.arguments().size();
@@ -395,15 +389,8 @@ public class GroupExpressionBuilder implements ExpressionBuilder {
             method.writeArrayValue(selectionsArray, i, argExpression);
         }
 
-        // Call cb.construct(resultClass, selections...)
-        MethodDescriptor constructMethod = MethodDescriptor.ofMethod(
-                CriteriaBuilder.class,
-                "construct",
-                CompoundSelection.class,
-                Class.class,
-                Selection[].class);
-
-        return method.invokeInterfaceMethod(constructMethod, cb, resultClassHandle, selectionsArray);
+        // Call cb.construct(resultClass, selections...) (PERF-001: cached descriptor)
+        return method.invokeInterfaceMethod(CB_CONSTRUCT, cb, resultClassHandle, selectionsArray);
     }
 
     /**

@@ -1,13 +1,15 @@
 package io.quarkiverse.qubit.deployment.generation.expression;
 
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_DIFF;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_MOD;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_PROD;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_QUOT;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_SUM_BINARY;
+
 import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.MethodDescriptor;
 import io.quarkus.gizmo.ResultHandle;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.Expression;
-
-import static io.quarkiverse.qubit.runtime.QubitConstants.*;
 
 /**
  * Builds JPA Criteria API expressions for arithmetic operations.
@@ -40,22 +42,16 @@ public class ArithmeticExpressionBuilder implements ExpressionBuilder {
             ResultHandle left,
             ResultHandle right) {
 
+        // PERF-001: Use cached MethodDescriptor constants
         MethodDescriptor arithmeticMethod = switch (operator) {
-            case ADD -> methodDescriptor(CB_SUM);
-            case SUB -> methodDescriptor(CB_DIFF);
-            case MUL -> methodDescriptor(CB_PROD);
-            case DIV -> methodDescriptor(CB_QUOT);
-            case MOD -> methodDescriptor(CB_MOD);
+            case ADD -> CB_SUM_BINARY;
+            case SUB -> CB_DIFF;
+            case MUL -> CB_PROD;
+            case DIV -> CB_QUOT;
+            case MOD -> CB_MOD;
             default -> throw new IllegalArgumentException("Not an arithmetic operator: " + operator);
         };
 
         return method.invokeInterfaceMethod(arithmeticMethod, cb, left, right);
-    }
-
-    /**
-     * Creates MethodDescriptor for a method.
-     */
-    private static MethodDescriptor methodDescriptor(String methodName) {
-        return MethodDescriptor.ofMethod(CriteriaBuilder.class, methodName, Expression.class, Expression.class, Expression.class);
     }
 }

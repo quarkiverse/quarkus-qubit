@@ -14,6 +14,8 @@ import static io.quarkiverse.qubit.runtime.QubitConstants.PREFIX_GET;
 import static io.quarkiverse.qubit.runtime.QubitConstants.PREFIX_IS;
 import static io.quarkiverse.qubit.runtime.QubitConstants.STRING_PATTERN_METHOD_NAMES;
 import static io.quarkiverse.qubit.runtime.QubitConstants.TEMPORAL_COMPARISON_METHOD_NAMES;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_CONSTRUCT;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CLASS_FOR_NAME;
 
 import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.MethodDescriptor;
@@ -25,7 +27,6 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathExpression;
 import io.quarkiverse.qubit.deployment.common.PatternDetector;
 import io.quarkiverse.qubit.deployment.util.TypeConverter;
-import jakarta.persistence.criteria.CompoundSelection;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
@@ -511,11 +512,9 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
         String className = constructorCall.className();
         String fqClassName = className.replace('/', '.');
 
-        // Load the class at runtime using Class.forName()
+        // Load the class at runtime (PERF-001: cached descriptor)
         ResultHandle classNameHandle = method.load(fqClassName);
-        ResultHandle resultClassHandle = method.invokeStaticMethod(
-                MethodDescriptor.ofMethod(Class.class, "forName", Class.class, String.class),
-                classNameHandle);
+        ResultHandle resultClassHandle = method.invokeStaticMethod(CLASS_FOR_NAME, classNameHandle);
 
         // Generate JPA expressions for each constructor argument using bi-entity resolution
         int argCount = constructorCall.arguments().size();
@@ -528,15 +527,8 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
             method.writeArrayValue(selectionsArray, i, argExpression);
         }
 
-        // Call cb.construct(resultClass, selections...)
-        MethodDescriptor constructMethod = MethodDescriptor.ofMethod(
-                CriteriaBuilder.class,
-                "construct",
-                CompoundSelection.class,
-                Class.class,
-                Selection[].class);
-
-        return method.invokeInterfaceMethod(constructMethod, cb, resultClassHandle, selectionsArray);
+        // Call cb.construct(resultClass, selections...) (PERF-001: cached descriptor)
+        return method.invokeInterfaceMethod(CB_CONSTRUCT, cb, resultClassHandle, selectionsArray);
     }
 
     // CS-014: isBooleanType() and extractFieldName() moved to ExpressionTypeInferrer

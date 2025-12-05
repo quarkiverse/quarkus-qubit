@@ -9,19 +9,6 @@ import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_OF;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SUBSTRING;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SUBTRACT;
 import static io.quarkiverse.qubit.runtime.QubitConstants.STRING_PATTERN_METHOD_NAMES;
-import static io.quarkiverse.qubit.runtime.QubitConstants.CB_AND;
-import static io.quarkiverse.qubit.runtime.QubitConstants.CB_EQUAL;
-import static io.quarkiverse.qubit.runtime.QubitConstants.CB_IS_FALSE;
-import static io.quarkiverse.qubit.runtime.QubitConstants.CB_IS_MEMBER;
-import static io.quarkiverse.qubit.runtime.QubitConstants.CB_IS_NOT_MEMBER;
-import static io.quarkiverse.qubit.runtime.QubitConstants.CB_IS_NOT_NULL;
-import static io.quarkiverse.qubit.runtime.QubitConstants.CB_IS_NULL;
-import static io.quarkiverse.qubit.runtime.QubitConstants.CB_IS_TRUE;
-import static io.quarkiverse.qubit.runtime.QubitConstants.CB_LITERAL;
-import static io.quarkiverse.qubit.runtime.QubitConstants.CB_NOT;
-import static io.quarkiverse.qubit.runtime.QubitConstants.CB_NOT_EQUAL;
-import static io.quarkiverse.qubit.runtime.QubitConstants.CB_OR;
-import static io.quarkiverse.qubit.runtime.QubitConstants.PATH_GET;
 import static io.quarkiverse.qubit.runtime.QubitConstants.PREFIX_GET;
 import static io.quarkiverse.qubit.runtime.QubitConstants.PREFIX_IS;
 import static io.quarkiverse.qubit.runtime.QubitConstants.TEMPORAL_COMPARISON_METHOD_NAMES;
@@ -32,13 +19,29 @@ import static io.quarkiverse.qubit.deployment.common.PatternDetector.isBooleanFi
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isCompareToEqualityPattern;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isLogicalOperation;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isNullCheckPattern;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_AND;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_CONCAT_EXPR_EXPR;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_CONSTRUCT;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_EQUAL;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_IS_FALSE;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_IS_MEMBER;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_IS_NOT_MEMBER;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_IS_NOT_NULL;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_IS_NULL;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_IS_TRUE;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_LITERAL;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NOT;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NOT_EQUAL;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_OR;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CLASS_FOR_NAME;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.EXPRESSION_IN_COLLECTION;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.PATH_GET;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -58,10 +61,6 @@ import io.quarkiverse.qubit.deployment.common.PatternDetector;
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionBuilderRegistry;
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionGeneratorHelper;
 import io.quarkiverse.qubit.deployment.util.TypeConverter;
-import jakarta.persistence.criteria.CompoundSelection;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.Expression;
-import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Selection;
 
@@ -145,7 +144,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             case LambdaExpression.FieldAccess field -> {
                 ResultHandle path = generateFieldAccess(method, field, root);
                 if (isBooleanType(field.fieldType())) {
-                    yield method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
+                    yield method.invokeInterfaceMethod(CB_IS_TRUE, cb, path);
                 }
                 yield path;
             }
@@ -153,7 +152,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             case PathExpression pathExpr -> {
                 ResultHandle path = generatePathExpression(method, pathExpr, root);
                 if (isBooleanType(pathExpr.resultType())) {
-                    yield method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, path);
+                    yield method.invokeInterfaceMethod(CB_IS_TRUE, cb, path);
                 }
                 yield path;
             }
@@ -307,7 +306,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
         return switch (unOp.operator()) {
             case NOT -> method.invokeInterfaceMethod(
-                    methodDescriptor(CriteriaBuilder.class, CB_NOT, Predicate.class, Expression.class), cb, operand);
+                    CB_NOT, cb, operand);
         };
     }
 
@@ -511,9 +510,9 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         ResultHandle expression = generateExpression(method, nonNullExpr, cb, root, capturedValues);
 
         if (binOp.operator() == EQ) {
-            return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_IS_NULL, Predicate.class, Expression.class), cb, expression);
+            return method.invokeInterfaceMethod(CB_IS_NULL, cb, expression);
         } else {
-            return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_IS_NOT_NULL, Predicate.class, Expression.class), cb, expression);
+            return method.invokeInterfaceMethod(CB_IS_NOT_NULL, cb, expression);
         }
     }
 
@@ -533,9 +532,9 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         boolean useIsTrue = (isEqualOp && compareToTrue) || (!isEqualOp && !compareToTrue);
 
         if (useIsTrue) {
-            return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_IS_TRUE, Predicate.class, Expression.class), cb, field);
+            return method.invokeInterfaceMethod(CB_IS_TRUE, cb, field);
         } else {
-            return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_IS_FALSE, Predicate.class, Expression.class), cb, field);
+            return method.invokeInterfaceMethod(CB_IS_FALSE, cb, field);
         }
     }
 
@@ -551,9 +550,9 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         ResultHandle capturedExpr = generateExpressionAsJpaExpression(method, binOp.right(), cb, root, capturedValues);
 
         if (binOp.operator() == EQ) {
-            return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_EQUAL, Predicate.class, Expression.class, Object.class), cb, fieldExpr, capturedExpr);
+            return method.invokeInterfaceMethod(CB_EQUAL, cb, fieldExpr, capturedExpr);
         } else {
-            return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_NOT_EQUAL, Predicate.class, Expression.class, Object.class), cb, fieldExpr, capturedExpr);
+            return method.invokeInterfaceMethod(CB_NOT_EQUAL, cb, fieldExpr, capturedExpr);
         }
     }
 
@@ -577,9 +576,9 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle argument = generateExpression(method, methodCall.arguments().get(0), cb, root, capturedValues);
 
             if (isEqualityCheck) {
-                return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_EQUAL, Predicate.class, Expression.class, Object.class), cb, field, argument);
+                return method.invokeInterfaceMethod(CB_EQUAL, cb, field, argument);
             } else {
-                return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_NOT_EQUAL, Predicate.class, Expression.class, Object.class), cb, field, argument);
+                return method.invokeInterfaceMethod(CB_NOT_EQUAL, cb, field, argument);
             }
         }
         return null;
@@ -596,7 +595,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         ResultHandle operand = generatePredicate(method, unOp.operand(), cb, root, capturedValues);
 
         return switch (unOp.operator()) {
-            case NOT -> method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_NOT, Predicate.class, Expression.class), cb, operand);
+            case NOT -> method.invokeInterfaceMethod(CB_NOT, cb, operand);
         };
     }
 
@@ -608,7 +607,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle root) {
 
         ResultHandle fieldName = method.load(field.fieldName());
-        return method.invokeInterfaceMethod(methodDescriptor(Path.class, PATH_GET, Path.class, String.class), root, fieldName);
+        return method.invokeInterfaceMethod(PATH_GET, root, fieldName);
     }
 
     /**
@@ -645,7 +644,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         for (PathSegment segment : pathExpr.segments()) {
             ResultHandle fieldName = method.load(segment.fieldName());
             currentPath = method.invokeInterfaceMethod(
-                    methodDescriptor(Path.class, PATH_GET, Path.class, String.class),
+                    PATH_GET,
                     currentPath, fieldName);
         }
 
@@ -801,9 +800,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
         // Load the class at runtime using Class.forName()
         ResultHandle classNameHandle = method.load(fqClassName);
-        ResultHandle resultClassHandle = method.invokeStaticMethod(
-                MethodDescriptor.ofMethod(Class.class, "forName", Class.class, String.class),
-                classNameHandle);
+        ResultHandle resultClassHandle = method.invokeStaticMethod(CLASS_FOR_NAME, classNameHandle);
 
         // Generate JPA expressions for each constructor argument
         int argCount = constructorCall.arguments().size();
@@ -816,14 +813,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         }
 
         // Call cb.construct(resultClass, selections...)
-        MethodDescriptor constructMethod = MethodDescriptor.ofMethod(
-                CriteriaBuilder.class,
-                "construct",
-                CompoundSelection.class,
-                Class.class,
-                Selection[].class);
-
-        return method.invokeInterfaceMethod(constructMethod, cb, resultClassHandle, selectionsArray);
+        return method.invokeInterfaceMethod(CB_CONSTRUCT, cb, resultClassHandle, selectionsArray);
     }
 
     // =============================================================================================
@@ -867,18 +857,12 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
         // Call fieldExpr.in(collection) - Expression.in(Collection)
         // This creates a Predicate that checks if field value is in the collection
-        MethodDescriptor inMethod = MethodDescriptor.ofMethod(
-                Expression.class,
-                "in",
-                Predicate.class,
-                Collection.class);
-
-        ResultHandle inPredicate = method.invokeInterfaceMethod(inMethod, fieldExpr, collectionExpr);
+        ResultHandle inPredicate = method.invokeInterfaceMethod(EXPRESSION_IN_COLLECTION, fieldExpr, collectionExpr);
 
         // If negated (NOT IN), wrap with cb.not()
         if (inExpr.negated()) {
             return method.invokeInterfaceMethod(
-                    methodDescriptor(CriteriaBuilder.class, CB_NOT, Predicate.class, Expression.class),
+                    CB_NOT,
                     cb, inPredicate);
         }
 
@@ -921,18 +905,10 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         ResultHandle collectionFieldExpr = generateExpressionAsJpaExpression(
                 method, memberOfExpr.collectionField(), cb, root, capturedValues);
 
-        // Determine which method to call based on negation
-        String memberMethodName = memberOfExpr.negated() ? CB_IS_NOT_MEMBER : CB_IS_MEMBER;
-
         // Call cb.isMember(value, collection) or cb.isNotMember(value, collection)
-        MethodDescriptor memberMethod = MethodDescriptor.ofMethod(
-                CriteriaBuilder.class,
-                memberMethodName,
-                Predicate.class,
-                Object.class,
-                Expression.class);
-
-        return method.invokeInterfaceMethod(memberMethod, cb, valueExpr, collectionFieldExpr);
+        // Uses cached MethodDescriptor constants (PERF-001)
+        MethodDescriptor mdMember = memberOfExpr.negated() ? CB_IS_NOT_MEMBER : CB_IS_MEMBER;
+        return method.invokeInterfaceMethod(mdMember, cb, valueExpr, collectionFieldExpr);
     }
 
     /** Generates arithmetic operations. Delegates to ArithmeticExpressionBuilder. */
@@ -985,14 +961,8 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle left,
             ResultHandle right) {
 
-        // cb.concat(left, right)
-        MethodDescriptor concatMethod = MethodDescriptor.ofMethod(
-                CriteriaBuilder.class,
-                "concat",
-                Expression.class,
-                Expression.class, Expression.class);
-
-        return method.invokeInterfaceMethod(concatMethod, cb, left, right);
+        // cb.concat(left, right) - uses cached MethodDescriptor (PERF-001)
+        return method.invokeInterfaceMethod(CB_CONCAT_EXPR_EXPR, cb, left, right);
     }
 
     /** Generates comparison operations. Delegates to ComparisonExpressionBuilder. */
@@ -1020,11 +990,13 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         method.writeArrayValue(predicateArray, 0, left);
         method.writeArrayValue(predicateArray, 1, right);
 
-        return switch (operator) {
-            case AND -> method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_AND, Predicate.class, Predicate[].class), cb, predicateArray);
-            case OR -> method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_OR, Predicate.class, Predicate[].class), cb, predicateArray);
+        MethodDescriptor combineMethod = switch (operator) {
+            case AND -> CB_AND;
+            case OR -> CB_OR;
             default -> throw new IllegalArgumentException("Expected AND or OR operator, got: " + operator);
         };
+
+        return method.invokeInterfaceMethod(combineMethod, cb, predicateArray);
     }
 
     /** Generates temporal accessor functions. Returns null if not a temporal accessor. */
@@ -1164,7 +1136,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
     /** Wraps value as literal Expression. */
     @Override
     public ResultHandle wrapAsLiteral(MethodCreator method, ResultHandle cb, ResultHandle value) {
-        return method.invokeInterfaceMethod(methodDescriptor(CriteriaBuilder.class, CB_LITERAL, Expression.class, Object.class), cb, value);
+        return method.invokeInterfaceMethod(CB_LITERAL, cb, value);
     }
 
     // CS-014: isBooleanType() and extractFieldName() moved to ExpressionTypeInferrer
