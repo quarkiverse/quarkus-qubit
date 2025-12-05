@@ -86,9 +86,17 @@ public class LoadInstructionHandler implements InstructionHandler {
             // This is a captured variable from the enclosing scope
             int paramIndex = DescriptorParser.slotIndexToParameterIndex(
                     ctx.getMethod().desc, varInsn.var);
-            Class<?> varType = paramIndex >= 0
-                    ? DescriptorParser.getParameterType(ctx.getMethod().desc, paramIndex)
-                    : Object.class;
+
+            // BR-007: Validate that this slot corresponds to a valid parameter
+            // Negative paramIndex means the slot is not a method parameter (e.g., lambda local variable)
+            if (paramIndex < 0) {
+                throw new BytecodeAnalysisException(
+                        String.format("ALOAD slot %d does not correspond to a method parameter in descriptor '%s'. " +
+                                "Lambda local variables are not supported - use simple expressions without intermediate variables.",
+                                varInsn.var, ctx.getMethod().desc));
+            }
+
+            Class<?> varType = DescriptorParser.getParameterType(ctx.getMethod().desc, paramIndex);
             ctx.push(new LambdaExpression.CapturedVariable(paramIndex, varType));
         }
     }
@@ -106,8 +114,17 @@ public class LoadInstructionHandler implements InstructionHandler {
         int paramIndex = DescriptorParser.slotIndexToParameterIndex(
                 ctx.getMethod().desc, varInsn.var);
 
+        // BR-007: Validate that this slot corresponds to a valid parameter
+        // Negative paramIndex means the slot is not a method parameter (e.g., lambda local variable)
+        if (paramIndex < 0) {
+            throw new BytecodeAnalysisException(
+                    String.format("Primitive load at slot %d does not correspond to a method parameter in descriptor '%s'. " +
+                            "Lambda local variables are not supported - use simple expressions without intermediate variables.",
+                            varInsn.var, ctx.getMethod().desc));
+        }
+
         Class<?> actualType = primitiveType;
-        if (primitiveType == int.class && paramIndex >= 0) {
+        if (primitiveType == int.class) {
             actualType = DescriptorParser.getParameterType(ctx.getMethod().desc, paramIndex);
         }
 

@@ -1054,11 +1054,38 @@ public PathSegment {
   - **Consistent pattern**: Matches warning logging approach used elsewhere in the file
   - **Fail-visible**: Developers can identify missing case handlers during testing
 
-### BR-007: Missing Bounds Check in readArrayValue
-- **Files**: Various code generation files
+### BR-007: Missing Bounds Check in readArrayValue ✅ RESOLVED
+- **Files**: [LambdaExpression.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/ast/LambdaExpression.java), [LoadInstructionHandler.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/instruction/LoadInstructionHandler.java)
 - **Severity**: Medium
-- **Description**: Array access without explicit bounds checking.
-- **Suggested Fix**: Add validation before array access.
+- **Status**: ✅ **RESOLVED**
+- **Description**: Array access in generated code used `capturedVar.index()` without explicit bounds checking. The index is derived from `DescriptorParser.slotIndexToParameterIndex()` which returns -1 for non-parameter slots (e.g., lambda local variables). A `CapturedVariable(-1, ...)` would cause `ArrayIndexOutOfBoundsException` when accessing `capturedValues[-1]`.
+- **Root Cause Analysis**:
+  - Lambda method descriptors have structure: `(captured1, captured2, ..., entity)`
+  - Entity parameter is always LAST, captured variables occupy positions 0..N-1
+  - `slotIndexToParameterIndex()` returns -1 if slot doesn't correspond to a parameter
+  - Original code created `CapturedVariable(paramIndex, ...)` without validating `paramIndex >= 0`
+  - This could happen if a lambda contained local variables (not captured from enclosing scope)
+- **Fix Applied**:
+  1. **CapturedVariable validation** (LambdaExpression.java:287-294): Added index bounds check in compact constructor:
+     ```java
+     if (index < 0) {
+         throw new IllegalArgumentException(
+             "CapturedVariable index must be non-negative, got: " + index + ...);
+     }
+     ```
+  2. **handleALoad validation** (LoadInstructionHandler.java:90-97): Added early validation before CapturedVariable creation:
+     ```java
+     if (paramIndex < 0) {
+         throw new BytecodeAnalysisException(
+             "ALOAD slot does not correspond to a method parameter...");
+     }
+     ```
+  3. **handlePrimitiveLoad validation** (LoadInstructionHandler.java:117-124): Same pattern for primitive loads
+- **Benefits**:
+  - **Fail-fast**: Invalid indices caught at bytecode analysis time, not at generated code runtime
+  - **Clear error messages**: Descriptive exceptions explain the issue (lambda local variables not supported)
+  - **Defensive programming**: Bounds validated at AST construction (CapturedVariable) AND at creation site (LoadInstructionHandler)
+  - **Design clarification**: Documented that lambda local variables are not supported, only captured variables from enclosing scope
 
 ### BR-008: Potential Integer Overflow in Index Calculation
 - **File**: [CallSiteProcessor.java:554-576](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java#L554-L576)

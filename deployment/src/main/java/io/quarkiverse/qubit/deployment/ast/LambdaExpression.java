@@ -276,9 +276,22 @@ public sealed interface LambdaExpression {
 
     /**
      * Captured variable from enclosing scope.
+     * <p>
+     * The index corresponds to the parameter position in the lambda's method descriptor,
+     * where captured variables precede the entity parameter(s). Index must be non-negative.
+     *
+     * @param index zero-based parameter index (must be >= 0)
+     * @param type the captured variable's type
      */
     record CapturedVariable(int index, Class<?> type) implements LambdaExpression {
         public CapturedVariable {
+            // BR-007: Validate index bounds to prevent ArrayIndexOutOfBoundsException
+            // when accessing capturedValues array in generated code
+            if (index < 0) {
+                throw new IllegalArgumentException(
+                        "CapturedVariable index must be non-negative, got: " + index +
+                        ". This may indicate a lambda local variable was incorrectly identified as a captured variable.");
+            }
             Objects.requireNonNull(type, "Type cannot be null");
         }
     }
