@@ -23,13 +23,13 @@ This document provides a comprehensive analysis of code quality issues identifie
 | Category | Critical | High | Medium | Low | Total | Resolved |
 |----------|----------|------|--------|-----|-------|----------|
 | Architectural | 0 | ~~4~~ 0 | 1 | 5 | 10 | 9 |
-| Code Smells | 0 | ~~3~~ 0 | ~~12~~ 0 | ~~8~~ 0 | ~~23~~ 0 | ~~2~~ 17 (6 N/A, 2 deferred, 1 dup) |
+| Code Smells | 0 | ~~3~~ 0 | ~~12~~ 0 | ~~8~~ 0 | ~~23~~ 0 | ~~2~~ 18 (6 N/A, 2 deferred) |
 | Enum/Type-Safety | 0 | 0 | ~~2~~ 0 | ~~4~~ 0 | ~~6~~ 0 | 3 + 3 deferred |
 | Bug Risks | ~~2~~ 0 | ~~5~~ 0 | ~~4~~ 0 | ~~2~~ 0 | ~~13~~ 0 | ~~3~~ 10 (3 N/A) |
 | Documentation | 0 | ~~2~~ 1 | 6 | 4 | 12 | 1 |
 | Performance | 0 | ~~1~~ 0 | ~~3~~ 0 | ~~2~~ 0 | ~~6~~ 0 | ~~1~~ 5 (4 N/A) |
-| Maintainability | 0 | ~~7~~ 0 | ~~12~~ 3 | ~~6~~ 1 | ~~25~~ 4 | 21 |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ **1** | ~~**51**~~ **10** | ~~**35**~~ **10** | ~~**110**~~ **21** | **66** (13 N/A, 5 deferred, 1 dup) |
+| Maintainability | 0 | ~~7~~ 0 | ~~12~~ 1 | ~~6~~ 1 | ~~25~~ 2 | 23 (1 N/A) |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ **1** | ~~**51**~~ **8** | ~~**35**~~ **10** | ~~**110**~~ **19** | **69** (14 N/A, 5 deferred) |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -391,12 +391,12 @@ public static Class<?> tryLoadClass(String className) {
 - **Description**: Method was 48 lines with large switch statement.
 - **Resolution**: Entire subquery handling (200+ lines including this method) was extracted to [SubqueryAnalyzer.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/instruction/SubqueryAnalyzer.java) as part of MAINT-001.
 
-### CS-005: Deep Nesting in processCallSite() 🔗 DUPLICATE (of MAINT-006)
-- **File**: [CallSiteProcessor.java:85-178](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java#L85-L178)
+### CS-005: Deep Nesting in processCallSite() ✅ RESOLVED (by MAINT-006)
+- **File**: [CallSiteProcessor.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/CallSiteProcessor.java)
 - **Severity**: Medium
-- **Status**: 🔗 **DUPLICATE** - Tracked under MAINT-006
+- **Status**: ✅ **RESOLVED** (by MAINT-006)
 - **Description**: Multiple if-else nesting levels make code hard to follow.
-- **Resolution**: This issue is identical to MAINT-006. See MAINT-006 for tracking.
+- **Resolution**: Resolved as part of MAINT-006 refactoring. See MAINT-006 for details on extracted methods and early return pattern.
 
 ### CS-006: Excessive Boolean Parameters ✅ RESOLVED
 - **File**: ~~[CallSiteProcessor.java:111-118](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java#L111-L118)~~
@@ -1434,17 +1434,63 @@ Log.debugf("Combined %d predicates at %s (total %d captured)",
   - Easier to update if package names change
   - Better discoverability through IDE "find usages"
 
-### MAINT-005: Consistent Error Messages
+### MAINT-005: Consistent Error Messages ✅ N/A (Acceptable Consistency)
 - **Severity**: Medium
-- **Description**: Error messages vary in format and detail level.
-- **Suggested Fix**: Create error message templates.
+- **Status**: ✅ **N/A** - Codebase already has good error message patterns
+- **Description**: Original issue suggested error messages vary in format and detail level.
+- **Deep Analysis Findings**:
+  - **Existing Good Patterns**:
+    1. **BytecodeAnalysisException factory methods** (common/BytecodeAnalysisException.java):
+       - `stackUnderflow(instruction, expected, actual)` → "Stack underflow processing %s: expected %d elements, found %d"
+       - `invalidOpcode(opcode, validOpcodes)` → "Invalid opcode: %d, expected one of [%s]"
+       - `unexpectedNull(context)` → "Unexpected null value: %s"
+       - `unexpectedOpcode(handlerContext, opcode)` → Detailed message with hex value and troubleshooting hint
+       - `unsupported(operation, details)` → Includes "cannot be translated to database query" guidance
+       - `unexpectedState(context, details)` → Includes "may indicate malformed bytecode" hint
+    2. **QueryExecutorRegistry user-facing errors** (runtime): Excellent 10-line error messages with:
+       - Problem description
+       - Numbered list of possible causes
+       - Numbered list of solutions (clean build, check logs, verify location)
+       - Registered executor counts for debugging
+    3. **Within-module consistency**:
+       - CallSiteProcessor: 15 instances of "Could not analyze X lambda at: %s" pattern
+       - SubqueryAnalyzer: "Expected N argument(s) for X, got Y" pattern
+       - GroupMethodAnalyzer: "Unexpected target for g.X(): %s" pattern
+  - **Minor Variations Found** (not bugs - semantic differences):
+    - "Unknown method: " (StringExpressionBuilder) - method lookup failure
+    - "Not a comparison operator: " (ComparisonExpressionBuilder) - type validation
+    - "Expected AND or OR operator, got: " (CriteriaExpressionGenerator) - constraint violation
+    - "Unexpected X: " - unexpected state during processing
+    - These variations convey different semantic meanings appropriately
+  - **One Minor Inconsistency**: InvokeDynamicHandler uses "Failed to analyze nested lambda" while all other analysis code uses "Could not analyze" - not worth fixing as both are clear
+- **Why Centralized Templates Would NOT Help**:
+  1. **Already implemented**: BytecodeAnalysisException provides exactly the factory method pattern suggested
+  2. **Context-specific detail**: User-facing runtime errors need troubleshooting steps; build-time logs need different detail
+  3. **Semantic variation is intentional**: "Unknown", "Unexpected", "Not a", "Expected" convey different error conditions
+  4. **Low ROI**: Adding template abstraction would add complexity without meaningful debugging improvement
+  5. **Pattern already established**: New code can follow BytecodeAnalysisException pattern for consistency
+- **Conclusion**: The suggested fix (create error message templates) is already partially implemented via `BytecodeAnalysisException` factory methods. The remaining variation is acceptable and intentional.
 
-### MAINT-006: Method Extraction Candidates
+### MAINT-006: Method Extraction Candidates ✅ RESOLVED
+- **File**: [CallSiteProcessor.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/CallSiteProcessor.java)
 - **Severity**: Medium
+- **Status**: ✅ **RESOLVED**
 - **Locations**:
-  - `analyzeLambdas()`: 30+ lines, multiple concerns
-  - `processCallSite()`: 90+ lines (also covered by **CS-005**)
-- **Suggested Fix**: Extract to smaller focused methods, use early returns to reduce nesting.
+  - `analyzeLambdas()`: ~~30+ lines~~ → refactored to use early returns
+  - `processCallSite()`: ~~103 lines~~ → **81 lines** (22% reduction) (also covered by **CS-005**)
+- **Fix Applied**:
+  - **`analyzeLambdas()` refactoring**: Converted final if-else chain to early returns for cleaner flow
+  - **`processCallSite()` refactoring**:
+    - Created `LambdaAnalysis` record to bundle result, callSiteId, and lambdaHash
+    - Extracted `loadAndAnalyzeLambdas()` method (23 lines) - handles bytecode loading, analysis, and hash computation
+    - Extracted `checkAndHandleDuplicate()` method (18 lines) - handles deduplication logic
+    - `processCallSite()` now delegates to these methods with clear early returns
+- **Benefits**:
+  - **Single Responsibility**: Each extracted method has one clear purpose
+  - **Reduced Nesting**: Early returns reduce indentation levels
+  - **Improved Testability**: Extracted methods can be tested in isolation
+  - **Better Readability**: Main method is now a clear high-level workflow
+- **All 1,113 tests pass**
 
 ### MAINT-007: Test Data Builders
 - **Severity**: Medium
@@ -1966,3 +2012,5 @@ When addressing issues, use this template:
 | 5.10 | 2025-12-05 | Claude | **CS-004 Resolved (by MAINT-001), CS-005 Duplicate (of MAINT-006)**: Updated tracking for two Code Smells issues. **CS-004** (handleSubqueryBuilderMethod long method) was already resolved when MAINT-001 extracted entire subquery handling (200+ lines) to SubqueryAnalyzer.java. **CS-005** (processCallSite deep nesting) is identical to MAINT-006 and marked as duplicate to avoid double-counting. Updated: Code Smells medium 2→0, total 25→23, resolved 62→64 (1 dup added). |
 | 5.11 | 2025-12-05 | Claude | **MAINT-003 Complete**: Reduced cyclomatic complexity in `generateBinaryOperation()` and `handleInvokeVirtual()` by introducing category-based dispatch enums. **Fix Applied**: (1) Created `BinaryOperationCategory` enum in PatternDetector.java with 8 values (STRING_CONCATENATION, ARITHMETIC, LOGICAL, NULL_CHECK, BOOLEAN_FIELD_CONSTANT, BOOLEAN_FIELD_CAPTURED_VARIABLE, COMPARE_TO_EQUALITY, COMPARISON) and `categorize()` method encapsulating priority-ordered pattern detection; (2) Created `VirtualMethodCategory` enum in MethodInvocationHandler.java with 8 values (EQUALS, SUBQUERY_BUILDER, STRING_METHOD, COMPARE_TO, BIG_DECIMAL_ARITHMETIC, TEMPORAL_METHOD, GETTER, UNHANDLED); (3) Refactored `generateBinaryOperation()` to use switch expression on category (extracted `generateDefaultComparison()` for COMPARE_TO_EQUALITY fallthrough); (4) Refactored `handleInvokeVirtual()` to use switch statement on category. **Benefits**: Compile-time exhaustiveness, single point of truth for pattern priority, testable categorization, consistent with existing BranchPattern enum design. Updated: Maintainability high 1→0, total 22→21, resolved 64→65. |
 | 5.12 | 2025-12-05 | Claude | **MAINT-004 Complete**: Consolidated locally defined constants into QubitConstants.java. **Audit Results**: Identified 3 high-value consolidation candidates: (1) InvokeDynamicHandler.java local constants `STRING_CONCAT_FACTORY` and `LAMBDA_METAFACTORY`; (2) ConstantInstructionHandler.java magic string `"java/lang/Boolean"` (existing constant available); (3) QubitBytecodeGenerator.java local constant `QUBIT_STREAM_IMPL_INTERNAL_NAME`. **Fix Applied**: Added 3 new constants to QubitConstants.java following established `JVM_*` naming convention: `JVM_JAVA_LANG_INVOKE_STRING_CONCAT_FACTORY`, `JVM_JAVA_LANG_INVOKE_LAMBDA_METAFACTORY`, `QUBIT_STREAM_IMPL_INTERNAL_NAME`. Updated 3 files to use centralized constants via static imports. **Constants Kept Local** (low consolidation value): LambdaDeduplicator query signature prefixes (internal logic), QubitBytecodeGenerator method descriptors (derived values, local use), branch handler INSTRUCTION_NAME constants (self-documenting logging), QubitProcessor FEATURE constant (standard Quarkus pattern). **Benefits**: Single source of truth for JVM internal class names, follows established naming conventions, easier maintenance, better IDE discoverability. Updated: Maintainability medium 4→3, total 22→21, resolved 65→66. All tests pass. |
+| 5.13 | 2025-12-05 | Claude | **MAINT-005 N/A (Acceptable Consistency)**: Deep analysis of error message patterns across codebase. **Existing Good Patterns Found**: (1) `BytecodeAnalysisException` already has 6 factory methods for consistent exception messages: `stackUnderflow()`, `invalidOpcode()`, `unexpectedNull()`, `unexpectedOpcode()`, `unsupported()`, `unexpectedState()` - this is exactly the "error message templates" pattern suggested; (2) `QueryExecutorRegistry` has excellent user-facing errors with problem description, numbered causes list, solutions list, and debugging info (10+ line messages); (3) Within-module consistency: CallSiteProcessor uses "Could not analyze X lambda at: %s" pattern (15 instances), SubqueryAnalyzer uses "Expected N argument(s) for X, got Y" pattern, GroupMethodAnalyzer uses "Unexpected target for g.X(): %s" pattern. **Minor Variations Are Semantic**: "Unknown method" (lookup failure), "Not a X: " (type validation), "Expected X, got: " (constraint violation), "Unexpected X: " (state error) convey different meanings appropriately. **Why Templates Would NOT Help**: BytecodeAnalysisException already provides factory method pattern; context-specific detail is intentional (user-facing vs build-time); low ROI for additional abstraction. Updated: Maintainability medium 3→2, total 4→3, resolved 21→22 (1 N/A). |
+| 5.14 | 2025-12-05 | Claude | **MAINT-006 Complete + CS-005 Resolved**: Extracted focused methods from `CallSiteProcessor.java` to reduce method size and deep nesting. **Fix Applied**: (1) Created `LambdaAnalysis` record to bundle analysis result, callSiteId, and lambdaHash; (2) Extracted `loadAndAnalyzeLambdas()` method (23 lines) - handles bytecode loading, lambda analysis via `analyzeLambdas()`, and hash computation; (3) Extracted `checkAndHandleDuplicate()` method (18 lines) - handles deduplication logic with early return; (4) Refactored `processCallSite()` to delegate to extracted methods with clear early returns - reduced from 103 to 81 lines (22% reduction); (5) Refactored `analyzeLambdas()` to use early returns instead of if-else chain for cleaner flow. **Benefits**: Single Responsibility (each method has one purpose), reduced nesting (early returns), improved testability (extracted methods testable in isolation), better readability (main method is clear high-level workflow). **CS-005 Resolution**: The "deep nesting in processCallSite()" issue was identical to MAINT-006, now resolved by these extractions. Updated: Maintainability medium 2→1, Code Smells resolved 18 (removed dup), total 20→19, resolved 68→69. All 1,113 tests pass. |

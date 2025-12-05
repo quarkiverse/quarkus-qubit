@@ -48,6 +48,7 @@ public class CallSiteProcessor {
      * <p>
      * Phase 2.2: Supports combined where() + select() queries with both predicate and projection.
      * Phase 2.5: Supports multiple where() predicates combined with AND.
+     * MAINT-006: Refactored to extract helper methods for improved readability.
      */
     public void processCallSite(
             InvokeDynamicScanner.LambdaCallSite callSite,
@@ -57,45 +58,29 @@ public class CallSiteProcessor {
             BuildProducer<GeneratedClassBuildItem> generatedClass,
             BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations) {
         try {
-            byte[] classBytes = BytecodeLoader.loadClassBytecode(callSite.ownerClassName(), applicationArchives);
-            if (classBytes == null) {
-                Log.warnf("Could not load bytecode for class: %s", callSite.ownerClassName());
+            // MAINT-006: Extract bytecode loading and lambda analysis
+            LambdaAnalysis analysis = loadAndAnalyzeLambdas(callSite, applicationArchives);
+            if (analysis == null) {
                 return;
             }
 
-            String callSiteId = callSite.getCallSiteId();
-            LambdaAnalysisResult result = analyzeLambdas(classBytes, callSite, callSiteId);
-            if (result == null) {
-                return;
-            }
-
-            if (result.totalCapturedVarCount() > 0) {
-                Log.debugf("Lambda(s) at %s contain %d captured variable(s)",
-                          callSiteId, result.totalCapturedVarCount());
-            }
-
-            String lambdaHash = computeHash(callSite, result);
-            boolean isGroupQuery = result instanceof LambdaAnalysisResult.GroupQueryResult;
-
-            // CS-006: Use QueryCharacteristics parameter object instead of 6 boolean parameters
-            QueryCharacteristics characteristics = QueryCharacteristics.fromCallSite(callSite, isGroupQuery);
-            if (deduplicator.handleDuplicateLambda(callSiteId, lambdaHash,
-                    characteristics, result.totalCapturedVarCount(), deduplicatedCount, queryTransformations)) {
+            // MAINT-006: Extract deduplication check
+            if (checkAndHandleDuplicate(analysis, callSite, deduplicatedCount, queryTransformations)) {
                 return;
             }
 
             // ARCH-002: Pattern matching switch with sealed interface (Java 21)
             // Compiler guarantees exhaustiveness - no default case needed
             // BR-002: Pass lambdaHash for deterministic class naming
-            String executorClassName = switch (result) {
+            String executorClassName = switch (analysis.result()) {
                 case LambdaAnalysisResult.GroupQueryResult group -> generateAndRegisterGroupExecutor(
                         group.predicateExpression(),
                         group.groupByKeyExpression(),
                         group.havingExpression(),
                         group.groupSelectExpression(),
                         group.groupSortExpressions(),
-                        lambdaHash,
-                        callSiteId,
+                        analysis.lambdaHash(),
+                        analysis.callSiteId(),
                         group.totalCapturedVarCount(),
                         callSite.isCountQuery(),
                         generatedClass,
@@ -107,8 +92,8 @@ public class CallSiteProcessor {
                         join.biEntityProjectionExpression(),
                         join.sortExpressions(),
                         join.joinType(),
-                        lambdaHash,
-                        callSiteId,
+                        analysis.lambdaHash(),
+                        analysis.callSiteId(),
                         join.totalCapturedVarCount(),
                         callSite.isCountQuery(),
                         callSite.isSelectJoinedQuery(),
@@ -124,8 +109,8 @@ public class CallSiteProcessor {
                         agg.aggregationType(),
                         callSite.isCountQuery(),
                         true,  // isAggregationQuery
-                        lambdaHash,
-                        callSiteId,
+                        analysis.lambdaHash(),
+                        analysis.callSiteId(),
                         generatedClass,
                         queryTransformations);
 
@@ -137,17 +122,17 @@ public class CallSiteProcessor {
                         null,  // No aggregation type
                         callSite.isCountQuery(),
                         false,  // Not an aggregation query
-                        lambdaHash,
-                        callSiteId,
+                        analysis.lambdaHash(),
+                        analysis.callSiteId(),
                         generatedClass,
                         queryTransformations);
             };
 
-            deduplicator.registerExecutor(lambdaHash, executorClassName);
+            deduplicator.registerExecutor(analysis.lambdaHash(), executorClassName);
             generatedCount.incrementAndGet();
 
             Log.debugf("Generated executor: %s for call site %s (hash: %s)",
-                    executorClassName, callSiteId, lambdaHash.substring(0, 8));
+                    executorClassName, analysis.callSiteId(), analysis.lambdaHash().substring(0, 8));
 
         } catch (Exception e) {
             Log.errorf(e, "Failed to process call site: %s", callSite);
@@ -180,16 +165,81 @@ public class CallSiteProcessor {
             return analyzeGroupQuery(classBytes, callSite, callSiteId);
         }
 
+        // MAINT-006: Use early returns to reduce nesting instead of if-else chain
         var predicateLambdas = callSite.predicateLambdas();
         boolean hasMultiplePredicates = predicateLambdas != null && predicateLambdas.size() > 1;
 
         if (hasMultiplePredicates) {
             return analyzeMultiplePredicates(classBytes, callSite, callSiteId);
-        } else if (callSite.isCombinedQuery()) {
-            return analyzeCombinedQuery(classBytes, callSite, callSiteId);
-        } else {
-            return analyzeSingleLambda(classBytes, callSite, callSiteId, callSite.isProjectionQuery());
         }
+
+        if (callSite.isCombinedQuery()) {
+            return analyzeCombinedQuery(classBytes, callSite, callSiteId);
+        }
+
+        return analyzeSingleLambda(classBytes, callSite, callSiteId, callSite.isProjectionQuery());
+    }
+
+    /**
+     * MAINT-006: Loads bytecode, analyzes lambdas, and computes hash for a call site.
+     * Extracts the first part of processCallSite to reduce method size and improve clarity.
+     *
+     * @param callSite The lambda call site to process
+     * @param applicationArchives Application archives for bytecode loading
+     * @return LambdaAnalysis containing result, callSiteId, and hash; null if loading/analysis fails
+     */
+    private LambdaAnalysis loadAndAnalyzeLambdas(
+            InvokeDynamicScanner.LambdaCallSite callSite,
+            ApplicationArchivesBuildItem applicationArchives) {
+
+        byte[] classBytes = BytecodeLoader.loadClassBytecode(callSite.ownerClassName(), applicationArchives);
+        if (classBytes == null) {
+            Log.warnf("Could not load bytecode for class: %s", callSite.ownerClassName());
+            return null;
+        }
+
+        String callSiteId = callSite.getCallSiteId();
+        LambdaAnalysisResult result = analyzeLambdas(classBytes, callSite, callSiteId);
+        if (result == null) {
+            return null;
+        }
+
+        if (result.totalCapturedVarCount() > 0) {
+            Log.debugf("Lambda(s) at %s contain %d captured variable(s)",
+                      callSiteId, result.totalCapturedVarCount());
+        }
+
+        String lambdaHash = computeHash(callSite, result);
+        return new LambdaAnalysis(result, callSiteId, lambdaHash);
+    }
+
+    /**
+     * MAINT-006: Checks if this lambda is a duplicate and handles registration if so.
+     * Extracts the deduplication check from processCallSite to reduce method size.
+     *
+     * @param analysis The lambda analysis containing result and hash
+     * @param callSite The original call site for query type detection
+     * @param deduplicatedCount Counter to increment on successful deduplication
+     * @param queryTransformations Build producer for query transformations
+     * @return true if this was a duplicate (already handled), false if new executor needed
+     */
+    private boolean checkAndHandleDuplicate(
+            LambdaAnalysis analysis,
+            InvokeDynamicScanner.LambdaCallSite callSite,
+            AtomicInteger deduplicatedCount,
+            BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations) {
+
+        boolean isGroupQuery = analysis.result() instanceof LambdaAnalysisResult.GroupQueryResult;
+
+        // CS-006: Use QueryCharacteristics parameter object instead of 6 boolean parameters
+        QueryCharacteristics characteristics = QueryCharacteristics.fromCallSite(callSite, isGroupQuery);
+        return deduplicator.handleDuplicateLambda(
+                analysis.callSiteId(),
+                analysis.lambdaHash(),
+                characteristics,
+                analysis.result().totalCapturedVarCount(),
+                deduplicatedCount,
+                queryTransformations);
     }
 
     /**
@@ -544,6 +594,20 @@ public class CallSiteProcessor {
      * @return pair of (combined expression, total captured variable count), or null if analysis fails
      */
     private record PredicateAnalysisResult(LambdaExpression expression, int capturedVarCount) {}
+
+    /**
+     * MAINT-006: Bundles lambda analysis results with computed hash for processing.
+     * This record groups the analysis result, call site ID, and lambda hash to reduce
+     * parameter passing between methods.
+     *
+     * @param result The analyzed lambda result (sealed interface with 4 specialized types)
+     * @param callSiteId Unique identifier for the call site
+     * @param lambdaHash MD5 hash of the lambda for deduplication and deterministic class naming
+     */
+    private record LambdaAnalysis(
+            LambdaAnalysisResult result,
+            String callSiteId,
+            String lambdaHash) {}
 
     private PredicateAnalysisResult analyzeAndCombinePredicates(
             byte[] classBytes,
