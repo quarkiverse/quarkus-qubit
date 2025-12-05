@@ -110,6 +110,134 @@ public final class PatternDetector {
         }
     }
 
+    // ========== Binary Operation Category Detection (MAINT-003) ==========
+
+    /**
+     * Enumeration of binary operation categories for expression generation.
+     * <p>
+     * Categories are mutually exclusive and checked in priority order during detection.
+     * This enum reduces cyclomatic complexity in
+     * {@link io.quarkiverse.qubit.deployment.generation.CriteriaExpressionGenerator#generateBinaryOperation}
+     * by consolidating the pattern detection logic into a single categorization method.
+     * <p>
+     * <b>Design Rationale (MAINT-003):</b>
+     * <ul>
+     *   <li>Enum provides exhaustive switch with compile-time safety</li>
+     *   <li>Single point of truth for pattern priority ordering</li>
+     *   <li>Categorization can be tested independently from handling</li>
+     *   <li>Follows established pattern from {@link BranchPattern}</li>
+     * </ul>
+     */
+    public enum BinaryOperationCategory {
+        /**
+         * String concatenation using ADD operator.
+         * Must be checked before arithmetic since both use ADD.
+         */
+        STRING_CONCATENATION,
+
+        /**
+         * Arithmetic operations (ADD, SUB, MUL, DIV, MOD).
+         */
+        ARITHMETIC,
+
+        /**
+         * Logical operations (AND, OR).
+         * Combines predicates rather than expressions.
+         */
+        LOGICAL,
+
+        /**
+         * Null check pattern (== null or != null).
+         * Generates IS NULL or IS NOT NULL predicates.
+         */
+        NULL_CHECK,
+
+        /**
+         * Boolean field compared to constant 0 or 1.
+         * Generates isTrue() or isFalse() predicates.
+         */
+        BOOLEAN_FIELD_CONSTANT,
+
+        /**
+         * Boolean field compared to captured boolean variable.
+         * Generates equal() or notEqual() predicates.
+         */
+        BOOLEAN_FIELD_CAPTURED_VARIABLE,
+
+        /**
+         * CompareTo method result compared to zero.
+         * Example: {@code a.compareTo(b) == 0} → {@code cb.equal(a, b)}
+         */
+        COMPARE_TO_EQUALITY,
+
+        /**
+         * Standard comparison operation (EQ, NE, LT, LE, GT, GE).
+         * This is the default/fallthrough category.
+         */
+        COMPARISON;
+
+        /**
+         * Categorizes a binary operation by checking patterns in priority order.
+         * <p>
+         * The order of checks matters:
+         * <ol>
+         *   <li>String concatenation must be checked before arithmetic (both use ADD)</li>
+         *   <li>Arithmetic before logical (different operand types)</li>
+         *   <li>Null check before boolean comparisons (more specific)</li>
+         *   <li>Boolean field patterns before compareTo (more specific)</li>
+         *   <li>CompareTo equality before general comparison (more specific)</li>
+         *   <li>General comparison as fallthrough</li>
+         * </ol>
+         *
+         * @param binOp the binary operation to categorize
+         * @param isStringConcatenation predicate to detect string concatenation
+         *        (passed as parameter because it requires instance method from generator)
+         * @return the detected category (never null)
+         */
+        public static BinaryOperationCategory categorize(
+                LambdaExpression.BinaryOp binOp,
+                java.util.function.Predicate<LambdaExpression.BinaryOp> isStringConcatenation) {
+
+            // Priority 1: String concatenation (must check before arithmetic, both use ADD)
+            if (isStringConcatenation.test(binOp)) {
+                return STRING_CONCATENATION;
+            }
+
+            // Priority 2: Arithmetic operations
+            if (PatternDetector.isArithmeticExpression(binOp)) {
+                return ARITHMETIC;
+            }
+
+            // Priority 3: Logical operations (AND, OR)
+            if (isLogicalOperation(binOp)) {
+                return LOGICAL;
+            }
+
+            // Priority 4: Null check pattern
+            if (isNullCheckPattern(binOp)) {
+                return NULL_CHECK;
+            }
+
+            // Priority 5: Boolean field compared to constant 0/1
+            if (isBooleanFieldConstantComparison(binOp)) {
+                return BOOLEAN_FIELD_CONSTANT;
+            }
+
+            // Priority 6: Boolean field compared to captured boolean variable
+            if (isBooleanFieldCapturedVariableComparison(binOp)) {
+                return BOOLEAN_FIELD_CAPTURED_VARIABLE;
+            }
+
+            // Priority 7: CompareTo equality pattern
+            if (isCompareToEqualityPattern(binOp)) {
+                return COMPARE_TO_EQUALITY;
+            }
+
+            // Default: Standard comparison operation
+            return COMPARISON;
+        }
+    }
+
     /**
      * Returns true if stack contains floating-point/long comparison pattern.
      * <p>

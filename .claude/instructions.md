@@ -67,6 +67,18 @@ Session Aggregate:
 - After applying design patterns
 - After Javadoc/documentation cleanup with LOC reduction
 
+**Remaining Issues Summary:**
+After updating the tracking document, include a brief summary of remaining non-deferred issues:
+```
+📋 Remaining Open Issues (20)
+- Architecture: 1 (ARCH-007)
+- Code Smells: 0
+- Documentation: 7 (DOC-002 through DOC-008)
+- Maintainability: 6 (MAINT-003 through MAINT-008)
+- Testing: 6 (TEST-001 through TEST-006)
+```
+This helps maintain visibility into the overall quality backlog.
+
 ### Debugging Practices
 - **Mark all debug logging with a `// DEBUG` comment** when inserting logging statements for debugging purposes:
   ```java
@@ -426,6 +438,13 @@ interface CriteriaExpressionBuilder {
    - Record metrics (LOC before/after, test results)
    - Document lessons learned
    - Note anti-patterns to avoid
+
+6. **Summary Dashboard Formatting (code-quality-tracking.md)**
+   - When updating the Summary Dashboard table, only show **original value → current value**
+   - Remove intermediate strikethrough values to keep the table clean
+   - Example: `~~42~~ ~~38~~ **37**` should be simplified to `~~42~~ **37**`
+   - If the value hasn't changed from original, show just the number (no strikethrough)
+   - This keeps the dashboard readable while still showing progress from initial state
 
 ### Duplication Elimination
 **Recognize duplication early and eliminate it with appropriate patterns.**

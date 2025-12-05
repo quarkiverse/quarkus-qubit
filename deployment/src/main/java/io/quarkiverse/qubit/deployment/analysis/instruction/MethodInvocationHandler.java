@@ -44,6 +44,125 @@ public class MethodInvocationHandler implements InstructionHandler {
 
     // Note: COLLECTION_INTERFACE_OWNERS moved to QubitConstants (CS-001)
 
+    // ========== Virtual Method Category Detection (MAINT-003) ==========
+
+    /**
+     * Enumeration of virtual method categories for bytecode analysis.
+     * <p>
+     * Categories are mutually exclusive and checked in priority order during detection.
+     * This enum reduces cyclomatic complexity in {@link #handleInvokeVirtual(AnalysisContext, MethodInsnNode)}
+     * by consolidating the pattern detection logic into a single categorization method.
+     * <p>
+     * <b>Design Rationale (MAINT-003):</b>
+     * <ul>
+     *   <li>Enum provides exhaustive switch with compile-time safety</li>
+     *   <li>Single point of truth for pattern priority ordering</li>
+     *   <li>Categorization can be tested independently from handling</li>
+     *   <li>Follows established pattern from {@code PatternDetector.BinaryOperationCategory}</li>
+     * </ul>
+     */
+    public enum VirtualMethodCategory {
+        /**
+         * Object.equals() method call.
+         * Converts to equality comparison expression.
+         */
+        EQUALS,
+
+        /**
+         * SubqueryBuilder method call (where, avg, sum, min, max, count, exists, in, etc.).
+         * Delegated to SubqueryAnalyzer.
+         */
+        SUBQUERY_BUILDER,
+
+        /**
+         * String method call (startsWith, endsWith, contains, length, etc.).
+         * Generates JPA string predicates/expressions.
+         */
+        STRING_METHOD,
+
+        /**
+         * Comparable.compareTo() method call.
+         * Returns int for comparison result.
+         */
+        COMPARE_TO,
+
+        /**
+         * BigDecimal arithmetic method call (add, subtract, multiply, divide).
+         * Generates BigDecimal arithmetic expressions.
+         */
+        BIG_DECIMAL_ARITHMETIC,
+
+        /**
+         * Temporal method call on LocalDate, LocalDateTime, LocalTime.
+         * Handles temporal accessor methods.
+         */
+        TEMPORAL_METHOD,
+
+        /**
+         * Getter method call (getXxx() or isXxx()).
+         * Generates field access expression.
+         */
+        GETTER,
+
+        /**
+         * Unrecognized virtual method call.
+         * No-op handling.
+         */
+        UNHANDLED;
+
+        /**
+         * Categorizes a virtual method invocation by checking patterns in priority order.
+         * <p>
+         * The order of checks matters and is preserved from the original if-else chain.
+         *
+         * @param methodInsn the method instruction to categorize
+         * @param handler the handler instance (provides access to subqueryAnalyzer and helper methods)
+         * @return the detected category (never null)
+         */
+        public static VirtualMethodCategory categorize(
+                MethodInsnNode methodInsn,
+                MethodInvocationHandler handler) {
+
+            // Priority 1: equals() method
+            if (handler.isEqualsMethodCall(methodInsn)) {
+                return EQUALS;
+            }
+
+            // Priority 2: SubqueryBuilder methods (delegated analysis)
+            if (handler.subqueryAnalyzer.isSubqueryBuilderMethodCall(methodInsn)) {
+                return SUBQUERY_BUILDER;
+            }
+
+            // Priority 3: String methods
+            if (methodInsn.owner.equals(JVM_JAVA_LANG_STRING)) {
+                return STRING_METHOD;
+            }
+
+            // Priority 4: compareTo() method
+            if (handler.isCompareToMethodCall(methodInsn)) {
+                return COMPARE_TO;
+            }
+
+            // Priority 5: BigDecimal arithmetic
+            if (handler.isBigDecimalArithmeticCall(methodInsn)) {
+                return BIG_DECIMAL_ARITHMETIC;
+            }
+
+            // Priority 6: Temporal methods (LocalDate, LocalDateTime, LocalTime)
+            if (methodInsn.owner.startsWith(JVM_PREFIX_JAVA_TIME_LOCAL)) {
+                return TEMPORAL_METHOD;
+            }
+
+            // Priority 7: Getter methods
+            if (handler.isGetterMethodCall(methodInsn)) {
+                return GETTER;
+            }
+
+            // Default: Unhandled
+            return UNHANDLED;
+        }
+    }
+
     @Override
     public boolean canHandle(AbstractInsnNode insn) {
         int opcode = insn.getOpcode();
@@ -67,41 +186,26 @@ public class MethodInvocationHandler implements InstructionHandler {
         return false;
     }
 
-    /** Handles INVOKEVIRTUAL: equals, String, compareTo, BigDecimal, temporal, SubqueryBuilder, getters. */
+    /**
+     * Handles INVOKEVIRTUAL: equals, String, compareTo, BigDecimal, temporal, SubqueryBuilder, getters.
+     * <p>
+     * MAINT-003: Refactored from if-else chain to switch on {@link VirtualMethodCategory}
+     * to reduce cyclomatic complexity. Pattern detection order is preserved in the enum's
+     * {@code categorize()} method.
+     */
     private void handleInvokeVirtual(AnalysisContext ctx, MethodInsnNode methodInsn) {
-        if (isEqualsMethodCall(methodInsn)) {
-            handleEqualsMethod(ctx);
-            return;
-        }
+        // MAINT-003: Use category-based dispatch instead of sequential if-else checks
+        VirtualMethodCategory category = VirtualMethodCategory.categorize(methodInsn, this);
 
-        // Iteration 8: Handle SubqueryBuilder.* method calls (delegated to SubqueryAnalyzer)
-        if (subqueryAnalyzer.isSubqueryBuilderMethodCall(methodInsn)) {
-            subqueryAnalyzer.handleSubqueryBuilderMethod(ctx, methodInsn);
-            return;
-        }
-
-        if (methodInsn.owner.equals(JVM_JAVA_LANG_STRING)) {
-            handleStringMethods(ctx, methodInsn);
-            return;
-        }
-
-        if (isCompareToMethodCall(methodInsn)) {
-            handleSingleArgumentMethodCall(ctx, METHOD_COMPARE_TO, int.class);
-            return;
-        }
-
-        if (isBigDecimalArithmeticCall(methodInsn)) {
-            handleBigDecimalMethods(ctx, methodInsn);
-            return;
-        }
-
-        if (methodInsn.owner.startsWith(JVM_PREFIX_JAVA_TIME_LOCAL)) {
-            handleTemporalMethods(ctx, methodInsn);
-            return;
-        }
-
-        if (isGetterMethodCall(methodInsn)) {
-            handleGetterMethod(ctx, methodInsn);
+        switch (category) {
+            case EQUALS -> handleEqualsMethod(ctx);
+            case SUBQUERY_BUILDER -> subqueryAnalyzer.handleSubqueryBuilderMethod(ctx, methodInsn);
+            case STRING_METHOD -> handleStringMethods(ctx, methodInsn);
+            case COMPARE_TO -> handleSingleArgumentMethodCall(ctx, METHOD_COMPARE_TO, int.class);
+            case BIG_DECIMAL_ARITHMETIC -> handleBigDecimalMethods(ctx, methodInsn);
+            case TEMPORAL_METHOD -> handleTemporalMethods(ctx, methodInsn);
+            case GETTER -> handleGetterMethod(ctx, methodInsn);
+            case UNHANDLED -> { /* no-op */ }
         }
     }
 

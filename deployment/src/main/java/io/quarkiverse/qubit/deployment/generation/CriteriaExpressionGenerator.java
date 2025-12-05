@@ -14,11 +14,8 @@ import static io.quarkiverse.qubit.runtime.QubitConstants.PREFIX_IS;
 import static io.quarkiverse.qubit.runtime.QubitConstants.TEMPORAL_COMPARISON_METHOD_NAMES;
 import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.extractFieldName;
 import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.isBooleanType;
-import static io.quarkiverse.qubit.deployment.common.PatternDetector.isBooleanFieldCapturedVariableComparison;
-import static io.quarkiverse.qubit.deployment.common.PatternDetector.isBooleanFieldConstantComparison;
-import static io.quarkiverse.qubit.deployment.common.PatternDetector.isCompareToEqualityPattern;
+import static io.quarkiverse.qubit.deployment.common.PatternDetector.BinaryOperationCategory;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isLogicalOperation;
-import static io.quarkiverse.qubit.deployment.common.PatternDetector.isNullCheckPattern;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_AND;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_CONCAT_EXPR_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_CONSTRUCT;
@@ -57,7 +54,6 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.MemberOfExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.ScalarSubquery;
-import io.quarkiverse.qubit.deployment.common.PatternDetector;
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionBuilderRegistry;
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionGeneratorHelper;
 import io.quarkiverse.qubit.deployment.util.TypeConverter;
@@ -442,6 +438,10 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
     /**
      * Generates comparison, logical, arithmetic, or string concatenation operation.
+     * <p>
+     * MAINT-003: Refactored from if-else chain to switch on {@link BinaryOperationCategory}
+     * to reduce cyclomatic complexity. Pattern detection order is preserved in the enum's
+     * {@code categorize()} method.
      */
     public ResultHandle generateBinaryOperation(
             MethodCreator method,
@@ -450,50 +450,57 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle root,
             ResultHandle capturedValues) {
 
-        // Check for string concatenation BEFORE arithmetic (both use ADD operator)
-        if (isStringConcatenation(binOp)) {
-            ResultHandle left = generateExpressionAsJpaExpression(method, binOp.left(), cb, root, capturedValues);
-            ResultHandle right = generateExpressionAsJpaExpression(method, binOp.right(), cb, root, capturedValues);
+        // MAINT-003: Use category-based dispatch instead of sequential if-else checks
+        BinaryOperationCategory category = BinaryOperationCategory.categorize(binOp, this::isStringConcatenation);
 
-            return generateStringConcatenation(method, cb, left, right);
-        }
-
-        if (PatternDetector.isArithmeticExpression(binOp)) {
-            ResultHandle left = generateExpressionAsJpaExpression(method, binOp.left(), cb, root, capturedValues);
-            ResultHandle right = generateExpressionAsJpaExpression(method, binOp.right(), cb, root, capturedValues);
-
-            return generateArithmeticOperation(method, binOp.operator(), cb, left, right);
-        }
-
-        if (isLogicalOperation(binOp)) {
-            ResultHandle left = generatePredicate(method, binOp.left(), cb, root, capturedValues);
-            ResultHandle right = generatePredicate(method, binOp.right(), cb, root, capturedValues);
-
-            return combinePredicates(method, cb, left, right, binOp.operator());
-        }
-
-        if (isNullCheckPattern(binOp)) {
-            return generateNullCheckPredicate(method, binOp, cb, root, capturedValues);
-        }
-
-        if (isBooleanFieldConstantComparison(binOp)) {
-            return generateBooleanFieldConstantPredicate(method, binOp, cb, root, capturedValues);
-        }
-
-        if (isBooleanFieldCapturedVariableComparison(binOp)) {
-            return generateBooleanFieldCapturedVariablePredicate(method, binOp, cb, root, capturedValues);
-        }
-
-        if (isCompareToEqualityPattern(binOp)) {
-            ResultHandle result = generateCompareToEqualityPredicate(method, binOp, cb, root, capturedValues);
-            if (result != null) {
-                return result;
+        return switch (category) {
+            case STRING_CONCATENATION -> {
+                ResultHandle left = generateExpressionAsJpaExpression(method, binOp.left(), cb, root, capturedValues);
+                ResultHandle right = generateExpressionAsJpaExpression(method, binOp.right(), cb, root, capturedValues);
+                yield generateStringConcatenation(method, cb, left, right);
             }
-        }
+
+            case ARITHMETIC -> {
+                ResultHandle left = generateExpressionAsJpaExpression(method, binOp.left(), cb, root, capturedValues);
+                ResultHandle right = generateExpressionAsJpaExpression(method, binOp.right(), cb, root, capturedValues);
+                yield generateArithmeticOperation(method, binOp.operator(), cb, left, right);
+            }
+
+            case LOGICAL -> {
+                ResultHandle left = generatePredicate(method, binOp.left(), cb, root, capturedValues);
+                ResultHandle right = generatePredicate(method, binOp.right(), cb, root, capturedValues);
+                yield combinePredicates(method, cb, left, right, binOp.operator());
+            }
+
+            case NULL_CHECK -> generateNullCheckPredicate(method, binOp, cb, root, capturedValues);
+
+            case BOOLEAN_FIELD_CONSTANT -> generateBooleanFieldConstantPredicate(method, binOp, cb, root, capturedValues);
+
+            case BOOLEAN_FIELD_CAPTURED_VARIABLE -> generateBooleanFieldCapturedVariablePredicate(method, binOp, cb, root, capturedValues);
+
+            case COMPARE_TO_EQUALITY -> {
+                // compareTo equality can return null if constant is not 0/false/true
+                ResultHandle result = generateCompareToEqualityPredicate(method, binOp, cb, root, capturedValues);
+                yield result != null ? result : generateDefaultComparison(method, binOp, cb, root, capturedValues);
+            }
+
+            case COMPARISON -> generateDefaultComparison(method, binOp, cb, root, capturedValues);
+        };
+    }
+
+    /**
+     * Generates default comparison operation (EQ, NE, LT, LE, GT, GE).
+     * Extracted for reuse in fallthrough case from COMPARE_TO_EQUALITY.
+     */
+    private ResultHandle generateDefaultComparison(
+            MethodCreator method,
+            LambdaExpression.BinaryOp binOp,
+            ResultHandle cb,
+            ResultHandle root,
+            ResultHandle capturedValues) {
 
         ResultHandle left = generateExpressionAsJpaExpression(method, binOp.left(), cb, root, capturedValues);
         ResultHandle right = generateExpressionAsJpaExpression(method, binOp.right(), cb, root, capturedValues);
-
         return generateComparisonOperation(method, binOp.operator(), cb, left, right);
     }
 
