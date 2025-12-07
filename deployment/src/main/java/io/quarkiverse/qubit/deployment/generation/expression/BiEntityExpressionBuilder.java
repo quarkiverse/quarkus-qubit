@@ -2,8 +2,12 @@ package io.quarkiverse.qubit.deployment.generation.expression;
 
 import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.extractFieldName;
 import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.isBooleanType;
+import static io.quarkiverse.qubit.deployment.common.PatternDetector.containsScalarSubquery;
+import static io.quarkiverse.qubit.deployment.common.PatternDetector.containsSubquery;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isLogicalOperation;
+import static io.quarkiverse.qubit.deployment.common.PatternDetector.isNegatedSubqueryComparison;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isNullCheckPattern;
+import static io.quarkiverse.qubit.deployment.common.PatternDetector.isSubqueryBooleanComparison;
 import static io.quarkiverse.qubit.runtime.QubitConstants.CB_EQUAL;
 import static io.quarkiverse.qubit.runtime.QubitConstants.CB_IS_NOT_NULL;
 import static io.quarkiverse.qubit.runtime.QubitConstants.CB_IS_NULL;
@@ -24,7 +28,10 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityFieldAccess;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityPathExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.ExistsSubquery;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.InSubquery;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.ScalarSubquery;
 import io.quarkiverse.qubit.deployment.common.PatternDetector;
 import io.quarkiverse.qubit.deployment.util.TypeConverter;
 import jakarta.persistence.criteria.CriteriaBuilder;
@@ -59,6 +66,7 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
     private final TemporalExpressionBuilder temporalBuilder = new TemporalExpressionBuilder();
     private final ArithmeticExpressionBuilder arithmeticBuilder = new ArithmeticExpressionBuilder();
     private final ComparisonExpressionBuilder comparisonBuilder = new ComparisonExpressionBuilder();
+    private final SubqueryExpressionBuilder subqueryBuilder = new SubqueryExpressionBuilder();
 
     /**
      * Generates JPA Predicate from bi-entity lambda expression AST.
@@ -147,6 +155,96 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
     }
 
     /**
+     * Generates JPA Predicate from bi-entity lambda expression AST with subquery support.
+     * <p>
+     * BR-010: Extended version that handles subquery expressions (EXISTS, IN, scalar comparisons).
+     * This method requires the CriteriaQuery handle to create subqueries.
+     *
+     * @param method the method creator for bytecode generation
+     * @param expression the bi-entity lambda expression AST, or null
+     * @param cb the CriteriaBuilder handle
+     * @param query the CriteriaQuery handle (needed for subquery creation)
+     * @param root the root entity handle (FIRST entity in join)
+     * @param join the joined entity handle (SECOND entity in join)
+     * @param capturedValues the captured variables array handle
+     * @param helper the helper for common expression generation
+     * @return the JPA Predicate handle, or null if expression is null or unhandled
+     */
+    public ResultHandle generateBiEntityPredicateWithSubqueries(
+            MethodCreator method,
+            LambdaExpression expression,
+            ResultHandle cb,
+            ResultHandle query,
+            ResultHandle root,
+            ResultHandle join,
+            ResultHandle capturedValues,
+            ExpressionGeneratorHelper helper) {
+
+        if (expression == null) {
+            return null;
+        }
+
+        // Java 21 pattern matching switch for type dispatch
+        return switch (expression) {
+            // BR-010: Handle subquery expressions first
+            case ExistsSubquery existsSubquery ->
+                subqueryBuilder.buildExistsSubquery(method, existsSubquery, cb, query, root, capturedValues);
+
+            case InSubquery inSubquery ->
+                subqueryBuilder.buildInSubquery(method, inSubquery, cb, query, root, capturedValues);
+
+            // Handle binary operations that may contain subqueries
+            case LambdaExpression.BinaryOp binOp ->
+                generateBiEntityBinaryOperationWithSubqueries(method, binOp, cb, query, root, join, capturedValues, helper);
+
+            case LambdaExpression.UnaryOp unOp ->
+                generateBiEntityUnaryOperationWithSubqueries(method, unOp, cb, query, root, join, capturedValues, helper);
+
+            // For non-subquery expressions, delegate to the original method
+            default -> generateBiEntityPredicate(method, expression, cb, root, join, capturedValues, helper);
+        };
+    }
+
+    /**
+     * Generates JPA Expression from bi-entity lambda expression AST with subquery support.
+     * <p>
+     * BR-010: Extended version that handles scalar subqueries in comparisons.
+     *
+     * @param method the method creator for bytecode generation
+     * @param expression the bi-entity lambda expression AST, or null
+     * @param cb the CriteriaBuilder handle
+     * @param query the CriteriaQuery handle (needed for subquery creation)
+     * @param root the root entity handle (FIRST entity in join)
+     * @param join the joined entity handle (SECOND entity in join)
+     * @param capturedValues the captured variables array handle
+     * @param helper the helper for common expression generation
+     * @return the JPA Expression handle, or null if expression is null or unhandled
+     */
+    public ResultHandle generateBiEntityExpressionWithSubqueries(
+            MethodCreator method,
+            LambdaExpression expression,
+            ResultHandle cb,
+            ResultHandle query,
+            ResultHandle root,
+            ResultHandle join,
+            ResultHandle capturedValues,
+            ExpressionGeneratorHelper helper) {
+
+        if (expression == null) {
+            return null;
+        }
+
+        // Java 21 pattern matching switch for type dispatch
+        return switch (expression) {
+            case ScalarSubquery scalarSubquery ->
+                subqueryBuilder.buildScalarSubquery(method, scalarSubquery, cb, query, root, capturedValues);
+
+            // For non-subquery expressions, delegate to the original method
+            default -> generateBiEntityExpressionAsJpaExpression(method, expression, cb, root, join, capturedValues, helper);
+        };
+    }
+
+    /**
      * Generates JPA Expression from bi-entity lambda expression AST.
      *
      * @param method the method creator for bytecode generation
@@ -211,6 +309,19 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
 
             case LambdaExpression.BinaryOp binOp ->
                 generateBiEntityBinaryOperation(method, binOp, cb, root, join, capturedValues, helper);
+
+            // BR-010: Handle CorrelatedVariable - references to outer query entities in subqueries
+            case LambdaExpression.CorrelatedVariable correlated -> {
+                LambdaExpression fieldExpr = correlated.fieldExpression();
+                // CorrelatedVariable always references the outer query's root entity
+                yield switch (fieldExpr) {
+                    case LambdaExpression.FieldAccess field ->
+                        helper.generateFieldAccess(method, field, root);
+                    case PathExpression path ->
+                        helper.generatePathExpression(method, path, root);
+                    default -> null;
+                };
+            }
 
             default -> null;
         };
@@ -327,6 +438,19 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
                 yield method.checkCast(value, targetType);
             }
 
+            // BR-010: Handle CorrelatedVariable - references to outer query entities in subqueries
+            case LambdaExpression.CorrelatedVariable correlated -> {
+                LambdaExpression fieldExpr = correlated.fieldExpression();
+                // CorrelatedVariable always references the outer query's root entity
+                yield switch (fieldExpr) {
+                    case LambdaExpression.FieldAccess field ->
+                        helper.generateFieldAccess(method, field, root);
+                    case PathExpression path ->
+                        helper.generatePathExpression(method, path, root);
+                    default -> null;
+                };
+            }
+
             default -> null;
         };
     }
@@ -428,6 +552,106 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
                     methodDescriptor(CriteriaBuilder.class, CB_NOT, Predicate.class, Expression.class), cb, operand);
         };
     }
+
+    /**
+     * Generates bi-entity binary operation with subquery support.
+     * <p>
+     * BR-010: Extended version that handles subquery expressions in comparisons.
+     */
+    private ResultHandle generateBiEntityBinaryOperationWithSubqueries(
+            MethodCreator method,
+            LambdaExpression.BinaryOp binOp,
+            ResultHandle cb,
+            ResultHandle query,
+            ResultHandle root,
+            ResultHandle join,
+            ResultHandle capturedValues,
+            ExpressionGeneratorHelper helper) {
+
+        // Check for logical operations (AND, OR) - need to recurse with subquery support
+        if (isLogicalOperation(binOp)) {
+            ResultHandle left = generateBiEntityPredicateWithSubqueries(method, binOp.left(), cb, query, root, join, capturedValues, helper);
+            ResultHandle right = generateBiEntityPredicateWithSubqueries(method, binOp.right(), cb, query, root, join, capturedValues, helper);
+            return helper.combinePredicates(method, cb, left, right, binOp.operator());
+        }
+
+        // BR-010: Check if either side contains a SCALAR subquery (one that returns a value).
+        // Only scalar subqueries can be used in comparisons. EXISTS/IN are predicates, not expressions.
+        boolean leftHasScalarSubquery = containsScalarSubquery(binOp.left());
+        boolean rightHasScalarSubquery = containsScalarSubquery(binOp.right());
+
+        if (leftHasScalarSubquery || rightHasScalarSubquery) {
+            // Generate expressions with subquery support
+            ResultHandle left = generateBiEntityExpressionWithSubqueries(method, binOp.left(), cb, query, root, join, capturedValues, helper);
+            ResultHandle right = generateBiEntityExpressionWithSubqueries(method, binOp.right(), cb, query, root, join, capturedValues, helper);
+            return comparisonBuilder.buildComparisonOperation(method, binOp.operator(), cb, left, right);
+        }
+
+        // BR-010: Check if either side contains a predicate subquery (EXISTS/IN).
+        // Pattern: ExistsSubquery == true → just return the ExistsSubquery predicate
+        // This handles bytecode patterns where boolean short-circuit creates comparison to constant.
+        boolean leftHasSubquery = containsSubquery(binOp.left());
+        boolean rightHasSubquery = containsSubquery(binOp.right());
+
+        if (leftHasSubquery || rightHasSubquery) {
+            // If comparing a subquery predicate to a boolean constant, simplify
+            if (isSubqueryBooleanComparison(binOp)) {
+                // Return just the subquery predicate (EXISTS == true → EXISTS)
+                LambdaExpression subqueryExpr = leftHasSubquery ? binOp.left() : binOp.right();
+                LambdaExpression constantExpr = leftHasSubquery ? binOp.right() : binOp.left();
+                ResultHandle predicate = generateBiEntityPredicateWithSubqueries(
+                        method, subqueryExpr, cb, query, root, join, capturedValues, helper);
+
+                // If comparing to false or using NE with true, negate the result
+                if (isNegatedSubqueryComparison(binOp.operator(), constantExpr)) {
+                    return method.invokeInterfaceMethod(
+                            methodDescriptor(CriteriaBuilder.class, CB_NOT, Predicate.class, Expression.class),
+                            cb, predicate);
+                }
+                return predicate;
+            }
+
+            // For other patterns with subqueries, recursively process with subquery support
+            ResultHandle left = generateBiEntityPredicateWithSubqueries(
+                    method, binOp.left(), cb, query, root, join, capturedValues, helper);
+            ResultHandle right = generateBiEntityPredicateWithSubqueries(
+                    method, binOp.right(), cb, query, root, join, capturedValues, helper);
+            return comparisonBuilder.buildComparisonOperation(method, binOp.operator(), cb, left, right);
+        }
+
+        // No subqueries - delegate to standard bi-entity binary operation
+        return generateBiEntityBinaryOperation(method, binOp, cb, root, join, capturedValues, helper);
+    }
+
+    /**
+     * Generates bi-entity unary operation with subquery support.
+     * <p>
+     * BR-010: Extended version that handles subquery expressions in NOT operations.
+     */
+    private ResultHandle generateBiEntityUnaryOperationWithSubqueries(
+            MethodCreator method,
+            LambdaExpression.UnaryOp unOp,
+            ResultHandle cb,
+            ResultHandle query,
+            ResultHandle root,
+            ResultHandle join,
+            ResultHandle capturedValues,
+            ExpressionGeneratorHelper helper) {
+
+        ResultHandle operand = generateBiEntityPredicateWithSubqueries(method, unOp.operand(), cb, query, root, join, capturedValues, helper);
+
+        return switch (unOp.operator()) {
+            case NOT -> method.invokeInterfaceMethod(
+                    methodDescriptor(CriteriaBuilder.class, CB_NOT, Predicate.class, Expression.class), cb, operand);
+        };
+    }
+
+    // CS-014: Subquery pattern detection methods moved to PatternDetector:
+    // - containsSubquery()
+    // - containsScalarSubquery()
+    // - isSubqueryBooleanComparison()
+    // - isBooleanConstant()
+    // - isNegatedSubqueryComparison()
 
     /**
      * Generates bi-entity method call (e.g., ph.type.equals("mobile")).

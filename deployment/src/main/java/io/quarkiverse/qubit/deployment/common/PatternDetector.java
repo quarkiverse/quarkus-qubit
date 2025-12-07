@@ -262,9 +262,13 @@ public final class PatternDetector {
      * <p>
      * Iteration 7: Added GroupAggregation and GroupKeyReference support.
      * Iteration 8: Added ScalarSubquery support for subquery comparisons.
+     * BR-010: Added BiEntityFieldAccess and BiEntityPathExpression for bi-entity join queries.
      */
     private static boolean isComparableExpression(LambdaExpression expr) {
         return expr instanceof LambdaExpression.FieldAccess ||
+               expr instanceof LambdaExpression.BiEntityFieldAccess ||
+               expr instanceof LambdaExpression.BiEntityPathExpression ||
+               expr instanceof LambdaExpression.PathExpression ||
                expr instanceof LambdaExpression.Constant ||
                expr instanceof LambdaExpression.CapturedVariable ||
                expr instanceof LambdaExpression.GroupAggregation ||
@@ -396,5 +400,129 @@ public final class PatternDetector {
         }
 
         return binOp.right() instanceof LambdaExpression.Constant;
+    }
+
+    // ========== Subquery Pattern Detection (CS-014 consolidation) ==========
+
+    /**
+     * Checks if an expression contains any subquery (scalar, exists, or in).
+     * <p>
+     * CS-014: Consolidated from duplicate methods in CriteriaExpressionGenerator
+     * and BiEntityExpressionBuilder.
+     *
+     * @param expr the expression to check
+     * @return true if expression contains any type of subquery
+     */
+    public static boolean containsSubquery(LambdaExpression expr) {
+        return switch (expr) {
+            case LambdaExpression.ScalarSubquery ignored1 -> true;
+            case LambdaExpression.ExistsSubquery ignored2 -> true;
+            case LambdaExpression.InSubquery ignored3 -> true;
+            case LambdaExpression.BinaryOp binOp -> containsSubquery(binOp.left()) || containsSubquery(binOp.right());
+            case LambdaExpression.UnaryOp unOp -> containsSubquery(unOp.operand());
+            case null, default -> false;
+        };
+    }
+
+    /**
+     * Checks if an expression contains a SCALAR subquery (one that returns a value).
+     * <p>
+     * CS-014: Consolidated from duplicate methods in CriteriaExpressionGenerator
+     * and BiEntityExpressionBuilder.
+     * <p>
+     * Used specifically for comparison operations. Only scalar subqueries can be
+     * used as expressions in comparisons (e.g., p.salary > avg(...)). EXISTS and
+     * IN subqueries are predicates, not expressions.
+     *
+     * @param expr the expression to check
+     * @return true if expression contains a scalar subquery
+     */
+    public static boolean containsScalarSubquery(LambdaExpression expr) {
+        return switch (expr) {
+            case LambdaExpression.ScalarSubquery ignored -> true;
+            case LambdaExpression.ExistsSubquery ignored -> false;
+            case LambdaExpression.InSubquery ignored -> false;
+            case LambdaExpression.BinaryOp binOp -> containsScalarSubquery(binOp.left()) || containsScalarSubquery(binOp.right());
+            case LambdaExpression.UnaryOp unOp -> containsScalarSubquery(unOp.operand());
+            case null, default -> false;
+        };
+    }
+
+    /**
+     * Checks if a binary operation is comparing a subquery predicate to a boolean constant.
+     * <p>
+     * CS-014: Consolidated from duplicate methods in CriteriaExpressionGenerator
+     * and BiEntityExpressionBuilder.
+     * <p>
+     * Detects patterns like {@code ExistsSubquery == true} or {@code ExistsSubquery == 1}
+     * which occur due to bytecode short-circuit evaluation patterns.
+     *
+     * @param binOp the binary operation to check
+     * @return true if comparing subquery predicate to boolean constant
+     */
+    public static boolean isSubqueryBooleanComparison(LambdaExpression.BinaryOp binOp) {
+        if (binOp.operator() != LambdaExpression.BinaryOp.Operator.EQ &&
+            binOp.operator() != LambdaExpression.BinaryOp.Operator.NE) {
+            return false;
+        }
+
+        boolean leftIsSubquery = containsSubquery(binOp.left());
+        boolean rightIsSubquery = containsSubquery(binOp.right());
+
+        if (leftIsSubquery && isBooleanConstant(binOp.right())) {
+            return true;
+        }
+        if (rightIsSubquery && isBooleanConstant(binOp.left())) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Checks if expression is a boolean constant (true/false or 0/1).
+     * <p>
+     * CS-014: Consolidated from duplicate methods in CriteriaExpressionGenerator
+     * and BiEntityExpressionBuilder.
+     *
+     * @param expr the expression to check
+     * @return true if expression is a boolean constant
+     */
+    public static boolean isBooleanConstant(LambdaExpression expr) {
+        if (!(expr instanceof LambdaExpression.Constant constant)) {
+            return false;
+        }
+        Object value = constant.value();
+        return value instanceof Boolean ||
+               (value instanceof Integer && ((Integer) value == 0 || (Integer) value == 1));
+    }
+
+    /**
+     * Checks if comparison should negate the subquery result.
+     * <p>
+     * CS-014: Consolidated from duplicate methods in CriteriaExpressionGenerator
+     * and BiEntityExpressionBuilder.
+     * <p>
+     * Returns true for patterns like {@code subquery == false}, {@code subquery == 0},
+     * or {@code subquery != true}, {@code subquery != 1}.
+     *
+     * @param operator the comparison operator
+     * @param constantExpr the constant expression being compared to
+     * @return true if the comparison should negate the subquery result
+     */
+    public static boolean isNegatedSubqueryComparison(
+            LambdaExpression.BinaryOp.Operator operator,
+            LambdaExpression constantExpr) {
+        if (!(constantExpr instanceof LambdaExpression.Constant constant)) {
+            return false;
+        }
+        Object value = constant.value();
+
+        if (operator == LambdaExpression.BinaryOp.Operator.EQ) {
+            return Boolean.FALSE.equals(value) || Integer.valueOf(0).equals(value);
+        }
+        if (operator == LambdaExpression.BinaryOp.Operator.NE) {
+            return Boolean.TRUE.equals(value) || Integer.valueOf(1).equals(value);
+        }
+        return false;
     }
 }

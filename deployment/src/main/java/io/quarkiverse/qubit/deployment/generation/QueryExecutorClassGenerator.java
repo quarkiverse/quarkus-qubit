@@ -877,9 +877,10 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
         ResultHandle joinHandle = method.invokeInterfaceMethod(FROM_JOIN, root, relationshipName, jpaJoinType);
 
         // Apply bi-entity predicate if present
+        // BR-010: Use subquery-aware method to handle EXISTS/IN/scalar subqueries in join predicates
         if (biEntityPredicateExpression != null) {
-            ResultHandle predicate = expressionGenerator.generateBiEntityPredicate(
-                    method, biEntityPredicateExpression, cb, root, joinHandle, capturedValues);
+            ResultHandle predicate = expressionGenerator.generateBiEntityPredicateWithSubqueries(
+                    method, biEntityPredicateExpression, cb, query, root, joinHandle, capturedValues);
             applyWherePredicate(method, query, predicate);
         }
 
@@ -969,9 +970,10 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
                 md(CriteriaQuery.class, CQ_SELECT, CriteriaQuery.class, Selection.class), query, countExpr);
 
         // Apply bi-entity predicate if present
+        // BR-010: Use subquery-aware method to handle EXISTS/IN/scalar subqueries in join predicates
         if (biEntityPredicateExpression != null) {
-            ResultHandle predicate = expressionGenerator.generateBiEntityPredicate(
-                    method, biEntityPredicateExpression, cb, root, joinHandle, capturedValues);
+            ResultHandle predicate = expressionGenerator.generateBiEntityPredicateWithSubqueries(
+                    method, biEntityPredicateExpression, cb, query, root, joinHandle, capturedValues);
             applyWherePredicate(method, query, predicate);
         }
 
@@ -1058,9 +1060,10 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
                 md(CriteriaQuery.class, CQ_SELECT, CriteriaQuery.class, Selection.class), query, joinHandle);
 
         // Apply bi-entity predicate if present
+        // BR-010: Use subquery-aware method to handle EXISTS/IN/scalar subqueries in join predicates
         if (biEntityPredicateExpression != null) {
-            ResultHandle predicate = expressionGenerator.generateBiEntityPredicate(
-                    method, biEntityPredicateExpression, cb, root, joinHandle, capturedValues);
+            ResultHandle predicate = expressionGenerator.generateBiEntityPredicateWithSubqueries(
+                    method, biEntityPredicateExpression, cb, query, root, joinHandle, capturedValues);
             applyWherePredicate(method, query, predicate);
         }
 
@@ -1157,9 +1160,10 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
                 md(CriteriaQuery.class, CQ_SELECT, CriteriaQuery.class, Selection.class), query, projection);
 
         // Apply bi-entity predicate if present
+        // BR-010: Use subquery-aware method to handle EXISTS/IN/scalar subqueries in join predicates
         if (biEntityPredicateExpression != null) {
-            ResultHandle predicate = expressionGenerator.generateBiEntityPredicate(
-                    method, biEntityPredicateExpression, cb, root, joinHandle, capturedValues);
+            ResultHandle predicate = expressionGenerator.generateBiEntityPredicateWithSubqueries(
+                    method, biEntityPredicateExpression, cb, query, root, joinHandle, capturedValues);
             applyWherePredicate(method, query, predicate);
         }
 

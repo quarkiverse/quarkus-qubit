@@ -231,6 +231,70 @@ public class LoadInstructionHandler implements InstructionHandler {
                 ctx.push(new PathExpression(segments, fieldType));
             }
 
+            // =========================================================================
+            // Subquery correlated variable handling (BR-010)
+            // =========================================================================
+
+            case LambdaExpression.CapturedVariable capturedVar -> {
+                // BR-010: Field access on a captured outer scope variable
+                // This occurs in subquery lambdas like: ph -> ph.owner.id.equals(p.id)
+                // where 'p' is captured from the outer lambda and 'p.id' should become
+                // CorrelatedVariable to correlate the subquery with the outer query.
+                //
+                // Example bytecode:
+                // ALOAD 1          // Stack: [CapturedVariable(0, Person.class)] - the outer 'p'
+                // GETFIELD id      // Stack: [CorrelatedVariable(FieldAccess(id), 0, Person.class)]
+                //
+                LambdaExpression fieldExpr = new FieldAccess(fieldName, fieldType);
+                ctx.push(new LambdaExpression.CorrelatedVariable(
+                        fieldExpr,
+                        capturedVar.index(),
+                        capturedVar.type()));
+            }
+
+            case LambdaExpression.CorrelatedVariable correlatedVar -> {
+                // BR-010: Chained field access on a correlated variable
+                // This occurs when accessing nested fields like p.owner.id where p is captured.
+                //
+                // Example bytecode for p.owner.id where p is captured:
+                // ALOAD 1          // Stack: [CapturedVariable(0, Person.class)]
+                // GETFIELD owner   // Stack: [CorrelatedVariable(FieldAccess(owner), 0, Person.class)]
+                // GETFIELD id      // Stack: [CorrelatedVariable(PathExpression([owner, id]), 0, Person.class)]
+                //
+                LambdaExpression innerField = correlatedVar.fieldExpression();
+
+                LambdaExpression extendedPath = switch (innerField) {
+                    case FieldAccess prevField -> {
+                        // Convert FieldAccess to PathExpression with two segments
+                        PathSegment firstSegment = new PathSegment(
+                                prevField.fieldName(),
+                                prevField.fieldType(),
+                                RelationType.FIELD);
+                        List<PathSegment> segments = new ArrayList<>();
+                        segments.add(firstSegment);
+                        segments.add(newSegment);
+                        yield new PathExpression(segments, fieldType);
+                    }
+                    case PathExpression pathExpr -> {
+                        // Extend existing PathExpression
+                        List<PathSegment> segments = new ArrayList<>(pathExpr.segments());
+                        segments.add(newSegment);
+                        yield new PathExpression(segments, fieldType);
+                    }
+                    default -> {
+                        // Fallback: wrap in PathExpression
+                        List<PathSegment> segments = new ArrayList<>();
+                        segments.add(newSegment);
+                        yield new PathExpression(segments, fieldType);
+                    }
+                };
+
+                ctx.push(new LambdaExpression.CorrelatedVariable(
+                        extendedPath,
+                        correlatedVar.outerParameterIndex(),
+                        correlatedVar.outerEntityType()));
+            }
+
             default ->
                 // Fallback: create simple FieldAccess
                 // This handles edge cases like field access on method return values

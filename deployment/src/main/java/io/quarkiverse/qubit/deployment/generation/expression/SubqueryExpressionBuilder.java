@@ -3,6 +3,7 @@ package io.quarkiverse.qubit.deployment.generation.expression;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.AND;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.OR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.*;
+import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_EQUALS;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.ExistsSubquery;
@@ -312,6 +313,8 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
      * <p>This handles both simple predicates (using only subquery root) and
      * correlated predicates (referencing the outer query's root).
      *
+     * <p>BR-010: Added MethodCall handling for .equals() comparisons in EXISTS/NOT EXISTS predicates.
+     *
      * @param method the method creator for bytecode generation
      * @param predicate the predicate expression, or null
      * @param cb the CriteriaBuilder handle
@@ -338,14 +341,81 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
             case LambdaExpression.BinaryOp binOp ->
                 generateBinaryOpPredicate(method, binOp, cb, subRoot, outerRoot, capturedValues);
 
+            // BR-010: Handle UnaryOp predicates (e.g., NOT operations)
+            case LambdaExpression.UnaryOp unaryOp -> {
+                ResultHandle operand = generateSubqueryPredicate(
+                        method, unaryOp.operand(), cb, subRoot, outerRoot, capturedValues);
+                yield switch (unaryOp.operator()) {
+                    case NOT -> method.invokeInterfaceMethod(CB_NOT, cb, operand);
+                };
+            }
+
+            // BR-010: Handle MethodCall predicates (e.g., .equals() calls in EXISTS predicates)
+            case LambdaExpression.MethodCall methodCall ->
+                generateMethodCallPredicate(method, methodCall, cb, subRoot, outerRoot, capturedValues);
+
             // Handle FieldAccess as boolean
             case FieldAccess field -> {
                 ResultHandle path = generateFieldPath(method, field, subRoot);
                 yield method.invokeInterfaceMethod(CB_IS_TRUE, cb, path);
             }
 
-            default -> null;
+            // Handle PathExpression as boolean
+            case PathExpression pathExpr -> {
+                ResultHandle path = generateFieldPath(method, pathExpr, subRoot);
+                yield method.invokeInterfaceMethod(CB_IS_TRUE, cb, path);
+            }
+
+            default -> {
+                Log.warnf("Unhandled predicate type in generateSubqueryPredicate: %s. "
+                        + "This may indicate a missing case handler.",
+                        predicate.getClass().getSimpleName());
+                yield null;
+            }
         };
+    }
+
+    /**
+     * Generates a predicate for method call expressions in subquery WHERE clauses.
+     *
+     * <p>BR-010: Handles .equals() method calls which translate to cb.equal() predicates.
+     * This is essential for EXISTS/NOT EXISTS subqueries where predicates like
+     * {@code ph.owner.id.equals(p.id)} need to be translated to JPA predicates.
+     *
+     * @param method the method creator for bytecode generation
+     * @param methodCall the method call expression
+     * @param cb the CriteriaBuilder handle
+     * @param subRoot the subquery root handle
+     * @param outerRoot the outer query root handle
+     * @param capturedValues the captured values array handle
+     * @return the generated predicate handle, or null if method is not recognized
+     */
+    private ResultHandle generateMethodCallPredicate(
+            MethodCreator method,
+            LambdaExpression.MethodCall methodCall,
+            ResultHandle cb,
+            ResultHandle subRoot,
+            ResultHandle outerRoot,
+            ResultHandle capturedValues) {
+
+        // Handle .equals() method calls → cb.equal()
+        if (METHOD_EQUALS.equals(methodCall.methodName()) && !methodCall.arguments().isEmpty()) {
+            // Generate expression for the target (e.g., ph.owner.id)
+            ResultHandle targetExpr = generateSubqueryExpression(
+                    method, methodCall.target(), cb, subRoot, outerRoot, capturedValues);
+
+            // Generate expression for the argument (e.g., p.id which may be a CorrelatedVariable)
+            ResultHandle argumentExpr = generateSubqueryExpression(
+                    method, methodCall.arguments().get(0), cb, subRoot, outerRoot, capturedValues);
+
+            // Generate cb.equal(target, argument)
+            return method.invokeInterfaceMethod(CB_EQUAL, cb, targetExpr, argumentExpr);
+        }
+
+        Log.warnf("Unhandled method call in subquery predicate: %s. "
+                + "This may indicate a missing case handler.",
+                methodCall.methodName());
+        return null;
     }
 
     /**
@@ -403,6 +473,8 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
      * <p>This handles both subquery-local expressions and correlated references
      * to the outer query.
      *
+     * <p>BR-010: Added MethodCall handling for getter chains and BinaryOp for nested expressions.
+     *
      * @param method the method creator for bytecode generation
      * @param expr the expression to generate, or null
      * @param cb the CriteriaBuilder handle
@@ -438,12 +510,133 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
                 yield method.checkCast(value, Object.class);
             }
 
+            // BR-010: Handle Parameter expressions (the lambda parameter itself, e.g., `ph` in `ph.owner`)
+            // The subquery parameter refers to the subquery root
+            case LambdaExpression.Parameter ignored -> subRoot;
+
+            // BR-010: Handle MethodCall expressions (getter chains like ph.getOwner().getId())
+            case LambdaExpression.MethodCall methodCall ->
+                generateMethodCallExpression(method, methodCall, cb, subRoot, outerRoot, capturedValues);
+
+            // BR-010: Handle BinaryOp expressions
+            // For comparison operators (EQ, NE, GT, GE, LT, LE), use generateBinaryOpPredicate
+            // since Predicate extends Expression<Boolean>. This handles nested predicates like:
+            // BinaryOp[BinaryOp[path, EQ, field], EQ, Constant[true]]
+            // For arithmetic operators (ADD, SUB, MUL, DIV), use generateBinaryOpExpression.
+            case LambdaExpression.BinaryOp binOp -> {
+                if (isComparisonOrLogicalOperator(binOp.operator())) {
+                    yield generateBinaryOpPredicate(method, binOp, cb, subRoot, outerRoot, capturedValues);
+                } else {
+                    yield generateBinaryOpExpression(method, binOp, cb, subRoot, outerRoot, capturedValues);
+                }
+            }
+
             default -> {
                 Log.warnf("Unhandled expression type in generateSubqueryExpression: %s. "
                         + "This may indicate a missing case handler or an unexpected AST structure.",
                         expr.getClass().getSimpleName());
                 yield null;
             }
+        };
+    }
+
+    /**
+     * Generates a JPA expression for method call expressions in subqueries.
+     *
+     * <p>BR-010: Handles getter method chains that navigate through entity relationships.
+     * For example, {@code ph.getOwner().getId()} generates a path expression.
+     *
+     * @param method the method creator for bytecode generation
+     * @param methodCall the method call expression
+     * @param cb the CriteriaBuilder handle
+     * @param subRoot the subquery root handle
+     * @param outerRoot the outer query root handle
+     * @param capturedValues the captured values array handle
+     * @return the generated expression handle
+     */
+    private ResultHandle generateMethodCallExpression(
+            MethodCreator method,
+            LambdaExpression.MethodCall methodCall,
+            ResultHandle cb,
+            ResultHandle subRoot,
+            ResultHandle outerRoot,
+            ResultHandle capturedValues) {
+
+        String methodName = methodCall.methodName();
+
+        // Handle getter methods (getXxx, isXxx) → path navigation
+        if (methodName.startsWith("get") || methodName.startsWith("is")) {
+            // First, resolve the target expression
+            ResultHandle targetPath = generateSubqueryExpression(
+                    method, methodCall.target(), cb, subRoot, outerRoot, capturedValues);
+
+            // Extract field name from getter (getOwner → owner, isActive → active)
+            // CS-014: Use shared utility method instead of local duplicate
+            String fieldName = ExpressionTypeInferrer.extractFieldName(methodName);
+            ResultHandle fieldNameHandle = method.load(fieldName);
+
+            // Generate path.get(fieldName)
+            return method.invokeInterfaceMethod(PATH_GET, targetPath, fieldNameHandle);
+        }
+
+        Log.warnf("Unhandled method call expression in subquery: %s. "
+                + "This may indicate a missing case handler.",
+                methodName);
+        return null;
+    }
+
+    /**
+     * Generates a JPA expression for binary operations in subquery expressions.
+     *
+     * <p>BR-010: Handles arithmetic and comparison operations within subquery predicates.
+     *
+     * @param method the method creator for bytecode generation
+     * @param binOp the binary operation expression
+     * @param cb the CriteriaBuilder handle
+     * @param subRoot the subquery root handle
+     * @param outerRoot the outer query root handle
+     * @param capturedValues the captured values array handle
+     * @return the generated expression handle
+     */
+    private ResultHandle generateBinaryOpExpression(
+            MethodCreator method,
+            LambdaExpression.BinaryOp binOp,
+            ResultHandle cb,
+            ResultHandle subRoot,
+            ResultHandle outerRoot,
+            ResultHandle capturedValues) {
+
+        ResultHandle left = generateSubqueryExpression(method, binOp.left(), cb, subRoot, outerRoot, capturedValues);
+        ResultHandle right = generateSubqueryExpression(method, binOp.right(), cb, subRoot, outerRoot, capturedValues);
+
+        // Generate the appropriate arithmetic operation
+        return switch (binOp.operator()) {
+            case ADD -> method.invokeInterfaceMethod(CB_SUM_BINARY, cb, left, right);
+            case SUB -> method.invokeInterfaceMethod(CB_DIFF, cb, left, right);
+            case MUL -> method.invokeInterfaceMethod(CB_PROD, cb, left, right);
+            case DIV -> method.invokeInterfaceMethod(CB_QUOT, cb, left, right);
+            default -> {
+                Log.warnf("Unhandled binary operator in subquery expression: %s", binOp.operator());
+                yield null;
+            }
+        };
+    }
+
+    /**
+     * Checks if an operator is a comparison or logical operator.
+     *
+     * <p>BR-010: Comparison and logical operators produce predicates (Expression&lt;Boolean&gt;),
+     * not numeric expressions. This is used to route BinaryOp expressions to the correct
+     * generator method in subquery handling.
+     *
+     * @param operator the binary operator to check
+     * @return true if the operator is EQ, NE, GT, GE, LT, LE, AND, or OR
+     */
+    private boolean isComparisonOrLogicalOperator(LambdaExpression.BinaryOp.Operator operator) {
+        return switch (operator) {
+            case EQ, NE, GT, GE, LT, LE, AND, OR -> true;
+            case ADD, SUB, MUL, DIV -> false;
+            default -> false;  // Future operators default to arithmetic handling
         };
     }
 

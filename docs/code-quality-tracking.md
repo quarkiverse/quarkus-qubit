@@ -25,11 +25,12 @@ This document provides a comprehensive analysis of code quality issues identifie
 | Architectural | 0 | ~~4~~ 0 | 1 | 5 | 10 | 9 |
 | Code Smells | 0 | ~~3~~ 0 | ~~12~~ 0 | ~~8~~ 0 | ~~23~~ 0 | ~~2~~ 18 (6 N/A, 2 deferred) |
 | Enum/Type-Safety | 0 | 0 | ~~2~~ 0 | ~~4~~ 0 | ~~6~~ 0 | 3 + 3 deferred |
-| Bug Risks | ~~2~~ 0 | ~~5~~ 0 | ~~4~~ 0 | ~~2~~ 0 | ~~13~~ 0 | ~~3~~ 10 (3 N/A) |
+| Bug Risks | ~~2~~ 0 | ~~5~~ ~~1~~ 0 | ~~4~~ 0 | ~~2~~ 0 | ~~13~~ ~~1~~ 0 | ~~3~~ ~~10~~ 11 (3 N/A) |
 | Documentation | 0 | ~~2~~ 1 | 6 | 4 | 12 | 1 |
 | Performance | 0 | ~~1~~ 0 | ~~3~~ 0 | ~~2~~ 0 | ~~6~~ 0 | ~~1~~ 5 (4 N/A) |
 | Maintainability | 0 | ~~7~~ 0 | ~~12~~ 0 | ~~6~~ 0 | ~~25~~ 0 | 25 (1 N/A) |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ **1** | ~~**51**~~ **7** | ~~**35**~~ **9** | ~~**110**~~ **17** | **71** (14 N/A, 5 deferred) |
+| Testing | 0 | ~~1~~ 0 | 0 | 0 | ~~1~~ 0 | 1 |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ ~~2~~ **1** | ~~**51**~~ **7** | ~~**35**~~ **9** | ~~**110**~~ ~~18~~ **17** | **73** (14 N/A, 5 deferred) |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -62,6 +63,10 @@ This document provides a comprehensive analysis of code quality issues identifie
 > ⏸️ **CS-003 Deferred**: JSpecify null-safety annotations were implemented but reverted due to VSCode JDT.LS compatibility issues. External annotations (.eea files) for third-party libraries cannot be loaded in VSCode, causing 700+ unresolvable warnings. EEA files preserved in `.eea/` directory for future use with Eclipse IDE.
 >
 > ⏸️ **ENUM-003 Deferred**: Deep analysis of QueryExecutorRegistry.java (643 lines) determined that consolidating 9 executor maps into EnumMap would sacrifice compile-time type safety. The 9 executor types have 3 different return types (`List<?>`, `Long`, `?`), execution methods have different signatures and post-processing, and TypeToken approach would require Guava dependency with extensive unsafe casts. Current type-safe design is intentional.
+>
+> ✅ **BR-010 Complete**: Fixed NullPointerException/ClassCastException in EXISTS/NOT EXISTS/Join+Subquery processing. Root causes: missing CorrelatedVariable handling, missing EQ operator translation, missing bi-entity types in PatternDetector. All 25 ComplexQueryIntegrationTest tests pass, all 1138 tests pass.
+>
+> ✅ **TEST-002 Complete**: All ComplexQueryIntegrationTest tests now pass including EXISTS, NOT EXISTS, IN subqueries, scalar subqueries, and Join+Subquery combinations.
 
 ---
 
@@ -1129,6 +1134,26 @@ public PathSegment {
   - Processing state is mutable but only accessed during single-threaded bytecode analysis
   - Build-time code runs in a single thread per lambda, so no synchronization needed
 
+### BR-010: NullPointerException in EXISTS/NOT EXISTS Subquery Processing ✅ RESOLVED
+- **File**: Multiple files (see Fix Applied below)
+- **Severity**: High
+- **Status**: ✅ **RESOLVED** - All 25 ComplexQueryIntegrationTest tests now pass
+- **Description**: EXISTS, NOT EXISTS subqueries, and Join+Subquery combinations caused `NullPointerException` and `ClassCastException` during build-time bytecode processing.
+- **Root Cause Analysis**:
+  1. **Missing CorrelatedVariable handling**: LoadInstructionHandler needed to produce CorrelatedVariable for outer query references in subquery predicates
+  2. **Missing EQ operator in SubqueryExpressionBuilder**: The `.equals()` method calls needed to be translated to `cb.equal()` predicates
+  3. **Missing bi-entity types in PatternDetector**: `BiEntityFieldAccess`, `BiEntityPathExpression`, and `PathExpression` were not recognized as comparable expressions, causing incorrect bytecode pattern detection for `DCMPL/DCMPG` comparisons
+  4. **Missing subquery predicate handling**: `generateExpressionAsJpaExpression` needed to handle `ExistsSubquery` and `InSubquery` as predicates (since `Predicate extends Expression<Boolean>`)
+  5. **Missing subquery boolean comparison patterns**: BiEntityExpressionBuilder needed handling for patterns like `ExistsSubquery == true`
+- **Fix Applied**:
+  1. **LoadInstructionHandler.java**: Enhanced `handleGetField` to produce `CorrelatedVariable` when accessing fields from outer query parameters in subquery context
+  2. **SubqueryExpressionBuilder.java**: Added `generateMethodCallPredicate()` to handle `.equals()` → `cb.equal()` translation; Added `generateMethodCallExpression()` for getter chains; Added `Parameter` handling in `generateSubqueryExpression()`
+  3. **PatternDetector.java**: Added `BiEntityFieldAccess`, `BiEntityPathExpression`, and `PathExpression` to `isComparableExpression()` for correct `DCMPL/DCMPG` pattern detection
+  4. **CriteriaExpressionGenerator.java**: Added `CorrelatedVariable` handling in `generateExpression()` and `generateExpressionAsJpaExpression()`; Added subquery helper methods (`containsSubquery`, `containsScalarSubquery`, `isSubqueryBooleanComparison`, `isBooleanConstant`, `isNegatedComparison`)
+  5. **BiEntityExpressionBuilder.java**: Added `generateBiEntityBinaryOperationWithSubqueries()` with subquery boolean comparison handling; Added helper methods for detecting subquery patterns
+- **Tests Verified**: All 25 ComplexQueryIntegrationTest tests pass, all 1138 tests in the full test suite pass
+- **See Also**: → **TEST-002** complete - all integration tests pass
+
 ---
 
 ## Documentation Gaps
@@ -1883,12 +1908,35 @@ return switch (expr) {
   - `HandlerEdgeCaseTest.java` - BytecodeValidator utilities, ArithmeticInstructionHandler stack underflow, LoadInstructionHandler invalid slots, ConstantInstructionHandler all constant types, TypeConversionHandler primitive conversions, InstructionHandlerRegistry validation
   - `AstNodeValidationTest.java` - Null handling for all 25+ AST record types, defensive copy validation, factory method coverage, boundary condition validation
 
-### TEST-002: Integration Test Coverage
+### TEST-002: Integration Test Coverage ✅ COMPLETE
 - **Priority**: High
+- **Status**: ✅ **COMPLETE** - All 25 tests pass
 - **Recommendation**: Add end-to-end tests for:
   - Complex nested subqueries
   - Multi-level joins
   - Combined group/having/select
+- **Fix Applied**:
+  - Created [ComplexQueryIntegrationTest.java](integration-tests/src/test/java/io/quarkiverse/qubit/it/complex/ComplexQueryIntegrationTest.java) (564 lines) with 25 comprehensive tests organized in 9 nested test classes:
+    - **ExistsSubqueryTests** (3 tests): EXISTS subqueries - ✅ PASSING
+    - **NotExistsSubqueryTests** (2 tests): NOT EXISTS subqueries - ✅ PASSING
+    - **InSubqueryTests** (2 tests): IN subqueries - ✅ PASSING
+    - **NotInSubqueryTests** (1 test): NOT IN subqueries - ✅ PASSING
+    - **MultipleSubqueryTests** (3 tests): Multiple subqueries combined - ✅ PASSING
+    - **MultiLevelNavigationTests** (3 tests): Phone→Person→Department 3-level navigation - ✅ PASSING
+    - **ComplexGroupingTests** (6 tests): Multiple having, complex aggregations, full pipeline - ✅ PASSING
+    - **JoinWithSubqueryTests** (2 tests): Join combined with subquery - ✅ PASSING
+    - **EdgeCaseTests** (3 tests): Empty results, zero results, chained where - ✅ PASSING
+  - Uses TestDataFactory.createPersonsWithPhones() for consistent test data with department relationships
+- **All Tests Passing** (25):
+  - EXISTS subqueries: `findPersonsWithWorkPhone`, `findPersonsWithHomePhone`, `findActivePersonsWithPhones`
+  - NOT EXISTS subqueries: `findPersonsWithoutWorkPhone`, `findPersonsWithoutHomePhone`
+  - IN/NOT IN subqueries: `findPersonsInHighBudgetDepartments`, `findPersonsInVeryHighBudgetDepartments`, `findPersonsNotInHighBudgetDepartments`
+  - Multiple subqueries: `findPersonsBetweenAverageAndMaximum`, `findActiveAboveDepartmentAverage`, `findPersonsAboveMinWithWorkPhone`
+  - Multi-level navigation: `findPhonesInEngineeringDepartment`, `findWorkPhonesInHighBudgetDepts`, `findPhonesOfActiveOlderPersons`
+  - Complex grouping: All 6 tests including `fullQueryPipeline` with where+groupBy+having+sortedDescendingBy+select+limit
+  - Join with subquery: `joinWithSubqueryOnOwner`, `joinWithExistsSubquery`
+  - Edge cases: `subqueryWithEmptyResult`, `groupWithZeroResultsAfterHaving`, `chainedWhereWithSubqueries`
+- **See Also**: → **BR-010** fixed - all subquery-related implementation bugs resolved
 
 ### TEST-003: Property-Based Testing
 - **Priority**: Medium
@@ -2059,3 +2107,4 @@ When addressing issues, use this template:
 | 5.14 | 2025-12-05 | Claude | **MAINT-006 Complete + CS-005 Resolved**: Extracted focused methods from `CallSiteProcessor.java` to reduce method size and deep nesting. **Fix Applied**: (1) Created `LambdaAnalysis` record to bundle analysis result, callSiteId, and lambdaHash; (2) Extracted `loadAndAnalyzeLambdas()` method (23 lines) - handles bytecode loading, lambda analysis via `analyzeLambdas()`, and hash computation; (3) Extracted `checkAndHandleDuplicate()` method (18 lines) - handles deduplication logic with early return; (4) Refactored `processCallSite()` to delegate to extracted methods with clear early returns - reduced from 103 to 81 lines (22% reduction); (5) Refactored `analyzeLambdas()` to use early returns instead of if-else chain for cleaner flow. **Benefits**: Single Responsibility (each method has one purpose), reduced nesting (early returns), improved testability (extracted methods testable in isolation), better readability (main method is clear high-level workflow). **CS-005 Resolution**: The "deep nesting in processCallSite()" issue was identical to MAINT-006, now resolved by these extractions. Updated: Maintainability medium 2→1, Code Smells resolved 18 (removed dup), total 20→19, resolved 68→69. All 1,113 tests pass. |
 | 5.15 | 2025-12-05 | Claude | **MAINT-007 Complete**: Created `AstBuilders.java` test utility class (367 lines) for fluent AST node construction. **Factory Methods**: Leaf expressions (`constant()`, `field()`, `param()`, `captured()`, `nullLit()`), binary operations (`eq()`, `ne()`, `lt()`, `le()`, `gt()`, `ge()`, `and()`, `or()`, `add()`, `sub()`, `mul()`, `div()`, `mod()`), unary operation (`not()`), type operations (`cast()`, `instanceOf()`), conditional (`conditional()`), and fluent `MethodCallBuilder` (`call("methodName").on(target).withArg(arg).returns(Type.class).build()`). **Test Files Updated**: `LambdaExpressionTest.java` (added 2 new tests for arithmetic operations and fluent builder), `CapturedVariableCoverageTest.java` (reduced verbosity significantly). **Benefits**: ~70 instances of verbose `new LambdaExpression.X(...)` replaced with fluent calls, improved test readability, automatic type inference for constants, leverages ARCH-009 factory methods. Updated: Maintainability medium 1→0, total 18→17 (wait - should be 19→18), resolved 69→70. All 378 deployment tests pass. |
 | 5.16 | 2025-12-05 | Claude | **MAINT-008 Complete**: Added descriptive messages to 23 assertion helper methods across 3 test base classes. **Files Modified**: (1) `PrecompiledLambdaAnalyzer.java` - 8 helpers: `assertBinaryOp`, `assertFieldAccess`, `assertConstant`, `assertMethodCall`, `assertUnaryOp`, `assertCapturedVariable` (2 overloads), `assertNullLiteral`; (2) `PrecompiledBiEntityLambdaAnalyzer.java` - 9 helpers: `assertBiEntityFieldAccess` (2 overloads), `assertBinaryOp`, `assertMethodCall`, `assertConstant`, `assertUnaryOp`, `assertCapturedVariable` (2 overloads); (3) `PrecompiledSubqueryLambdaAnalyzer.java` - 6 helpers: `assertScalarSubquery`, `assertExistsSubquery`, `assertInSubquery`, `assertBinaryOp`, `assertConstant`, `assertFieldAccess`. **Pattern Applied**: All assertions now use `.as()` with format strings showing expected type/value and actual result. Messages propagate to 180+ bytecode analysis tests. **Benefits**: Better debugging (clear context on failure), faster diagnosis (no manual trace-back needed), consistent pattern across all test helpers. Updated: Maintainability low 1→0, total 17→16, resolved 70→71. All 378 deployment tests pass. |
+| 5.17 | 2025-12-06 | Claude | **TEST-002 Partially Complete + BR-010 Discovered**: Created comprehensive integration test file `ComplexQueryIntegrationTest.java` (564 lines) with 25 tests for TEST-002 coverage gaps. **Test Categories**: ExistsSubqueryTests (3), NotExistsSubqueryTests (2), InSubqueryTests (2), NotInSubqueryTests (1), MultipleSubqueryTests (3), MultiLevelNavigationTests (3), ComplexGroupingTests (6), JoinWithSubqueryTests (2), EdgeCaseTests (3). **Results**: 16/25 tests pass, 9 tests fail. **Passing Tests**: IN/NOT IN subqueries, multi-level navigation (Phone→Person→Department), complex grouping with multiple having conditions and full query pipeline (where+groupBy+having+sortedDescendingBy+select+limit). **Failing Tests**: All tests using EXISTS, NOT EXISTS, or Join+Subquery patterns fail with NullPointerException in CallSiteProcessor during build-time processing. **Root Cause**: Implementation bug in EXISTS/NOT EXISTS subquery bytecode analysis - CorrelatedVariable handling for outer scope references appears to have null handling issues. **New Bug Tracking**: Created BR-010 to track the implementation bug separately from the test coverage issue. TEST-002 goal (add tests) is partially achieved; failing tests successfully exposed previously unknown bugs. Updated: Testing category added to dashboard, Bug Risks high +1 (BR-010), total 17→18. |
