@@ -70,6 +70,13 @@
             <artifactId>mockito-core</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Property-based testing (TEST-003) -->
+        <dependency>
+            <groupId>net.jqwik</groupId>
+            <artifactId>jqwik</artifactId>
+            <version>1.9.2</version>
+            <scope>test</scope>
+        </dependency>
 
         <!-- Hibernate ORM deployment for Panache integration -->
         <dependency>

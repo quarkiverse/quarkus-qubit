@@ -29,8 +29,8 @@ This document provides a comprehensive analysis of code quality issues identifie
 | Documentation | 0 | ~~2~~ 1 | 6 | 4 | 12 | 1 |
 | Performance | 0 | ~~1~~ 0 | ~~3~~ 0 | ~~2~~ 0 | ~~6~~ 0 | ~~1~~ 5 (4 N/A) |
 | Maintainability | 0 | ~~7~~ 0 | ~~12~~ 0 | ~~6~~ 0 | ~~25~~ 0 | 25 (1 N/A) |
-| Testing | 0 | ~~1~~ 0 | 0 | 0 | ~~1~~ 0 | 1 |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ ~~2~~ **1** | ~~**51**~~ **7** | ~~**35**~~ **9** | ~~**110**~~ ~~18~~ **17** | **73** (14 N/A, 5 deferred) |
+| Testing | 0 | ~~1~~ 0 | ~~1~~ 0 | 0 | ~~2~~ 0 | 2 |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ ~~2~~ **1** | ~~**51**~~ ~~7~~ **6** | ~~**35**~~ **9** | ~~**110**~~ ~~18~~ ~~17~~ **16** | **74** (14 N/A, 5 deferred) |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -1938,11 +1938,33 @@ return switch (expr) {
   - Edge cases: `subqueryWithEmptyResult`, `groupWithZeroResultsAfterHaving`, `chainedWhereWithSubqueries`
 - **See Also**: → **BR-010** fixed - all subquery-related implementation bugs resolved
 
-### TEST-003: Property-Based Testing
+### TEST-003: Property-Based Testing ✅ COMPLETE
 - **Priority**: Medium
+- **Status**: ✅ **COMPLETE** - 40 property-based tests added
 - **Recommendation**: Consider property-based tests for:
   - AST transformations
   - Expression evaluation
+- **Fix Applied**:
+  - Added **jqwik 1.9.2** dependency for property-based testing
+  - Created [AstArbitraries.java](deployment/src/test/java/io/quarkiverse/qubit/deployment/testutil/AstArbitraries.java) (310 lines) - custom arbitraries for generating random AST nodes:
+    - Leaf expressions: `constants()`, `fieldAccesses()`, `capturedVariables()`, `parameters()`, `nullLiterals()`
+    - Composite expressions: `shallowBinaryOps()`, `shallowUnaryOps()`, `depth1Expressions()`, `depth2Expressions()`
+    - Specialized generators: `expressionsWithCapturedVariables()`, `predicateExpressions()`, `predicateLists()`
+  - Created [AstTransformationPropertyTest.java](deployment/src/test/java/io/quarkiverse/qubit/deployment/analysis/AstTransformationPropertyTest.java) (19 properties) testing:
+    - **renumberCapturedVariables**: identity (zero offset), null safety, index transformation, leaf preservation, operator preservation, offset accumulation, tree-wide renumbering
+    - **collectCapturedVariableIndices**: null safety, CapturedVariable detection, leaf type behavior, determinism, count consistency
+    - **combinePredicatesWithAnd**: single element identity, two element structure, captured variable preservation, empty list exception, null handling
+  - Created [AstFactoryMethodPropertyTest.java](deployment/src/test/java/io/quarkiverse/qubit/deployment/ast/AstFactoryMethodPropertyTest.java) (21 properties) testing:
+    - **BinaryOp factory methods**: All 13 operators (eq, ne, lt, le, gt, ge, and, or, add, sub, mul, div, mod) produce equivalent results to constructor
+    - **UnaryOp factory methods**: not() produces equivalent result to constructor
+    - **InExpression factory methods**: in() and notIn() correctly set negation flag
+    - **Operator symbol properties**: All operators have non-empty symbols
+    - **Record validation**: CapturedVariable rejects negative index, FieldAccess rejects null fields
+- **Benefits**:
+  - **Edge case discovery**: Property-based testing generates 1000+ random inputs per property, finding edge cases that example-based tests miss
+  - **Invariant verification**: Proves that properties hold for ANY valid input, not just specific examples
+  - **Regression detection**: Random seeds are reproducible, so failures can be replicated
+  - **Documentation**: Properties serve as executable specifications of expected behavior
 
 ### TEST-004: Benchmark Tests
 - **Priority**: Medium
@@ -2108,3 +2130,4 @@ When addressing issues, use this template:
 | 5.15 | 2025-12-05 | Claude | **MAINT-007 Complete**: Created `AstBuilders.java` test utility class (367 lines) for fluent AST node construction. **Factory Methods**: Leaf expressions (`constant()`, `field()`, `param()`, `captured()`, `nullLit()`), binary operations (`eq()`, `ne()`, `lt()`, `le()`, `gt()`, `ge()`, `and()`, `or()`, `add()`, `sub()`, `mul()`, `div()`, `mod()`), unary operation (`not()`), type operations (`cast()`, `instanceOf()`), conditional (`conditional()`), and fluent `MethodCallBuilder` (`call("methodName").on(target).withArg(arg).returns(Type.class).build()`). **Test Files Updated**: `LambdaExpressionTest.java` (added 2 new tests for arithmetic operations and fluent builder), `CapturedVariableCoverageTest.java` (reduced verbosity significantly). **Benefits**: ~70 instances of verbose `new LambdaExpression.X(...)` replaced with fluent calls, improved test readability, automatic type inference for constants, leverages ARCH-009 factory methods. Updated: Maintainability medium 1→0, total 18→17 (wait - should be 19→18), resolved 69→70. All 378 deployment tests pass. |
 | 5.16 | 2025-12-05 | Claude | **MAINT-008 Complete**: Added descriptive messages to 23 assertion helper methods across 3 test base classes. **Files Modified**: (1) `PrecompiledLambdaAnalyzer.java` - 8 helpers: `assertBinaryOp`, `assertFieldAccess`, `assertConstant`, `assertMethodCall`, `assertUnaryOp`, `assertCapturedVariable` (2 overloads), `assertNullLiteral`; (2) `PrecompiledBiEntityLambdaAnalyzer.java` - 9 helpers: `assertBiEntityFieldAccess` (2 overloads), `assertBinaryOp`, `assertMethodCall`, `assertConstant`, `assertUnaryOp`, `assertCapturedVariable` (2 overloads); (3) `PrecompiledSubqueryLambdaAnalyzer.java` - 6 helpers: `assertScalarSubquery`, `assertExistsSubquery`, `assertInSubquery`, `assertBinaryOp`, `assertConstant`, `assertFieldAccess`. **Pattern Applied**: All assertions now use `.as()` with format strings showing expected type/value and actual result. Messages propagate to 180+ bytecode analysis tests. **Benefits**: Better debugging (clear context on failure), faster diagnosis (no manual trace-back needed), consistent pattern across all test helpers. Updated: Maintainability low 1→0, total 17→16, resolved 70→71. All 378 deployment tests pass. |
 | 5.17 | 2025-12-06 | Claude | **TEST-002 Partially Complete + BR-010 Discovered**: Created comprehensive integration test file `ComplexQueryIntegrationTest.java` (564 lines) with 25 tests for TEST-002 coverage gaps. **Test Categories**: ExistsSubqueryTests (3), NotExistsSubqueryTests (2), InSubqueryTests (2), NotInSubqueryTests (1), MultipleSubqueryTests (3), MultiLevelNavigationTests (3), ComplexGroupingTests (6), JoinWithSubqueryTests (2), EdgeCaseTests (3). **Results**: 16/25 tests pass, 9 tests fail. **Passing Tests**: IN/NOT IN subqueries, multi-level navigation (Phone→Person→Department), complex grouping with multiple having conditions and full query pipeline (where+groupBy+having+sortedDescendingBy+select+limit). **Failing Tests**: All tests using EXISTS, NOT EXISTS, or Join+Subquery patterns fail with NullPointerException in CallSiteProcessor during build-time processing. **Root Cause**: Implementation bug in EXISTS/NOT EXISTS subquery bytecode analysis - CorrelatedVariable handling for outer scope references appears to have null handling issues. **New Bug Tracking**: Created BR-010 to track the implementation bug separately from the test coverage issue. TEST-002 goal (add tests) is partially achieved; failing tests successfully exposed previously unknown bugs. Updated: Testing category added to dashboard, Bug Risks high +1 (BR-010), total 17→18. |
+| 5.18 | 2025-12-08 | Claude | **TEST-003 Complete**: Added **jqwik 1.9.2** property-based testing framework and created 40 property-based tests across 2 test classes. **Files Created**: (1) [AstArbitraries.java](deployment/src/test/java/io/quarkiverse/qubit/deployment/testutil/AstArbitraries.java) (310 lines) - custom jqwik arbitraries for generating random AST nodes: leaf expressions (`constants()`, `fieldAccesses()`, `capturedVariables()`, `parameters()`, `nullLiterals()`), composite expressions (`shallowBinaryOps()`, `shallowUnaryOps()`, `depth1Expressions()`, `depth2Expressions()`), specialized generators (`expressionsWithCapturedVariables()`, `predicateExpressions()`, `predicateLists()`); (2) [AstTransformationPropertyTest.java](deployment/src/test/java/io/quarkiverse/qubit/deployment/analysis/AstTransformationPropertyTest.java) (19 properties) - tests `renumberCapturedVariables()` (identity, null safety, index transformation, leaf preservation, operator preservation, offset accumulation, tree-wide renumbering), `collectCapturedVariableIndices()` (null safety, CapturedVariable detection, leaf type behavior, determinism, count consistency), `combinePredicatesWithAnd()` (single element identity, two element structure, captured variable preservation, empty list exception, null handling); (3) [AstFactoryMethodPropertyTest.java](deployment/src/test/java/io/quarkiverse/qubit/deployment/ast/AstFactoryMethodPropertyTest.java) (21 properties) - tests all 13 BinaryOp factory methods, UnaryOp.not(), InExpression.in()/notIn(), operator symbol properties, record validation (CapturedVariable negative index, FieldAccess null fields). **Benefits**: Edge case discovery (1000+ random inputs per property), invariant verification (properties hold for ANY valid input), reproducible seeds, executable specifications. Updated: Testing medium 1→0, total 16→15, resolved 74→75. All 648 deployment tests pass. |
