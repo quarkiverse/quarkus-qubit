@@ -439,6 +439,44 @@ class AstNodeValidationTest {
         }
     }
 
+    // ==================== SegmentBasedPath Validation ====================
+
+    @Nested
+    class SegmentBasedPathValidationTests {
+
+        @Test
+        void validateSegments_withNullSegments_throwsNullPointerException() {
+            assertThatThrownBy(() -> LambdaExpression.SegmentBasedPath.validateSegments(null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("Segments cannot be null");
+        }
+
+        @Test
+        void validateSegments_withEmptySegments_throwsIllegalArgumentException() {
+            assertThatThrownBy(() -> LambdaExpression.SegmentBasedPath.validateSegments(List.of()))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Path expression must have at least one segment");
+        }
+
+        @Test
+        void validateSegments_withValidSegments_returnsImmutableCopy() {
+            List<PathSegment> mutableSegments = new ArrayList<>();
+            mutableSegments.add(new PathSegment("field", String.class, RelationType.FIELD));
+
+            List<PathSegment> result = LambdaExpression.SegmentBasedPath.validateSegments(mutableSegments);
+
+            // Verify defensive copy
+            mutableSegments.add(new PathSegment("other", String.class, RelationType.FIELD));
+            assertThat(result)
+                    .as("validateSegments should return an immutable copy")
+                    .hasSize(1);
+
+            // Verify immutability
+            assertThatThrownBy(() -> result.add(new PathSegment("x", String.class, RelationType.FIELD)))
+                    .isInstanceOf(UnsupportedOperationException.class);
+        }
+    }
+
     // ==================== PathExpression Validation ====================
 
     @Nested
@@ -529,6 +567,10 @@ class AstNodeValidationTest {
 
             assertThat(path.getFieldName()).isPresent().contains("owner");
         }
+
+        // Note: getFieldName_withEmptySegments test is NOT possible because the constructor
+        // validates that segments cannot be empty. The segments.isEmpty() check in getFieldName()
+        // is dead code - an EQUIVALENT MUTATION that cannot be killed.
     }
 
     // ==================== InExpression Validation ====================
@@ -665,14 +707,24 @@ class AstNodeValidationTest {
         @Test
         void fromFirst_createsFieldWithFirstPosition() {
             BiEntityFieldAccess access = BiEntityFieldAccess.fromFirst("name", String.class);
-            assertThat(access.isFromFirstEntity()).isTrue();
+            assertThat(access.isFromFirstEntity())
+                    .as("FIRST position should return true for isFromFirstEntity()")
+                    .isTrue();
+            assertThat(access.isFromSecondEntity())
+                    .as("FIRST position should return false for isFromSecondEntity()")
+                    .isFalse();
             assertThat(access.entityPosition()).isEqualTo(EntityPosition.FIRST);
         }
 
         @Test
         void fromSecond_createsFieldWithSecondPosition() {
             BiEntityFieldAccess access = BiEntityFieldAccess.fromSecond("type", String.class);
-            assertThat(access.isFromSecondEntity()).isTrue();
+            assertThat(access.isFromSecondEntity())
+                    .as("SECOND position should return true for isFromSecondEntity()")
+                    .isTrue();
+            assertThat(access.isFromFirstEntity())
+                    .as("SECOND position should return false for isFromFirstEntity()")
+                    .isFalse();
             assertThat(access.entityPosition()).isEqualTo(EntityPosition.SECOND);
         }
 
@@ -724,7 +776,12 @@ class AstNodeValidationTest {
                     new PathSegment("owner", Object.class, RelationType.MANY_TO_ONE)
             );
             BiEntityPathExpression path = BiEntityPathExpression.fromFirst(segments, Object.class);
-            assertThat(path.isFromFirstEntity()).isTrue();
+            assertThat(path.isFromFirstEntity())
+                    .as("FIRST position should return true for isFromFirstEntity()")
+                    .isTrue();
+            assertThat(path.isFromSecondEntity())
+                    .as("FIRST position should return false for isFromSecondEntity()")
+                    .isFalse();
         }
 
         @Test
@@ -733,8 +790,44 @@ class AstNodeValidationTest {
                     new PathSegment("owner", Object.class, RelationType.MANY_TO_ONE)
             );
             BiEntityPathExpression path = BiEntityPathExpression.fromSecond(segments, Object.class);
-            assertThat(path.isFromSecondEntity()).isTrue();
+            assertThat(path.isFromSecondEntity())
+                    .as("SECOND position should return true for isFromSecondEntity()")
+                    .isTrue();
+            assertThat(path.isFromFirstEntity())
+                    .as("SECOND position should return false for isFromFirstEntity()")
+                    .isFalse();
         }
+
+        @Test
+        void getFieldName_returnsFirstSegmentFieldName() {
+            List<PathSegment> segments = List.of(
+                    new PathSegment("owner", Object.class, RelationType.MANY_TO_ONE),
+                    new PathSegment("name", String.class, RelationType.FIELD)
+            );
+            BiEntityPathExpression path = BiEntityPathExpression.fromFirst(segments, String.class);
+
+            assertThat(path.getFieldName())
+                    .as("getFieldName should return the first segment's field name")
+                    .isPresent()
+                    .contains("owner");
+        }
+
+        @Test
+        void getFieldName_withSingleSegment_returnsFieldName() {
+            List<PathSegment> segments = List.of(
+                    new PathSegment("department", Object.class, RelationType.MANY_TO_ONE)
+            );
+            BiEntityPathExpression path = BiEntityPathExpression.fromSecond(segments, Object.class);
+
+            assertThat(path.getFieldName())
+                    .as("getFieldName with single segment should return that segment's field name")
+                    .isPresent()
+                    .contains("department");
+        }
+
+        // Note: Cannot test getFieldName with empty segments because the constructor
+        // validates that segments cannot be empty. The dead code (isEmpty() check) was
+        // removed from getFieldName() - it now directly accesses segments.getFirst().
     }
 
     // ==================== GroupKeyReference Validation ====================
@@ -863,11 +956,21 @@ class AstNodeValidationTest {
         }
 
         @Test
+        void hasPredicate_withNoPredicate_returnsFalse() {
+            SubqueryBuilderReference ref = new SubqueryBuilderReference(Object.class);
+            assertThat(ref.hasPredicate())
+                    .as("No predicate should return false for hasPredicate()")
+                    .isFalse();
+        }
+
+        @Test
         void withPredicate_addsPredicate() {
             SubqueryBuilderReference ref = new SubqueryBuilderReference(Object.class);
             SubqueryBuilderReference withPred = ref.withPredicate(Constant.TRUE);
 
-            assertThat(withPred.hasPredicate()).isTrue();
+            assertThat(withPred.hasPredicate())
+                    .as("After adding predicate, hasPredicate() should be true")
+                    .isTrue();
             assertThat(withPred.predicate()).isEqualTo(Constant.TRUE);
         }
 
@@ -921,13 +1024,18 @@ class AstNodeValidationTest {
             ScalarSubquery sub = ScalarSubquery.avg(Object.class, field("salary", Double.class), null);
             assertThat(sub.aggregationType()).isEqualTo(SubqueryAggregationType.AVG);
             assertThat(sub.resultType()).isEqualTo(Double.class);
+            assertThat(sub.isCount())
+                    .as("AVG is not COUNT, isCount() should be false")
+                    .isFalse();
         }
 
         @Test
         void count_createsCountSubquery() {
             ScalarSubquery sub = ScalarSubquery.count(Object.class, null);
             assertThat(sub.aggregationType()).isEqualTo(SubqueryAggregationType.COUNT);
-            assertThat(sub.isCount()).isTrue();
+            assertThat(sub.isCount())
+                    .as("COUNT should return true for isCount()")
+                    .isTrue();
             assertThat(sub.fieldExpression()).isNull();
         }
 
@@ -941,6 +1049,51 @@ class AstNodeValidationTest {
         void hasPredicate_withPredicate_returnsTrue() {
             ScalarSubquery sub = ScalarSubquery.count(Object.class, Constant.TRUE);
             assertThat(sub.hasPredicate()).isTrue();
+        }
+
+        @Test
+        void sum_createsSumSubquery() {
+            ScalarSubquery sub = ScalarSubquery.sum(Object.class, field("salary", Double.class), null, Double.class);
+            assertThat(sub)
+                    .as("sum() should create a non-null ScalarSubquery")
+                    .isNotNull();
+            assertThat(sub.aggregationType())
+                    .as("sum() should create SUM aggregation type")
+                    .isEqualTo(SubqueryAggregationType.SUM);
+            assertThat(sub.resultType())
+                    .as("sum() should have correct result type")
+                    .isEqualTo(Double.class);
+            assertThat(sub.fieldExpression())
+                    .as("sum() should have field expression")
+                    .isNotNull();
+        }
+
+        @Test
+        void min_createsMinSubquery() {
+            ScalarSubquery sub = ScalarSubquery.min(Object.class, field("age", Integer.class), null, Integer.class);
+            assertThat(sub)
+                    .as("min() should create a non-null ScalarSubquery")
+                    .isNotNull();
+            assertThat(sub.aggregationType())
+                    .as("min() should create MIN aggregation type")
+                    .isEqualTo(SubqueryAggregationType.MIN);
+            assertThat(sub.resultType())
+                    .as("min() should have correct result type")
+                    .isEqualTo(Integer.class);
+        }
+
+        @Test
+        void max_createsMaxSubquery() {
+            ScalarSubquery sub = ScalarSubquery.max(Object.class, field("age", Integer.class), null, Integer.class);
+            assertThat(sub)
+                    .as("max() should create a non-null ScalarSubquery")
+                    .isNotNull();
+            assertThat(sub.aggregationType())
+                    .as("max() should create MAX aggregation type")
+                    .isEqualTo(SubqueryAggregationType.MAX);
+            assertThat(sub.resultType())
+                    .as("max() should have correct result type")
+                    .isEqualTo(Integer.class);
         }
     }
 
@@ -1017,7 +1170,17 @@ class AstNodeValidationTest {
         @Test
         void hasPredicate_withNoPredicate_returnsFalse() {
             InSubquery sub = InSubquery.in(field("id", Long.class), Object.class, field("id", Long.class), null);
-            assertThat(sub.hasPredicate()).isFalse();
+            assertThat(sub.hasPredicate())
+                    .as("No predicate should return false for hasPredicate()")
+                    .isFalse();
+        }
+
+        @Test
+        void hasPredicate_withPredicate_returnsTrue() {
+            InSubquery sub = InSubquery.in(field("id", Long.class), Object.class, field("id", Long.class), Constant.TRUE);
+            assertThat(sub.hasPredicate())
+                    .as("With predicate should return true for hasPredicate()")
+                    .isTrue();
         }
     }
 

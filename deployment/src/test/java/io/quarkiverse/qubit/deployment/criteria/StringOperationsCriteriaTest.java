@@ -33,6 +33,10 @@ class StringOperationsCriteriaTest extends CriteriaQueryTestBase {
         CriteriaQueryStructure structure = generateCriteriaQuery(expr);
         assertCriteriaGenerationSucceeds(expr);
         assertCriteriaMethodCalled(structure, "like");
+        assertFieldAccessed(structure, "email");
+        // endsWith pattern should have % prefix
+        assertConstantUsed(structure, "%");
+        assertCriteriaMethodCalled(structure, "concat");
     }
 
     @Test
@@ -41,6 +45,9 @@ class StringOperationsCriteriaTest extends CriteriaQueryTestBase {
         CriteriaQueryStructure structure = generateCriteriaQuery(expr);
         assertCriteriaGenerationSucceeds(expr);
         assertCriteriaMethodCalled(structure, "like");
+        assertFieldAccessed(structure, "email");
+        // contains pattern should have % prefix and suffix (2 concats)
+        assertCriteriaMethodCallCount(structure, "concat", 2);
     }
 
     @Test

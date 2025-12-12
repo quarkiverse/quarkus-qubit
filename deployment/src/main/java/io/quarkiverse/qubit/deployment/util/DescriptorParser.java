@@ -97,17 +97,14 @@ public final class DescriptorParser {
 
     /**
      * Converts JVM slot index to parameter index.
+     * Returns the parameter index whose starting slot matches the given slot index,
+     * or -1 if no parameter starts at that slot.
      */
     public static int slotIndexToParameterIndex(String descriptor, int slotIndex) {
         ParameterIterator iter = new ParameterIterator(descriptor);
 
         while (iter.hasNext()) {
-            if (iter.getSlotIndex() == slotIndex) {
-                return iter.getParamIndex() + 1;
-            }
-
             iter.next();
-
             if (iter.getCurrentParamSlotStart() == slotIndex) {
                 return iter.getParamIndex();
             }
@@ -137,11 +134,10 @@ public final class DescriptorParser {
                         Log.debugf("Could not load class %s, using Object.class", className);
                         return Object.class;
                     }
-                } else if (c == '[') {
-                    return Object.class;
-                } else {
-                    return TypeConverter.primitiveCharToClass(c);
                 }
+                // Arrays ('[') and primitives are handled by primitiveCharToClass.
+                // Arrays return Object.class via the default case.
+                return TypeConverter.primitiveCharToClass(c);
             }
         }
 

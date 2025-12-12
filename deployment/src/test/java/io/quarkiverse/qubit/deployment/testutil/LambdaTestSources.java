@@ -239,6 +239,15 @@ public class LambdaTestSources {
         return p -> p.active;
     }
 
+    // Additional boolean edge cases for mutation testing
+    public static QuerySpec<TestPerson, Boolean> booleanNotEqualityTrue() {
+        return p -> p.active != true;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> booleanNotEqualityFalse() {
+        return p -> p.active != false;
+    }
+
     public static QuerySpec<TestPerson, Boolean> longEquality() {
         return p -> p.employeeId == 1000001L;
     }
@@ -585,5 +594,15 @@ public class LambdaTestSources {
     public static QuerySpec<TestPerson, Boolean> capturedVariableInComplexExpression() {
         int threshold = 30;
         return p -> (p.age > threshold && p.active) || p.salary > 80000;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> capturedBooleanVariable() {
+        boolean isActive = true;
+        return p -> p.active == isActive;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> capturedLongVariable() {
+        long employeeId = 1000001L;
+        return p -> p.employeeId == employeeId;
     }
 }

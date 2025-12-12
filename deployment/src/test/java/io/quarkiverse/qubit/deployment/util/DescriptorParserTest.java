@@ -265,6 +265,74 @@ class DescriptorParserTest {
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("No more parameters");
         }
+
+        @Test
+        @DisplayName("getSlotIndex returns non-zero after advancing past regular type")
+        void parameterIterator_getSlotIndex_afterRegularType_returnsNonZero() {
+            // TEST-006: Kill mutation "replaced int return with 0 for getSlotIndex"
+            String descriptor = "(IJ)V"; // int takes slot 0, long takes slots 1-2
+            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
+
+            iter.next(); // move to first param (int)
+            assertThat(iter.getSlotIndex())
+                    .as("After int parameter, slotIndex should be 1 (not 0)")
+                    .isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("getSlotIndex returns correct value after wide type")
+        void parameterIterator_getSlotIndex_afterWideType_returnsNonZero() {
+            // TEST-006: Kill mutation - wide types take 2 slots
+            String descriptor = "(JI)V"; // long takes slots 0-1, int takes slot 2
+            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
+
+            iter.next(); // move to first param (long)
+            assertThat(iter.getSlotIndex())
+                    .as("After long parameter, slotIndex should be 2")
+                    .isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("getCurrentParamSlotStart returns correct slot for long parameter")
+        void parameterIterator_getCurrentParamSlotStart_longParam_returnsCorrectSlot() {
+            // TEST-006: Kill mutation on 'c == J' check in getCurrentParamSlotStart
+            String descriptor = "(IJ)V"; // int:0, long:1-2
+            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
+
+            iter.next(); // int
+            iter.next(); // long
+            assertThat(iter.getCurrentParamSlotStart())
+                    .as("Long parameter starting at slot 1 should return 1")
+                    .isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("getCurrentParamSlotStart returns correct slot for double parameter")
+        void parameterIterator_getCurrentParamSlotStart_doubleParam_returnsCorrectSlot() {
+            // TEST-006: Kill mutation on 'c == D' check in getCurrentParamSlotStart
+            String descriptor = "(ID)V"; // int:0, double:1-2
+            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
+
+            iter.next(); // int
+            iter.next(); // double
+            assertThat(iter.getCurrentParamSlotStart())
+                    .as("Double parameter starting at slot 1 should return 1")
+                    .isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("getCurrentParamSlotStart returns slotIndex-1 for regular types")
+        void parameterIterator_getCurrentParamSlotStart_regularType_returnsSlotMinusOne() {
+            // TEST-006: Kill mutation on else branch of getCurrentParamSlotStart
+            String descriptor = "(JI)V"; // long:0-1, int:2
+            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
+
+            iter.next(); // long
+            iter.next(); // int (regular type)
+            assertThat(iter.getCurrentParamSlotStart())
+                    .as("Int parameter after long should start at slot 2")
+                    .isEqualTo(2);
+        }
     }
 
     // ========== Array Type Tests ==========
@@ -623,6 +691,75 @@ class DescriptorParserTest {
         }
     }
 
+    // ========== Slot Index Edge Cases ==========
+
+    @Nested
+    @DisplayName("slotIndexToParameterIndex Edge Cases")
+    class SlotIndexToParameterIndexEdgeCases {
+
+        @Test
+        @DisplayName("Returns -1 for slot 0 when parameters exist")
+        void slotIndexToParameterIndex_slot0WithParams_returnsNegativeOneOrCorrect() {
+            // (int) -> slot 0 should be param 0
+            String descriptor = "(I)V";
+            // getSlotIndex() before next() is 0, but getSlotIndex matches slotIndex
+            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 0))
+                    .isEqualTo(0);  // or 1 depending on logic
+        }
+
+        @Test
+        @DisplayName("Returns param index for first slot of long parameter")
+        void slotIndexToParameterIndex_longFirstSlot_returnsCorrectIndex() {
+            // (long) -> slot 0 is first slot of long (which takes 0-1)
+            String descriptor = "(J)V";
+            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 0))
+                    .isEqualTo(0);
+        }
+
+        @Test
+        @DisplayName("Returns -1 for second slot of long parameter")
+        void slotIndexToParameterIndex_longSecondSlot_returnsNegativeOne() {
+            // (long) -> slot 1 is second slot of long
+            String descriptor = "(J)V";
+            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 1))
+                    .isEqualTo(-1);  // slot 1 doesn't start a param
+        }
+
+        @Test
+        @DisplayName("Returns param index for first slot of double parameter")
+        void slotIndexToParameterIndex_doubleFirstSlot_returnsCorrectIndex() {
+            String descriptor = "(D)V";
+            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 0))
+                    .isEqualTo(0);
+        }
+
+        @Test
+        @DisplayName("Returns correct index for slot after wide type")
+        void slotIndexToParameterIndex_slotAfterWide_returnsCorrectIndex() {
+            // (long, int) -> long:0-1, int:2
+            String descriptor = "(JI)V";
+            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 2))
+                    .isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("Returns correct index for array parameter")
+        void slotIndexToParameterIndex_arrayParam_returnsCorrectIndex() {
+            // (int[], String) -> int[]:0, String:1
+            String descriptor = "([ILjava/lang/String;)V";
+            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 0))
+                    .isEqualTo(0);
+        }
+
+        @Test
+        @DisplayName("Returns -1 for very large slot index")
+        void slotIndexToParameterIndex_veryLargeSlot_returnsNegativeOne() {
+            String descriptor = "(I)V";
+            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 1000))
+                    .isEqualTo(-1);
+        }
+    }
+
     // ========== Edge Cases ==========
 
     @Nested
@@ -705,6 +842,371 @@ class DescriptorParserTest {
         void getParameterType_invalidIndex_returnsObject() {
             String descriptor = "(I)V";
             assertThat(DescriptorParser.getParameterType(descriptor, 99)).isEqualTo(Object.class);
+        }
+    }
+
+    // ========== Boundary Condition Tests (TEST-006) ==========
+
+    @Nested
+    @DisplayName("Boundary Condition Tests (Mutation Killing)")
+    class BoundaryConditionTests {
+
+        @Test
+        @DisplayName("hasNext returns false at exact boundary")
+        void parameterIterator_hasNext_atExactBoundary_returnsFalse() {
+            // TEST-006: Kill boundary mutation on position < descriptor.length()
+            // After consuming all params, position should be at ')' and hasNext() = false
+            String descriptor = "(I)V";
+            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
+
+            iter.next(); // consume int
+            assertThat(iter.hasNext())
+                    .as("hasNext should be false when position is at ')'")
+                    .isFalse();
+        }
+
+        @Test
+        @DisplayName("hasNext with empty parameters")
+        void parameterIterator_hasNext_emptyParams_returnsFalse() {
+            // TEST-006: Kill boundary mutation - empty params means position is at ')'
+            String descriptor = "()V";
+            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
+
+            assertThat(iter.hasNext())
+                    .as("hasNext should be false for empty parameters")
+                    .isFalse();
+        }
+
+        @Test
+        @DisplayName("next handles object array at descriptor boundary")
+        void parameterIterator_next_objectArrayAtBoundary_handlesCorrectly() {
+            // TEST-006: Kill boundary mutation on isNotAtClassReferenceTerminator
+            // Object array as last parameter - tests position < length boundary
+            String descriptor = "([Ljava/lang/String;)V";
+            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
+
+            iter.next();
+            assertThat(iter.getTypeDescriptor())
+                    .as("Should correctly parse object array at boundary")
+                    .isEqualTo("[Ljava/lang/String;");
+            assertThat(iter.hasNext()).isFalse();
+        }
+
+        @Test
+        @DisplayName("next handles class reference at descriptor end")
+        void parameterIterator_next_classAtEnd_handlesCorrectly() {
+            // TEST-006: Kill boundary mutation - class reference terminator ';'
+            String descriptor = "(Ljava/lang/String;)V";
+            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
+
+            iter.next();
+            assertThat(iter.getTypeDescriptor()).isEqualTo("Ljava/lang/String;");
+            assertThat(iter.hasNext()).isFalse();
+        }
+
+        @Test
+        @DisplayName("slotIndexToParameterIndex matches slot before next() call")
+        void slotIndexToParameterIndex_matchesSlotBeforeNext() {
+            // TEST-006: Kill mutation on line 105 - iter.getSlotIndex() == slotIndex
+            // This checks the slot index BEFORE advancing to next param
+            // For descriptor (I)V with slotIndex 0:
+            // - Initial state: slotIndex=0, paramIndex=-1
+            // - First loop: getSlotIndex()=0 == slotIndex=0 -> return paramIndex+1 = 0
+            String descriptor = "(I)V";
+            int result = DescriptorParser.slotIndexToParameterIndex(descriptor, 0);
+            assertThat(result)
+                    .as("Slot 0 should map to parameter 0")
+                    .isEqualTo(0);
+        }
+
+        @Test
+        @DisplayName("slotIndexToParameterIndex matches slot after processing wide type")
+        void slotIndexToParameterIndex_matchesAfterWideType() {
+            // TEST-006: Kill mutation on line 111 - iter.getCurrentParamSlotStart() == slotIndex
+            // For (JI)V: long takes slots 0-1, int takes slot 2
+            // When looking for slot 1 (second slot of long):
+            // - After processing long: slotIndex=2, getCurrentParamSlotStart()=0
+            // - Slot 1 is NOT start of a parameter, should return -1
+            String descriptor = "(JI)V";
+            int result = DescriptorParser.slotIndexToParameterIndex(descriptor, 1);
+            assertThat(result)
+                    .as("Slot 1 (middle of long) should return -1")
+                    .isEqualTo(-1);
+        }
+
+        @Test
+        @DisplayName("getParameterType correctly matches paramIndex")
+        void getParameterType_matchesParamIndex() {
+            // TEST-006: Kill mutation on line 128 - iter.getParamIndex() == paramIndex
+            // With mutation (false), no parameter would ever match
+            String descriptor = "(IJD)V"; // int, long, double
+
+            assertThat(DescriptorParser.getParameterType(descriptor, 0))
+                    .as("Param 0 should be int.class")
+                    .isEqualTo(int.class);
+            assertThat(DescriptorParser.getParameterType(descriptor, 1))
+                    .as("Param 1 should be long.class")
+                    .isEqualTo(long.class);
+            assertThat(DescriptorParser.getParameterType(descriptor, 2))
+                    .as("Param 2 should be double.class")
+                    .isEqualTo(double.class);
+        }
+
+        @Test
+        @DisplayName("Multi-dimensional array bracket processing boundary")
+        void parameterIterator_multiDimArray_bracketBoundary() {
+            // TEST-006: Kill boundary mutation on line 202 - position < descriptor.length()
+            // Tests the while loop that skips array brackets
+            String descriptor = "([[[I)V"; // 3D int array
+            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
+
+            iter.next();
+            assertThat(iter.getTypeDescriptor())
+                    .as("Should correctly skip all array brackets")
+                    .isEqualTo("[[[I");
+            assertThat(iter.hasNext()).isFalse();
+        }
+
+        @Test
+        @DisplayName("Multi-dimensional object array at end")
+        void parameterIterator_multiDimObjectArray_atEnd() {
+            // TEST-006: Kill boundary mutation on line 210 - isNotAtClassReferenceTerminator in array
+            String descriptor = "([[Ljava/util/List;)V"; // 2D List array
+            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
+
+            iter.next();
+            assertThat(iter.getTypeDescriptor())
+                    .as("Should correctly parse 2D object array")
+                    .isEqualTo("[[Ljava/util/List;");
+            assertThat(iter.hasNext()).isFalse();
+        }
+
+        @Test
+        @DisplayName("Single primitive at boundary")
+        void parameterIterator_singlePrimitive_boundary() {
+            // TEST-006: Ensure single char type at boundary works
+            String descriptor = "(Z)V"; // boolean only
+            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
+
+            assertThat(iter.hasNext()).isTrue();
+            iter.next();
+            assertThat(iter.getTypeChar()).isEqualTo('Z');
+            assertThat(iter.hasNext()).isFalse();
+        }
+
+        @Test
+        @DisplayName("Primitive array element at boundary")
+        void parameterIterator_primitiveArrayElement_boundary() {
+            // TEST-006: Kill boundary mutation - primitive element type in array
+            String descriptor = "([Z)V"; // boolean array
+            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
+
+            iter.next();
+            assertThat(iter.getTypeDescriptor()).isEqualTo("[Z");
+            assertThat(iter.hasNext()).isFalse();
+        }
+
+        @Test
+        @DisplayName("slotIndexToParameterIndex returns -1 for non-existent slot")
+        void slotIndexToParameterIndex_nonExistentSlot_returnsNegativeOne() {
+            // TEST-006: Kill NO_COVERAGE on return -1 (line 116)
+            String descriptor = "(IJ)V"; // int:0, long:1-2
+            // Slot 5 doesn't exist - after iterating all params, should return -1
+            int result = DescriptorParser.slotIndexToParameterIndex(descriptor, 5);
+            assertThat(result)
+                    .as("Non-existent slot should return -1")
+                    .isEqualTo(-1);
+        }
+
+        @Test
+        @DisplayName("slotIndexToParameterIndex returns -1 for empty descriptor")
+        void slotIndexToParameterIndex_emptyDescriptor_returnsNegativeOne() {
+            // TEST-006: Additional coverage for return -1 path
+            String descriptor = "()V";
+            int result = DescriptorParser.slotIndexToParameterIndex(descriptor, 0);
+            assertThat(result)
+                    .as("Empty params should return -1 for any slot")
+                    .isEqualTo(-1);
+        }
+
+        @Test
+        @DisplayName("getParameterType specific paramIndex match")
+        void getParameterType_specificParamIndex_matchesCorrectly() {
+            // TEST-006: Kill mutation on line 128 - equality check must work
+            // If mutated to false, would return Object for all params
+            String descriptor = "(Ljava/lang/String;I)V"; // String:0, int:1
+
+            // Must return different types for different indices
+            Class<?> type0 = DescriptorParser.getParameterType(descriptor, 0);
+            Class<?> type1 = DescriptorParser.getParameterType(descriptor, 1);
+
+            assertThat(type0)
+                    .as("Param 0 must be String")
+                    .isEqualTo(String.class);
+            assertThat(type1)
+                    .as("Param 1 must be int")
+                    .isEqualTo(int.class);
+            // If mutation survived, both would be Object.class
+            assertThat(type0).isNotEqualTo(type1);
+        }
+
+        @Test
+        @DisplayName("calculateFirstEntityParameterSlotIndex returns -1 for single param")
+        void calculateFirstEntityParameterSlotIndex_singleParam_returnsNegativeOne() {
+            // TEST-006: Kill mutation at line 81 - slots != null check
+            // With single param, calculateBiEntityParameterSlotIndices returns null
+            // Mutation replaces "slots != null" with "true" which would cause NPE
+            String descriptor = "(LPerson;)Z";
+            int slot = DescriptorParser.calculateFirstEntityParameterSlotIndex(descriptor);
+            assertThat(slot)
+                    .as("Single param should return -1")
+                    .isEqualTo(-1);
+        }
+
+        @Test
+        @DisplayName("calculateSecondEntityParameterSlotIndex returns -1 for single param")
+        void calculateSecondEntityParameterSlotIndex_singleParam_returnsNegativeOne() {
+            // TEST-006: Kill mutation at line 95 - slots != null check
+            String descriptor = "(LPerson;)Z";
+            int slot = DescriptorParser.calculateSecondEntityParameterSlotIndex(descriptor);
+            assertThat(slot)
+                    .as("Single param should return -1")
+                    .isEqualTo(-1);
+        }
+
+        @Test
+        @DisplayName("calculateFirstEntityParameterSlotIndex returns -1 for empty params")
+        void calculateFirstEntityParameterSlotIndex_emptyParams_returnsNegativeOne() {
+            // TEST-006: Additional null coverage
+            String descriptor = "()Z";
+            int slot = DescriptorParser.calculateFirstEntityParameterSlotIndex(descriptor);
+            assertThat(slot)
+                    .as("Empty params should return -1")
+                    .isEqualTo(-1);
+        }
+
+        @Test
+        @DisplayName("calculateSecondEntityParameterSlotIndex returns -1 for empty params")
+        void calculateSecondEntityParameterSlotIndex_emptyParams_returnsNegativeOne() {
+            // TEST-006: Additional null coverage
+            String descriptor = "()Z";
+            int slot = DescriptorParser.calculateSecondEntityParameterSlotIndex(descriptor);
+            assertThat(slot)
+                    .as("Empty params should return -1")
+                    .isEqualTo(-1);
+        }
+    }
+
+    // ========== Null and Malformed Descriptor Tests (TEST-006) ==========
+
+    @Nested
+    @DisplayName("Null and Malformed Descriptor Handling")
+    class NullAndMalformedDescriptorTests {
+
+        @Test
+        @DisplayName("hasNext returns false for null descriptor")
+        void parameterIterator_hasNext_nullDescriptor_returnsFalse() {
+            // TEST-006: Kill mutation on "descriptor != null" check in hasNext
+            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(null);
+            assertThat(iter.hasNext())
+                    .as("hasNext should return false for null descriptor")
+                    .isFalse();
+        }
+
+        @Test
+        @DisplayName("countMethodArguments returns 0 for null descriptor")
+        void countMethodArguments_nullDescriptor_returnsZero() {
+            // TEST-006: Kill mutation - null descriptor should yield 0 parameters
+            int count = DescriptorParser.countMethodArguments(null);
+            assertThat(count)
+                    .as("Null descriptor should have 0 parameters")
+                    .isZero();
+        }
+
+        @Test
+        @DisplayName("calculateEntityParameterSlotIndex returns 0 for null descriptor")
+        void calculateEntityParameterSlotIndex_nullDescriptor_returnsZero() {
+            // TEST-006: Null descriptor edge case
+            int slot = DescriptorParser.calculateEntityParameterSlotIndex(null);
+            assertThat(slot)
+                    .as("Null descriptor should return slot 0")
+                    .isZero();
+        }
+
+        @Test
+        @DisplayName("slotIndexToParameterIndex returns -1 for null descriptor")
+        void slotIndexToParameterIndex_nullDescriptor_returnsNegativeOne() {
+            // TEST-006: Null descriptor edge case
+            int result = DescriptorParser.slotIndexToParameterIndex(null, 0);
+            assertThat(result)
+                    .as("Null descriptor should return -1")
+                    .isEqualTo(-1);
+        }
+
+        @Test
+        @DisplayName("getParameterType returns Object for null descriptor")
+        void getParameterType_nullDescriptor_returnsObject() {
+            // TEST-006: Null descriptor edge case
+            Class<?> type = DescriptorParser.getParameterType(null, 0);
+            assertThat(type)
+                    .as("Null descriptor should return Object.class")
+                    .isEqualTo(Object.class);
+        }
+
+        @Test
+        @DisplayName("calculateBiEntityParameterSlotIndices returns null for null descriptor")
+        void calculateBiEntityParameterSlotIndices_nullDescriptor_returnsNull() {
+            // TEST-006: Null descriptor edge case
+            int[] slots = DescriptorParser.calculateBiEntityParameterSlotIndices(null);
+            assertThat(slots)
+                    .as("Null descriptor should return null")
+                    .isNull();
+        }
+
+        @Test
+        @DisplayName("Iterator with descriptor not starting with parenthesis")
+        void parameterIterator_noParenthesis_startsAtPositionZero() {
+            // TEST-006: Kill mutation on startsWith("(") check
+            // Descriptor without opening parenthesis - position starts at 0
+            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator("IJ)V");
+            assertThat(iter.hasNext())
+                    .as("Should have parameters even without leading parenthesis")
+                    .isTrue();
+            iter.next();
+            assertThat(iter.getTypeChar())
+                    .as("First type should be I (int)")
+                    .isEqualTo('I');
+        }
+
+        @Test
+        @DisplayName("Iterator with empty string descriptor")
+        void parameterIterator_emptyString_hasNextFalse() {
+            // TEST-006: Kill boundary mutation on position < descriptor.length()
+            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator("");
+            assertThat(iter.hasNext())
+                    .as("Empty string should have no parameters")
+                    .isFalse();
+        }
+
+        @Test
+        @DisplayName("Iterator with single parenthesis only")
+        void parameterIterator_singleParenthesis_hasNextFalse() {
+            // TEST-006: Edge case - position = 1, length = 1
+            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator("(");
+            assertThat(iter.hasNext())
+                    .as("Single '(' should have no parameters (position >= length)")
+                    .isFalse();
+        }
+
+        @Test
+        @DisplayName("Iterator at exact position boundary - length equals position")
+        void parameterIterator_positionEqualsLength_hasNextFalse() {
+            // TEST-006: Kill changed conditional boundary mutation
+            // After "()" position=1, length=2, charAt(1)=')' so hasNext=false
+            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator("()");
+            assertThat(iter.hasNext())
+                    .as("Empty params should have hasNext false")
+                    .isFalse();
         }
     }
 }

@@ -458,6 +458,68 @@ public sealed interface LambdaExpression {
     }
 
     /**
+     * Sealed interface for path-based expressions that navigate through segments.
+     * <p>
+     * This interface provides a shared {@link #getFieldName()} implementation for
+     * both {@link PathExpression} and {@link BiEntityPathExpression}, eliminating
+     * code duplication.
+     * <p>
+     * Both implementations are guaranteed to have non-empty segments (validated by
+     * constructors), so direct access to the first segment is always safe.
+     */
+    sealed interface SegmentBasedPath extends LambdaExpression
+            permits PathExpression, BiEntityPathExpression {
+
+        /**
+         * Returns the list of path segments.
+         * <p>
+         * This accessor is automatically implemented by records that have a
+         * {@code segments} component.
+         *
+         * @return the non-empty list of path segments
+         */
+        List<PathSegment> segments();
+
+        /**
+         * Returns the first segment's field name.
+         * <p>
+         * This is the relationship or field name at the start of the path navigation.
+         * For example, in {@code p.owner.firstName}, this returns "owner".
+         *
+         * @return Optional containing the first segment's field name
+         */
+        @Override
+        default Optional<String> getFieldName() {
+            // Constructors of implementing records guarantee segments is non-empty
+            return Optional.of(segments().getFirst().fieldName());
+        }
+
+        /**
+         * Validates and normalizes segments for path expression constructors.
+         * <p>
+         * This helper method provides consistent validation across all path-based
+         * expression types, ensuring:
+         * <ul>
+         *   <li>Segments list is not null</li>
+         *   <li>Segments list is not empty</li>
+         *   <li>Returns a defensive immutable copy</li>
+         * </ul>
+         *
+         * @param segments the segments to validate
+         * @return an immutable copy of the validated segments
+         * @throws NullPointerException if segments is null
+         * @throws IllegalArgumentException if segments is empty
+         */
+        static List<PathSegment> validateSegments(List<PathSegment> segments) {
+            Objects.requireNonNull(segments, "Segments cannot be null");
+            if (segments.isEmpty()) {
+                throw new IllegalArgumentException("Path expression must have at least one segment");
+            }
+            return List.copyOf(segments);
+        }
+    }
+
+    /**
      * Path expression for relationship navigation.
      * <p>
      * Represents chained field access like {@code p.owner.firstName} or
@@ -482,14 +544,10 @@ public sealed interface LambdaExpression {
      */
     record PathExpression(
             List<PathSegment> segments,
-            Class<?> resultType) implements LambdaExpression {
+            Class<?> resultType) implements SegmentBasedPath {
 
         public PathExpression {
-            Objects.requireNonNull(segments, "Segments cannot be null");
-            if (segments.isEmpty()) {
-                throw new IllegalArgumentException("Path expression must have at least one segment");
-            }
-            segments = List.copyOf(segments);
+            segments = SegmentBasedPath.validateSegments(segments);
             Objects.requireNonNull(resultType, "Result type cannot be null");
         }
 
@@ -538,11 +596,7 @@ public sealed interface LambdaExpression {
             return single(fieldName, fieldType, RelationType.FIELD);
         }
 
-        @Override
-        public Optional<String> getFieldName() {
-            // Return the first segment's field name (the relationship/field name)
-            return segments.isEmpty() ? Optional.empty() : Optional.of(segments.get(0).fieldName());
-        }
+        // getFieldName() inherited from SegmentBasedPath
     }
 
     // =============================================================================================
@@ -799,14 +853,10 @@ public sealed interface LambdaExpression {
     record BiEntityPathExpression(
             List<PathSegment> segments,
             Class<?> resultType,
-            EntityPosition entityPosition) implements LambdaExpression {
+            EntityPosition entityPosition) implements SegmentBasedPath {
 
         public BiEntityPathExpression {
-            Objects.requireNonNull(segments, "Segments cannot be null");
-            if (segments.isEmpty()) {
-                throw new IllegalArgumentException("Path expression must have at least one segment");
-            }
-            segments = List.copyOf(segments);
+            segments = SegmentBasedPath.validateSegments(segments);
             Objects.requireNonNull(resultType, "Result type cannot be null");
             Objects.requireNonNull(entityPosition, "Entity position cannot be null");
         }
@@ -847,11 +897,7 @@ public sealed interface LambdaExpression {
             return new BiEntityPathExpression(segments, resultType, EntityPosition.SECOND);
         }
 
-        @Override
-        public Optional<String> getFieldName() {
-            // Return the first segment's field name (the relationship/field name)
-            return segments.isEmpty() ? Optional.empty() : Optional.of(segments.get(0).fieldName());
-        }
+        // getFieldName() inherited from SegmentBasedPath
     }
 
     // =============================================================================================

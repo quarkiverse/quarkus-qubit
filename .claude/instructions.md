@@ -217,6 +217,18 @@ String query = """
 - Verify build success before considering task complete
 - Never make multiple changes before testing - test immediately after each modification
 
+### Testing the Whole Project
+When asked to "test the whole project" or run comprehensive tests, execute the following steps in order:
+1. **Run unit tests**: `mvn test` - all modules
+2. **Run mutation testing**: `mvn test-compile org.pitest:pitest-maven:mutationCoverage` - verify test quality
+3. **Check mutation coverage** - review the pit-reports for any surviving mutants
+4. **Address surviving mutants** - if critical mutants survive, add tests to kill them
+
+**Mutation Testing Thresholds:**
+- Line coverage: ≥80%
+- Mutation coverage: ≥70%
+- If thresholds are not met, investigate and add missing test cases
+
 ### Quarkus Extension Development
 - Deployment module: build-time processing, bytecode generation
 - Runtime module: runtime components, no heavy processing
@@ -264,6 +276,7 @@ A task is **only** complete when:
 - ✅ Code has been verified by running it
 - ✅ No TODOs or partial implementations remain
 - ✅ Documentation updated if needed
+- ✅ **Mutation testing passed** - Run `mvn test-compile org.pitest:pitest-maven:mutationCoverage` and verify coverage thresholds are met (when testing the whole project)
 - ✅ **Lessons learned documented** - Add any new patterns, pitfalls, or insights discovered during implementation to this instructions.md file before committing
 
 ## Anti-Patterns to Avoid

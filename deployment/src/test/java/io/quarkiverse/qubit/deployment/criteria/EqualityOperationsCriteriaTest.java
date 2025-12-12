@@ -37,22 +37,54 @@ class EqualityOperationsCriteriaTest extends CriteriaQueryTestBase {
     @Test
     void booleanEqualityTrue() {
         LambdaExpression expr = analyzeLambda("booleanEqualityTrue");
+        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
         assertCriteriaGenerationSucceeds(expr);
-        // Boolean comparisons may compile to direct field checks, not equal()
+        // p.active == true should call isTrue
+        assertCriteriaMethodCalled(structure, "isTrue");
+        assertFieldAccessed(structure, "active");
     }
 
     @Test
     void booleanEqualityFalse() {
         LambdaExpression expr = analyzeLambda("booleanEqualityFalse");
+        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
         assertCriteriaGenerationSucceeds(expr);
-        // Boolean comparisons may compile to direct field checks, not equal()
+        // Compiler optimizes "p.active == false" to "!p.active"
+        // which generates: not(isTrue(field))
+        assertCriteriaMethodCalled(structure, "not");
+        assertCriteriaMethodCalled(structure, "isTrue");
+        assertFieldAccessed(structure, "active");
     }
 
     @Test
     void booleanImplicit() {
         LambdaExpression expr = analyzeLambda("booleanImplicit");
+        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
         assertCriteriaGenerationSucceeds(expr);
-        // Boolean field access may compile to direct checks, not equal()
+        // p.active (implicit true check) should call isTrue
+        assertCriteriaMethodCalled(structure, "isTrue");
+        assertFieldAccessed(structure, "active");
+    }
+
+    @Test
+    void booleanNotEqualityTrue() {
+        LambdaExpression expr = analyzeLambda("booleanNotEqualityTrue");
+        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
+        assertCriteriaGenerationSucceeds(expr);
+        // p.active != true should call isFalse
+        assertCriteriaMethodCalled(structure, "isFalse");
+        assertFieldAccessed(structure, "active");
+    }
+
+    @Test
+    void booleanNotEqualityFalse() {
+        LambdaExpression expr = analyzeLambda("booleanNotEqualityFalse");
+        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
+        assertCriteriaGenerationSucceeds(expr);
+        // Compiler transforms "p.active != false" to "p.active == true" with boolean constant
+        // which falls through to general equality and generates cb.equal()
+        assertCriteriaMethodCalled(structure, "equal");
+        assertFieldAccessed(structure, "active");
     }
 
     @Test

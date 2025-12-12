@@ -123,4 +123,34 @@ class CapturedVariablesCriteriaTest extends CriteriaQueryTestBase {
         assertCriteriaMethodCalled(structure, "greaterThan");
         assertCriteriaMethodCalled(structure, "equal");
     }
+
+    @Test
+    void capturedBooleanVariable() {
+        LambdaExpression expr = analyzeLambda("capturedBooleanVariable");
+        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
+
+        // Verify generation succeeded
+        assertCriteriaGenerationSucceeds(expr);
+
+        // Verify field access
+        assertFieldAccessed(structure, "active");
+
+        // Verify equal comparison for boolean field with captured variable
+        assertCriteriaMethodCalled(structure, "equal");
+    }
+
+    @Test
+    void capturedLongVariable() {
+        LambdaExpression expr = analyzeLambda("capturedLongVariable");
+        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
+
+        // Verify generation succeeded
+        assertCriteriaGenerationSucceeds(expr);
+
+        // Verify field access
+        assertFieldAccessed(structure, "employeeId");
+
+        // Verify equal comparison
+        assertCriteriaMethodCalled(structure, "equal");
+    }
 }

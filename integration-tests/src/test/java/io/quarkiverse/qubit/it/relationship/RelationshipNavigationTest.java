@@ -1,5 +1,6 @@
 package io.quarkiverse.qubit.it.relationship;
 
+import io.quarkiverse.qubit.it.Department;
 import io.quarkiverse.qubit.it.Person;
 import io.quarkiverse.qubit.it.Phone;
 import io.quarkiverse.qubit.it.Product;
@@ -201,5 +202,37 @@ class RelationshipNavigationTest {
         // Tag by color
         var coloredTags = Tag.where((Tag t) -> !t.color.equals("")).toList();
         assertThat(coloredTags).hasSizeGreaterThan(0);
+    }
+
+    // ========== COLLECTION GETTER TESTS (for mutation coverage) ==========
+
+    @Test
+    @Transactional
+    void departmentGetEmployeesReturnsAssignedPersons() {
+        // Find Engineering department and verify getEmployees() returns assigned persons
+        var engineering = Department.where((Department d) -> d.name.equals("Engineering")).findFirst();
+
+        assertThat(engineering).isPresent();
+        // Call getEmployees() to cover the mutation - must verify content not just size
+        var employees = engineering.get().getEmployees();
+        assertThat(employees)
+                .isNotEmpty()
+                .extracting(Person::getFirstName)
+                .contains("John", "Alice");
+    }
+
+    @Test
+    @Transactional
+    void tagGetProductsReturnsAssociatedProducts() {
+        // Find electronics tag and verify getProducts() returns associated products
+        var electronicsTag = Tag.where((Tag t) -> t.name.equals("electronics")).findFirst();
+
+        assertThat(electronicsTag).isPresent();
+        // Call getProducts() to cover the mutation - must verify content not just size
+        var products = electronicsTag.get().getProducts();
+        assertThat(products)
+                .isNotEmpty()
+                .extracting(Product::getName)
+                .contains("Laptop", "Smartphone", "Monitor");
     }
 }

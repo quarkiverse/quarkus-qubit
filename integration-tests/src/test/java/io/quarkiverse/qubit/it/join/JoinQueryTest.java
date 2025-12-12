@@ -561,4 +561,20 @@ class JoinQueryTest {
 
         assertThat(exists).isFalse();
     }
+
+    // ========== DTO GETTER COVERAGE (for mutation testing) ==========
+
+    @Test
+    void personPhoneDTO_gettersReturnCorrectValues() {
+        var dtos = Person.join((Person p) -> p.phones)
+                .where((Person p, Phone ph) -> p.firstName.equals("John") && ph.type.equals("mobile"))
+                .select((Person p, Phone ph) -> new PersonPhoneDTO(p.firstName, ph.number))
+                .toList();
+
+        assertThat(dtos).hasSize(1);
+        var dto = dtos.get(0);
+        // Explicitly call getters to cover mutations
+        assertThat(dto.getPersonName()).isEqualTo("John");
+        assertThat(dto.getPhoneNumber()).isEqualTo("555-0101");
+    }
 }

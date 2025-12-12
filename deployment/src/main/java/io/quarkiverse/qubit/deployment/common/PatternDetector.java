@@ -104,8 +104,9 @@ public final class PatternDetector {
          * @return analysis result with top expression and pattern type
          */
         public static BranchPatternAnalysis analyze(Deque<LambdaExpression> stack) {
+            // ArrayDeque.peek() returns null for empty deques, no need for isEmpty check
             return new BranchPatternAnalysis(
-                stack.isEmpty() ? null : stack.peek(),
+                stack.peek(),
                 BranchPattern.detect(stack)
             );
         }
