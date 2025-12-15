@@ -7,9 +7,6 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
  *
  * <p>This class provides a centralized location for type inference logic
  * used across the bytecode analysis and code generation phases.
- *
- * <p>Extracted from multiple classes (ARCH-008 continuation) to eliminate
- * duplication and provide a single source of truth for type inference:
  * <ul>
  *   <li>{@code GroupMethodAnalyzer.inferFieldType()}</li>
  *   <li>{@code SubqueryAnalyzer.inferResultType()}</li>
@@ -112,9 +109,6 @@ public final class ExpressionTypeInferrer {
     /**
      * Checks if the class represents a boolean type.
      *
-     * <p>CS-014: Extracted from CriteriaExpressionGenerator and BiEntityExpressionBuilder
-     * to eliminate duplication.
-     *
      * @param type the class to check
      * @return true if the class is boolean or Boolean
      */
@@ -133,9 +127,6 @@ public final class ExpressionTypeInferrer {
      *   <li>{@code isEnabled} → {@code enabled}</li>
      *   <li>{@code other} → {@code other} (returned as-is)</li>
      * </ul>
-     *
-     * <p>CS-014: Extracted from CriteriaExpressionGenerator, BiEntityExpressionBuilder,
-     * and MethodInvocationHandler to eliminate duplication.
      *
      * @param methodName the getter method name
      * @return the extracted field name, or the original method name if not a getter

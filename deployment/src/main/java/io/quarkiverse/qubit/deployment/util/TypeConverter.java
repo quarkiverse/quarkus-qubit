@@ -81,8 +81,6 @@ public final class TypeConverter {
     /**
      * Returns true if type is boolean (primitive or wrapper).
      *
-     * <p>Extracted from PatternDetector (ARCH-008 continuation) for reuse.
-     *
      * @param type the class to check
      * @return true if type is boolean or Boolean
      */

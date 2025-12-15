@@ -33,18 +33,16 @@ import static org.objectweb.asm.Opcodes.*;
 public class MethodInvocationHandler implements InstructionHandler {
 
     /**
-     * Delegate for subquery analysis (extracted for maintainability - MAINT-001).
+     * Delegate for subquery analysis.
      */
     private final SubqueryAnalyzer subqueryAnalyzer = new SubqueryAnalyzer();
 
     /**
-     * Delegate for group method analysis (extracted for maintainability - MAINT-002).
+     * Delegate for group method analysis.
      */
     private final GroupMethodAnalyzer groupMethodAnalyzer = new GroupMethodAnalyzer();
 
-    // Note: COLLECTION_INTERFACE_OWNERS moved to QubitConstants (CS-001)
-
-    // ========== Virtual Method Category Detection (MAINT-003) ==========
+    // ========== Virtual Method Category Detection ==========
 
     /**
      * Enumeration of virtual method categories for bytecode analysis.
@@ -53,7 +51,7 @@ public class MethodInvocationHandler implements InstructionHandler {
      * This enum reduces cyclomatic complexity in {@link #handleInvokeVirtual(AnalysisContext, MethodInsnNode)}
      * by consolidating the pattern detection logic into a single categorization method.
      * <p>
-     * <b>Design Rationale (MAINT-003):</b>
+     * <b>Design Rationale:</b>
      * <ul>
      *   <li>Enum provides exhaustive switch with compile-time safety</li>
      *   <li>Single point of truth for pattern priority ordering</li>
@@ -188,13 +186,8 @@ public class MethodInvocationHandler implements InstructionHandler {
 
     /**
      * Handles INVOKEVIRTUAL: equals, String, compareTo, BigDecimal, temporal, SubqueryBuilder, getters.
-     * <p>
-     * MAINT-003: Refactored from if-else chain to switch on {@link VirtualMethodCategory}
-     * to reduce cyclomatic complexity. Pattern detection order is preserved in the enum's
-     * {@code categorize()} method.
      */
     private void handleInvokeVirtual(AnalysisContext ctx, MethodInsnNode methodInsn) {
-        // MAINT-003: Use category-based dispatch instead of sequential if-else checks
         VirtualMethodCategory category = VirtualMethodCategory.categorize(methodInsn, this);
 
         switch (category) {
@@ -243,13 +236,11 @@ public class MethodInvocationHandler implements InstructionHandler {
         try {
             int argCount = DescriptorParser.countMethodArguments(specialInsn.desc);
 
-            // CS-009: Use popN() helper to pop constructor arguments
             List<LambdaExpression> args = ctx.popN(argCount);
             if (args == null) {
                 args = new ArrayList<>();
             }
 
-            // CS-009: Use discardN() helper to pop NEW and DUP markers
             ctx.discardN(2);
 
             // Special handling: BigDecimal(String) constructor with constant folding
@@ -349,7 +340,6 @@ public class MethodInvocationHandler implements InstructionHandler {
      * </ul>
      */
     private void handleCollectionContains(AnalysisContext ctx) {
-        // CS-009: Use popPair() helper to reduce code repetition
         PopPairResult pair = ctx.popPair();
         if (pair == null) {
             return;
@@ -444,7 +434,6 @@ public class MethodInvocationHandler implements InstructionHandler {
      * Handles equals() method call by converting to equality comparison.
      */
     private void handleEqualsMethod(AnalysisContext ctx) {
-        // CS-009: Use popPair() helper to reduce code repetition
         PopPairResult pair = ctx.popPair();
         if (pair != null) {
             ctx.push(eq(pair.left(), pair.right()));
@@ -652,8 +641,6 @@ public class MethodInvocationHandler implements InstructionHandler {
         }
     }
 
-    // CS-014: extractFieldName() moved to ExpressionTypeInferrer
-
     /**
      * Handles zero-argument method calls (e.g., length(), isEmpty()).
      */
@@ -673,7 +660,6 @@ public class MethodInvocationHandler implements InstructionHandler {
      * Handles single-argument method calls (e.g., startsWith(), compareTo()).
      */
     private void handleSingleArgumentMethodCall(AnalysisContext ctx, String methodName, Class<?> returnType) {
-        // CS-009: Use popPair() helper to reduce code repetition
         PopPairResult pair = ctx.popPair();
         if (pair != null) {
             ctx.push(new LambdaExpression.MethodCall(

@@ -10,6 +10,7 @@ import io.quarkus.deployment.builditem.ApplicationArchivesBuildItem;
 import io.quarkus.deployment.builditem.GeneratedClassBuildItem;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.SortLambda;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.QubitBuildTimeConfig;
 import io.quarkiverse.qubit.deployment.QubitProcessor;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkiverse.qubit.deployment.generation.QueryExecutorClassGenerator;
@@ -23,24 +24,56 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Processes lambda call sites: analyzes bytecode, deduplicates, generates executors.
- * <p>
- * ARCH-001: Extracted LambdaAnalysisResult to separate file.
- * ARCH-001: Extracted captured variable utilities to CapturedVariableHelper.
- * BR-002: Removed queryCounter dependency - class names now use deterministic hash-based naming.
  */
 public class CallSiteProcessor {
+
+    /** Default package for generated executor classes. */
+    private static final String DEFAULT_GENERATED_PACKAGE = "io.quarkiverse.qubit.generated";
 
     private final LambdaBytecodeAnalyzer bytecodeAnalyzer;
     private final LambdaDeduplicator deduplicator;
     private final QueryExecutorClassGenerator classGenerator;
+    private final String classNamePrefix;
+    private final String targetPackage;
 
+    /**
+     * Creates a CallSiteProcessor with default configuration.
+     * Used for backward compatibility.
+     */
     public CallSiteProcessor(
             LambdaBytecodeAnalyzer bytecodeAnalyzer,
             LambdaDeduplicator deduplicator,
             QueryExecutorClassGenerator classGenerator) {
+        this(bytecodeAnalyzer, deduplicator, classGenerator, "QueryExecutor_", DEFAULT_GENERATED_PACKAGE);
+    }
+
+    /**
+     * Creates a CallSiteProcessor with generation configuration.
+     */
+    public CallSiteProcessor(
+            LambdaBytecodeAnalyzer bytecodeAnalyzer,
+            LambdaDeduplicator deduplicator,
+            QueryExecutorClassGenerator classGenerator,
+            QubitBuildTimeConfig.GenerationConfig generationConfig) {
+        this(bytecodeAnalyzer, deduplicator, classGenerator,
+                generationConfig.classNamePrefix(),
+                generationConfig.targetPackage().orElse(DEFAULT_GENERATED_PACKAGE));
+    }
+
+    /**
+     * Creates a CallSiteProcessor with explicit class naming parameters.
+     */
+    public CallSiteProcessor(
+            LambdaBytecodeAnalyzer bytecodeAnalyzer,
+            LambdaDeduplicator deduplicator,
+            QueryExecutorClassGenerator classGenerator,
+            String classNamePrefix,
+            String targetPackage) {
         this.bytecodeAnalyzer = bytecodeAnalyzer;
         this.deduplicator = deduplicator;
         this.classGenerator = classGenerator;
+        this.classNamePrefix = classNamePrefix;
+        this.targetPackage = targetPackage;
     }
 
     /**
@@ -48,7 +81,6 @@ public class CallSiteProcessor {
      * <p>
      * Supports combined where() + select() queries with both predicate and projection.
      * Supports multiple where() predicates combined with AND.
-     * MAINT-006: Refactored to extract helper methods for improved readability.
      */
     public void processCallSite(
             InvokeDynamicScanner.LambdaCallSite callSite,
@@ -56,22 +88,19 @@ public class CallSiteProcessor {
             AtomicInteger generatedCount,
             AtomicInteger deduplicatedCount,
             BuildProducer<GeneratedClassBuildItem> generatedClass,
-            BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations) {
+            BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations,
+            QubitBuildTimeConfig.LoggingConfig loggingConfig) {
         try {
-            // MAINT-006: Extract bytecode loading and lambda analysis
-            LambdaAnalysis analysis = loadAndAnalyzeLambdas(callSite, applicationArchives);
+            LambdaAnalysis analysis = loadAndAnalyzeLambdas(callSite, applicationArchives, loggingConfig);
             if (analysis == null) {
                 return;
             }
 
-            // MAINT-006: Extract deduplication check
-            if (checkAndHandleDuplicate(analysis, callSite, deduplicatedCount, queryTransformations)) {
+            if (checkAndHandleDuplicate(analysis, callSite, deduplicatedCount, queryTransformations, loggingConfig)) {
                 return;
             }
 
-            // ARCH-002: Pattern matching switch with sealed interface (Java 21)
             // Compiler guarantees exhaustiveness - no default case needed
-            // BR-002: Pass lambdaHash for deterministic class naming
             String executorClassName = switch (analysis.result()) {
                 case LambdaAnalysisResult.GroupQueryResult group -> generateAndRegisterGroupExecutor(
                         group.predicateExpression(),
@@ -84,7 +113,8 @@ public class CallSiteProcessor {
                         group.totalCapturedVarCount(),
                         callSite.isCountQuery(),
                         generatedClass,
-                        queryTransformations);
+                        queryTransformations,
+                        loggingConfig);
 
                 case LambdaAnalysisResult.JoinQueryResult join -> generateAndRegisterJoinExecutor(
                         join.joinRelationshipExpression(),
@@ -99,7 +129,8 @@ public class CallSiteProcessor {
                         callSite.isSelectJoinedQuery(),
                         callSite.isJoinProjectionQuery(),
                         generatedClass,
-                        queryTransformations);
+                        queryTransformations,
+                        loggingConfig);
 
                 case LambdaAnalysisResult.AggregationQueryResult agg -> generateAndRegisterExecutor(
                         agg.predicateExpression(),
@@ -112,7 +143,8 @@ public class CallSiteProcessor {
                         analysis.lambdaHash(),
                         analysis.callSiteId(),
                         generatedClass,
-                        queryTransformations);
+                        queryTransformations,
+                        loggingConfig);
 
                 case LambdaAnalysisResult.SimpleQueryResult simple -> generateAndRegisterExecutor(
                         simple.predicateExpression(),
@@ -125,14 +157,17 @@ public class CallSiteProcessor {
                         analysis.lambdaHash(),
                         analysis.callSiteId(),
                         generatedClass,
-                        queryTransformations);
+                        queryTransformations,
+                        loggingConfig);
             };
 
             deduplicator.registerExecutor(analysis.lambdaHash(), executorClassName);
             generatedCount.incrementAndGet();
 
-            Log.debugf("Generated executor: %s for call site %s (hash: %s)",
-                    executorClassName, analysis.callSiteId(), analysis.lambdaHash().substring(0, 8));
+            if (loggingConfig.logGeneratedClasses()) {
+                Log.debugf("Generated executor: %s for call site %s (hash: %s)",
+                        executorClassName, analysis.callSiteId(), analysis.lambdaHash().substring(0, 8));
+            }
 
         } catch (Exception e) {
             Log.errorf(e, "Failed to process call site: %s", callSite);
@@ -141,9 +176,6 @@ public class CallSiteProcessor {
 
     /**
      * Analyzes lambdas based on call site type (multiple predicates, combined, aggregation, join, group, or single).
-     * Added aggregation query support.
-     * Added join query support.
-     * Added group query support.
      */
     private LambdaAnalysisResult analyzeLambdas(
             byte[] classBytes,
@@ -165,7 +197,6 @@ public class CallSiteProcessor {
             return analyzeGroupQuery(classBytes, callSite, callSiteId);
         }
 
-        // MAINT-006: Use early returns to reduce nesting instead of if-else chain
         var predicateLambdas = callSite.predicateLambdas();
         boolean hasMultiplePredicates = predicateLambdas != null && predicateLambdas.size() > 1;
 
@@ -181,16 +212,17 @@ public class CallSiteProcessor {
     }
 
     /**
-     * MAINT-006: Loads bytecode, analyzes lambdas, and computes hash for a call site.
      * Extracts the first part of processCallSite to reduce method size and improve clarity.
      *
      * @param callSite The lambda call site to process
      * @param applicationArchives Application archives for bytecode loading
+     * @param loggingConfig Logging configuration
      * @return LambdaAnalysis containing result, callSiteId, and hash; null if loading/analysis fails
      */
     private LambdaAnalysis loadAndAnalyzeLambdas(
             InvokeDynamicScanner.LambdaCallSite callSite,
-            ApplicationArchivesBuildItem applicationArchives) {
+            ApplicationArchivesBuildItem applicationArchives,
+            QubitBuildTimeConfig.LoggingConfig loggingConfig) {
 
         byte[] classBytes = BytecodeLoader.loadClassBytecode(callSite.ownerClassName(), applicationArchives);
         if (classBytes == null) {
@@ -199,6 +231,11 @@ public class CallSiteProcessor {
         }
 
         String callSiteId = callSite.getCallSiteId();
+
+        if (loggingConfig.logBytecodeAnalysis()) {
+            Log.debugf("Qubit: Analyzing bytecode for call site: %s", callSiteId);
+        }
+
         LambdaAnalysisResult result = analyzeLambdas(classBytes, callSite, callSiteId);
         if (result == null) {
             return null;
@@ -214,24 +251,24 @@ public class CallSiteProcessor {
     }
 
     /**
-     * MAINT-006: Checks if this lambda is a duplicate and handles registration if so.
      * Extracts the deduplication check from processCallSite to reduce method size.
      *
      * @param analysis The lambda analysis containing result and hash
      * @param callSite The original call site for query type detection
      * @param deduplicatedCount Counter to increment on successful deduplication
      * @param queryTransformations Build producer for query transformations
+     * @param loggingConfig Logging configuration
      * @return true if this was a duplicate (already handled), false if new executor needed
      */
     private boolean checkAndHandleDuplicate(
             LambdaAnalysis analysis,
             InvokeDynamicScanner.LambdaCallSite callSite,
             AtomicInteger deduplicatedCount,
-            BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations) {
+            BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations,
+            QubitBuildTimeConfig.LoggingConfig loggingConfig) {
 
         boolean isGroupQuery = analysis.result() instanceof LambdaAnalysisResult.GroupQueryResult;
 
-        // CS-006: Use QueryCharacteristics parameter object instead of 6 boolean parameters
         QueryCharacteristics characteristics = QueryCharacteristics.fromCallSite(callSite, isGroupQuery);
         return deduplicator.handleDuplicateLambda(
                 analysis.callSiteId(),
@@ -239,7 +276,8 @@ public class CallSiteProcessor {
                 characteristics,
                 analysis.result().totalCapturedVarCount(),
                 deduplicatedCount,
-                queryTransformations);
+                queryTransformations,
+                loggingConfig.logDeduplication());
     }
 
     /**
@@ -248,11 +286,8 @@ public class CallSiteProcessor {
      * Handles aggregation queries with optional WHERE predicates.
      * Handles join queries with optional bi-entity predicates.
      * Handles group queries with groupBy, having, select, and sort.
-     * <p>
-     * Refactored for ARCH-002: Uses pattern matching with sealed interface types.
      */
     private String computeHash(InvokeDynamicScanner.LambdaCallSite callSite, LambdaAnalysisResult result) {
-        // ARCH-002: Pattern matching switch with sealed interface (Java 21)
         return switch (result) {
             case LambdaAnalysisResult.GroupQueryResult group -> deduplicator.computeGroupHash(
                     group.predicateExpression(),
@@ -328,9 +363,9 @@ public class CallSiteProcessor {
      * Accepts both predicate and projection expressions.
      * Accepts sort expressions for ORDER BY generation.
      * Accepts aggregation expression and type for aggregation queries.
-     * BR-002: Uses lambdaHash for deterministic class naming (reproducible builds).
      *
      * @param lambdaHash MD5 hash of the lambda expression (used for deterministic class naming)
+     * @param loggingConfig Logging configuration
      */
     private String generateAndRegisterExecutor(
             LambdaExpression predicateExpression,
@@ -343,7 +378,8 @@ public class CallSiteProcessor {
             String lambdaHash,
             String queryId,
             BuildProducer<GeneratedClassBuildItem> generatedClass,
-            BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations) {
+            BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations,
+            QubitBuildTimeConfig.LoggingConfig loggingConfig) {
 
         // Count captured variables from all expressions
         int capturedVarCount = 0;
@@ -358,10 +394,8 @@ public class CallSiteProcessor {
             capturedVarCount += countCapturedVariables(aggregationExpression);
         }
 
-        // BR-002: Use hash prefix for deterministic class naming instead of counter
         // 16 hex chars = 64 bits of entropy, effectively collision-free
-        String className = "io.quarkiverse.qubit.generated.QueryExecutor_" +
-                           lambdaHash.substring(0, 16);
+        String className = targetPackage + "." + classNamePrefix + lambdaHash.substring(0, 16);
 
         byte[] bytecode = classGenerator.generateQueryExecutorClass(
                 predicateExpression,
@@ -377,20 +411,18 @@ public class CallSiteProcessor {
         queryTransformations.produce(
                 new QubitProcessor.QueryTransformationBuildItem(queryId, className, Object.class, isCountQuery, isAggregationQuery, capturedVarCount));
 
-        String queryTypeDesc = getQueryTypeDescription(predicateExpression, projectionExpression, sortExpressions,
-                                                       aggregationExpression, aggregationType, isCountQuery, isAggregationQuery);
-
-        Log.debugf("Generated query executor: %s (%s, %d captured vars)",
-                   className, queryTypeDesc, capturedVarCount);
+        if (loggingConfig.logGeneratedClasses()) {
+            String queryTypeDesc = getQueryTypeDescription(predicateExpression, projectionExpression, sortExpressions,
+                                                           aggregationExpression, aggregationType, isCountQuery, isAggregationQuery);
+            Log.debugf("Generated query executor: %s (%s, %d captured vars)",
+                       className, queryTypeDesc, capturedVarCount);
+        }
 
         return className;
     }
 
     /**
      * Generates and registers a JOIN query executor class.
-     * <p>
-     * Creates a query executor that performs a JPA join between two related entities.
-     * BR-002: Uses lambdaHash for deterministic class naming (reproducible builds).
      *
      * @param joinRelationshipExpression Lambda for the join relationship (e.g., p -> p.phones)
      * @param biEntityPredicateExpression Lambda for bi-entity predicate (e.g., (p, ph) -> ph.type.equals("mobile"))
@@ -405,6 +437,7 @@ public class CallSiteProcessor {
      * @param isJoinProjection True if select() with BiQuerySpec was called
      * @param generatedClass Build producer for generated classes
      * @param queryTransformations Build producer for query transformations
+     * @param loggingConfig Logging configuration
      * @return The generated class name
      */
     private String generateAndRegisterJoinExecutor(
@@ -420,11 +453,10 @@ public class CallSiteProcessor {
             boolean isSelectJoined,
             boolean isJoinProjection,
             BuildProducer<GeneratedClassBuildItem> generatedClass,
-            BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations) {
+            BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations,
+            QubitBuildTimeConfig.LoggingConfig loggingConfig) {
 
-        // BR-002: Use hash prefix for deterministic class naming instead of counter
-        String className = "io.quarkiverse.qubit.generated.QueryExecutor_" +
-                           lambdaHash.substring(0, 16);
+        String className = targetPackage + "." + classNamePrefix + lambdaHash.substring(0, 16);
 
         byte[] bytecode = classGenerator.generateJoinQueryExecutorClass(
                 joinRelationshipExpression,
@@ -441,18 +473,19 @@ public class CallSiteProcessor {
         // Create join query build item with isJoinQuery=true
         // Create selectJoined query build item if isSelectJoined is true
         // Create join projection query build item if isJoinProjection is true
-        // CS-006: Use QueryCharacteristics instead of boolean parameters
         QueryCharacteristics joinCharacteristics = new QueryCharacteristics(
                 isCountQuery, false, true, isSelectJoined, isJoinProjection, false);
         queryTransformations.produce(
                 new QubitProcessor.QueryTransformationBuildItem(queryId, className, Object.class, joinCharacteristics, capturedVarCount));
 
-        String joinTypeDesc = (joinType == InvokeDynamicScanner.JoinType.LEFT) ? "LEFT JOIN" : "INNER JOIN";
-        String queryTypeDesc = isCountQuery ? joinTypeDesc + " COUNT" :
-                (isJoinProjection ? joinTypeDesc + " PROJECTION" :
-                (isSelectJoined ? joinTypeDesc + " SELECT JOINED" : joinTypeDesc));
-        Log.debugf("Generated join query executor: %s (%s, %d captured vars)",
-                   className, queryTypeDesc, capturedVarCount);
+        if (loggingConfig.logGeneratedClasses()) {
+            String joinTypeDesc = (joinType == InvokeDynamicScanner.JoinType.LEFT) ? "LEFT JOIN" : "INNER JOIN";
+            String queryTypeDesc = isCountQuery ? joinTypeDesc + " COUNT" :
+                    (isJoinProjection ? joinTypeDesc + " PROJECTION" :
+                    (isSelectJoined ? joinTypeDesc + " SELECT JOINED" : joinTypeDesc));
+            Log.debugf("Generated join query executor: %s (%s, %d captured vars)",
+                       className, queryTypeDesc, capturedVarCount);
+        }
 
         return className;
     }
@@ -462,7 +495,6 @@ public class CallSiteProcessor {
      * <p>
      * Creates a query executor that performs JPA GROUP BY operations with optional
      * HAVING clause, aggregations, and sorting.
-     * BR-002: Uses lambdaHash for deterministic class naming (reproducible builds).
      *
      * @param predicateExpression Pre-grouping WHERE clause (null if no filtering)
      * @param groupByKeyExpression groupBy() key extractor lambda (e.g., p -> p.department)
@@ -475,6 +507,7 @@ public class CallSiteProcessor {
      * @param isCountQuery True if this is a count query (GroupStream.count())
      * @param generatedClass Build producer for generated classes
      * @param queryTransformations Build producer for query transformations
+     * @param loggingConfig Logging configuration
      * @return The generated class name
      */
     private String generateAndRegisterGroupExecutor(
@@ -488,11 +521,10 @@ public class CallSiteProcessor {
             int capturedVarCount,
             boolean isCountQuery,
             BuildProducer<GeneratedClassBuildItem> generatedClass,
-            BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations) {
+            BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations,
+            QubitBuildTimeConfig.LoggingConfig loggingConfig) {
 
-        // BR-002: Use hash prefix for deterministic class naming instead of counter
-        String className = "io.quarkiverse.qubit.generated.QueryExecutor_" +
-                           lambdaHash.substring(0, 16);
+        String className = targetPackage + "." + classNamePrefix + lambdaHash.substring(0, 16);
 
         byte[] bytecode = classGenerator.generateGroupQueryExecutorClass(
                 predicateExpression,
@@ -505,22 +537,23 @@ public class CallSiteProcessor {
 
         generatedClass.produce(new GeneratedClassBuildItem(true, className, bytecode));
         // Create group query build item with isGroupQuery=true
-        // CS-006: Use QueryCharacteristics instead of boolean parameters
         QueryCharacteristics groupCharacteristics = isCountQuery
                 ? QueryCharacteristics.forGroupCount()
                 : QueryCharacteristics.forGroupList();
         queryTransformations.produce(
                 new QubitProcessor.QueryTransformationBuildItem(queryId, className, Object.class, groupCharacteristics, capturedVarCount));
 
-        String queryTypeDesc = isCountQuery ? "GROUP BY COUNT" : "GROUP BY";
-        if (havingExpression != null) {
-            queryTypeDesc += "+HAVING";
+        if (loggingConfig.logGeneratedClasses()) {
+            String queryTypeDesc = isCountQuery ? "GROUP BY COUNT" : "GROUP BY";
+            if (havingExpression != null) {
+                queryTypeDesc += "+HAVING";
+            }
+            if (groupSelectExpression != null) {
+                queryTypeDesc += "+SELECT";
+            }
+            Log.debugf("Generated group query executor: %s (%s, %d captured vars)",
+                       className, queryTypeDesc, capturedVarCount);
         }
-        if (groupSelectExpression != null) {
-            queryTypeDesc += "+SELECT";
-        }
-        Log.debugf("Generated group query executor: %s (%s, %d captured vars)",
-                   className, queryTypeDesc, capturedVarCount);
 
         return className;
     }
@@ -596,7 +629,6 @@ public class CallSiteProcessor {
     private record PredicateAnalysisResult(LambdaExpression expression, int capturedVarCount) {}
 
     /**
-     * MAINT-006: Bundles lambda analysis results with computed hash for processing.
      * This record groups the analysis result, call site ID, and lambda hash to reduce
      * parameter passing between methods.
      *

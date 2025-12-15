@@ -29,7 +29,7 @@ package io.quarkiverse.qubit.deployment.generation.expression;
  *   <li>{@link SubqueryExpressionBuilder} - subquery expressions</li>
  * </ul>
  *
- * <h2>Design Rationale (ARCH-003)</h2>
+ * <h2>Design Rationale</h2>
  * <p>This is a marker interface rather than a functional interface because:
  * <ol>
  *   <li><b>Different input types</b>: Binary operator builders take {@code BinaryOp.Operator},

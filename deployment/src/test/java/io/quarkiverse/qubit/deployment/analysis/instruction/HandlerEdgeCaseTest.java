@@ -22,9 +22,6 @@ import static org.objectweb.asm.Opcodes.*;
 
 /**
  * Edge case tests for instruction handlers.
- *
- * <p>TEST-001: Tests for null handling, stack underflow, invalid bytecode scenarios,
- * and error handling in instruction handlers.
  */
 class HandlerEdgeCaseTest {
 

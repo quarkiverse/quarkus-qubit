@@ -39,8 +39,6 @@ import io.quarkiverse.qubit.deployment.util.BytecodeLoader;
 
 /**
  * Qubit extension build processor. Generates query executor classes at build time from lambda expressions.
- * <p>
- * BR-002: Removed queryCounter - CallSiteProcessor now uses deterministic hash-based class naming.
  */
 public class QubitProcessor {
 
@@ -49,8 +47,6 @@ public class QubitProcessor {
     private final QueryExecutorClassGenerator classGenerator = new QueryExecutorClassGenerator();
     private final LambdaBytecodeAnalyzer bytecodeAnalyzer = new LambdaBytecodeAnalyzer();
     private final LambdaDeduplicator deduplicator = new LambdaDeduplicator();
-    private final CallSiteProcessor callSiteProcessor = new CallSiteProcessor(
-            bytecodeAnalyzer, deduplicator, classGenerator);
 
     /** Registers Qubit feature. */
     @BuildStep
@@ -149,9 +145,12 @@ public class QubitProcessor {
         }
     }
 
-    /** Scan for lambda call sites and generate query executor classes. */
+    /**
+     * Scan for lambda call sites and generate query executor classes.
+     */
     @BuildStep
     void generateQueryExecutors(
+            QubitBuildTimeConfig config,
             CombinedIndexBuildItem combinedIndex,
             ApplicationArchivesBuildItem applicationArchives,
             BuildProducer<GeneratedClassBuildItem> generatedClass,
@@ -167,7 +166,7 @@ public class QubitProcessor {
         Log.debugf("Qubit: Scanning %d classes for lambda call sites", allClasses.size());
 
         List<ClassInfo> filteredClasses = allClasses.stream()
-                .filter(QubitProcessor::isNotFrameworkClass)
+                .filter(classInfo -> isNotExcludedClass(classInfo, config.scanning()))
                 .toList();
 
         Log.infof("Qubit: Filtered to %d application classes (from %d total)",
@@ -175,12 +174,19 @@ public class QubitProcessor {
 
         // Log test classes found
         long testClassCount = filteredClasses.stream()
-                .filter(c -> c.name().toString().contains(".it."))
+                .filter(c -> c.name().toString().contains(".it.") || c.name().toString().contains(".test."))
                 .count();
-        Log.infof("Qubit: Found %d integration test classes", testClassCount);
+        if (config.scanning().scanTestClasses()) {
+            Log.infof("Qubit: Found %d test classes (scanning enabled)", testClassCount);
+        } else {
+            Log.debugf("Qubit: Skipped %d test classes (scanning disabled)", testClassCount);
+        }
+
+        CallSiteProcessor configuredProcessor = new CallSiteProcessor(
+                bytecodeAnalyzer, deduplicator, classGenerator, config.generation());
 
         List<InvokeDynamicScanner.LambdaCallSite> allCallSites = filteredClasses.stream()
-                .flatMap(classInfo -> scanClassForCallSites(classInfo, scanner, applicationArchives).stream())
+                .flatMap(classInfo -> scanClassForCallSites(classInfo, scanner, applicationArchives, config.logging()).stream())
                 .peek(c -> Log.tracef("Qubit: Found callSite %s", c.getCallSiteId()))
                 .toList();
 
@@ -190,39 +196,76 @@ public class QubitProcessor {
         AtomicInteger deduplicatedCount = new AtomicInteger(0);
 
         allCallSites.stream()
-                .forEach(callSite -> callSiteProcessor.processCallSite(
+                .forEach(callSite -> configuredProcessor.processCallSite(
                         callSite, applicationArchives,
                         generatedCount, deduplicatedCount,
-                        generatedClass, queryTransformations));
+                        generatedClass, queryTransformations,
+                        config.logging()));
 
         Log.infof("Qubit extension initialized - Call sites: %d | Query executors: %d generated, %d deduplicated",
                 allCallSites.size(), generatedCount.get(), deduplicatedCount.get());
     }
 
-    private static boolean isNotFrameworkClass(ClassInfo classInfo) {
+    /**
+     * Determines if a class should be included in lambda scanning.
+     *
+     * @param classInfo the class to check
+     * @param scanningConfig scanning configuration from QubitBuildTimeConfig
+     * @return true if the class should be scanned, false if excluded
+     */
+    private boolean isNotExcludedClass(ClassInfo classInfo, QubitBuildTimeConfig.ScanningConfig scanningConfig) {
         String className = classInfo.name().toString();
 
-        if (className.startsWith("java.") || className.startsWith("jakarta.")) {
+        // Check include packages first (override excludes)
+        if (scanningConfig.includePackages().isPresent()) {
+            for (String includePrefix : scanningConfig.includePackages().get()) {
+                if (className.startsWith(includePrefix)) {
+                    return true;
+                }
+            }
+        }
+
+        // Check exclude packages
+        for (String excludePrefix : scanningConfig.excludePackages()) {
+            if (className.startsWith(excludePrefix)) {
+                return false;
+            }
+        }
+
+        // Handle test classes based on config
+        boolean isTestClass = className.contains(".it.") || className.contains(".test.");
+        if (isTestClass && !scanningConfig.scanTestClasses()) {
             return false;
         }
 
+        // Always include qubit extension classes
         if (className.startsWith("io.quarkiverse.qubit.")) {
             return true;
         }
 
+        // For io.quarkus.* classes, only include test classes (if test scanning is enabled)
         if (className.startsWith("io.quarkus.")) {
-            return className.contains(".it.");
+            return isTestClass && scanningConfig.scanTestClasses();
         }
 
         return true;
     }
 
+    /**
+     * Scans a class for lambda call sites.
+     */
     private List<InvokeDynamicScanner.LambdaCallSite> scanClassForCallSites(
             ClassInfo classInfo,
             InvokeDynamicScanner scanner,
-            ApplicationArchivesBuildItem applicationArchives) {
+            ApplicationArchivesBuildItem applicationArchives,
+            QubitBuildTimeConfig.LoggingConfig loggingConfig) {
         try {
             String className = classInfo.name().toString();
+
+            if (loggingConfig.logScannedClasses()) {
+                Log.debugf("Qubit: Scanning class: %s", className);
+            }
+
             byte[] classBytes = BytecodeLoader.loadClassBytecode(className, applicationArchives);
 
             if (classBytes == null) {
@@ -320,9 +363,6 @@ public class QubitProcessor {
 
     /**
      * Build item representing a query transformation.
-     *
-     * <p>CS-006: Refactored to use QueryCharacteristics for query type flags,
-     * eliminating 6 telescoping constructors and excessive boolean parameters.
      */
     public static final class QueryTransformationBuildItem extends MultiBuildItem {
         private final String queryId;
@@ -332,7 +372,7 @@ public class QubitProcessor {
         private final int capturedVarCount;
 
         /**
-         * Primary constructor using QueryCharacteristics (CS-006).
+         * Primary constructor using QueryCharacteristics.
          *
          * @param queryId unique query identifier (call site ID)
          * @param generatedClassName generated executor class name
@@ -398,7 +438,7 @@ public class QubitProcessor {
             return entityClass;
         }
 
-        /** Returns query characteristics (CS-006: replaces 6 boolean getters). */
+        /** Returns query characteristics */
         public QueryCharacteristics getCharacteristics() {
             return characteristics;
         }

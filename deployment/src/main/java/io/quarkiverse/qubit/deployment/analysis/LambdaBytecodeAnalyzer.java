@@ -40,7 +40,7 @@ import static org.objectweb.asm.Opcodes.*;
 public class LambdaBytecodeAnalyzer {
 
     /**
-     * Registry holding all instruction handlers for dependency injection (ARCH-005).
+     * Registry holding all instruction handlers for dependency injection.
      */
     private final InstructionHandlerRegistry handlerRegistry;
 
@@ -148,7 +148,6 @@ public class LambdaBytecodeAnalyzer {
             }
 
             // For group context, the Group parameter is at slot 0 (first parameter)
-            // ARCH-006: Use constructor-based configuration for immutable state
             int groupParameterIndex = DescriptorParser.calculateEntityParameterSlotIndex(lambdaDescriptor);
             AnalysisContext.NestedLambdaSupport nestedLambdaSupport = createNestedLambdaSupport(classNode.methods);
             AnalysisContext ctx = new AnalysisContext(lambdaMethod, groupParameterIndex, nestedLambdaSupport);
@@ -210,8 +209,6 @@ public class LambdaBytecodeAnalyzer {
 
     /**
      * Analyzes method instructions to build lambda expression AST (single-entity).
-     * <p>
-     * ARCH-006: Uses constructor-based configuration for immutable nested lambda support.
      *
      * @param method lambda method to analyze
      * @param entityParameterIndex local variable slot index of the entity parameter
@@ -227,9 +224,6 @@ public class LambdaBytecodeAnalyzer {
 
     /**
      * Analyzes method instructions to build lambda expression AST (bi-entity).
-     * <p>
-     * Used for BiQuerySpec lambdas in join queries with two entity parameters.
-     * ARCH-006: Uses constructor-based configuration for immutable nested lambda support.
      *
      * @param method lambda method to analyze
      * @param firstEntityParameterIndex local variable slot index of the first entity parameter
@@ -249,7 +243,6 @@ public class LambdaBytecodeAnalyzer {
     /**
      * Creates nested lambda support configuration for the given class methods.
      * <p>
-     * ARCH-006: Factory method to create immutable NestedLambdaSupport configuration.
      * This enables analysis of nested lambdas used in subqueries and group aggregations.
      * For example: {@code subquery(Person.class).avg(q -> q.salary)}
      *

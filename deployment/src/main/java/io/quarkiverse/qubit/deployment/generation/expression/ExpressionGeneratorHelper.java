@@ -11,7 +11,7 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
  * and GroupExpressionBuilder need from CriteriaExpressionGenerator.
  *
  * <p>Extracted to avoid circular dependencies and enable clean delegation
- * from specialized builders back to the main generator (addresses ARCH-001).
+ * from specialized builders back to the main generator.
  *
  * @see io.quarkiverse.qubit.deployment.generation.CriteriaExpressionGenerator
  */

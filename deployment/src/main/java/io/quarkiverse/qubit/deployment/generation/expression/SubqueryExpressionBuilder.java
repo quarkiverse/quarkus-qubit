@@ -68,7 +68,6 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
             ResultHandle outerRoot,
             ResultHandle capturedValues) {
 
-        // BR-003: Null check at method entry to prevent NPE on scalar.aggregationType()
         if (scalar == null) {
             throw new IllegalArgumentException("ScalarSubquery cannot be null");
         }
@@ -125,7 +124,6 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
             ResultHandle outerRoot,
             ResultHandle capturedValues) {
 
-        // BR-003: Null check at method entry to prevent NPE on exists.entityClass()
         if (exists == null) {
             throw new IllegalArgumentException("ExistsSubquery cannot be null");
         }
@@ -181,7 +179,6 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
             ResultHandle outerRoot,
             ResultHandle capturedValues) {
 
-        // BR-003: Null check at method entry to prevent NPE on inSubquery.field()
         if (inSubquery == null) {
             throw new IllegalArgumentException("InSubquery cannot be null");
         }
@@ -233,11 +230,9 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
      * Returns the JPA result type for an aggregation.
      */
     private Class<?> getAggregationResultType(SubqueryAggregationType aggType) {
-        // CS-008: Added default case for future-proofing
         return switch (aggType) {
             case AVG -> Double.class;
-            case SUM -> Number.class;  // Could be Integer, Long, Double, etc.
-            case MIN, MAX -> Comparable.class;
+            case SUM -> Number.class;          case MIN, MAX -> Comparable.class;
             case COUNT -> Long.class;
             default -> throw new IllegalStateException("Unexpected aggregation type: " + aggType);
         };
@@ -261,7 +256,6 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
         ResultHandle fieldPath = generateFieldPath(method, scalar.fieldExpression(), subRoot);
 
         // Generate the appropriate aggregation
-        // CS-008: Added default case for future-proofing
         return switch (scalar.aggregationType()) {
             case AVG -> method.invokeInterfaceMethod(CB_AVG, cb, fieldPath);
             case SUM -> method.invokeInterfaceMethod(CB_SUM, cb, fieldPath);
@@ -313,8 +307,6 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
      * <p>This handles both simple predicates (using only subquery root) and
      * correlated predicates (referencing the outer query's root).
      *
-     * <p>BR-010: Added MethodCall handling for .equals() comparisons in EXISTS/NOT EXISTS predicates.
-     *
      * @param method the method creator for bytecode generation
      * @param predicate the predicate expression, or null
      * @param cb the CriteriaBuilder handle
@@ -335,13 +327,11 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
             return null;
         }
 
-        // Java 21 pattern matching switch for type dispatch
         return switch (predicate) {
             // Handle BinaryOp predicates (most common case)
             case LambdaExpression.BinaryOp binOp ->
                 generateBinaryOpPredicate(method, binOp, cb, subRoot, outerRoot, capturedValues);
 
-            // BR-010: Handle UnaryOp predicates (e.g., NOT operations)
             case LambdaExpression.UnaryOp unaryOp -> {
                 ResultHandle operand = generateSubqueryPredicate(
                         method, unaryOp.operand(), cb, subRoot, outerRoot, capturedValues);
@@ -350,7 +340,6 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
                 };
             }
 
-            // BR-010: Handle MethodCall predicates (e.g., .equals() calls in EXISTS predicates)
             case LambdaExpression.MethodCall methodCall ->
                 generateMethodCallPredicate(method, methodCall, cb, subRoot, outerRoot, capturedValues);
 
@@ -377,10 +366,6 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
 
     /**
      * Generates a predicate for method call expressions in subquery WHERE clauses.
-     *
-     * <p>BR-010: Handles .equals() method calls which translate to cb.equal() predicates.
-     * This is essential for EXISTS/NOT EXISTS subqueries where predicates like
-     * {@code ph.owner.id.equals(p.id)} need to be translated to JPA predicates.
      *
      * @param method the method creator for bytecode generation
      * @param methodCall the method call expression
@@ -473,8 +458,6 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
      * <p>This handles both subquery-local expressions and correlated references
      * to the outer query.
      *
-     * <p>BR-010: Added MethodCall handling for getter chains and BinaryOp for nested expressions.
-     *
      * @param method the method creator for bytecode generation
      * @param expr the expression to generate, or null
      * @param cb the CriteriaBuilder handle
@@ -510,15 +493,13 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
                 yield method.checkCast(value, Object.class);
             }
 
-            // BR-010: Handle Parameter expressions (the lambda parameter itself, e.g., `ph` in `ph.owner`)
             // The subquery parameter refers to the subquery root
             case LambdaExpression.Parameter ignored -> subRoot;
 
-            // BR-010: Handle MethodCall expressions (getter chains like ph.getOwner().getId())
             case LambdaExpression.MethodCall methodCall ->
                 generateMethodCallExpression(method, methodCall, cb, subRoot, outerRoot, capturedValues);
 
-            // BR-010: Handle BinaryOp expressions
+            // Handle BinaryOp expressions
             // For comparison operators (EQ, NE, GT, GE, LT, LE), use generateBinaryOpPredicate
             // since Predicate extends Expression<Boolean>. This handles nested predicates like:
             // BinaryOp[BinaryOp[path, EQ, field], EQ, Constant[true]]
@@ -542,9 +523,6 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
 
     /**
      * Generates a JPA expression for method call expressions in subqueries.
-     *
-     * <p>BR-010: Handles getter method chains that navigate through entity relationships.
-     * For example, {@code ph.getOwner().getId()} generates a path expression.
      *
      * @param method the method creator for bytecode generation
      * @param methodCall the method call expression
@@ -571,7 +549,6 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
                     method, methodCall.target(), cb, subRoot, outerRoot, capturedValues);
 
             // Extract field name from getter (getOwner → owner, isActive → active)
-            // CS-014: Use shared utility method instead of local duplicate
             String fieldName = ExpressionTypeInferrer.extractFieldName(methodName);
             ResultHandle fieldNameHandle = method.load(fieldName);
 
@@ -587,8 +564,6 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
 
     /**
      * Generates a JPA expression for binary operations in subquery expressions.
-     *
-     * <p>BR-010: Handles arithmetic and comparison operations within subquery predicates.
      *
      * @param method the method creator for bytecode generation
      * @param binOp the binary operation expression
@@ -625,10 +600,6 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
     /**
      * Checks if an operator is a comparison or logical operator.
      *
-     * <p>BR-010: Comparison and logical operators produce predicates (Expression&lt;Boolean&gt;),
-     * not numeric expressions. This is used to route BinaryOp expressions to the correct
-     * generator method in subquery handling.
-     *
      * @param operator the binary operator to check
      * @return true if the operator is EQ, NE, GT, GE, LT, LE, AND, or OR
      */
@@ -642,8 +613,6 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
 
     /**
      * Generates a constant value.
-     *
-     * <p>BR-006: Added warning logging for unhandled types to prevent silent failures.
      */
     private ResultHandle generateConstant(MethodCreator method, LambdaExpression.Constant constant) {
         Object value = constant.value();
@@ -656,7 +625,6 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
             case Boolean b -> method.load(b);
             case Double d -> method.load(d);
             case Float f -> method.load(f);
-            // BR-006: Log warning for unhandled constant types instead of silently returning null
             default -> {
                 Log.warnf("Unhandled constant type in subquery generateConstant: %s. "
                         + "This may indicate a missing case handler. Returning null literal.",

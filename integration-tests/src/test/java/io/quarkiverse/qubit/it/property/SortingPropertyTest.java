@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>This class uses parameterized tests to verify ordering invariants
  * that must hold for various sort configurations.
  *
- * <p><strong>Properties Tested (TEST-003):</strong>
+ * <p><strong>Properties Tested:</strong>
  * <ul>
  *   <li><strong>Total ordering</strong>: Every adjacent pair is ordered correctly</li>
  *   <li><strong>Completeness</strong>: Sort contains all original elements</li>

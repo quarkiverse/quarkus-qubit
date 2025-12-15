@@ -29,7 +29,7 @@ import java.util.function.BiFunction;
  *   <li>Utility methods for common operations</li>
  * </ul>
  *
- * <p><b>State Categories (ARCH-006):</b>
+ * <p><b>State Categories:</b>
  * <ul>
  *   <li><b>Configuration State</b>: Set at construction, immutable thereafter
  *       (groupContextMode, classMethods, nestedLambdaAnalyzer)</li>
@@ -46,7 +46,7 @@ public class AnalysisContext {
     // ==================== Nested Lambda Support Configuration ====================
 
     /**
-     * Configuration record for nested lambda analysis support (ARCH-006).
+     * Configuration record for nested lambda analysis support.
      *
      * <p>Bundles the classMethods list and analyzer function together to ensure
      * they are always set consistently. This configuration is immutable once
@@ -131,13 +131,11 @@ public class AnalysisContext {
     /**
      * True if this is a group context lambda (GroupQuerySpec).
      * In group context, the parameter is a Group<T, K> and supports aggregation methods.
-     * Added for GROUP BY query support.
-     * ARCH-006: Made final - set at construction, immutable thereafter.
      */
     private final boolean groupContextMode;
 
     /**
-     * Configuration for nested lambda analysis (ARCH-006).
+     * Configuration for nested lambda analysis.
      * Bundles classMethods and nestedLambdaAnalyzer together as immutable configuration.
      * Null when nested lambda analysis is not supported.
      */
@@ -192,8 +190,6 @@ public class AnalysisContext {
 
     /**
      * Creates a new analysis context for group context lambdas (GroupQuerySpec).
-     * <p>
-     * ARCH-006: Constructor-based configuration for group context mode.
      *
      * @param method the lambda method being analyzed
      * @param entityParameterIndex the slot index of the entity parameter
@@ -205,8 +201,6 @@ public class AnalysisContext {
 
     /**
      * Creates a new analysis context with nested lambda support (single-entity lambda).
-     * <p>
-     * ARCH-006: Constructor-based configuration for nested lambda analysis.
      *
      * @param method the lambda method being analyzed
      * @param entityParameterIndex the slot index of the entity parameter
@@ -220,8 +214,6 @@ public class AnalysisContext {
 
     /**
      * Creates a new analysis context for bi-entity lambdas with nested lambda support.
-     * <p>
-     * ARCH-006: Constructor-based configuration for bi-entity with nested lambda analysis.
      *
      * @param method the lambda method being analyzed
      * @param firstEntityParameterIndex the slot index of the first entity parameter
@@ -234,9 +226,7 @@ public class AnalysisContext {
     }
 
     /**
-     * Internal constructor for all cases (ARCH-006).
-     * <p>
-     * All configuration is set at construction time, making configuration state immutable.
+     * Internal constructor for all cases.
      */
     private AnalysisContext(MethodNode method, int entityParameterIndex,
                             int secondEntityParameterIndex, boolean biEntityMode,
@@ -315,15 +305,6 @@ public class AnalysisContext {
     /**
      * Pops two expressions from the stack for binary operations.
      *
-     * <p>CS-009: Helper method to reduce repeated pop patterns like:
-     * <pre>
-     * if (ctx.getStackSize() >= 2) {
-     *     LambdaExpression right = ctx.pop();
-     *     LambdaExpression left = ctx.pop();
-     *     // use left and right
-     * }
-     * </pre>
-     *
      * @return record containing [left, right] where left was second-to-top and right was top,
      *         or null if stack has fewer than 2 elements
      */
@@ -339,8 +320,6 @@ public class AnalysisContext {
     /**
      * Result of a popPair() operation containing two expressions.
      *
-     * <p>CS-009: Provides semantic naming (left/right) instead of array indices.
-     *
      * @param left the second-to-top element (left operand in binary ops)
      * @param right the top element (right operand in binary ops)
      */
@@ -348,13 +327,6 @@ public class AnalysisContext {
 
     /**
      * Pops N expressions from the stack.
-     *
-     * <p>CS-009: Helper method to reduce repeated pop loops like:
-     * <pre>
-     * for (int i = 0; i < argCount; i++) {
-     *     args.add(0, ctx.pop());
-     * }
-     * </pre>
      *
      * @param n number of elements to pop
      * @return list of N expressions in reverse stack order (first element was deepest),
@@ -373,12 +345,6 @@ public class AnalysisContext {
 
     /**
      * Discards up to N elements from the stack without returning them.
-     *
-     * <p>CS-009: Helper method to reduce repeated discard patterns like:
-     * <pre>
-     * if (!ctx.isStackEmpty()) ctx.pop();
-     * if (!ctx.isStackEmpty()) ctx.pop();
-     * </pre>
      *
      * @param n maximum number of elements to discard
      * @return actual number of elements discarded
@@ -572,8 +538,6 @@ public class AnalysisContext {
 
     /**
      * Returns true if nested lambda analysis is supported.
-     * <p>
-     * ARCH-006: Replaced setter-based configuration with constructor injection.
      *
      * @return true if nested lambda support is configured
      */
@@ -583,9 +547,6 @@ public class AnalysisContext {
 
     /**
      * Finds a method in the class by name and descriptor.
-     * <p>
-     * Used for locating nested lambda methods.
-     * ARCH-006: Updated to use immutable NestedLambdaSupport configuration.
      *
      * @param name method name
      * @param descriptor method descriptor
@@ -605,10 +566,6 @@ public class AnalysisContext {
 
     /**
      * Analyzes a nested lambda method and returns its expression.
-     * <p>
-     * Used for analyzing field extractor lambdas in group aggregations
-     * like {@code g.avg((Person p) -> p.salary)}.
-     * ARCH-006: Updated to use immutable NestedLambdaSupport configuration.
      *
      * @param nestedMethod the nested lambda method to analyze
      * @param entityParamIndex the entity parameter slot index

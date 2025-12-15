@@ -23,7 +23,7 @@ import java.util.Optional;
 public sealed interface LambdaExpression {
 
     // ========================================
-    // Common AST Operations (ARCH-008 continuation)
+    // Common AST Operations
     // ========================================
 
     /**
@@ -298,8 +298,7 @@ public sealed interface LambdaExpression {
      */
     record CapturedVariable(int index, Class<?> type) implements LambdaExpression {
         public CapturedVariable {
-            // BR-007: Validate index bounds to prevent ArrayIndexOutOfBoundsException
-            // when accessing capturedValues array in generated code
+            // Validate index bounds to prevent ArrayIndexOutOfBoundsException when accessing capturedValues array in generated code
             if (index < 0) {
                 throw new IllegalArgumentException(
                         "CapturedVariable index must be non-negative, got: " + index +
@@ -454,7 +453,6 @@ public sealed interface LambdaExpression {
 
         public PathSegment {
             Objects.requireNonNull(fieldName, "Field name cannot be null");
-            // BR-004: Validate that fieldName is not empty (blank/whitespace-only)
             if (fieldName.isBlank()) {
                 throw new IllegalArgumentException("Field name cannot be empty or blank");
             }

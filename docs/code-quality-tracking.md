@@ -22,7 +22,7 @@ This document provides a comprehensive analysis of code quality issues identifie
 
 | Category | Critical | High | Medium | Low | Total | Resolved |
 |----------|----------|------|--------|-----|-------|----------|
-| Architectural | 0 | ~~4~~ 0 | 1 | 5 | 10 | 9 |
+| Architectural | 0 | ~~4~~ 0 | ~~1~~ 0 | 5 | 10 | 10 |
 | Code Smells | 0 | ~~3~~ 0 | ~~12~~ 0 | ~~8~~ 0 | ~~23~~ 0 | ~~2~~ 18 (6 N/A, 2 deferred) |
 | Enum/Type-Safety | 0 | 0 | ~~2~~ 0 | ~~4~~ 0 | ~~6~~ 0 | 3 + 3 deferred |
 | Bug Risks | ~~2~~ 0 | ~~5~~ ~~1~~ 0 | ~~4~~ 0 | ~~2~~ 0 | ~~13~~ ~~1~~ 0 | ~~3~~ ~~10~~ 11 (3 N/A) |
@@ -30,7 +30,7 @@ This document provides a comprehensive analysis of code quality issues identifie
 | Performance | 0 | ~~1~~ 0 | ~~3~~ 0 | ~~2~~ 0 | ~~6~~ 0 | ~~1~~ 5 (4 N/A) |
 | Maintainability | 0 | ~~7~~ 0 | ~~12~~ 0 | ~~6~~ 0 | ~~25~~ 0 | 25 (1 N/A) |
 | Testing | 0 | ~~1~~ 0 | ~~1~~ 0 | 0 | ~~2~~ 0 | 2 |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ ~~2~~ ~~1~~ **0** | ~~**51**~~ ~~7~~ ~~6~~ ~~5~~ **4** | ~~**35**~~ **9** | ~~**110**~~ ~~18~~ ~~17~~ ~~16~~ ~~15~~ ~~14~~ **13** | **77** (14 N/A, 5 deferred) |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ ~~2~~ ~~1~~ **0** | ~~**51**~~ ~~7~~ ~~6~~ ~~5~~ ~~4~~ **3** | ~~**35**~~ **9** | ~~**110**~~ ~~18~~ ~~17~~ ~~16~~ ~~15~~ ~~14~~ ~~13~~ **12** | **78** (14 N/A, 5 deferred) |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -238,10 +238,25 @@ This document provides a comprehensive analysis of code quality issues identifie
   - No more setter-based initialization anti-pattern
   - Thread-safety for configuration (processing state is still single-threaded by design)
 
-### ARCH-007: Missing Central Configuration
+### ARCH-007: Missing Central Configuration ✅ RESOLVED
 - **Severity**: Medium
+- **Status**: ✅ **RESOLVED**
 - **Description**: No centralized configuration for analysis/generation options.
-- **Suggested Fix**: Create `QubitConfiguration` class for tunable parameters.
+- **Fix Applied**:
+  - Created [QubitBuildTimeConfig.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/QubitBuildTimeConfig.java) with `@ConfigMapping(prefix = "quarkus.qubit")` and `@ConfigRoot(phase = ConfigPhase.BUILD_TIME)`
+  - Implemented 3 nested configuration interfaces:
+    - **ScanningConfig**: `excludePackages` (default: java.,jakarta.), `includePackages` (optional override), `scanTestClasses` (default: true)
+    - **GenerationConfig**: `classNamePrefix` (default: QueryExecutor_), `targetPackage` (default: io.quarkiverse.qubit.generated)
+    - **LoggingConfig**: `level` (INFO), `logScannedClasses` (false), `logGeneratedClasses` (true), `logDeduplication` (false), `logBytecodeAnalysis` (false)
+  - Updated `QubitProcessor.java` to inject config and use config-based `isNotExcludedClass()` instead of hardcoded filtering
+  - Updated `CallSiteProcessor.java` with new constructors accepting `GenerationConfig` for configurable class naming
+  - Updated `LambdaDeduplicator.java` to accept `logDeduplication` parameter for configurable logging
+  - Added 27 new tests: `QubitBuildTimeConfigTest.java` (14 tests) and `PackageFilteringTest.java` (13 tests)
+- **Benefits**:
+  - Users can customize scanning via `application.properties` (exclude packages, include overrides, test class scanning)
+  - Configurable class name prefix and target package for generated executors
+  - Fine-grained logging control for debugging build-time processing
+- **See Also**: [ARCH-007-central-configuration.md](ARCH-007-central-configuration.md) for full implementation tracking
 
 ### ARCH-008: No Clear Module Boundaries Within Deployment ✅ RESOLVED
 - **Severity**: Low

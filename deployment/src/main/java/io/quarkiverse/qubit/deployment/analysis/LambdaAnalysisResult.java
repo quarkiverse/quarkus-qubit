@@ -8,8 +8,6 @@ import java.util.List;
 /**
  * Result of lambda bytecode analysis - sealed interface with specialized result types.
  * <p>
- * Extracted from CallSiteProcessor (ARCH-001) to improve maintainability.
- * <p>
  * Each query type has its own result record with only the relevant fields:
  * <ul>
  *   <li>{@link SimpleQueryResult}: where, select, combined, sorting-only queries</li>

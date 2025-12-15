@@ -24,7 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>This class uses parameterized tests to verify composition invariants
  * when multiple query operations are combined.
  *
- * <p><strong>Properties Tested (TEST-003):</strong>
+ * <p><strong>Properties Tested:</strong>
  * <ul>
  *   <li><strong>Filter-first property</strong>: Filtering happens before pagination</li>
  *   <li><strong>Sort-pagination consistency</strong>: Sorting is applied before pagination</li>

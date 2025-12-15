@@ -18,11 +18,6 @@ import java.util.List;
 /**
  * Unit tests for {@link StringExpressionBuilder}.
  *
- * <p>Note: The {@code getOperationType()} method is currently dead code (never called
- * in production) as identified in ENUM-006 analysis. These tests ensure the method
- * works correctly if it becomes needed in the future, and they kill mutations
- * that would otherwise survive.
- *
  * <p>The bytecode generation methods ({@code buildStringTransformation},
  * {@code buildStringPattern}, {@code buildStringSubstring}, {@code buildStringUtility})
  * require integration tests with Quarkus Gizmo framework and are tested via

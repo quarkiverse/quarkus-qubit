@@ -129,7 +129,6 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             }
         }
 
-        // ENUM-001: Use FluentMethodType enum for method identification
         private boolean isGenerateBridgeMethod(String methodName) {
             return FluentMethodType.fromMethodName(methodName).isPresent() ||
                    METHOD_JOIN.equals(methodName) ||
@@ -146,7 +145,6 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             if (implementsQubitRepository && entityType != null) {
                 Log.debugf("Generating bridge methods for empty repository: %s", className);
 
-                // ENUM-001: Generate all fluent API entry point methods using enum
                 for (FluentMethodType methodType : FluentMethodType.ENTRY_POINTS) {
                     generateBridgeMethod(methodType);
                 }
@@ -161,16 +159,12 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
         /**
          * Generates a bridge method implementation for the given fluent API method type.
          *
-         * <p>ENUM-001: Refactored to use {@link FluentMethodType} enum with behavior-attached
-         * factory methods, eliminating the switch statement duplication.
-         *
          * @param methodType the fluent method type to generate
          */
         private void generateBridgeMethod(FluentMethodType methodType) {
             String entityInternalName = entityType.getInternalName();
             String methodName = methodType.getMethodName();
 
-            // ENUM-001: Use enum's createConfig() instead of switch statement
             QubitBytecodeGenerator.FluentMethodConfig config = methodType.createConfig(entityType, entityInternalName);
 
             Log.tracef("Generating method %s with descriptor %s", methodName, config.methodDescriptor());
@@ -307,16 +301,11 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             generateBridgeImplementation();
         }
 
-        /**
-         * ENUM-001: Refactored to use {@link FluentMethodType} enum with behavior-attached
-         * factory methods, eliminating the switch statement duplication.
-         */
         private void generateBridgeImplementation() {
             mv.visitCode();
 
             String entityInternalName = entityType.getInternalName();
 
-            // ENUM-001: Use enum lookup and createConfig() instead of switch statement
             QubitBytecodeGenerator.FluentMethodConfig config = FluentMethodType.fromMethodName(methodName)
                     .map(type -> type.createConfig(entityType, entityInternalName))
                     .orElse(null);

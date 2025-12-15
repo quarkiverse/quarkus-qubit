@@ -10,7 +10,7 @@ import java.util.Objects;
  * handler implementations. In production, use {@link #createDefault()} to obtain
  * a registry with standard handler instances in the correct processing order.
  *
- * <p><b>Design Rationale (ARCH-005):</b>
+ * <p><b>Design Rationale:</b>
  * <ul>
  *   <li>All handlers are stateless, making them safe to share</li>
  *   <li>Record provides immutability and automatic equals/hashCode</li>

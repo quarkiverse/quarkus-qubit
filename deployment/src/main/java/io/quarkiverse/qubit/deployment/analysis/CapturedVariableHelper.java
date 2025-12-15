@@ -12,8 +12,6 @@ import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.and;
 /**
  * Utility class for captured variable operations in lambda expressions.
  * <p>
- * Extracted from CallSiteProcessor (ARCH-001) to improve maintainability and reusability.
- * <p>
  * Provides methods for:
  * <ul>
  *   <li>Counting captured variables in expressions</li>
@@ -245,8 +243,6 @@ public final class CapturedVariableHelper {
 
     /**
      * Combines two predicates with AND operator if both are non-null.
-     *
-     * <p>Extracted from SubqueryAnalyzer (ARCH-008 continuation) for reuse.
      *
      * <p>This is a convenience method for combining exactly two predicates,
      * handling null cases gracefully:

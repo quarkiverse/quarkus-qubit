@@ -29,9 +29,6 @@ import static io.quarkiverse.qubit.runtime.QubitConstants.*;
  *   <li>{@code g.sumDouble(field)} → GroupAggregation(SUM_DOUBLE, field)</li>
  * </ul>
  *
- * <p>Extracted from MethodInvocationHandler to reduce class size
- * and improve maintainability (addresses ARCH-001, MAINT-002).
- *
  * @see MethodInvocationHandler
  * @see GroupAggregation
  */
@@ -108,7 +105,6 @@ public class GroupMethodAnalyzer {
      * Handles g.countDistinct(field) - counts distinct values.
      */
     private void handleGroupCountDistinct(AnalysisContext ctx) {
-        // CS-009: Use popPair() helper to reduce code repetition
         PopPairResult pair = ctx.popPair();
         if (pair == null) {
             return;
@@ -130,7 +126,6 @@ public class GroupMethodAnalyzer {
     private void handleGroupAggregationWithField(
             AnalysisContext ctx,
             Function<LambdaExpression, GroupAggregation> aggregationFactory) {
-        // CS-009: Use popPair() helper to reduce code repetition
         PopPairResult pair = ctx.popPair();
         if (pair == null) {
             return;
@@ -150,7 +145,6 @@ public class GroupMethodAnalyzer {
      * Handles g.min(field) and g.max(field) - aggregations that preserve field type.
      */
     private void handleGroupMinMax(AnalysisContext ctx, boolean isMin) {
-        // CS-009: Use popPair() helper to reduce code repetition
         PopPairResult pair = ctx.popPair();
         if (pair == null) {
             return;

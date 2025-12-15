@@ -137,7 +137,6 @@ public abstract class PrecompiledLambdaAnalyzer {
     }
 
     // ==================== ASSERTION HELPERS ====================
-    // MAINT-008: All assertion helpers include descriptive messages for better debugging
 
     /**
      * Asserts that an expression is a binary operation with the expected operator.

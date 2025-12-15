@@ -3,7 +3,7 @@ package io.quarkiverse.qubit.deployment.analysis;
 /**
  * Encapsulates query type characteristics for deduplication and executor registration.
  *
- * <p>CS-006: Replaces excessive boolean parameters with a cohesive parameter object.
+ * <p>
  * These flags describe a query's execution characteristics and are used for:
  * <ul>
  *   <li>Lambda deduplication (computing hash, reusing executors)</li>

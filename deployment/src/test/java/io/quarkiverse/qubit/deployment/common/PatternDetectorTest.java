@@ -576,7 +576,6 @@ class PatternDetectorTest {
 
         @Test
         void returnsTrue_forSubqueryInLeftOfBinaryOp() {
-            // TEST-006: Kill mutation on left side || check
             // Right side MUST NOT contain a subquery
             LambdaExpression subquery = LambdaExpression.ScalarSubquery.avg(
                     Object.class,
@@ -596,7 +595,6 @@ class PatternDetectorTest {
 
         @Test
         void returnsTrue_forSubqueryOnlyInRightOfBinaryOp() {
-            // TEST-006: Kill mutation on right side || check
             // Left side MUST NOT contain a subquery
             LambdaExpression subquery = LambdaExpression.ExistsSubquery.exists(
                     Object.class,
@@ -615,7 +613,6 @@ class PatternDetectorTest {
 
         @Test
         void returnsFalse_forBinaryOpWithNoSubqueries() {
-            // TEST-006: Kill mutation on BinaryOp case - neither side has subquery
             // This ensures the || expression evaluates both sides and returns false
             BinaryOp binOp = BinaryOp.and(
                     new LambdaExpression.FieldAccess("active", boolean.class),  // NOT a subquery
@@ -630,14 +627,12 @@ class PatternDetectorTest {
 
         @Test
         void returnsFalse_forFieldAccess() {
-            // TEST-006: Kill default case mutation
             LambdaExpression expr = new LambdaExpression.FieldAccess("name", String.class);
             assertThat(PatternDetector.containsSubquery(expr)).isFalse();
         }
 
         @Test
         void returnsFalse_forMethodCall() {
-            // TEST-006: Kill default case mutation
             LambdaExpression expr = new LambdaExpression.MethodCall(
                     new LambdaExpression.FieldAccess("name", String.class),
                     "length",
@@ -667,7 +662,6 @@ class PatternDetectorTest {
 
         @Test
         void returnsFalse_forExistsSubquery() {
-            // TEST-006: Kill mutation on ExistsSubquery case returning false
             LambdaExpression expr = LambdaExpression.ExistsSubquery.exists(
                     Object.class,
                     new LambdaExpression.Constant(true, boolean.class)
@@ -678,7 +672,6 @@ class PatternDetectorTest {
 
         @Test
         void returnsFalse_forInSubquery() {
-            // TEST-006: Kill mutation on InSubquery case returning false
             LambdaExpression fieldExpr = new LambdaExpression.FieldAccess("id", Long.class);
             LambdaExpression selectExpr = new LambdaExpression.FieldAccess("foreignId", Long.class);
             LambdaExpression expr = new LambdaExpression.InSubquery(
@@ -710,7 +703,6 @@ class PatternDetectorTest {
 
         @Test
         void returnsTrue_forScalarSubqueryInLeftOfBinaryOp() {
-            // TEST-006: Kill mutation on left side || check
             // Right side MUST NOT contain a subquery for this to kill the left-side mutation
             LambdaExpression subquery = LambdaExpression.ScalarSubquery.avg(
                     Object.class,
@@ -731,7 +723,6 @@ class PatternDetectorTest {
 
         @Test
         void returnsTrue_forScalarSubqueryOnlyInRightOfBinaryOp() {
-            // TEST-006: Kill mutation on right side || check
             // Left side MUST NOT contain a subquery for this to kill the right-side mutation
             LambdaExpression subquery = LambdaExpression.ScalarSubquery.avg(
                     Object.class,
@@ -772,14 +763,12 @@ class PatternDetectorTest {
 
         @Test
         void returnsFalse_forConstant() {
-            // TEST-006: Kill default case mutation
             LambdaExpression expr = new LambdaExpression.Constant(1, int.class);
             assertThat(PatternDetector.containsScalarSubquery(expr)).isFalse();
         }
 
         @Test
         void returnsFalse_forBinaryOpWithNoScalarSubqueries() {
-            // TEST-006: Kill mutation on BinaryOp case - neither side has scalar subquery
             BinaryOp binOp = BinaryOp.and(
                     new LambdaExpression.FieldAccess("active", boolean.class),  // NOT a subquery
                     new LambdaExpression.FieldAccess("enabled", boolean.class)  // NOT a subquery
@@ -792,7 +781,6 @@ class PatternDetectorTest {
 
         @Test
         void returnsFalse_forBinaryOpWithExistsSubquery() {
-            // TEST-006: Verify ExistsSubquery is not considered a scalar subquery even in BinaryOp
             LambdaExpression existsSubquery = LambdaExpression.ExistsSubquery.exists(
                     Object.class,
                     new LambdaExpression.Constant(true, boolean.class)
@@ -828,21 +816,18 @@ class PatternDetectorTest {
 
         @Test
         void returnsTrue_forIntegerZero() {
-            // TEST-006: Kill mutation on Integer 0 check
             LambdaExpression expr = new LambdaExpression.Constant(0, int.class);
             assertThat(PatternDetector.isBooleanConstant(expr)).isTrue();
         }
 
         @Test
         void returnsTrue_forIntegerOne() {
-            // TEST-006: Kill mutation on Integer 1 check
             LambdaExpression expr = new LambdaExpression.Constant(1, int.class);
             assertThat(PatternDetector.isBooleanConstant(expr)).isTrue();
         }
 
         @Test
         void returnsFalse_forIntegerTwo() {
-            // TEST-006: Kill mutation - only 0 and 1 are boolean
             LambdaExpression expr = new LambdaExpression.Constant(2, int.class);
             assertThat(PatternDetector.isBooleanConstant(expr)).isFalse();
         }
@@ -890,7 +875,6 @@ class PatternDetectorTest {
 
         @Test
         void returnsTrue_forBooleanConstantOnLeftSubqueryOnRight() {
-            // TEST-006: Kill mutation on rightIsSubquery check
             LambdaExpression subquery = LambdaExpression.ExistsSubquery.exists(
                     Object.class,
                     new LambdaExpression.Constant(true, boolean.class)
@@ -902,7 +886,6 @@ class PatternDetectorTest {
 
         @Test
         void returnsFalse_forNonEqualityOperator() {
-            // TEST-006: Kill mutation on operator check
             LambdaExpression subquery = LambdaExpression.ExistsSubquery.exists(
                     Object.class,
                     new LambdaExpression.Constant(true, boolean.class)
@@ -948,7 +931,6 @@ class PatternDetectorTest {
 
         @Test
         void returnsTrue_forEqZero() {
-            // TEST-006: Kill mutation on Integer.valueOf(0) check
             LambdaExpression constant = new LambdaExpression.Constant(0, int.class);
             assertThat(PatternDetector.isNegatedSubqueryComparison(Operator.EQ, constant)).isTrue();
         }
@@ -961,7 +943,6 @@ class PatternDetectorTest {
 
         @Test
         void returnsTrue_forNeOne() {
-            // TEST-006: Kill mutation on Integer.valueOf(1) check
             LambdaExpression constant = new LambdaExpression.Constant(1, int.class);
             assertThat(PatternDetector.isNegatedSubqueryComparison(Operator.NE, constant)).isTrue();
         }
@@ -982,7 +963,6 @@ class PatternDetectorTest {
 
         @Test
         void returnsFalse_forLtOperator() {
-            // TEST-006: Kill mutation on operator switch
             LambdaExpression constant = new LambdaExpression.Constant(false, boolean.class);
             assertThat(PatternDetector.isNegatedSubqueryComparison(Operator.LT, constant)).isFalse();
         }
@@ -1219,7 +1199,6 @@ class PatternDetectorTest {
 
         @Test
         void returnsTrue_forBiEntityPathExpression() {
-            // TEST-006: Kill mutation on BiEntityPathExpression instanceof check
             Deque<LambdaExpression> stack = new ArrayDeque<>();
             java.util.List<LambdaExpression.PathSegment> segments = java.util.List.of(
                     new LambdaExpression.PathSegment("address", Object.class, LambdaExpression.RelationType.MANY_TO_ONE),
@@ -1237,7 +1216,6 @@ class PatternDetectorTest {
 
         @Test
         void returnsTrue_forArithmeticExpression() {
-            // TEST-006: Kill mutation on isArithmeticExpression check in isComparableExpression
             Deque<LambdaExpression> stack = new ArrayDeque<>();
             BinaryOp arithmetic = BinaryOp.add(
                     new LambdaExpression.FieldAccess("a", int.class),
@@ -1410,7 +1388,6 @@ class PatternDetectorTest {
 
         @Test
         void returnsTrue_forMOD() {
-            // TEST-006: Kill mutation on MOD check
             BinaryOp binOp = BinaryOp.mod(
                     new LambdaExpression.FieldAccess("a", int.class),
                     new LambdaExpression.FieldAccess("b", int.class)
@@ -1457,10 +1434,6 @@ class PatternDetectorTest {
 
         @Test
         void isBooleanFieldCapturedVariableComparison_returnsFalse_whenFieldTypeNotBooleanButCapturedVarIsBoolean() {
-            // TEST-006: Kill mutation on fieldType check
-            // Original: return false because fieldType (String) is not boolean
-            // Mutant: skip fieldType check, capturedVar.type() is boolean -> return true
-            // This test expects false, so mutant fails -> KILLED
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("name", String.class),  // NOT boolean
                     Operator.EQ,
@@ -1476,10 +1449,6 @@ class PatternDetectorTest {
 
         @Test
         void isSubqueryBooleanComparison_returnsFalse_whenRightIsNotSubqueryButLeftIsBooleanConstant() {
-            // TEST-006: Kill mutation at line 476 block 14 (rightIsSubquery check)
-            // Mutation replaces "rightIsSubquery && isBooleanConstant(left)" with "true && ..."
-            // We need: rightIsSubquery=FALSE, isBooleanConstant(left)=TRUE
-            // Original returns false, mutant would return true -> KILLED
             BinaryOp binOp = BinaryOp.eq(
                     new LambdaExpression.Constant(true, boolean.class),  // left: IS boolean constant
                     new LambdaExpression.FieldAccess("active", boolean.class)  // right: NOT a subquery
@@ -1492,7 +1461,6 @@ class PatternDetectorTest {
 
         @Test
         void isSubqueryBooleanComparison_returnsFalse_whenRightIsNotSubqueryAndLeftIsIntZero() {
-            // TEST-006: Kill mutation at line 476 block 17 (isBooleanConstant check on left)
             // Tests the right side not being a subquery with integer 0 on left
             BinaryOp binOp = BinaryOp.eq(
                     new LambdaExpression.Constant(0, int.class),  // left: IS boolean constant (0)
@@ -1506,11 +1474,6 @@ class PatternDetectorTest {
 
         @Test
         void isNegatedSubqueryComparison_returnsFalse_forGtOperatorWithTrueValue() {
-            // TEST-006: Kill mutation at line 524 block 13 (operator == NE check)
-            // Mutation replaces "operator == NE" with "true"
-            // We need: operator is GT (not EQ, not NE), value is TRUE (would match NE branch)
-            // Original skips both branches (not EQ, not NE) and returns false
-            // Mutant would enter NE branch and return true -> KILLED
             LambdaExpression constant = new LambdaExpression.Constant(true, boolean.class);
 
             assertThat(PatternDetector.isNegatedSubqueryComparison(Operator.GT, constant))
@@ -1520,7 +1483,6 @@ class PatternDetectorTest {
 
         @Test
         void isNegatedSubqueryComparison_returnsFalse_forLeOperatorWithIntOne() {
-            // TEST-006: Additional test with different non-EQ/NE operator
             LambdaExpression constant = new LambdaExpression.Constant(1, int.class);
 
             assertThat(PatternDetector.isNegatedSubqueryComparison(Operator.LE, constant))
@@ -1530,11 +1492,6 @@ class PatternDetectorTest {
 
         @Test
         void isBooleanFieldConstantComparison_returnsFalse_whenConstantIsLongType() {
-            // TEST-006: Kill mutation at line 360 (constant.type() == int.class check)
-            // Mutation replaces equality check with true
-            // We need: constant.type() is Long (not int), value is 1 (would match value check)
-            // Original returns false because type check fails
-            // Mutant would return true because type check replaced with true -> KILLED
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("active", boolean.class),  // boolean field
                     Operator.EQ,
@@ -1548,7 +1505,6 @@ class PatternDetectorTest {
 
         @Test
         void branchPatternDetect_returnsCompareTo_forIntReturningMethodCall() {
-            // TEST-006: isCompareToPattern checks any MethodCall with int return type
             Deque<LambdaExpression> stack = new ArrayDeque<>();
             LambdaExpression target = new LambdaExpression.FieldAccess("name", String.class);
             stack.push(new LambdaExpression.MethodCall(target, "length", java.util.List.of(), int.class));
@@ -1561,7 +1517,6 @@ class PatternDetectorTest {
 
         @Test
         void branchPatternDetect_returnsOther_forBooleanReturningMethodCall() {
-            // TEST-006: Kill mutation - method call with non-int return type should return OTHER
             Deque<LambdaExpression> stack = new ArrayDeque<>();
             LambdaExpression target = new LambdaExpression.FieldAccess("name", String.class);
             stack.push(new LambdaExpression.MethodCall(target, "isEmpty", java.util.List.of(), boolean.class));
@@ -1575,7 +1530,6 @@ class PatternDetectorTest {
 
         @Test
         void branchPatternDetect_returnsOther_forVoidReturningMethodCall() {
-            // TEST-006: Method call with void return type (Object.class in the model)
             Deque<LambdaExpression> stack = new ArrayDeque<>();
             LambdaExpression target = new LambdaExpression.FieldAccess("list", java.util.List.class);
             stack.push(new LambdaExpression.MethodCall(target, "clear", java.util.List.of(), void.class));

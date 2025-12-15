@@ -280,16 +280,13 @@ public class LambdaDeduplicator {
      * Returns true if lambda is duplicate and reuses existing executor.
      * Query type information is already encoded in the lambdaHash parameter.
      *
-     * <p>CS-006: Refactored to use QueryCharacteristics parameter object instead of
-     * 6 boolean parameters (isCountQuery, isAggregationQuery, isJoinQuery,
-     * isSelectJoined, isJoinProjection, isGroupQuery).
-     *
      * @param callSiteId unique identifier for the call site
      * @param lambdaHash MD5 hash of the lambda expression
-     * @param characteristics query type characteristics (CS-006: replaces 6 boolean parameters)
+     * @param characteristics query type characteristics
      * @param capturedVarCount number of captured variables
      * @param deduplicatedCount counter for deduplicated lambdas
      * @param queryTransformations build producer for query transformations
+     * @param logDeduplication whether to log deduplication events
      * @return true if this is a duplicate lambda and an existing executor was reused
      */
     public boolean handleDuplicateLambda(
@@ -298,11 +295,16 @@ public class LambdaDeduplicator {
             QueryCharacteristics characteristics,
             int capturedVarCount,
             AtomicInteger deduplicatedCount,
-            BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations) {
+            BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations,
+            boolean logDeduplication) {
 
         if (lambdaHashToExecutor.containsKey(lambdaHash)) {
             String existingExecutor = lambdaHashToExecutor.get(lambdaHash);
-            Log.debugf("Deduplicated lambda at %s (reusing %s)", callSiteId, existingExecutor);
+
+            if (logDeduplication) {
+                Log.debugf("Deduplicated lambda at %s (reusing %s)", callSiteId, existingExecutor);
+            }
+
             deduplicatedCount.incrementAndGet();
 
             queryTransformations.produce(

@@ -9,9 +9,6 @@ import io.quarkus.gizmo.ClassOutput;
  * <p>This class is used by query executor generators to capture the bytecode
  * of dynamically generated classes.
  *
- * <p>Extracted from QueryExecutorClassGenerator (ARCH-008 continuation) to
- * eliminate code duplication and provide a reusable utility.
- *
  * @see io.quarkiverse.qubit.deployment.generation.QueryExecutorClassGenerator
  */
 public final class ByteArrayClassOutput implements ClassOutput {

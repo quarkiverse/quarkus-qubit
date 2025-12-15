@@ -9,7 +9,7 @@ import java.util.Objects;
  * builder implementations. In production, use {@link #createDefault()} to obtain
  * a registry with standard builder instances.
  *
- * <p><b>Design Rationale (ARCH-004):</b>
+ * <p><b>Design Rationale:</b>
  * <ul>
  *   <li>All builders are stateless, making them safe to share</li>
  *   <li>Record provides immutability and automatic equals/hashCode</li>

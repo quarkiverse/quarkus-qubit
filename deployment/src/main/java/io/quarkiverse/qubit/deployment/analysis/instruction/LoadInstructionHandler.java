@@ -87,7 +87,6 @@ public class LoadInstructionHandler implements InstructionHandler {
             int paramIndex = DescriptorParser.slotIndexToParameterIndex(
                     ctx.getMethod().desc, varInsn.var);
 
-            // BR-007: Validate that this slot corresponds to a valid parameter
             // Negative paramIndex means the slot is not a method parameter (e.g., lambda local variable)
             if (paramIndex < 0) {
                 throw new BytecodeAnalysisException(
@@ -114,7 +113,6 @@ public class LoadInstructionHandler implements InstructionHandler {
         int paramIndex = DescriptorParser.slotIndexToParameterIndex(
                 ctx.getMethod().desc, varInsn.var);
 
-        // BR-007: Validate that this slot corresponds to a valid parameter
         // Negative paramIndex means the slot is not a method parameter (e.g., lambda local variable)
         if (paramIndex < 0) {
             throw new BytecodeAnalysisException(
@@ -232,11 +230,11 @@ public class LoadInstructionHandler implements InstructionHandler {
             }
 
             // =========================================================================
-            // Subquery correlated variable handling (BR-010)
+            // Subquery correlated variable handling
             // =========================================================================
 
             case LambdaExpression.CapturedVariable capturedVar -> {
-                // BR-010: Field access on a captured outer scope variable
+                // Field access on a captured outer scope variable
                 // This occurs in subquery lambdas like: ph -> ph.owner.id.equals(p.id)
                 // where 'p' is captured from the outer lambda and 'p.id' should become
                 // CorrelatedVariable to correlate the subquery with the outer query.
@@ -253,7 +251,7 @@ public class LoadInstructionHandler implements InstructionHandler {
             }
 
             case LambdaExpression.CorrelatedVariable correlatedVar -> {
-                // BR-010: Chained field access on a correlated variable
+                // Chained field access on a correlated variable
                 // This occurs when accessing nested fields like p.owner.id where p is captured.
                 //
                 // Example bytecode for p.owner.id where p is captured:

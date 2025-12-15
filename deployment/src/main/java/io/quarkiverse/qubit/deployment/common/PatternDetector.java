@@ -112,7 +112,7 @@ public final class PatternDetector {
         }
     }
 
-    // ========== Binary Operation Category Detection (MAINT-003) ==========
+    // ========== Binary Operation Category Detection ==========
 
     /**
      * Enumeration of binary operation categories for expression generation.
@@ -122,7 +122,7 @@ public final class PatternDetector {
      * {@link io.quarkiverse.qubit.deployment.generation.CriteriaExpressionGenerator#generateBinaryOperation}
      * by consolidating the pattern detection logic into a single categorization method.
      * <p>
-     * <b>Design Rationale (MAINT-003):</b>
+     * <b>Design Rationale:</b>
      * <ul>
      *   <li>Enum provides exhaustive switch with compile-time safety</li>
      *   <li>Single point of truth for pattern priority ordering</li>
@@ -260,10 +260,6 @@ public final class PatternDetector {
 
     /**
      * Returns true if expression is a comparable value (can be used in LCMP, DCMPL, etc.).
-     * <p>
-     * Added GroupAggregation and GroupKeyReference support.
-     * Added ScalarSubquery support for subquery comparisons.
-     * BR-010: Added BiEntityFieldAccess and BiEntityPathExpression for bi-entity join queries.
      */
     private static boolean isComparableExpression(LambdaExpression expr) {
         return expr instanceof LambdaExpression.FieldAccess ||
@@ -403,13 +399,10 @@ public final class PatternDetector {
         return binOp.right() instanceof LambdaExpression.Constant;
     }
 
-    // ========== Subquery Pattern Detection (CS-014 consolidation) ==========
+    // ========== Subquery Pattern Detection==========
 
     /**
      * Checks if an expression contains any subquery (scalar, exists, or in).
-     * <p>
-     * CS-014: Consolidated from duplicate methods in CriteriaExpressionGenerator
-     * and BiEntityExpressionBuilder.
      *
      * @param expr the expression to check
      * @return true if expression contains any type of subquery
@@ -427,9 +420,6 @@ public final class PatternDetector {
 
     /**
      * Checks if an expression contains a SCALAR subquery (one that returns a value).
-     * <p>
-     * CS-014: Consolidated from duplicate methods in CriteriaExpressionGenerator
-     * and BiEntityExpressionBuilder.
      * <p>
      * Used specifically for comparison operations. Only scalar subqueries can be
      * used as expressions in comparisons (e.g., p.salary > avg(...)). EXISTS and
@@ -451,9 +441,6 @@ public final class PatternDetector {
 
     /**
      * Checks if a binary operation is comparing a subquery predicate to a boolean constant.
-     * <p>
-     * CS-014: Consolidated from duplicate methods in CriteriaExpressionGenerator
-     * and BiEntityExpressionBuilder.
      * <p>
      * Detects patterns like {@code ExistsSubquery == true} or {@code ExistsSubquery == 1}
      * which occur due to bytecode short-circuit evaluation patterns.
@@ -481,9 +468,6 @@ public final class PatternDetector {
 
     /**
      * Checks if expression is a boolean constant (true/false or 0/1).
-     * <p>
-     * CS-014: Consolidated from duplicate methods in CriteriaExpressionGenerator
-     * and BiEntityExpressionBuilder.
      *
      * @param expr the expression to check
      * @return true if expression is a boolean constant
@@ -499,9 +483,6 @@ public final class PatternDetector {
 
     /**
      * Checks if comparison should negate the subquery result.
-     * <p>
-     * CS-014: Consolidated from duplicate methods in CriteriaExpressionGenerator
-     * and BiEntityExpressionBuilder.
      * <p>
      * Returns true for patterns like {@code subquery == false}, {@code subquery == 0},
      * or {@code subquery != true}, {@code subquery != 1}.

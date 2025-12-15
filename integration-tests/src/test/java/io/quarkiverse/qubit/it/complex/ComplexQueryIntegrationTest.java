@@ -21,8 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Comprehensive integration tests for complex query scenarios.
  * <p>
- * This test class addresses TEST-002 from the code quality tracking document,
- * covering end-to-end tests for:
+ * This test class covers end-to-end tests for:
  * <ul>
  *   <li>Complex nested subqueries (EXISTS, NOT EXISTS, IN, NOT IN)</li>
  *   <li>Multi-level relationship navigation</li>

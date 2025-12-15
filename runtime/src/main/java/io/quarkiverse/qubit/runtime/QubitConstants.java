@@ -343,7 +343,7 @@ public final class QubitConstants {
     public static final String CAPTURED_VAR_PREFIX_ECLIPSE = "val$";
 
     // ========================================================================
-    // JVM Internal Class Names (CS-001: Extracted magic strings)
+    // JVM Internal Class Names
     // ========================================================================
 
     /**
@@ -411,7 +411,7 @@ public final class QubitConstants {
     );
 
     // ========================================================================
-    // JVM Bootstrap Method Factory Class Names (MAINT-004: Constants Consolidation)
+    // JVM Bootstrap Method Factory Class Names
     // ========================================================================
 
     /**
@@ -433,7 +433,7 @@ public final class QubitConstants {
             "java/lang/invoke/LambdaMetafactory";
 
     // ========================================================================
-    // Qubit Runtime Implementation Class Names (MAINT-004: Constants Consolidation)
+    // Qubit Runtime Implementation Class Names
     // ========================================================================
 
     /**

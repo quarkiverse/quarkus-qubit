@@ -13,8 +13,6 @@ import jakarta.persistence.criteria.JoinType;
  *
  * <p>This class provides reusable methods for generating bytecode using
  * the Gizmo library, avoiding duplication across expression builders.
- *
- * <p>Extracted from SubqueryExpressionBuilder (ARCH-008 continuation).
  */
 public final class GizmoHelper {
 
@@ -55,8 +53,6 @@ public final class GizmoHelper {
 
     /**
      * Loads JPA JoinType enum value based on Qubit JoinType.
-     *
-     * <p>Extracted from QueryExecutorClassGenerator (ARCH-008 continuation).
      *
      * @param method the method creator
      * @param joinType the Qubit join type (INNER or LEFT)

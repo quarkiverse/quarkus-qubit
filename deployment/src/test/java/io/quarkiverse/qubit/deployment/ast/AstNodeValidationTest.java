@@ -14,9 +14,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Edge case tests for AST node validation.
- *
- * <p>TEST-001: Tests for null handling, boundary conditions, and validation
- * in all LambdaExpression record types.
  */
 class AstNodeValidationTest {
 

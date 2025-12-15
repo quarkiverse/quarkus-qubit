@@ -80,7 +80,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
     );
 
     /**
-     * Registry holding all expression builders for dependency injection (ARCH-004).
+     * Registry holding all expression builders for dependency injection.
      */
     private final ExpressionBuilderRegistry builderRegistry;
 
@@ -273,7 +273,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             return combinePredicates(method, cb, left, right, binOp.operator());
         }
 
-        // BR-010: Check if either side contains a SCALAR subquery (one that returns a value).
         // Only scalar subqueries can be used in comparisons. EXISTS/IN are predicates, not expressions.
         boolean leftHasScalarSubquery = containsScalarSubquery(binOp.left());
         boolean rightHasScalarSubquery = containsScalarSubquery(binOp.right());
@@ -285,7 +284,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             return generateComparisonOperation(method, binOp.operator(), cb, left, right);
         }
 
-        // BR-010: Check if either side contains a predicate subquery (EXISTS/IN).
         // Pattern: ExistsSubquery == true → just return the ExistsSubquery predicate
         // This handles bytecode patterns where boolean short-circuit creates comparison to constant.
         boolean leftHasSubquery = containsSubquery(binOp.left());
@@ -336,13 +334,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         };
     }
 
-    // CS-014: Subquery pattern detection methods moved to PatternDetector:
-    // - containsSubquery()
-    // - containsScalarSubquery()
-    // - isSubqueryBooleanComparison()
-    // - isBooleanConstant()
-    // - isNegatedSubqueryComparison()
-
     /**
      * Generates raw value from lambda expression.
      * <p>
@@ -380,7 +371,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             case LambdaExpression.MethodCall methodCall ->
                 generateMethodCall(method, methodCall, cb, root, capturedValues);
 
-            // BR-010: Handle CorrelatedVariable - references to outer query entities in subqueries
             case LambdaExpression.CorrelatedVariable correlated -> {
                 LambdaExpression fieldExpr = correlated.fieldExpression();
                 // CorrelatedVariable always references the outer query's root entity
@@ -464,7 +454,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
                 // This occurs when IFEQ creates NOT(InExpression) for short-circuit evaluation
                 generateUnaryOperation(method, unaryOp, cb, root, capturedValues);
 
-            // BR-010: Handle CorrelatedVariable - references to outer query entities in subqueries
             case LambdaExpression.CorrelatedVariable correlated -> {
                 LambdaExpression fieldExpr = correlated.fieldExpression();
                 // CorrelatedVariable always references the outer query's root entity
@@ -483,10 +472,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
     /**
      * Generates comparison, logical, arithmetic, or string concatenation operation.
-     * <p>
-     * MAINT-003: Refactored from if-else chain to switch on {@link BinaryOperationCategory}
-     * to reduce cyclomatic complexity. Pattern detection order is preserved in the enum's
-     * {@code categorize()} method.
      */
     public ResultHandle generateBinaryOperation(
             MethodCreator method,
@@ -495,7 +480,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle root,
             ResultHandle capturedValues) {
 
-        // MAINT-003: Use category-based dispatch instead of sequential if-else checks
         BinaryOperationCategory category = BinaryOperationCategory.categorize(binOp, this::isStringConcatenation);
 
         return switch (category) {
@@ -957,8 +941,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         ResultHandle collectionFieldExpr = generateExpressionAsJpaExpression(
                 method, memberOfExpr.collectionField(), cb, root, capturedValues);
 
-        // Call cb.isMember(value, collection) or cb.isNotMember(value, collection)
-        // Uses cached MethodDescriptor constants (PERF-001)
         MethodDescriptor mdMember = memberOfExpr.negated() ? CB_IS_NOT_MEMBER : CB_IS_MEMBER;
         return method.invokeInterfaceMethod(mdMember, cb, valueExpr, collectionFieldExpr);
     }
@@ -1013,7 +995,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle left,
             ResultHandle right) {
 
-        // cb.concat(left, right) - uses cached MethodDescriptor (PERF-001)
         return method.invokeInterfaceMethod(CB_CONCAT_EXPR_EXPR, cb, left, right);
     }
 
@@ -1191,16 +1172,12 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         return method.invokeInterfaceMethod(CB_LITERAL, cb, value);
     }
 
-    // CS-014: isBooleanType() and extractFieldName() moved to ExpressionTypeInferrer
-
     // =============================================================================================
     // BI-ENTITY EXPRESSIONS (Join Queries) - Delegated to BiEntityExpressionBuilder
     // =============================================================================================
 
     /**
      * Generates JPA Predicate from bi-entity lambda expression AST.
-     * <p>
-     * Delegates to BiEntityExpressionBuilder (ARCH-001 extraction).
      *
      * @param method the method creator for bytecode generation
      * @param expression the bi-entity lambda expression AST
@@ -1223,9 +1200,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
     /**
      * Generates JPA Predicate from bi-entity lambda expression AST with subquery support.
-     * <p>
-     * BR-010: Extended version that handles subquery expressions (EXISTS, IN, scalar comparisons).
-     * Delegates to BiEntityExpressionBuilder (ARCH-001 extraction).
      *
      * @param method the method creator for bytecode generation
      * @param expression the bi-entity lambda expression AST
@@ -1250,8 +1224,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
     /**
      * Generates JPA Expression from bi-entity lambda expression AST.
-     * <p>
-     * Delegates to BiEntityExpressionBuilder (ARCH-001 extraction).
      *
      * @param method the method creator for bytecode generation
      * @param expression the bi-entity lambda expression AST
@@ -1278,8 +1250,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
     /**
      * Generates JPA Selection from bi-entity projection expression AST.
-     * <p>
-     * Delegates to BiEntityExpressionBuilder (ARCH-001 extraction).
      *
      * @param method the method creator for bytecode generation
      * @param expression the bi-entity projection expression AST
@@ -1306,8 +1276,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
     /**
      * Generates JPA Predicate from group lambda expression AST (HAVING clause).
-     * <p>
-     * Delegates to GroupExpressionBuilder (ARCH-001 extraction).
      *
      * @param method the method creator for bytecode generation
      * @param expression the group lambda expression AST
@@ -1330,8 +1298,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
     /**
      * Generates JPA Expression from group lambda expression AST (GROUP BY SELECT).
-     * <p>
-     * Delegates to GroupExpressionBuilder (ARCH-001 extraction).
      *
      * @param method the method creator for bytecode generation
      * @param expression the group lambda expression AST
@@ -1354,8 +1320,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
     /**
      * Generates JPA Expression for group ORDER BY clause.
-     * <p>
-     * Delegates to GroupExpressionBuilder (ARCH-001 extraction).
      *
      * @param method the method creator for bytecode generation
      * @param expression the sort key expression AST
@@ -1378,8 +1342,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
     /**
      * Generates JPA multiselect array for Object[] projections in group context.
-     * <p>
-     * Delegates to GroupExpressionBuilder (ARCH-001 extraction).
      *
      * @param method the method creator for bytecode generation
      * @param arrayCreation the array creation expression from the lambda AST

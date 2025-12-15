@@ -22,7 +22,7 @@ import java.util.List;
  * }
  * }</pre>
  *
- * <p><strong>Design Rationale (TEST-003):</strong>
+ * <p><strong>Design Rationale:</strong>
  * Property-based testing generates many random inputs to verify invariants that should
  * hold for ANY valid input. This complements example-based tests by finding edge cases
  * that might not be manually specified.

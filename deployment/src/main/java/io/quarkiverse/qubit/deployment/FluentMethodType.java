@@ -16,9 +16,6 @@ import java.util.Optional;
  *   <li>Factory method for creating {@link QubitBytecodeGenerator.FluentMethodConfig}</li>
  * </ul>
  *
- * <p><b>ENUM-001:</b> This enum was created to eliminate duplicate switch statements
- * in {@link QubitRepositoryEnhancer} and provide compile-time exhaustiveness checking.
- *
  * <p><b>Design Rationale:</b> The enum is placed in the deployment module rather than
  * runtime because the {@code createConfig()} behavior depends on
  * {@link QubitBytecodeGenerator.FluentMethodConfig} which is deployment-only.

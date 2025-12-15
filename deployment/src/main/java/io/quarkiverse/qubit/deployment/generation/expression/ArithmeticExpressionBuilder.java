@@ -42,7 +42,6 @@ public class ArithmeticExpressionBuilder implements ExpressionBuilder {
             ResultHandle left,
             ResultHandle right) {
 
-        // PERF-001: Use cached MethodDescriptor constants
         MethodDescriptor arithmeticMethod = switch (operator) {
             case ADD -> CB_SUM_BINARY;
             case SUB -> CB_DIFF;

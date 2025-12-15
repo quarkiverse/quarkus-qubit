@@ -10,10 +10,6 @@ import java.util.Optional;
  * to their corresponding SQL function names (e.g., "YEAR", "MONTH") for use in
  * JPA Criteria API bytecode generation.
  *
- * <p><b>ENUM-002:</b> This enum was created to eliminate duplicate string constants and
- * switch statements in {@link TemporalExpressionBuilder} and provide type-safe
- * method-to-SQL function mapping.
- *
  * <p><b>Supported Temporal Types:</b>
  * <ul>
  *   <li>{@code LocalDate} - supports {@link #DATE_METHODS} (year, month, day)</li>

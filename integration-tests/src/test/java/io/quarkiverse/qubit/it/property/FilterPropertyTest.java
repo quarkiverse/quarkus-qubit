@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>This class uses parameterized tests to verify predicate satisfaction
  * invariants that must hold for various filter combinations.
  *
- * <p><strong>Properties Tested (TEST-003):</strong>
+ * <p><strong>Properties Tested:</strong>
  * <ul>
  *   <li><strong>Predicate satisfaction</strong>: All results satisfy the filter</li>
  *   <li><strong>Subset property</strong>: Filtered set is subset of unfiltered</li>

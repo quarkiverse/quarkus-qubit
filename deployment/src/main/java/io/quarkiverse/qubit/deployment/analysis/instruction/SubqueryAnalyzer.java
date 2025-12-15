@@ -28,9 +28,6 @@ import static io.quarkiverse.qubit.runtime.QubitConstants.*;
  *   <li>SubqueryBuilder.* method calls for scalar, exists, and IN subqueries</li>
  * </ul>
  *
- * <p>Extracted from MethodInvocationHandler to reduce class size
- * and improve maintainability (addresses ARCH-001, MAINT-001).
- *
  * @see MethodInvocationHandler
  * @see SubqueryBuilderReference
  */

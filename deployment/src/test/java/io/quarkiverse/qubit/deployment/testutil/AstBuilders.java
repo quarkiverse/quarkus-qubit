@@ -26,11 +26,6 @@ import java.util.List;
  * import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
  * }</pre>
  *
- * <p><strong>Design Note:</strong> This utility leverages the existing factory methods on
- * {@link LambdaExpression.BinaryOp} and {@link LambdaExpression.UnaryOp} that were added
- * as part of ARCH-009. The builder provides consistent, discoverable static methods for
- * all AST node types.
- *
  * @see LambdaExpression
  */
 public final class AstBuilders {

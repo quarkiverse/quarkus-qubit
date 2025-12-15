@@ -140,7 +140,6 @@ public abstract class PrecompiledBiEntityLambdaAnalyzer {
     }
 
     // ==================== ASSERTION HELPERS ====================
-    // MAINT-008: All assertion helpers include descriptive messages for better debugging
 
     /**
      * Asserts that an expression is a BiEntityFieldAccess with the expected field name.

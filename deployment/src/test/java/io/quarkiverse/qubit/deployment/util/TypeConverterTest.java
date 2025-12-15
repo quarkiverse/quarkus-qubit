@@ -240,13 +240,11 @@ class TypeConverterTest {
 
         @Test
         void isNumericType_BigDecimal_returnsTrue() {
-            // TEST-006: Kill mutation on Number.isAssignableFrom check
             assertThat(TypeConverter.isNumericType(java.math.BigDecimal.class)).isTrue();
         }
 
         @Test
         void isNumericType_BigInteger_returnsTrue() {
-            // TEST-006: Kill mutation on Number.isAssignableFrom check
             assertThat(TypeConverter.isNumericType(java.math.BigInteger.class)).isTrue();
         }
     }
@@ -259,37 +257,31 @@ class TypeConverterTest {
 
         @Test
         void isTemporalType_LocalDate_returnsTrue() {
-            // TEST-006: Kill mutation on LocalDate.class check
             assertThat(TypeConverter.isTemporalType(java.time.LocalDate.class)).isTrue();
         }
 
         @Test
         void isTemporalType_LocalDateTime_returnsTrue() {
-            // TEST-006: Kill mutation on LocalDateTime.class check
             assertThat(TypeConverter.isTemporalType(java.time.LocalDateTime.class)).isTrue();
         }
 
         @Test
         void isTemporalType_LocalTime_returnsTrue() {
-            // TEST-006: Kill mutation on LocalTime.class check
             assertThat(TypeConverter.isTemporalType(java.time.LocalTime.class)).isTrue();
         }
 
         @Test
         void isTemporalType_String_returnsFalse() {
-            // TEST-006: Kill mutation that replaces return with true
             assertThat(TypeConverter.isTemporalType(String.class)).isFalse();
         }
 
         @Test
         void isTemporalType_Date_returnsFalse() {
-            // Old-style Date is not considered temporal type
             assertThat(TypeConverter.isTemporalType(java.util.Date.class)).isFalse();
         }
 
         @Test
         void isTemporalType_Instant_returnsFalse() {
-            // Instant is not in the current temporal type list
             assertThat(TypeConverter.isTemporalType(java.time.Instant.class)).isFalse();
         }
     }
@@ -302,7 +294,6 @@ class TypeConverterTest {
 
         @Test
         void descriptorToClass_singleCharPrimitive_delegatesToPrimitiveCharToClass() {
-            // TEST-006: Kill mutation on length == 1 check
             assertThat(TypeConverter.descriptorToClass("I")).isEqualTo(int.class);
             assertThat(TypeConverter.descriptorToClass("J")).isEqualTo(long.class);
             assertThat(TypeConverter.descriptorToClass("D")).isEqualTo(double.class);
@@ -361,7 +352,6 @@ class TypeConverterTest {
 
         @Test
         void descriptorToClass_unknown_returnsObjectClass() {
-            // TEST-006: Kill mutation on default case
             assertThat(TypeConverter.descriptorToClass("Lcom/unknown/Type;")).isEqualTo(Object.class);
         }
     }

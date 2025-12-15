@@ -11,9 +11,6 @@ import org.objectweb.asm.Type;
  * that needs to work at build-time when classes may not be available
  * on the classpath.
  *
- * <p>Extracted from SubqueryAnalyzer (ARCH-008 continuation) to provide
- * a reusable utility for class loading with fallback strategies.
- *
  * @see EntityClassInfo
  */
 public final class ClassLoaderHelper {
@@ -34,9 +31,6 @@ public final class ClassLoaderHelper {
      *
      * <p>Uses {@code initialize=false} to avoid running static initializers,
      * which is appropriate for build-time analysis.
-     *
-     * <p>CS-002: Refactored from nested try-catch to classloader iteration
-     * for improved readability and maintainability.
      *
      * @param className the fully qualified class name
      * @return the loaded Class, or null if not loadable

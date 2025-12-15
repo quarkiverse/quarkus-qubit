@@ -25,7 +25,7 @@ import jakarta.persistence.criteria.Selection;
  * Builds JPA Criteria API expressions for GROUP BY queries.
  * <p>
  * Extracted from CriteriaExpressionGenerator to reduce class size
- * and improve maintainability (addresses ARCH-001).
+ * and improve maintainability.
  * <p>
  * Handles group expressions including:
  * <ul>
@@ -259,7 +259,6 @@ public class GroupExpressionBuilder implements ExpressionBuilder {
             fieldPath = root;
         }
 
-        // CS-008: Added default case for future-proofing
         return switch (aggType) {
             case COUNT_DISTINCT -> method.invokeInterfaceMethod(
                     methodDescriptor(CriteriaBuilder.class, "countDistinct", Expression.class, Expression.class),
@@ -355,7 +354,6 @@ public class GroupExpressionBuilder implements ExpressionBuilder {
         ResultHandle selectionsArray = generateGroupArraySelections(
                 method, arrayCreation, cb, root, groupKeyExpr, capturedValues, helper);
 
-        // Use cb.tuple() to create a compound selection (PERF-001: cached descriptor)
         return method.invokeInterfaceMethod(CB_TUPLE, cb, selectionsArray);
     }
 
@@ -375,7 +373,6 @@ public class GroupExpressionBuilder implements ExpressionBuilder {
         String className = constructorCall.className();
         String fqClassName = className.replace('/', '.');
 
-        // Load the class at runtime (PERF-001: cached descriptor)
         ResultHandle classNameHandle = method.load(fqClassName);
         ResultHandle resultClassHandle = method.invokeStaticMethod(CLASS_FOR_NAME, classNameHandle);
 
@@ -389,7 +386,6 @@ public class GroupExpressionBuilder implements ExpressionBuilder {
             method.writeArrayValue(selectionsArray, i, argExpression);
         }
 
-        // Call cb.construct(resultClass, selections...) (PERF-001: cached descriptor)
         return method.invokeInterfaceMethod(CB_CONSTRUCT, cb, resultClassHandle, selectionsArray);
     }
 

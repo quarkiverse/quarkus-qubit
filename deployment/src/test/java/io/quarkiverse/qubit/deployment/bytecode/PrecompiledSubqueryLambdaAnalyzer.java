@@ -138,7 +138,6 @@ public abstract class PrecompiledSubqueryLambdaAnalyzer {
     }
 
     // ==================== ASSERTION HELPERS ====================
-    // MAINT-008: All assertion helpers include descriptive messages for better debugging
 
     /**
      * Asserts that an expression is a ScalarSubquery with the expected aggregation type.

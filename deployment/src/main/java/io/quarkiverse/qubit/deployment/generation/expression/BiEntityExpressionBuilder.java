@@ -42,9 +42,6 @@ import jakarta.persistence.criteria.Selection;
 /**
  * Builds JPA Criteria API expressions for bi-entity (join) queries.
  * <p>
- * Extracted from CriteriaExpressionGenerator to reduce class size
- * and improve maintainability (addresses ARCH-001).
- * <p>
  * Handles expressions involving two entities (e.g., Person p, Phone ph) in join queries:
  * <ul>
  *   <li>Bi-entity predicates: {@code (p, ph) -> ph.type.equals("mobile")}</li>
@@ -156,9 +153,6 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
 
     /**
      * Generates JPA Predicate from bi-entity lambda expression AST with subquery support.
-     * <p>
-     * BR-010: Extended version that handles subquery expressions (EXISTS, IN, scalar comparisons).
-     * This method requires the CriteriaQuery handle to create subqueries.
      *
      * @param method the method creator for bytecode generation
      * @param expression the bi-entity lambda expression AST, or null
@@ -184,9 +178,7 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
             return null;
         }
 
-        // Java 21 pattern matching switch for type dispatch
         return switch (expression) {
-            // BR-010: Handle subquery expressions first
             case ExistsSubquery existsSubquery ->
                 subqueryBuilder.buildExistsSubquery(method, existsSubquery, cb, query, root, capturedValues);
 
@@ -207,8 +199,6 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
 
     /**
      * Generates JPA Expression from bi-entity lambda expression AST with subquery support.
-     * <p>
-     * BR-010: Extended version that handles scalar subqueries in comparisons.
      *
      * @param method the method creator for bytecode generation
      * @param expression the bi-entity lambda expression AST, or null
@@ -310,7 +300,6 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
             case LambdaExpression.BinaryOp binOp ->
                 generateBiEntityBinaryOperation(method, binOp, cb, root, join, capturedValues, helper);
 
-            // BR-010: Handle CorrelatedVariable - references to outer query entities in subqueries
             case LambdaExpression.CorrelatedVariable correlated -> {
                 LambdaExpression fieldExpr = correlated.fieldExpression();
                 // CorrelatedVariable always references the outer query's root entity
@@ -438,7 +427,6 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
                 yield method.checkCast(value, targetType);
             }
 
-            // BR-010: Handle CorrelatedVariable - references to outer query entities in subqueries
             case LambdaExpression.CorrelatedVariable correlated -> {
                 LambdaExpression fieldExpr = correlated.fieldExpression();
                 // CorrelatedVariable always references the outer query's root entity
@@ -555,8 +543,6 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
 
     /**
      * Generates bi-entity binary operation with subquery support.
-     * <p>
-     * BR-010: Extended version that handles subquery expressions in comparisons.
      */
     private ResultHandle generateBiEntityBinaryOperationWithSubqueries(
             MethodCreator method,
@@ -575,7 +561,6 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
             return helper.combinePredicates(method, cb, left, right, binOp.operator());
         }
 
-        // BR-010: Check if either side contains a SCALAR subquery (one that returns a value).
         // Only scalar subqueries can be used in comparisons. EXISTS/IN are predicates, not expressions.
         boolean leftHasScalarSubquery = containsScalarSubquery(binOp.left());
         boolean rightHasScalarSubquery = containsScalarSubquery(binOp.right());
@@ -587,8 +572,6 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
             return comparisonBuilder.buildComparisonOperation(method, binOp.operator(), cb, left, right);
         }
 
-        // BR-010: Check if either side contains a predicate subquery (EXISTS/IN).
-        // Pattern: ExistsSubquery == true → just return the ExistsSubquery predicate
         // This handles bytecode patterns where boolean short-circuit creates comparison to constant.
         boolean leftHasSubquery = containsSubquery(binOp.left());
         boolean rightHasSubquery = containsSubquery(binOp.right());
@@ -625,8 +608,6 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
 
     /**
      * Generates bi-entity unary operation with subquery support.
-     * <p>
-     * BR-010: Extended version that handles subquery expressions in NOT operations.
      */
     private ResultHandle generateBiEntityUnaryOperationWithSubqueries(
             MethodCreator method,
@@ -645,13 +626,6 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
                     methodDescriptor(CriteriaBuilder.class, CB_NOT, Predicate.class, Expression.class), cb, operand);
         };
     }
-
-    // CS-014: Subquery pattern detection methods moved to PatternDetector:
-    // - containsSubquery()
-    // - containsScalarSubquery()
-    // - isSubqueryBooleanComparison()
-    // - isBooleanConstant()
-    // - isNegatedSubqueryComparison()
 
     /**
      * Generates bi-entity method call (e.g., ph.type.equals("mobile")).
@@ -736,7 +710,6 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
         String className = constructorCall.className();
         String fqClassName = className.replace('/', '.');
 
-        // Load the class at runtime (PERF-001: cached descriptor)
         ResultHandle classNameHandle = method.load(fqClassName);
         ResultHandle resultClassHandle = method.invokeStaticMethod(CLASS_FOR_NAME, classNameHandle);
 
@@ -751,11 +724,8 @@ public class BiEntityExpressionBuilder implements ExpressionBuilder {
             method.writeArrayValue(selectionsArray, i, argExpression);
         }
 
-        // Call cb.construct(resultClass, selections...) (PERF-001: cached descriptor)
         return method.invokeInterfaceMethod(CB_CONSTRUCT, cb, resultClassHandle, selectionsArray);
     }
-
-    // CS-014: isBooleanType() and extractFieldName() moved to ExpressionTypeInferrer
 
     /**
      * Creates MethodDescriptor for method.

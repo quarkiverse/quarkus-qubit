@@ -7,9 +7,6 @@ package io.quarkiverse.qubit.deployment.common;
  * In this case, the class will be Object.class and className will contain the
  * fully qualified name for runtime resolution.
  *
- * <p>Extracted from SubqueryAnalyzer (ARCH-008 continuation) to provide
- * a reusable record for entity class information.
- *
  * @param clazz the entity class (may be Object.class for placeholders)
  * @param className optional entity class name (for placeholders when class not loadable)
  */

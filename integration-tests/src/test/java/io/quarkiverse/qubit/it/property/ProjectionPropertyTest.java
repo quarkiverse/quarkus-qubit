@@ -24,7 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>This class uses jqwik to verify projection invariants that must hold
  * for ANY valid projection configuration, not just specific examples.
  *
- * <p><strong>Properties Tested (TEST-003):</strong>
+ * <p><strong>Properties Tested:</strong>
  * <ul>
  *   <li><strong>Count preservation</strong>: projection count equals entity count</li>
  *   <li><strong>Value correctness</strong>: projected values match entity field values</li>

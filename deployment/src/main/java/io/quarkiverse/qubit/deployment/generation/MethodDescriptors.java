@@ -8,11 +8,6 @@ import jakarta.persistence.criteria.*;
 /**
  * Cached {@link MethodDescriptor} constants for common JPA Criteria API and JDK methods.
  *
- * <p>This class addresses PERF-001 by providing pre-created, immutable {@code MethodDescriptor}
- * instances that can be reused across multiple bytecode generation calls. Previously,
- * {@code MethodDescriptor.ofMethod()} was called repeatedly with the same arguments,
- * creating unnecessary object allocations.
- *
  * <p>Constants are organized by category:
  * <ul>
  *   <li><strong>Boxed Type Unboxing</strong> - Integer.intValue(), Boolean.booleanValue(), etc.</li>
@@ -25,21 +20,7 @@ import jakarta.persistence.criteria.*;
  *   <li><strong>Expression Operations</strong> - Expression.in()</li>
  * </ul>
  *
- * <p>Usage example:
- * <pre>
- * import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.*;
- *
- * // Before (PERF-001 issue):
- * method.invokeInterfaceMethod(
- *     MethodDescriptor.ofMethod(Path.class, "get", Path.class, String.class),
- *     root, fieldName);
- *
- * // After (using cached constant):
- * method.invokeInterfaceMethod(PATH_GET, root, fieldName);
- * </pre>
- *
  * @see io.quarkus.gizmo.MethodDescriptor
- * @since PERF-001
  */
 public final class MethodDescriptors {
 

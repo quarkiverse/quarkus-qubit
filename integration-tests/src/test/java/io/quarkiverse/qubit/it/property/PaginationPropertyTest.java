@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>This class uses parameterized tests to verify mathematical invariants
  * that must hold for various skip/limit combinations.
  *
- * <p><strong>Properties Tested (TEST-003):</strong>
+ * <p><strong>Properties Tested:</strong>
  * <ul>
  *   <li><strong>Skip invariants</strong>: skip(0) returns all, skip(n) returns size-n</li>
  *   <li><strong>Limit invariants</strong>: limit(n) returns at most n results</li>

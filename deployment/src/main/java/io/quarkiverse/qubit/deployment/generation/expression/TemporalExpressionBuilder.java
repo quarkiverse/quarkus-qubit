@@ -35,9 +35,6 @@ import static io.quarkiverse.qubit.runtime.QubitConstants.TEMPORAL_COMPARISON_ME
  * </ul>
  *
  * <p><b>Supported Types:</b> LocalDate, LocalDateTime, LocalTime
- *
- * <p><b>ENUM-002:</b> Temporal accessor method-to-SQL function mapping is now
- * encapsulated in {@link TemporalAccessorMethod} enum for type safety.
  */
 public class TemporalExpressionBuilder implements ExpressionBuilder {
 

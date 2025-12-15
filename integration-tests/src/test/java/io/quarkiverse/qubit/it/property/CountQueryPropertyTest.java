@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>This class uses parameterized tests to verify count invariants
  * that must hold for various query configurations.
  *
- * <p><strong>Properties Tested (TEST-003):</strong>
+ * <p><strong>Properties Tested:</strong>
  * <ul>
  *   <li><strong>Count-list consistency</strong>: count() == toList().size()</li>
  *   <li><strong>Non-negativity</strong>: count() >= 0</li>

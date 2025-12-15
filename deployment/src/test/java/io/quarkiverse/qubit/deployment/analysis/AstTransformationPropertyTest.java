@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.*;
  * not just specific examples. Property-based testing complements example-based tests
  * by generating many random inputs to find edge cases.
  *
- * <p><strong>Properties Tested (TEST-003):</strong>
+ * <p><strong>Properties Tested:</strong>
  * <ul>
  *   <li><strong>renumberCapturedVariables</strong>: Identity, null safety, offset accumulation,
  *       structure preservation, index transformation</li>
