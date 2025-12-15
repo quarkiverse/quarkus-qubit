@@ -13,9 +13,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration tests for Phase 1 fluent API.
+ * Integration tests for fluent API.
  * <p>
- * NOTE: Most tests are disabled in Phase 1 as they require full implementation.
  * These tests verify that the API compiles and stubs are correctly generated.
  */
 @QuarkusTest
@@ -82,7 +81,7 @@ class BasicQueryTest {
     }
 
     // =============================================================================================
-    // PHASE 1 EXECUTION TESTS - Basic where().toList() and where().count()
+    // EXECUTION TESTS - Basic where().toList() and where().count()
     // =============================================================================================
 
     @Test

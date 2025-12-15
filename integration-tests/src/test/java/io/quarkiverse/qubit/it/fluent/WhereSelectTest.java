@@ -14,7 +14,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Tests for combined where() + select() queries (Phase 2.2).
+ * Tests for combined where() + select() queries.
  * <p>
  * Example: {@code Person.where(p -> p.age > 25).select(p -> p.firstName).toList()}
  */

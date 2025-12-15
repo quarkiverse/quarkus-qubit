@@ -243,7 +243,7 @@ public final class PatternDetector {
     /**
      * Returns true if stack contains floating-point/long comparison pattern.
      * <p>
-     * Iteration 7: Extended to support GroupAggregation and GroupKeyReference
+     * Extended to support GroupAggregation and GroupKeyReference
      * for GROUP BY HAVING clause comparisons like {@code g.count() > 1}.
      */
     public static boolean isDcmplPattern(Deque<LambdaExpression> stack) {
@@ -261,8 +261,8 @@ public final class PatternDetector {
     /**
      * Returns true if expression is a comparable value (can be used in LCMP, DCMPL, etc.).
      * <p>
-     * Iteration 7: Added GroupAggregation and GroupKeyReference support.
-     * Iteration 8: Added ScalarSubquery support for subquery comparisons.
+     * Added GroupAggregation and GroupKeyReference support.
+     * Added ScalarSubquery support for subquery comparisons.
      * BR-010: Added BiEntityFieldAccess and BiEntityPathExpression for bi-entity join queries.
      */
     private static boolean isComparableExpression(LambdaExpression expr) {

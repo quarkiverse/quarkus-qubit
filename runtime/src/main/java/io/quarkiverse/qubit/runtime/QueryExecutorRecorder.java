@@ -30,7 +30,7 @@ public class QueryExecutorRecorder {
 
     /**
      * Registers aggregation query executor during static initialization.
-     * Phase 5: Supports MIN, MAX, AVG, SUM* aggregation operations.
+     * Supports MIN, MAX, AVG, SUM* aggregation operations.
      */
     public void registerAggregationExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
         registerExecutor(callSiteId, executorClassName, capturedVarCount, "aggregation",
@@ -39,7 +39,6 @@ public class QueryExecutorRecorder {
 
     /**
      * Registers join list query executor during static initialization.
-     * Iteration 6: Join Queries
      */
     public void registerJoinListExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
         registerExecutor(callSiteId, executorClassName, capturedVarCount, "join-list",
@@ -48,7 +47,6 @@ public class QueryExecutorRecorder {
 
     /**
      * Registers join count query executor during static initialization.
-     * Iteration 6: Join Queries
      */
     public void registerJoinCountExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
         registerExecutor(callSiteId, executorClassName, capturedVarCount, "join-count",
@@ -57,7 +55,7 @@ public class QueryExecutorRecorder {
 
     /**
      * Registers join selectJoined query executor during static initialization.
-     * Iteration 6.5: selectJoined() - returns joined entities instead of source entities.
+     * selectJoined() - returns joined entities instead of source entities.
      */
     public void registerJoinSelectJoinedExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
         registerExecutor(callSiteId, executorClassName, capturedVarCount, "join-selectJoined",
@@ -66,7 +64,7 @@ public class QueryExecutorRecorder {
 
     /**
      * Registers join projection query executor during static initialization.
-     * Iteration 6.6: select() with BiQuerySpec - returns projected objects from both entities.
+     * select() with BiQuerySpec - returns projected objects from both entities.
      */
     public void registerJoinProjectionExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
         registerExecutor(callSiteId, executorClassName, capturedVarCount, "join-projection",
@@ -75,7 +73,6 @@ public class QueryExecutorRecorder {
 
     /**
      * Registers group list query executor during static initialization.
-     * Iteration 7: Group Queries (GROUP BY)
      */
     public void registerGroupListExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
         registerExecutor(callSiteId, executorClassName, capturedVarCount, "group-list",
@@ -84,7 +81,6 @@ public class QueryExecutorRecorder {
 
     /**
      * Registers group count query executor during static initialization.
-     * Iteration 7: Group Queries (GROUP BY)
      */
     public void registerGroupCountExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
         registerExecutor(callSiteId, executorClassName, capturedVarCount, "group-count",

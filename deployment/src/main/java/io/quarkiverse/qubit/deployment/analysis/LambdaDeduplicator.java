@@ -63,7 +63,7 @@ public class LambdaDeduplicator {
     }
 
     /**
-     * Computes MD5 hash for combined where + select query (Phase 2.2).
+     * Computes MD5 hash for combined where + select query.
      */
     public String computeCombinedHash(LambdaExpression predicateExpression,
                                      LambdaExpression projectionExpression,
@@ -76,7 +76,7 @@ public class LambdaDeduplicator {
     }
 
     /**
-     * Computes MD5 hash for sorting-only query (Phase 3).
+     * Computes MD5 hash for sorting-only query.
      */
     public String computeSortingHash(List<SortExpression> sortExpressions) {
         String sortString = buildSortString(sortExpressions);
@@ -85,7 +85,7 @@ public class LambdaDeduplicator {
     }
 
     /**
-     * Computes MD5 hash for WHERE+SORT or SELECT+SORT query (Phase 3).
+     * Computes MD5 hash for WHERE+SORT or SELECT+SORT query.
      */
     public String computeQueryWithSortingHash(
             LambdaExpression expression,
@@ -100,7 +100,7 @@ public class LambdaDeduplicator {
     }
 
     /**
-     * Computes MD5 hash for WHERE+SELECT+SORT query (Phase 3).
+     * Computes MD5 hash for WHERE+SELECT+SORT query.
      */
     public String computeFullQueryHash(
             LambdaExpression predicateExpression,
@@ -117,7 +117,7 @@ public class LambdaDeduplicator {
     }
 
     /**
-     * Computes MD5 hash for aggregation query (Phase 5).
+     * Computes MD5 hash for aggregation query.
      * Supports optional WHERE predicate before aggregation.
      *
      * @param predicateExpression WHERE clause (null if no filtering)
@@ -147,7 +147,7 @@ public class LambdaDeduplicator {
     }
 
     /**
-     * Computes MD5 hash for join query (Iteration 6).
+     * Computes MD5 hash for join query.
      * Supports optional bi-entity predicate after join.
      *
      * @param joinRelationshipExpression Join relationship lambda (e.g., p -> p.phones)
@@ -166,7 +166,7 @@ public class LambdaDeduplicator {
     }
 
     /**
-     * Computes MD5 hash for join query with sorting (Iteration 6.5).
+     * Computes MD5 hash for join query with sorting.
      * Supports optional bi-entity predicate and sort expressions after join.
      *
      * @param joinRelationshipExpression Join relationship lambda (e.g., p -> p.phones)
@@ -187,7 +187,7 @@ public class LambdaDeduplicator {
     }
 
     /**
-     * Computes MD5 hash for join query with sorting and selectJoined (Iteration 6.5).
+     * Computes MD5 hash for join query with sorting and selectJoined.
      * Supports optional bi-entity predicate, sort expressions, and selectJoined flag.
      *
      * @param joinRelationshipExpression Join relationship lambda (e.g., p -> p.phones)
@@ -210,7 +210,7 @@ public class LambdaDeduplicator {
     }
 
     /**
-     * Computes MD5 hash for join query with projection (Iteration 6.6).
+     * Computes MD5 hash for join query with projection.
      * Supports optional bi-entity predicate, bi-entity projection, sort expressions.
      *
      * @param joinRelationshipExpression Join relationship lambda (e.g., p -> p.phones)
@@ -246,7 +246,7 @@ public class LambdaDeduplicator {
             astString.append("|BI_WHERE=").append(biEntityPredicateExpression.toString());
         }
 
-        // Iteration 6.6: Include bi-entity projection if present
+        // Include bi-entity projection if present
         if (biEntityProjectionExpression != null) {
             astString.append("|BI_SELECT=").append(biEntityProjectionExpression.toString());
         }
@@ -265,7 +265,7 @@ public class LambdaDeduplicator {
             astString.append("|SELECT_JOINED=true");
         }
 
-        // Iteration 6.6: Include joinProjection flag
+        // Include joinProjection flag
         if (isJoinProjection) {
             astString.append("|JOIN_PROJECTION=true");
         }
@@ -315,7 +315,7 @@ public class LambdaDeduplicator {
     }
 
     /**
-     * Computes MD5 hash for group query (Iteration 7).
+     * Computes MD5 hash for group query.
      * Supports groupBy(), having(), select(), and sortedBy() in group context.
      *
      * @param predicateExpression Pre-grouping WHERE clause (null if no filtering)

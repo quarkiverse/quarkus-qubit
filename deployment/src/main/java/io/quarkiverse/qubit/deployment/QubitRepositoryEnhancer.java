@@ -151,7 +151,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
                     generateBridgeMethod(methodType);
                 }
 
-                // Generate join methods (Iteration 6)
+                // Generate join methods
                 generateJoinMethod(METHOD_JOIN);
                 generateJoinMethod(METHOD_LEFT_JOIN);
             }
@@ -219,7 +219,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
         }
 
         /**
-         * Generates a join/leftJoin method implementation for repositories (Iteration 6).
+         * Generates a join/leftJoin method implementation for repositories.
          * These methods return JoinStream instead of QubitStream.
          *
          * Generated code equivalent:

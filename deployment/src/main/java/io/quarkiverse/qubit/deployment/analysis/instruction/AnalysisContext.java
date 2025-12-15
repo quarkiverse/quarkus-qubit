@@ -131,7 +131,7 @@ public class AnalysisContext {
     /**
      * True if this is a group context lambda (GroupQuerySpec).
      * In group context, the parameter is a Group<T, K> and supports aggregation methods.
-     * Iteration 7: Added for GROUP BY query support.
+     * Added for GROUP BY query support.
      * ARCH-006: Made final - set at construction, immutable thereafter.
      */
     private final boolean groupContextMode;
@@ -157,13 +157,13 @@ public class AnalysisContext {
     /**
      * Tracks array creation for Object[] projections.
      * Non-null when we're in the middle of building an array (after ANEWARRAY).
-     * Iteration 7: Added for GROUP BY multi-value select projections.
+     * Added for GROUP BY multi-value select projections.
      */
     private String pendingArrayElementType = null;
 
     /**
      * Collects elements for the pending array.
-     * Iteration 7: Added for GROUP BY multi-value select projections.
+     * Added for GROUP BY multi-value select projections.
      */
     private java.util.List<LambdaExpression> pendingArrayElements = null;
 
@@ -556,7 +556,7 @@ public class AnalysisContext {
         return null;
     }
 
-    // ==================== Group Context (Iteration 7) ====================
+    // ==================== Group Context ====================
 
     /**
      * Returns true if this is a group context lambda (GroupQuerySpec).
@@ -584,7 +584,7 @@ public class AnalysisContext {
     /**
      * Finds a method in the class by name and descriptor.
      * <p>
-     * Iteration 7: Used for locating nested lambda methods.
+     * Used for locating nested lambda methods.
      * ARCH-006: Updated to use immutable NestedLambdaSupport configuration.
      *
      * @param name method name
@@ -606,7 +606,7 @@ public class AnalysisContext {
     /**
      * Analyzes a nested lambda method and returns its expression.
      * <p>
-     * Iteration 7: Used for analyzing field extractor lambdas in group aggregations
+     * Used for analyzing field extractor lambdas in group aggregations
      * like {@code g.avg((Person p) -> p.salary)}.
      * ARCH-006: Updated to use immutable NestedLambdaSupport configuration.
      *
@@ -621,7 +621,7 @@ public class AnalysisContext {
         return nestedLambdaSupport.analyzer().apply(nestedMethod, entityParamIndex);
     }
 
-    // ==================== Array Creation Tracking (Iteration 7) ====================
+    // ==================== Array Creation Tracking ====================
 
     /**
      * Starts tracking an array creation.

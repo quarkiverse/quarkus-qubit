@@ -214,37 +214,37 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
 
     @Override
     public <K extends Comparable<K>> QubitStream<K> min(QuerySpec<T, K> mapper) {
-        // Phase 5: Store aggregation state, execution happens in getSingleResult()
+        // Store aggregation state, execution happens in getSingleResult()
         return withAggregation(AggregationType.MIN, mapper);
     }
 
     @Override
     public <K extends Comparable<K>> QubitStream<K> max(QuerySpec<T, K> mapper) {
-        // Phase 5: Store aggregation state, execution happens in getSingleResult()
+        // Store aggregation state, execution happens in getSingleResult()
         return withAggregation(AggregationType.MAX, mapper);
     }
 
     @Override
     public QubitStream<Long> sumInteger(QuerySpec<T, Integer> mapper) {
-        // Phase 5: Store aggregation state, execution happens in getSingleResult()
+        // Store aggregation state, execution happens in getSingleResult()
         return withAggregation(AggregationType.SUM_INTEGER, mapper);
     }
 
     @Override
     public QubitStream<Long> sumLong(QuerySpec<T, Long> mapper) {
-        // Phase 5: Store aggregation state, execution happens in getSingleResult()
+        // Store aggregation state, execution happens in getSingleResult()
         return withAggregation(AggregationType.SUM_LONG, mapper);
     }
 
     @Override
     public QubitStream<Double> sumDouble(QuerySpec<T, Double> mapper) {
-        // Phase 5: Store aggregation state, execution happens in getSingleResult()
+        // Store aggregation state, execution happens in getSingleResult()
         return withAggregation(AggregationType.SUM_DOUBLE, mapper);
     }
 
     @Override
     public QubitStream<Double> avg(QuerySpec<T, ? extends Number> mapper) {
-        // Phase 5: Store aggregation state, execution happens in getSingleResult()
+        // Store aggregation state, execution happens in getSingleResult()
         return withAggregation(AggregationType.AVG, mapper);
     }
 
@@ -260,14 +260,14 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
 
         QueryExecutorRegistry registry = Arc.container().instance(QueryExecutorRegistry.class).get();
 
-        // Phase 4: Pass pagination and distinct parameters to registry for runtime application
+        // Pass pagination and distinct parameters to registry for runtime application
         return registry.executeListQuery(callSiteId, entityClass, capturedValues, offset, limit, distinct);
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public T getSingleResult() {
-        // Phase 5: If this is an aggregation query, execute it directly
+        // If this is an aggregation query, execute it directly
         if (aggregationType != null) {
             String callSiteId = getCallSiteId();
             Object[] capturedValues = extractCapturedVariables(callSiteId);
@@ -421,8 +421,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
 
     /**
      * Extracts captured variables from all predicates in the pipeline.
-     * Phase 2.5+: Supports multiple where() clauses with captured variables.
-     * Variables are extracted in predicate order and combined into a single array.
+     * Supports multiple where() clauses with captured variables.
      */
     private Object[] extractCapturedVariables(String callSiteId) {
         int capturedCount = QueryExecutorRegistry.getCapturedVariableCount(callSiteId);
@@ -431,7 +430,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
             return new Object[0];
         }
 
-        // Phase 2.5+: Extract from ALL predicates, not just the first
+        // Extract from ALL predicates, not just the first
         if (predicates.isEmpty()) {
             return new Object[0];
         }
@@ -498,7 +497,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     }
 
     // =============================================================================================
-    // JOIN OPERATIONS (Iteration 6)
+    // JOIN OPERATIONS
     // =============================================================================================
 
     @Override
@@ -520,7 +519,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     }
 
     // =============================================================================================
-    // GROUPING OPERATIONS (Iteration 7)
+    // GROUPING OPERATIONS
     // =============================================================================================
 
     @Override

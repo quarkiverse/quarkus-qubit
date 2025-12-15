@@ -356,7 +356,7 @@ public class LambdaBytecodeAnalyzer {
     /**
      * Handles NEW, DUP, ANEWARRAY, and AASTORE instructions inline.
      * <p>
-     * Iteration 7: Extended to support Object[] array creation for GROUP BY multi-value projections.
+     * Extended to support Object[] array creation for GROUP BY multi-value projections.
      *
      * @param ctx analysis context
      * @param insn instruction
@@ -369,7 +369,7 @@ public class LambdaBytecodeAnalyzer {
             ctx.push(new LambdaExpression.Constant(newInsn.desc, String.class));
             return true;
         } else if (opcode == ANEWARRAY) {
-            // Iteration 7: Handle array creation for Object[] projections
+            // Handle array creation for Object[] projections
             org.objectweb.asm.tree.TypeInsnNode arrayInsn = (org.objectweb.asm.tree.TypeInsnNode) insn;
             ctx.startArrayCreation(arrayInsn.desc);
             // Pop the array size from stack (we don't need it)
@@ -378,7 +378,7 @@ public class LambdaBytecodeAnalyzer {
             ctx.push(new LambdaExpression.Constant("__array__", String.class));
             return true;
         } else if (opcode == AASTORE && ctx.isInArrayCreation()) {
-            // Iteration 7: Store value into array
+            // Store value into array
             // Stack: [array_ref, index, value] (value on top)
             LambdaExpression value = ctx.pop();  // pop value
             ctx.pop();  // pop index (we track order implicitly)
@@ -396,13 +396,13 @@ public class LambdaBytecodeAnalyzer {
     /**
      * Finalizes expression stack by combining remaining expressions with AND.
      * <p>
-     * Iteration 7: Extended to check for pending array creation and finalize it.
+     * Extended to check for pending array creation and finalize it.
      *
      * @param ctx analysis context for array completion
      * @return final combined expression
      */
     private LambdaExpression finalizeExpressionStack(AnalysisContext ctx) {
-        // Iteration 7: If we have a pending array, complete it
+        // If we have a pending array, complete it
         if (ctx.isInArrayCreation()) {
             LambdaExpression.ArrayCreation arrayCreation = ctx.completeArrayCreation();
             if (arrayCreation != null) {

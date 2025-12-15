@@ -219,7 +219,7 @@ public class MethodInvocationHandler implements InstructionHandler {
             return;
         }
 
-        // Iteration 8: Handle Subqueries.subquery(Class) factory method (delegated to SubqueryAnalyzer)
+        // Handle Subqueries.subquery(Class) factory method (delegated to SubqueryAnalyzer)
         if (subqueryAnalyzer.isSubqueriesMethodCall(staticInsn)) {
             subqueryAnalyzer.handleSubqueriesFactoryMethod(ctx, staticInsn);
             return;
@@ -266,7 +266,7 @@ public class MethodInvocationHandler implements InstructionHandler {
         }
     }
 
-    // ========== INVOKEINTERFACE Handler (Iteration 5: Collections, Iteration 7: Group) ==========
+    // ========== INVOKEINTERFACE Handler (Collections, Group) ==========
 
     /**
      * Handles INVOKEINTERFACE: Collection.contains() for IN/MEMBER OF, and Group methods.
@@ -302,7 +302,7 @@ public class MethodInvocationHandler implements InstructionHandler {
      * </pre>
      */
     private void handleInvokeInterface(AnalysisContext ctx, MethodInsnNode interfaceInsn) {
-        // Iteration 7: Check if this is a Group interface method call (delegated to GroupMethodAnalyzer)
+        // Check if this is a Group interface method call (delegated to GroupMethodAnalyzer)
         if (groupMethodAnalyzer.isGroupMethodCall(interfaceInsn)) {
             groupMethodAnalyzer.handleGroupMethod(ctx, interfaceInsn);
             return;
@@ -326,7 +326,7 @@ public class MethodInvocationHandler implements InstructionHandler {
         }
     }
 
-    // Note: Group Interface Methods (Iteration 7) have been extracted to GroupMethodAnalyzer
+    // Note: Group Interface Methods have been extracted to GroupMethodAnalyzer
 
     /**
      * Checks if the instruction is a Collection.contains() call.
@@ -788,5 +788,5 @@ public class MethodInvocationHandler implements InstructionHandler {
         ctx.push(new LambdaExpression.ConstructorCall(owner, args, constructedType));
     }
 
-    // Note: Subquery Methods (Iteration 8) have been extracted to SubqueryAnalyzer
+    // Note: Subquery Methods have been extracted to SubqueryAnalyzer
 }

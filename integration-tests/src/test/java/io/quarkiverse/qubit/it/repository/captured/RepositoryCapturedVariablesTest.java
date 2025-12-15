@@ -353,7 +353,7 @@ class RepositoryCapturedVariablesTest {
                 });
     }
 
-    // ========== Multiple where() with Captured Variables (Phase 2.5+) ==========
+    // ========== Multiple where() with Captured Variables ==========
 
     @Test
     @Transactional

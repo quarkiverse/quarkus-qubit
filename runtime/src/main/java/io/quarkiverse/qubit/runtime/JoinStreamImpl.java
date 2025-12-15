@@ -166,7 +166,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
 
     @Override
     public <S> QubitStream<S> select(BiQuerySpec<T, R, S> mapper) {
-        // Iteration 6.6: Execute join projection query and return wrapped results
+        // Execute join projection query and return wrapped results
         String callSiteId = getCallSiteId();
         Object[] capturedValues = extractCapturedVariables();
 
@@ -421,7 +421,6 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
     /**
      * Simple QubitStream implementation wrapping results from select() with BiQuerySpec.
      * Used for returning projected results after select((source, joined) -> projection) operation.
-     * Iteration 6.6: Join Projections
      */
     private static class ListProjectionQubitStream<T> implements QubitStream<T> {
         private final List<T> results;

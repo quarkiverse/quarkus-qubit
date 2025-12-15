@@ -29,7 +29,7 @@ import static io.quarkiverse.qubit.runtime.QubitConstants.*;
  *   <li>{@code g.sumDouble(field)} → GroupAggregation(SUM_DOUBLE, field)</li>
  * </ul>
  *
- * <p>Iteration 8: Extracted from MethodInvocationHandler to reduce class size
+ * <p>Extracted from MethodInvocationHandler to reduce class size
  * and improve maintainability (addresses ARCH-001, MAINT-002).
  *
  * @see MethodInvocationHandler

@@ -59,8 +59,7 @@ public class QueryExecutorRegistry {
     }
 
     /**
-     * Registers aggregation query executor for call site.
-     * Phase 5: Supports MIN, MAX, AVG, SUM* aggregation operations.
+     * Registers aggregation query executor for call site (MIN, MAX, AVG, SUM*).
      */
     public static void registerAggregationExecutor(
             String callSiteId,
@@ -80,8 +79,7 @@ public class QueryExecutorRegistry {
     }
 
     /**
-     * Executes list query for call site.
-     * Phase 4: Added offset, limit, and distinct parameters for pagination and deduplication support.
+     * Executes list query for call site with pagination and distinct support.
      */
     @SuppressWarnings("unchecked")
     public <T> List<T> executeListQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues,
@@ -162,8 +160,7 @@ public class QueryExecutorRegistry {
     }
 
     /**
-     * Executes aggregation query for call site.
-     * Phase 5: Supports MIN, MAX, AVG, SUM* aggregation operations.
+     * Executes aggregation query for call site (MIN, MAX, AVG, SUM*).
      *
      * @param callSiteId Unique identifier for the call site
      * @param entityClass Entity class being queried
@@ -222,20 +219,18 @@ public class QueryExecutorRegistry {
     }
 
     /**
-     * Returns number of registered aggregation executors.
-     * Phase 5: Tracks MIN, MAX, AVG, SUM* executors.
+     * Returns number of registered aggregation executors (MIN, MAX, AVG, SUM*).
      */
     public static int getAggregationExecutorCount() {
         return AGGREGATION_EXECUTORS.size();
     }
 
     // =============================================================================================
-    // JOIN QUERY SUPPORT (Iteration 6)
+    // JOIN QUERY SUPPORT
     // =============================================================================================
 
     /**
-     * Registers join list query executor for call site.
-     * Iteration 6: Supports join() and leftJoin() operations.
+     * Registers join list query executor for call site (join() and leftJoin()).
      */
     public static void registerJoinListExecutor(
             String callSiteId,
@@ -249,7 +244,6 @@ public class QueryExecutorRegistry {
 
     /**
      * Registers join count query executor for call site.
-     * Iteration 6: Supports count() on join queries.
      */
     public static void registerJoinCountExecutor(
             String callSiteId,
@@ -262,8 +256,7 @@ public class QueryExecutorRegistry {
     }
 
     /**
-     * Executes join list query for call site.
-     * Iteration 6: Handles join() and leftJoin() queries returning source entities.
+     * Executes join list query for call site, returning source entities.
      */
     @SuppressWarnings("unchecked")
     public <T> List<T> executeJoinListQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues,
@@ -301,7 +294,6 @@ public class QueryExecutorRegistry {
 
     /**
      * Executes join count query for call site.
-     * Iteration 6: Handles count() on join queries.
      */
     public <T> long executeJoinCountQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues) {
         QueryExecutor<Long> executor = JOIN_COUNT_EXECUTORS.get(callSiteId);
@@ -351,7 +343,6 @@ public class QueryExecutorRegistry {
 
     /**
      * Registers join selectJoined query executor for call site.
-     * Iteration 6.5: Supports selectJoined() operations returning joined entities.
      */
     public static void registerJoinSelectJoinedExecutor(
             String callSiteId,
@@ -364,8 +355,7 @@ public class QueryExecutorRegistry {
     }
 
     /**
-     * Executes join selectJoined query for call site.
-     * Iteration 6.5: Handles selectJoined() queries returning joined entities instead of source entities.
+     * Executes join selectJoined query for call site, returning joined entities.
      */
     @SuppressWarnings("unchecked")
     public <T, R> List<R> executeJoinSelectJoinedQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues,
@@ -410,7 +400,6 @@ public class QueryExecutorRegistry {
 
     /**
      * Registers join projection query executor for call site.
-     * Iteration 6.6: Supports select() with BiQuerySpec returning projected objects from both entities.
      */
     public static void registerJoinProjectionExecutor(
             String callSiteId,
@@ -423,8 +412,7 @@ public class QueryExecutorRegistry {
     }
 
     /**
-     * Executes join projection query for call site.
-     * Iteration 6.6: Handles select() with BiQuerySpec returning projected objects from both entities.
+     * Executes join projection query for call site, returning projected objects from both entities.
      * <p>
      * Example: {@code Person.join(p -> p.phones).select((p, ph) -> new PersonPhoneDTO(p.firstName, ph.number)).toList()}
      */
@@ -471,12 +459,11 @@ public class QueryExecutorRegistry {
     }
 
     // =============================================================================================
-    // GROUP QUERY SUPPORT (Iteration 7)
+    // GROUP QUERY SUPPORT
     // =============================================================================================
 
     /**
      * Registers group list query executor for call site.
-     * Iteration 7: Supports groupBy() operations with projections.
      */
     public static void registerGroupListExecutor(
             String callSiteId,
@@ -489,8 +476,7 @@ public class QueryExecutorRegistry {
     }
 
     /**
-     * Registers group count query executor for call site.
-     * Iteration 7: Supports count() on group queries (counts number of groups).
+     * Registers group count query executor for call site (counts number of groups).
      */
     public static void registerGroupCountExecutor(
             String callSiteId,
@@ -504,7 +490,6 @@ public class QueryExecutorRegistry {
 
     /**
      * Executes group list query for call site with projection.
-     * Iteration 7: Handles groupBy().select() queries returning projected results.
      */
     @SuppressWarnings("unchecked")
     public <T, R> List<R> executeGroupQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues,
@@ -539,7 +524,7 @@ public class QueryExecutorRegistry {
 
         List<?> rawResults = executor.execute(entityManager, entityClass, capturedValues, offset, limit, null);
 
-        // Iteration 7: Convert Tuple results to Object[] if needed (for Object[] projections)
+        // Convert Tuple results to Object[] if needed (for Object[] projections)
         if (!rawResults.isEmpty() && rawResults.get(0) instanceof Tuple) {
             List<Tuple> tuples = rawResults.stream()
                     .map(o -> (Tuple) o)
@@ -554,7 +539,6 @@ public class QueryExecutorRegistry {
 
     /**
      * Executes group key query for call site (returns only grouping keys).
-     * Iteration 7: Handles groupBy().toList() and groupBy().selectKey() queries.
      */
     @SuppressWarnings("unchecked")
     public <T, K> List<K> executeGroupKeyQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues,
@@ -592,7 +576,6 @@ public class QueryExecutorRegistry {
 
     /**
      * Executes group count query for call site (counts number of groups).
-     * Iteration 7: Handles groupBy().count() queries.
      */
     public <T> long executeGroupCountQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues) {
         QueryExecutor<Long> executor = GROUP_COUNT_EXECUTORS.get(callSiteId);

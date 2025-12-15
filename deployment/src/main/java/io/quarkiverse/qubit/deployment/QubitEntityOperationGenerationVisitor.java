@@ -42,13 +42,13 @@ public class QubitEntityOperationGenerationVisitor extends ClassVisitor {
     @Override
     public void visitEnd() {
         if (extendsQubitEntity) {
-            // Generate new fluent API entry points (Iteration 3)
+            // Generate new fluent API entry points
             generateWhereMethod();
             generateSelectMethod();
             generateSortedByMethod();
             generateSortedDescendingByMethod();
 
-            // Phase 5: Generate aggregation entry points
+            // Generate aggregation entry points
             generateMinMethod();
             generateMaxMethod();
             generateAvgMethod();
@@ -56,11 +56,11 @@ public class QubitEntityOperationGenerationVisitor extends ClassVisitor {
             generateSumLongMethod();
             generateSumDoubleMethod();
 
-            // Iteration 6: Generate join entry points
+            // Generate join entry points
             generateJoinMethod();
             generateLeftJoinMethod();
 
-            // Iteration 7: Generate groupBy entry point
+            // Generate groupBy entry point
             generateGroupByMethod();
 
             // Note: count() and findAll() are inherited from PanacheEntityBase
@@ -93,7 +93,7 @@ public class QubitEntityOperationGenerationVisitor extends ClassVisitor {
         QubitBytecodeGenerator.generateFluentEntryPoint(cv, config);
     }
 
-    // Phase 5: Aggregation method generation
+    // Aggregation method generation
 
     private void generateMinMethod() {
         var config = QubitBytecodeGenerator.FluentMethodConfig.forMin(
@@ -131,7 +131,7 @@ public class QubitEntityOperationGenerationVisitor extends ClassVisitor {
         QubitBytecodeGenerator.generateFluentEntryPoint(cv, config);
     }
 
-    // Iteration 6: Join method generation
+    // Join method generation
 
     private void generateJoinMethod() {
         var config = QubitBytecodeGenerator.JoinMethodConfig.forJoin(
@@ -145,7 +145,7 @@ public class QubitEntityOperationGenerationVisitor extends ClassVisitor {
         QubitBytecodeGenerator.generateJoinEntryPoint(cv, config);
     }
 
-    // Iteration 7: GroupBy method generation
+    // GroupBy method generation
 
     private void generateGroupByMethod() {
         var config = QubitBytecodeGenerator.GroupMethodConfig.forGroupBy(

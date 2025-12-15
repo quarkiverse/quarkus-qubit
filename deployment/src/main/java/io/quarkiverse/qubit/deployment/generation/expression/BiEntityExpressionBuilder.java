@@ -41,11 +41,11 @@ import jakarta.persistence.criteria.Selection;
 
 /**
  * Builds JPA Criteria API expressions for bi-entity (join) queries.
- *
- * <p>Iteration 6: Extracted from CriteriaExpressionGenerator to reduce class size
+ * <p>
+ * Extracted from CriteriaExpressionGenerator to reduce class size
  * and improve maintainability (addresses ARCH-001).
- *
- * <p>Handles expressions involving two entities (e.g., Person p, Phone ph) in join queries:
+ * <p>
+ * Handles expressions involving two entities (e.g., Person p, Phone ph) in join queries:
  * <ul>
  *   <li>Bi-entity predicates: {@code (p, ph) -> ph.type.equals("mobile")}</li>
  *   <li>Bi-entity expressions: {@code (p, ph) -> new DTO(p.firstName, ph.number)}</li>

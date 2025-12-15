@@ -256,7 +256,7 @@ public class QubitProcessor {
             String callSiteId = transformation.getQueryId();
 
             if (transformation.isGroupQuery()) {
-                // Iteration 7: Register group executors
+                // Register group executors
                 if (transformation.isCountQuery()) {
                     recorder.registerGroupCountExecutor(
                             callSiteId,
@@ -269,20 +269,20 @@ public class QubitProcessor {
                             transformation.getCapturedVarCount());
                 }
             } else if (transformation.isJoinQuery()) {
-                // Iteration 6: Register join executors
+                // Register join executors
                 if (transformation.isCountQuery()) {
                     recorder.registerJoinCountExecutor(
                             callSiteId,
                             transformation.getGeneratedClassName(),
                             transformation.getCapturedVarCount());
                 } else if (transformation.isJoinProjection()) {
-                    // Iteration 6.6: Register join projection executor
+                    // Register join projection executor
                     recorder.registerJoinProjectionExecutor(
                             callSiteId,
                             transformation.getGeneratedClassName(),
                             transformation.getCapturedVarCount());
                 } else if (transformation.isSelectJoined()) {
-                    // Iteration 6.5: Register selectJoined executor
+                    // Register selectJoined executor
                     recorder.registerJoinSelectJoinedExecutor(
                             callSiteId,
                             transformation.getGeneratedClassName(),
@@ -294,7 +294,7 @@ public class QubitProcessor {
                             transformation.getCapturedVarCount());
                 }
             } else if (transformation.isAggregationQuery()) {
-                // Phase 5: Register aggregation executors (min, max, avg, sum*)
+                // Register aggregation executors (min, max, avg, sum*)
                 recorder.registerAggregationExecutor(
                         callSiteId,
                         transformation.getGeneratedClassName(),
@@ -408,27 +408,27 @@ public class QubitProcessor {
             return characteristics.isCountQuery();
         }
 
-        /** Returns true if this is an aggregation query (Phase 5). */
+        /** Returns true if this is an aggregation query. */
         public boolean isAggregationQuery() {
             return characteristics.isAggregationQuery();
         }
 
-        /** Returns true if this is a join query (Iteration 6). */
+        /** Returns true if this is a join query. */
         public boolean isJoinQuery() {
             return characteristics.isJoinQuery();
         }
 
-        /** Returns true if this is a selectJoined query (Iteration 6.5). */
+        /** Returns true if this is a selectJoined query. */
         public boolean isSelectJoined() {
             return characteristics.isSelectJoined();
         }
 
-        /** Returns true if this is a join projection query (Iteration 6.6). */
+        /** Returns true if this is a join projection query. */
         public boolean isJoinProjection() {
             return characteristics.isJoinProjection();
         }
 
-        /** Returns true if this is a group query (Iteration 7). */
+        /** Returns true if this is a group query. */
         public boolean isGroupQuery() {
             return characteristics.isGroupQuery();
         }

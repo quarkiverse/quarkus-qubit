@@ -73,7 +73,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
     private static final MethodDescriptor CQ_DISTINCT = md(CriteriaQuery.class, "distinct",
             CriteriaQuery.class, boolean.class);
 
-    // Phase 5: Method descriptors for aggregation functions
+    // Method descriptors for aggregation functions
     private static final MethodDescriptor CB_MIN = md(CriteriaBuilder.class, "min",
             Expression.class, Expression.class);
     private static final MethodDescriptor CB_MAX = md(CriteriaBuilder.class, "max",
@@ -85,11 +85,11 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
     private static final MethodDescriptor CB_SUM_AS_DOUBLE = md(CriteriaBuilder.class, "sumAsDouble",
             Expression.class, Expression.class);
 
-    // Iteration 6: Method descriptors for JOIN operations
+    // Method descriptors for JOIN operations
     private static final MethodDescriptor FROM_JOIN = md(From.class, "join",
             Join.class, String.class, JoinType.class);
 
-    // Iteration 7: Method descriptors for GROUP BY operations
+    // Method descriptors for GROUP BY operations
     private static final MethodDescriptor CQ_GROUP_BY = md(CriteriaQuery.class, "groupBy",
             CriteriaQuery.class, Expression[].class);
     private static final MethodDescriptor CQ_HAVING = md(CriteriaQuery.class, "having",
@@ -123,9 +123,9 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
 
     /**
      * Generates query executor class bytecode from lambda expressions.
-     * Phase 2.2: Accepts both predicate and projection expressions for combined queries.
-     * Phase 3: Accepts sort expressions for ORDER BY generation.
-     * Phase 5: Accepts aggregation expression and type for aggregation queries.
+     * <p>
+     * Accepts predicate, projection, sort, and aggregation expressions to generate
+     * combined queries with WHERE, SELECT, ORDER BY, and aggregation operations.
      */
     public byte[] generateQueryExecutorClass(
             LambdaExpression predicateExpression,
@@ -152,7 +152,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
                 constructor.returnValue(null);
             }
 
-            // Phase 4: Updated execute method signature to include offset, limit, and distinct parameters
+            // Execute method signature includes offset, limit, and distinct parameters
             try (MethodCreator execute = classCreator.getMethodCreator(
                     QE_EXECUTE, Object.class, EntityManager.class, Class.class, Object[].class,
                     Integer.class, Integer.class, Boolean.class)) {
@@ -166,7 +166,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
 
                 ResultHandle result;
                 if (isAggregationQuery) {
-                    // Phase 5: Aggregation queries (min, max, avg, sum*)
+                    // Aggregation queries (min, max, avg, sum*)
                     result = generateAggregationQueryBody(execute, em, entityClassParam, predicateExpression,
                             aggregationExpression, aggregationType, capturedValues);
                 } else if (isCountQuery) {
@@ -186,20 +186,20 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
     }
 
     /**
-     * Generates query executor class bytecode for JOIN queries (Iteration 6).
+     * Generates query executor class bytecode for JOIN queries.
      * <p>
      * Creates a query executor that performs a JPA join between two related entities
      * and applies bi-entity predicates that reference both the source and joined entity.
      *
      * @param joinRelationshipExpression Lambda for the join relationship (e.g., p -> p.phones)
      * @param biEntityPredicateExpression Lambda for bi-entity predicate (e.g., (p, ph) -> ph.type.equals("mobile"))
-     * @param biEntityProjectionExpression Iteration 6.6: BiQuerySpec SELECT projection (e.g., (p, ph) -> new DTO(...))
-     * @param sortExpressions Iteration 6.5: List of sort expressions for ORDER BY (null or empty for no sorting)
+     * @param biEntityProjectionExpression BiQuerySpec SELECT projection (e.g., (p, ph) -> new DTO(...))
+     * @param sortExpressions List of sort expressions for ORDER BY (null or empty for no sorting)
      * @param joinType The type of join (INNER or LEFT)
      * @param className The generated class name
      * @param isCountQuery True if this is a count query (JoinStream.count())
-     * @param isSelectJoined Iteration 6.5: True if selectJoined() was called (returns joined entities)
-     * @param isJoinProjection Iteration 6.6: True if select() with BiQuerySpec was called
+     * @param isSelectJoined True if selectJoined() was called (returns joined entities)
+     * @param isJoinProjection True if select() with BiQuerySpec was called
      * @return The bytecode for the generated QueryExecutor class
      */
     public byte[] generateJoinQueryExecutorClass(
@@ -247,14 +247,14 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
                             joinRelationshipExpression, biEntityPredicateExpression,
                             joinType, capturedValues);
                 } else if (isJoinProjection) {
-                    // Iteration 6.6: select() with BiQuerySpec returns projected results
+                    // select() with BiQuerySpec returns projected results
                     result = generateJoinProjectionQueryBody(
                             execute, em, entityClassParam,
                             joinRelationshipExpression, biEntityPredicateExpression,
                             biEntityProjectionExpression,
                             joinType, sortExpressions, capturedValues, offset, limit, distinct);
                 } else if (isSelectJoined) {
-                    // Iteration 6.5: selectJoined() returns joined entities instead of source entities
+                    // selectJoined() returns joined entities instead of source entities
                     result = generateJoinSelectJoinedQueryBody(
                             execute, em, entityClassParam,
                             joinRelationshipExpression, biEntityPredicateExpression,
@@ -274,7 +274,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
     }
 
     /**
-     * Generates query executor class bytecode for GROUP BY queries (Iteration 7).
+     * Generates query executor class bytecode for GROUP BY queries.
      * <p>
      * Creates a query executor that performs JPA GROUP BY operations with optional
      * HAVING clause, aggregations in SELECT, and sorting.
@@ -359,7 +359,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
     }
 
     /**
-     * Generates GROUP BY query body (Iteration 7).
+     * Generates GROUP BY query body.
      * <p>
      * Creates a JPA Criteria API group by query with optional WHERE, HAVING,
      * SELECT (with aggregations), and ORDER BY clauses.
@@ -451,7 +451,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
     }
 
     /**
-     * Generates GROUP BY COUNT query body (Iteration 7).
+     * Generates GROUP BY COUNT query body.
      * <p>
      * Counts the number of groups (not the total entities).
      * Uses a subquery or COUNT(DISTINCT groupKey) pattern.
@@ -566,7 +566,6 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
 
     /**
      * Applies HAVING clause predicate to CriteriaQuery.
-     * Iteration 7: Implementation of having() support.
      */
     private void applyHavingPredicate(MethodCreator method, ResultHandle query, ResultHandle predicate) {
         if (predicate != null) {
@@ -578,7 +577,6 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
 
     /**
      * Applies ORDER BY clause for GROUP BY queries.
-     * Iteration 7: Implementation of sortedBy() for GroupStream.
      */
     private void applyGroupOrderBy(
             MethodCreator method,
@@ -625,26 +623,25 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
 
     /**
      * Generates LIST query returning em.createQuery(query).getResultList().
-     * Phase 2.2: Handles combined where() + select() queries.
-     * Phase 3: Handles ORDER BY for sorting.
-     * Phase 4: Handles pagination via offset/limit parameters.
+     * <p>
+     * Handles combined where() + select() queries, ORDER BY sorting, and pagination.
      */
     private ResultHandle generateListQueryBody(
             QueryGenContext ctx,
             LambdaExpression predicateExpression,
             LambdaExpression projectionExpression) {
 
-        // Phase 2.2/2.3: Combined WHERE + SELECT query
+        // Combined WHERE + SELECT query
         if (predicateExpression != null && projectionExpression != null) {
             return generateCombinedWhereSelectQuery(ctx, predicateExpression, projectionExpression);
         }
 
-        // Phase 2.1/2.3: Projection query (select().toList())
+        // Projection query (select().toList())
         if (projectionExpression != null) {
             return generateProjectionQuery(ctx, projectionExpression);
         }
 
-        // Phase 1: Predicate query (where().toList()) - with subquery support
+        // Predicate query (where().toList()) - with subquery support
         if (predicateExpression != null) {
             ResultHandle cb = ctx.method().invokeInterfaceMethod(md(EntityManager.class, EM_GET_CRITERIA_BUILDER, CriteriaBuilder.class), ctx.em());
             ResultHandle query = ctx.method().invokeInterfaceMethod(md(CriteriaBuilder.class, EM_CREATE_QUERY, CriteriaQuery.class, Class.class), cb, ctx.entityClass());
@@ -671,7 +668,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
 
     /**
      * Generates COUNT query returning em.createQuery(query).getSingleResult().
-     * Iteration 8: With subquery support.
+     * Includes subquery support.
      */
     private ResultHandle generateCountQueryBody(
             MethodCreator method,
@@ -693,7 +690,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
     }
 
     /**
-     * Generates aggregation query body (Phase 5).
+     * Generates aggregation query body.
      * Supports MIN, MAX, AVG, SUM_INTEGER, SUM_LONG, SUM_DOUBLE aggregation operations.
      * <p>
      * Example: Person.where(p -> p.age > 25).min(p -> p.salary)
@@ -775,7 +772,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
 
     /**
      * Determines the Java result type for an aggregation query.
-     * Phase 5: Maps aggregation type names to Java classes.
+     * Maps aggregation type names to Java classes.
      */
     private Class<?> getAggregationResultType(String aggregationType) {
         return switch (aggregationType) {
@@ -790,7 +787,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
 
     /**
      * Applies the appropriate CriteriaBuilder aggregation function.
-     * Phase 5: Generates cb.min(), cb.max(), cb.avg(), cb.sum() calls.
+     * Generates cb.min(), cb.max(), cb.avg(), cb.sum() calls.
      */
     private ResultHandle applyAggregationFunction(
             MethodCreator method,
@@ -810,7 +807,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
     }
 
     /**
-     * Generates JOIN query bytecode (Iteration 6).
+     * Generates JOIN query bytecode.
      * <p>
      * Creates a JPA Criteria API join query that navigates relationships and applies
      * bi-entity predicates to filter results based on both the source and joined entities.
@@ -838,7 +835,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
      * @param offset OFFSET value for pagination (null if none)
      * @param limit LIMIT value for pagination (null if none)
      * @param distinct DISTINCT flag (null or false for no distinct)
-     * @param sortExpressions Iteration 6.5: List of sort expressions for ORDER BY (null or empty for no sorting)
+     * @param sortExpressions List of sort expressions for ORDER BY (null or empty for no sorting)
      * @return ResultHandle to join query result
      */
     private ResultHandle generateJoinQueryBody(
@@ -884,7 +881,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
             applyWherePredicate(method, query, predicate);
         }
 
-        // Iteration 6.5: Apply ORDER BY for join query sorting
+        // Apply ORDER BY for join query sorting
         applyBiEntityOrderBy(method, query, root, joinHandle, cb, sortExpressions, capturedValues);
 
         // Apply DISTINCT if requested
@@ -904,7 +901,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
     }
 
     /**
-     * Generates JOIN COUNT query bytecode (Iteration 6).
+     * Generates JOIN COUNT query bytecode.
      * <p>
      * Creates a JPA Criteria API count query that navigates relationships and applies
      * bi-entity predicates to count matching results.
@@ -988,7 +985,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
     }
 
     /**
-     * Generates JOIN SELECT JOINED query bytecode (Iteration 6.5).
+     * Generates JOIN SELECT JOINED query bytecode.
      * <p>
      * Creates a JPA Criteria API query that navigates relationships and returns
      * the joined entities instead of the source entities.
@@ -1087,7 +1084,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
     }
 
     /**
-     * Generates query body for join query with bi-entity projection (Iteration 6.6).
+     * Generates query body for join query with bi-entity projection.
      * <p>
      * Example: {@code Person.join(p -> p.phones).select((p, ph) -> new PersonPhoneDTO(p.firstName, ph.number)).toList()}
      * <p>
@@ -1187,8 +1184,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
     }
 
     /**
-     * Generates simple field projection query (Phase 2.1).
-     * Phase 3: Enhanced to support ORDER BY sorting.
+     * Generates simple field projection query.
      * <p>
      * Example: Person.select(p -> p.firstName).toList()
      * <p>
@@ -1233,10 +1229,10 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
                 md(CriteriaQuery.class, CQ_SELECT, CriteriaQuery.class, Selection.class),
                 query, path);
 
-        // Phase 3: Apply ORDER BY if sorting expressions present
+        // Apply ORDER BY if sorting expressions present
         applyOrderBy(ctx.method(), query, root, cb, ctx.sortExpressions(), ctx.capturedValues(), path);
 
-        // Phase 4: Apply DISTINCT if requested
+        // Apply DISTINCT if requested
         applyDistinct(ctx.method(), query, ctx.distinct());
 
         // Create TypedQuery
@@ -1244,7 +1240,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
                 md(EntityManager.class, EM_CREATE_QUERY, TypedQuery.class, CriteriaQuery.class),
                 ctx.em(), query);
 
-        // Phase 4: Apply pagination
+        // Apply pagination
         applyPagination(ctx.method(), typedQuery, ctx.offset(), ctx.limit());
 
         // Return getResultList()
@@ -1254,8 +1250,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
     }
 
     /**
-     * Generates projection query supporting both field access and expressions (Phase 2.1/2.3).
-     * Phase 3: Enhanced to support ORDER BY sorting.
+     * Generates projection query supporting both field access and expressions.
      * <p>
      * Examples:
      * <ul>
@@ -1271,12 +1266,12 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
             QueryGenContext ctx,
             LambdaExpression projectionExpression) {
 
-        // Phase 2.1: Simple field access projection - use type-safe query
+        // Simple field access projection - use type-safe query
         if (projectionExpression instanceof LambdaExpression.FieldAccess fieldAccess) {
             return generateSimpleFieldProjectionQuery(ctx, fieldAccess);
         }
 
-        // Phase 2.3: Expression projection - use Object query
+        // Expression projection - use Object query
         // Get CriteriaBuilder
         ResultHandle cb = ctx.method().invokeInterfaceMethod(
                 md(EntityManager.class, EM_GET_CRITERIA_BUILDER, CriteriaBuilder.class), ctx.em());
@@ -1303,10 +1298,10 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
                 md(CriteriaQuery.class, CQ_SELECT, CriteriaQuery.class, Selection.class),
                 query, projectionExpr);
 
-        // Phase 3: Apply ORDER BY if sorting expressions present
+        // Apply ORDER BY if sorting expressions present
         applyOrderBy(ctx.method(), query, root, cb, ctx.sortExpressions(), ctx.capturedValues(), projectionExpr);
 
-        // Phase 4: Apply DISTINCT if requested
+        // Apply DISTINCT if requested
         applyDistinct(ctx.method(), query, ctx.distinct());
 
         // Create TypedQuery
@@ -1314,7 +1309,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
                 md(EntityManager.class, EM_CREATE_QUERY, TypedQuery.class, CriteriaQuery.class),
                 ctx.em(), query);
 
-        // Phase 4: Apply pagination
+        // Apply pagination
         applyPagination(ctx.method(), typedQuery, ctx.offset(), ctx.limit());
 
         // Return getResultList()
@@ -1324,8 +1319,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
     }
 
     /**
-     * Generates combined WHERE + SELECT query (Phase 2.2/2.3).
-     * Phase 3: Enhanced to support ORDER BY sorting.
+     * Generates combined WHERE + SELECT query.
      * <p>
      * Examples:
      * <ul>
@@ -1348,10 +1342,10 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
         // Determine result type based on projection expression
         ResultHandle resultTypeClass;
         if (projectionExpression instanceof LambdaExpression.FieldAccess fieldAccess) {
-            // Phase 2.2: Field access projection - use field type for type safety
+            // Field access projection - use field type for type safety
             resultTypeClass = ctx.method().loadClass(fieldAccess.fieldType());
         } else {
-            // Phase 2.3: Expression projection - use Object.class
+            // Expression projection - use Object.class
             resultTypeClass = ctx.method().loadClass(Object.class);
         }
 
@@ -1373,13 +1367,13 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
         // Generate SELECT projection expression
         ResultHandle projectionExpr;
         if (projectionExpression instanceof LambdaExpression.FieldAccess fieldAccess) {
-            // Phase 2.2: Simple field access - root.get("fieldName")
+            // Simple field access - root.get("fieldName")
             ResultHandle fieldName = ctx.method().load(fieldAccess.fieldName());
             projectionExpr = ctx.method().invokeInterfaceMethod(
                     md(Path.class, "get", Path.class, String.class),
                     root, fieldName);
         } else {
-            // Phase 2.3: Expression projection - use expression generator
+            // Expression projection - use expression generator
             ResultHandle expr = expressionGenerator.generateExpressionAsJpaExpression(
                     ctx.method(), projectionExpression, cb, root, ctx.capturedValues());
             projectionExpr = expr;
@@ -1390,10 +1384,10 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
                 md(CriteriaQuery.class, CQ_SELECT, CriteriaQuery.class, Selection.class),
                 query, projectionExpr);
 
-        // Phase 3: Apply ORDER BY if sorting expressions present
+        // Apply ORDER BY if sorting expressions present
         applyOrderBy(ctx.method(), query, root, cb, ctx.sortExpressions(), ctx.capturedValues(), projectionExpr);
 
-        // Phase 4: Apply DISTINCT if requested
+        // Apply DISTINCT if requested
         applyDistinct(ctx.method(), query, ctx.distinct());
 
         // Create TypedQuery
@@ -1401,7 +1395,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
                 md(EntityManager.class, EM_CREATE_QUERY, TypedQuery.class, CriteriaQuery.class),
                 ctx.em(), query);
 
-        // Phase 4: Apply pagination
+        // Apply pagination
         applyPagination(ctx.method(), typedQuery, ctx.offset(), ctx.limit());
 
         // Return getResultList()
@@ -1423,7 +1417,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
 
     /**
      * Applies ORDER BY clause to CriteriaQuery.
-     * Phase 3: Generates JPA ordering from sort expressions.
+     * Generates JPA ordering from sort expressions.
      * <p>
      * For each sort expression, generates:
      * - Expression for the sort key (e.g., root.get("age"))
@@ -1434,7 +1428,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
      * For "last call wins" semantics, we process in REVERSE order so the last call becomes
      * the primary sort (first in JPA's ORDER BY array).
      * <p>
-     * Phase 3 Enhancement: For SELECT+SORT queries with identity sort functions like (String s) -> s,
+     * For SELECT+SORT queries with identity sort functions like (String s) -> s,
      * the sort key expression will be null (Parameter cannot be converted to JPA expression).
      * In this case, we use the projectionExpression parameter as the ORDER BY key.
      *
@@ -1469,7 +1463,7 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
                 ResultHandle sortKeyExpr = expressionGenerator.generateExpressionAsJpaExpression(
                         method, sortExpr.keyExtractor(), cb, root, capturedValues);
 
-                // Phase 3: If sort key is null (identity function like s -> s after projection),
+                // If sort key is null (identity function like s -> s after projection),
                 // use the projection expression instead
                 if (sortKeyExpr == null && projectionExpression != null) {
                     sortKeyExpr = projectionExpression;
@@ -1494,7 +1488,6 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
 
     /**
      * Applies ORDER BY clause for join queries using bi-entity sort expressions.
-     * Iteration 6.5: Implementation of sortedBy() and sortedDescendingBy() for JoinStream.
      * <p>
      * Uses the "last call wins" semantics where the most recent sortedBy() call
      * becomes the primary sort key.
@@ -1554,7 +1547,6 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
 
     /**
      * Applies DISTINCT clause to CriteriaQuery.
-     * Phase 4: Implementation of distinct() support.
      * <p>
      * Generates code equivalent to:
      * <pre>
@@ -1589,7 +1581,6 @@ private static MethodDescriptor md(Class<?> clazz, String methodName, Class<?> r
 
     /**
      * Applies pagination (OFFSET and LIMIT) to TypedQuery.
-     * Phase 4: Implementation of skip() and limit() support.
      * <p>
      * Generates code equivalent to:
      * <pre>

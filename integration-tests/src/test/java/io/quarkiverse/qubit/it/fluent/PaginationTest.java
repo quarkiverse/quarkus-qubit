@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Integration tests for pagination (skip/limit) operations.
- * Phase 4: Tests for skip() and limit() methods.
+ * Tests for skip() and limit() methods.
  */
 @QuarkusTest
 class PaginationTest {

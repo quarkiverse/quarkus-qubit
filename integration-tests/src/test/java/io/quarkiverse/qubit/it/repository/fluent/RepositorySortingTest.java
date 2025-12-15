@@ -18,7 +18,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Repository pattern tests for Phase 3: Sorting functionality.
+ * Repository pattern tests for sorting functionality.
  * Mirrors io.quarkiverse.qubit.it.fluent.SortingTest using repository injection.
  *
  * <p>Tests cover:

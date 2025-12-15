@@ -16,7 +16,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration tests for Phase 3: Sorting functionality.
+ * Integration tests for sorting functionality.
  * <p>
  * Tests cover:
  * - Single-level ascending/descending sort

@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Integration tests for getSingleResult() and findFirst() terminal operations.
- * Phase 2.2+: Tests single-result query patterns.
+ * Tests single-result query patterns.
  */
 @QuarkusTest
 class SingleResultTest {

@@ -17,7 +17,7 @@ import java.math.BigDecimal;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Tests for DTO constructor-based projections (Phase 2.4).
+ * Tests for DTO constructor-based projections.
  * <p>
  * Validates constructor-based projections using {@code new DTOClass(field1, field2, ...)} syntax
  * which translates to JPA's {@code cb.construct(DTOClass.class, selection1, selection2, ...)}.

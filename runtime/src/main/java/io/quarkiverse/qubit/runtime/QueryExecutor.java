@@ -4,14 +4,14 @@ import jakarta.persistence.EntityManager;
 
 /**
  * Functional interface for build-time generated query executors with captured variable support.
- * Phase 4: Added pagination and distinct support.
+ * Includes pagination and distinct support.
  */
 @FunctionalInterface
 public interface QueryExecutor<R> {
 
     /**
      * Executes query with captured variables, optional pagination, and distinct flag.
-     * Phase 4: Added offset, limit, and distinct parameters for pagination and deduplication support.
+     * Includes offset, limit, and distinct parameters for pagination and deduplication support.
      *
      * @param entityManager JPA EntityManager
      * @param entityClass entity class being queried

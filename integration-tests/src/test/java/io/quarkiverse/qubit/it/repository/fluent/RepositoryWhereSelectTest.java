@@ -17,7 +17,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Repository pattern tests for combined where() + select() queries (Phase 2.2).
+ * Repository pattern tests for combined where() + select() queries.
  * Mirrors io.quarkiverse.qubit.it.fluent.WhereSelectTest using repository injection.
  *
  * <p>Validates combining filter predicates with field projections.

@@ -26,10 +26,10 @@ import static org.objectweb.asm.Opcodes.*;
 /**
  * Handles load instructions: ALOAD, primitives, GETFIELD.
  * <p>
- * Enhanced in Iteration 4 to support relationship navigation by detecting
+ * Enhanced to support relationship navigation by detecting
  * chained GETFIELD instructions and building PathExpression AST nodes.
  * <p>
- * Enhanced in Iteration 6 to support bi-entity lambdas (BiQuerySpec) for join
+ * Enhanced to support bi-entity lambdas (BiQuerySpec) for join
  * queries. In bi-entity mode, produces BiEntityParameter, BiEntityFieldAccess,
  * and BiEntityPathExpression nodes that track which entity the expression
  * belongs to (FIRST or SECOND).
@@ -134,11 +134,11 @@ public class LoadInstructionHandler implements InstructionHandler {
     /**
      * Handles GETFIELD: converts to FieldAccess or PathExpression node.
      * <p>
-     * Iteration 4 Enhancement: Detects chained field access patterns and builds
-     * PathExpression AST nodes for relationship navigation.
+     * Detects chained field access patterns and builds PathExpression AST nodes
+     * for relationship navigation.
      * <p>
-     * Iteration 6 Enhancement: Produces BiEntityFieldAccess and BiEntityPathExpression
-     * nodes in bi-entity mode (join queries) to track entity position.
+     * Produces BiEntityFieldAccess and BiEntityPathExpression nodes in bi-entity
+     * mode (join queries) to track entity position.
      * <p>
      * Bytecode patterns:
      * <pre>

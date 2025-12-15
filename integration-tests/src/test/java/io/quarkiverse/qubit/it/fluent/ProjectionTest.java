@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Tests for simple field projection using the fluent API.
  * <p>
- * Phase 2.1: Simple field projection only (no where, no DTO construction).
+ * Simple field projection only (no where, no DTO construction).
  * Example: {@code Person.select(p -> p.firstName).toList()}
  */
 @QuarkusTest

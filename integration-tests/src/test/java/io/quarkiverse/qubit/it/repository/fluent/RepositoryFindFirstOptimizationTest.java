@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Repository pattern tests for findFirst() SQL LIMIT optimization.
  * Mirrors io.quarkiverse.qubit.it.fluent.FindFirstOptimizationTest using repository injection.
  *
- * <p>Phase 4: Ensures findFirst() applies LIMIT 1 at SQL level, not Java level.
+ * <p>Ensures findFirst() applies LIMIT 1 at SQL level, not Java level.
  *
  * <p>Tests verify:
  * <ul>

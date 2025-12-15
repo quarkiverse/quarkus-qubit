@@ -23,8 +23,8 @@ import jakarta.persistence.criteria.Predicate;
 
 /**
  * Generates JPA Criteria API bytecode for subquery expressions.
- *
- * <p>Iteration 8: Subqueries - handles ScalarSubquery, ExistsSubquery, and InSubquery.
+ * <p>
+ * Handles ScalarSubquery, ExistsSubquery, and InSubquery.
  *
  * <p>Architecture:
  * <ul>

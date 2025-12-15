@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Repository pattern tests for simple field projection using the fluent API.
  * Mirrors io.quarkiverse.qubit.it.fluent.ProjectionTest using repository injection.
  *
- * <p>Phase 2.1: Simple field projection only (no where, no DTO construction).
+ * <p>Simple field projection only (no where, no DTO construction).
  * Example: {@code repository.select(p -> p.firstName).toList()}
  */
 @QuarkusTest

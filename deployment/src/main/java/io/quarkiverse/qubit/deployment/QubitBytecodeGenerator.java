@@ -84,7 +84,7 @@ public final class QubitBytecodeGenerator {
      * }
      * }</pre>
      * <p>
-     * Iteration 6: Join Queries
+     * Join Queries
      */
     public static MethodVisitor generateJoinEntryPoint(ClassVisitor cv, JoinMethodConfig config) {
         MethodVisitor mv = cv.visitMethod(
@@ -133,7 +133,7 @@ public final class QubitBytecodeGenerator {
 
     /**
      * Configuration for generating join entry point methods.
-     * Iteration 6: Join Queries
+     * Join Queries
      */
     public record JoinMethodConfig(
             int access,
@@ -190,7 +190,7 @@ public final class QubitBytecodeGenerator {
      * }
      * }</pre>
      * <p>
-     * Iteration 7: Grouping / GROUP BY
+     * Grouping / GROUP BY
      */
     public static MethodVisitor generateGroupEntryPoint(ClassVisitor cv, GroupMethodConfig config) {
         MethodVisitor mv = cv.visitMethod(
@@ -239,7 +239,7 @@ public final class QubitBytecodeGenerator {
 
     /**
      * Configuration for generating groupBy entry point method.
-     * Iteration 7: Grouping / GROUP BY
+     * Grouping / GROUP BY
      */
     public record GroupMethodConfig(
             int access,
@@ -357,7 +357,7 @@ public final class QubitBytecodeGenerator {
             );
         }
 
-        // Phase 5: Aggregation methods - these now return QubitStream (intermediate operations)
+        // Aggregation methods - these now return QubitStream (intermediate operations)
 
         /**
          * Creates config for min() method.

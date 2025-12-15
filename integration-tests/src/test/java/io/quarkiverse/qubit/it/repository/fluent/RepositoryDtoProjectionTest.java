@@ -20,7 +20,7 @@ import java.math.BigDecimal;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Repository pattern tests for DTO constructor-based projections (Phase 2.4).
+ * Repository pattern tests for DTO constructor-based projections.
  * Mirrors io.quarkiverse.qubit.it.fluent.DtoProjectionTest using repository injection.
  *
  * <p>Validates constructor-based projections using {@code new DTOClass(field1, field2, ...)} syntax

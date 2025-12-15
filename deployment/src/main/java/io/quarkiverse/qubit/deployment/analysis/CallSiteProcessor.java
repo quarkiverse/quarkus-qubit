@@ -46,8 +46,8 @@ public class CallSiteProcessor {
     /**
      * Analyzes lambda at call site and generates query executor class.
      * <p>
-     * Phase 2.2: Supports combined where() + select() queries with both predicate and projection.
-     * Phase 2.5: Supports multiple where() predicates combined with AND.
+     * Supports combined where() + select() queries with both predicate and projection.
+     * Supports multiple where() predicates combined with AND.
      * MAINT-006: Refactored to extract helper methods for improved readability.
      */
     public void processCallSite(
@@ -141,26 +141,26 @@ public class CallSiteProcessor {
 
     /**
      * Analyzes lambdas based on call site type (multiple predicates, combined, aggregation, join, group, or single).
-     * Phase 5: Added aggregation query support.
-     * Iteration 6: Added join query support.
-     * Iteration 7: Added group query support.
+     * Added aggregation query support.
+     * Added join query support.
+     * Added group query support.
      */
     private LambdaAnalysisResult analyzeLambdas(
             byte[] classBytes,
             InvokeDynamicScanner.LambdaCallSite callSite,
             String callSiteId) {
 
-        // Phase 5: Handle aggregation queries first
+        // Handle aggregation queries first
         if (callSite.isAggregationQuery()) {
             return analyzeAggregationQuery(classBytes, callSite, callSiteId);
         }
 
-        // Iteration 6: Handle join queries
+        // Handle join queries
         if (callSite.isJoinQuery()) {
             return analyzeJoinQuery(classBytes, callSite, callSiteId);
         }
 
-        // Iteration 7: Handle group queries
+        // Handle group queries
         if (callSite.isGroupByQuery()) {
             return analyzeGroupQuery(classBytes, callSite, callSiteId);
         }
@@ -244,10 +244,10 @@ public class CallSiteProcessor {
 
     /**
      * Computes deduplication hash based on query type.
-     * Phase 3: Handles sorting-only queries and includes sort expressions in hash.
-     * Phase 5: Handles aggregation queries with optional WHERE predicates.
-     * Iteration 6: Handles join queries with optional bi-entity predicates.
-     * Iteration 7: Handles group queries with groupBy, having, select, and sort.
+     * Handles sorting-only queries and includes sort expressions in hash.
+     * Handles aggregation queries with optional WHERE predicates.
+     * Handles join queries with optional bi-entity predicates.
+     * Handles group queries with groupBy, having, select, and sort.
      * <p>
      * Refactored for ARCH-002: Uses pattern matching with sealed interface types.
      */
@@ -305,7 +305,7 @@ public class CallSiteProcessor {
                     callSite.isCountQuery());
         }
 
-        // Phase 3: For sorting-only queries, compute hash from sort expressions
+        // For sorting-only queries, compute hash from sort expressions
         if (simple.predicateExpression() == null && simple.projectionExpression() == null && hasSorting) {
             return deduplicator.computeSortingHash(simple.sortExpressions());
         }
@@ -325,9 +325,9 @@ public class CallSiteProcessor {
 
     /**
      * Generates executor class and registers it.
-     * Phase 2.2: Accepts both predicate and projection expressions.
-     * Phase 3: Accepts sort expressions for ORDER BY generation.
-     * Phase 5: Accepts aggregation expression and type for aggregation queries.
+     * Accepts both predicate and projection expressions.
+     * Accepts sort expressions for ORDER BY generation.
+     * Accepts aggregation expression and type for aggregation queries.
      * BR-002: Uses lambdaHash for deterministic class naming (reproducible builds).
      *
      * @param lambdaHash MD5 hash of the lambda expression (used for deterministic class naming)
@@ -387,22 +387,22 @@ public class CallSiteProcessor {
     }
 
     /**
-     * Generates and registers a JOIN query executor class (Iteration 6).
+     * Generates and registers a JOIN query executor class.
      * <p>
      * Creates a query executor that performs a JPA join between two related entities.
      * BR-002: Uses lambdaHash for deterministic class naming (reproducible builds).
      *
      * @param joinRelationshipExpression Lambda for the join relationship (e.g., p -> p.phones)
      * @param biEntityPredicateExpression Lambda for bi-entity predicate (e.g., (p, ph) -> ph.type.equals("mobile"))
-     * @param biEntityProjectionExpression Iteration 6.6: BiQuerySpec SELECT projection (e.g., (p, ph) -> new DTO(...))
-     * @param sortExpressions Iteration 6.5: List of sort expressions for ORDER BY
+     * @param biEntityProjectionExpression BiQuerySpec SELECT projection (e.g., (p, ph) -> new DTO(...))
+     * @param sortExpressions List of sort expressions for ORDER BY
      * @param joinType The type of join (INNER or LEFT)
      * @param lambdaHash MD5 hash of the lambda expression (used for deterministic class naming)
      * @param queryId Unique identifier for the query
      * @param capturedVarCount Number of captured variables
      * @param isCountQuery True if this is a count query (JoinStream.count())
-     * @param isSelectJoined Iteration 6.5: True if selectJoined() was called (returns joined entities)
-     * @param isJoinProjection Iteration 6.6: True if select() with BiQuerySpec was called
+     * @param isSelectJoined True if selectJoined() was called (returns joined entities)
+     * @param isJoinProjection True if select() with BiQuerySpec was called
      * @param generatedClass Build producer for generated classes
      * @param queryTransformations Build producer for query transformations
      * @return The generated class name
@@ -438,9 +438,9 @@ public class CallSiteProcessor {
                 isJoinProjection);
 
         generatedClass.produce(new GeneratedClassBuildItem(true, className, bytecode));
-        // Iteration 6: Create join query build item with isJoinQuery=true
-        // Iteration 6.5: Create selectJoined query build item if isSelectJoined is true
-        // Iteration 6.6: Create join projection query build item if isJoinProjection is true
+        // Create join query build item with isJoinQuery=true
+        // Create selectJoined query build item if isSelectJoined is true
+        // Create join projection query build item if isJoinProjection is true
         // CS-006: Use QueryCharacteristics instead of boolean parameters
         QueryCharacteristics joinCharacteristics = new QueryCharacteristics(
                 isCountQuery, false, true, isSelectJoined, isJoinProjection, false);
@@ -458,7 +458,7 @@ public class CallSiteProcessor {
     }
 
     /**
-     * Generates and registers a GROUP BY query executor class (Iteration 7).
+     * Generates and registers a GROUP BY query executor class.
      * <p>
      * Creates a query executor that performs JPA GROUP BY operations with optional
      * HAVING clause, aggregations, and sorting.
@@ -504,7 +504,7 @@ public class CallSiteProcessor {
                 isCountQuery);
 
         generatedClass.produce(new GeneratedClassBuildItem(true, className, bytecode));
-        // Iteration 7: Create group query build item with isGroupQuery=true
+        // Create group query build item with isGroupQuery=true
         // CS-006: Use QueryCharacteristics instead of boolean parameters
         QueryCharacteristics groupCharacteristics = isCountQuery
                 ? QueryCharacteristics.forGroupCount()
@@ -550,8 +550,8 @@ public class CallSiteProcessor {
     /**
      * Determines the query type description for logging based on expressions and flags.
      * Adds decorative formatting to the base query type for better log readability.
-     * Phase 3: Enhanced to show sorting in query type description.
-     * Phase 5: Enhanced to show aggregation type in query description.
+     * Enhanced to show sorting in query type description.
+     * Enhanced to show aggregation type in query description.
      */
     private String getQueryTypeDescription(
             LambdaExpression predicateExpression,
@@ -562,7 +562,7 @@ public class CallSiteProcessor {
             boolean isCountQuery,
             boolean isAggregationQuery) {
 
-        // Phase 5: Aggregation queries have priority in description
+        // Aggregation queries have priority in description
         if (isAggregationQuery && aggregationType != null) {
             String typeDesc = aggregationType;  // "MIN", "MAX", "AVG", etc.
             if (predicateExpression != null) {
@@ -579,7 +579,7 @@ public class CallSiteProcessor {
         // Add decorative formatting for combined queries in logs
         String typeDesc = "COMBINED".equals(baseType) ? "COMBINED(WHERE+SELECT)" : baseType;
 
-        // Phase 3: Append sorting info if present
+        // Append sorting info if present
         if (sortExpressions != null && !sortExpressions.isEmpty()) {
             typeDesc += "+SORT(" + sortExpressions.size() + ")";
         }
@@ -648,7 +648,7 @@ public class CallSiteProcessor {
 
     /**
      * Analyzes multiple where() predicates and combines them with AND.
-     * Phase 2.5: Handles multiple where() chaining.
+     * Handles multiple where() chaining.
      *
      * IMPORTANT: Renumbers CapturedVariable indices before combining to ensure correct ordering.
      * Each lambda has indices starting from 0. When combined, indices must be sequential:
@@ -685,7 +685,7 @@ public class CallSiteProcessor {
             totalCapturedVarCount += countCapturedVariables(projectionExpression);
         }
 
-        // Phase 3: Analyze sort lambdas if present
+        // Analyze sort lambdas if present
         List<SortExpression> sortExpressions = analyzeSortLambdas(classBytes, callSite, callSiteId);
         totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
 
@@ -695,7 +695,7 @@ public class CallSiteProcessor {
 
     /**
      * Analyzes combined where() + select() query.
-     * Phase 2.2: Handles combined queries.
+     * Handles combined queries.
      * Updated: Uses predicateLambdas list for consistency with multiple where() support.
      */
     private LambdaAnalysisResult analyzeCombinedQuery(
@@ -735,7 +735,7 @@ public class CallSiteProcessor {
 
         totalCapturedVarCount += countCapturedVariables(projectionExpression);
 
-        // Phase 3: Analyze sort lambdas if present
+        // Analyze sort lambdas if present
         List<SortExpression> sortExpressions = analyzeSortLambdas(classBytes, callSite, callSiteId);
         totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
 
@@ -745,8 +745,8 @@ public class CallSiteProcessor {
 
     /**
      * Analyzes single lambda (where-only, select-only, or sorting-only).
-     * Phase 2.1 or Phase 1: Single lambda support.
-     * Phase 3: Handles sorting-only queries.
+     * Single lambda support.
+     * Handles sorting-only queries.
      */
     private LambdaAnalysisResult analyzeSingleLambda(
             byte[] classBytes,
@@ -754,7 +754,7 @@ public class CallSiteProcessor {
             String callSiteId,
             boolean isProjectionQuery) {
 
-        // Phase 3: Check if this is a sorting-only query
+        // Check if this is a sorting-only query
         List<SortExpression> sortExpressions = analyzeSortLambdas(classBytes, callSite, callSiteId);
         boolean hasSortLambdas = sortExpressions != null && !sortExpressions.isEmpty();
 
@@ -762,7 +762,7 @@ public class CallSiteProcessor {
         boolean hasPredicates = callSite.predicateLambdas() != null && !callSite.predicateLambdas().isEmpty();
         boolean hasProjection = callSite.projectionLambdaMethodName() != null;
 
-        // Phase 3: For sorting-only queries, don't analyze the primary lambda as predicate/projection
+        // For sorting-only queries, don't analyze the primary lambda as predicate/projection
         if (hasSortLambdas && !hasPredicates && !hasProjection) {
             // Sorting-only query - no WHERE or SELECT clauses
             int totalCapturedVarCount = countCapturedVariablesInSortExpressions(sortExpressions);
@@ -789,7 +789,7 @@ public class CallSiteProcessor {
         LambdaExpression projectionExpression = isProjectionQuery ? lambdaExpression : null;
         int totalCapturedVarCount = countCapturedVariables(lambdaExpression);
 
-        // Phase 3: Add captured variables from sort expressions
+        // Add captured variables from sort expressions
         totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
 
         return new LambdaAnalysisResult.SimpleQueryResult(
@@ -798,7 +798,7 @@ public class CallSiteProcessor {
 
     /**
      * Analyzes aggregation query (min, max, avg, sum*).
-     * Phase 5: Handles aggregation terminals with optional WHERE predicates.
+     * Handles aggregation terminals with optional WHERE predicates.
      *
      * Example: Person.where(p -> p.active).min(p -> p.salary)
      * - Predicate: p.active
@@ -863,7 +863,7 @@ public class CallSiteProcessor {
 
     /**
      * Analyzes join query (join/leftJoin with BiQuerySpec lambdas).
-     * Iteration 6: Handles join queries with bi-entity predicates.
+     * Handles join queries with bi-entity predicates.
      *
      * Example: Person.join(p -> p.phones).where((p, ph) -> ph.type.equals("mobile"))
      * - Join relationship: p.phones
@@ -917,11 +917,11 @@ public class CallSiteProcessor {
             biEntityPredicateExpression = combinePredicatesWithAnd(biPredicates);
         }
 
-        // Iteration 6.5: Analyze bi-entity sort lambdas for join queries
+        // Analyze bi-entity sort lambdas for join queries
         List<SortExpression> sortExpressions = analyzeBiEntitySortLambdas(classBytes, callSite, callSiteId);
         totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
 
-        // Iteration 6.6: Analyze bi-entity projection lambda if present (e.g., (p, ph) -> new PersonPhoneDTO(p.firstName, ph.number))
+        // Analyze bi-entity projection lambda if present (e.g., (p, ph) -> new PersonPhoneDTO(p.firstName, ph.number))
         LambdaExpression biEntityProjectionExpression = null;
         if (callSite.biEntityProjectionLambdaMethodName() != null) {
             biEntityProjectionExpression = bytecodeAnalyzer.analyzeBiEntity(
@@ -951,7 +951,7 @@ public class CallSiteProcessor {
 
     /**
      * Analyzes group query (groupBy with GroupQuerySpec lambdas).
-     * Iteration 7: Handles groupBy queries with having, select, and sort in group context.
+     * Handles groupBy queries with having, select, and sort in group context.
      *
      * Example: Person.groupBy(p -> p.department).select(g -> new DeptStats(g.key(), g.count()))
      * - Group key: p.department
@@ -1050,7 +1050,7 @@ public class CallSiteProcessor {
 
     /**
      * Analyzes group sort lambdas from call site.
-     * Iteration 7: Handles sortedBy() and sortedDescendingBy() on GroupStream.
+     * Handles sortedBy() and sortedDescendingBy() on GroupStream.
      * Uses analyzeGroupQuerySpec() since group sort lambdas take Group parameter.
      *
      * @return list of SortExpression objects with group key extractors, or empty list if no sorting
@@ -1090,7 +1090,7 @@ public class CallSiteProcessor {
 
     /**
      * Analyzes sort lambdas from call site.
-     * Phase 3: Handles sortedBy() and sortedDescendingBy() operations.
+     * Handles sortedBy() and sortedDescendingBy() operations.
      *
      * @return list of SortExpression objects, or null if no sorting
      */
@@ -1128,7 +1128,7 @@ public class CallSiteProcessor {
 
     /**
      * Analyzes bi-entity sort lambdas from call site for join queries.
-     * Iteration 6.5: Handles sortedBy() and sortedDescendingBy() on JoinStream.
+     * Handles sortedBy() and sortedDescendingBy() on JoinStream.
      * Uses analyzeBiEntity() since join sort lambdas take two entity parameters.
      *
      * @return list of SortExpression objects with bi-entity key extractors, or empty list if no sorting

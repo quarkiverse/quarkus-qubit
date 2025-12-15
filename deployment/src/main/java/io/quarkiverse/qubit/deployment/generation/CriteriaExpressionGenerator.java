@@ -173,7 +173,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
     /**
      * Generates JPA Predicate from lambda expression AST with subquery support.
      * <p>
-     * Iteration 8: Overloaded version that accepts CriteriaQuery for creating subqueries.
+     * Overloaded version that accepts CriteriaQuery for creating subqueries.
      * Use this method when the predicate may contain subquery expressions
      * (ExistsSubquery, InSubquery, or comparisons with ScalarSubquery).
      *
@@ -221,7 +221,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
     /**
      * Generates JPA Expression from lambda expression with subquery support.
      * <p>
-     * Iteration 8: Overloaded version that handles ScalarSubquery expressions
+     * Overloaded version that handles ScalarSubquery expressions
      * which need the CriteriaQuery to create the subquery.
      *
      * @param method the method creator for bytecode generation
@@ -256,8 +256,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
     /**
      * Generates binary operation with subquery support.
-     * <p>
-     * Iteration 8: Handles comparisons that may contain ScalarSubquery on either side.
+     * Handles comparisons that may contain ScalarSubquery on either side.
      */
     private ResultHandle generateBinaryOperationWithSubqueries(
             MethodCreator method,
@@ -319,8 +318,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
     /**
      * Generates unary operation with subquery support.
-     * <p>
-     * Iteration 8: Handles NOT operations that may wrap subquery predicates.
+     * Handles NOT operations that may wrap subquery predicates.
      */
     private ResultHandle generateUnaryOperationWithSubqueries(
             MethodCreator method,
@@ -401,7 +399,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
     /**
      * Generates JPA Expression from lambda expression.
-     * Phase 3: Added Parameter handling for identity sort functions.
+     * Includes Parameter handling for identity sort functions.
      * <p>
      * Refactored for Java 21: Uses pattern matching switch for cleaner type dispatch.
      */
@@ -447,22 +445,22 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
                 generateConstructorCall(method, constructorCall, cb, root, capturedValues);
 
             case LambdaExpression.Parameter ignored ->
-                // Phase 3: Parameter expressions occur in identity sort functions like (String s) -> s
+                // Parameter expressions occur in identity sort functions like (String s) -> s
                 // These cannot be directly converted to JPA expressions - return null to signal
                 // to caller that special handling is needed
                 null;
 
             case InExpression inExpr ->
-                // Iteration 5: InExpression is a predicate but Predicate extends Expression<Boolean>
+                // InExpression is a predicate but Predicate extends Expression<Boolean>
                 // so we can return it as a JPA expression
                 generateInPredicate(method, inExpr, cb, root, capturedValues);
 
             case MemberOfExpression memberOfExpr ->
-                // Iteration 5: MemberOfExpression is also a predicate that can be used as expression
+                // MemberOfExpression is also a predicate that can be used as expression
                 generateMemberOfPredicate(method, memberOfExpr, cb, root, capturedValues);
 
             case LambdaExpression.UnaryOp unaryOp ->
-                // Iteration 5: UnaryOp (NOT) is a predicate that can be used as expression
+                // UnaryOp (NOT) is a predicate that can be used as expression
                 // This occurs when IFEQ creates NOT(InExpression) for short-circuit evaluation
                 generateUnaryOperation(method, unaryOp, cb, root, capturedValues);
 
@@ -871,7 +869,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
     }
 
     // =============================================================================================
-    // COLLECTION OPERATIONS (Iteration 5: IN and MEMBER OF)
+    // COLLECTION OPERATIONS (IN and MEMBER OF)
     // =============================================================================================
 
     /**
@@ -1196,7 +1194,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
     // CS-014: isBooleanType() and extractFieldName() moved to ExpressionTypeInferrer
 
     // =============================================================================================
-    // BI-ENTITY EXPRESSIONS (Iteration 6: Join Queries) - Delegated to BiEntityExpressionBuilder
+    // BI-ENTITY EXPRESSIONS (Join Queries) - Delegated to BiEntityExpressionBuilder
     // =============================================================================================
 
     /**
@@ -1275,7 +1273,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
     }
 
     // =============================================================================================
-    // BI-ENTITY PROJECTIONS (Iteration 6.6: Join Projections) - Delegated to BiEntityExpressionBuilder
+    // BI-ENTITY PROJECTIONS (Join Projections) - Delegated to BiEntityExpressionBuilder
     // =============================================================================================
 
     /**
@@ -1303,7 +1301,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
     }
 
     // =============================================================================================
-    // GROUP EXPRESSIONS (Iteration 7: GROUP BY) - Delegated to GroupExpressionBuilder
+    // GROUP EXPRESSIONS (GROUP BY) - Delegated to GroupExpressionBuilder
     // =============================================================================================
 
     /**

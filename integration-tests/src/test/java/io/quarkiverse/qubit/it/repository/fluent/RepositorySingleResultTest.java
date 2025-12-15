@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Repository pattern tests for getSingleResult() and findFirst() terminal operations.
  * Mirrors io.quarkiverse.qubit.it.fluent.SingleResultTest using repository injection.
  *
- * <p>Tests Phase 2.2+: Single-result query patterns.
+ * <p>Tests single-result query patterns.
  */
 @QuarkusTest
 class RepositorySingleResultTest {

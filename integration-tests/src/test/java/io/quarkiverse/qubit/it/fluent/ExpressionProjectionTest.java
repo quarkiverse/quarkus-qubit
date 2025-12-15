@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Tests for expression projections (Phase 2.3).
+ * Tests for expression projections.
  * <p>
  * Validates projection of computed expressions including arithmetic operations
  * and string concatenation.

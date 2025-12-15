@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Repository pattern tests for pagination (skip/limit) operations.
  * Mirrors io.quarkiverse.qubit.it.fluent.PaginationTest using repository injection.
  *
- * <p>Tests for Phase 4: skip() and limit() methods.
+ * <p>Tests for skip() and limit() methods.
  */
 @QuarkusTest
 class RepositoryPaginationTest {

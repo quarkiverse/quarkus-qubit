@@ -88,7 +88,7 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
     }
 
     // =============================================================================================
-    // AGGREGATION ENTRY POINTS (Phase 5)
+    // AGGREGATION ENTRY POINTS
     // =============================================================================================
 
     /**
@@ -244,7 +244,7 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
     }
 
     // =============================================================================================
-    // JOIN OPERATIONS (Iteration 6)
+    // JOIN OPERATIONS
     // =============================================================================================
 
     /**

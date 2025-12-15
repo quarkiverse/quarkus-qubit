@@ -27,7 +27,7 @@ public sealed interface LambdaAnalysisResult {
 
     /**
      * Simple queries: where, select, combined, sorting-only.
-     * Phase 1-3: Basic filtering, projection, and sorting.
+     * Supports basic filtering, projection, and sorting.
      */
     record SimpleQueryResult(
             LambdaExpression predicateExpression,
@@ -38,7 +38,7 @@ public sealed interface LambdaAnalysisResult {
 
     /**
      * Aggregation queries: min, max, avg, sum*.
-     * Phase 5: Aggregation terminals with optional WHERE predicates.
+     * Aggregation terminals with optional WHERE predicates.
      */
     record AggregationQueryResult(
             LambdaExpression predicateExpression,
@@ -49,7 +49,7 @@ public sealed interface LambdaAnalysisResult {
 
     /**
      * Join queries: join, leftJoin with BiQuerySpec.
-     * Iteration 6: Join relationship, bi-entity predicates/projections.
+     * Join relationship, bi-entity predicates/projections.
      */
     record JoinQueryResult(
             LambdaExpression joinRelationshipExpression,
@@ -62,7 +62,7 @@ public sealed interface LambdaAnalysisResult {
 
     /**
      * Group queries: groupBy with GroupQuerySpec.
-     * Iteration 7: GROUP BY with having, select, and sort in group context.
+     * GROUP BY with having, select, and sort in group context.
      */
     record GroupQueryResult(
             LambdaExpression predicateExpression,  // Pre-grouping WHERE clause
@@ -75,7 +75,7 @@ public sealed interface LambdaAnalysisResult {
 
     /**
      * Sort expression with direction (ascending/descending).
-     * Phase 3: Represents analyzed sort key extractor lambda with direction.
+     * Represents analyzed sort key extractor lambda with direction.
      */
     record SortExpression(
             LambdaExpression keyExtractor,

@@ -29,8 +29,7 @@ public final class QubitConstants {
     public static final String METHOD_LIMIT = "limit";
     public static final String METHOD_DISTINCT = "distinct";
 
-    // Fluent API - Aggregation operations (can be entry points or intermediate operations)
-    // Phase 5: Aggregations now return QubitStream and are intermediate operations
+    // Fluent API - Aggregation operations (return QubitStream, can be entry points or intermediate)
     public static final String METHOD_MIN = "min";
     public static final String METHOD_MAX = "max";
     public static final String METHOD_AVG = "avg";
@@ -66,7 +65,7 @@ public final class QubitConstants {
         METHOD_GET_SINGLE_RESULT, METHOD_FIND_FIRST
     );
 
-    // Join method names (Iteration 6: Join Queries)
+    // Join method names
     public static final String METHOD_JOIN = "join";
     public static final String METHOD_LEFT_JOIN = "leftJoin";
     public static final String METHOD_ON = "on";
@@ -79,7 +78,7 @@ public final class QubitConstants {
         METHOD_SELECT_SOURCE, METHOD_SELECT_JOINED
     );
 
-    // Group method names (Iteration 7: Grouping / GROUP BY)
+    // Group method names
     public static final String METHOD_GROUP_BY = "groupBy";
     public static final String METHOD_HAVING = "having";
     public static final String METHOD_SELECT_KEY = "selectKey";
@@ -97,7 +96,7 @@ public final class QubitConstants {
     // Group interface internal name
     public static final String GROUP_INTERNAL_NAME = "io/quarkiverse/qubit/runtime/Group";
 
-    // Subquery method names (Iteration 8: Subqueries)
+    // Subquery method names
     public static final String SUBQUERY_AVG = "avg";
     public static final String SUBQUERY_SUM = "sum";
     public static final String SUBQUERY_MIN = "min";
@@ -274,12 +273,12 @@ public final class QubitConstants {
     public static final String CB_LENGTH = "length";
     public static final String CB_LITERAL = "literal";
 
-    // CriteriaBuilder IN and MEMBER OF operations (Iteration 5: Collections)
+    // CriteriaBuilder IN and MEMBER OF operations
     public static final String CB_IN = "in";
     public static final String CB_IS_MEMBER = "isMember";
     public static final String CB_IS_NOT_MEMBER = "isNotMember";
 
-    // CriteriaBuilder aggregation operations (Iteration 7: Grouping)
+    // CriteriaBuilder aggregation operations
     public static final String CB_AVG = "avg";
     public static final String CB_COUNT_DISTINCT = "countDistinct";
     public static final String CB_MIN = "min";
@@ -287,11 +286,11 @@ public final class QubitConstants {
     public static final String CB_LEAST = "least";
     public static final String CB_GREATEST = "greatest";
 
-    // CriteriaQuery GROUP BY operations (Iteration 7: Grouping)
+    // CriteriaQuery GROUP BY operations
     public static final String CQ_GROUP_BY = "groupBy";
     public static final String CQ_HAVING = "having";
 
-    // CriteriaBuilder subquery operations (Iteration 8: Subqueries)
+    // CriteriaBuilder subquery operations
     public static final String CB_EXISTS = "exists";
     public static final String CB_NOT_EXISTS = "not"; // cb.not(cb.exists(subquery))
     public static final String CQ_SUBQUERY = "subquery"; // criteriaQuery.subquery()

@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Repository pattern tests for expression projections (Phase 2.3).
+ * Repository pattern tests for expression projections.
  * Mirrors io.quarkiverse.qubit.it.fluent.ExpressionProjectionTest using repository injection.
  *
  * <p>Validates projection of computed expressions including arithmetic operations

@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Verification tests for findFirst() SQL LIMIT optimization.
- * Phase 4: Ensures findFirst() applies LIMIT 1 at SQL level, not Java level.
+ * Ensures findFirst() applies LIMIT 1 at SQL level, not Java level.
  */
 @QuarkusTest
 class FindFirstOptimizationTest {

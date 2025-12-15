@@ -23,11 +23,11 @@ import jakarta.persistence.criteria.Selection;
 
 /**
  * Builds JPA Criteria API expressions for GROUP BY queries.
- *
- * <p>Iteration 7: Extracted from CriteriaExpressionGenerator to reduce class size
+ * <p>
+ * Extracted from CriteriaExpressionGenerator to reduce class size
  * and improve maintainability (addresses ARCH-001).
- *
- * <p>Handles group expressions including:
+ * <p>
+ * Handles group expressions including:
  * <ul>
  *   <li>HAVING predicates: {@code g -> g.count() > 5}</li>
  *   <li>Group select projections: {@code g -> new DeptStats(g.key(), g.count())}</li>
@@ -133,7 +133,7 @@ public class GroupExpressionBuilder implements ExpressionBuilder {
                 generateGroupAggregationExpression(method, groupAgg, cb, root, capturedValues, helper);
 
             case LambdaExpression.ArrayCreation arrayCreation ->
-                // Iteration 7: Object[] projection using cb.tuple()
+                // Object[] projection using cb.tuple()
                 generateGroupArrayCreation(method, arrayCreation, cb, root, groupKeyExpr, capturedValues, helper);
 
             case LambdaExpression.ConstructorCall constructorCall ->

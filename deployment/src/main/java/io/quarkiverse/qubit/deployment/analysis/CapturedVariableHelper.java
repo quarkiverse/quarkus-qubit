@@ -93,20 +93,20 @@ public final class CapturedVariableHelper {
             }
 
             case LambdaExpression.ConstructorCall constructorCall -> {
-                // Phase 2.4: Handle DTO constructor calls
+                // Handle DTO constructor calls
                 for (LambdaExpression arg : constructorCall.arguments()) {
                     collectCapturedVariableIndices(arg, capturedIndices);
                 }
             }
 
             case LambdaExpression.InExpression inExpr -> {
-                // Iteration 5: Handle IN clause expressions
+                // Handle IN clause expressions
                 collectCapturedVariableIndices(inExpr.field(), capturedIndices);
                 collectCapturedVariableIndices(inExpr.collection(), capturedIndices);
             }
 
             case LambdaExpression.MemberOfExpression memberOfExpr -> {
-                // Iteration 5: Handle MEMBER OF expressions
+                // Handle MEMBER OF expressions
                 collectCapturedVariableIndices(memberOfExpr.value(), capturedIndices);
                 collectCapturedVariableIndices(memberOfExpr.collectionField(), capturedIndices);
             }
@@ -192,14 +192,14 @@ public final class CapturedVariableHelper {
                         renumberCapturedVariables(conditional.falseValue(), offset));
 
             case LambdaExpression.InExpression inExpr ->
-                // Iteration 5: Handle IN clause expressions
+                // Handle IN clause expressions
                 new LambdaExpression.InExpression(
                         renumberCapturedVariables(inExpr.field(), offset),
                         renumberCapturedVariables(inExpr.collection(), offset),
                         inExpr.negated());
 
             case LambdaExpression.MemberOfExpression memberOfExpr ->
-                // Iteration 5: Handle MEMBER OF expressions
+                // Handle MEMBER OF expressions
                 new LambdaExpression.MemberOfExpression(
                         renumberCapturedVariables(memberOfExpr.value(), offset),
                         renumberCapturedVariables(memberOfExpr.collectionField(), offset),
@@ -219,7 +219,7 @@ public final class CapturedVariableHelper {
 
     /**
      * Combines multiple predicates with AND operation.
-     * Phase 2.5: Supports multiple where() chaining.
+     * Supports multiple where() chaining.
      *
      * @param predicates the list of predicate expressions to combine
      * @return a single combined expression with AND operations
