@@ -73,7 +73,7 @@ This document provides a comprehensive analysis of code quality issues identifie
 ## Critical Issues
 
 ### CRI-001: Silent Fallback in SubqueryExpressionBuilder.generateFieldPath() ✅ RESOLVED
-- **File**: [SubqueryExpressionBuilder.java:322-344](deployment/src/main/java/io/quarkus/qubit/deployment/generation/builders/SubqueryExpressionBuilder.java#L322-L344)
+- **File**: [SubqueryExpressionBuilder.java](deployment/src/main/java/io/quarkus/qubit/deployment/generation/builders/SubqueryExpressionBuilder.java)
 - **Severity**: Critical
 - **Status**: ✅ **RESOLVED** (Phase 1)
 - **Description**: The method returns `root` as a fallback when expression type is unrecognized, which could produce incorrect JPA queries silently.
@@ -83,7 +83,7 @@ This document provides a comprehensive analysis of code quality issues identifie
   - Added proper Javadoc with `@throws` documentation
 
 ### CRI-002: Null Return in generateSubqueryExpression() Without Warning ✅ RESOLVED
-- **File**: [SubqueryExpressionBuilder.java:449-481](deployment/src/main/java/io/quarkus/qubit/deployment/generation/builders/SubqueryExpressionBuilder.java#L449-L481)
+- **File**: [SubqueryExpressionBuilder.java](deployment/src/main/java/io/quarkus/qubit/deployment/generation/builders/SubqueryExpressionBuilder.java)
 - **Severity**: Critical
 - **Status**: ✅ **RESOLVED** (Phase 1)
 - **Description**: Returns `null` for unhandled expression types without logging, making debugging difficult.
@@ -101,28 +101,28 @@ This document provides a comprehensive analysis of code quality issues identifie
 - **Severity**: High
 - **Status**: ✅ **SUBSTANTIALLY RESOLVED** - Three major classes reduced by 20-37%, fourth is well-organized
 - **Files Affected**:
-  - [CriteriaExpressionGenerator.java](deployment/src/main/java/io/quarkus/qubit/deployment/generation/CriteriaExpressionGenerator.java): ~~**1977 lines**~~ → **1355 lines** ✅ (31% reduction)
-  - [CallSiteProcessor.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java): ~~**1359 lines**~~ → **1087 lines** ✅ (20% reduction)
-  - [MethodInvocationHandler.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/instruction/MethodInvocationHandler.java): ~~**1143 lines**~~ → **715 lines** ✅ (37% reduction)
-  - [LambdaExpression.java](deployment/src/main/java/io/quarkus/qubit/deployment/ast/LambdaExpression.java): **1119 lines** ✅ (well-organized, see analysis below)
+  - [CriteriaExpressionGenerator.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/generation/CriteriaExpressionGenerator.java): ~~**1977 lines**~~ → **1355 lines** ✅ (31% reduction)
+  - [CallSiteProcessor.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/CallSiteProcessor.java): ~~**1359 lines**~~ → **1087 lines** ✅ (20% reduction)
+  - [MethodInvocationHandler.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/instruction/MethodInvocationHandler.java): ~~**1143 lines**~~ → **715 lines** ✅ (37% reduction)
+  - [LambdaExpression.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/ast/LambdaExpression.java): **1119 lines** ✅ (well-organized, see analysis below)
 - **Fix Applied (CriteriaExpressionGenerator)**:
-  - Created [BiEntityExpressionBuilder.java](deployment/src/main/java/io/quarkus/qubit/deployment/generation/builders/BiEntityExpressionBuilder.java) (555 lines) - handles bi-entity (join) query expressions
-  - Created [GroupExpressionBuilder.java](deployment/src/main/java/io/quarkus/qubit/deployment/generation/builders/GroupExpressionBuilder.java) (411 lines) - handles GROUP BY query expressions
-  - Created [ExpressionGeneratorHelper.java](deployment/src/main/java/io/quarkus/qubit/deployment/generation/builders/ExpressionGeneratorHelper.java) interface for clean delegation
+  - Created [BiEntityExpressionBuilder.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/generation/expression/BiEntityExpressionBuilder.java) (555 lines) - handles bi-entity (join) query expressions
+  - Created [GroupExpressionBuilder.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/generation/expression/GroupExpressionBuilder.java) (411 lines) - handles GROUP BY query expressions
+  - Created [ExpressionGeneratorHelper.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/generation/expression/ExpressionGeneratorHelper.java) interface for clean delegation
   - CriteriaExpressionGenerator now delegates to these specialized builders
 - **Fix Applied (CallSiteProcessor)**:
-  - Created [LambdaAnalysisResult.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/LambdaAnalysisResult.java) (84 lines) - extracted sealed interface with 4 result types and SortExpression record
-  - Created [CapturedVariableHelper.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CapturedVariableHelper.java) (246 lines) - extracted 5 static utility methods for captured variable operations
+  - Created [LambdaAnalysisResult.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/LambdaAnalysisResult.java) (84 lines) - extracted sealed interface with 4 result types and SortExpression record
+  - Created [CapturedVariableHelper.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/CapturedVariableHelper.java) (246 lines) - extracted 5 static utility methods for captured variable operations
   - CallSiteProcessor now uses static imports for helper methods
 - **LambdaExpression Analysis** (1119 lines - acceptable as-is):
   - Well-organized sealed interface defining AST node types for lambda expressions
   - Clear section separators (`// ===...===`) divide logical groups:
-    - Core Expressions (lines 1-237): BinaryOp, UnaryOp, FieldAccess, MethodCall, Constant, etc.
-    - Relationship Navigation (lines 239-346): RelationType, PathSegment, PathExpression
-    - Collection Operations (lines 348-444): InExpression, MemberOfExpression
-    - Join Queries (lines 446-600): EntityPosition, BiEntityParameter, BiEntityFieldAccess, BiEntityPathExpression
-    - Grouping Operations (lines 602-787): GroupKeyReference, GroupAggregationType, GroupAggregation, GroupParameter
-    - Subqueries (lines 789-1117): SubqueryAggregationType, SubqueryBuilderReference, ScalarSubquery, ExistsSubquery, InSubquery, CorrelatedVariable
+    - Core Expressions: BinaryOp, UnaryOp, FieldAccess, MethodCall, Constant, etc.
+    - Relationship Navigation: RelationType, PathSegment, PathExpression
+    - Collection Operations: InExpression, MemberOfExpression
+    - Join Queries: EntityPosition, BiEntityParameter, BiEntityFieldAccess, BiEntityPathExpression
+    - Grouping Operations: GroupKeyReference, GroupAggregationType, GroupAggregation, GroupParameter
+    - Subqueries: SubqueryAggregationType, SubqueryBuilderReference, ScalarSubquery, ExistsSubquery, InSubquery, CorrelatedVariable
   - Extracting to sub-interfaces would break sealed interface pattern and complicate imports
   - Each record has proper validation and Javadoc documentation
   - **Conclusion**: File size is appropriate for a comprehensive AST definition; no refactoring needed
@@ -132,7 +132,7 @@ This document provides a comprehensive analysis of code quality issues identifie
   - ~~Combined extraction reduces MethodInvocationHandler from 1143 to ~800 lines~~ → Actual: 715 lines (37% reduction)
 
 ### ARCH-002: LambdaAnalysisResult Record Has Too Many Fields ✅ RESOLVED
-- **File**: [CallSiteProcessor.java:41-92](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java#L41-L92)
+- **File**: [CallSiteProcessor.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java)
 - **Severity**: High
 - **Status**: ✅ **RESOLVED**
 - **Description**: Record with 15 fields violated Single Responsibility Principle.
@@ -169,7 +169,7 @@ This document provides a comprehensive analysis of code quality issues identifie
   - Benefits: Type-level documentation, IDE "find implementations" support, organizational clarity
 
 ### ARCH-004: Hardcoded Builder Instantiation ✅ RESOLVED
-- **File**: [CriteriaExpressionGenerator.java:91-96](deployment/src/main/java/io/quarkus/qubit/deployment/generation/CriteriaExpressionGenerator.java#L91-L96)
+- **File**: [CriteriaExpressionGenerator.java](deployment/src/main/java/io/quarkus/qubit/deployment/generation/CriteriaExpressionGenerator.java)
 - **Severity**: Medium
 - **Status**: ✅ **RESOLVED**
 - **Description**: Builders were instantiated directly, limiting testability.
@@ -187,7 +187,7 @@ This document provides a comprehensive analysis of code quality issues identifie
   - **Validation**: Null checks prevent misconfiguration
 
 ### ARCH-005: Handler List Not Configurable ✅ RESOLVED
-- **File**: [LambdaBytecodeAnalyzer.java:47-54](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/LambdaBytecodeAnalyzer.java#L47-L54)
+- **File**: [LambdaBytecodeAnalyzer.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/LambdaBytecodeAnalyzer.java)
 - **Severity**: Medium
 - **Status**: ✅ **RESOLVED**
 - **Description**: Handler list was hardcoded, limiting extensibility and testability.
@@ -328,7 +328,7 @@ This document provides a comprehensive analysis of code quality issues identifie
   - All 375 deployment tests pass
 
 ### CS-002: Duplicate Catch Blocks in tryLoadClass() ✅ RESOLVED
-- **File**: ~~[MethodInvocationHandler.java:1109-1122](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/MethodInvocationHandler.java#L1109-L1122)~~ → [ClassLoaderHelper.java:46-70](deployment/src/main/java/io/quarkiverse/qubit/deployment/common/ClassLoaderHelper.java#L46-L70)
+- **File**: ~~[MethodInvocationHandler.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/MethodInvocationHandler.java)~~ → [ClassLoaderHelper.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/common/ClassLoaderHelper.java)
 - **Severity**: High
 - **Status**: ✅ **RESOLVED**
 - **Description**: Nested try-catch blocks for ClassNotFoundException.
@@ -390,7 +390,7 @@ public static Class<?> tryLoadClass(String className) {
   - Record constructors: Throw `NullPointerException`
 
 ### CS-004: Long Method: handleSubqueryBuilderMethod() ✅ RESOLVED (by MAINT-001)
-- **File**: ~~[MethodInvocationHandler.java:910-958](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/MethodInvocationHandler.java#L910-L958)~~
+- **File**: ~~[MethodInvocationHandler.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/MethodInvocationHandler.java)~~
 - **Severity**: Medium
 - **Status**: ✅ **RESOLVED** (by MAINT-001)
 - **Description**: Method was 48 lines with large switch statement.
@@ -404,7 +404,7 @@ public static Class<?> tryLoadClass(String className) {
 - **Resolution**: Resolved as part of MAINT-006 refactoring. See MAINT-006 for details on extracted methods and early return pattern.
 
 ### CS-006: Excessive Boolean Parameters ✅ RESOLVED
-- **File**: ~~[CallSiteProcessor.java:111-118](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java#L111-L118)~~
+- **File**: ~~[CallSiteProcessor.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java)~~
 - **Severity**: Medium
 - **Status**: ✅ **RESOLVED**
 - **Description**: `deduplicator.handleDuplicateLambda()` had 6 boolean parameters (isCountQuery, isAggregationQuery, isJoinQuery, isSelectJoined, isJoinProjection, isGroupQuery).
@@ -443,10 +443,9 @@ public static Class<?> tryLoadClass(String className) {
 - **Status**: ✅ **RESOLVED**
 - **Description**: Some switch expressions relied on exhaustive enum matching but had no explicit default case.
 - **Files Fixed**:
-  - [ControlFlowAnalyzer.java:150-156](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/ControlFlowAnalyzer.java#L150-L156): Added default for `LabelClassification` enum switch
-  - [SubqueryExpressionBuilder.java:246-253](deployment/src/main/java/io/quarkiverse/qubit/deployment/generation/expression/SubqueryExpressionBuilder.java#L246-L253): Added default for `SubqueryAggregationType` enum switch
-  - [SubqueryExpressionBuilder.java:276-292](deployment/src/main/java/io/quarkiverse/qubit/deployment/generation/expression/SubqueryExpressionBuilder.java#L276-L292): Added default for `SubqueryAggregationType` enum switch
-  - [GroupExpressionBuilder.java:260-285](deployment/src/main/java/io/quarkiverse/qubit/deployment/generation/expression/GroupExpressionBuilder.java#L260-L285): Added default for `GroupAggregationType` enum switch
+  - [ControlFlowAnalyzer.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/ControlFlowAnalyzer.java): Added default for `LabelClassification` enum switch
+  - [SubqueryExpressionBuilder.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/generation/expression/SubqueryExpressionBuilder.java): Added default for `SubqueryAggregationType` enum switches
+  - [GroupExpressionBuilder.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/generation/expression/GroupExpressionBuilder.java): Added default for `GroupAggregationType` enum switch
 - **Fix Applied**: Added `default -> throw new IllegalStateException("Unexpected enum value: " + enumVar)` to all exhaustive enum switches for future-proofing. If a new enum value is added, the code will fail fast with a clear error message rather than silently producing incorrect behavior.
 - **Benefits**:
   - **Future-proofing**: New enum values cause immediate, clear failures
@@ -527,7 +526,7 @@ public static Class<?> tryLoadClass(String className) {
 - **Conclusion**: Issue is not applicable - all catch blocks follow appropriate error handling patterns for their context
 
 ### CS-012: Long Parameter Lists ⏸️ DEFERRED
-- **File**: [CallSiteProcessor.java:279-289](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/CallSiteProcessor.java#L279-L289)
+- **File**: [CallSiteProcessor.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/CallSiteProcessor.java)
 - **Severity**: Low
 - **Status**: ⏸️ **DEFERRED** - Intentional design, low ROI for refactoring
 - **Description**: Three executor generation methods have 10-13 parameters each.
@@ -752,7 +751,7 @@ public enum FluentMethodType {
 - **Benefits**: Type-safe Java→SQL function mapping, EnumSet for type-specific method groups, single source of truth for temporal accessor metadata.
 
 ### ENUM-003: Create `ExecutorType` Enum for QueryExecutorRegistry ⏸️ DEFERRED
-- **File**: [QueryExecutorRegistry.java:21-30](runtime/src/main/java/io/quarkiverse/qubit/runtime/QueryExecutorRegistry.java#L21-L30)
+- **File**: [QueryExecutorRegistry.java](runtime/src/main/java/io/quarkiverse/qubit/runtime/QueryExecutorRegistry.java)
 - **Severity**: Medium
 - **Priority**: Medium
 - **Status**: ⏸️ **DEFERRED** - Type safety constraints prevent meaningful consolidation
@@ -806,7 +805,7 @@ private static final ExecutorRegistry<Long> COUNT_REGISTRY = new DefaultExecutor
   This would extract the common registration pattern while preserving type safety, but adds abstraction overhead that isn't justified for 9 types.
 
 ### ENUM-004: Create `SubqueryMethod` Enum ⏸️ DEFERRED
-- **Files**: [SubqueryAnalyzer.java:133-145](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/instruction/SubqueryAnalyzer.java#L133-L145), [QubitConstants.java:101-115](runtime/src/main/java/io/quarkiverse/qubit/runtime/QubitConstants.java#L101-L115)
+- **Files**: [SubqueryAnalyzer.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/instruction/SubqueryAnalyzer.java), [QubitConstants.java](runtime/src/main/java/io/quarkiverse/qubit/runtime/QubitConstants.java)
 - **Severity**: Low
 - **Priority**: Low
 - **Status**: ⏸️ **DEFERRED** - Low ROI, handler signature complexity prevents meaningful abstraction
@@ -941,7 +940,7 @@ public enum StringMethod {
 ## Bug Risks
 
 ### BR-001: Potential ArrayIndexOutOfBoundsException ✅ RESOLVED
-- **File**: [AnalysisContext.java:512-519](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/AnalysisContext.java#L512-L519)
+- **File**: [AnalysisContext.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/AnalysisContext.java)
 - **Severity**: High
 - **Status**: ✅ **RESOLVED** (Phase 1)
 - **Description**: Array element tracking doesn't validate index bounds.
@@ -950,7 +949,7 @@ public enum StringMethod {
   - Added `@throws` documentation
 
 ### BR-002: Race Condition in queryCounter ✅ RESOLVED
-- **File**: ~~[CallSiteProcessor.java:327-328](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java#L327-L328)~~
+- **File**: ~~[CallSiteProcessor.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java)~~
 - **Severity**: High
 - **Status**: ✅ **RESOLVED**
 - **Description**: `AtomicInteger` counter-based class naming could collide in edge cases (dev mode hot reload, build order dependency, non-reproducible builds).
@@ -992,7 +991,7 @@ public enum StringMethod {
   - **Defensive programming**: Public API methods now validate inputs
 
 ### BR-004: Missing Validation for PathSegment ✅ RESOLVED
-- **File**: [LambdaExpression.java:424-437](deployment/src/main/java/io/quarkiverse/qubit/deployment/ast/LambdaExpression.java#L424-L437)
+- **File**: [LambdaExpression.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/ast/LambdaExpression.java)
 - **Severity**: Medium
 - **Status**: ✅ **RESOLVED**
 - **Description**: `PathSegment` didn't validate that `fieldName` is not empty.
@@ -1018,7 +1017,7 @@ public PathSegment {
   - **Consistent pattern**: Matches validation approach used in other record constructors
 
 ### BR-005: GroupKeyReference Allows Null keyExpression ✅ N/A (By Design)
-- **File**: [LambdaExpression.java:866-874](deployment/src/main/java/io/quarkiverse/qubit/deployment/ast/LambdaExpression.java#L866-L874)
+- **File**: [LambdaExpression.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/ast/LambdaExpression.java)
 - **Severity**: Medium
 - **Status**: ✅ **N/A** - Intentional design, null keyExpression is never accessed
 - **Description**: `keyExpression` can be null by design, but this may cause NPE in code generation.
@@ -1046,7 +1045,7 @@ public PathSegment {
   4. This is the "placeholder" design pattern for deferred resolution
 
 ### BR-006: Unchecked Cast in generateConstant() ✅ RESOLVED
-- **File**: [SubqueryExpressionBuilder.java:518-537](deployment/src/main/java/io/quarkiverse/qubit/deployment/generation/expression/SubqueryExpressionBuilder.java#L518-L537)
+- **File**: [SubqueryExpressionBuilder.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/generation/expression/SubqueryExpressionBuilder.java)
 - **Severity**: Medium
 - **Status**: ✅ **RESOLVED**
 - **Description**: Original issue: "Multiple instanceof checks but no else branch for unknown types." The pattern matching switch (MAINT-011) was already applied, but the `default` case silently returned `method.loadNull()` without logging.
@@ -1093,7 +1092,7 @@ public PathSegment {
   - **Design clarification**: Documented that lambda local variables are not supported, only captured variables from enclosing scope
 
 ### BR-008: Potential Integer Overflow in Index Calculation ✅ N/A (Physically Impossible)
-- **File**: [CallSiteProcessor.java:554-576](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/CallSiteProcessor.java#L554-L576)
+- **File**: [CallSiteProcessor.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/CallSiteProcessor.java)
 - **Severity**: Low
 - **Status**: ✅ **N/A** - Overflow is physically impossible due to JVM constraints
 - **Description**: Original concern: `indexOffset` accumulation could overflow for very large lambda chains.
@@ -1118,7 +1117,7 @@ public PathSegment {
 - **Conclusion**: The concern is theoretically valid but practically impossible. The JVM enforces constraints that prevent any code path from reaching overflow. Marking as N/A rather than adding defensive code that can never execute.
 
 ### BR-009: Thread Safety of classMethods Field ✅ RESOLVED (by ARCH-006)
-- **File**: ~~[AnalysisContext.java:102](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/AnalysisContext.java#L102)~~ → [AnalysisContext.java:58-72,144](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/instruction/AnalysisContext.java#L58-L72)
+- **File**: ~~[AnalysisContext.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/AnalysisContext.java)~~ → [AnalysisContext.java](deployment/src/main/java/io/quarkiverse/qubit/deployment/analysis/instruction/AnalysisContext.java)
 - **Severity**: Low
 - **Status**: ✅ **RESOLVED** (by ARCH-006)
 - **Description**: Original concern was that `classMethods` was set after construction without synchronization.
@@ -1592,7 +1591,7 @@ var binOp = eq(constant(10), constant(20));
   - **Consistent pattern**: All assertion helpers follow the same `.as()` message format
 
 ### MAINT-009: Pattern Matching in generatePredicate() ✅ RESOLVED
-- **File**: [CriteriaExpressionGenerator.java:122-147](deployment/src/main/java/io/quarkus/qubit/deployment/generation/CriteriaExpressionGenerator.java#L122-L147)
+- **File**: [CriteriaExpressionGenerator.java](deployment/src/main/java/io/quarkus/qubit/deployment/generation/CriteriaExpressionGenerator.java)
 - **Severity**: Medium
 - **Status**: ✅ **RESOLVED** (Phase 4)
 - **Description**: 7 consecutive `if-else instanceof` branches for expression type dispatch.
@@ -1622,7 +1621,7 @@ return switch (expression) {
 - **Benefits**: Exhaustiveness checking by compiler, cleaner syntax, easier to add new cases.
 
 ### MAINT-010: Pattern Matching in generateExpressionAsJpaExpression() ✅ RESOLVED
-- **File**: [CriteriaExpressionGenerator.java:350-388](deployment/src/main/java/io/quarkus/qubit/deployment/generation/CriteriaExpressionGenerator.java#L350-L388)
+- **File**: [CriteriaExpressionGenerator.java](deployment/src/main/java/io/quarkus/qubit/deployment/generation/CriteriaExpressionGenerator.java)
 - **Severity**: High
 - **Status**: ✅ **RESOLVED** (Phase 4)
 - **Description**: 11 consecutive `if-else instanceof` branches handling all expression types.
@@ -1655,7 +1654,7 @@ return switch (expression) {
 - **Benefits**: Single expression, no fallthrough risk, compiler-enforced exhaustiveness.
 
 ### MAINT-011: Pattern Matching in generateConstant() ✅ RESOLVED
-- **File**: [CriteriaExpressionGenerator.java:645-690](deployment/src/main/java/io/quarkus/qubit/deployment/generation/CriteriaExpressionGenerator.java#L645-L690)
+- **File**: [CriteriaExpressionGenerator.java](deployment/src/main/java/io/quarkus/qubit/deployment/generation/CriteriaExpressionGenerator.java)
 - **Severity**: Medium
 - **Status**: ✅ **RESOLVED** (Phase 4)
 - **Description**: 11 consecutive `if-else instanceof` branches for value type dispatch.
@@ -1689,7 +1688,7 @@ return switch (value) {
 - **Benefits**: Cleaner handling of null case, exhaustive type checking, easier maintenance.
 
 ### MAINT-012: Pattern Matching in collectCapturedVariableIndices() ✅ RESOLVED
-- **File**: [CallSiteProcessor.java:1210-1270](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java#L1210-L1270)
+- **File**: [CallSiteProcessor.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java)
 - **Severity**: High
 - **Status**: ✅ **RESOLVED** (Phase 4)
 - **Description**: 12+ consecutive `if-else instanceof` branches for AST visitor traversal.
@@ -1731,7 +1730,7 @@ switch (expression) {
 - **Benefits**: Compiler-enforced exhaustiveness over sealed interface, pattern guards available.
 
 ### MAINT-013: Pattern Matching in renumberCapturedVariables() ✅ RESOLVED
-- **File**: [CallSiteProcessor.java:1285-1365](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java#L1285-L1365)
+- **File**: [CallSiteProcessor.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/CallSiteProcessor.java)
 - **Severity**: High
 - **Status**: ✅ **RESOLVED** (Phase 4)
 - **Description**: 15+ consecutive `if-else instanceof` branches for AST transformation.
@@ -1780,7 +1779,7 @@ return switch (expression) {
 - **Benefits**: Sealed interface ensures exhaustiveness, unified return expression, cleaner code.
 
 ### MAINT-014: Pattern Matching in generateSubqueryExpression() ✅ RESOLVED
-- **File**: [SubqueryExpressionBuilder.java:457-498](deployment/src/main/java/io/quarkus/qubit/deployment/generation/builders/SubqueryExpressionBuilder.java#L457-L498)
+- **File**: [SubqueryExpressionBuilder.java](deployment/src/main/java/io/quarkus/qubit/deployment/generation/builders/SubqueryExpressionBuilder.java)
 - **Severity**: Medium
 - **Status**: ✅ **RESOLVED** (Phase 4)
 - **Description**: 5 consecutive `if-else instanceof` branches with null fallback (relates to CRI-002).
@@ -1821,7 +1820,7 @@ return switch (expr) {
 - **Benefits**: Addresses CRI-002 by adding logging for unhandled cases, cleaner structure.
 
 ### MAINT-015: Pattern Matching in generateFieldPath() ✅ RESOLVED
-- **File**: [SubqueryExpressionBuilder.java:322-350](deployment/src/main/java/io/quarkus/qubit/deployment/generation/builders/SubqueryExpressionBuilder.java#L322-L350)
+- **File**: [SubqueryExpressionBuilder.java](deployment/src/main/java/io/quarkus/qubit/deployment/generation/builders/SubqueryExpressionBuilder.java)
 - **Severity**: High (relates to CRI-001)
 - **Status**: ✅ **RESOLVED** (Phase 4)
 - **Description**: Silent fallback returning `root` for unrecognized expression types.
@@ -1859,7 +1858,7 @@ return switch (expr) {
 - **Benefits**: Addresses CRI-001 by replacing silent fallback with explicit error, compiler exhaustiveness checking.
 
 ### MAINT-016: Pattern Matching in inferFieldType() ✅ RESOLVED
-- **File**: [GroupMethodAnalyzer.java:170-177](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/GroupMethodAnalyzer.java#L170-L177)
+- **File**: [GroupMethodAnalyzer.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/GroupMethodAnalyzer.java)
 - **Severity**: Low
 - **Status**: ✅ **RESOLVED** (Phase 4) - Method moved to GroupMethodAnalyzer during MAINT-002
 - **Description**: Simple 2-branch instanceof check for field type inference.
@@ -1883,7 +1882,7 @@ return switch (fieldExpr) {
 - **Benefits**: Concise single expression, consistent with other pattern matching refactors.
 
 ### MAINT-017: Pattern Matching in extractEntityClassInfo() ✅ RESOLVED
-- **File**: [SubqueryAnalyzer.java:290-315](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/SubqueryAnalyzer.java#L290-L315)
+- **File**: [SubqueryAnalyzer.java](deployment/src/main/java/io/quarkus/qubit/deployment/analysis/handlers/SubqueryAnalyzer.java)
 - **Severity**: Medium
 - **Status**: ✅ **RESOLVED** (Phase 4) - Method moved to SubqueryAnalyzer during MAINT-001
 - **Description**: Nested instanceof checks for entity class extraction from constants.
@@ -2004,7 +2003,7 @@ return switch (expr) {
 ### TEST-006: Mutation Testing ✅ COMPLETE
 - **Priority**: Low
 - **Recommendation**: Run mutation testing to validate test effectiveness.
-- **Status**: ✅ Implemented with PIT (Pitest) 1.17.4
+- **Status**: ✅ Implemented with PIT (Pitest) 1.22.0
 
 **Overall Results (December 2025 - After Comprehensive Improvement Iterations):**
 - **Classes Tested**: 57
@@ -2271,7 +2270,7 @@ Applied Java 21 switch pattern matching to replace if-else instanceof chains:
 | Test Coverage | Unknown | > 80% | Add unit/integration tests |
 | Javadoc Coverage | ~60% | > 95% | Document public API |
 | Critical Issues | ~~2~~ **0** | 0 | ✅ **Phase 1 Complete** |
-| High Issues | ~~22~~ **7** | 0 | ✅ MAINT-001/002, ARCH-001, ARCH-002, MAINT-010/012/013/015, CS-001/002/003, ARCH-003/004/005/006, DOC-001 resolved |
+| High Issues | ~~22~~ **0** | 0 | ✅ All high-priority issues resolved |
 | Pattern Matching | ~~9 locations~~ **0** | 0 | ✅ **Phase 4 Complete** - All 9 refactored to Java 21 switch |
 
 ---
