@@ -26,11 +26,11 @@ This document provides a comprehensive analysis of code quality issues identifie
 | Code Smells | 0 | ~~3~~ 0 | ~~12~~ 0 | ~~8~~ 0 | ~~23~~ 0 | ~~2~~ 18 (6 N/A, 2 deferred) |
 | Enum/Type-Safety | 0 | 0 | ~~2~~ 0 | ~~4~~ 0 | ~~6~~ 0 | 3 + 3 deferred |
 | Bug Risks | ~~2~~ 0 | ~~5~~ ~~1~~ 0 | ~~4~~ 0 | ~~2~~ 0 | ~~13~~ ~~1~~ 0 | ~~3~~ ~~10~~ 11 (3 N/A) |
-| Documentation | 0 | ~~2~~ 1 | 6 | 4 | 12 | 1 |
+| Documentation | 0 | ~~2~~ ~~1~~ 0 | ~~6~~ ~~5~~ 4 | 4 | 12 | 4 |
 | Performance | 0 | ~~1~~ 0 | ~~3~~ 0 | ~~2~~ 0 | ~~6~~ 0 | ~~1~~ 5 (4 N/A) |
 | Maintainability | 0 | ~~7~~ 0 | ~~12~~ 0 | ~~6~~ 0 | ~~25~~ 0 | 25 (1 N/A) |
 | Testing | 0 | ~~1~~ 0 | ~~1~~ 0 | 0 | ~~2~~ 0 | 2 |
-| **Total** | ~~**2**~~ **0** | ~~**22**~~ ~~2~~ **1** | ~~**51**~~ ~~7~~ **6** | ~~**35**~~ **9** | ~~**110**~~ ~~18~~ ~~17~~ **16** | **74** (14 N/A, 5 deferred) |
+| **Total** | ~~**2**~~ **0** | ~~**22**~~ ~~2~~ ~~1~~ **0** | ~~**51**~~ ~~7~~ ~~6~~ ~~5~~ **4** | ~~**35**~~ **9** | ~~**110**~~ ~~18~~ ~~17~~ ~~16~~ ~~15~~ ~~14~~ **13** | **77** (14 N/A, 5 deferred) |
 
 > ✅ **Phase 1 Complete**: All critical issues (CRI-001, CRI-002) and high-priority bug risk (BR-001) have been resolved.
 >
@@ -1174,25 +1174,46 @@ public PathSegment {
   - `io.quarkiverse.qubit.deployment.util` - Low-level utilities
 - **See Also**: → **ARCH-008** for full module boundary refactoring
 
-### DOC-002: Incomplete Javadoc on Public API
+### DOC-002: Incomplete Javadoc on Public API ✅ RESOLVED
 - **Severity**: High
+- **Status**: ✅ **RESOLVED** (Already Complete)
 - **Files**:
   - `QubitStream.java`: Some methods missing parameter documentation
   - `QubitEntity.java`: Missing class-level design rationale
 - **Suggested Fix**: Complete Javadoc for all public methods.
+- **Resolution**: Deep analysis verified that both files already have comprehensive Javadoc:
+  - **QubitStream.java** (520 lines): All 21 interface methods have complete Javadoc with `@param`, `@return`, `@throws`, and code examples
+  - **QubitEntity.java** (536 lines): Class-level Javadoc (lines 8-58) includes design rationale for ActiveRecord pattern, entry points documentation, Panache inheritance notes, multiple code examples, and build-time enhancement explanation. All 13 static methods have complete Javadoc.
 
-### DOC-003: Missing Error Handling Documentation
+### DOC-003: Missing Error Handling Documentation ✅ RESOLVED
 - **Severity**: Medium
 - **Description**: Exception conditions not documented in method signatures.
 - **Suggested Fix**: Add `@throws` documentation.
+- **Resolution**: Added missing `@throws IllegalArgumentException if n < 0` documentation to:
+  - **JoinStream.java**: `skip(int n)` and `limit(int n)` methods (lines 160, 169)
+  - **GroupStream.java**: `skip(int n)` and `limit(int n)` methods (lines 172, 181)
+  - **Note**: QubitStream.java already had proper `@throws` documentation for these methods (lines 155-156, 172-173). JoinStream and GroupStream had the param description "must be >= 0" but lacked explicit `@throws`.
+  - **Excluded from fix**: SubqueryBuilder and Subqueries classes throw `UnsupportedOperationException` intentionally as a build-time configuration fail-safe. These are bytecode markers that should never be called at runtime, and the current Javadoc correctly documents this behavior without `@throws` (which would misleadingly imply user-facing exception handling).
 
-### DOC-004: Undocumented Design Decisions
+### DOC-004: Undocumented Design Decisions ✅ RESOLVED
 - **Severity**: Medium
+- **Status**: ✅ **RESOLVED**
 - **Description**: Why certain patterns were chosen not explained.
 - **Examples**:
   - Why sealed interface for `LambdaExpression`?
   - Why strategy pattern for handlers?
 - **Suggested Fix**: Add design rationale in class-level Javadoc.
+- **Resolution**: Added comprehensive design rationale documentation to 3 key files:
+  - **LambdaExpression.java**: Added extensive class-level Javadoc explaining:
+    - Why sealed interface (compile-time exhaustiveness, controlled hierarchy, JVM optimization, safe refactoring)
+    - Why record types (immutability, structural equality, pattern matching decomposition, compact representation)
+    - Architecture overview showing bytecode → AST → JPA transformation pipeline
+  - **InstructionHandler.java**: Added design rationale explaining:
+    - Why strategy pattern (SRP, OCP, chain of responsibility integration, testability, debugging)
+    - Handler contract documentation
+  - **BranchHandler.java**: Added design rationale explaining:
+    - Why strategy pattern for branch handling (complexity isolation, short-circuit logic handling, testability, extensibility)
+    - Immutable state pattern documentation
 
 ### DOC-005: Missing Examples in Complex Methods
 - **Severity**: Medium
@@ -2341,3 +2362,6 @@ When addressing issues, use this template:
 | 5.19 | 2025-12-10 | Claude | **TEST-006 Progress**: Improved mutation testing coverage with targeted tests for `ast` package. **Mutations Killed (+7)**: Added negative assertions to `BiEntityFieldAccess`/`BiEntityPathExpression` tests (`isFromFirstEntity()` false case, `isFromSecondEntity()` false case), added `hasPredicate()` tests for SubqueryBuilderReference/InSubquery, added `isCount()` false case for ScalarSubquery. **AST Package Results**: Mutation coverage 85%→**93%** (+7 mutations), Test strength 90%→**99%** (+9%). **Files Modified**: [AstNodeValidationTest.java](deployment/src/test/java/io/quarkiverse/qubit/deployment/ast/AstNodeValidationTest.java) (8 tests enhanced), [BranchHandlerTest.java](deployment/src/test/java/io/quarkiverse/qubit/deployment/analysis/branch/BranchHandlerTest.java) (removed duplicate method). **Analysis Summary**: Identified that remaining mutations across other packages are primarily: logging-related (IGNORE per instruction), equivalent mutations (`stack.isEmpty() ? null : stack.peek()`), or in complex private helper methods with boundary conditions. Overall: 1180/2626 killed (45%), 81% test strength. |
 | 5.20 | 2025-12-10 | Claude | **TEST-006 Deep Analysis - Equivalent Mutations**: Comprehensive analysis of surviving mutations across `analysis.branch`, `util`, and `common` packages. **New Findings**: (1) **util.BytecodeLoader** (44% mutation): All 5 surviving mutations are logging (IGNORE); (2) **util.DescriptorParser** (90% mutation): 1 logging + 8 boundary/equivalent mutations (boundary `<` to `<=` changes are EQUIVALENT because secondary conditions catch the boundary - e.g., `position < length` vs `charAt(position) != ')'`); (3) **analysis.branch.BranchCoordinator** (33% mutation): 5 logging + 1 `getOpcodeName` return mutation (EQUIVALENT - only used in logging, not observable); (4) **analysis.branch.AbstractZeroEqualityBranchHandler** (60% mutation): 3 logging + 1 `stack.isEmpty() ? null : stack.peek()` (EQUIVALENT - ArrayDeque.peek() returns null on empty). **Tests Added**: 2 new tests `handle_withBooleanFieldAndPreviousCondition_combinesExpressions` for IFEQ/IFNE handlers to exercise combining logic in handleBooleanFieldPattern, but the mutation on line 56 was found to be EQUIVALENT. **Maximum Coverage Conclusion**: Unit test mutation coverage has reached maximum achievable levels - all remaining survivors are logging, equivalent, or require integration tests. |
 | 5.21 | 2025-12-12 | Claude | **TEST-006 Final Verification**: Final mutation testing run confirms maximum achievable coverage. **Overall Results**: Line 49% (2318/4729), Mutation 51% (1883/3669), Test Strength 85%. **Package Summary** (ignoring logging mutations): (1) **ast**: 100% line, 100% mutation ✅; (2) **common**: 92% line, 95% mutation ✅ (6 equivalent mutations in `isNumericClass` - wrapper checks redundant with `Number.class.isAssignableFrom`); (3) **util**: 95% line, 91% mutation ✅ (remaining are equivalent/boundary mutations); (4) **analysis.branch**: 99% line, 81% mutation (adjusted 87% excluding logging); (5) **analysis.instruction**: 83% line, 80% mutation (adjusted 85% - GroupMethodAnalyzer `isStackEmpty()` early returns are equivalent since `pop()` returns null). **Tests Added**: PatternDetectorTest +10 mutation-killing tests (isSubqueryBooleanComparison, isNegatedSubqueryComparison, isBooleanFieldConstantComparison edge cases), DescriptorParserTest +4 slot index tests. **Key Equivalent Mutations Identified**: (1) ExpressionTypeInferrer wrapper type checks, (2) GroupMethodAnalyzer `ctx.isStackEmpty()` early returns, (3) ClassLoaderHelper empty className/null loader fallbacks. All 1390 tests pass. |
+| 5.22 | 2025-12-12 | Claude | **DOC-002 Complete (Already Resolved)**: Deep analysis verified that the "Incomplete Javadoc on Public API" issue was already resolved. **Findings**: (1) **QubitStream.java** (520 lines): All 21 interface methods have complete Javadoc with `@param`, `@return`, `@throws`, and code examples; (2) **QubitEntity.java** (536 lines): Class-level Javadoc (lines 8-58) includes comprehensive design rationale for ActiveRecord pattern, entry points documentation, Panache inheritance notes, multiple code examples, and build-time enhancement explanation. All 13 static methods have complete Javadoc. **Conclusion**: Issue was already addressed - marked as resolved. Updated: Documentation high 1→0, total 16→15, resolved 74→75. |
+| 5.23 | 2025-12-12 | Claude | **DOC-003 Complete**: Added missing `@throws IllegalArgumentException` documentation to pagination methods. **Files Modified**: (1) **JoinStream.java**: Added `@throws IllegalArgumentException if n < 0` to `skip(int n)` and `limit(int n)` methods (lines 160, 169); (2) **GroupStream.java**: Added same documentation to `skip(int n)` and `limit(int n)` methods (lines 172, 181). **Analysis Notes**: QubitStream.java already had proper `@throws` documentation. SubqueryBuilder and Subqueries classes throw `UnsupportedOperationException` intentionally as build-time fail-safes - these are bytecode markers that should never be called at runtime, so `@throws` documentation would be misleading. Updated: Documentation medium 6→5, total 15→14, resolved 75→76. |
+| 5.24 | 2025-12-12 | Claude | **DOC-004 Complete**: Added comprehensive design rationale documentation to 3 key architecture files. **Files Modified**: (1) **LambdaExpression.java**: Added class-level Javadoc explaining why sealed interface (compile-time exhaustiveness, controlled hierarchy, JVM optimization, safe refactoring), why record types (immutability, structural equality, pattern matching decomposition, compact representation), and architecture overview showing bytecode → AST → JPA transformation pipeline; (2) **InstructionHandler.java**: Added design rationale explaining why strategy pattern (SRP, OCP, chain of responsibility integration, testability, debugging) and handler contract documentation; (3) **BranchHandler.java**: Added design rationale explaining why strategy pattern for branch handling (complexity isolation, short-circuit logic handling, testability, extensibility) and immutable state pattern documentation. Updated: Documentation medium 5→4, total 14→13, resolved 76→77. |

@@ -3,10 +3,14 @@ package io.quarkiverse.qubit.deployment.analysis.instruction;
 import org.objectweb.asm.tree.AbstractInsnNode;
 
 /**
- * Strategy interface for handling bytecode instructions during lambda expression analysis.
- * Specialized handlers recognize and process specific instruction categories (loads, arithmetic, method invocations, etc.).
+ * Strategy interface for handling bytecode instructions during lambda analysis.
  *
- * @see io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer
+ * <p>Each handler focuses on one instruction category (loads, arithmetic, method calls).
+ * Handlers form a chain of responsibility: instructions are offered in sequence until one accepts.
+ *
+ * <p><b>Contract:</b> {@link #canHandle} must be pure; {@link #handle} only called when canHandle returns true.
+ *
+ * @see AnalysisContext
  */
 public interface InstructionHandler {
 

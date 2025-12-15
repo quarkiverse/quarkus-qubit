@@ -14,18 +14,12 @@ import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.and;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.or;
 
 /**
- * Handler for specific branch instruction types during bytecode analysis.
+ * Strategy interface for handling branch instructions (IFEQ, IFNE, IF_ICMP*, IFNULL, etc.).
  *
- * <p>Each implementation handles a specific category of branch instructions
- * (IFEQ, IFNE, IF_ICMP*, IFLE/IFLT/IFGE/IFGT, IFNULL/IFNONNULL).
+ * <p>Each handler isolates one branch category's complexity, especially short-circuit logic.
+ * Handlers return new immutable {@link BranchState} rather than mutating input state.
  *
- * <p>Handlers are responsible for:
- * <ul>
- *   <li>Determining if they can handle a specific jump instruction</li>
- *   <li>Converting bytecode patterns into expression AST nodes</li>
- *   <li>Managing expression combination using BranchState</li>
- *   <li>Updating the evaluation stack</li>
- * </ul>
+ * @see BranchState
  */
 public interface BranchHandler {
 

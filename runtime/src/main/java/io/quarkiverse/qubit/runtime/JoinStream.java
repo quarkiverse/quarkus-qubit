@@ -4,30 +4,12 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Fluent query builder for join operations between two entities.
- * <p>
- * Extends the capabilities of {@link QubitStream} to provide predicates
- * and projections that have access to both joined entities. All operations
- * are translated to JPA Criteria Queries at build time.
- * <p>
- * Example usage:
+ * Fluent query builder for join operations with access to both entities.
  * <pre>{@code
- * // Inner join with filtering
- * List<Person> peopleWithMobilePhones = Person
- *     .join((Person p) -> p.phones)
- *     .where((Person p, Phone ph) -> ph.type.equals("mobile"))
- *     .toList();
- *
- * // Left join (include persons without phones)
- * List<Person> allPeopleWithPhoneInfo = Person
- *     .leftJoin((Person p) -> p.phones)
- *     .toList();
- *
- * // Join with projection
- * List<PersonPhoneDTO> dtos = Person
- *     .join((Person p) -> p.phones)
- *     .select((Person p, Phone ph) -> new PersonPhoneDTO(p.firstName, ph.number))
- *     .toList();
+ * Person.join(p -> p.phones)
+ *       .where((p, ph) -> ph.type.equals("mobile"))
+ *       .select((p, ph) -> new PersonPhoneDTO(p.firstName, ph.number))
+ *       .toList();
  * }</pre>
  *
  * @param <T> the source entity type (left side of join)
@@ -41,21 +23,10 @@ public interface JoinStream<T, R> {
 
     /**
      * Adds an ON clause condition to the join.
-     * <p>
-     * The ON clause specifies conditions that are part of the join itself,
-     * affecting how rows are matched between tables. For LEFT joins, this
-     * differs from WHERE in that it doesn't filter out NULL rows from the
-     * left side.
-     * <p>
-     * Example:
-     * <pre>{@code
-     * Person.join((Person p) -> p.phones)
-     *       .on((Person p, Phone ph) -> ph.verified)
-     *       .toList();
-     * }</pre>
+     * Unlike WHERE, ON conditions don't filter NULL rows in left joins.
      *
-     * @param condition lambda expression for the ON clause (e.g., {@code (p, ph) -> ph.verified})
-     * @return a new JoinStream with the ON condition applied
+     * @param condition ON clause condition
+     * @return JoinStream with ON condition applied
      */
     JoinStream<T, R> on(BiQuerySpec<T, R, Boolean> condition);
 
@@ -64,20 +35,10 @@ public interface JoinStream<T, R> {
     // =============================================================================================
 
     /**
-     * Filters joined results using a predicate with access to both entities.
-     * <p>
-     * Multiple {@code where()} calls are combined with AND logic.
-     * <p>
-     * Example:
-     * <pre>{@code
-     * Person.join((Person p) -> p.phones)
-     *       .where((Person p, Phone ph) -> ph.type.equals("mobile"))
-     *       .where((Person p, Phone ph) -> p.active)
-     *       .toList();
-     * }</pre>
+     * Filters joined results with access to both entities. Multiple calls combine with AND.
      *
-     * @param predicate lambda expression returning boolean
-     * @return a new JoinStream with the filter applied
+     * @param predicate filter condition
+     * @return JoinStream with filter applied
      */
     JoinStream<T, R> where(BiQuerySpec<T, R, Boolean> predicate);
 
@@ -95,19 +56,11 @@ public interface JoinStream<T, R> {
     // =============================================================================================
 
     /**
-     * Projects the joined result to a new type using both entities.
-     * <p>
-     * Example:
-     * <pre>{@code
-     * List<PersonPhoneDTO> dtos = Person
-     *     .join((Person p) -> p.phones)
-     *     .select((Person p, Phone ph) -> new PersonPhoneDTO(p.firstName, ph.number))
-     *     .toList();
-     * }</pre>
+     * Projects joined result to a new type using both entities.
      *
-     * @param <S> the result type after projection
-     * @param mapper lambda expression transforming both entities to projection
-     * @return a new QubitStream with the projection applied
+     * @param <S> result type
+     * @param mapper transforms both entities to projection
+     * @return QubitStream with projection applied
      */
     <S> QubitStream<S> select(BiQuerySpec<T, R, S> mapper);
 
@@ -157,6 +110,7 @@ public interface JoinStream<T, R> {
      *
      * @param n number of results to skip (must be >= 0)
      * @return a new JoinStream with offset applied
+     * @throws IllegalArgumentException if {@code n < 0}
      */
     JoinStream<T, R> skip(int n);
 
@@ -165,6 +119,7 @@ public interface JoinStream<T, R> {
      *
      * @param n maximum number of results to return (must be >= 0)
      * @return a new JoinStream with limit applied
+     * @throws IllegalArgumentException if {@code n < 0}
      */
     JoinStream<T, R> limit(int n);
 

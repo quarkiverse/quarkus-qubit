@@ -66,7 +66,6 @@ public final class QubitBytecodeGenerator {
                 config.methodDescriptor(),  // Use descriptor from config (not hardcoded)
                 true);
 
-        // Return the result
         mv.visitInsn(config.returnOpcode());
 
         mv.visitMaxs(config.maxStack() + 1, config.maxLocals()); // +1 for ALOAD
@@ -124,7 +123,6 @@ public final class QubitBytecodeGenerator {
                 config.methodDescriptor(),
                 true);
 
-        // Return the JoinStream result
         mv.visitInsn(Opcodes.ARETURN);
 
         mv.visitMaxs(4, 1); // stack: NEW, DUP, LDC, ALOAD; locals: QuerySpec parameter
@@ -231,7 +229,6 @@ public final class QubitBytecodeGenerator {
                 config.methodDescriptor(),
                 true);
 
-        // Return the GroupStream result
         mv.visitInsn(Opcodes.ARETURN);
 
         mv.visitMaxs(4, 1); // stack: NEW, DUP, LDC, ALOAD; locals: QuerySpec parameter

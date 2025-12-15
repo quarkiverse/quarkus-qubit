@@ -5,7 +5,20 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Parsed lambda expression AST.
+ * Sealed AST for parsed lambda expressions.
+ *
+ * <p><b>Why sealed?</b> Exhaustive switch expressions, controlled hierarchy, JVM optimization.
+ * <b>Why records?</b> Immutability, structural equality, pattern matching decomposition.
+ *
+ * <pre>
+ * p -> p.age > 18 && p.active
+ *       ↓ bytecode analysis
+ * BinaryOp(BinaryOp(FieldAccess("age"), GT, Constant(18)), AND, FieldAccess("active"))
+ *       ↓ code generation
+ * cb.and(cb.gt(root.get("age"), 18), cb.isTrue(root.get("active")))
+ * </pre>
+ *
+ * @see io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer
  */
 public sealed interface LambdaExpression {
 

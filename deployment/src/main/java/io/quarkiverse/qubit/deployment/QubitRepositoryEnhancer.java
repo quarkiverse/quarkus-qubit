@@ -211,7 +211,6 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
                     "(Lio/quarkiverse/qubit/runtime/QuerySpec;)Lio/quarkiverse/qubit/runtime/QubitStream;",
                     true);
 
-            // Return the result
             mv.visitInsn(Opcodes.ARETURN);
 
             mv.visitMaxs(4, 2);
@@ -283,7 +282,6 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
                     "(Ljava/lang/Class;Ljava/lang/Class;Lio/quarkiverse/qubit/runtime/QuerySpec;Lio/quarkiverse/qubit/runtime/JoinType;)V",
                     false);
 
-            // Return the result
             mv.visitInsn(Opcodes.ARETURN);
 
             mv.visitMaxs(6, 2);
@@ -354,7 +352,6 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
                     "(Lio/quarkiverse/qubit/runtime/QuerySpec;)Lio/quarkiverse/qubit/runtime/QubitStream;",
                     true);
 
-            // Return the result
             mv.visitInsn(Opcodes.ARETURN);
 
             mv.visitMaxs(4, 2);
