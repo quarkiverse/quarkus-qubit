@@ -2,13 +2,8 @@ package io.quarkiverse.qubit.deployment.bytecode;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
-import org.objectweb.asm.ClassReader;
+import io.quarkiverse.qubit.deployment.testutil.AbstractLambdaAnalyzer;
 import org.objectweb.asm.Handle;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.InvokeDynamicInsnNode;
-import org.objectweb.asm.tree.MethodNode;
-
-import java.io.InputStream;
 
 import static io.quarkiverse.qubit.runtime.QubitConstants.QUERY_SPEC_DESCRIPTOR;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -16,17 +11,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Base class for subquery lambda bytecode analysis tests.
  *
- * <p>This analyzer loads the {@link io.quarkiverse.qubit.deployment.testutil.SubqueryLambdaTestSources}
- * class and extracts lambda expressions containing Subqueries.* calls from its pre-compiled methods.
+ * <p>This analyzer loads the SubqueryLambdaTestSources class and extracts
+ * lambda expressions containing Subqueries.* calls from its pre-compiled methods.
  *
- * <p>Iteration 8: Subqueries - bytecode analysis verification.
+ * <p>Extends {@link AbstractLambdaAnalyzer} to share common infrastructure.
  */
-public abstract class PrecompiledSubqueryLambdaAnalyzer {
+public abstract class PrecompiledSubqueryLambdaAnalyzer extends AbstractLambdaAnalyzer {
 
     private static final String SOURCES_CLASS_NAME = "io.quarkiverse.qubit.deployment.testutil.SubqueryLambdaTestSources";
-    private static final String SOURCES_CLASS_FILE = SOURCES_CLASS_NAME.replace('.', '/') + ".class";
 
-    private static ClassNode sourcesClassNode;
+    @Override
+    protected String getSourcesClassName() {
+        return SOURCES_CLASS_NAME;
+    }
+
+    @Override
+    protected String getDescriptorPattern() {
+        return QUERY_SPEC_DESCRIPTOR;
+    }
 
     /**
      * Analyzes a pre-compiled lambda expression by method name.
@@ -36,108 +38,17 @@ public abstract class PrecompiledSubqueryLambdaAnalyzer {
      */
     protected LambdaExpression analyzeSubqueryLambda(String methodName) {
         try {
-            // Load the SubqueryLambdaTestSources class on first use
-            if (sourcesClassNode == null) {
-                sourcesClassNode = loadSourcesClass();
-            }
+            Handle lambdaHandle = getLambdaHandle(methodName);
+            byte[] classBytes = getSourceClassBytes();
 
-            // Find the method containing the lambda
-            MethodNode sourceMethod = findMethod(sourcesClassNode, methodName);
-            if (sourceMethod == null) {
-                throw new RuntimeException("Cannot find source method: " + methodName);
-            }
-
-            // Find the invokedynamic instruction that creates the lambda
-            InvokeDynamicInsnNode invokeDynamic = findInvokeDynamic(sourceMethod);
-            if (invokeDynamic == null) {
-                throw new RuntimeException("No invokedynamic instruction found in method: " + methodName);
-            }
-
-            // Extract the lambda implementation handle
-            Handle lambdaHandle = extractLambdaHandle(invokeDynamic);
-            if (lambdaHandle == null) {
-                throw new RuntimeException("Cannot extract lambda handle from method: " + methodName);
-            }
-
-            // Get the class bytecode for the analyzer
-            byte[] classBytes;
-            try (InputStream is = getClass().getClassLoader().getResourceAsStream(SOURCES_CLASS_FILE)) {
-                if (is == null) {
-                    throw new RuntimeException("Cannot find SubqueryLambdaTestSources class file: " + SOURCES_CLASS_FILE);
-                }
-                classBytes = is.readAllBytes();
-            }
-
-            // Use the LambdaBytecodeAnalyzer
             LambdaBytecodeAnalyzer analyzer = new LambdaBytecodeAnalyzer();
             return analyzer.analyze(classBytes, lambdaHandle.getName(), lambdaHandle.getDesc());
-
         } catch (Exception e) {
             throw new RuntimeException("Failed to analyze subquery lambda from method: " + methodName, e);
         }
     }
 
-    /**
-     * Loads the SubqueryLambdaTestSources class bytecode.
-     */
-    private ClassNode loadSourcesClass() throws Exception {
-        InputStream is = getClass().getClassLoader().getResourceAsStream(SOURCES_CLASS_FILE);
-        if (is == null) {
-            throw new RuntimeException("Cannot find SubqueryLambdaTestSources class file: " + SOURCES_CLASS_FILE);
-        }
-
-        ClassReader reader = new ClassReader(is);
-        ClassNode classNode = new ClassNode();
-        reader.accept(classNode, 0);
-        return classNode;
-    }
-
-    /**
-     * Finds a method by name in a class.
-     */
-    private MethodNode findMethod(ClassNode classNode, String methodName) {
-        for (MethodNode method : classNode.methods) {
-            if (method.name.equals(methodName)) {
-                return method;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Finds the first invokedynamic instruction in a method that creates a QuerySpec.
-     */
-    private InvokeDynamicInsnNode findInvokeDynamic(MethodNode method) {
-        for (int i = 0; i < method.instructions.size(); i++) {
-            if (method.instructions.get(i) instanceof InvokeDynamicInsnNode invokeDynamic) {
-                if (isQuerySpecLambda(invokeDynamic)) {
-                    return invokeDynamic;
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Checks if an invokedynamic instruction creates a QuerySpec lambda.
-     */
-    private boolean isQuerySpecLambda(InvokeDynamicInsnNode invokeDynamic) {
-        String desc = invokeDynamic.desc;
-        return desc.contains(QUERY_SPEC_DESCRIPTOR);
-    }
-
-    /**
-     * Extracts the lambda implementation method handle.
-     */
-    private Handle extractLambdaHandle(InvokeDynamicInsnNode invokeDynamic) {
-        Object[] bsmArgs = invokeDynamic.bsmArgs;
-        if (bsmArgs != null && bsmArgs.length >= 2 && bsmArgs[1] instanceof Handle) {
-            return (Handle) bsmArgs[1];
-        }
-        return null;
-    }
-
-    // ==================== ASSERTION HELPERS ====================
+    // ==================== SUBQUERY SPECIFIC ASSERTION HELPERS ====================
 
     /**
      * Asserts that an expression is a ScalarSubquery with the expected aggregation type.
@@ -177,44 +88,5 @@ public abstract class PrecompiledSubqueryLambdaAnalyzer {
         assertThat(subquery.negated())
                 .as("InSubquery negated flag should be %s", expectedNegated)
                 .isEqualTo(expectedNegated);
-    }
-
-    /**
-     * Asserts that an expression is a binary operation with the expected operator.
-     */
-    protected void assertBinaryOp(LambdaExpression expr, LambdaExpression.BinaryOp.Operator expectedOp) {
-        assertThat(expr)
-                .as("Expression should be a BinaryOp but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
-                .isInstanceOf(LambdaExpression.BinaryOp.class);
-        var binOp = (LambdaExpression.BinaryOp) expr;
-        assertThat(binOp.operator())
-                .as("BinaryOp operator should be %s", expectedOp)
-                .isEqualTo(expectedOp);
-    }
-
-    /**
-     * Asserts that an expression is a constant with the expected value.
-     */
-    protected void assertConstant(LambdaExpression expr, Object expectedValue) {
-        assertThat(expr)
-                .as("Expression should be a Constant but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
-                .isInstanceOf(LambdaExpression.Constant.class);
-        var constant = (LambdaExpression.Constant) expr;
-        assertThat(constant.value())
-                .as("Constant value should be '%s'", expectedValue)
-                .isEqualTo(expectedValue);
-    }
-
-    /**
-     * Asserts that an expression is a FieldAccess with the expected field name.
-     */
-    protected void assertFieldAccess(LambdaExpression expr, String expectedFieldName) {
-        assertThat(expr)
-                .as("Expression should be a FieldAccess but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
-                .isInstanceOf(LambdaExpression.FieldAccess.class);
-        var fieldAccess = (LambdaExpression.FieldAccess) expr;
-        assertThat(fieldAccess.fieldName())
-                .as("FieldAccess field name should be '%s'", expectedFieldName)
-                .isEqualTo(expectedFieldName);
     }
 }

@@ -1,193 +1,23 @@
 package io.quarkiverse.qubit.it.repository.fluent;
 
-import io.quarkiverse.qubit.it.Person;
 import io.quarkiverse.qubit.it.PersonRepository;
-import io.quarkiverse.qubit.it.testdata.TestDataFactory;
+import io.quarkiverse.qubit.it.fluent.AbstractPaginationValidationTest;
+import io.quarkiverse.qubit.it.testutil.PersonQueryOperations;
+import io.quarkiverse.qubit.it.testutil.RepositoryPersonQueryOperations;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Repository pattern tests for validation and error handling of pagination operations.
- * Mirrors io.quarkiverse.qubit.it.fluent.PaginationValidationTest using repository injection.
- *
- * <p>Tests that invalid inputs to skip() and limit() are properly rejected.
  */
 @QuarkusTest
-class RepositoryPaginationValidationTest {
+class RepositoryPaginationValidationTest extends AbstractPaginationValidationTest {
 
     @Inject
     PersonRepository personRepository;
 
-    @BeforeEach
-    @Transactional
-    void setup() {
-        TestDataFactory.clearAllData();
-        TestDataFactory.createStandardPersonsAndProducts();
-    }
-
-    // =============================================================================================
-    // SKIP VALIDATION TESTS
-    // =============================================================================================
-
-    @Test
-    void skip_negativeValue_throwsIllegalArgumentException() {
-        assertThatThrownBy(() ->
-                personRepository.sortedBy((Person p) -> p.id)
-                        .skip(-1)
-                        .toList()
-        )
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("skip count must be >= 0")
-                .hasMessageContaining("-1");
-    }
-
-    @Test
-    void skip_negativeLargeValue_throwsIllegalArgumentException() {
-        assertThatThrownBy(() ->
-                personRepository.sortedBy((Person p) -> p.id)
-                        .skip(-999)
-                        .toList()
-        )
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("skip count must be >= 0")
-                .hasMessageContaining("-999");
-    }
-
-    @Test
-    void skip_integerMinValue_throwsIllegalArgumentException() {
-        assertThatThrownBy(() ->
-                personRepository.sortedBy((Person p) -> p.id)
-                        .skip(Integer.MIN_VALUE)
-                        .toList()
-        )
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("skip count must be >= 0");
-    }
-
-    // =============================================================================================
-    // LIMIT VALIDATION TESTS
-    // =============================================================================================
-
-    @Test
-    void limit_negativeValue_throwsIllegalArgumentException() {
-        assertThatThrownBy(() ->
-                personRepository.sortedBy((Person p) -> p.id)
-                        .limit(-1)
-                        .toList()
-        )
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("limit count must be >= 0")
-                .hasMessageContaining("-1");
-    }
-
-    @Test
-    void limit_negativeLargeValue_throwsIllegalArgumentException() {
-        assertThatThrownBy(() ->
-                personRepository.sortedBy((Person p) -> p.id)
-                        .limit(-100)
-                        .toList()
-        )
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("limit count must be >= 0")
-                .hasMessageContaining("-100");
-    }
-
-    @Test
-    void limit_integerMinValue_throwsIllegalArgumentException() {
-        assertThatThrownBy(() ->
-                personRepository.sortedBy((Person p) -> p.id)
-                        .limit(Integer.MIN_VALUE)
-                        .toList()
-        )
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("limit count must be >= 0");
-    }
-
-    // =============================================================================================
-    // COMBINED VALIDATION TESTS
-    // =============================================================================================
-
-    @Test
-    void skipAndLimit_bothNegative_throwsIllegalArgumentException() {
-        // skip() is called first, so it should throw
-        assertThatThrownBy(() ->
-                personRepository.sortedBy((Person p) -> p.id)
-                        .skip(-1)
-                        .limit(-1)
-                        .toList()
-        )
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("skip count must be >= 0");
-    }
-
-    @Test
-    void skipAndLimit_skipNegativeLimitPositive_throwsIllegalArgumentException() {
-        assertThatThrownBy(() ->
-                personRepository.sortedBy((Person p) -> p.id)
-                        .skip(-5)
-                        .limit(10)
-                        .toList()
-        )
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("skip count must be >= 0")
-                .hasMessageContaining("-5");
-    }
-
-    @Test
-    void skipAndLimit_skipPositiveLimitNegative_throwsIllegalArgumentException() {
-        assertThatThrownBy(() ->
-                personRepository.sortedBy((Person p) -> p.id)
-                        .skip(5)
-                        .limit(-10)
-                        .toList()
-        )
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("limit count must be >= 0")
-                .hasMessageContaining("-10");
-    }
-
-    // =============================================================================================
-    // VALIDATION WITH PREDICATES AND PROJECTIONS
-    // =============================================================================================
-
-    @Test
-    void skip_negativeWithPredicate_throwsIllegalArgumentException() {
-        assertThatThrownBy(() ->
-                personRepository.where((Person p) -> p.active)
-                        .skip(-3)
-                        .toList()
-        )
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("skip count must be >= 0");
-    }
-
-    @Test
-    void limit_negativeWithProjection_throwsIllegalArgumentException() {
-        assertThatThrownBy(() ->
-                personRepository.select((Person p) -> p.firstName)
-                        .limit(-2)
-                        .toList()
-        )
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("limit count must be >= 0");
-    }
-
-    @Test
-    void skip_negativeInComplexQuery_throwsIllegalArgumentException() {
-        assertThatThrownBy(() ->
-                personRepository.where((Person p) -> p.salary > 50000.0)
-                        .select((Person p) -> p.firstName)
-                        .sortedBy((String name) -> name)
-                        .skip(-1)
-                        .limit(5)
-                        .toList()
-        )
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("skip count must be >= 0");
+    @Override
+    protected PersonQueryOperations personOps() {
+        return new RepositoryPersonQueryOperations(personRepository);
     }
 }

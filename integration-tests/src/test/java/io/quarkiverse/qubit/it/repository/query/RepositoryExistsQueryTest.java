@@ -1,64 +1,34 @@
 package io.quarkiverse.qubit.it.repository.query;
 
-import io.quarkiverse.qubit.it.Person;
 import io.quarkiverse.qubit.it.PersonRepository;
-import io.quarkiverse.qubit.it.testdata.TestDataFactory;
+import io.quarkiverse.qubit.it.ProductRepository;
+import io.quarkiverse.qubit.it.query.AbstractExistsQueryTest;
+import io.quarkiverse.qubit.it.testutil.PersonQueryOperations;
+import io.quarkiverse.qubit.it.testutil.ProductQueryOperations;
+import io.quarkiverse.qubit.it.testutil.RepositoryPersonQueryOperations;
+import io.quarkiverse.qubit.it.testutil.RepositoryProductQueryOperations;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Repository pattern tests for exists query operations.
- * Mirrors io.quarkiverse.qubit.it.query.ExistsQueryTest using repository injection.
  */
 @QuarkusTest
-class RepositoryExistsQueryTest {
+class RepositoryExistsQueryTest extends AbstractExistsQueryTest {
 
     @Inject
     PersonRepository personRepository;
 
-    @BeforeEach
-    @Transactional
-    void setupTestData() {
-        TestDataFactory.clearAllData();
-        TestDataFactory.createStandardPersonsAndProducts();
+    @Inject
+    ProductRepository productRepository;
+
+    @Override
+    protected PersonQueryOperations personOps() {
+        return new RepositoryPersonQueryOperations(personRepository);
     }
 
-    @Test
-    void existsTrue() {
-        boolean exists = personRepository.where((Person p) -> p.firstName.equals("John")).exists();
-
-        assertThat(exists).isTrue();
-    }
-
-    @Test
-    void existsFalse() {
-        boolean exists = personRepository.where((Person p) -> p.firstName.equals("NonExistent")).exists();
-
-        assertThat(exists).isFalse();
-    }
-
-    @Test
-    void existsWithAnd() {
-        boolean exists = personRepository.where((Person p) ->
-                p.firstName.equals("Bob") && !p.active
-        ).exists();
-
-        assertThat(exists).isTrue();
-    }
-
-    @Test
-    void existsWithComplexExpression() {
-        boolean exists = personRepository.where((Person p) ->
-                p.active && p.salary > 85000.0 && p.height != null &&
-                p.height > 1.60f && p.email.contains("@example.com")
-        ).exists();
-
-        assertThat(exists).isTrue();
+    @Override
+    protected ProductQueryOperations productOps() {
+        return new RepositoryProductQueryOperations(productRepository);
     }
 }

@@ -1,85 +1,24 @@
 package io.quarkiverse.qubit.it.query;
 
-import io.quarkiverse.qubit.it.Person;
-import io.quarkiverse.qubit.it.Product;
-import io.quarkiverse.qubit.it.testdata.TestDataFactory;
+import io.quarkiverse.qubit.it.testutil.PersonQueryOperations;
+import io.quarkiverse.qubit.it.testutil.ProductQueryOperations;
+import io.quarkiverse.qubit.it.testutil.StaticPersonQueryOperations;
+import io.quarkiverse.qubit.it.testutil.StaticProductQueryOperations;
 import io.quarkus.test.junit.QuarkusTest;
-import jakarta.transaction.Transactional;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
-import java.math.BigDecimal;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Tests for exists query operations.
+ * Tests for exists query operations using static entity methods.
  */
 @QuarkusTest
-class ExistsQueryTest {
+class ExistsQueryTest extends AbstractExistsQueryTest {
 
-    @BeforeEach
-    @Transactional
-    void setupTestData() {
-        TestDataFactory.clearAllData();
-        TestDataFactory.createStandardPersonsAndProducts();
+    @Override
+    protected PersonQueryOperations personOps() {
+        return StaticPersonQueryOperations.INSTANCE;
     }
 
-    @Test
-    void existsTrue() {
-        boolean exists = Person.where((Person p) -> p.firstName.equals("John")).exists();
-
-        assertThat(exists).isTrue();
-    }
-
-    @Test
-    void existsFalse() {
-        boolean exists = Person.where((Person p) -> p.firstName.equals("NonExistent")).exists();
-
-        assertThat(exists).isFalse();
-    }
-
-    @Test
-    void existsWithAnd() {
-        boolean exists = Person.where((Person p) ->
-                p.firstName.equals("Bob") && !p.active
-        ).exists();
-
-        assertThat(exists).isTrue();
-    }
-
-    @Test
-    void existsWithComplexExpression() {
-        boolean exists = Person.where((Person p) ->
-                p.active && p.salary > 85000.0 && p.height != null &&
-                p.height > 1.60f && p.email.contains("@example.com")
-        ).exists();
-
-        assertThat(exists).isTrue();
-    }
-
-    @Test
-    void productExistsTrue() {
-        boolean exists = Product.where((Product p) -> p.name.equals("Laptop")).exists();
-
-        assertThat(exists).isTrue();
-    }
-
-    @Test
-    void productExistsFalse() {
-        boolean exists = Product.where((Product p) -> p.name.equals("NonExistent")).exists();
-
-        assertThat(exists).isFalse();
-    }
-
-    @Test
-    void productExistsWithComplexExpression() {
-        boolean exists = Product.where((Product p) ->
-                p.category.equals("Electronics") &&
-                p.price.compareTo(new BigDecimal("1000")) > 0 &&
-                p.available
-        ).exists();
-
-        assertThat(exists).isTrue(); // Laptop is > $1000
+    @Override
+    protected ProductQueryOperations productOps() {
+        return StaticProductQueryOperations.INSTANCE;
     }
 }
