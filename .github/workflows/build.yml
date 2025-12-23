@@ -1,0 +1,151 @@
+name: Build
+
+on:
+  push:
+    branches: ["main"]
+    paths-ignore:
+      - '.gitignore'
+      - 'LICENSE'
+      - '*.md'
+      - '*.adoc'
+      - 'docs/**'
+  pull_request:
+    paths-ignore:
+      - '.gitignore'
+      - 'LICENSE'
+      - '*.md'
+      - '*.adoc'
+      - 'docs/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # ============================================
+  # BUILD & UNIT TESTS (deployment module)
+  # ============================================
+  build:
+    name: Build & Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Build and run unit tests
+        run: |
+          # Build all modules, skip integration-tests tests (they need containers)
+          ./mvnw -B clean install -DskipITs \
+            -pl '!integration-tests' && \
+          # Build integration-tests module without running tests
+          ./mvnw -B install -DskipTests -pl integration-tests -am
+
+  # ============================================
+  # JVM INTEGRATION TESTS - ALL DATABASES
+  # ============================================
+  jvm-tests:
+    name: JVM - ${{ matrix.database }}
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [postgresql, mysql, mariadb]
+        # Uncomment when ready for extended testing:
+        # database: [postgresql, mysql, mariadb, oracle, mssql, db2, h2]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Run integration tests with ${{ matrix.database }}
+        run: |
+          ./mvnw -B verify -P${{ matrix.database }} \
+            -pl integration-tests \
+            -am \
+            -Dmaven.test.failure.ignore=false
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-jvm-${{ matrix.database }}
+          path: |
+            integration-tests/target/surefire-reports/
+            integration-tests/target/failsafe-reports/
+          retention-days: 7
+
+  # ============================================
+  # NATIVE INTEGRATION TESTS - CORE DATABASES
+  # ============================================
+  native-tests:
+    name: Native - ${{ matrix.database }}
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Only core databases for native (expensive build time)
+        database: [postgresql, mysql]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Build native image and run tests
+        run: |
+          ./mvnw -B verify -Dnative -P${{ matrix.database }} \
+            -Dquarkus.native.container-build=true \
+            -pl integration-tests \
+            -am
+
+      - name: Upload native test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-native-${{ matrix.database }}
+          path: integration-tests/target/failsafe-reports/
+          retention-days: 7
+
+  # ============================================
+  # CI SUMMARY
+  # ============================================
+  ci-status:
+    name: CI Status
+    needs: [build, jvm-tests, native-tests]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check CI status
+        run: |
+          echo "Build: ${{ needs.build.result }}"
+          echo "JVM Tests: ${{ needs.jvm-tests.result }}"
+          echo "Native Tests: ${{ needs.native-tests.result }}"
+
+          if [[ "${{ needs.build.result }}" == "failure" ]] || \
+             [[ "${{ needs.jvm-tests.result }}" == "failure" ]] || \
+             [[ "${{ needs.native-tests.result }}" == "failure" ]]; then
+            echo "CI failed"
+            exit 1
+          fi
+          echo "CI passed"

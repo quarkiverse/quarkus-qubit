@@ -13,6 +13,19 @@
     <artifactId>quarkus-qubit-integration-tests</artifactId>
     <name>Quarkus - Qubit - Integration Tests</name>
 
+    <properties>
+        <!-- Database container images (version-controlled for reproducibility) -->
+        <postgresql.image>docker.io/library/postgres:17</postgresql.image>
+        <mysql.image>docker.io/library/mysql:8.4</mysql.image>
+        <mariadb.image>docker.io/library/mariadb:11</mariadb.image>
+        <oracle.image>container-registry.oracle.com/database/free:23-slim</oracle.image>
+        <mssql.image>mcr.microsoft.com/mssql/server:2022-latest</mssql.image>
+        <db2.image>icr.io/db2_community/db2:11.5.9.0</db2.image>
+
+        <!-- Default database kind (overridden by profiles) -->
+        <db.kind>postgresql</db.kind>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>io.quarkiverse.qubit</groupId>
@@ -32,11 +45,7 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-rest-jackson</artifactId>
         </dependency>
-        <!-- PostgreSQL for native mode (Dev Services provides container) -->
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-jdbc-postgresql</artifactId>
-        </dependency>
+        <!-- JDBC driver is added via database profiles (postgresql, mysql, mariadb, etc.) -->
 
         <!-- Test dependencies -->
         <dependency>
@@ -79,6 +88,18 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- Surefire plugin for unit tests -->
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${surefire-plugin.version}</version>
+                <configuration>
+                    <systemPropertyVariables>
+                        <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+                        <!-- Pass database kind to tests for conditional logic -->
+                        <db.kind>${db.kind}</db.kind>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
             <!-- Failsafe plugin for integration tests (IT) -->
             <plugin>
                 <artifactId>maven-failsafe-plugin</artifactId>
@@ -94,6 +115,8 @@
                                 <native.image.path>${project.build.directory}/${project.build.finalName}-runner</native.image.path>
                                 <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
                                 <maven.home>${maven.home}</maven.home>
+                                <!-- Pass database kind to tests for conditional logic -->
+                                <db.kind>${db.kind}</db.kind>
                             </systemPropertyVariables>
                         </configuration>
                     </execution>
@@ -151,7 +174,124 @@
     </build>
 
     <profiles>
-        <!-- Native image profile for native testing -->
+        <!--
+            ==========================================
+            DATABASE PROFILES
+            ==========================================
+            Usage: mvn test -Ppostgresql (or -Pmysql, -Pmariadb, etc.)
+
+            Each profile:
+            1. Adds the appropriate JDBC driver dependency
+            2. Sets the db.kind property for application.properties
+            3. Activates the corresponding Quarkus configuration profile
+        -->
+
+        <!-- PostgreSQL (default) -->
+        <profile>
+            <id>postgresql</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <db.kind>postgresql</db.kind>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>quarkus-jdbc-postgresql</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+
+        <!-- MySQL -->
+        <profile>
+            <id>mysql</id>
+            <properties>
+                <db.kind>mysql</db.kind>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>quarkus-jdbc-mysql</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+
+        <!-- MariaDB -->
+        <profile>
+            <id>mariadb</id>
+            <properties>
+                <db.kind>mariadb</db.kind>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>quarkus-jdbc-mariadb</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+
+        <!-- Oracle -->
+        <profile>
+            <id>oracle</id>
+            <properties>
+                <db.kind>oracle</db.kind>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>quarkus-jdbc-oracle</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+
+        <!-- Microsoft SQL Server -->
+        <profile>
+            <id>mssql</id>
+            <properties>
+                <db.kind>mssql</db.kind>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>quarkus-jdbc-mssql</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+
+        <!-- DB2 -->
+        <profile>
+            <id>db2</id>
+            <properties>
+                <db.kind>db2</db.kind>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>quarkus-jdbc-db2</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+
+        <!-- H2 (in-memory, JVM only - no native support) -->
+        <profile>
+            <id>h2</id>
+            <properties>
+                <db.kind>h2</db.kind>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>quarkus-jdbc-h2</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+
+        <!--
+            ==========================================
+            NATIVE PROFILE
+            ==========================================
+        -->
         <profile>
             <id>native</id>
             <activation>
