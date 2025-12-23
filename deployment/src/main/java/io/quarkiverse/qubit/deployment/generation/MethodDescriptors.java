@@ -4,6 +4,8 @@ import java.util.Collection;
 
 import io.quarkus.gizmo.MethodDescriptor;
 import jakarta.persistence.criteria.*;
+import org.hibernate.query.criteria.HibernateCriteriaBuilder;
+import org.hibernate.query.criteria.JpaFunction;
 
 /**
  * Cached {@link MethodDescriptor} constants for common JPA Criteria API and JDK methods.
@@ -385,4 +387,55 @@ public final class MethodDescriptors {
      */
     public static final MethodDescriptor CB_CONSTRUCT =
             MethodDescriptor.ofMethod(CriteriaBuilder.class, "construct", CompoundSelection.class, Class.class, Selection[].class);
+
+    // =========================================================================
+    // HibernateCriteriaBuilder Temporal Extraction Methods (Database-Agnostic)
+    // =========================================================================
+    // These methods are provided by HibernateCriteriaBuilder and generate
+    // database-agnostic SQL. For example:
+    // - PostgreSQL: EXTRACT(YEAR FROM ...)
+    // - MySQL: YEAR(...)
+    // - H2: EXTRACT(YEAR FROM ...)
+
+    /**
+     * {@code HibernateCriteriaBuilder.year(Expression)} - extract year from temporal expression.
+     * Returns JpaFunction&lt;Integer&gt;.
+     */
+    public static final MethodDescriptor HCB_YEAR =
+            MethodDescriptor.ofMethod(HibernateCriteriaBuilder.class, "year", JpaFunction.class, Expression.class);
+
+    /**
+     * {@code HibernateCriteriaBuilder.month(Expression)} - extract month from temporal expression.
+     * Returns JpaFunction&lt;Integer&gt;.
+     */
+    public static final MethodDescriptor HCB_MONTH =
+            MethodDescriptor.ofMethod(HibernateCriteriaBuilder.class, "month", JpaFunction.class, Expression.class);
+
+    /**
+     * {@code HibernateCriteriaBuilder.day(Expression)} - extract day from temporal expression.
+     * Returns JpaFunction&lt;Integer&gt;.
+     */
+    public static final MethodDescriptor HCB_DAY =
+            MethodDescriptor.ofMethod(HibernateCriteriaBuilder.class, "day", JpaFunction.class, Expression.class);
+
+    /**
+     * {@code HibernateCriteriaBuilder.hour(Expression)} - extract hour from temporal expression.
+     * Returns JpaFunction&lt;Integer&gt;.
+     */
+    public static final MethodDescriptor HCB_HOUR =
+            MethodDescriptor.ofMethod(HibernateCriteriaBuilder.class, "hour", JpaFunction.class, Expression.class);
+
+    /**
+     * {@code HibernateCriteriaBuilder.minute(Expression)} - extract minute from temporal expression.
+     * Returns JpaFunction&lt;Integer&gt;.
+     */
+    public static final MethodDescriptor HCB_MINUTE =
+            MethodDescriptor.ofMethod(HibernateCriteriaBuilder.class, "minute", JpaFunction.class, Expression.class);
+
+    /**
+     * {@code HibernateCriteriaBuilder.second(Expression)} - extract second from temporal expression.
+     * Returns JpaFunction&lt;Float&gt;.
+     */
+    public static final MethodDescriptor HCB_SECOND =
+            MethodDescriptor.ofMethod(HibernateCriteriaBuilder.class, "second", JpaFunction.class, Expression.class);
 }

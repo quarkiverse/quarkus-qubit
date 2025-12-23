@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Optional;
 
+import io.quarkiverse.qubit.deployment.generation.MethodDescriptors;
+import io.quarkus.gizmo.MethodDescriptor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -17,10 +19,9 @@ import org.junit.jupiter.params.provider.ValueSource;
  * <p>These tests ensure complete mutation coverage by testing:
  * <ul>
  *   <li>{@link TemporalAccessorMethod#getJavaMethod()} for all enum values</li>
- *   <li>{@link TemporalAccessorMethod#getSqlFunction()} for all enum values</li>
+ *   <li>{@link TemporalAccessorMethod#getMethodDescriptor()} for all enum values</li>
  *   <li>{@link TemporalAccessorMethod#fromJavaMethod(String)} with null, valid, and invalid inputs</li>
  *   <li>{@link TemporalAccessorMethod#isTemporalAccessor(String)} for both true and false paths</li>
- *   <li>{@link TemporalAccessorMethod#toSqlFunction(String)} for valid, invalid, and null inputs</li>
  *   <li>EnumSet constants (DATE_METHODS, TIME_METHODS, ALL)</li>
  * </ul>
  */
@@ -28,7 +29,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 class TemporalAccessorMethodTest {
 
     // =============================================================================================
-    // INSTANCE METHOD TESTS - getJavaMethod() and getSqlFunction()
+    // INSTANCE METHOD TESTS - getJavaMethod() and getMethodDescriptor()
     // =============================================================================================
 
     @Nested
@@ -63,32 +64,75 @@ class TemporalAccessorMethodTest {
     }
 
     @Nested
-    @DisplayName("getSqlFunction()")
-    class GetSqlFunctionTests {
+    @DisplayName("getMethodDescriptor()")
+    class GetMethodDescriptorTests {
 
-        @ParameterizedTest(name = "{0} should return \"{1}\"")
-        @CsvSource({
-            "GET_YEAR, YEAR",
-            "GET_MONTH_VALUE, MONTH",
-            "GET_DAY_OF_MONTH, DAY",
-            "GET_HOUR, HOUR",
-            "GET_MINUTE, MINUTE",
-            "GET_SECOND, SECOND"
-        })
-        void shouldReturnCorrectSqlFunctionName(TemporalAccessorMethod method, String expectedSqlFunction) {
-            assertThat(method.getSqlFunction())
-                    .as("getSqlFunction() for %s", method.name())
-                    .isEqualTo(expectedSqlFunction);
+        @Test
+        @DisplayName("GET_YEAR should return HCB_YEAR descriptor")
+        void getYear_shouldReturnHcbYearDescriptor() {
+            assertThat(TemporalAccessorMethod.GET_YEAR.getMethodDescriptor())
+                    .as("getMethodDescriptor() for GET_YEAR")
+                    .isSameAs(MethodDescriptors.HCB_YEAR);
         }
 
         @Test
-        @DisplayName("all enum values should have non-null SQL function names")
-        void allEnumValuesShouldHaveNonNullSqlFunctionNames() {
+        @DisplayName("GET_MONTH_VALUE should return HCB_MONTH descriptor")
+        void getMonthValue_shouldReturnHcbMonthDescriptor() {
+            assertThat(TemporalAccessorMethod.GET_MONTH_VALUE.getMethodDescriptor())
+                    .as("getMethodDescriptor() for GET_MONTH_VALUE")
+                    .isSameAs(MethodDescriptors.HCB_MONTH);
+        }
+
+        @Test
+        @DisplayName("GET_DAY_OF_MONTH should return HCB_DAY descriptor")
+        void getDayOfMonth_shouldReturnHcbDayDescriptor() {
+            assertThat(TemporalAccessorMethod.GET_DAY_OF_MONTH.getMethodDescriptor())
+                    .as("getMethodDescriptor() for GET_DAY_OF_MONTH")
+                    .isSameAs(MethodDescriptors.HCB_DAY);
+        }
+
+        @Test
+        @DisplayName("GET_HOUR should return HCB_HOUR descriptor")
+        void getHour_shouldReturnHcbHourDescriptor() {
+            assertThat(TemporalAccessorMethod.GET_HOUR.getMethodDescriptor())
+                    .as("getMethodDescriptor() for GET_HOUR")
+                    .isSameAs(MethodDescriptors.HCB_HOUR);
+        }
+
+        @Test
+        @DisplayName("GET_MINUTE should return HCB_MINUTE descriptor")
+        void getMinute_shouldReturnHcbMinuteDescriptor() {
+            assertThat(TemporalAccessorMethod.GET_MINUTE.getMethodDescriptor())
+                    .as("getMethodDescriptor() for GET_MINUTE")
+                    .isSameAs(MethodDescriptors.HCB_MINUTE);
+        }
+
+        @Test
+        @DisplayName("GET_SECOND should return HCB_SECOND descriptor")
+        void getSecond_shouldReturnHcbSecondDescriptor() {
+            assertThat(TemporalAccessorMethod.GET_SECOND.getMethodDescriptor())
+                    .as("getMethodDescriptor() for GET_SECOND")
+                    .isSameAs(MethodDescriptors.HCB_SECOND);
+        }
+
+        @Test
+        @DisplayName("all enum values should have non-null MethodDescriptors")
+        void allEnumValuesShouldHaveNonNullMethodDescriptors() {
             for (TemporalAccessorMethod method : TemporalAccessorMethod.values()) {
-                assertThat(method.getSqlFunction())
-                        .as("getSqlFunction() for %s should not be null", method.name())
-                        .isNotNull()
-                        .isNotEmpty();
+                assertThat(method.getMethodDescriptor())
+                        .as("getMethodDescriptor() for %s should not be null", method.name())
+                        .isNotNull();
+            }
+        }
+
+        @Test
+        @DisplayName("all enum values should have MethodDescriptors for HibernateCriteriaBuilder")
+        void allEnumValuesShouldHaveHibernateCriteriaBuilderDescriptors() {
+            for (TemporalAccessorMethod method : TemporalAccessorMethod.values()) {
+                MethodDescriptor descriptor = method.getMethodDescriptor();
+                assertThat(descriptor.getDeclaringClass())
+                        .as("getMethodDescriptor() for %s should be for HibernateCriteriaBuilder", method.name())
+                        .isEqualTo("org/hibernate/query/criteria/HibernateCriteriaBuilder");
             }
         }
     }
@@ -199,52 +243,6 @@ class TemporalAccessorMethodTest {
             assertThat(result)
                     .as("isTemporalAccessor(null) should return false")
                     .isFalse();
-        }
-    }
-
-    // =============================================================================================
-    // STATIC METHOD TESTS - toSqlFunction()
-    // =============================================================================================
-
-    @Nested
-    @DisplayName("toSqlFunction()")
-    class ToSqlFunctionTests {
-
-        @ParameterizedTest(name = "toSqlFunction(\"{0}\") should return \"{1}\"")
-        @CsvSource({
-            "getYear, YEAR",
-            "getMonthValue, MONTH",
-            "getDayOfMonth, DAY",
-            "getHour, HOUR",
-            "getMinute, MINUTE",
-            "getSecond, SECOND"
-        })
-        void shouldReturnCorrectSqlFunctionForValidMethodName(String methodName, String expectedSqlFunction) {
-            String result = TemporalAccessorMethod.toSqlFunction(methodName);
-
-            assertThat(result)
-                    .as("toSqlFunction(\"%s\") should return \"%s\"", methodName, expectedSqlFunction)
-                    .isEqualTo(expectedSqlFunction);
-        }
-
-        @Test
-        @DisplayName("should return null for invalid method name")
-        void shouldReturnNullForInvalidMethodName() {
-            String result = TemporalAccessorMethod.toSqlFunction("invalidMethod");
-
-            assertThat(result)
-                    .as("toSqlFunction(\"invalidMethod\") should return null")
-                    .isNull();
-        }
-
-        @Test
-        @DisplayName("should return null for null input")
-        void shouldReturnNullForNullInput() {
-            String result = TemporalAccessorMethod.toSqlFunction(null);
-
-            assertThat(result)
-                    .as("toSqlFunction(null) should return null")
-                    .isNull();
         }
     }
 

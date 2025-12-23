@@ -1,5 +1,6 @@
 package io.quarkiverse.qubit.it;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.quarkiverse.qubit.runtime.QubitEntity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.OneToMany;
@@ -22,6 +23,7 @@ public class Department extends QubitEntity {
     public String code;
     public int budget;
 
+    @JsonIgnore  // Prevent circular reference in JSON serialization
     @OneToMany(mappedBy = "department")
     public List<Person> employees = new ArrayList<>();
 

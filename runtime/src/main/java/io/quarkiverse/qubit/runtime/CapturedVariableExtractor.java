@@ -1,6 +1,6 @@
 package io.quarkiverse.qubit.runtime;
 
-import io.quarkus.logging.Log;
+import org.jboss.logging.Logger;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -15,11 +15,19 @@ import java.util.concurrent.ConcurrentHashMap;
  * - Eclipse JDT: val$1, val$2, ...
  * - GraalVM: arg0, arg1, ...
  * - Index-based fallback: iterates all fields
+ *
+ * <p><strong>Native Image Requirement:</strong> GraalVM/Mandrel 25 or later is required for native builds.
+ * This version introduced lambda reflection support, allowing captured variables to be accessed via reflection.
+ * Earlier versions do not support reflection on lambda-proxy class fields.
+ *
+ * @see <a href="https://www.graalvm.org/jdk21/reference-manual/native-image/dynamic-features/Reflection/">GraalVM Reflection Documentation</a>
  */
 public final class CapturedVariableExtractor {
 
+    private static final Logger LOG = Logger.getLogger(CapturedVariableExtractor.class);
     private static final Object[] EMPTY_ARRAY = new Object[0];
     private static final Map<String, Field[]> FIELD_CACHE = new ConcurrentHashMap<>();
+    private static final boolean IS_NATIVE_IMAGE = isNativeImage();
 
     /**
      * Field naming strategies in order of priority.
@@ -33,6 +41,15 @@ public final class CapturedVariableExtractor {
     );
 
     private CapturedVariableExtractor() {
+    }
+
+    /**
+     * Detects if running in GraalVM Native Image mode.
+     */
+    private static boolean isNativeImage() {
+        // GraalVM sets this property to "Substrate VM" in native mode
+        String vmName = System.getProperty("java.vm.name", "");
+        return vmName.contains("Substrate") || vmName.contains("GraalVM");
     }
 
     /**
@@ -56,7 +73,7 @@ public final class CapturedVariableExtractor {
                 values[i] = fields[i].get(lambdaInstance);
             }
 
-            Log.tracef("Extracted %d captured variables from %s", count, lambdaClass.getName());
+            LOG.tracef("Extracted %d captured variables from %s", count, lambdaClass.getName());
             return values;
 
         } catch (IllegalAccessException | NoSuchFieldException e) {
@@ -76,16 +93,27 @@ public final class CapturedVariableExtractor {
         for (int i = 0; i < count; i++) {
             Field field = findFieldUsingStrategies(lambdaClass, i);
             if (field == null) {
+                String availableFields = listAvailableFields(lambdaClass);
+                if (IS_NATIVE_IMAGE && "none".equals(availableFields)) {
+                    throw new NoSuchFieldException(String.format(
+                            "Could not find captured variable at index %d in lambda class %s. " +
+                            "NATIVE IMAGE ERROR: Lambda reflection metadata may not be properly configured. " +
+                            "Ensure you are using GraalVM/Mandrel 25+ and that the reachability-metadata.json " +
+                            "was generated during the native build. Check that the quarkus-qubit extension is " +
+                            "properly included in your build. " +
+                            "See: https://www.graalvm.org/latest/reference-manual/native-image/metadata/",
+                            i, lambdaClass.getName()));
+                }
                 throw new NoSuchFieldException(String.format(
                         "Could not find captured variable at index %d in lambda class %s using any known strategy. " +
                         "Available fields: %s",
-                        i, lambdaClass.getName(), listAvailableFields(lambdaClass)));
+                        i, lambdaClass.getName(), availableFields));
             }
             fields[i] = field;
         }
 
         FIELD_CACHE.put(cacheKey, fields);
-        Log.debugf("Cached field lookups for %s (%d fields)", lambdaClass.getName(), count);
+        LOG.debugf("Cached field lookups for %s (%d fields)", lambdaClass.getName(), count);
         return fields;
     }
 
@@ -101,13 +129,13 @@ public final class CapturedVariableExtractor {
         for (FieldNamingStrategy strategy : STRATEGIES) {
             Optional<Field> field = strategy.findCapturedField(lambdaClass, index);
             if (field.isPresent()) {
-                Log.tracef("Resolved captured variable field at index %d in %s using strategy: %s (field name: %s)",
+                LOG.tracef("Resolved captured variable field at index %d in %s using strategy: %s (field name: %s)",
                         index, lambdaClass.getName(), strategy.getStrategyName(), field.get().getName());
                 return field.get();
             }
         }
 
-        Log.debugf("No strategy found field at index %d in lambda class %s", index, lambdaClass.getName());
+        LOG.debugf("No strategy found field at index %d in lambda class %s", index, lambdaClass.getName());
         return null;
     }
 
@@ -131,7 +159,7 @@ public final class CapturedVariableExtractor {
      */
     public static void clearCache() {
         FIELD_CACHE.clear();
-        Log.debug("Cleared captured variable field cache");
+        LOG.debug("Cleared captured variable field cache");
     }
 
     /**

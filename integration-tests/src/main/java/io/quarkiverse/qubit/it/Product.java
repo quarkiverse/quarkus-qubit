@@ -1,5 +1,6 @@
 package io.quarkiverse.qubit.it;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.quarkiverse.qubit.runtime.QubitEntity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.JoinColumn;
@@ -28,6 +29,7 @@ public class Product extends QubitEntity {
     public String description;
     public Double rating;
 
+    @JsonIgnore  // Prevent circular reference in JSON serialization
     @ManyToMany
     @JoinTable(
             name = "product_tag",

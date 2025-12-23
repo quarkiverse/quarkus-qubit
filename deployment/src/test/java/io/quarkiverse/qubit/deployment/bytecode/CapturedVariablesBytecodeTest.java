@@ -94,20 +94,16 @@ class CapturedVariablesBytecodeTest extends PrecompiledLambdaAnalyzer {
         LambdaExpression expr = analyzeLambda("multipleCapturedVariables");
 
         // p.firstName.equals(searchName) && p.age > minAge
-        // The bytecode analyzer wraps .equals() result in EQ(_, true)
+        // String.equals() is optimized to BinaryOp(EQ), returned as-is (predicates not wrapped)
         assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.AND);
         LambdaExpression.BinaryOp andOp = (LambdaExpression.BinaryOp) expr;
 
-        // Left: EQ(firstName.equals(searchName), true)
+        // Left: firstName.equals(searchName) - optimized to BinaryOp(field, EQ, capturedVar)
+        // Predicates (BinaryOp) are NOT wrapped with == true
         assertBinaryOp(andOp.left(), LambdaExpression.BinaryOp.Operator.EQ);
-        LambdaExpression.BinaryOp outerEq = (LambdaExpression.BinaryOp) andOp.left();
-        assertConstant(outerEq.right(), true);  // Wrapped with == true
-
-        // Inner EQ: firstName.equals(searchName)
-        assertBinaryOp(outerEq.left(), LambdaExpression.BinaryOp.Operator.EQ);
-        LambdaExpression.BinaryOp innerEq = (LambdaExpression.BinaryOp) outerEq.left();
-        assertFieldAccess(innerEq.left(), "firstName");
-        assertCapturedVariable(innerEq.right(), 0);  // searchName is first captured variable
+        LambdaExpression.BinaryOp eqOp = (LambdaExpression.BinaryOp) andOp.left();
+        assertFieldAccess(eqOp.left(), "firstName");
+        assertCapturedVariable(eqOp.right(), 0);  // searchName is first captured variable
 
         // Right: age > minAge
         assertBinaryOp(andOp.right(), LambdaExpression.BinaryOp.Operator.GT);

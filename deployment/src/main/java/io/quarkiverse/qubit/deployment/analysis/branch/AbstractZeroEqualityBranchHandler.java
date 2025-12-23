@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
+import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.isBooleanType;
 
 /**
  * Base class for IFEQ/IFNE instruction handlers.
@@ -58,7 +59,7 @@ public abstract class AbstractZeroEqualityBranchHandler implements BranchHandler
         Operator combineOp = result.combineOperator();
         BranchState newState = result.newState();
 
-        if (combineOp != null && !stack.isEmpty() && stack.peek() instanceof LambdaExpression.BinaryOp) {
+        if (combineOp != null && !stack.isEmpty() && isPredicateExpression(stack.peek())) {
             LambdaExpression previousCondition = BytecodeValidator.popSafe(stack, getInstructionName() + "-Combine");
             LambdaExpression combined = combineAndRestructureIfNeeded(combineOp, previousCondition, boolExpr);
             stack.push(combined);
@@ -70,5 +71,28 @@ public abstract class AbstractZeroEqualityBranchHandler implements BranchHandler
         }
 
         return newState;
+    }
+
+    /**
+     * Checks if expression is a predicate that can be combined with AND/OR.
+     * <p>
+     * These expression types can be combined:
+     * <ul>
+     *   <li>{@link LambdaExpression.BinaryOp} (comparisons, logical ops)</li>
+     *   <li>{@link LambdaExpression.MethodCall} returning boolean (e.g., String.equals())</li>
+     *   <li>{@link LambdaExpression.InExpression} (already a predicate)</li>
+     *   <li>{@link LambdaExpression.MemberOfExpression} (already a predicate)</li>
+     *   <li>{@link LambdaExpression.UnaryOp} (e.g., NOT expressions)</li>
+     * </ul>
+     */
+    protected boolean isPredicateExpression(LambdaExpression expr) {
+        return switch (expr) {
+            case LambdaExpression.BinaryOp ignored -> true;
+            case LambdaExpression.MethodCall methodCall -> isBooleanType(methodCall.returnType());
+            case LambdaExpression.InExpression ignored -> true;
+            case LambdaExpression.MemberOfExpression ignored -> true;
+            case LambdaExpression.UnaryOp ignored -> true;
+            default -> false;
+        };
     }
 }

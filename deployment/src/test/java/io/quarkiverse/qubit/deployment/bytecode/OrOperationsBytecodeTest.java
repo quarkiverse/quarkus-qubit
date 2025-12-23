@@ -40,11 +40,9 @@ class OrOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.OR);
         LambdaExpression.BinaryOp orOp = (LambdaExpression.BinaryOp) expr;
 
-        // Left: p.firstName.startsWith("A") (represented as method call == true)
-        assertBinaryOp(orOp.left(), LambdaExpression.BinaryOp.Operator.EQ);
-        LambdaExpression.BinaryOp leftEq = (LambdaExpression.BinaryOp) orOp.left();
-        assertMethodCall(leftEq.left(), "startsWith");
-        assertConstant(leftEq.right(), true);
+        // Left: p.firstName.startsWith("A") - returned as-is (MethodCall is a predicate)
+        // Predicates (MethodCall returning boolean) are NOT wrapped with == true
+        assertMethodCall(orOp.left(), "startsWith");
 
         // Right: p.age > 40
         assertBinaryOp(orOp.right(), LambdaExpression.BinaryOp.Operator.GT);

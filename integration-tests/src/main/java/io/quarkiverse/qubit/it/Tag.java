@@ -1,5 +1,6 @@
 package io.quarkiverse.qubit.it;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.quarkiverse.qubit.runtime.QubitEntity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToMany;
@@ -20,6 +21,7 @@ public class Tag extends QubitEntity {
     public String name;
     public String color;
 
+    @JsonIgnore  // Prevent circular reference in JSON serialization
     @ManyToMany(mappedBy = "tags")
     public Set<Product> products = new HashSet<>();
 

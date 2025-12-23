@@ -2,19 +2,18 @@ package io.quarkiverse.qubit.deployment.generation.expression;
 
 import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.MethodDescriptor;
-
 import io.quarkus.gizmo.ResultHandle;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
+import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 import static io.quarkiverse.qubit.runtime.QubitConstants.CB_EQUAL;
-import static io.quarkiverse.qubit.runtime.QubitConstants.CB_FUNCTION;
 import static io.quarkiverse.qubit.runtime.QubitConstants.CB_GREATER_THAN;
 import static io.quarkiverse.qubit.runtime.QubitConstants.CB_LESS_THAN;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_IS_AFTER;
@@ -61,11 +60,21 @@ public class TemporalExpressionBuilder implements ExpressionBuilder {
     }
 
     /**
-     * Generates bytecode for temporal accessor functions: YEAR, MONTH, DAY, HOUR, MINUTE, SECOND.
+     * Generates bytecode for temporal accessor functions using HibernateCriteriaBuilder.
+     *
+     * <p>Uses database-agnostic HibernateCriteriaBuilder methods:
+     * <ul>
+     *   <li>{@code year()} - extracts year, generates EXTRACT(YEAR FROM ...) on PostgreSQL</li>
+     *   <li>{@code month()} - extracts month, generates EXTRACT(MONTH FROM ...) on PostgreSQL</li>
+     *   <li>{@code day()} - extracts day, generates EXTRACT(DAY FROM ...) on PostgreSQL</li>
+     *   <li>{@code hour()} - extracts hour, generates EXTRACT(HOUR FROM ...) on PostgreSQL</li>
+     *   <li>{@code minute()} - extracts minute, generates EXTRACT(MINUTE FROM ...) on PostgreSQL</li>
+     *   <li>{@code second()} - extracts second, generates EXTRACT(SECOND FROM ...) on PostgreSQL</li>
+     * </ul>
      *
      * @param method the Gizmo method creator
      * @param methodCall the method call expression
-     * @param cb the CriteriaBuilder handle
+     * @param cb the CriteriaBuilder handle (will be cast to HibernateCriteriaBuilder)
      * @param fieldExpression the target field expression
      * @return the SQL function Expression, or null if target is not a supported temporal type
      */
@@ -84,20 +93,18 @@ public class TemporalExpressionBuilder implements ExpressionBuilder {
             return null;
         }
 
-        String functionName = TemporalAccessorMethod.toSqlFunction(methodCall.methodName());
-        if (functionName == null) {
+        // Look up the temporal accessor method
+        var temporalMethod = TemporalAccessorMethod.fromJavaMethod(methodCall.methodName());
+        if (temporalMethod.isEmpty()) {
             return null;
         }
 
-        ResultHandle functionNameHandle = method.load(functionName);
-        ResultHandle integerClass = method.loadClass(Integer.class);
+        // Cast CriteriaBuilder to HibernateCriteriaBuilder for database-agnostic temporal methods
+        ResultHandle hcb = method.checkCast(cb, HibernateCriteriaBuilder.class);
 
-        ResultHandle expressionArray = method.newArray(Expression.class, 1);
-        method.writeArrayValue(expressionArray, 0, fieldExpression);
-
-        return method.invokeInterfaceMethod(
-                md(CB_FUNCTION),
-                cb, functionNameHandle, integerClass, expressionArray);
+        // Get the MethodDescriptor directly from the enum and invoke the HibernateCriteriaBuilder method
+        MethodDescriptor md = temporalMethod.get().getMethodDescriptor();
+        return method.invokeInterfaceMethod(md, hcb, fieldExpression);
     }
 
     /**
@@ -133,18 +140,9 @@ public class TemporalExpressionBuilder implements ExpressionBuilder {
     }
 
     /**
-     * Creates MethodDescriptor for CriteriaBuilder methods.
+     * Creates MethodDescriptor for CriteriaBuilder comparison methods.
      */
     private static MethodDescriptor md(String methodName) {
-        if (methodName.equals(CB_FUNCTION)) {
-            return MethodDescriptor.ofMethod(
-                    CriteriaBuilder.class,
-                    methodName,
-                    Expression.class,
-                    String.class,
-                    Class.class,
-                    Expression[].class);
-        }
         if (methodName.equals(CB_GREATER_THAN)) {
             return MethodDescriptor.ofMethod(
                     CriteriaBuilder.class,

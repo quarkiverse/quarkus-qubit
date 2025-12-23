@@ -103,7 +103,10 @@ public class IfEqualsZeroInstructionHandler extends AbstractZeroEqualityBranchHa
             // Jump to TRUE means field is false → NOT field
             return new LambdaExpression.UnaryOp(NOT, fieldAccess);
         }
-        // Jump to FALSE means field is true → field EQ true
-        return eq(fieldAccess, LambdaExpression.Constant.TRUE);
+        // Jump to FALSE means field is true
+        // Don't wrap predicates with == true
+        return isPredicateExpression(fieldAccess) ?
+                fieldAccess :
+                eq(fieldAccess, LambdaExpression.Constant.TRUE);
     }
 }

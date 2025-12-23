@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 /**
  * Abstract base class for expression projection tests.
@@ -103,9 +104,16 @@ public abstract class AbstractExpressionProjectionTest {
 
         // Original salaries: $75K, $65K, $85K, $90K, $55K
         // Expected (10% raise): $82.5K, $71.5K, $93.5K, $99K, $60.5K
+        // Use tolerance for floating-point precision (1.1 cannot be exactly represented in binary)
         assertThat(salariesRaised)
                 .hasSize(5)
-                .containsExactlyInAnyOrder(82500.0, 71500.0, 93500.0, 99000.0, 60500.0);
+                .satisfiesExactlyInAnyOrder(
+                        s -> assertThat(s).isCloseTo(82500.0, within(0.01)),
+                        s -> assertThat(s).isCloseTo(71500.0, within(0.01)),
+                        s -> assertThat(s).isCloseTo(93500.0, within(0.01)),
+                        s -> assertThat(s).isCloseTo(99000.0, within(0.01)),
+                        s -> assertThat(s).isCloseTo(60500.0, within(0.01))
+                );
     }
 
     @Test
@@ -217,9 +225,15 @@ public abstract class AbstractExpressionProjectionTest {
 
         // Active persons: John($75K), Jane($65K), Alice($90K), Charlie($55K)
         // Expected (15% raise): $86250, $74750, $103500, $63250
+        // Use tolerance for floating-point precision (1.15 cannot be exactly represented in binary)
         assertThat(raisedSalaries)
                 .hasSize(4)
-                .containsExactlyInAnyOrder(86250.0, 74750.0, 103500.0, 63250.0);
+                .satisfiesExactlyInAnyOrder(
+                        s -> assertThat(s).isCloseTo(86250.0, within(0.01)),
+                        s -> assertThat(s).isCloseTo(74750.0, within(0.01)),
+                        s -> assertThat(s).isCloseTo(103500.0, within(0.01)),
+                        s -> assertThat(s).isCloseTo(63250.0, within(0.01))
+                );
     }
 
     @Test

@@ -1,7 +1,7 @@
 package io.quarkiverse.qubit.runtime;
 
 import io.quarkus.runtime.annotations.Recorder;
-import io.quarkus.logging.Log;
+import org.jboss.logging.Logger;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -11,6 +11,8 @@ import java.util.function.Consumer;
  */
 @Recorder
 public class QueryExecutorRecorder {
+
+    private static final Logger LOG = Logger.getLogger(QueryExecutorRecorder.class);
 
     /**
      * Registers list query executor during static initialization.
@@ -98,7 +100,7 @@ public class QueryExecutorRecorder {
             Consumer<QueryExecutor<T>> registrar) {
 
         try {
-            Log.debugf("Registering %s executor: %s -> %s (captured vars: %d)",
+            LOG.debugf("Registering %s executor: %s -> %s (captured vars: %d)",
                        executorType, callSiteId, executorClassName, capturedVarCount);
 
             Class<?> executorClass = Thread.currentThread()
@@ -111,10 +113,10 @@ public class QueryExecutorRecorder {
                     .newInstance();
 
             registrar.accept(executor);
-            Log.debugf("Successfully registered %s executor: %s", executorType, callSiteId);
+            LOG.debugf("Successfully registered %s executor: %s", executorType, callSiteId);
 
         } catch (Exception e) {
-            Log.errorf(e, "Failed to register %s executor for call site: %s", executorType, callSiteId);
+            LOG.errorf(e, "Failed to register %s executor for call site: %s", executorType, callSiteId);
             throw new QueryExecutorRegistrationException(
                     "Failed to register " + executorType + " executor: " + callSiteId +
                     " (executor class: " + executorClassName + ")", e);

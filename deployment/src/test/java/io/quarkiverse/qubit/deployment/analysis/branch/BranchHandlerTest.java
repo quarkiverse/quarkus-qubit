@@ -2506,8 +2506,9 @@ class BranchHandlerTest {
         }
 
         @Test
-        void createBooleanEvaluationExpression_withNonEqBinaryOp_wrapsInEQTrue() {
+        void createBooleanEvaluationExpression_withNonEqBinaryOp_returnedAsIs() {
             // Create a non-EQ comparison expression (e.g., GT)
+            // BinaryOp is a predicate, so it should NOT be wrapped with == true
             LambdaExpression gtComparison = LambdaExpression.BinaryOp.gt(
                     field("value", int.class),
                     constant(10)
@@ -2515,12 +2516,10 @@ class BranchHandlerTest {
 
             LambdaExpression result = handler.createBooleanEvaluationExpression(gtComparison, true);
 
+            // Predicates (BinaryOp, MethodCall returning boolean, etc.) are returned as-is
             assertThat(result)
-                    .as("Non-EQ BinaryOp should be wrapped in EQ true")
-                    .isInstanceOf(LambdaExpression.BinaryOp.class);
-            // It should wrap the original expression
-            LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) result;
-            assertThat(binOp.left()).isSameAs(gtComparison);
+                    .as("BinaryOp predicates should be returned as-is, not wrapped in EQ true")
+                    .isSameAs(gtComparison);
         }
 
         // ========== Tests to kill AbstractZeroEqualityBranchHandler combining mutation ==========

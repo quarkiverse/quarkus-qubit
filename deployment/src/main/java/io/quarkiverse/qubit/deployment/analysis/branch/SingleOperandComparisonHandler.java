@@ -19,6 +19,7 @@ import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Oper
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.LE;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.LT;
 import static io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer.LabelClassification.INTERMEDIATE;
+import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.isBooleanType;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static org.objectweb.asm.Opcodes.*;
@@ -92,7 +93,7 @@ public class SingleOperandComparisonHandler implements BranchHandler {
 
         Boolean jumpTarget = labelToValue.get(jumpInsn.label);
         ControlFlowAnalyzer.LabelClassification jumpLabelClass = labelClassifications.get(jumpInsn.label);
-        boolean willCombine = !stack.isEmpty() && stack.peek() instanceof LambdaExpression.BinaryOp;
+        boolean willCombine = !stack.isEmpty() && isPredicateExpression(stack.peek());
 
         Operator op = determineComparisonOperator(jumpLabelClass, jumpTarget, willCombine, state, jumpInsn.getOpcode());
         LambdaExpression comparison = new LambdaExpression.BinaryOp(left, op, right);
@@ -109,7 +110,7 @@ public class SingleOperandComparisonHandler implements BranchHandler {
         Operator combineOp = result.combineOperator();
         BranchState newState = result.newState();
 
-        if (combineOp != null && !stack.isEmpty() && stack.peek() instanceof LambdaExpression.BinaryOp) {
+        if (combineOp != null && !stack.isEmpty() && isPredicateExpression(stack.peek())) {
             // Combine with previous condition
             LambdaExpression previousCondition = BytecodeValidator.popSafe(stack, INSTRUCTION_NAME + "-Combine");
             LambdaExpression combined = combineAndRestructureIfNeeded(combineOp, previousCondition, comparison);
@@ -164,6 +165,20 @@ public class SingleOperandComparisonHandler implements BranchHandler {
             case IFGE -> invert ? LT : GE;
             case IFGT -> invert ? LE : GT;
             default -> throw BytecodeAnalysisException.unexpectedOpcode("single-operand comparison", opcode);
+        };
+    }
+
+    /**
+     * Checks if expression is a predicate that can be combined with AND/OR.
+     */
+    private boolean isPredicateExpression(LambdaExpression expr) {
+        return switch (expr) {
+            case LambdaExpression.BinaryOp ignored -> true;
+            case LambdaExpression.MethodCall methodCall -> isBooleanType(methodCall.returnType());
+            case LambdaExpression.InExpression ignored -> true;
+            case LambdaExpression.MemberOfExpression ignored -> true;
+            case LambdaExpression.UnaryOp ignored -> true;
+            default -> false;
         };
     }
 }

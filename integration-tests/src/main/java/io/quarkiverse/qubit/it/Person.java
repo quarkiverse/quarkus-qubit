@@ -1,5 +1,6 @@
 package io.quarkiverse.qubit.it;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.quarkiverse.qubit.runtime.QubitEntity;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
@@ -37,6 +38,7 @@ public class Person extends QubitEntity {
     @ManyToOne
     public Department department;  // For testing multi-level navigation: phone.owner.department.name
 
+    @JsonIgnore  // Prevent circular reference in JSON serialization
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
     public List<Phone> phones = new ArrayList<>();
 

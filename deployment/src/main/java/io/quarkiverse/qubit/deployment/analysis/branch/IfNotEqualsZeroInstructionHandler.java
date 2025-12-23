@@ -11,7 +11,6 @@ import org.objectweb.asm.tree.LabelNode;
 import java.util.Deque;
 import java.util.Map;
 
-import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.EQ;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.eq;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant.ZERO_INT;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.UnaryOp.Operator.NOT;
@@ -99,16 +98,14 @@ public class IfNotEqualsZeroInstructionHandler extends AbstractZeroEqualityBranc
         // For IFNE on boolean field:
         // - Jump to TRUE → field is true
         // - Jump to FALSE → field is false (NOT field)
-        boolean isAlreadyComparison = (fieldAccess instanceof LambdaExpression.BinaryOp binOp) &&
-                                      binOp.operator() == EQ;
 
         // Extract common negate case
         if (FALSE.equals(jumpTarget)) {
             return new LambdaExpression.UnaryOp(NOT, fieldAccess);
         }
 
-        // Handle non-negate cases
-        return isAlreadyComparison ?
+        // Handle non-negate cases - don't wrap predicates with == true
+        return isPredicateExpression(fieldAccess) ?
                 fieldAccess :
                 eq(fieldAccess, LambdaExpression.Constant.TRUE);
     }
