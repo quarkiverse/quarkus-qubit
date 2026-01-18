@@ -4,6 +4,7 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupAggregation;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupAggregationType;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupKeyReference;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupParameter;
+import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,7 @@ import org.objectweb.asm.tree.MethodNode;
 import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
 import static io.quarkiverse.qubit.runtime.QubitConstants.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.objectweb.asm.Opcodes.*;
 
 /**
@@ -185,28 +187,25 @@ class GroupMethodAnalyzerTest {
         }
 
         @Test
-        void handleGroupMethod_countDistinct_withEmptyStack_doesNothing() {
+        void handleGroupMethod_countDistinct_withEmptyStack_throwsException() {
             MethodInsnNode methodInsn = createGroupMethodInsn(METHOD_COUNT_DISTINCT,
                     "(Lio/quarkiverse/qubit/runtime/QuerySpec;)J");
 
-            analyzer.handleGroupMethod(context, methodInsn);
-
-            assertThat(context.isStackEmpty()).isTrue();
+            assertThatThrownBy(() -> analyzer.handleGroupMethod(context, methodInsn))
+                    .isInstanceOf(BytecodeAnalysisException.class)
+                    .hasMessageContaining("Stack underflow");
         }
 
         @Test
-        void handleGroupMethod_countDistinct_withOnlyOneElement_doesNothing() {
+        void handleGroupMethod_countDistinct_withOnlyOneElement_throwsException() {
             context.push(new GroupParameter("g", Object.class, 0, Object.class, Object.class));
             // Missing field argument
             MethodInsnNode methodInsn = createGroupMethodInsn(METHOD_COUNT_DISTINCT,
                     "(Lio/quarkiverse/qubit/runtime/QuerySpec;)J");
 
-            analyzer.handleGroupMethod(context, methodInsn);
-
-            // popPair returns null without popping when stack has < 2 elements
-            assertThat(context.getStackSize())
-                    .as("popPair should not pop when fewer than 2 elements")
-                    .isEqualTo(1);
+            assertThatThrownBy(() -> analyzer.handleGroupMethod(context, methodInsn))
+                    .isInstanceOf(BytecodeAnalysisException.class)
+                    .hasMessageContaining("Stack underflow");
         }
 
         @Test
@@ -294,13 +293,13 @@ class GroupMethodAnalyzerTest {
         }
 
         @Test
-        void handleGroupMethod_avg_withEmptyStack_doesNothing() {
+        void handleGroupMethod_avg_withEmptyStack_throwsException() {
             MethodInsnNode methodInsn = createGroupMethodInsn(METHOD_AVG,
                     "(Lio/quarkiverse/qubit/runtime/QuerySpec;)D");
 
-            analyzer.handleGroupMethod(context, methodInsn);
-
-            assertThat(context.isStackEmpty()).isTrue();
+            assertThatThrownBy(() -> analyzer.handleGroupMethod(context, methodInsn))
+                    .isInstanceOf(BytecodeAnalysisException.class)
+                    .hasMessageContaining("Stack underflow");
         }
 
         @Test
@@ -356,23 +355,23 @@ class GroupMethodAnalyzerTest {
         }
 
         @Test
-        void handleGroupMethod_min_withEmptyStack_doesNothing() {
+        void handleGroupMethod_min_withEmptyStack_throwsException() {
             MethodInsnNode methodInsn = createGroupMethodInsn(METHOD_MIN,
                     "(Lio/quarkiverse/qubit/runtime/QuerySpec;)Ljava/lang/Object;");
 
-            analyzer.handleGroupMethod(context, methodInsn);
-
-            assertThat(context.isStackEmpty()).isTrue();
+            assertThatThrownBy(() -> analyzer.handleGroupMethod(context, methodInsn))
+                    .isInstanceOf(BytecodeAnalysisException.class)
+                    .hasMessageContaining("Stack underflow");
         }
 
         @Test
-        void handleGroupMethod_max_withEmptyStack_doesNothing() {
+        void handleGroupMethod_max_withEmptyStack_throwsException() {
             MethodInsnNode methodInsn = createGroupMethodInsn(METHOD_MAX,
                     "(Lio/quarkiverse/qubit/runtime/QuerySpec;)Ljava/lang/Object;");
 
-            analyzer.handleGroupMethod(context, methodInsn);
-
-            assertThat(context.isStackEmpty()).isTrue();
+            assertThatThrownBy(() -> analyzer.handleGroupMethod(context, methodInsn))
+                    .isInstanceOf(BytecodeAnalysisException.class)
+                    .hasMessageContaining("Stack underflow");
         }
 
         @Test

@@ -219,4 +219,117 @@ class CapturedVariableHelperErrorTest {
             assertThat(count).isZero();
         }
     }
+
+    @Nested
+    @DisplayName("validateCapturedVariableIndices tests")
+    class ValidateCapturedVariableIndicesTests {
+
+        @Test
+        @DisplayName("Null expression is valid (no-op)")
+        void validate_nullExpression_noException() {
+            // Should not throw
+            CapturedVariableHelper.validateCapturedVariableIndices(null, 5);
+        }
+
+        @Test
+        @DisplayName("Expression without captured variables is valid regardless of count")
+        void validate_noCapturedVariables_valid() {
+            LambdaExpression expr = new LambdaExpression.FieldAccess("name", String.class);
+
+            // Should not throw even with expectedCount=0
+            CapturedVariableHelper.validateCapturedVariableIndices(expr, 0);
+            CapturedVariableHelper.validateCapturedVariableIndices(expr, 5);
+        }
+
+        @Test
+        @DisplayName("Valid index within bounds passes")
+        void validate_validIndex_passes() {
+            LambdaExpression.CapturedVariable captured = new LambdaExpression.CapturedVariable(0, String.class);
+
+            // Index 0 with expectedCount 1 is valid (0 < 1)
+            CapturedVariableHelper.validateCapturedVariableIndices(captured, 1);
+        }
+
+        @Test
+        @DisplayName("Multiple valid indices within bounds passes")
+        void validate_multipleValidIndices_passes() {
+            LambdaExpression.CapturedVariable cap0 = new LambdaExpression.CapturedVariable(0, String.class);
+            LambdaExpression.CapturedVariable cap1 = new LambdaExpression.CapturedVariable(1, Integer.class);
+            LambdaExpression expr = LambdaExpression.BinaryOp.eq(cap0, cap1);
+
+            // Indices 0 and 1 with expectedCount 2 is valid
+            CapturedVariableHelper.validateCapturedVariableIndices(expr, 2);
+        }
+
+        @Test
+        @DisplayName("Index equal to expectedCount throws (out of bounds)")
+        void validate_indexEqualsCount_throws() {
+            LambdaExpression.CapturedVariable captured = new LambdaExpression.CapturedVariable(2, String.class);
+
+            // Index 2 with expectedCount 2 is out of bounds (array indices 0,1)
+            assertThatThrownBy(() -> CapturedVariableHelper.validateCapturedVariableIndices(captured, 2))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("out of bounds")
+                    .hasMessageContaining("index 2")
+                    .hasMessageContaining("expectedCount=2");
+        }
+
+        @Test
+        @DisplayName("Index greater than expectedCount throws (out of bounds)")
+        void validate_indexGreaterThanCount_throws() {
+            LambdaExpression.CapturedVariable captured = new LambdaExpression.CapturedVariable(5, String.class);
+
+            assertThatThrownBy(() -> CapturedVariableHelper.validateCapturedVariableIndices(captured, 3))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("out of bounds")
+                    .hasMessageContaining("index 5")
+                    .hasMessageContaining("expectedCount=3");
+        }
+
+        @Test
+        @DisplayName("Captured variables with expectedCount=0 throws")
+        void validate_capturedWithZeroExpected_throws() {
+            LambdaExpression.CapturedVariable captured = new LambdaExpression.CapturedVariable(0, String.class);
+
+            assertThatThrownBy(() -> CapturedVariableHelper.validateCapturedVariableIndices(captured, 0))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("1 captured variable(s) but expectedCount=0");
+        }
+
+        @Test
+        @DisplayName("Varargs validation handles multiple expressions")
+        void validate_varargs_validatesAll() {
+            LambdaExpression.CapturedVariable cap0 = new LambdaExpression.CapturedVariable(0, String.class);
+            LambdaExpression.CapturedVariable cap5 = new LambdaExpression.CapturedVariable(5, Integer.class);
+
+            // First expression is valid, second is out of bounds
+            assertThatThrownBy(() ->
+                    CapturedVariableHelper.validateCapturedVariableIndices(2, cap0, cap5))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("out of bounds");
+        }
+
+        @Test
+        @DisplayName("Varargs validation skips null expressions")
+        void validate_varargs_skipsNulls() {
+            LambdaExpression.CapturedVariable cap0 = new LambdaExpression.CapturedVariable(0, String.class);
+
+            // Should not throw - nulls are skipped
+            CapturedVariableHelper.validateCapturedVariableIndices(1, null, cap0, null);
+        }
+
+        @Test
+        @DisplayName("Nested expressions are validated recursively")
+        void validate_nestedExpressions_validatedRecursively() {
+            LambdaExpression.CapturedVariable cap0 = new LambdaExpression.CapturedVariable(0, String.class);
+            LambdaExpression.CapturedVariable cap5 = new LambdaExpression.CapturedVariable(5, Integer.class);
+            // Create nested: (cap0 == cap5)
+            LambdaExpression nested = LambdaExpression.BinaryOp.eq(cap0, cap5);
+
+            // cap5 has index 5, which is out of bounds for expectedCount=2
+            assertThatThrownBy(() -> CapturedVariableHelper.validateCapturedVariableIndices(nested, 2))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("out of bounds");
+        }
+    }
 }

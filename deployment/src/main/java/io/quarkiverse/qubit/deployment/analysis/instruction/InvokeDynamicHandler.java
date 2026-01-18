@@ -12,43 +12,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.add;
+import static io.quarkiverse.qubit.deployment.util.DescriptorParser.returnsType;
 import static io.quarkiverse.qubit.runtime.QubitConstants.JVM_JAVA_LANG_INVOKE_LAMBDA_METAFACTORY;
 import static io.quarkiverse.qubit.runtime.QubitConstants.JVM_JAVA_LANG_INVOKE_STRING_CONCAT_FACTORY;
+import static io.quarkiverse.qubit.runtime.QubitConstants.QUERY_SPEC_INTERNAL_NAME;
 import static org.objectweb.asm.Opcodes.INVOKEDYNAMIC;
 
 /**
- * Handles INVOKEDYNAMIC instructions, specifically for Java 9+ string concatenation
- * via StringConcatFactory.
- *
- * <p>Java 9+ compiles string concatenation using invokedynamic with
- * {@code java.lang.invoke.StringConcatFactory} as the bootstrap method, not traditional
- * StringBuilder bytecode. The recipe string describes the concatenation pattern:
- *
- * <ul>
- * <li>{@code \u0001} - placeholder for dynamic argument (field, variable)</li>
- * <li>Other characters - string constants</li>
- * </ul>
- *
- * <p>Examples:
- * <pre>
- * "Hello, " + p.firstName
- *   → Recipe: "Hello, \u0001"
- *   → Operands: [p.firstName]
- *
- * p.firstName + " " + p.lastName
- *   → Recipe: "\u0001 \u0001"
- *   → Operands: [p.firstName, p.lastName]
- *
- * "Mr. " + p.firstName + " " + p.lastName
- *   → Recipe: "Mr. \u0001 \u0001"
- *   → Operands: [p.firstName, p.lastName]
- * </pre>
- *
- * <p>This handler parses the recipe and constructs a tree of {@link LambdaExpression.BinaryOp}
- * nodes with {@code ADD} operator, which {@code CriteriaExpressionGenerator} translates to
- * JPA {@code CriteriaBuilder.concat()} calls.
+ * Handles INVOKEDYNAMIC: Java 9+ StringConcatFactory string concatenation and nested QuerySpec lambdas.
+ * Recipe '\u0001' marks dynamic args; other chars are constants.
  */
-public class InvokeDynamicHandler implements InstructionHandler {
+public enum InvokeDynamicHandler implements InstructionHandler {
+    INSTANCE;
 
     /** Marker for dynamic argument in StringConcatFactory recipe. */
     private static final char RECIPE_DYNAMIC_ARG = '\u0001';
@@ -79,9 +54,6 @@ public class InvokeDynamicHandler implements InstructionHandler {
         return false;
     }
 
-    /**
-     * Handles StringConcatFactory for string concatenation.
-     */
     private boolean handleStringConcatenation(InvokeDynamicInsnNode indy, AnalysisContext ctx) {
         // Parse the recipe string from bootstrap method arguments
         String recipe = extractRecipe(indy);
@@ -102,21 +74,7 @@ public class InvokeDynamicHandler implements InstructionHandler {
         return false; // Continue processing
     }
 
-    /**
-     * Handles nested lambda creation for group aggregations and subqueries.
-     * <p>
-     * When analyzing a HAVING clause like {@code g -> g.avg((Person p) -> p.salary) > 70000},
-     * the inner lambda {@code (Person p) -> p.salary} is created via INVOKEDYNAMIC with
-     * LambdaMetafactory. We need to analyze this nested lambda inline to get the field
-     * expression for the aggregation.
-     * <p>
-     * For capturing lambdas (e.g., {@code ph -> ph.ownerId.equals(p.id)} where p is captured),
-     * the INVOKEDYNAMIC consumes captured variables from the stack. We must pop these before
-     * pushing the analyzed result.
-     * <p>
-     * GROUP BY nested lambda support.
-     * Subquery nested lambda support with captured variable handling.
-     */
+    /** Analyzes nested QuerySpec lambdas inline for group aggregations and subqueries. */
     private boolean handleNestedLambda(InvokeDynamicInsnNode indy, AnalysisContext ctx) {
         // Extract the target lambda method from bootstrap method arguments
         // The impl method handle is typically bsmArgs[1] for LambdaMetafactory
@@ -134,7 +92,7 @@ public class InvokeDynamicHandler implements InstructionHandler {
         // Pop any captured variables from the stack
         // The INVOKEDYNAMIC descriptor tells us how many captured variables there are
         // For example: (LPerson;)Lio/quarkiverse/qubit/runtime/QuerySpec; means 1 captured variable
-        int capturedVarCount = countCapturedVariables(indy.desc);
+        int capturedVarCount = DescriptorParser.countMethodArguments(indy.desc);
         for (int i = 0; i < capturedVarCount; i++) {
             if (!ctx.isStackEmpty()) {
                 ctx.pop(); // Discard captured variable (we analyze the lambda in isolation)
@@ -163,109 +121,37 @@ public class InvokeDynamicHandler implements InstructionHandler {
         return false; // Continue processing
     }
 
-    /**
-     * Counts the number of captured variables in an INVOKEDYNAMIC descriptor.
-     * <p>
-     * The descriptor format is: (capturedTypes)ReturnType
-     * For example: ()Lio/quarkiverse/qubit/runtime/QuerySpec; → 0 captured
-     *              (LPerson;)Lio/quarkiverse/qubit/runtime/QuerySpec; → 1 captured
-     */
-    private int countCapturedVariables(String desc) {
-        return DescriptorParser.countMethodArguments(desc);
-    }
-
-    /**
-     * Checks if the invokedynamic instruction uses LambdaMetafactory.
-     */
     private boolean isLambdaMetafactory(InvokeDynamicInsnNode indy) {
         return indy.bsm != null &&
                indy.bsm.getOwner().equals(JVM_JAVA_LANG_INVOKE_LAMBDA_METAFACTORY);
     }
 
-    /**
-     * Checks if the invokedynamic instruction creates a QuerySpec lambda.
-     * <p>
-     * Used for detecting nested lambdas in subqueries and group aggregations.
-     * Checks if the return type of the invokedynamic is QuerySpec.
-     */
     private boolean isQuerySpecLambda(InvokeDynamicInsnNode indy) {
-        // The descriptor ends with the return type (the functional interface)
-        // For QuerySpec: ()Lio/quarkiverse/qubit/runtime/QuerySpec;
-        // For capturing lambdas: (capturedVars)Lio/quarkiverse/qubit/runtime/QuerySpec;
-        return indy.desc.endsWith("Lio/quarkiverse/qubit/runtime/QuerySpec;");
+        return returnsType(indy.desc, QUERY_SPEC_INTERNAL_NAME);
     }
 
-    /**
-     * Extracts the implementation method handle from LambdaMetafactory bootstrap args.
-     * The impl method handle is typically at index 1 in bsmArgs.
-     *
-     * @param indy the INVOKEDYNAMIC instruction
-     * @return the implementation method handle, or null if not found
-     */
+    /** Extracts impl method handle from bsmArgs[1]. */
     private Handle extractImplMethodHandle(InvokeDynamicInsnNode indy) {
         if (indy.bsmArgs == null || indy.bsmArgs.length < 2) {
             return null;
         }
-
-        // bsmArgs[1] is the impl method handle
-        Object arg = indy.bsmArgs[1];
-        if (arg instanceof Handle) {
-            return (Handle) arg;
-        }
-
-        return null;
+        return indy.bsmArgs[1] instanceof Handle handle ? handle : null;
     }
 
-    /**
-     * Checks if the invokedynamic instruction uses StringConcatFactory.
-     */
     private boolean isStringConcatFactory(InvokeDynamicInsnNode indy) {
-        // Check bootstrap method handle owner
         return indy.bsm != null &&
                indy.bsm.getOwner().equals(JVM_JAVA_LANG_INVOKE_STRING_CONCAT_FACTORY);
     }
 
-    /**
-     * Extracts the recipe string from bootstrap method arguments.
-     * The recipe is typically the first bootstrap argument.
-     *
-     * @param indy the INVOKEDYNAMIC instruction
-     * @return the recipe string, or null if not found
-     */
+    /** Extracts recipe string from bsmArgs[0]. */
     private String extractRecipe(InvokeDynamicInsnNode indy) {
         if (indy.bsmArgs == null || indy.bsmArgs.length == 0) {
             return null;
         }
-
-        // Recipe is usually the first argument
-        Object recipeArg = indy.bsmArgs[0];
-        if (recipeArg instanceof String) {
-            return (String) recipeArg;
-        }
-
-        return null;
+        return indy.bsmArgs[0] instanceof String recipe ? recipe : null;
     }
 
-    /**
-     * Builds concatenation expression tree from recipe and stack operands.
-     *
-     * <p>Algorithm:
-     * <ol>
-     * <li>Count dynamic arguments in recipe (\u0001 markers)</li>
-     * <li>Pop that many operands from stack (in reverse order)</li>
-     * <li>Parse recipe left-to-right, building BinaryOp tree:
-     *     <ul>
-     *     <li>String constant → create Constant node</li>
-     *     <li>\u0001 → consume next operand from list</li>
-     *     <li>Combine with ADD operator</li>
-     *     </ul>
-     * </li>
-     * </ol>
-     *
-     * @param ctx analysis context (provides expression stack)
-     * @param recipe concatenation recipe string
-     * @return concatenation expression tree, or null if stack underflow occurs
-     */
+    /** Builds BinaryOp ADD tree from recipe pattern and stack operands. */
     private LambdaExpression buildConcatenationFromRecipe(AnalysisContext ctx, String recipe) {
         // Count dynamic arguments (\u0001 markers)
         int dynamicArgCount = countDynamicArgs(recipe);
@@ -284,9 +170,6 @@ public class InvokeDynamicHandler implements InstructionHandler {
         return parseRecipe(recipe, operands);
     }
 
-    /**
-     * Counts the number of dynamic argument markers in the recipe.
-     */
     private int countDynamicArgs(String recipe) {
         int count = 0;
         for (char c : recipe.toCharArray()) {
@@ -297,27 +180,6 @@ public class InvokeDynamicHandler implements InstructionHandler {
         return count;
     }
 
-    /**
-     * Parses recipe string and builds concatenation expression tree.
-     *
-     * <p>Examples:
-     * <pre>
-     * Recipe: "Hello, \u0001"
-     *   → Constant("Hello, ") + operands[0]
-     *
-     * Recipe: "\u0001 \u0001"
-     *   → operands[0] + Constant(" ") + operands[1]
-     *   → (operands[0] + Constant(" ")) + operands[1]
-     *
-     * Recipe: "Mr. \u0001 \u0001"
-     *   → Constant("Mr. ") + operands[0] + Constant(" ") + operands[1]
-     *   → ((Constant("Mr. ") + operands[0]) + Constant(" ")) + operands[1]
-     * </pre>
-     *
-     * @param recipe concatenation recipe
-     * @param operands dynamic operands (popped from stack)
-     * @return concatenation expression tree, or null if recipe is empty
-     */
     private LambdaExpression parseRecipe(String recipe, List<LambdaExpression> operands) {
         LambdaExpression result = null;
         StringBuilder constantBuffer = new StringBuilder();
@@ -340,14 +202,6 @@ public class InvokeDynamicHandler implements InstructionHandler {
         return result;
     }
 
-    /**
-     * Flushes accumulated string constant from buffer and appends to result.
-     * Clears the buffer after flushing.
-     *
-     * @param buffer constant accumulator
-     * @param result current expression tree, or null
-     * @return updated expression tree, or null if buffer is empty and result is null
-     */
     private LambdaExpression flushConstantBuffer(StringBuilder buffer, LambdaExpression result) {
         if (buffer.isEmpty()) {
             return result;
@@ -358,14 +212,6 @@ public class InvokeDynamicHandler implements InstructionHandler {
         return appendToResult(result, constant);
     }
 
-    /**
-     * Appends expression to result tree using ADD operator.
-     * If result is null, returns toAdd directly (first element).
-     *
-     * @param result current expression tree, or null
-     * @param toAdd expression to append
-     * @return updated expression tree
-     */
     private LambdaExpression appendToResult(LambdaExpression result, LambdaExpression toAdd) {
         if (result == null) {
             return toAdd;
@@ -373,9 +219,6 @@ public class InvokeDynamicHandler implements InstructionHandler {
         return add(result, toAdd);
     }
 
-    /**
-     * Escapes recipe string for logging (makes \u0001 visible).
-     */
     private String escapeRecipe(String recipe) {
         if (recipe == null) {
             return "null";

@@ -2,17 +2,7 @@ package io.quarkiverse.qubit.runtime;
 
 import java.util.Set;
 
-/**
- * Shared constants for the Qubit extension.
- *
- * <p>Naming Conventions:
- * <ul>
- *   <li><b>CB_*</b> - {@link jakarta.persistence.criteria.CriteriaBuilder} method names</li>
- *   <li><b>METHOD_*</b> - Java/JPA method names used in lambda expression analysis</li>
- *   <li><b>SQL_*</b> - SQL function names for database operations</li>
- *   <li><b>PREFIX_*</b> - Method name prefixes (e.g., "get", "is") for accessor detection</li>
- * </ul>
- */
+/** Shared constants: CB_* (CriteriaBuilder), METHOD_* (lambda analysis), SQL_*, PREFIX_* (accessors). */
 public final class QubitConstants {
 
     private QubitConstants() {
@@ -36,6 +26,11 @@ public final class QubitConstants {
     public static final String METHOD_SUM_INTEGER = "sumInteger";
     public static final String METHOD_SUM_LONG = "sumLong";
     public static final String METHOD_SUM_DOUBLE = "sumDouble";
+
+    public static final Set<String> AGGREGATION_METHOD_NAMES = Set.of(
+        METHOD_MIN, METHOD_MAX, METHOD_AVG,
+        METHOD_SUM_INTEGER, METHOD_SUM_LONG, METHOD_SUM_DOUBLE
+    );
 
     // Fluent API - Terminal operations (instance methods on QubitStream)
     public static final String METHOD_TO_LIST = "toList";
@@ -71,6 +66,10 @@ public final class QubitConstants {
     public static final String METHOD_ON = "on";
     public static final String METHOD_SELECT_SOURCE = "selectSource";
     public static final String METHOD_SELECT_JOINED = "selectJoined";
+
+    public static final Set<String> JOIN_ENTRY_METHODS = Set.of(
+        METHOD_JOIN, METHOD_LEFT_JOIN
+    );
 
     // All join methods (for stack walking filter)
     public static final Set<String> JOIN_METHODS = Set.of(
@@ -143,6 +142,7 @@ public final class QubitConstants {
     public static final String QUBIT_STREAM_INTERNAL_NAME = "io/quarkiverse/qubit/runtime/QubitStream";
     public static final String JOIN_STREAM_INTERNAL_NAME = "io/quarkiverse/qubit/runtime/JoinStream";
     public static final String GROUP_STREAM_INTERNAL_NAME = "io/quarkiverse/qubit/runtime/GroupStream";
+    public static final String QUERY_SPEC_INTERNAL_NAME = "io/quarkiverse/qubit/runtime/QuerySpec";
     public static final String QUERY_SPEC_DESCRIPTOR = "Lio/quarkiverse/qubit/runtime/QuerySpec;";
     public static final String BI_QUERY_SPEC_DESCRIPTOR = "Lio/quarkiverse/qubit/runtime/BiQuerySpec;";
     public static final String GROUP_QUERY_SPEC_DESCRIPTOR = "Lio/quarkiverse/qubit/runtime/GroupQuerySpec;";
@@ -160,13 +160,15 @@ public final class QubitConstants {
     public static final String METHOD_SUBTRACT = "subtract";
     public static final String METHOD_MULTIPLY = "multiply";
     public static final String METHOD_DIVIDE = "divide";
+
+    public static final Set<String> BIG_DECIMAL_ARITHMETIC_METHODS = Set.of(
+        METHOD_ADD, METHOD_SUBTRACT, METHOD_MULTIPLY, METHOD_DIVIDE
+    );
+
     public static final String METHOD_STARTS_WITH = "startsWith";
     public static final String METHOD_ENDS_WITH = "endsWith";
     public static final String METHOD_CONTAINS = "contains";
 
-    /**
-     * String methods that generate LIKE patterns (startsWith, endsWith, contains).
-     */
     public static final Set<String> STRING_PATTERN_METHOD_NAMES = Set.of(
         METHOD_STARTS_WITH, METHOD_ENDS_WITH, METHOD_CONTAINS
     );
@@ -175,77 +177,43 @@ public final class QubitConstants {
     public static final String METHOD_TO_UPPER_CASE = "toUpperCase";
     public static final String METHOD_TRIM = "trim";
     public static final String METHOD_EQUALS = "equals";
+    public static final String METHOD_EQUALS_IGNORE_CASE = "equalsIgnoreCase";
     public static final String METHOD_LENGTH = "length";
     public static final String METHOD_IS_EMPTY = "isEmpty";
     public static final String METHOD_SUBSTRING = "substring";
+
+    public static final Set<String> STRING_TRANSFORMATION_METHODS = Set.of(
+        METHOD_TO_LOWER_CASE, METHOD_TO_UPPER_CASE, METHOD_TRIM
+    );
+
+    public static final Set<String> STRING_UTILITY_METHODS = Set.of(
+        METHOD_EQUALS, METHOD_LENGTH, METHOD_IS_EMPTY
+    );
     public static final String METHOD_GET_YEAR = "getYear";
     public static final String METHOD_GET_MONTH_VALUE = "getMonthValue";
     public static final String METHOD_GET_DAY_OF_MONTH = "getDayOfMonth";
     public static final String METHOD_GET_HOUR = "getHour";
     public static final String METHOD_GET_MINUTE = "getMinute";
     public static final String METHOD_GET_SECOND = "getSecond";
+
+    public static final Set<String> LOCAL_DATE_ACCESSOR_METHODS = Set.of(
+        METHOD_GET_YEAR, METHOD_GET_MONTH_VALUE, METHOD_GET_DAY_OF_MONTH
+    );
+
+    public static final Set<String> LOCAL_DATE_TIME_ACCESSOR_METHODS = Set.of(
+        METHOD_GET_YEAR, METHOD_GET_MONTH_VALUE, METHOD_GET_DAY_OF_MONTH,
+        METHOD_GET_HOUR, METHOD_GET_MINUTE, METHOD_GET_SECOND
+    );
+
+    public static final Set<String> LOCAL_TIME_ACCESSOR_METHODS = Set.of(
+        METHOD_GET_HOUR, METHOD_GET_MINUTE, METHOD_GET_SECOND
+    );
+
     public static final String METHOD_COMPARE_TO = "compareTo";
     public static final String METHOD_VALUE_OF = "valueOf";
     public static final String METHOD_OF = "of";
 
-    /**
-     * {@link jakarta.persistence.criteria.CriteriaBuilder} method names for JPA Criteria API bytecode generation.
-     *
-     * <p>These constants map to {@code CriteriaBuilder} methods used to construct type-safe JPA queries.
-     * The "CB_" prefix stands for "CriteriaBuilder" and helps identify these constants at a glance.
-     *
-     * <p><b>Boolean Operations:</b>
-     * <ul>
-     *   <li>{@link #CB_IS_TRUE} - Tests if expression is true</li>
-     *   <li>{@link #CB_IS_FALSE} - Tests if expression is false</li>
-     *   <li>{@link #CB_IS_NULL} - Tests if expression is null</li>
-     *   <li>{@link #CB_IS_NOT_NULL} - Tests if expression is not null</li>
-     *   <li>{@link #CB_NOT} - Logical negation</li>
-     * </ul>
-     *
-     * <p><b>Comparison Operations:</b>
-     * <ul>
-     *   <li>{@link #CB_EQUAL} - Equality comparison</li>
-     *   <li>{@link #CB_NOT_EQUAL} - Inequality comparison</li>
-     *   <li>{@link #CB_GREATER_THAN} - Greater than comparison</li>
-     *   <li>{@link #CB_GREATER_THAN_OR_EQUAL_TO} - Greater than or equal comparison</li>
-     *   <li>{@link #CB_LESS_THAN} - Less than comparison</li>
-     *   <li>{@link #CB_LESS_THAN_OR_EQUAL_TO} - Less than or equal comparison</li>
-     * </ul>
-     *
-     * <p><b>Arithmetic Operations:</b>
-     * <ul>
-     *   <li>{@link #CB_SUM} - Addition</li>
-     *   <li>{@link #CB_DIFF} - Subtraction (difference)</li>
-     *   <li>{@link #CB_PROD} - Multiplication (product)</li>
-     *   <li>{@link #CB_QUOT} - Division (quotient)</li>
-     *   <li>{@link #CB_MOD} - Modulo</li>
-     * </ul>
-     *
-     * <p><b>Logical Operations:</b>
-     * <ul>
-     *   <li>{@link #CB_AND} - Logical AND</li>
-     *   <li>{@link #CB_OR} - Logical OR</li>
-     * </ul>
-     *
-     * <p><b>String Operations:</b>
-     * <ul>
-     *   <li>{@link #CB_LOWER} - Convert to lowercase</li>
-     *   <li>{@link #CB_UPPER} - Convert to uppercase</li>
-     *   <li>{@link #CB_TRIM} - Trim whitespace</li>
-     *   <li>{@link #CB_LIKE} - SQL LIKE pattern matching</li>
-     *   <li>{@link #CB_SUBSTRING} - Extract substring</li>
-     *   <li>{@link #CB_LENGTH} - String length</li>
-     * </ul>
-     *
-     * <p><b>Utility Operations:</b>
-     * <ul>
-     *   <li>{@link #CB_FUNCTION} - Invoke database function</li>
-     *   <li>{@link #CB_LITERAL} - Wrap value as literal expression</li>
-     * </ul>
-     *
-     * @see jakarta.persistence.criteria.CriteriaBuilder
-     */
+    // CriteriaBuilder method names
     public static final String CB_IS_TRUE = "isTrue";
     public static final String CB_IS_FALSE = "isFalse";
     public static final String CB_IS_NULL = "isNull";
@@ -309,6 +277,8 @@ public final class QubitConstants {
     public static final String SQL_MINUTE = "MINUTE";
     public static final String SQL_SECOND = "SECOND";
 
+    public static final String SQL_LIKE_WILDCARD = "%";
+
     // Method name prefixes (for getter/accessor detection)
     public static final String PREFIX_GET = "get";
     public static final String PREFIX_IS = "is";
@@ -330,38 +300,11 @@ public final class QubitConstants {
     public static final String CONSTRUCTOR = "<init>";
 
     // Captured variable field name patterns (compiler-specific)
-    /**
-     * Field name prefix for captured variables in lambda instances (javac/OpenJDK).
-     * The Java compiler generates synthetic fields with names: arg$1, arg$2, arg$3, etc.
-     */
-    public static final String CAPTURED_VAR_PREFIX_JAVAC = "arg$";
+    public static final String CAPTURED_VAR_PREFIX_JAVAC = "arg$";   // javac: arg$1, arg$2, ...
+    public static final String CAPTURED_VAR_PREFIX_ECLIPSE = "val$"; // Eclipse: val$1, val$2, ...
 
-    /**
-     * Field name prefix for captured variables in lambda instances (Eclipse JDT).
-     * Eclipse compiler uses: val$1, val$2, val$3, etc.
-     */
-    public static final String CAPTURED_VAR_PREFIX_ECLIPSE = "val$";
-
-    // ========================================================================
-    // JVM Internal Class Names
-    // ========================================================================
-
-    /**
-     * JVM internal class names for bytecode analysis.
-     *
-     * <p>These constants use the JVM internal format (slash-separated) as required
-     * by ASM for bytecode analysis. They are used to identify class types when
-     * processing method invocations.
-     *
-     * <p><b>Naming Convention:</b>
-     * <ul>
-     *   <li><b>JVM_*</b> - JVM internal name format (slash-separated)</li>
-     *   <li><b>JVM_PREFIX_*</b> - Prefix for pattern matching (e.g., startsWith checks)</li>
-     *   <li><b>COLLECTION_INTERFACE_OWNERS</b> - Set of collection types for contains() detection</li>
-     * </ul>
-     */
-
-    // Java standard library class internal names
+    // JVM Internal Class Names (slash-separated for ASM bytecode analysis)
+    public static final String JVM_JAVA_LANG_OBJECT = "java/lang/Object";
     public static final String JVM_JAVA_LANG_STRING = "java/lang/String";
     public static final String JVM_JAVA_LANG_BOOLEAN = "java/lang/Boolean";
     public static final String JVM_JAVA_MATH_BIG_DECIMAL = "java/math/BigDecimal";
@@ -371,9 +314,6 @@ public final class QubitConstants {
     public static final String JVM_JAVA_TIME_LOCAL_DATE_TIME = "java/time/LocalDateTime";
     public static final String JVM_JAVA_TIME_LOCAL_TIME = "java/time/LocalTime";
 
-    /**
-     * Prefix for temporal class internal names (used for startsWith checks).
-     */
     public static final String JVM_PREFIX_JAVA_TIME_LOCAL = "java/time/Local";
 
     // Collection interface internal names
@@ -389,13 +329,7 @@ public final class QubitConstants {
     public static final String JVM_JAVA_UTIL_TREE_SET = "java/util/TreeSet";
     public static final String JVM_JAVA_UTIL_LINKED_HASH_SET = "java/util/LinkedHashSet";
 
-    /**
-     * Collection interface types that support contains() for IN/MEMBER OF detection.
-     *
-     * <p>This set includes all standard Java collection interfaces and their common
-     * implementations that support the {@code contains(Object)} method. Used in
-     * bytecode analysis to detect IN clause and MEMBER OF patterns.
-     */
+    /** Collection types that support contains() for IN/MEMBER OF detection. */
     public static final Set<String> COLLECTION_INTERFACE_OWNERS = Set.of(
             JVM_JAVA_UTIL_COLLECTION,
             JVM_JAVA_UTIL_LIST,
@@ -410,37 +344,44 @@ public final class QubitConstants {
             JVM_JAVA_UTIL_LINKED_HASH_SET
     );
 
-    // ========================================================================
-    // JVM Bootstrap Method Factory Class Names
-    // ========================================================================
+    // Aggregation type identifiers for build-time to runtime communication
+    public static final String AGG_TYPE_MIN = "MIN";
+    public static final String AGG_TYPE_MAX = "MAX";
+    public static final String AGG_TYPE_AVG = "AVG";
+    public static final String AGG_TYPE_SUM_INTEGER = "SUM_INTEGER";
+    public static final String AGG_TYPE_SUM_LONG = "SUM_LONG";
+    public static final String AGG_TYPE_SUM_DOUBLE = "SUM_DOUBLE";
 
-    /**
-     * StringConcatFactory bootstrap method owner for Java 9+ string concatenation.
-     * <p>
-     * Java 9+ compiles string concatenation using invokedynamic with StringConcatFactory
-     * as the bootstrap method, not traditional StringBuilder bytecode.
-     */
+    public static final Set<String> AGGREGATION_TYPES = Set.of(
+            AGG_TYPE_MIN, AGG_TYPE_MAX, AGG_TYPE_AVG,
+            AGG_TYPE_SUM_INTEGER, AGG_TYPE_SUM_LONG, AGG_TYPE_SUM_DOUBLE
+    );
+
+    // Query type identifiers for hash computation and deduplication
+    public static final String QUERY_TYPE_LIST = "LIST";
+    public static final String QUERY_TYPE_COUNT = "COUNT";
+    public static final String QUERY_TYPE_PROJECTION = "PROJECTION";
+    public static final String QUERY_TYPE_COMBINED = "COMBINED";
+
+    // JVM Bootstrap Method Factory Class Names
     public static final String JVM_JAVA_LANG_INVOKE_STRING_CONCAT_FACTORY =
             "java/lang/invoke/StringConcatFactory";
-
-    /**
-     * LambdaMetafactory bootstrap method owner for lambda expressions.
-     * <p>
-     * Used to detect nested lambda creation for group aggregations and subqueries
-     * (e.g., g.avg(p -> p.salary) or subquery(Person.class).avg(q -> q.salary)).
-     */
     public static final String JVM_JAVA_LANG_INVOKE_LAMBDA_METAFACTORY =
             "java/lang/invoke/LambdaMetafactory";
 
-    // ========================================================================
     // Qubit Runtime Implementation Class Names
-    // ========================================================================
-
-    /**
-     * QubitStreamImpl internal name for bytecode generation.
-     * <p>
-     * Used when generating fluent API entry point methods that return QubitStreamImpl.
-     */
     public static final String QUBIT_STREAM_IMPL_INTERNAL_NAME =
             "io/quarkiverse/qubit/runtime/QubitStreamImpl";
+    public static final String JOIN_STREAM_IMPL_INTERNAL_NAME =
+            "io/quarkiverse/qubit/runtime/JoinStreamImpl";
+    public static final String JOIN_TYPE_INTERNAL_NAME =
+            "io/quarkiverse/qubit/runtime/JoinType";
+    public static final String JOIN_TYPE_DESCRIPTOR =
+            "Lio/quarkiverse/qubit/runtime/JoinType;";
+
+    // Lambda Hash Constants
+    public static final int HASH_CHARS_FOR_CLASS_NAME = 16; // 64 bits entropy for class names
+    public static final int HASH_CHARS_FOR_LOG = 8;         // Compact identifier for logs
+    public static final char QUERY_ID_SEPARATOR = '#';      // Class#method$lambda$1
+    public static final char LAMBDA_SUFFIX_MARKER = '$';
 }

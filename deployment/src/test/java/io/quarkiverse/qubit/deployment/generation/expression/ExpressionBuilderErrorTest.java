@@ -31,7 +31,7 @@ class ExpressionBuilderErrorTest {
 
         @BeforeEach
         void setUp() {
-            builder = new ComparisonExpressionBuilder();
+            builder = ComparisonExpressionBuilder.INSTANCE;
         }
 
         @ParameterizedTest
@@ -79,7 +79,7 @@ class ExpressionBuilderErrorTest {
 
         @BeforeEach
         void setUp() {
-            builder = new ArithmeticExpressionBuilder();
+            builder = ArithmeticExpressionBuilder.INSTANCE;
         }
 
         @ParameterizedTest

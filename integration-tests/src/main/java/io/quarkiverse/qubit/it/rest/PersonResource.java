@@ -1,6 +1,10 @@
 package io.quarkiverse.qubit.it.rest;
 
 import io.quarkiverse.qubit.it.Person;
+import io.quarkiverse.qubit.it.Phone;
+import io.quarkiverse.qubit.it.dto.DepartmentStatsDTO;
+import io.quarkiverse.qubit.it.dto.PersonPhoneDTO;
+import io.quarkiverse.qubit.runtime.Group;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -336,5 +340,219 @@ public class PersonResource {
     @Path("/exists-active")
     public boolean existsActive() {
         return Person.where((Person p) -> p.active).exists();
+    }
+
+    // =============================================================================================
+    // JOIN QUERIES - Testing BiQuerySpec lambdas in native mode
+    // These endpoints exercise join operations with bi-entity predicates (Person, Phone)
+    // =============================================================================================
+
+    @GET
+    @Path("/join/with-phones")
+    public List<Person> getPersonsWithPhones() {
+        return Person.join((Person p) -> p.phones)
+                .distinct()
+                .toList();
+    }
+
+    @GET
+    @Path("/join/with-mobile-phones")
+    public List<Person> getPersonsWithMobilePhones() {
+        return Person.join((Person p) -> p.phones)
+                .where((Person p, Phone ph) -> ph.type.equals("mobile"))
+                .distinct()
+                .toList();
+    }
+
+    @GET
+    @Path("/join/with-phone-type/{phoneType}")
+    public List<Person> getPersonsWithPhoneType(@PathParam("phoneType") String phoneType) {
+        return Person.join((Person p) -> p.phones)
+                .where((Person p, Phone ph) -> ph.type.equals(phoneType))
+                .distinct()
+                .toList();
+    }
+
+    @GET
+    @Path("/join/active-with-mobile")
+    public List<Person> getActivePersonsWithMobilePhones() {
+        return Person.join((Person p) -> p.phones)
+                .where((Person p, Phone ph) -> ph.type.equals("mobile"))
+                .where((Person p, Phone ph) -> p.active)
+                .distinct()
+                .toList();
+    }
+
+    @GET
+    @Path("/join/count-mobile")
+    public long countPersonsWithMobilePhones() {
+        return Person.join((Person p) -> p.phones)
+                .where((Person p, Phone ph) -> ph.type.equals("mobile"))
+                .count();
+    }
+
+    @GET
+    @Path("/join/exists-work")
+    public boolean existsPersonsWithWorkPhones() {
+        return Person.join((Person p) -> p.phones)
+                .where((Person p, Phone ph) -> ph.type.equals("work"))
+                .exists();
+    }
+
+    @GET
+    @Path("/join/select-joined")
+    public List<Phone> getJoinedPhones() {
+        return Person.join((Person p) -> p.phones)
+                .selectJoined()
+                .toList();
+    }
+
+    @GET
+    @Path("/join/select-joined-mobile")
+    public List<Phone> getMobilePhones() {
+        return Person.join((Person p) -> p.phones)
+                .where((Person p, Phone ph) -> ph.type.equals("mobile"))
+                .selectJoined()
+                .toList();
+    }
+
+    @GET
+    @Path("/join/projection")
+    public List<PersonPhoneDTO> getPersonPhoneProjection() {
+        return Person.join((Person p) -> p.phones)
+                .select((Person p, Phone ph) -> new PersonPhoneDTO(p.firstName, ph.number))
+                .toList();
+    }
+
+    @GET
+    @Path("/join/projection-mobile")
+    public List<PersonPhoneDTO> getMobilePhoneProjection() {
+        return Person.join((Person p) -> p.phones)
+                .where((Person p, Phone ph) -> ph.type.equals("mobile"))
+                .select((Person p, Phone ph) -> new PersonPhoneDTO(p.firstName, ph.number))
+                .toList();
+    }
+
+    @GET
+    @Path("/join/left/with-phones")
+    public List<Person> getLeftJoinPersonsWithPhones() {
+        return Person.leftJoin((Person p) -> p.phones)
+                .distinct()
+                .toList();
+    }
+
+    @GET
+    @Path("/join/left/with-phone-type/{phoneType}")
+    public List<Person> getLeftJoinPersonsWithPhoneType(@PathParam("phoneType") String phoneType) {
+        return Person.leftJoin((Person p) -> p.phones)
+                .where((Person p, Phone ph) -> ph.type.equals(phoneType))
+                .distinct()
+                .toList();
+    }
+
+    @GET
+    @Path("/join/with-limit/{limit}")
+    public List<Person> getJoinWithLimit(@PathParam("limit") int limit) {
+        return Person.join((Person p) -> p.phones)
+                .where((Person p, Phone ph) -> ph.type.equals("mobile"))
+                .limit(limit)
+                .toList();
+    }
+
+    // =============================================================================================
+    // GROUP BY QUERIES - Testing GroupQuerySpec lambdas in native mode
+    // These endpoints exercise GROUP BY operations with group aggregations
+    // =============================================================================================
+
+    @GET
+    @Path("/group/by-department")
+    public List<String> getGroupedByDepartment() {
+        return Person.groupBy((Person p) -> p.department.name)
+                .toList();
+    }
+
+    @GET
+    @Path("/group/by-department/count")
+    public long countDepartmentGroups() {
+        return Person.groupBy((Person p) -> p.department.name)
+                .count();
+    }
+
+    @GET
+    @Path("/group/by-department/stats")
+    public List<DepartmentStatsDTO> getDepartmentStats() {
+        return Person.groupBy((Person p) -> p.department.name)
+                .select((Group<Person, String> g) -> new DepartmentStatsDTO(g.key(), g.count()))
+                .toList();
+    }
+
+    @GET
+    @Path("/group/by-department/stats-with-avg")
+    public List<DepartmentStatsDTO> getDepartmentStatsWithAvg() {
+        return Person.groupBy((Person p) -> p.department.name)
+                .select((Group<Person, String> g) -> new DepartmentStatsDTO(
+                        g.key(),
+                        g.count(),
+                        g.avg((Person p) -> p.salary)))
+                .toList();
+    }
+
+    @GET
+    @Path("/group/by-department/having-count-greater/{minCount}")
+    public List<String> getDepartmentsWithMinEmployees(@PathParam("minCount") long minCount) {
+        return Person.groupBy((Person p) -> p.department.name)
+                .having((Group<Person, String> g) -> g.count() >= minCount)
+                .toList();
+    }
+
+    @GET
+    @Path("/group/by-department/having-avg-salary-greater/{minSalary}")
+    public List<String> getDepartmentsWithHighAvgSalary(@PathParam("minSalary") double minSalary) {
+        return Person.groupBy((Person p) -> p.department.name)
+                .having((Group<Person, String> g) -> g.avg((Person p) -> p.salary) > minSalary)
+                .toList();
+    }
+
+    @GET
+    @Path("/group/by-department/sorted-by-key")
+    public List<String> getDepartmentsSortedByName() {
+        return Person.groupBy((Person p) -> p.department.name)
+                .sortedBy((Group<Person, String> g) -> g.key())
+                .toList();
+    }
+
+    @GET
+    @Path("/group/by-department/sorted-by-count-desc")
+    public List<DepartmentStatsDTO> getDepartmentsSortedByCountDesc() {
+        return Person.groupBy((Person p) -> p.department.name)
+                .sortedDescendingBy((Group<Person, String> g) -> g.count())
+                .select((Group<Person, String> g) -> new DepartmentStatsDTO(g.key(), g.count()))
+                .toList();
+    }
+
+    @GET
+    @Path("/group/by-department/limit/{limit}")
+    public List<String> getDepartmentsWithLimit(@PathParam("limit") int limit) {
+        return Person.groupBy((Person p) -> p.department.name)
+                .sortedBy((Group<Person, String> g) -> g.key())
+                .limit(limit)
+                .toList();
+    }
+
+    @GET
+    @Path("/group/active/by-department")
+    public List<String> getActiveDepartments() {
+        return Person.where((Person p) -> p.active)
+                .groupBy((Person p) -> p.department.name)
+                .toList();
+    }
+
+    @GET
+    @Path("/group/active/by-department/stats")
+    public List<DepartmentStatsDTO> getActiveDepartmentStats() {
+        return Person.where((Person p) -> p.active)
+                .groupBy((Person p) -> p.department.name)
+                .select((Group<Person, String> g) -> new DepartmentStatsDTO(g.key(), g.count()))
+                .toList();
     }
 }

@@ -23,7 +23,7 @@ class SubqueryExpressionBuilderErrorTest {
 
     @BeforeEach
     void setUp() {
-        builder = new SubqueryExpressionBuilder();
+        builder = SubqueryExpressionBuilder.INSTANCE;
     }
 
     @Nested

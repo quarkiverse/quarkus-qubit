@@ -16,6 +16,7 @@ import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Oper
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.NE;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.OR;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.SUB;
+import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_COMPARE_TO;
 
 /**
  * Detects bytecode patterns: dcmpl/fcmpl/lcmp, compareTo, arithmetic, arithmetic+constant.
@@ -25,42 +26,13 @@ public final class PatternDetector {
     private PatternDetector() {
     }
 
-    /**
-     * Enumeration of bytecode branch patterns detected during lambda analysis.
-     * Patterns are mutually exclusive and checked in priority order during detection.
-     */
+    /** Bytecode branch patterns, mutually exclusive and checked in priority order. */
     public enum BranchPattern {
-        /**
-         * Numeric comparison pattern: arithmetic comparison (ISUB/LSUB) or floating-point comparison (DCMPL/DCMPG).
-         * Examples: {@code (a - b) == 0}, {@code dcmpl(a, b) != 0}
-         */
-        NUMERIC_COMPARISON,
+        NUMERIC_COMPARISON, // (a - b) == 0 or dcmpl(a, b) != 0
+        COMPARE_TO,         // a.compareTo(b)
+        ARITHMETIC,         // (a + b) != 0
+        OTHER;              // Default (boolean field access, etc.)
 
-        /**
-         * CompareTo method call pattern.
-         * Example: {@code a.compareTo(b)}
-         */
-        COMPARE_TO,
-
-        /**
-         * Arithmetic expression pattern (ADD/SUB/MUL/DIV/MOD).
-         * Example: {@code (a + b) != 0}
-         */
-        ARITHMETIC,
-
-        /**
-         * Other patterns (boolean field access, etc.).
-         * This is the default when no other pattern matches.
-         */
-        OTHER;
-
-        /**
-         * Detects branch pattern with priority ordering.
-         * Patterns are checked from highest to lowest priority.
-         *
-         * @param stack expression stack to analyze
-         * @return detected pattern (never null)
-         */
         public static BranchPattern detect(Deque<LambdaExpression> stack) {
             if (stack.isEmpty()) {
                 return OTHER;
@@ -89,20 +61,8 @@ public final class PatternDetector {
         }
     }
 
-    /**
-     * Analysis result for branch instruction patterns.
-     * Immutable record containing the top stack expression and detected pattern type.
-     */
-    public record BranchPatternAnalysis(
-        LambdaExpression top,
-        BranchPattern pattern
-    ) {
-        /**
-         * Analyzes stack for bytecode patterns.
-         *
-         * @param stack expression stack to analyze
-         * @return analysis result with top expression and pattern type
-         */
+    /** Analysis result for branch instruction patterns. */
+    public record BranchPatternAnalysis(LambdaExpression top, BranchPattern pattern) {
         public static BranchPatternAnalysis analyze(Deque<LambdaExpression> stack) {
             // ArrayDeque.peek() returns null for empty deques, no need for isEmpty check
             return new BranchPatternAnalysis(
@@ -114,88 +74,17 @@ public final class PatternDetector {
 
     // ========== Binary Operation Category Detection ==========
 
-    /**
-     * Enumeration of binary operation categories for expression generation.
-     * <p>
-     * Categories are mutually exclusive and checked in priority order during detection.
-     * This enum reduces cyclomatic complexity in
-     * {@link io.quarkiverse.qubit.deployment.generation.CriteriaExpressionGenerator#generateBinaryOperation}
-     * by consolidating the pattern detection logic into a single categorization method.
-     * <p>
-     * <b>Design Rationale:</b>
-     * <ul>
-     *   <li>Enum provides exhaustive switch with compile-time safety</li>
-     *   <li>Single point of truth for pattern priority ordering</li>
-     *   <li>Categorization can be tested independently from handling</li>
-     *   <li>Follows established pattern from {@link BranchPattern}</li>
-     * </ul>
-     */
+    /** Binary operation categories, mutually exclusive and checked in priority order. */
     public enum BinaryOperationCategory {
-        /**
-         * String concatenation using ADD operator.
-         * Must be checked before arithmetic since both use ADD.
-         */
-        STRING_CONCATENATION,
+        STRING_CONCATENATION,           // ADD for strings (check before arithmetic)
+        ARITHMETIC,                     // ADD, SUB, MUL, DIV, MOD
+        LOGICAL,                        // AND, OR
+        NULL_CHECK,                     // == null or != null
+        BOOLEAN_FIELD_CONSTANT,         // bool field vs 0/1
+        BOOLEAN_FIELD_CAPTURED_VARIABLE,// bool field vs captured bool
+        COMPARE_TO_EQUALITY,            // a.compareTo(b) == 0
+        COMPARISON;                     // Default: EQ, NE, LT, LE, GT, GE
 
-        /**
-         * Arithmetic operations (ADD, SUB, MUL, DIV, MOD).
-         */
-        ARITHMETIC,
-
-        /**
-         * Logical operations (AND, OR).
-         * Combines predicates rather than expressions.
-         */
-        LOGICAL,
-
-        /**
-         * Null check pattern (== null or != null).
-         * Generates IS NULL or IS NOT NULL predicates.
-         */
-        NULL_CHECK,
-
-        /**
-         * Boolean field compared to constant 0 or 1.
-         * Generates isTrue() or isFalse() predicates.
-         */
-        BOOLEAN_FIELD_CONSTANT,
-
-        /**
-         * Boolean field compared to captured boolean variable.
-         * Generates equal() or notEqual() predicates.
-         */
-        BOOLEAN_FIELD_CAPTURED_VARIABLE,
-
-        /**
-         * CompareTo method result compared to zero.
-         * Example: {@code a.compareTo(b) == 0} → {@code cb.equal(a, b)}
-         */
-        COMPARE_TO_EQUALITY,
-
-        /**
-         * Standard comparison operation (EQ, NE, LT, LE, GT, GE).
-         * This is the default/fallthrough category.
-         */
-        COMPARISON;
-
-        /**
-         * Categorizes a binary operation by checking patterns in priority order.
-         * <p>
-         * The order of checks matters:
-         * <ol>
-         *   <li>String concatenation must be checked before arithmetic (both use ADD)</li>
-         *   <li>Arithmetic before logical (different operand types)</li>
-         *   <li>Null check before boolean comparisons (more specific)</li>
-         *   <li>Boolean field patterns before compareTo (more specific)</li>
-         *   <li>CompareTo equality before general comparison (more specific)</li>
-         *   <li>General comparison as fallthrough</li>
-         * </ol>
-         *
-         * @param binOp the binary operation to categorize
-         * @param isStringConcatenation predicate to detect string concatenation
-         *        (passed as parameter because it requires instance method from generator)
-         * @return the detected category (never null)
-         */
         public static BinaryOperationCategory categorize(
                 LambdaExpression.BinaryOp binOp,
                 Predicate<LambdaExpression.BinaryOp> isStringConcatenation) {
@@ -240,12 +129,7 @@ public final class PatternDetector {
         }
     }
 
-    /**
-     * Returns true if stack contains floating-point/long comparison pattern.
-     * <p>
-     * Extended to support GroupAggregation and GroupKeyReference
-     * for GROUP BY HAVING clause comparisons like {@code g.count() > 1}.
-     */
+    /** Returns true if stack contains floating-point/long comparison pattern (includes GROUP BY HAVING). */
     public static boolean isDcmplPattern(Deque<LambdaExpression> stack) {
         if (stack.size() < 2) {
             return false;
@@ -258,14 +142,8 @@ public final class PatternDetector {
         return topIsComparable && secondIsComparable;
     }
 
-    /**
-     * Returns true if expression is a comparable value (can be used in LCMP, DCMPL, etc.).
-     */
     private static boolean isComparableExpression(LambdaExpression expr) {
-        return expr instanceof LambdaExpression.FieldAccess ||
-               expr instanceof LambdaExpression.BiEntityFieldAccess ||
-               expr instanceof LambdaExpression.BiEntityPathExpression ||
-               expr instanceof LambdaExpression.PathExpression ||
+        return isEntityFieldExpression(expr) ||
                expr instanceof LambdaExpression.Constant ||
                expr instanceof LambdaExpression.CapturedVariable ||
                expr instanceof LambdaExpression.GroupAggregation ||
@@ -274,17 +152,19 @@ public final class PatternDetector {
                isArithmeticExpression(expr);
     }
 
-    /**
-     * Returns true if expression is compareTo method call.
-     */
+    /** Returns true if expression is entity field access (FieldAccess, PathExpression, BiEntity variants). */
+    public static boolean isEntityFieldExpression(LambdaExpression expr) {
+        return expr instanceof LambdaExpression.FieldAccess ||
+               expr instanceof LambdaExpression.PathExpression ||
+               expr instanceof LambdaExpression.BiEntityFieldAccess ||
+               expr instanceof LambdaExpression.BiEntityPathExpression;
+    }
+
     public static boolean isCompareToPattern(LambdaExpression expr) {
         return expr instanceof LambdaExpression.MethodCall methodCall &&
                methodCall.returnType() == int.class;
     }
 
-    /**
-     * Returns true if expression is arithmetic operation.
-     */
     public static boolean isArithmeticExpression(LambdaExpression expr) {
         return expr instanceof LambdaExpression.BinaryOp binOp &&
                (binOp.operator() == ADD ||
@@ -294,9 +174,6 @@ public final class PatternDetector {
                 binOp.operator() == MOD);
     }
 
-    /**
-     * Returns true if stack contains arithmetic comparison pattern.
-     */
     public static boolean isArithmeticComparisonPattern(Deque<LambdaExpression> stack) {
         if (stack.size() < 2) {
             return false;
@@ -308,23 +185,14 @@ public final class PatternDetector {
                isArithmeticExpression(second);
     }
 
-    /**
-     * Returns true if binary operation is a logical operation (AND or OR).
-     */
     public static boolean isLogicalOperation(LambdaExpression.BinaryOp binOp) {
         return binOp.operator() == AND || binOp.operator() == OR;
     }
 
-    /**
-     * Returns true if binary operation is an equality operation (EQ or NE).
-     */
     public static boolean isEqualityOperation(LambdaExpression.BinaryOp binOp) {
         return binOp.operator() == EQ || binOp.operator() == NE;
     }
 
-    /**
-     * Returns true if binary operation is a null check pattern (comparing with null literal).
-     */
     public static boolean isNullCheckPattern(LambdaExpression.BinaryOp binOp) {
         if (!isEqualityOperation(binOp)) {
             return false;
@@ -333,9 +201,6 @@ public final class PatternDetector {
                binOp.right() instanceof LambdaExpression.NullLiteral;
     }
 
-    /**
-     * Returns true if binary operation is comparing a boolean field with constant 0 or 1.
-     */
     public static boolean isBooleanFieldConstantComparison(LambdaExpression.BinaryOp binOp) {
         if (!isEqualityOperation(binOp)) {
             return false;
@@ -357,9 +222,6 @@ public final class PatternDetector {
                (constant.value().equals(0) || constant.value().equals(1));
     }
 
-    /**
-     * Returns true if binary operation is comparing a boolean field with a boolean captured variable.
-     */
     public static boolean isBooleanFieldCapturedVariableComparison(LambdaExpression.BinaryOp binOp) {
         if (!isEqualityOperation(binOp)) {
             return false;
@@ -380,9 +242,6 @@ public final class PatternDetector {
         return TypeConverter.isBooleanType(capturedVar.type());
     }
 
-    /**
-     * Returns true if binary operation is an equality check with a compareTo method call.
-     */
     public static boolean isCompareToEqualityPattern(LambdaExpression.BinaryOp binOp) {
         if (binOp.operator() != EQ) {
             return false;
@@ -392,7 +251,7 @@ public final class PatternDetector {
             return false;
         }
 
-        if (!methodCall.methodName().equals("compareTo")) {
+        if (!methodCall.methodName().equals(METHOD_COMPARE_TO)) {
             return false;
         }
 
@@ -401,12 +260,7 @@ public final class PatternDetector {
 
     // ========== Subquery Pattern Detection==========
 
-    /**
-     * Checks if an expression contains any subquery (scalar, exists, or in).
-     *
-     * @param expr the expression to check
-     * @return true if expression contains any type of subquery
-     */
+    /** Checks if expression contains any subquery (scalar, exists, or in). */
     public static boolean containsSubquery(LambdaExpression expr) {
         return switch (expr) {
             case LambdaExpression.ScalarSubquery ignored1 -> true;
@@ -418,16 +272,7 @@ public final class PatternDetector {
         };
     }
 
-    /**
-     * Checks if an expression contains a SCALAR subquery (one that returns a value).
-     * <p>
-     * Used specifically for comparison operations. Only scalar subqueries can be
-     * used as expressions in comparisons (e.g., p.salary > avg(...)). EXISTS and
-     * IN subqueries are predicates, not expressions.
-     *
-     * @param expr the expression to check
-     * @return true if expression contains a scalar subquery
-     */
+    /** Checks if expression contains a scalar subquery (usable in comparisons, unlike EXISTS/IN predicates). */
     public static boolean containsScalarSubquery(LambdaExpression expr) {
         return switch (expr) {
             case LambdaExpression.ScalarSubquery ignored -> true;
@@ -439,15 +284,7 @@ public final class PatternDetector {
         };
     }
 
-    /**
-     * Checks if a binary operation is comparing a subquery predicate to a boolean constant.
-     * <p>
-     * Detects patterns like {@code ExistsSubquery == true} or {@code ExistsSubquery == 1}
-     * which occur due to bytecode short-circuit evaluation patterns.
-     *
-     * @param binOp the binary operation to check
-     * @return true if comparing subquery predicate to boolean constant
-     */
+    /** Checks if comparing subquery to boolean constant (due to bytecode short-circuit patterns). */
     public static boolean isSubqueryBooleanComparison(LambdaExpression.BinaryOp binOp) {
         if (binOp.operator() != LambdaExpression.BinaryOp.Operator.EQ &&
             binOp.operator() != LambdaExpression.BinaryOp.Operator.NE) {
@@ -466,12 +303,7 @@ public final class PatternDetector {
         return false;
     }
 
-    /**
-     * Checks if expression is a boolean constant (true/false or 0/1).
-     *
-     * @param expr the expression to check
-     * @return true if expression is a boolean constant
-     */
+    /** Checks if expression is a boolean constant (true/false or 0/1). */
     public static boolean isBooleanConstant(LambdaExpression expr) {
         if (!(expr instanceof LambdaExpression.Constant constant)) {
             return false;
@@ -481,16 +313,7 @@ public final class PatternDetector {
                (value instanceof Integer && ((Integer) value == 0 || (Integer) value == 1));
     }
 
-    /**
-     * Checks if comparison should negate the subquery result.
-     * <p>
-     * Returns true for patterns like {@code subquery == false}, {@code subquery == 0},
-     * or {@code subquery != true}, {@code subquery != 1}.
-     *
-     * @param operator the comparison operator
-     * @param constantExpr the constant expression being compared to
-     * @return true if the comparison should negate the subquery result
-     */
+    /** Returns true if comparison should negate subquery (e.g., subquery == false). */
     public static boolean isNegatedSubqueryComparison(
             LambdaExpression.BinaryOp.Operator operator,
             LambdaExpression constantExpr) {

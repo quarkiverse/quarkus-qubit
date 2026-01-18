@@ -1,129 +1,112 @@
 package io.quarkiverse.qubit.deployment.generation.expression;
 
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_IS_NOT_NULL;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_IS_NULL;
+
 import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.ResultHandle;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable;
 
 /**
- * Interface for common expression generation methods shared between builders.
- *
- * <p>This interface defines the contract for methods that both BiEntityExpressionBuilder
- * and GroupExpressionBuilder need from CriteriaExpressionGenerator.
- *
- * <p>Extracted to avoid circular dependencies and enable clean delegation
- * from specialized builders back to the main generator.
- *
- * @see io.quarkiverse.qubit.deployment.generation.CriteriaExpressionGenerator
+ * Shared expression generation methods for BiEntityExpressionBuilder and GroupExpressionBuilder.
+ * Extracted to avoid circular dependencies with CriteriaExpressionGenerator.
  */
 public interface ExpressionGeneratorHelper {
 
-    /**
-     * Generates JPA field access expression.
-     *
-     * @param method the method creator for bytecode generation
-     * @param field the field access expression
-     * @param root the root entity handle
-     * @return the JPA Path handle
-     */
+    /** Generates JPA field access expression. */
     ResultHandle generateFieldAccess(MethodCreator method, LambdaExpression.FieldAccess field, ResultHandle root);
 
-    /**
-     * Generates JPA path expression for relationship navigation.
-     *
-     * @param method the method creator for bytecode generation
-     * @param pathExpr the path expression
-     * @param root the root entity handle
-     * @return the JPA Path handle
-     */
+    /** Generates JPA path expression for relationship navigation. */
     ResultHandle generatePathExpression(MethodCreator method, LambdaExpression.PathExpression pathExpr, ResultHandle root);
 
-    /**
-     * Generates constant value bytecode.
-     *
-     * @param method the method creator for bytecode generation
-     * @param constant the constant expression
-     * @return the constant value handle
-     */
+    /** Generates constant value bytecode. */
     ResultHandle generateConstant(MethodCreator method, LambdaExpression.Constant constant);
 
-    /**
-     * Wraps value as literal Expression using cb.literal().
-     *
-     * @param method the method creator for bytecode generation
-     * @param cb the CriteriaBuilder handle
-     * @param value the value to wrap
-     * @return the JPA Expression handle
-     */
+    /** Wraps value as literal Expression using cb.literal(). */
     ResultHandle wrapAsLiteral(MethodCreator method, ResultHandle cb, ResultHandle value);
 
-    /**
-     * Combines two predicates with AND or OR.
-     *
-     * @param method the method creator for bytecode generation
-     * @param cb the CriteriaBuilder handle
-     * @param left the left predicate
-     * @param right the right predicate
-     * @param operator the operator (AND or OR)
-     * @return the combined Predicate handle
-     */
+    /** Combines two predicates with AND or OR. */
     ResultHandle combinePredicates(MethodCreator method, ResultHandle cb, ResultHandle left, ResultHandle right,
             LambdaExpression.BinaryOp.Operator operator);
 
-    /**
-     * Generates comparison operation (EQ, NE, GT, GE, LT, LE).
-     *
-     * @param method the method creator for bytecode generation
-     * @param operator the comparison operator
-     * @param cb the CriteriaBuilder handle
-     * @param left the left expression
-     * @param right the right expression
-     * @return the Predicate handle
-     */
+    /** Generates comparison operation (EQ, NE, GT, GE, LT, LE). */
     ResultHandle generateComparisonOperation(MethodCreator method, LambdaExpression.BinaryOp.Operator operator,
             ResultHandle cb, ResultHandle left, ResultHandle right);
 
-    /**
-     * Generates arithmetic operation (ADD, SUB, MUL, DIV, MOD).
-     *
-     * @param method the method creator for bytecode generation
-     * @param operator the arithmetic operator
-     * @param cb the CriteriaBuilder handle
-     * @param left the left expression
-     * @param right the right expression
-     * @return the Expression handle
-     */
+    /** Generates arithmetic operation (ADD, SUB, MUL, DIV, MOD). */
     ResultHandle generateArithmeticOperation(MethodCreator method, LambdaExpression.BinaryOp.Operator operator,
             ResultHandle cb, ResultHandle left, ResultHandle right);
 
-    /**
-     * Checks if binary operation is string concatenation.
-     *
-     * @param binOp the binary operation
-     * @return true if this is a string concatenation
-     */
+    /** Checks if binary operation is string concatenation. */
     boolean isStringConcatenation(LambdaExpression.BinaryOp binOp);
 
-    /**
-     * Generates string concatenation using cb.concat().
-     *
-     * @param method the method creator for bytecode generation
-     * @param cb the CriteriaBuilder handle
-     * @param left the left expression
-     * @param right the right expression
-     * @return the Expression handle
-     */
+    /** Generates string concatenation using cb.concat(). */
     ResultHandle generateStringConcatenation(MethodCreator method, ResultHandle cb, ResultHandle left, ResultHandle right);
 
-    /**
-     * Generates JPA Expression from lambda expression.
-     *
-     * @param method the method creator for bytecode generation
-     * @param expression the lambda expression AST
-     * @param cb the CriteriaBuilder handle
-     * @param root the root entity handle
-     * @param capturedValues the captured variables array handle
-     * @return the JPA Expression handle, or null if the expression type is not supported
-     */
+    /** Generates JPA Expression from lambda expression. Returns null if unsupported. */
     ResultHandle generateExpressionAsJpaExpression(MethodCreator method, LambdaExpression expression,
             ResultHandle cb, ResultHandle root, ResultHandle capturedValues);
+
+    /**
+     * Generates bytecode for lambda expression, returning raw values or JPA expressions.
+     * Unlike generateExpressionAsJpaExpression, may return raw values (e.g., LIKE patterns).
+     */
+    ResultHandle generateExpression(MethodCreator method, LambdaExpression expression,
+            ResultHandle cb, ResultHandle root, ResultHandle capturedValues);
+
+    // ========== Captured Variable Utilities ==========
+
+    /** Loads captured variable from array and casts to appropriate type (raw, not JPA literal). */
+    ResultHandle loadCapturedValue(MethodCreator method, CapturedVariable capturedVar, ResultHandle capturedValues);
+
+    /** Loads captured variable and wraps as JPA literal expression. */
+    ResultHandle loadAndWrapCapturedValue(MethodCreator method, ResultHandle cb,
+            CapturedVariable capturedVar, ResultHandle capturedValues);
+
+    // ========== DTO Class Loading Utilities ==========
+
+    /** Loads DTO class by internal name ("com/example/MyDto" → Class.forName). */
+    ResultHandle loadDtoClass(MethodCreator method, String internalClassName);
+
+    // ========== Boolean Predicate Wrapping Utilities ==========
+
+    /** Wraps boolean-typed path as predicate using cb.isTrue() if type is boolean. */
+    ResultHandle wrapBooleanAsPredicateIfNeeded(MethodCreator method, ResultHandle cb, ResultHandle path, Class<?> type);
+
+    // ========== Correlated Variable Utilities ==========
+
+    /** Generates field expression from CorrelatedVariable (wraps FieldAccess or PathExpression). */
+    default ResultHandle generateCorrelatedFieldExpression(
+            MethodCreator method,
+            LambdaExpression.CorrelatedVariable correlated,
+            ResultHandle root) {
+        LambdaExpression fieldExpr = correlated.fieldExpression();
+        return switch (fieldExpr) {
+            case LambdaExpression.FieldAccess field -> generateFieldAccess(method, field, root);
+            case LambdaExpression.PathExpression path -> generatePathExpression(method, path, root);
+            default -> null;
+        };
+    }
+
+    // ========== Null Check Predicate Utilities ==========
+
+    /** Extracts non-null expression from null comparison (x == null or null != y). */
+    default LambdaExpression extractNonNullExpression(LambdaExpression.BinaryOp binOp) {
+        boolean leftIsNull = binOp.left() instanceof LambdaExpression.NullLiteral;
+        return leftIsNull ? binOp.right() : binOp.left();
+    }
+
+    /** Generates IS NULL (EQ) or IS NOT NULL (NE) predicate. */
+    default ResultHandle generateNullCheckPredicate(
+            MethodCreator method,
+            ResultHandle cb,
+            ResultHandle expression,
+            LambdaExpression.BinaryOp.Operator operator) {
+        if (operator == LambdaExpression.BinaryOp.Operator.EQ) {
+            return method.invokeInterfaceMethod(CB_IS_NULL, cb, expression);
+        } else {
+            return method.invokeInterfaceMethod(CB_IS_NOT_NULL, cb, expression);
+        }
+    }
 }

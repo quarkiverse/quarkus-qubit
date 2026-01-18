@@ -1,23 +1,32 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
-import static io.quarkiverse.qubit.deployment.analysis.CapturedVariableHelper.combinePredicatesWithAnd;
 import static io.quarkiverse.qubit.deployment.analysis.CapturedVariableHelper.countCapturedVariables;
 import static io.quarkiverse.qubit.deployment.analysis.CapturedVariableHelper.countCapturedVariablesInSortExpressions;
-import static io.quarkiverse.qubit.deployment.analysis.CapturedVariableHelper.renumberCapturedVariables;
+import static io.quarkiverse.qubit.deployment.analysis.CapturedVariableHelper.validateCapturedVariableIndices;
+import static io.quarkiverse.qubit.runtime.QubitConstants.HASH_CHARS_FOR_CLASS_NAME;
+import static io.quarkiverse.qubit.runtime.QubitConstants.HASH_CHARS_FOR_LOG;
+import static io.quarkiverse.qubit.runtime.QubitConstants.QUERY_TYPE_COMBINED;
+import static io.quarkiverse.qubit.runtime.QubitConstants.QUERY_TYPE_COUNT;
+import static io.quarkiverse.qubit.runtime.QubitConstants.QUERY_TYPE_LIST;
+import static io.quarkiverse.qubit.runtime.QubitConstants.QUERY_TYPE_PROJECTION;
 
 import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.builditem.ApplicationArchivesBuildItem;
 import io.quarkus.deployment.builditem.GeneratedClassBuildItem;
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.SortLambda;
+import io.quarkiverse.qubit.deployment.analysis.handler.QueryAnalysisContext;
+import io.quarkiverse.qubit.deployment.analysis.handler.QueryTypeHandler;
+import io.quarkiverse.qubit.deployment.analysis.handler.QueryTypeHandlerRegistry;
+import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator.DeduplicationContext;
+import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator.DeduplicationRequest;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.QubitBuildTimeConfig;
 import io.quarkiverse.qubit.deployment.QubitProcessor;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkiverse.qubit.deployment.generation.QueryExecutorClassGenerator;
 import io.quarkiverse.qubit.deployment.util.BytecodeLoader;
+import io.quarkiverse.qubit.deployment.util.DescriptorParser;
 import io.quarkus.logging.Log;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -77,157 +86,26 @@ public class CallSiteProcessor {
     }
 
     /**
-     * Analyzes lambda at call site and generates query executor class.
-     * <p>
-     * Supports combined where() + select() queries with both predicate and projection.
-     * Supports multiple where() predicates combined with AND.
+     * Processes a lambda call site using Strategy pattern via {@link QueryTypeHandler}.
+     * Returns explicit {@link AnalysisOutcome} (Success/UnsupportedPattern/AnalysisError).
      */
-    public void processCallSite(
+    public AnalysisOutcome processCallSiteWithHandlers(
             InvokeDynamicScanner.LambdaCallSite callSite,
             ApplicationArchivesBuildItem applicationArchives,
             AtomicInteger generatedCount,
             AtomicInteger deduplicatedCount,
             BuildProducer<GeneratedClassBuildItem> generatedClass,
             BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations,
-            QubitBuildTimeConfig.LoggingConfig loggingConfig) {
+            QubitBuildTimeConfig.LoggingConfig loggingConfig,
+            boolean failOnAnalysisError) {
+
+        // Load bytecode
+        byte[] classBytes;
         try {
-            LambdaAnalysis analysis = loadAndAnalyzeLambdas(callSite, applicationArchives, loggingConfig);
-            if (analysis == null) {
-                return;
-            }
-
-            if (checkAndHandleDuplicate(analysis, callSite, deduplicatedCount, queryTransformations, loggingConfig)) {
-                return;
-            }
-
-            // Compiler guarantees exhaustiveness - no default case needed
-            String executorClassName = switch (analysis.result()) {
-                case LambdaAnalysisResult.GroupQueryResult group -> generateAndRegisterGroupExecutor(
-                        group.predicateExpression(),
-                        group.groupByKeyExpression(),
-                        group.havingExpression(),
-                        group.groupSelectExpression(),
-                        group.groupSortExpressions(),
-                        analysis.lambdaHash(),
-                        analysis.callSiteId(),
-                        group.totalCapturedVarCount(),
-                        callSite.isCountQuery(),
-                        generatedClass,
-                        queryTransformations,
-                        loggingConfig);
-
-                case LambdaAnalysisResult.JoinQueryResult join -> generateAndRegisterJoinExecutor(
-                        join.joinRelationshipExpression(),
-                        join.biEntityPredicateExpression(),
-                        join.biEntityProjectionExpression(),
-                        join.sortExpressions(),
-                        join.joinType(),
-                        analysis.lambdaHash(),
-                        analysis.callSiteId(),
-                        join.totalCapturedVarCount(),
-                        callSite.isCountQuery(),
-                        callSite.isSelectJoinedQuery(),
-                        callSite.isJoinProjectionQuery(),
-                        generatedClass,
-                        queryTransformations,
-                        loggingConfig);
-
-                case LambdaAnalysisResult.AggregationQueryResult agg -> generateAndRegisterExecutor(
-                        agg.predicateExpression(),
-                        null,  // No projection for aggregations
-                        Collections.emptyList(),  // No sorting for aggregations
-                        agg.aggregationExpression(),
-                        agg.aggregationType(),
-                        callSite.isCountQuery(),
-                        true,  // isAggregationQuery
-                        analysis.lambdaHash(),
-                        analysis.callSiteId(),
-                        generatedClass,
-                        queryTransformations,
-                        loggingConfig);
-
-                case LambdaAnalysisResult.SimpleQueryResult simple -> generateAndRegisterExecutor(
-                        simple.predicateExpression(),
-                        simple.projectionExpression(),
-                        simple.sortExpressions(),
-                        null,  // No aggregation
-                        null,  // No aggregation type
-                        callSite.isCountQuery(),
-                        false,  // Not an aggregation query
-                        analysis.lambdaHash(),
-                        analysis.callSiteId(),
-                        generatedClass,
-                        queryTransformations,
-                        loggingConfig);
-            };
-
-            deduplicator.registerExecutor(analysis.lambdaHash(), executorClassName);
-            generatedCount.incrementAndGet();
-
-            if (loggingConfig.logGeneratedClasses()) {
-                Log.debugf("Generated executor: %s for call site %s (hash: %s)",
-                        executorClassName, analysis.callSiteId(), analysis.lambdaHash().substring(0, 8));
-            }
-
-        } catch (Exception e) {
-            Log.errorf(e, "Failed to process call site: %s", callSite);
-        }
-    }
-
-    /**
-     * Analyzes lambdas based on call site type (multiple predicates, combined, aggregation, join, group, or single).
-     */
-    private LambdaAnalysisResult analyzeLambdas(
-            byte[] classBytes,
-            InvokeDynamicScanner.LambdaCallSite callSite,
-            String callSiteId) {
-
-        // Handle aggregation queries first
-        if (callSite.isAggregationQuery()) {
-            return analyzeAggregationQuery(classBytes, callSite, callSiteId);
-        }
-
-        // Handle join queries
-        if (callSite.isJoinQuery()) {
-            return analyzeJoinQuery(classBytes, callSite, callSiteId);
-        }
-
-        // Handle group queries
-        if (callSite.isGroupByQuery()) {
-            return analyzeGroupQuery(classBytes, callSite, callSiteId);
-        }
-
-        var predicateLambdas = callSite.predicateLambdas();
-        boolean hasMultiplePredicates = predicateLambdas != null && predicateLambdas.size() > 1;
-
-        if (hasMultiplePredicates) {
-            return analyzeMultiplePredicates(classBytes, callSite, callSiteId);
-        }
-
-        if (callSite.isCombinedQuery()) {
-            return analyzeCombinedQuery(classBytes, callSite, callSiteId);
-        }
-
-        return analyzeSingleLambda(classBytes, callSite, callSiteId, callSite.isProjectionQuery());
-    }
-
-    /**
-     * Extracts the first part of processCallSite to reduce method size and improve clarity.
-     *
-     * @param callSite The lambda call site to process
-     * @param applicationArchives Application archives for bytecode loading
-     * @param loggingConfig Logging configuration
-     * @return LambdaAnalysis containing result, callSiteId, and hash; null if loading/analysis fails
-     */
-    private LambdaAnalysis loadAndAnalyzeLambdas(
-            InvokeDynamicScanner.LambdaCallSite callSite,
-            ApplicationArchivesBuildItem applicationArchives,
-            QubitBuildTimeConfig.LoggingConfig loggingConfig) {
-
-        byte[] classBytes = BytecodeLoader.loadClassBytecode(callSite.ownerClassName(), applicationArchives);
-        if (classBytes == null) {
-            Log.warnf("Could not load bytecode for class: %s", callSite.ownerClassName());
-            return null;
+            classBytes = BytecodeLoader.loadClassBytecode(callSite.ownerClassName(), applicationArchives);
+        } catch (AnalysisException e) {
+            Log.warnf("Could not load bytecode for class: %s - %s", callSite.ownerClassName(), e.getMessage());
+            return AnalysisOutcome.unsupported(e.getMessage(), callSite.getCallSiteId());
         }
 
         String callSiteId = callSite.getCallSiteId();
@@ -236,30 +114,136 @@ public class CallSiteProcessor {
             Log.debugf("Qubit: Analyzing bytecode for call site: %s", callSiteId);
         }
 
-        LambdaAnalysisResult result = analyzeLambdas(classBytes, callSite, callSiteId);
-        if (result == null) {
-            return null;
+        // Get handler for this query type
+        QueryTypeHandlerRegistry registry = QueryTypeHandlerRegistry.getDefault();
+        QueryTypeHandler handler = registry.handlerFor(callSite);
+
+        if (loggingConfig.logBytecodeAnalysis()) {
+            Log.debugf("Using %s handler for call site: %s", handler.queryTypeName(), callSiteId);
         }
 
-        if (result.totalCapturedVarCount() > 0) {
-            Log.debugf("Lambda(s) at %s contain %d captured variable(s)",
-                      callSiteId, result.totalCapturedVarCount());
-        }
+        // Create analysis context with shared deduplicator
+        QueryAnalysisContext context = QueryAnalysisContext.of(classBytes, callSite, bytecodeAnalyzer, deduplicator);
 
-        String lambdaHash = computeHash(callSite, result);
-        return new LambdaAnalysis(result, callSiteId, lambdaHash);
+        // Analyze using the handler
+        AnalysisOutcome outcome = handler.analyze(context);
+
+        // Handle the outcome
+        return switch (outcome) {
+            case AnalysisOutcome.Success success -> {
+                // Check for deduplication first
+                LambdaAnalysis analysis = new LambdaAnalysis(
+                        success.result(), success.callSiteId(), success.lambdaHash());
+
+                if (checkAndHandleDuplicate(analysis, callSite, deduplicatedCount, queryTransformations, loggingConfig)) {
+                    yield success;  // Deduplicated, no generation needed
+                }
+
+                // Generate executor (delegate to existing generation logic)
+                try {
+                    generateExecutorFromResult(success.result(), success.lambdaHash(), callSite,
+                            generatedClass, queryTransformations, loggingConfig);
+
+                    deduplicator.registerExecutor(success.lambdaHash(),
+                            targetPackage + "." + classNamePrefix + success.lambdaHash().substring(0, HASH_CHARS_FOR_CLASS_NAME));
+                    generatedCount.incrementAndGet();
+
+                    if (loggingConfig.logGeneratedClasses()) {
+                        Log.debugf("Generated executor for call site %s (hash: %s)",
+                                success.callSiteId(), success.lambdaHash().substring(0, HASH_CHARS_FOR_LOG));
+                    }
+                } catch (Exception e) {
+                    Log.errorf(e, "Failed to generate executor for call site: %s", callSiteId);
+                    yield AnalysisOutcome.error(e, callSiteId);
+                }
+
+                yield success;
+            }
+
+            case AnalysisOutcome.UnsupportedPattern unsupported -> {
+                Log.debugf("Skipping unsupported pattern at %s: %s",
+                        unsupported.callSiteId(), unsupported.reason());
+                yield unsupported;
+            }
+
+            case AnalysisOutcome.AnalysisError error -> {
+                if (failOnAnalysisError) {
+                    throw new RuntimeException(error.formattedMessage(), error.cause());
+                }
+                Log.errorf(error.cause(), "Analysis error at %s: %s",
+                        error.callSiteId(), error.context());
+                yield error;
+            }
+        };
     }
 
     /**
-     * Extracts the deduplication check from processCallSite to reduce method size.
-     *
-     * @param analysis The lambda analysis containing result and hash
-     * @param callSite The original call site for query type detection
-     * @param deduplicatedCount Counter to increment on successful deduplication
-     * @param queryTransformations Build producer for query transformations
-     * @param loggingConfig Logging configuration
-     * @return true if this was a duplicate (already handled), false if new executor needed
+     * Generates executor from analysis result using existing generation logic.
      */
+    private void generateExecutorFromResult(
+            LambdaAnalysisResult result,
+            String lambdaHash,
+            InvokeDynamicScanner.LambdaCallSite callSite,
+            BuildProducer<GeneratedClassBuildItem> generatedClass,
+            BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations,
+            QubitBuildTimeConfig.LoggingConfig loggingConfig) {
+
+        String callSiteId = callSite.getCallSiteId();
+
+        // Delegate to generation methods based on result type
+        switch (result) {
+            case LambdaAnalysisResult.GroupQueryResult group -> {
+                ExecutorRegistrationContext ctx = new ExecutorRegistrationContext(
+                        lambdaHash, callSiteId,
+                        DescriptorParser.getEntityClassName(callSite.groupByLambdaDescriptor()),
+                        callSite.targetMethodName(),
+                        callSite.isCountQuery(), callSite.hasDistinct(),
+                        callSite.skipValue(), callSite.limitValue(),
+                        generatedClass, queryTransformations, loggingConfig);
+                generateAndRegisterGroupExecutor(group, callSite, ctx);
+            }
+
+            case LambdaAnalysisResult.JoinQueryResult join -> {
+                ExecutorRegistrationContext ctx = new ExecutorRegistrationContext(
+                        lambdaHash, callSiteId,
+                        DescriptorParser.getEntityClassName(callSite.joinRelationshipLambdaDescriptor()),
+                        callSite.targetMethodName(),
+                        callSite.isCountQuery(), callSite.hasDistinct(),
+                        callSite.skipValue(), callSite.limitValue(),
+                        generatedClass, queryTransformations, loggingConfig);
+                generateAndRegisterJoinExecutor(join, callSite.isSelectJoinedQuery(),
+                        callSite.isJoinProjectionQuery(), ctx);
+            }
+
+            case LambdaAnalysisResult.AggregationQueryResult agg -> {
+                ExecutorRegistrationContext ctx = new ExecutorRegistrationContext(
+                        lambdaHash, callSiteId,
+                        DescriptorParser.getEntityClassName(callSite.lambdaMethodDescriptor()),
+                        callSite.targetMethodName(),
+                        callSite.isCountQuery(), callSite.hasDistinct(),
+                        callSite.skipValue(), callSite.limitValue(),
+                        generatedClass, queryTransformations, loggingConfig);
+                generateAndRegisterSimpleExecutor(agg.predicateExpression(), null,
+                        Collections.emptyList(), agg.aggregationExpression(), agg.aggregationType(),
+                        true, ctx);
+            }
+
+            case LambdaAnalysisResult.SimpleQueryResult simple -> {
+                ExecutorRegistrationContext ctx = new ExecutorRegistrationContext(
+                        lambdaHash, callSiteId,
+                        DescriptorParser.getEntityClassName(callSite.lambdaMethodDescriptor()),
+                        callSite.targetMethodName(),
+                        callSite.isCountQuery(), callSite.hasDistinct(),
+                        callSite.skipValue(), callSite.limitValue(),
+                        generatedClass, queryTransformations, loggingConfig);
+                generateAndRegisterSimpleExecutor(simple.predicateExpression(),
+                        simple.projectionExpression(), simple.sortExpressions(),
+                        null, null, false, ctx);
+            }
+        }
+    }
+
+    /** Returns true if lambda was deduplicated (existing executor reused). */
     private boolean checkAndHandleDuplicate(
             LambdaAnalysis analysis,
             InvokeDynamicScanner.LambdaCallSite callSite,
@@ -270,116 +254,118 @@ public class CallSiteProcessor {
         boolean isGroupQuery = analysis.result() instanceof LambdaAnalysisResult.GroupQueryResult;
 
         QueryCharacteristics characteristics = QueryCharacteristics.fromCallSite(callSite, isGroupQuery);
-        return deduplicator.handleDuplicateLambda(
+
+        // Extract entity class name and expressions from the analysis result for DevUI display
+        String entityClassName = extractEntityClassName(callSite, analysis.result());
+        LambdaExpression predicateExpr = extractPredicateExpression(analysis.result());
+        LambdaExpression projectionExpr = extractProjectionExpression(analysis.result());
+
+        // Extract sort expression for DevUI display (first sort expression if any)
+        List<SortExpression> sortExprs = extractSortExpressions(analysis.result());
+        SortDisplayInfo sortInfo = extractSortDisplayInfo(sortExprs);
+
+        // Use parameter objects for cleaner method invocation
+        DeduplicationRequest request = new DeduplicationRequest(
                 analysis.callSiteId(),
                 analysis.lambdaHash(),
                 characteristics,
                 analysis.result().totalCapturedVarCount(),
+                entityClassName,
+                predicateExpr,
+                projectionExpr,
+                sortInfo.sortKey(),
+                callSite.targetMethodName(),
+                sortInfo.descending());
+
+        DeduplicationContext context = new DeduplicationContext(
                 deduplicatedCount,
                 queryTransformations,
                 loggingConfig.logDeduplication());
+
+        return deduplicator.handleDuplicateLambda(request, context);
     }
 
     /**
-     * Computes deduplication hash based on query type.
-     * Handles sorting-only queries and includes sort expressions in hash.
-     * Handles aggregation queries with optional WHERE predicates.
-     * Handles join queries with optional bi-entity predicates.
-     * Handles group queries with groupBy, having, select, and sort.
+     * Extracts the entity class name from the call site based on query type.
      */
-    private String computeHash(InvokeDynamicScanner.LambdaCallSite callSite, LambdaAnalysisResult result) {
+    private String extractEntityClassName(InvokeDynamicScanner.LambdaCallSite callSite, LambdaAnalysisResult result) {
         return switch (result) {
-            case LambdaAnalysisResult.GroupQueryResult group -> deduplicator.computeGroupHash(
-                    group.predicateExpression(),
-                    group.groupByKeyExpression(),
-                    group.havingExpression(),
-                    group.groupSelectExpression(),
-                    group.groupSortExpressions(),
-                    callSite.isCountQuery());
-
-            case LambdaAnalysisResult.JoinQueryResult join -> {
-                String joinTypeStr = join.joinType().name();  // INNER or LEFT
-                yield deduplicator.computeJoinHash(
-                        join.joinRelationshipExpression(),
-                        join.biEntityPredicateExpression(),
-                        join.biEntityProjectionExpression(),
-                        join.sortExpressions(),
-                        joinTypeStr,
-                        callSite.isCountQuery(),
-                        callSite.isSelectJoinedQuery(),
-                        callSite.isJoinProjectionQuery());
-            }
-
-            case LambdaAnalysisResult.AggregationQueryResult agg -> deduplicator.computeAggregationHash(
-                    agg.predicateExpression(),
-                    agg.aggregationExpression(),
-                    agg.aggregationType());
-
-            case LambdaAnalysisResult.SimpleQueryResult simple -> computeSimpleQueryHash(callSite, simple);
+            case LambdaAnalysisResult.GroupQueryResult ignored ->
+                    DescriptorParser.getEntityClassName(callSite.groupByLambdaDescriptor());
+            case LambdaAnalysisResult.JoinQueryResult ignored ->
+                    DescriptorParser.getEntityClassName(callSite.joinRelationshipLambdaDescriptor());
+            case LambdaAnalysisResult.AggregationQueryResult ignored ->
+                    DescriptorParser.getEntityClassName(getEntityDescriptor(callSite));
+            case LambdaAnalysisResult.SimpleQueryResult ignored ->
+                    DescriptorParser.getEntityClassName(getEntityDescriptor(callSite));
         };
     }
 
     /**
-     * Computes hash for simple queries (WHERE, SELECT, combined, sorting-only).
+     * Gets the best available descriptor for entity class extraction.
+     * Prefers predicate/projection descriptor, falls back to sort lambda descriptor.
      */
-    private String computeSimpleQueryHash(InvokeDynamicScanner.LambdaCallSite callSite,
-                                          LambdaAnalysisResult.SimpleQueryResult simple) {
-        boolean hasSorting = simple.sortExpressions() != null && !simple.sortExpressions().isEmpty();
-
-        if (callSite.isCombinedQuery()) {
-            if (hasSorting) {
-                return deduplicator.computeFullQueryHash(
-                        simple.predicateExpression(),
-                        simple.projectionExpression(),
-                        simple.sortExpressions(),
-                        callSite.isCountQuery());
-            }
-            return deduplicator.computeCombinedHash(
-                    simple.predicateExpression(),
-                    simple.projectionExpression(),
-                    callSite.isCountQuery());
+    private String getEntityDescriptor(InvokeDynamicScanner.LambdaCallSite callSite) {
+        // Try primary lambda descriptor first
+        if (callSite.lambdaMethodDescriptor() != null) {
+            return callSite.lambdaMethodDescriptor();
         }
-
-        // For sorting-only queries, compute hash from sort expressions
-        if (simple.predicateExpression() == null && simple.projectionExpression() == null && hasSorting) {
-            return deduplicator.computeSortingHash(simple.sortExpressions());
+        // Fall back to first sort lambda descriptor if available
+        var sortLambdas = callSite.sortLambdas();
+        if (sortLambdas != null && !sortLambdas.isEmpty()) {
+            return sortLambdas.get(0).descriptor();
         }
-
-        // Regular WHERE or SELECT query (possibly with sorting)
-        LambdaExpression expr = simple.predicateExpression() != null
-                ? simple.predicateExpression()
-                : simple.projectionExpression();
-
-        if (hasSorting) {
-            return deduplicator.computeQueryWithSortingHash(expr, simple.sortExpressions(),
-                    callSite.isCountQuery(), callSite.isProjectionQuery());
-        }
-
-        return deduplicator.computeLambdaHash(expr, callSite.isCountQuery(), callSite.isProjectionQuery());
+        // Final fallback
+        return null;
     }
 
     /**
-     * Generates executor class and registers it.
-     * Accepts both predicate and projection expressions.
-     * Accepts sort expressions for ORDER BY generation.
-     * Accepts aggregation expression and type for aggregation queries.
-     *
-     * @param lambdaHash MD5 hash of the lambda expression (used for deterministic class naming)
-     * @param loggingConfig Logging configuration
+     * Extracts the predicate expression from the analysis result.
      */
-    private String generateAndRegisterExecutor(
+    private LambdaExpression extractPredicateExpression(LambdaAnalysisResult result) {
+        return switch (result) {
+            case LambdaAnalysisResult.GroupQueryResult group -> group.predicateExpression();
+            case LambdaAnalysisResult.JoinQueryResult join -> join.biEntityPredicateExpression();
+            case LambdaAnalysisResult.AggregationQueryResult agg -> agg.predicateExpression();
+            case LambdaAnalysisResult.SimpleQueryResult simple -> simple.predicateExpression();
+        };
+    }
+
+    /**
+     * Extracts the projection expression from the analysis result.
+     * Returns null for sorting-only queries (sort is displayed separately in DevUI).
+     */
+    private LambdaExpression extractProjectionExpression(LambdaAnalysisResult result) {
+        return switch (result) {
+            case LambdaAnalysisResult.GroupQueryResult group -> group.groupSelectExpression();
+            case LambdaAnalysisResult.JoinQueryResult join -> join.biEntityProjectionExpression();
+            case LambdaAnalysisResult.AggregationQueryResult agg -> agg.aggregationExpression();
+            case LambdaAnalysisResult.SimpleQueryResult simple -> simple.projectionExpression();
+        };
+    }
+
+    /**
+     * Extracts the sort expressions from the analysis result.
+     * Returns null for queries without sorting.
+     */
+    private List<SortExpression> extractSortExpressions(LambdaAnalysisResult result) {
+        return switch (result) {
+            case LambdaAnalysisResult.GroupQueryResult group -> group.groupSortExpressions();
+            case LambdaAnalysisResult.JoinQueryResult join -> join.sortExpressions();
+            case LambdaAnalysisResult.AggregationQueryResult ignored -> null;
+            case LambdaAnalysisResult.SimpleQueryResult simple -> simple.sortExpressions();
+        };
+    }
+
+    /** Generates and registers executor with predicate, projection, sort, and aggregation expressions. */
+    private String generateAndRegisterSimpleExecutor(
             LambdaExpression predicateExpression,
             LambdaExpression projectionExpression,
             List<SortExpression> sortExpressions,
             LambdaExpression aggregationExpression,
             String aggregationType,
-            boolean isCountQuery,
             boolean isAggregationQuery,
-            String lambdaHash,
-            String queryId,
-            BuildProducer<GeneratedClassBuildItem> generatedClass,
-            BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations,
-            QubitBuildTimeConfig.LoggingConfig loggingConfig) {
+            ExecutorRegistrationContext ctx) {
 
         // Count captured variables from all expressions
         int capturedVarCount = 0;
@@ -394,198 +380,204 @@ public class CallSiteProcessor {
             capturedVarCount += countCapturedVariables(aggregationExpression);
         }
 
-        // 16 hex chars = 64 bits of entropy, effectively collision-free
-        String className = targetPackage + "." + classNamePrefix + lambdaHash.substring(0, 16);
+        // Build-time validation: ensure all CapturedVariable indices are within bounds
+        validateCapturedVariableIndices(capturedVarCount,
+                predicateExpression, projectionExpression, aggregationExpression);
+
+        String className = ctx.generateClassName(targetPackage, classNamePrefix);
 
         byte[] bytecode = classGenerator.generateQueryExecutorClass(
-                predicateExpression,
-                projectionExpression,
-                sortExpressions,
-                aggregationExpression,
-                aggregationType,
-                className,
-                isCountQuery,
-                isAggregationQuery);
+                predicateExpression, projectionExpression, sortExpressions,
+                aggregationExpression, aggregationType, className,
+                ctx.isCountQuery(), isAggregationQuery);
 
-        generatedClass.produce(new GeneratedClassBuildItem(true, className, bytecode));
-        queryTransformations.produce(
-                new QubitProcessor.QueryTransformationBuildItem(queryId, className, Object.class, isCountQuery, isAggregationQuery, capturedVarCount));
+        ctx.generatedClass().produce(new GeneratedClassBuildItem(true, className, bytecode));
 
-        if (loggingConfig.logGeneratedClasses()) {
+        // Extract first sort expression for DevUI display
+        SortDisplayInfo sortInfo = extractSortDisplayInfo(sortExpressions);
+
+        QueryCharacteristics characteristics = new QueryCharacteristics(
+                ctx.isCountQuery(), isAggregationQuery, false, false, false, false);
+        ctx.queryTransformations().produce(
+                QubitProcessor.QueryTransformationBuildItem.builder()
+                        .queryId(ctx.queryId())
+                        .generatedClassName(className)
+                        .entityClassName(ctx.entityClassName())
+                        .characteristics(characteristics)
+                        .capturedVarCount(capturedVarCount)
+                        .predicateExpression(predicateExpression)
+                        .projectionExpression(projectionExpression)
+                        .sortExpression(sortInfo.sortKey())
+                        .aggregationExpression(aggregationExpression)
+                        .terminalMethodName(ctx.terminalMethodName())
+                        .hasDistinct(ctx.hasDistinct())
+                        .sortDescending(sortInfo.descending())
+                        .aggregationType(aggregationType)
+                        .skipValue(ctx.skipValue())
+                        .limitValue(ctx.limitValue())
+                        .build());
+
+        if (ctx.loggingConfig().logGeneratedClasses()) {
             String queryTypeDesc = getQueryTypeDescription(predicateExpression, projectionExpression, sortExpressions,
-                                                           aggregationExpression, aggregationType, isCountQuery, isAggregationQuery);
+                    aggregationExpression, aggregationType, ctx.isCountQuery(), isAggregationQuery);
             Log.debugf("Generated query executor: %s (%s, %d captured vars)",
-                       className, queryTypeDesc, capturedVarCount);
+                    className, queryTypeDesc, capturedVarCount);
         }
 
         return className;
     }
 
-    /**
-     * Generates and registers a JOIN query executor class.
-     *
-     * @param joinRelationshipExpression Lambda for the join relationship (e.g., p -> p.phones)
-     * @param biEntityPredicateExpression Lambda for bi-entity predicate (e.g., (p, ph) -> ph.type.equals("mobile"))
-     * @param biEntityProjectionExpression BiQuerySpec SELECT projection (e.g., (p, ph) -> new DTO(...))
-     * @param sortExpressions List of sort expressions for ORDER BY
-     * @param joinType The type of join (INNER or LEFT)
-     * @param lambdaHash MD5 hash of the lambda expression (used for deterministic class naming)
-     * @param queryId Unique identifier for the query
-     * @param capturedVarCount Number of captured variables
-     * @param isCountQuery True if this is a count query (JoinStream.count())
-     * @param isSelectJoined True if selectJoined() was called (returns joined entities)
-     * @param isJoinProjection True if select() with BiQuerySpec was called
-     * @param generatedClass Build producer for generated classes
-     * @param queryTransformations Build producer for query transformations
-     * @param loggingConfig Logging configuration
-     * @return The generated class name
-     */
+    /** Generates and registers JOIN query executor. */
     private String generateAndRegisterJoinExecutor(
-            LambdaExpression joinRelationshipExpression,
-            LambdaExpression biEntityPredicateExpression,
-            LambdaExpression biEntityProjectionExpression,
-            List<SortExpression> sortExpressions,
-            InvokeDynamicScanner.JoinType joinType,
-            String lambdaHash,
-            String queryId,
-            int capturedVarCount,
-            boolean isCountQuery,
+            LambdaAnalysisResult.JoinQueryResult join,
             boolean isSelectJoined,
             boolean isJoinProjection,
-            BuildProducer<GeneratedClassBuildItem> generatedClass,
-            BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations,
-            QubitBuildTimeConfig.LoggingConfig loggingConfig) {
+            ExecutorRegistrationContext ctx) {
 
-        String className = targetPackage + "." + classNamePrefix + lambdaHash.substring(0, 16);
+        int capturedVarCount = join.totalCapturedVarCount();
+
+        // Build-time validation: ensure all CapturedVariable indices are within bounds
+        validateCapturedVariableIndices(capturedVarCount,
+                join.joinRelationshipExpression(), join.biEntityPredicateExpression(),
+                join.biEntityProjectionExpression());
+
+        String className = ctx.generateClassName(targetPackage, classNamePrefix);
 
         byte[] bytecode = classGenerator.generateJoinQueryExecutorClass(
-                joinRelationshipExpression,
-                biEntityPredicateExpression,
-                biEntityProjectionExpression,
-                sortExpressions,
-                joinType,
+                join.joinRelationshipExpression(),
+                join.biEntityPredicateExpression(),
+                join.biEntityProjectionExpression(),
+                join.sortExpressions(),
+                join.joinType(),
                 className,
-                isCountQuery,
+                ctx.isCountQuery(),
                 isSelectJoined,
                 isJoinProjection);
 
-        generatedClass.produce(new GeneratedClassBuildItem(true, className, bytecode));
-        // Create join query build item with isJoinQuery=true
-        // Create selectJoined query build item if isSelectJoined is true
-        // Create join projection query build item if isJoinProjection is true
-        QueryCharacteristics joinCharacteristics = new QueryCharacteristics(
-                isCountQuery, false, true, isSelectJoined, isJoinProjection, false);
-        queryTransformations.produce(
-                new QubitProcessor.QueryTransformationBuildItem(queryId, className, Object.class, joinCharacteristics, capturedVarCount));
+        ctx.generatedClass().produce(new GeneratedClassBuildItem(true, className, bytecode));
 
-        if (loggingConfig.logGeneratedClasses()) {
-            String joinTypeDesc = (joinType == InvokeDynamicScanner.JoinType.LEFT) ? "LEFT JOIN" : "INNER JOIN";
-            String queryTypeDesc = isCountQuery ? joinTypeDesc + " COUNT" :
+        // Extract first sort expression for DevUI display
+        SortDisplayInfo sortInfo = extractSortDisplayInfo(join.sortExpressions());
+
+        QueryCharacteristics joinCharacteristics = new QueryCharacteristics(
+                ctx.isCountQuery(), false, true, isSelectJoined, isJoinProjection, false);
+        ctx.queryTransformations().produce(
+                QubitProcessor.QueryTransformationBuildItem.builder()
+                        .queryId(ctx.queryId())
+                        .generatedClassName(className)
+                        .entityClassName(ctx.entityClassName())
+                        .characteristics(joinCharacteristics)
+                        .capturedVarCount(capturedVarCount)
+                        .predicateExpression(join.biEntityPredicateExpression())
+                        .projectionExpression(join.biEntityProjectionExpression())
+                        .sortExpression(sortInfo.sortKey())
+                        .joinRelationshipExpression(join.joinRelationshipExpression())
+                        .terminalMethodName(ctx.terminalMethodName())
+                        .hasDistinct(ctx.hasDistinct())
+                        .sortDescending(sortInfo.descending())
+                        .skipValue(ctx.skipValue())
+                        .limitValue(ctx.limitValue())
+                        .build());
+
+        if (ctx.loggingConfig().logGeneratedClasses()) {
+            String joinTypeDesc = (join.joinType() == InvokeDynamicScanner.JoinType.LEFT)
+                    ? "LEFT JOIN" : "INNER JOIN";
+            String queryTypeDesc = ctx.isCountQuery() ? joinTypeDesc + " COUNT" :
                     (isJoinProjection ? joinTypeDesc + " PROJECTION" :
                     (isSelectJoined ? joinTypeDesc + " SELECT JOINED" : joinTypeDesc));
             Log.debugf("Generated join query executor: %s (%s, %d captured vars)",
-                       className, queryTypeDesc, capturedVarCount);
+                    className, queryTypeDesc, capturedVarCount);
         }
 
         return className;
     }
 
-    /**
-     * Generates and registers a GROUP BY query executor class.
-     * <p>
-     * Creates a query executor that performs JPA GROUP BY operations with optional
-     * HAVING clause, aggregations, and sorting.
-     *
-     * @param predicateExpression Pre-grouping WHERE clause (null if no filtering)
-     * @param groupByKeyExpression groupBy() key extractor lambda (e.g., p -> p.department)
-     * @param havingExpression having() predicate (null if no having)
-     * @param groupSelectExpression select() projection in group context (null if no select)
-     * @param groupSortExpressions sortedBy() in group context (null or empty if no sorting)
-     * @param lambdaHash MD5 hash of the lambda expression (used for deterministic class naming)
-     * @param queryId Unique identifier for the query
-     * @param capturedVarCount Number of captured variables
-     * @param isCountQuery True if this is a count query (GroupStream.count())
-     * @param generatedClass Build producer for generated classes
-     * @param queryTransformations Build producer for query transformations
-     * @param loggingConfig Logging configuration
-     * @return The generated class name
-     */
+    /** Generates and registers GROUP BY query executor with HAVING, aggregations, and sorting. */
     private String generateAndRegisterGroupExecutor(
-            LambdaExpression predicateExpression,
-            LambdaExpression groupByKeyExpression,
-            LambdaExpression havingExpression,
-            LambdaExpression groupSelectExpression,
-            List<SortExpression> groupSortExpressions,
-            String lambdaHash,
-            String queryId,
-            int capturedVarCount,
-            boolean isCountQuery,
-            BuildProducer<GeneratedClassBuildItem> generatedClass,
-            BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations,
-            QubitBuildTimeConfig.LoggingConfig loggingConfig) {
+            LambdaAnalysisResult.GroupQueryResult group,
+            InvokeDynamicScanner.LambdaCallSite callSite,
+            ExecutorRegistrationContext ctx) {
 
-        String className = targetPackage + "." + classNamePrefix + lambdaHash.substring(0, 16);
+        int capturedVarCount = group.totalCapturedVarCount();
+
+        // Build-time validation: ensure all CapturedVariable indices are within bounds
+        validateCapturedVariableIndices(capturedVarCount,
+                group.predicateExpression(), group.groupByKeyExpression(),
+                group.havingExpression(), group.groupSelectExpression());
+
+        String className = ctx.generateClassName(targetPackage, classNamePrefix);
 
         byte[] bytecode = classGenerator.generateGroupQueryExecutorClass(
-                predicateExpression,
-                groupByKeyExpression,
-                havingExpression,
-                groupSelectExpression,
-                groupSortExpressions,
+                group.predicateExpression(),
+                group.groupByKeyExpression(),
+                group.havingExpression(),
+                group.groupSelectExpression(),
+                group.groupSortExpressions(),
                 className,
-                isCountQuery);
+                ctx.isCountQuery());
 
-        generatedClass.produce(new GeneratedClassBuildItem(true, className, bytecode));
-        // Create group query build item with isGroupQuery=true
-        QueryCharacteristics groupCharacteristics = isCountQuery
+        ctx.generatedClass().produce(new GeneratedClassBuildItem(true, className, bytecode));
+
+        // Extract first sort expression for DevUI display
+        SortDisplayInfo sortInfo = extractSortDisplayInfo(group.groupSortExpressions());
+
+        QueryCharacteristics groupCharacteristics = ctx.isCountQuery()
                 ? QueryCharacteristics.forGroupCount()
                 : QueryCharacteristics.forGroupList();
-        queryTransformations.produce(
-                new QubitProcessor.QueryTransformationBuildItem(queryId, className, Object.class, groupCharacteristics, capturedVarCount));
 
-        if (loggingConfig.logGeneratedClasses()) {
-            String queryTypeDesc = isCountQuery ? "GROUP BY COUNT" : "GROUP BY";
-            if (havingExpression != null) {
+        // Use the explicit isGroupSelectKey flag from the scanner instead of heuristic
+        boolean isSelectKey = callSite.isGroupSelectKey();
+
+        ctx.queryTransformations().produce(
+                QubitProcessor.QueryTransformationBuildItem.builder()
+                        .queryId(ctx.queryId())
+                        .generatedClassName(className)
+                        .entityClassName(ctx.entityClassName())
+                        .characteristics(groupCharacteristics)
+                        .capturedVarCount(capturedVarCount)
+                        .predicateExpression(group.predicateExpression())
+                        .projectionExpression(group.groupSelectExpression())
+                        .sortExpression(sortInfo.sortKey())
+                        .groupByKeyExpression(group.groupByKeyExpression())
+                        .havingExpression(group.havingExpression())
+                        .terminalMethodName(ctx.terminalMethodName())
+                        .hasDistinct(ctx.hasDistinct())
+                        .sortDescending(sortInfo.descending())
+                        .isSelectKey(isSelectKey)
+                        .skipValue(ctx.skipValue())
+                        .limitValue(ctx.limitValue())
+                        .build());
+
+        if (ctx.loggingConfig().logGeneratedClasses()) {
+            String queryTypeDesc = ctx.isCountQuery() ? "GROUP BY COUNT" : "GROUP BY";
+            if (group.havingExpression() != null) {
                 queryTypeDesc += "+HAVING";
             }
-            if (groupSelectExpression != null) {
+            if (group.groupSelectExpression() != null) {
                 queryTypeDesc += "+SELECT";
             }
             Log.debugf("Generated group query executor: %s (%s, %d captured vars)",
-                       className, queryTypeDesc, capturedVarCount);
+                    className, queryTypeDesc, capturedVarCount);
         }
 
         return className;
     }
 
-    /**
-     * Determines query type identifier based on query characteristics.
-     * This is the canonical method for query type determination used across the codebase.
-     *
-     * @param isCountQuery true if this is a count/exists query
-     * @param hasPredicate true if query has WHERE clause
-     * @param hasProjection true if query has SELECT clause
-     * @return query type: "COUNT", "COMBINED", "PROJECTION", or "LIST"
-     */
+    /** Returns query type: "COUNT", "COMBINED", "PROJECTION", or "LIST". */
     static String getQueryType(boolean isCountQuery, boolean hasPredicate, boolean hasProjection) {
         if (isCountQuery) {
-            return "COUNT";
+            return QUERY_TYPE_COUNT;
         }
         if (hasPredicate && hasProjection) {
-            return "COMBINED";
+            return QUERY_TYPE_COMBINED;
         }
         if (hasProjection) {
-            return "PROJECTION";
+            return QUERY_TYPE_PROJECTION;
         }
-        return "LIST";
+        return QUERY_TYPE_LIST;
     }
 
-    /**
-     * Determines the query type description for logging based on expressions and flags.
-     * Adds decorative formatting to the base query type for better log readability.
-     * Enhanced to show sorting in query type description.
-     * Enhanced to show aggregation type in query description.
-     */
+    /** Returns formatted query type description for logging (includes sorting/aggregation info). */
     private String getQueryTypeDescription(
             LambdaExpression predicateExpression,
             LambdaExpression projectionExpression,
@@ -620,581 +612,43 @@ public class CallSiteProcessor {
         return typeDesc;
     }
 
-    /**
-     * Analyzes and combines multiple predicate lambdas with AND operation.
-     * Handles captured variable renumbering to ensure sequential indices.
-     *
-     * @return pair of (combined expression, total captured variable count), or null if analysis fails
-     */
-    private record PredicateAnalysisResult(LambdaExpression expression, int capturedVarCount) {}
+    /** Extracts first sort expression for DevUI display. */
+    private static SortDisplayInfo extractSortDisplayInfo(List<SortExpression> sortExpressions) {
+        if (sortExpressions == null || sortExpressions.isEmpty()) {
+            return new SortDisplayInfo(null, false);
+        }
+        SortExpression first = sortExpressions.get(0);
+        boolean descending = first.direction() == io.quarkiverse.qubit.runtime.SortDirection.DESCENDING;
+        return new SortDisplayInfo(first.keyExtractor(), descending);
+    }
 
-    /**
-     * This record groups the analysis result, call site ID, and lambda hash to reduce
-     * parameter passing between methods.
-     *
-     * @param result The analyzed lambda result (sealed interface with 4 specialized types)
-     * @param callSiteId Unique identifier for the call site
-     * @param lambdaHash MD5 hash of the lambda for deduplication and deterministic class naming
-     */
+    /** First sort expression for DevUI display. */
+    private record SortDisplayInfo(LambdaExpression sortKey, boolean descending) {}
+
+    /** Groups analysis result, call site ID, and lambda hash. */
     private record LambdaAnalysis(
             LambdaAnalysisResult result,
             String callSiteId,
             String lambdaHash) {}
 
-    private PredicateAnalysisResult analyzeAndCombinePredicates(
-            byte[] classBytes,
-            List<InvokeDynamicScanner.LambdaPair> predicateLambdas,
-            String callSiteId) {
+    /** Consolidates executor generation parameters into a single context object. */
+    private record ExecutorRegistrationContext(
+            String lambdaHash,
+            String queryId,
+            String entityClassName,
+            String terminalMethodName,
+            boolean isCountQuery,
+            boolean hasDistinct,
+            Integer skipValue,
+            Integer limitValue,
+            BuildProducer<GeneratedClassBuildItem> generatedClass,
+            BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations,
+            QubitBuildTimeConfig.LoggingConfig loggingConfig) {
 
-        List<LambdaExpression> predicateExpressions = new ArrayList<>();
-        int indexOffset = 0;
-
-        for (var lambdaPair : predicateLambdas) {
-            LambdaExpression expr = bytecodeAnalyzer.analyze(
-                    classBytes,
-                    lambdaPair.methodName(),
-                    lambdaPair.descriptor());
-
-            if (expr == null) {
-                Log.warnf("Could not analyze predicate lambda %s at: %s", lambdaPair.methodName(), callSiteId);
-                return null;
-            }
-
-            // Renumber this predicate's CapturedVariable indices by the offset
-            // to ensure sequential indices across all predicates
-            int capturedCount = countCapturedVariables(expr);
-            LambdaExpression renumberedExpr = renumberCapturedVariables(expr, indexOffset);
-
-            predicateExpressions.add(renumberedExpr);
-            indexOffset += capturedCount;
+        /** Generates class name using standard naming convention. */
+        String generateClassName(String targetPackage, String classNamePrefix) {
+            return targetPackage + "." + classNamePrefix + lambdaHash.substring(0, HASH_CHARS_FOR_CLASS_NAME);
         }
-
-        int totalCapturedVarCount = indexOffset; // Total from all predicates
-        LambdaExpression combinedExpression = combinePredicatesWithAnd(predicateExpressions);
-
-        Log.debugf("Combined %d predicates with AND at %s (total %d captured variables)",
-                Integer.valueOf(predicateExpressions.size()), callSiteId, Integer.valueOf(totalCapturedVarCount));
-
-        return new PredicateAnalysisResult(combinedExpression, totalCapturedVarCount);
     }
 
-    /**
-     * Analyzes multiple where() predicates and combines them with AND.
-     * Handles multiple where() chaining.
-     *
-     * IMPORTANT: Renumbers CapturedVariable indices before combining to ensure correct ordering.
-     * Each lambda has indices starting from 0. When combined, indices must be sequential:
-     * - Lambda 1: CapturedVariable(0) stays as index 0
-     * - Lambda 2: CapturedVariable(0) becomes index 1 (offset by lambda 1 count)
-     * - Lambda 3: CapturedVariable(0) becomes index 2 (offset by lambda 1+2 count)
-     */
-    private LambdaAnalysisResult analyzeMultiplePredicates(
-            byte[] classBytes,
-            InvokeDynamicScanner.LambdaCallSite callSite,
-            String callSiteId) {
-
-        var predicateLambdas = callSite.predicateLambdas();
-        PredicateAnalysisResult predicateResult = analyzeAndCombinePredicates(classBytes, predicateLambdas, callSiteId);
-        if (predicateResult == null) {
-            return null;
-        }
-
-        LambdaExpression predicateExpression = predicateResult.expression;
-        int totalCapturedVarCount = predicateResult.capturedVarCount;
-
-        // Check if there's also a select
-        LambdaExpression projectionExpression = null;
-        if (callSite.projectionLambdaMethodName() != null) {
-            projectionExpression = bytecodeAnalyzer.analyze(
-                    classBytes,
-                    callSite.projectionLambdaMethodName(),
-                    callSite.projectionLambdaMethodDescriptor());
-
-            if (projectionExpression == null) {
-                Log.warnf("Could not analyze projection lambda at: %s", callSiteId);
-                return null;
-            }
-            totalCapturedVarCount += countCapturedVariables(projectionExpression);
-        }
-
-        // Analyze sort lambdas if present
-        List<SortExpression> sortExpressions = analyzeSortLambdas(classBytes, callSite, callSiteId);
-        totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
-
-        return new LambdaAnalysisResult.SimpleQueryResult(
-                predicateExpression, projectionExpression, sortExpressions, totalCapturedVarCount);
-    }
-
-    /**
-     * Analyzes combined where() + select() query.
-     * Handles combined queries.
-     * Updated: Uses predicateLambdas list for consistency with multiple where() support.
-     */
-    private LambdaAnalysisResult analyzeCombinedQuery(
-            byte[] classBytes,
-            InvokeDynamicScanner.LambdaCallSite callSite,
-            String callSiteId) {
-
-        // Analyze predicate lambda(s) (WHERE clause)
-        // For combined queries, use the first predicate (or combine if multiple)
-        var predicateLambdas = callSite.predicateLambdas();
-        if (predicateLambdas == null || predicateLambdas.isEmpty()) {
-            Log.warnf("Combined query without predicates at: %s", callSiteId);
-            return null;
-        }
-
-        PredicateAnalysisResult predicateResult = analyzeAndCombinePredicates(classBytes, predicateLambdas, callSiteId);
-        if (predicateResult == null) {
-            return null;
-        }
-
-        LambdaExpression predicateExpression = predicateResult.expression;
-        int totalCapturedVarCount = predicateResult.capturedVarCount;
-
-        // Analyze projection lambda (SELECT clause)
-        LambdaExpression projectionExpression = bytecodeAnalyzer.analyze(
-                classBytes,
-                callSite.projectionLambdaMethodName(),
-                callSite.projectionLambdaMethodDescriptor());
-
-        if (projectionExpression == null) {
-            Log.warnf("Could not analyze projection lambda at: %s", callSiteId);
-            return null;
-        }
-
-        Log.debugf("Analyzed combined query at %s: WHERE=%s, SELECT=%s",
-                callSiteId, predicateExpression, projectionExpression);
-
-        totalCapturedVarCount += countCapturedVariables(projectionExpression);
-
-        // Analyze sort lambdas if present
-        List<SortExpression> sortExpressions = analyzeSortLambdas(classBytes, callSite, callSiteId);
-        totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
-
-        return new LambdaAnalysisResult.SimpleQueryResult(
-                predicateExpression, projectionExpression, sortExpressions, totalCapturedVarCount);
-    }
-
-    /**
-     * Analyzes single lambda (where-only, select-only, or sorting-only).
-     * Single lambda support.
-     * Handles sorting-only queries.
-     */
-    private LambdaAnalysisResult analyzeSingleLambda(
-            byte[] classBytes,
-            InvokeDynamicScanner.LambdaCallSite callSite,
-            String callSiteId,
-            boolean isProjectionQuery) {
-
-        // Check if this is a sorting-only query
-        List<SortExpression> sortExpressions = analyzeSortLambdas(classBytes, callSite, callSiteId);
-        boolean hasSortLambdas = sortExpressions != null && !sortExpressions.isEmpty();
-
-        // Check if there are predicate or projection lambdas
-        boolean hasPredicates = callSite.predicateLambdas() != null && !callSite.predicateLambdas().isEmpty();
-        boolean hasProjection = callSite.projectionLambdaMethodName() != null;
-
-        // For sorting-only queries, don't analyze the primary lambda as predicate/projection
-        if (hasSortLambdas && !hasPredicates && !hasProjection) {
-            // Sorting-only query - no WHERE or SELECT clauses
-            int totalCapturedVarCount = countCapturedVariablesInSortExpressions(sortExpressions);
-            Log.debugf("Analyzed sorting-only query at %s: %d sort expression(s)", callSiteId, sortExpressions.size());
-            return new LambdaAnalysisResult.SimpleQueryResult(
-                    null, null, sortExpressions, totalCapturedVarCount);
-        }
-
-        // Regular WHERE or SELECT query
-        LambdaExpression lambdaExpression = bytecodeAnalyzer.analyze(
-                classBytes,
-                callSite.lambdaMethodName(),
-                callSite.lambdaMethodDescriptor());
-
-        if (lambdaExpression == null) {
-            Log.warnf("Could not analyze lambda expression at: %s", callSiteId);
-            return null;
-        }
-
-        Log.debugf("Analyzed lambda at %s: %s", callSiteId, lambdaExpression);
-
-        // Assign to appropriate expression based on query type
-        LambdaExpression predicateExpression = isProjectionQuery ? null : lambdaExpression;
-        LambdaExpression projectionExpression = isProjectionQuery ? lambdaExpression : null;
-        int totalCapturedVarCount = countCapturedVariables(lambdaExpression);
-
-        // Add captured variables from sort expressions
-        totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
-
-        return new LambdaAnalysisResult.SimpleQueryResult(
-                predicateExpression, projectionExpression, sortExpressions, totalCapturedVarCount);
-    }
-
-    /**
-     * Analyzes aggregation query (min, max, avg, sum*).
-     * Handles aggregation terminals with optional WHERE predicates.
-     *
-     * Example: Person.where(p -> p.active).min(p -> p.salary)
-     * - Predicate: p.active
-     * - Aggregation mapper: p.salary
-     * - Aggregation type: MIN
-     */
-    private LambdaAnalysisResult analyzeAggregationQuery(
-            byte[] classBytes,
-            InvokeDynamicScanner.LambdaCallSite callSite,
-            String callSiteId) {
-
-        // Analyze aggregation mapper lambda (e.g., p -> p.salary)
-        if (callSite.aggregationLambdaMethodName() == null) {
-            Log.warnf("Aggregation query missing mapper lambda at: %s", callSiteId);
-            return null;
-        }
-
-        LambdaExpression aggregationExpression = bytecodeAnalyzer.analyze(
-                classBytes,
-                callSite.aggregationLambdaMethodName(),
-                callSite.aggregationLambdaMethodDescriptor());
-
-        if (aggregationExpression == null) {
-            Log.warnf("Could not analyze aggregation mapper lambda at: %s", callSiteId);
-            return null;
-        }
-
-        int totalCapturedVarCount = countCapturedVariables(aggregationExpression);
-
-        // Analyze predicate lambda(s) if present (WHERE clause)
-        LambdaExpression predicateExpression = null;
-        var predicateLambdas = callSite.predicateLambdas();
-        if (predicateLambdas != null && !predicateLambdas.isEmpty()) {
-            PredicateAnalysisResult predicateResult = analyzeAndCombinePredicates(
-                    classBytes, predicateLambdas, callSiteId);
-            if (predicateResult == null) {
-                return null;
-            }
-            predicateExpression = predicateResult.expression;
-            totalCapturedVarCount += predicateResult.capturedVarCount;
-        }
-
-        // Determine aggregation type from terminal method name
-        // Convert camelCase method names to UPPER_SNAKE_CASE constants
-        String methodName = callSite.targetMethodName();
-        String aggregationType = switch (methodName) {
-            case "min" -> "MIN";
-            case "max" -> "MAX";
-            case "avg" -> "AVG";
-            case "sumInteger" -> "SUM_INTEGER";
-            case "sumLong" -> "SUM_LONG";
-            case "sumDouble" -> "SUM_DOUBLE";
-            default -> methodName.toUpperCase(); // Fallback
-        };
-
-        Log.debugf("Analyzed aggregation query at %s: type=%s, mapper=%s, predicate=%s",
-                callSiteId, aggregationType, aggregationExpression, predicateExpression);
-
-        return new LambdaAnalysisResult.AggregationQueryResult(
-                predicateExpression, aggregationExpression, aggregationType, totalCapturedVarCount);
-    }
-
-    /**
-     * Analyzes join query (join/leftJoin with BiQuerySpec lambdas).
-     * Handles join queries with bi-entity predicates.
-     *
-     * Example: Person.join(p -> p.phones).where((p, ph) -> ph.type.equals("mobile"))
-     * - Join relationship: p.phones
-     * - Bi-entity predicate: ph.type.equals("mobile")
-     * - Join type: INNER
-     */
-    private LambdaAnalysisResult analyzeJoinQuery(
-            byte[] classBytes,
-            InvokeDynamicScanner.LambdaCallSite callSite,
-            String callSiteId) {
-
-        int totalCapturedVarCount = 0;
-
-        // Analyze join relationship lambda (e.g., p -> p.phones)
-        LambdaExpression joinRelationshipExpression = null;
-        if (callSite.joinRelationshipLambdaMethodName() != null) {
-            joinRelationshipExpression = bytecodeAnalyzer.analyze(
-                    classBytes,
-                    callSite.joinRelationshipLambdaMethodName(),
-                    callSite.joinRelationshipLambdaDescriptor());
-
-            if (joinRelationshipExpression == null) {
-                Log.warnf("Could not analyze join relationship lambda at: %s", callSiteId);
-                return null;
-            }
-            totalCapturedVarCount += countCapturedVariables(joinRelationshipExpression);
-        }
-
-        // Analyze bi-entity predicate lambdas if present (e.g., (p, ph) -> ph.type.equals("mobile"))
-        LambdaExpression biEntityPredicateExpression = null;
-        var biEntityPredicateLambdas = callSite.biEntityPredicateLambdas();
-        if (biEntityPredicateLambdas != null && !biEntityPredicateLambdas.isEmpty()) {
-            // Analyze each bi-entity predicate and combine with AND
-            List<LambdaExpression> biPredicates = new ArrayList<>();
-            for (var lambdaPair : biEntityPredicateLambdas) {
-                LambdaExpression expr = bytecodeAnalyzer.analyzeBiEntity(
-                        classBytes,
-                        lambdaPair.methodName(),
-                        lambdaPair.descriptor());
-
-                if (expr == null) {
-                    Log.warnf("Could not analyze bi-entity predicate lambda %s at: %s",
-                            lambdaPair.methodName(), callSiteId);
-                    return null;
-                }
-                biPredicates.add(expr);
-                totalCapturedVarCount += countCapturedVariables(expr);
-            }
-
-            // Combine multiple bi-entity predicates with AND
-            biEntityPredicateExpression = combinePredicatesWithAnd(biPredicates);
-        }
-
-        // Analyze bi-entity sort lambdas for join queries
-        List<SortExpression> sortExpressions = analyzeBiEntitySortLambdas(classBytes, callSite, callSiteId);
-        totalCapturedVarCount += countCapturedVariablesInSortExpressions(sortExpressions);
-
-        // Analyze bi-entity projection lambda if present (e.g., (p, ph) -> new PersonPhoneDTO(p.firstName, ph.number))
-        LambdaExpression biEntityProjectionExpression = null;
-        if (callSite.biEntityProjectionLambdaMethodName() != null) {
-            biEntityProjectionExpression = bytecodeAnalyzer.analyzeBiEntity(
-                    classBytes,
-                    callSite.biEntityProjectionLambdaMethodName(),
-                    callSite.biEntityProjectionLambdaDescriptor());
-
-            if (biEntityProjectionExpression == null) {
-                Log.warnf("Could not analyze bi-entity projection lambda at: %s", callSiteId);
-                return null;
-            }
-            totalCapturedVarCount += countCapturedVariables(biEntityProjectionExpression);
-        }
-
-        Log.debugf("Analyzed join query at %s: type=%s, relationship=%s, biPredicate=%s, biProjection=%s, sortExpressions=%d",
-                callSiteId, callSite.joinType(), joinRelationshipExpression, biEntityPredicateExpression,
-                biEntityProjectionExpression, sortExpressions.size());
-
-        return new LambdaAnalysisResult.JoinQueryResult(
-                joinRelationshipExpression,
-                biEntityPredicateExpression,
-                biEntityProjectionExpression,
-                sortExpressions,
-                callSite.joinType(),
-                totalCapturedVarCount);
-    }
-
-    /**
-     * Analyzes group query (groupBy with GroupQuerySpec lambdas).
-     * Handles groupBy queries with having, select, and sort in group context.
-     *
-     * Example: Person.groupBy(p -> p.department).select(g -> new DeptStats(g.key(), g.count()))
-     * - Group key: p.department
-     * - Group select: new DeptStats(g.key(), g.count())
-     */
-    private LambdaAnalysisResult analyzeGroupQuery(
-            byte[] classBytes,
-            InvokeDynamicScanner.LambdaCallSite callSite,
-            String callSiteId) {
-
-        int totalCapturedVarCount = 0;
-
-        // Analyze groupBy key extractor lambda (e.g., p -> p.department)
-        LambdaExpression groupByKeyExpression = null;
-        if (callSite.groupByLambdaMethodName() != null) {
-            groupByKeyExpression = bytecodeAnalyzer.analyze(
-                    classBytes,
-                    callSite.groupByLambdaMethodName(),
-                    callSite.groupByLambdaDescriptor());
-
-            if (groupByKeyExpression == null) {
-                Log.warnf("Could not analyze groupBy key lambda at: %s", callSiteId);
-                return null;
-            }
-            totalCapturedVarCount += countCapturedVariables(groupByKeyExpression);
-        }
-
-        // Analyze having lambdas if present (e.g., g -> g.count() > 5)
-        LambdaExpression havingExpression = null;
-        var havingLambdas = callSite.havingLambdas();
-        if (havingLambdas != null && !havingLambdas.isEmpty()) {
-            List<LambdaExpression> havingPredicates = new ArrayList<>();
-            for (var lambdaPair : havingLambdas) {
-                LambdaExpression expr = bytecodeAnalyzer.analyzeGroupQuerySpec(
-                        classBytes,
-                        lambdaPair.methodName(),
-                        lambdaPair.descriptor());
-
-                if (expr == null) {
-                    Log.warnf("Could not analyze having lambda %s at: %s",
-                            lambdaPair.methodName(), callSiteId);
-                    return null;
-                }
-                havingPredicates.add(expr);
-                totalCapturedVarCount += countCapturedVariables(expr);
-            }
-            havingExpression = combinePredicatesWithAnd(havingPredicates);
-        }
-
-        // Analyze group select lambdas if present (e.g., g -> new DeptStats(g.key(), g.count()))
-        LambdaExpression groupSelectExpression = null;
-        var groupSelectLambdas = callSite.groupSelectLambdas();
-        if (groupSelectLambdas != null && !groupSelectLambdas.isEmpty()) {
-            // For now, support single select projection
-            var firstSelect = groupSelectLambdas.get(0);
-            groupSelectExpression = bytecodeAnalyzer.analyzeGroupQuerySpec(
-                    classBytes,
-                    firstSelect.methodName(),
-                    firstSelect.descriptor());
-
-            if (groupSelectExpression == null) {
-                Log.warnf("Could not analyze group select lambda at: %s", callSiteId);
-                return null;
-            }
-            totalCapturedVarCount += countCapturedVariables(groupSelectExpression);
-        }
-
-        // Analyze group sort lambdas if present
-        List<SortExpression> groupSortExpressions = analyzeGroupSortLambdas(classBytes, callSite, callSiteId);
-        totalCapturedVarCount += countCapturedVariablesInSortExpressions(groupSortExpressions);
-
-        // Also analyze pre-grouping WHERE predicates if present
-        LambdaExpression predicateExpression = null;
-        var predicateLambdas = callSite.predicateLambdas();
-        if (predicateLambdas != null && !predicateLambdas.isEmpty()) {
-            PredicateAnalysisResult predicateResult = analyzeAndCombinePredicates(
-                    classBytes, predicateLambdas, callSiteId);
-            if (predicateResult != null) {
-                predicateExpression = predicateResult.expression;
-                totalCapturedVarCount += predicateResult.capturedVarCount;
-            }
-        }
-
-        Log.debugf("Analyzed group query at %s: key=%s, having=%s, select=%s, sortCount=%d",
-                callSiteId, groupByKeyExpression, havingExpression, groupSelectExpression,
-                groupSortExpressions.size());
-
-        return new LambdaAnalysisResult.GroupQueryResult(
-                predicateExpression,  // Pre-grouping WHERE clause
-                groupByKeyExpression,
-                havingExpression,
-                groupSelectExpression,
-                groupSortExpressions,
-                totalCapturedVarCount);
-    }
-
-    /**
-     * Analyzes group sort lambdas from call site.
-     * Handles sortedBy() and sortedDescendingBy() on GroupStream.
-     * Uses analyzeGroupQuerySpec() since group sort lambdas take Group parameter.
-     *
-     * @return list of SortExpression objects with group key extractors, or empty list if no sorting
-     */
-    private List<SortExpression> analyzeGroupSortLambdas(
-            byte[] classBytes,
-            InvokeDynamicScanner.LambdaCallSite callSite,
-            String callSiteId) {
-
-        List<SortLambda> sortLambdas = callSite.groupSortLambdas();
-
-        if (sortLambdas == null || sortLambdas.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        List<SortExpression> sortExpressions = new ArrayList<>(sortLambdas.size());
-
-        for (SortLambda sortLambda : sortLambdas) {
-            // Use analyzeGroupQuerySpec() for group sort lambdas
-            LambdaExpression keyExtractor = bytecodeAnalyzer.analyzeGroupQuerySpec(
-                    classBytes,
-                    sortLambda.methodName(),
-                    sortLambda.descriptor());
-
-            if (keyExtractor == null) {
-                Log.warnf("Could not analyze group sort lambda %s at: %s", sortLambda.methodName(), callSiteId);
-                return Collections.emptyList();
-            }
-
-            sortExpressions.add(new SortExpression(keyExtractor, sortLambda.direction()));
-            Log.debugf("Analyzed group sort lambda at %s: %s (direction=%s)",
-                    callSiteId, keyExtractor, sortLambda.direction());
-        }
-
-        return sortExpressions;
-    }
-
-    /**
-     * Analyzes sort lambdas from call site.
-     * Handles sortedBy() and sortedDescendingBy() operations.
-     *
-     * @return list of SortExpression objects, or null if no sorting
-     */
-    private List<SortExpression> analyzeSortLambdas(
-            byte[] classBytes,
-            InvokeDynamicScanner.LambdaCallSite callSite,
-            String callSiteId) {
-
-        List<SortLambda> sortLambdas = callSite.sortLambdas();
-
-        if (sortLambdas == null || sortLambdas.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        List<SortExpression> sortExpressions = new ArrayList<>(sortLambdas.size());
-
-        for (SortLambda sortLambda : sortLambdas) {
-            LambdaExpression keyExtractor = bytecodeAnalyzer.analyze(
-                    classBytes,
-                    sortLambda.methodName(),
-                    sortLambda.descriptor());
-
-            if (keyExtractor == null) {
-                Log.warnf("Could not analyze sort lambda %s at: %s", sortLambda.methodName(), callSiteId);
-                return Collections.emptyList();
-            }
-
-            sortExpressions.add(new SortExpression(keyExtractor, sortLambda.direction()));
-            Log.debugf("Analyzed sort lambda at %s: %s (direction=%s)",
-                    callSiteId, keyExtractor, sortLambda.direction());
-        }
-
-        return sortExpressions;
-    }
-
-    /**
-     * Analyzes bi-entity sort lambdas from call site for join queries.
-     * Handles sortedBy() and sortedDescendingBy() on JoinStream.
-     * Uses analyzeBiEntity() since join sort lambdas take two entity parameters.
-     *
-     * @return list of SortExpression objects with bi-entity key extractors, or empty list if no sorting
-     */
-    private List<SortExpression> analyzeBiEntitySortLambdas(
-            byte[] classBytes,
-            InvokeDynamicScanner.LambdaCallSite callSite,
-            String callSiteId) {
-
-        List<SortLambda> sortLambdas = callSite.sortLambdas();
-
-        if (sortLambdas == null || sortLambdas.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        List<SortExpression> sortExpressions = new ArrayList<>(sortLambdas.size());
-
-        for (SortLambda sortLambda : sortLambdas) {
-            // Use analyzeBiEntity() for bi-entity sort lambdas in join queries
-            LambdaExpression keyExtractor = bytecodeAnalyzer.analyzeBiEntity(
-                    classBytes,
-                    sortLambda.methodName(),
-                    sortLambda.descriptor());
-
-            if (keyExtractor == null) {
-                Log.warnf("Could not analyze bi-entity sort lambda %s at: %s", sortLambda.methodName(), callSiteId);
-                return Collections.emptyList();
-            }
-
-            sortExpressions.add(new SortExpression(keyExtractor, sortLambda.direction()));
-            Log.debugf("Analyzed bi-entity sort lambda at %s: %s (direction=%s)",
-                    callSiteId, keyExtractor, sortLambda.direction());
-        }
-
-        return sortExpressions;
-    }
 }

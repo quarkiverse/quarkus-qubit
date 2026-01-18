@@ -5,7 +5,21 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 
+import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_AVG;
+import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_GROUP_BY;
+import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_JOIN;
+import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_LEFT_JOIN;
+import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_MAX;
+import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_MIN;
+import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SELECT;
+import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SORTED_BY;
+import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SORTED_DESCENDING_BY;
+import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SUM_DOUBLE;
+import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SUM_INTEGER;
+import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SUM_LONG;
+import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_WHERE;
 import static io.quarkiverse.qubit.runtime.QubitConstants.QUBIT_STREAM_IMPL_INTERNAL_NAME;
+import static io.quarkiverse.qubit.runtime.QubitConstants.QUBIT_STREAM_INTERNAL_NAME;
 
 /**
  * Generates fluent API entry point methods for QubitEntity and QubitRepository.
@@ -61,7 +75,7 @@ public final class QubitBytecodeGenerator {
         // Use the method descriptor from config (aggregation methods have different return types)
         mv.visitMethodInsn(
                 Opcodes.INVOKEINTERFACE,
-                "io/quarkiverse/qubit/runtime/QubitStream",
+                QUBIT_STREAM_INTERNAL_NAME,
                 config.methodName(),
                 config.methodDescriptor(),  // Use descriptor from config (not hardcoded)
                 true);
@@ -118,7 +132,7 @@ public final class QubitBytecodeGenerator {
         // Returns JoinStream<T, R>
         mv.visitMethodInsn(
                 Opcodes.INVOKEINTERFACE,
-                "io/quarkiverse/qubit/runtime/QubitStream",
+                QUBIT_STREAM_INTERNAL_NAME,
                 config.methodName(),
                 config.methodDescriptor(),
                 true);
@@ -154,7 +168,7 @@ public final class QubitBytecodeGenerator {
 
             return new JoinMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
-                    "join",
+                    METHOD_JOIN,
                     DESC_QUERY_SPEC_TO_JOIN_STREAM,
                     genericSignature,
                     entityType
@@ -172,7 +186,7 @@ public final class QubitBytecodeGenerator {
 
             return new JoinMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
-                    "leftJoin",
+                    METHOD_LEFT_JOIN,
                     DESC_QUERY_SPEC_TO_JOIN_STREAM,
                     genericSignature,
                     entityType
@@ -224,7 +238,7 @@ public final class QubitBytecodeGenerator {
         // Returns GroupStream<T, K>
         mv.visitMethodInsn(
                 Opcodes.INVOKEINTERFACE,
-                "io/quarkiverse/qubit/runtime/QubitStream",
+                QUBIT_STREAM_INTERNAL_NAME,
                 config.methodName(),
                 config.methodDescriptor(),
                 true);
@@ -260,7 +274,7 @@ public final class QubitBytecodeGenerator {
 
             return new GroupMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
-                    "groupBy",
+                    METHOD_GROUP_BY,
                     DESC_QUERY_SPEC_TO_GROUP_STREAM,
                     genericSignature,
                     entityType
@@ -290,7 +304,7 @@ public final class QubitBytecodeGenerator {
 
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
-                    "where",
+                    METHOD_WHERE,
                     DESC_QUERY_SPEC_TO_STREAM,
                     genericSignature,
                     Opcodes.ARETURN,
@@ -309,7 +323,7 @@ public final class QubitBytecodeGenerator {
 
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
-                    "select",
+                    METHOD_SELECT,
                     DESC_QUERY_SPEC_TO_STREAM,
                     genericSignature,
                     Opcodes.ARETURN,
@@ -328,7 +342,7 @@ public final class QubitBytecodeGenerator {
 
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
-                    "sortedBy",
+                    METHOD_SORTED_BY,
                     DESC_QUERY_SPEC_TO_STREAM,
                     genericSignature,
                     Opcodes.ARETURN,
@@ -347,7 +361,7 @@ public final class QubitBytecodeGenerator {
 
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
-                    "sortedDescendingBy",
+                    METHOD_SORTED_DESCENDING_BY,
                     DESC_QUERY_SPEC_TO_STREAM,
                     genericSignature,
                     Opcodes.ARETURN,
@@ -369,7 +383,7 @@ public final class QubitBytecodeGenerator {
 
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
-                    "min",
+                    METHOD_MIN,
                     DESC_QUERY_SPEC_TO_STREAM,  // Returns QubitStream
                     genericSignature,
                     Opcodes.ARETURN,
@@ -389,7 +403,7 @@ public final class QubitBytecodeGenerator {
 
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
-                    "max",
+                    METHOD_MAX,
                     DESC_QUERY_SPEC_TO_STREAM,  // Returns QubitStream
                     genericSignature,
                     Opcodes.ARETURN,
@@ -409,7 +423,7 @@ public final class QubitBytecodeGenerator {
 
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
-                    "avg",
+                    METHOD_AVG,
                     DESC_QUERY_SPEC_TO_STREAM,  // Returns QubitStream
                     genericSignature,
                     Opcodes.ARETURN,
@@ -429,7 +443,7 @@ public final class QubitBytecodeGenerator {
 
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
-                    "sumInteger",
+                    METHOD_SUM_INTEGER,
                     DESC_QUERY_SPEC_TO_STREAM,  // Returns QubitStream
                     genericSignature,
                     Opcodes.ARETURN,  // object reference return
@@ -449,7 +463,7 @@ public final class QubitBytecodeGenerator {
 
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
-                    "sumLong",
+                    METHOD_SUM_LONG,
                     DESC_QUERY_SPEC_TO_STREAM,  // Returns QubitStream
                     genericSignature,
                     Opcodes.ARETURN,  // object reference return
@@ -469,7 +483,7 @@ public final class QubitBytecodeGenerator {
 
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
-                    "sumDouble",
+                    METHOD_SUM_DOUBLE,
                     DESC_QUERY_SPEC_TO_STREAM,  // Returns QubitStream
                     genericSignature,
                     Opcodes.ARETURN,  // object reference return

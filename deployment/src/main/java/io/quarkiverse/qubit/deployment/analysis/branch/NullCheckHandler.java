@@ -9,7 +9,6 @@ import org.objectweb.asm.tree.LabelNode;
 
 import java.util.Deque;
 import java.util.Map;
-import java.util.Optional;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.EQ;
@@ -43,7 +42,10 @@ public class NullCheckHandler implements BranchHandler {
             JumpInsnNode jumpInsn,
             Map<LabelNode, Boolean> labelToValue,
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications,
-            BranchState state) {
+            BranchState state,
+            boolean sameLabel,
+            boolean completingAndGroup,
+            boolean startingNewOrGroup) {
 
         if (stack.isEmpty()) {
             Log.tracef(INSTRUCTION_NAME + ": Stack empty, skipping");
@@ -54,6 +56,7 @@ public class NullCheckHandler implements BranchHandler {
         LambdaExpression nullLiteral = new LambdaExpression.NullLiteral(Object.class);
 
         Boolean jumpTarget = labelToValue.get(jumpInsn.label);
+        ControlFlowAnalyzer.LabelClassification jumpLabelClass = labelClassifications.get(jumpInsn.label);
 
         // Determine the null check operator based on opcode AND jump target
         // The correct operator depends on what the jump means:
@@ -84,31 +87,9 @@ public class NullCheckHandler implements BranchHandler {
         Log.tracef(INSTRUCTION_NAME + ": opcode=%d, jumpTarget=%s, operator=%s, comparison=%s",
                 jumpInsn.getOpcode(), jumpTarget, operator, comparison);
 
-        // Get previous jump target BEFORE processing current branch (needed for afterCombination)
-        Optional<Boolean> previousJumpTarget = state.getLastJumpTarget();
-
-        // Process branch instruction atomically (unified operator determination + state transition)
-        LambdaExpression stackTop = stack.isEmpty() ? null : stack.peek();
-        BranchState.BranchResult result = state.processBranch(TRUE.equals(jumpTarget), false, stackTop);
-        Operator combineOp = result.combineOperator();
-        BranchState newState = result.newState();
-
-        if (combineOp != null && !stack.isEmpty() && stack.peek() instanceof LambdaExpression.BinaryOp) {
-            // Combine with previous condition
-            LambdaExpression previousCondition = BytecodeValidator.popSafe(stack, INSTRUCTION_NAME + "-Combine");
-            LambdaExpression combined = new LambdaExpression.BinaryOp(
-                    previousCondition, combineOp, comparison);
-            stack.push(combined);
-            // CRITICAL: Apply post-combination state transition (shouldEnterOrModeAfterAndGroup logic)
-            newState = newState.afterCombination(TRUE.equals(jumpTarget), previousJumpTarget, combineOp);
-            Log.debugf(INSTRUCTION_NAME + ": Combined with %s: %s", combineOp, combined);
-        } else {
-            // Push standalone
-            stack.push(comparison);
-            Log.debugf(INSTRUCTION_NAME + ": Pushed without combining: %s", comparison);
-        }
-
-        // Return state after post-combination transition
-        return newState;
+        // Delegate to shared branch processing and combination logic
+        return processAndCombineBranch(stack, comparison, INSTRUCTION_NAME, state,
+                jumpTarget, jumpLabelClass, sameLabel, completingAndGroup, startingNewOrGroup,
+                TRUE.equals(jumpTarget));
     }
 }

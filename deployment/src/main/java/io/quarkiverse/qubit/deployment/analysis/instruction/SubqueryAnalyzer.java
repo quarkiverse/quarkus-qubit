@@ -19,55 +19,18 @@ import java.util.List;
 
 import static io.quarkiverse.qubit.runtime.QubitConstants.*;
 
-/**
- * Analyzes subquery-related bytecode instructions.
- *
- * <p>This class handles:
- * <ul>
- *   <li>Subqueries.subquery(Class) factory method → SubqueryBuilderReference</li>
- *   <li>SubqueryBuilder.* method calls for scalar, exists, and IN subqueries</li>
- * </ul>
- *
- * @see MethodInvocationHandler
- * @see SubqueryBuilderReference
- */
+/** Analyzes subquery bytecode: Subqueries.subquery() factory and SubqueryBuilder.* methods. */
 public class SubqueryAnalyzer {
 
-    /**
-     * Checks if the instruction is a Subqueries.* static method call.
-     *
-     * @param methodInsn the method instruction to check
-     * @return true if this is a Subqueries factory method call
-     */
     public boolean isSubqueriesMethodCall(MethodInsnNode methodInsn) {
         return methodInsn.owner.equals(SUBQUERIES_INTERNAL_NAME);
     }
 
-    /**
-     * Checks if the instruction is a SubqueryBuilder.* instance method call.
-     *
-     * @param methodInsn the method instruction to check
-     * @return true if this is a SubqueryBuilder method call
-     */
     public boolean isSubqueryBuilderMethodCall(MethodInsnNode methodInsn) {
         return methodInsn.owner.equals(SUBQUERY_BUILDER_INTERNAL_NAME);
     }
 
-    /**
-     * Handles Subqueries.subquery(Class) factory method.
-     * <p>
-     * This method creates a SubqueryBuilderReference that will be used by subsequent
-     * INVOKEVIRTUAL calls to SubqueryBuilder methods.
-     * <p>
-     * Bytecode pattern:
-     * <pre>
-     * LDC Person.class                   → Constant(Class)
-     * INVOKESTATIC Subqueries.subquery() → SubqueryBuilderReference(Person.class)
-     * </pre>
-     *
-     * @param ctx the analysis context
-     * @param methodInsn the method instruction
-     */
+    /** Creates SubqueryBuilderReference for subsequent builder method calls. */
     public void handleSubqueriesFactoryMethod(AnalysisContext ctx, MethodInsnNode methodInsn) {
         if (!METHOD_SUBQUERY.equals(methodInsn.name)) {
             Log.warnf("Unexpected Subqueries method: %s", methodInsn.name);
@@ -83,15 +46,6 @@ public class SubqueryAnalyzer {
         Log.debugf("Created SubqueryBuilderReference for %s", entityInfo.clazz().getSimpleName());
     }
 
-    /**
-     * Handles SubqueryBuilder.* method calls for subquery expressions.
-     * <p>
-     * Method mappings: avg/sum/min/max → ScalarSubquery, count → ScalarSubquery(COUNT),
-     * exists/notExists → ExistsSubquery, in/notIn → InSubquery.
-     *
-     * @param ctx the analysis context
-     * @param methodInsn the method instruction
-     */
     public void handleSubqueryBuilderMethod(AnalysisContext ctx, MethodInsnNode methodInsn) {
         String methodName = methodInsn.name;
         int argCount = DescriptorParser.countMethodArguments(methodInsn.desc);
@@ -142,12 +96,6 @@ public class SubqueryAnalyzer {
         }
     }
 
-    /**
-     * Handles SubqueryBuilder.where(predicate) method.
-     * <p>
-     * This method adds a filtering predicate to the subquery builder.
-     * It returns a new SubqueryBuilderReference with the predicate combined.
-     */
     private void handleBuilderWhere(AnalysisContext ctx, SubqueryBuilderReference currentBuilder, List<LambdaExpression> args) {
         if (args.size() != 1) {
             Log.warnf("Expected 1 argument for SubqueryBuilder.where, got %d", args.size());
@@ -159,11 +107,6 @@ public class SubqueryAnalyzer {
         ctx.push(updatedBuilder);
     }
 
-    /**
-     * Handles SubqueryBuilder.avg/sum/min/max(selector) methods.
-     * <p>
-     * The predicate parameter comes from the SubqueryBuilderReference (set via .where() calls).
-     */
     private void handleBuilderScalarSubquery(AnalysisContext ctx, Class<?> entityClass, String entityClassName,
                                                LambdaExpression predicate, List<LambdaExpression> args,
                                                SubqueryAggregationType aggregationType, Class<?> defaultResultType) {
@@ -181,27 +124,14 @@ public class SubqueryAnalyzer {
         ctx.push(new ScalarSubquery(aggregationType, entityClass, entityClassName, selector, predicate, resultType));
     }
 
-    /**
-     * Handles SubqueryBuilder.count() and count(predicate) methods.
-     * <p>
-     * The predicate parameter comes from the SubqueryBuilderReference (set via .where() calls).
-     * If count() is called with a predicate argument, it's combined with the builder's predicate.
-     */
+    /** Combines builder and argument predicates with AND. */
     private void handleBuilderCountSubquery(AnalysisContext ctx, Class<?> entityClass, String entityClassName,
                                               LambdaExpression builderPredicate, List<LambdaExpression> args) {
         LambdaExpression argPredicate = args.isEmpty() ? null : args.get(0);
-
-        // Combine predicates if both exist
         LambdaExpression finalPredicate = CapturedVariableHelper.combinePredicatesWithAnd(builderPredicate, argPredicate);
-
         ctx.push(new ScalarSubquery(SubqueryAggregationType.COUNT, entityClass, entityClassName, null, finalPredicate, Long.class));
     }
 
-    /**
-     * Handles SubqueryBuilder.exists/notExists(predicate) methods.
-     * <p>
-     * EXISTS/NOT EXISTS don't use the builder's predicate - they always use the provided predicate.
-     */
     private void handleBuilderExistsSubquery(AnalysisContext ctx, Class<?> entityClass, String entityClassName,
                                                List<LambdaExpression> args, boolean negated) {
         if (args.size() != 1) {
@@ -213,12 +143,7 @@ public class SubqueryAnalyzer {
         ctx.push(new ExistsSubquery(entityClass, entityClassName, predicate, negated));
     }
 
-    /**
-     * Handles SubqueryBuilder.in/notIn(field, selector) and (field, selector, predicate) methods.
-     * <p>
-     * The builderPredicate parameter comes from the SubqueryBuilderReference (set via .where() calls).
-     * If in/notIn is called with a predicate argument, it's combined with the builder's predicate.
-     */
+    /** Combines builder and argument predicates with AND. */
     private void handleBuilderInSubquery(AnalysisContext ctx, Class<?> entityClass, String entityClassName,
                                           LambdaExpression builderPredicate, List<LambdaExpression> args, boolean negated) {
         if (args.size() < 2 || args.size() > 3) {

@@ -15,10 +15,17 @@ import static org.jboss.jandex.Type.Kind.PARAMETERIZED_TYPE;
 import java.util.List;
 import java.util.function.BiFunction;
 
+import static io.quarkiverse.qubit.runtime.QubitConstants.JOIN_STREAM_IMPL_INTERNAL_NAME;
+import static io.quarkiverse.qubit.runtime.QubitConstants.JOIN_STREAM_INTERNAL_NAME;
+import static io.quarkiverse.qubit.runtime.QubitConstants.JOIN_TYPE_DESCRIPTOR;
+import static io.quarkiverse.qubit.runtime.QubitConstants.JOIN_TYPE_INTERNAL_NAME;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_JOIN;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_LEFT_JOIN;
+import static io.quarkiverse.qubit.runtime.QubitConstants.QUERY_SPEC_DESCRIPTOR;
 import static io.quarkiverse.qubit.runtime.QubitConstants.QUBIT_REPOSITORY_CLASS_NAME;
 import static io.quarkiverse.qubit.runtime.QubitConstants.QUBIT_REPOSITORY_INTERNAL_NAME;
+import static io.quarkiverse.qubit.runtime.QubitConstants.QUBIT_STREAM_IMPL_INTERNAL_NAME;
+import static io.quarkiverse.qubit.runtime.QubitConstants.QUBIT_STREAM_INTERNAL_NAME;
 
 /**
  * Generates @GenerateBridge fluent API entry point implementations for QubitRepository beans.
@@ -180,7 +187,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             mv.visitCode();
 
             // Create new QubitStreamImpl instance
-            mv.visitTypeInsn(Opcodes.NEW, "io/quarkiverse/qubit/runtime/QubitStreamImpl");
+            mv.visitTypeInsn(Opcodes.NEW, QUBIT_STREAM_IMPL_INTERNAL_NAME);
             mv.visitInsn(Opcodes.DUP);
 
             // Load entity class as constructor argument
@@ -189,7 +196,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             // Call QubitStreamImpl constructor
             mv.visitMethodInsn(
                     Opcodes.INVOKESPECIAL,
-                    "io/quarkiverse/qubit/runtime/QubitStreamImpl",
+                    QUBIT_STREAM_IMPL_INTERNAL_NAME,
                     "<init>",
                     "(Ljava/lang/Class;)V",
                     false);
@@ -200,9 +207,9 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             // Call the appropriate method on the stream
             mv.visitMethodInsn(
                     Opcodes.INVOKEINTERFACE,
-                    "io/quarkiverse/qubit/runtime/QubitStream",
+                    QUBIT_STREAM_INTERNAL_NAME,
                     methodName,
-                    "(Lio/quarkiverse/qubit/runtime/QuerySpec;)Lio/quarkiverse/qubit/runtime/QubitStream;",
+                    "(" + QUERY_SPEC_DESCRIPTOR + ")L" + QUBIT_STREAM_INTERNAL_NAME + ";",
                     true);
 
             mv.visitInsn(Opcodes.ARETURN);
@@ -231,7 +238,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
 
             // Method signature: (QuerySpec)JoinStream
             // Note: Generic types are erased at bytecode level
-            String methodDescriptor = "(Lio/quarkiverse/qubit/runtime/QuerySpec;)Lio/quarkiverse/qubit/runtime/JoinStream;";
+            String methodDescriptor = "(" + QUERY_SPEC_DESCRIPTOR + ")L" + JOIN_STREAM_INTERNAL_NAME + ";";
             String genericSignature = "<R:Ljava/lang/Object;>(Lio/quarkiverse/qubit/runtime/QuerySpec<L" +
                     entityType.getInternalName() + ";Ljava/util/Collection<TR;>;>;)Lio/quarkiverse/qubit/runtime/JoinStream<L" +
                     entityType.getInternalName() + ";TR;>;";
@@ -248,7 +255,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             mv.visitCode();
 
             // Create new JoinStreamImpl instance
-            mv.visitTypeInsn(Opcodes.NEW, "io/quarkiverse/qubit/runtime/JoinStreamImpl");
+            mv.visitTypeInsn(Opcodes.NEW, JOIN_STREAM_IMPL_INTERNAL_NAME);
             mv.visitInsn(Opcodes.DUP);
 
             // Load entity class as first constructor argument (sourceEntityClass)
@@ -264,16 +271,16 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             // Load join type as fourth constructor argument
             mv.visitFieldInsn(
                     Opcodes.GETSTATIC,
-                    "io/quarkiverse/qubit/runtime/JoinType",
+                    JOIN_TYPE_INTERNAL_NAME,
                     isLeftJoin ? "LEFT" : "INNER",
-                    "Lio/quarkiverse/qubit/runtime/JoinType;");
+                    JOIN_TYPE_DESCRIPTOR);
 
             // Call JoinStreamImpl constructor: <init>(Class, Class, QuerySpec, JoinType)
             mv.visitMethodInsn(
                     Opcodes.INVOKESPECIAL,
-                    "io/quarkiverse/qubit/runtime/JoinStreamImpl",
+                    JOIN_STREAM_IMPL_INTERNAL_NAME,
                     "<init>",
-                    "(Ljava/lang/Class;Ljava/lang/Class;Lio/quarkiverse/qubit/runtime/QuerySpec;Lio/quarkiverse/qubit/runtime/JoinType;)V",
+                    "(Ljava/lang/Class;Ljava/lang/Class;" + QUERY_SPEC_DESCRIPTOR + JOIN_TYPE_DESCRIPTOR + ")V",
                     false);
 
             mv.visitInsn(Opcodes.ARETURN);
@@ -316,7 +323,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             }
 
             // Create new QubitStreamImpl instance
-            mv.visitTypeInsn(Opcodes.NEW, "io/quarkiverse/qubit/runtime/QubitStreamImpl");
+            mv.visitTypeInsn(Opcodes.NEW, QUBIT_STREAM_IMPL_INTERNAL_NAME);
             mv.visitInsn(Opcodes.DUP);
 
             // Load entity class as constructor argument
@@ -325,7 +332,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             // Call QubitStreamImpl constructor
             mv.visitMethodInsn(
                     Opcodes.INVOKESPECIAL,
-                    "io/quarkiverse/qubit/runtime/QubitStreamImpl",
+                    QUBIT_STREAM_IMPL_INTERNAL_NAME,
                     "<init>",
                     "(Ljava/lang/Class;)V",
                     false);
@@ -336,9 +343,9 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             // Call the appropriate method on the stream
             mv.visitMethodInsn(
                     Opcodes.INVOKEINTERFACE,
-                    "io/quarkiverse/qubit/runtime/QubitStream",
+                    QUBIT_STREAM_INTERNAL_NAME,
                     methodName,
-                    "(Lio/quarkiverse/qubit/runtime/QuerySpec;)Lio/quarkiverse/qubit/runtime/QubitStream;",
+                    "(" + QUERY_SPEC_DESCRIPTOR + ")L" + QUBIT_STREAM_INTERNAL_NAME + ";",
                     true);
 
             mv.visitInsn(Opcodes.ARETURN);

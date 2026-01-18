@@ -1,11 +1,13 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.common.OpcodeClassifier;
 import io.quarkus.logging.Log;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.IntInsnNode;
 import org.objectweb.asm.tree.LdcInsnNode;
 
+import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.DESC_BOOLEAN_VALUE_OF;
 import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.LOOKAHEAD_WINDOW_SIZE;
 import static io.quarkiverse.qubit.runtime.QubitConstants.JVM_JAVA_LANG_BOOLEAN;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_VALUE_OF;
@@ -14,17 +16,12 @@ import static org.objectweb.asm.Opcodes.*;
 /**
  * Handles constant load instructions with special ICONST_0/1 post-branch handling.
  */
-public class ConstantInstructionHandler implements InstructionHandler {
+public enum ConstantInstructionHandler implements InstructionHandler {
+    INSTANCE;
 
     @Override
     public boolean canHandle(AbstractInsnNode insn) {
-        int opcode = insn.getOpcode();
-        return opcode == BIPUSH || opcode == SIPUSH || opcode == LDC ||
-               opcode == ACONST_NULL ||
-               (opcode >= ICONST_0 && opcode <= ICONST_5) ||
-               (opcode >= FCONST_0 && opcode <= FCONST_2) ||
-               (opcode >= LCONST_0 && opcode <= LCONST_1) ||
-               (opcode >= DCONST_0 && opcode <= DCONST_1);
+        return OpcodeClassifier.isConstantOpcode(insn.getOpcode());
     }
 
     @Override
@@ -46,21 +43,21 @@ public class ConstantInstructionHandler implements InstructionHandler {
             return false;
         }
 
-        if (opcode >= ICONST_0 && opcode <= ICONST_5) {
+        if (OpcodeClassifier.isIntConstantOpcode(opcode)) {
             return handleIconst(ctx, opcode);
         }
 
-        if (opcode >= FCONST_0 && opcode <= FCONST_2) {
+        if (OpcodeClassifier.isFloatConstantOpcode(opcode)) {
             handleFloatConstant(ctx, opcode);
             return false;
         }
 
-        if (opcode >= LCONST_0 && opcode <= LCONST_1) {
+        if (OpcodeClassifier.isLongConstantOpcode(opcode)) {
             handleLongConstant(ctx, opcode);
             return false;
         }
 
-        if (opcode >= DCONST_0 && opcode <= DCONST_1) {
+        if (OpcodeClassifier.isDoubleConstantOpcode(opcode)) {
             handleDoubleConstant(ctx, opcode);
             return false;
         }
@@ -159,11 +156,11 @@ public class ConstantInstructionHandler implements InstructionHandler {
                 return false;
             }
 
-            if (isInvokeOpcode(nextOpcode)) {
+            if (OpcodeClassifier.isInvokeOpcode(nextOpcode)) {
                 return !isBooleanValueOfCall(nextInsn);
             }
 
-            if (isArithmeticOrLogicalOpcode(nextOpcode) || isBranchOpcode(nextOpcode)) {
+            if (OpcodeClassifier.isArithmeticOrLogicalOpcode(nextOpcode) || OpcodeClassifier.isBranchOpcode(nextOpcode)) {
                 return true;
             }
 
@@ -173,32 +170,13 @@ public class ConstantInstructionHandler implements InstructionHandler {
         return false;
     }
 
-    /** Checks if opcode is invoke instruction. */
-    private boolean isInvokeOpcode(int opcode) {
-        return opcode == INVOKEVIRTUAL || opcode == INVOKESTATIC ||
-               opcode == INVOKESPECIAL || opcode == INVOKEINTERFACE;
-    }
-
     /** Checks if instruction is Boolean.valueOf(). */
     private boolean isBooleanValueOfCall(AbstractInsnNode insn) {
         if (insn.getOpcode() == INVOKESTATIC && insn instanceof org.objectweb.asm.tree.MethodInsnNode methodInsn) {
             return methodInsn.owner.equals(JVM_JAVA_LANG_BOOLEAN) &&
                    methodInsn.name.equals(METHOD_VALUE_OF) &&
-                   methodInsn.desc.equals("(Z)Ljava/lang/Boolean;");
+                   methodInsn.desc.equals(DESC_BOOLEAN_VALUE_OF);
         }
         return false;
     }
-
-    /** Checks if opcode is arithmetic or logical. */
-    private boolean isArithmeticOrLogicalOpcode(int opcode) {
-        return (opcode >= IADD && opcode <= DREM) ||
-               opcode == IAND || opcode == IOR || opcode == IXOR;
-    }
-
-    /** Checks if opcode is conditional branch. */
-    private boolean isBranchOpcode(int opcode) {
-        return (opcode >= IFEQ && opcode <= IF_ICMPLE) ||
-               opcode == IFNULL || opcode == IFNONNULL;
-    }
-
 }

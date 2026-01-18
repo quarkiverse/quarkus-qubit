@@ -4,7 +4,9 @@ import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.ResultHandle;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
-import java.util.Set;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.unexpectedBigDecimalMethod;
+import static io.quarkiverse.qubit.deployment.generation.expression.BuilderResult.notApplicable;
+import static io.quarkiverse.qubit.deployment.generation.expression.BuilderResult.success;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.ADD;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.DIV;
@@ -26,24 +28,10 @@ import static io.quarkiverse.qubit.runtime.QubitConstants.*;
  * <p><b>Note:</b> BigDecimal methods are mapped to binary operators and delegated
  * to {@link ArithmeticExpressionBuilder} for actual bytecode generation.
  */
-public class BigDecimalExpressionBuilder implements ExpressionBuilder {
+public enum BigDecimalExpressionBuilder implements ExpressionBuilder {
+    INSTANCE;
 
-    /**
-     * BigDecimal arithmetic method names.
-     */
-    private static final Set<String> BIG_DECIMAL_METHODS = Set.of(
-        METHOD_ADD,
-        METHOD_SUBTRACT,
-        METHOD_MULTIPLY,
-        METHOD_DIVIDE
-    );
-
-    /**
-     * Maps BigDecimal method names to binary operators.
-     *
-     * @param methodName the BigDecimal method name (add, subtract, multiply, divide)
-     * @return the corresponding binary operator, or null if not a recognized BigDecimal method
-     */
+    /** Maps BigDecimal method names to binary operators. */
     public static LambdaExpression.BinaryOp.Operator mapMethodToOperator(String methodName) {
         return switch (methodName) {
             case METHOD_ADD -> ADD;
@@ -54,30 +42,13 @@ public class BigDecimalExpressionBuilder implements ExpressionBuilder {
         };
     }
 
-    /**
-     * Checks if a method call is a BigDecimal arithmetic operation.
-     *
-     * @param methodCall the method call expression
-     * @return true if BigDecimal arithmetic method (add, subtract, multiply, divide)
-     */
+    /** Checks if a method call is a BigDecimal arithmetic operation. */
     public boolean isBigDecimalArithmetic(LambdaExpression.MethodCall methodCall) {
-        return BIG_DECIMAL_METHODS.contains(methodCall.methodName());
+        return BIG_DECIMAL_ARITHMETIC_METHODS.contains(methodCall.methodName());
     }
 
-    /**
-     * Generates bytecode for BigDecimal arithmetic: add, subtract, multiply, divide.
-     *
-     * <p>Delegates to {@link ArithmeticExpressionBuilder} after mapping method name to operator.
-     *
-     * @param method the Gizmo method creator
-     * @param methodCall the method call expression
-     * @param cb the CriteriaBuilder handle
-     * @param fieldExpression the target field expression
-     * @param argument the argument expression
-     * @param arithmeticBuilder the arithmetic builder to delegate to
-     * @return the arithmetic Expression, or null if not a BigDecimal arithmetic method
-     */
-    public ResultHandle buildBigDecimalArithmetic(
+    /** Generates bytecode for BigDecimal arithmetic, delegating to {@link ArithmeticExpressionBuilder}. */
+    public BuilderResult buildBigDecimalArithmetic(
             MethodCreator method,
             LambdaExpression.MethodCall methodCall,
             ResultHandle cb,
@@ -85,16 +56,17 @@ public class BigDecimalExpressionBuilder implements ExpressionBuilder {
             ResultHandle argument,
             ArithmeticExpressionBuilder arithmeticBuilder) {
 
-        if (!BIG_DECIMAL_METHODS.contains(methodCall.methodName())) {
-            return null;
+        if (!BIG_DECIMAL_ARITHMETIC_METHODS.contains(methodCall.methodName())) {
+            return notApplicable();
         }
 
         LambdaExpression.BinaryOp.Operator operator = mapMethodToOperator(methodCall.methodName());
         if (operator == null) {
-            throw new IllegalStateException("Unexpected BigDecimal method: " + methodCall.methodName());
+            throw new IllegalStateException(unexpectedBigDecimalMethod(methodCall.methodName()));
         }
 
         // Delegate to arithmetic builder for the actual code generation
-        return arithmeticBuilder.buildArithmeticOperation(method, operator, cb, fieldExpression, argument);
+        ResultHandle result = arithmeticBuilder.buildArithmeticOperation(method, operator, cb, fieldExpression, argument);
+        return success(result);
     }
 }

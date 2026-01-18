@@ -1,5 +1,7 @@
 package io.quarkiverse.qubit.deployment.util;
 
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.NO_MORE_PARAMETERS;
+
 import io.quarkus.logging.Log;
 
 /**
@@ -10,9 +12,6 @@ public final class DescriptorParser {
     private DescriptorParser() {
     }
 
-    /**
-     * Returns number of parameters in method descriptor.
-     */
     public static int countMethodArguments(String descriptor) {
         ParameterIterator iter = new ParameterIterator(descriptor);
         int count = 0;
@@ -25,9 +24,7 @@ public final class DescriptorParser {
         return count;
     }
 
-    /**
-     * Returns slot index of entity parameter (last parameter in descriptor).
-     */
+    /** Returns slot index of entity parameter (last parameter). */
     public static int calculateEntityParameterSlotIndex(String descriptor) {
         ParameterIterator iter = new ParameterIterator(descriptor);
         int lastParamSlot = 0;
@@ -40,15 +37,7 @@ public final class DescriptorParser {
         return lastParamSlot;
     }
 
-    /**
-     * Returns slot indices for both entity parameters in a bi-entity lambda.
-     * <p>
-     * For BiQuerySpec like {@code (Person p, Phone ph) -> ...}, this returns
-     * the slot indices of both the first and second entity parameters.
-     *
-     * @param descriptor the method descriptor (e.g., "(LPerson;LPhone;)Z")
-     * @return array of [firstEntitySlot, secondEntitySlot], or null if less than 2 params
-     */
+    /** Returns slot indices for both entity parameters in bi-entity lambda. */
     public static int [] calculateBiEntityParameterSlotIndices(String descriptor) {
         int paramCount = countMethodArguments(descriptor);
         if (paramCount < 2) {
@@ -68,38 +57,19 @@ public final class DescriptorParser {
         return new int[] { slots[paramCount - 2], slots[paramCount - 1] };
     }
 
-    /**
-     * Returns the slot index of the first entity parameter (second-to-last parameter).
-     * <p>
-     * For BiQuerySpec like {@code (Person p, Phone ph) -> ...}, returns slot of 'p'.
-     *
-     * @param descriptor the method descriptor
-     * @return slot index of first entity, or -1 if less than 2 parameters
-     */
+    /** Returns slot index of first entity (second-to-last parameter). */
     public static int calculateFirstEntityParameterSlotIndex(String descriptor) {
         int[] slots = calculateBiEntityParameterSlotIndices(descriptor);
         return slots != null ? slots[0] : -1;
     }
 
-    /**
-     * Returns the slot index of the second entity parameter (last parameter).
-     * <p>
-     * For BiQuerySpec like {@code (Person p, Phone ph) -> ...}, returns slot of 'ph'.
-     * Same as calculateEntityParameterSlotIndex() but more explicit for bi-entity context.
-     *
-     * @param descriptor the method descriptor
-     * @return slot index of second entity, or -1 if less than 2 parameters
-     */
+    /** Returns slot index of second entity (last parameter). */
     public static int calculateSecondEntityParameterSlotIndex(String descriptor) {
         int[] slots = calculateBiEntityParameterSlotIndices(descriptor);
         return slots != null ? slots[1] : -1;
     }
 
-    /**
-     * Converts JVM slot index to parameter index.
-     * Returns the parameter index whose starting slot matches the given slot index,
-     * or -1 if no parameter starts at that slot.
-     */
+    /** Converts JVM slot index to parameter index, or -1 if no match. */
     public static int slotIndexToParameterIndex(String descriptor, int slotIndex) {
         ParameterIterator iter = new ParameterIterator(descriptor);
 
@@ -113,40 +83,117 @@ public final class DescriptorParser {
         return -1;
     }
 
-    /**
-     * Returns Class for parameter at index.
-     */
-    public static Class<?> getParameterType(String descriptor, int paramIndex) {
+    /** Returns entity class name from descriptor (last parameter). Preferred over getEntityClass() at build time. */
+    public static String getEntityClassName(String descriptor) {
+        int paramCount = countMethodArguments(descriptor);
+        if (paramCount == 0) {
+            return "java.lang.Object";
+        }
+        return getParameterTypeName(descriptor, paramCount - 1);
+    }
+
+    /** Returns class name for parameter at index. */
+    public static String getParameterTypeName(String descriptor, int paramIndex) {
+        ParameterTypeInfo info = getParameterTypeInfo(descriptor, paramIndex);
+        if (info == null) {
+            return "java.lang.Object";
+        }
+        if (info.typeChar() == 'L') {
+            return info.typeDescriptor().substring(1, info.typeDescriptor().length() - 1).replace('/', '.');
+        }
+        // Arrays ('[') and primitives are handled by primitiveCharToClass name
+        return TypeConverter.primitiveCharToClass(info.typeChar()).getName();
+    }
+
+    /** Type info for a method parameter (internal). */
+    private record ParameterTypeInfo(char typeChar, String typeDescriptor) {}
+
+    /** Finds type info for parameter at index. */
+    @org.jspecify.annotations.Nullable
+    private static ParameterTypeInfo getParameterTypeInfo(String descriptor, int paramIndex) {
         ParameterIterator iter = new ParameterIterator(descriptor);
 
         while (iter.hasNext()) {
             iter.next();
 
             if (iter.getParamIndex() == paramIndex) {
-                char c = iter.getTypeChar();
-
-                if (c == 'L') {
-                    String typeDescriptor = iter.getTypeDescriptor();
-                    String className = typeDescriptor.substring(1, typeDescriptor.length() - 1).replace('/', '.');
-                    try {
-                        return Class.forName(className);
-                    } catch (ClassNotFoundException e) {
-                        Log.debugf("Could not load class %s, using Object.class", className);
-                        return Object.class;
-                    }
-                }
-                // Arrays ('[') and primitives are handled by primitiveCharToClass.
-                // Arrays return Object.class via the default case.
-                return TypeConverter.primitiveCharToClass(c);
+                return new ParameterTypeInfo(iter.getTypeChar(), iter.getTypeDescriptor());
             }
         }
 
-        return Object.class;
+        return null;
     }
 
-    /**
-     * Iterates method descriptor parameters accounting for wide types.
-     */
+    /** Returns entity Class from descriptor (uses Class.forName(); prefer getEntityClassName() at build time). */
+    public static Class<?> getEntityClass(String descriptor) {
+        int paramCount = countMethodArguments(descriptor);
+        if (paramCount == 0) {
+            return Object.class;
+        }
+        // Entity is the last parameter
+        return getParameterType(descriptor, paramCount - 1);
+    }
+
+    public static Class<?> getParameterType(String descriptor, int paramIndex) {
+        ParameterTypeInfo info = getParameterTypeInfo(descriptor, paramIndex);
+        if (info == null) {
+            return Object.class;
+        }
+
+        if (info.typeChar() == 'L') {
+            String className = info.typeDescriptor().substring(1, info.typeDescriptor().length() - 1).replace('/', '.');
+            try {
+                return Class.forName(className);
+            } catch (ClassNotFoundException e) {
+                Log.debugf("Could not load class %s for parameter %d in descriptor %s, using Object.class. Cause: %s",
+                        className, paramIndex, descriptor, e.getMessage());
+                return Object.class;
+            }
+        }
+        // Arrays ('[') and primitives are handled by primitiveCharToClass.
+        // Arrays return Object.class via the default case.
+        return TypeConverter.primitiveCharToClass(info.typeChar());
+    }
+
+    // ========== Return Type Utilities ==========
+
+    /** Extracts return type descriptor from method descriptor. */
+    public static String getReturnTypeDescriptor(String methodDescriptor) {
+        if (methodDescriptor == null) {
+            return "";
+        }
+        int parenIndex = methodDescriptor.lastIndexOf(')');
+        if (parenIndex < 0 || parenIndex >= methodDescriptor.length() - 1) {
+            return "";
+        }
+        return methodDescriptor.substring(parenIndex + 1);
+    }
+
+    /** Checks if descriptor returns boolean (Z or Boolean). */
+    public static boolean returnsBooleanType(String methodDescriptor) {
+        String returnType = getReturnTypeDescriptor(methodDescriptor);
+        return "Z".equals(returnType) || "Ljava/lang/Boolean;".equals(returnType);
+    }
+
+    /** Checks if descriptor returns int (useful for compareTo detection). */
+    public static boolean returnsIntType(String methodDescriptor) {
+        return "I".equals(getReturnTypeDescriptor(methodDescriptor));
+    }
+
+    /** Checks if descriptor returns specific class type. */
+    public static boolean returnsType(String methodDescriptor, String classInternalName) {
+        String returnType = getReturnTypeDescriptor(methodDescriptor);
+        String expectedType = "L" + classInternalName + ";";
+        return expectedType.equals(returnType);
+    }
+
+    /** Checks if return type contains class name (for generics/partial matching). */
+    public static boolean returnTypeContains(String methodDescriptor, String classInternalName) {
+        String returnType = getReturnTypeDescriptor(methodDescriptor);
+        return returnType.contains(classInternalName);
+    }
+
+    /** Iterates method descriptor parameters accounting for wide types (long/double take 2 slots). */
     public static class ParameterIterator {
         private final String descriptor;
         private int position;
@@ -164,21 +211,15 @@ public final class DescriptorParser {
             this.currentTypeChar = '\0';
         }
 
-        /**
-         * Returns true if more parameters exist.
-         */
         public boolean hasNext() {
             return descriptor != null &&
                    position < descriptor.length() &&
                    descriptor.charAt(position) != ')';
         }
 
-        /**
-         * Advances to next parameter.
-         */
         public void next() {
             if (!hasNext()) {
-                throw new IllegalStateException("No more parameters");
+                throw new IllegalStateException(NO_MORE_PARAMETERS);
             }
 
             paramIndex++;
@@ -225,23 +266,14 @@ public final class DescriptorParser {
             }
         }
 
-        /**
-         * Returns current parameter index.
-         */
         public int getParamIndex() {
             return paramIndex;
         }
 
-        /**
-         * Returns slot index after current parameter.
-         */
         public int getSlotIndex() {
             return slotIndex;
         }
 
-        /**
-         * Returns starting slot of current parameter.
-         */
         public int getCurrentParamSlotStart() {
             char c = descriptor.charAt(currentTypeStart);
             if (c == 'J' || c == 'D') {
@@ -251,23 +283,14 @@ public final class DescriptorParser {
             }
         }
 
-        /**
-         * Returns type descriptor character.
-         */
         public char getTypeChar() {
             return currentTypeChar;
         }
 
-        /**
-         * Returns full type descriptor string.
-         */
         public String getTypeDescriptor() {
             return descriptor.substring(currentTypeStart, currentTypeEnd);
         }
 
-        /**
-         * Returns true if not at the terminator (;) of a class reference descriptor.
-         */
         private boolean isNotAtClassReferenceTerminator() {
             return position < descriptor.length() && descriptor.charAt(position) != ';';
         }

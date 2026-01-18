@@ -1,16 +1,19 @@
 package io.quarkiverse.qubit.runtime;
 
-import io.quarkus.arc.Arc;
-import jakarta.persistence.NoResultException;
-import jakarta.persistence.NonUniqueResultException;
+import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.countCapturedFields;
+import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.getCallSiteId;
+import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.getQueryExecutorRegistry;
+import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.requireNonNullLambda;
+import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.requireSingleResult;
+import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.validateLimitCount;
+import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.validateSkipCount;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Default implementation of {@link QubitStream} using JPA Criteria Queries.
@@ -35,54 +38,28 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     // STATE FIELDS
     // =============================================================================================
 
-    /**
-     * The entity class being queried.
-     */
     private final Class<T> entityClass;
 
-    /**
-     * Accumulated WHERE predicates (combined with AND).
-     */
+    /** WHERE predicates combined with AND. */
     private final List<QuerySpec<T, Boolean>> predicates;
 
-    /**
-     * Projection selector (null if no projection).
-     */
+    /** Projection selector (null if no projection). */
     private final QuerySpec<T, ?> selector;
 
-    /**
-     * Result type after projection (same as T if no projection).
-     */
+    /** Result type after projection (same as T if no projection). */
     private final Class<?> resultType;
 
-    /**
-     * Sort orders (last added has priority).
-     */
+    /** Sort orders (last added has priority). */
     private final List<SortOrder<T>> sortOrders;
 
-    /**
-     * OFFSET value (null if not set).
-     */
     private final Integer offset;
-
-    /**
-     * LIMIT value (null if not set).
-     */
     private final Integer limit;
-
-    /**
-     * DISTINCT flag.
-     */
     private final boolean distinct;
 
-    /**
-     * Aggregation type (null if not an aggregation query).
-     */
+    /** Aggregation type (null if not an aggregation query). */
     private final AggregationType aggregationType;
 
-    /**
-     * Aggregation mapper (null if not an aggregation query).
-     */
+    /** Aggregation mapper (null if not an aggregation query). */
     private final QuerySpec<T, ?> aggregationMapper;
 
     // =============================================================================================
@@ -98,6 +75,11 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
 
     /**
      * Internal constructor for creating derived streams.
+     * <p>
+     * <b>Issue #19 Fix (Thread Safety):</b> Defensive copies are made of mutable
+     * List parameters to prevent unsafe publication. While the current derivation
+     * methods always create new lists, this defensive copying ensures the class
+     * remains safe even if future code changes introduce shared references.
      */
     private QubitStreamImpl(
             Class<T> entityClass,
@@ -111,10 +93,10 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
             AggregationType aggregationType,
             QuerySpec<T, ?> aggregationMapper) {
         this.entityClass = entityClass;
-        this.predicates = predicates;
+        this.predicates = List.copyOf(predicates);
         this.selector = selector;
         this.resultType = resultType;
-        this.sortOrders = sortOrders;
+        this.sortOrders = List.copyOf(sortOrders);
         this.offset = offset;
         this.limit = limit;
         this.distinct = distinct;
@@ -128,6 +110,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
 
     @Override
     public QubitStream<T> where(QuerySpec<T, Boolean> predicate) {
+        requireNonNullLambda(predicate, "Predicate", "where");
         List<QuerySpec<T, Boolean>> newPredicates = new ArrayList<>(this.predicates);
         newPredicates.add(predicate);
         return withPredicates(newPredicates);
@@ -140,6 +123,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     @Override
     @SuppressWarnings("unchecked")
     public <R> QubitStream<R> select(QuerySpec<T, R> mapper) {
+        requireNonNullLambda(mapper, "Mapper", "select");
         // For now, we'll use a simple approach - the actual type inference
         // will be done at build time by the processor
         Class<R> newResultType = (Class<R>) Object.class; // Placeholder
@@ -155,6 +139,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
 
     @Override
     public <K extends Comparable<K>> QubitStream<T> sortedBy(QuerySpec<T, K> keyExtractor) {
+        requireNonNullLambda(keyExtractor, "Key extractor", "sortedBy");
         List<SortOrder<T>> newSortOrders = new ArrayList<>(this.sortOrders);
         // Prepend to list (last call wins - becomes primary sort)
         newSortOrders.add(0, new SortOrder<>(keyExtractor, SortDirection.ASCENDING));
@@ -163,6 +148,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
 
     @Override
     public <K extends Comparable<K>> QubitStream<T> sortedDescendingBy(QuerySpec<T, K> keyExtractor) {
+        requireNonNullLambda(keyExtractor, "Key extractor", "sortedDescendingBy");
         List<SortOrder<T>> newSortOrders = new ArrayList<>(this.sortOrders);
         // Prepend to list (last call wins - becomes primary sort)
         newSortOrders.add(0, new SortOrder<>(keyExtractor, SortDirection.DESCENDING));
@@ -175,18 +161,12 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
 
     @Override
     public QubitStream<T> skip(int n) {
-        if (n < 0) {
-            throw new IllegalArgumentException("skip count must be >= 0, got: " + n);
-        }
-        return withOffset(n);
+        return withOffset(validateSkipCount(n));
     }
 
     @Override
     public QubitStream<T> limit(int n) {
-        if (n < 0) {
-            throw new IllegalArgumentException("limit count must be >= 0, got: " + n);
-        }
-        return withLimit(n);
+        return withLimit(validateLimitCount(n));
     }
 
     // =============================================================================================
@@ -205,45 +185,51 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     @Override
     public long count() {
         // Delegate to build-time generated executor via registry
-        String callSiteId = getCallSiteId();
+        String callSiteId = getCallSiteId(Set.of(), getPrimaryLambda());
         Object[] capturedValues = extractCapturedVariables(callSiteId);
 
-        QueryExecutorRegistry registry = Arc.container().instance(QueryExecutorRegistry.class).get();
+        QueryExecutorRegistry registry = getQueryExecutorRegistry();
         return registry.executeCountQuery(callSiteId, entityClass, capturedValues);
     }
 
     @Override
     public <K extends Comparable<K>> QubitStream<K> min(QuerySpec<T, K> mapper) {
+        requireNonNullLambda(mapper, "Mapper", "min");
         // Store aggregation state, execution happens in getSingleResult()
         return withAggregation(AggregationType.MIN, mapper);
     }
 
     @Override
     public <K extends Comparable<K>> QubitStream<K> max(QuerySpec<T, K> mapper) {
+        requireNonNullLambda(mapper, "Mapper", "max");
         // Store aggregation state, execution happens in getSingleResult()
         return withAggregation(AggregationType.MAX, mapper);
     }
 
     @Override
     public QubitStream<Long> sumInteger(QuerySpec<T, Integer> mapper) {
+        requireNonNullLambda(mapper, "Mapper", "sumInteger");
         // Store aggregation state, execution happens in getSingleResult()
         return withAggregation(AggregationType.SUM_INTEGER, mapper);
     }
 
     @Override
     public QubitStream<Long> sumLong(QuerySpec<T, Long> mapper) {
+        requireNonNullLambda(mapper, "Mapper", "sumLong");
         // Store aggregation state, execution happens in getSingleResult()
         return withAggregation(AggregationType.SUM_LONG, mapper);
     }
 
     @Override
     public QubitStream<Double> sumDouble(QuerySpec<T, Double> mapper) {
+        requireNonNullLambda(mapper, "Mapper", "sumDouble");
         // Store aggregation state, execution happens in getSingleResult()
         return withAggregation(AggregationType.SUM_DOUBLE, mapper);
     }
 
     @Override
     public QubitStream<Double> avg(QuerySpec<T, ? extends Number> mapper) {
+        requireNonNullLambda(mapper, "Mapper", "avg");
         // Store aggregation state, execution happens in getSingleResult()
         return withAggregation(AggregationType.AVG, mapper);
     }
@@ -255,10 +241,10 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     @Override
     public List<T> toList() {
         // Delegate to build-time generated executor via registry
-        String callSiteId = getCallSiteId();
+        String callSiteId = getCallSiteId(Set.of(), getPrimaryLambda());
         Object[] capturedValues = extractCapturedVariables(callSiteId);
 
-        QueryExecutorRegistry registry = Arc.container().instance(QueryExecutorRegistry.class).get();
+        QueryExecutorRegistry registry = getQueryExecutorRegistry();
 
         // Pass pagination and distinct parameters to registry for runtime application
         return registry.executeListQuery(callSiteId, entityClass, capturedValues, offset, limit, distinct);
@@ -269,28 +255,16 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     public T getSingleResult() {
         // If this is an aggregation query, execute it directly
         if (aggregationType != null) {
-            String callSiteId = getCallSiteId();
+            String callSiteId = getCallSiteId(Set.of(), getPrimaryLambda());
             Object[] capturedValues = extractCapturedVariables(callSiteId);
 
-            QueryExecutorRegistry registry = Arc.container().instance(QueryExecutorRegistry.class).get();
+            QueryExecutorRegistry registry = getQueryExecutorRegistry();
             return (T) registry.executeAggregationQuery(callSiteId, entityClass, capturedValues);
         }
 
         // Otherwise, delegate to toList() and validate single result
         // Note: This uses the build-time generated executor infrastructure
-        List<T> results = toList();
-
-        if (results.isEmpty()) {
-            throw new NoResultException(
-                    "getSingleResult() expected exactly one result but found none");
-        }
-
-        if (results.size() > 1) {
-            throw new NonUniqueResultException(
-                    "getSingleResult() expected exactly one result but found " + results.size());
-        }
-
-        return results.get(0);
+        return requireSingleResult(toList());
     }
 
     @Override
@@ -402,21 +376,38 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     // =============================================================================================
 
     /**
-     * Gets the call site ID using stack walking.
-     * This is used to look up the pre-generated query executor.
+     * Returns the primary lambda for call site ID uniqueness.
+     * <p>
+     * Priority order (matching build-time InvokeDynamicScanner.getPrimaryLambdaMethodName):
+     * <ol>
+     *   <li>First predicate (most queries have a where clause)</li>
+     *   <li>Selector (for projection-only queries)</li>
+     *   <li>Aggregation mapper (for aggregation queries)</li>
+     *   <li>First sort key extractor (for sort-only queries)</li>
+     * </ol>
+     *
+     * @return the primary lambda, or null if no lambdas are present
      */
-    private String getCallSiteId() {
-        StackWalker walker = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
-        return walker.walk(frames -> frames
-                .skip(1) // Skip getCallSiteId itself
-                .filter(frame -> !frame.getClassName().startsWith("io.quarkiverse.qubit.runtime."))
-                .filter(frame -> !QubitConstants.FLUENT_INTERMEDIATE_METHODS.contains(frame.getMethodName()))
-                .filter(frame -> !QubitConstants.FLUENT_TERMINAL_METHODS.contains(frame.getMethodName()))
-                .findFirst()
-                .map(frame -> frame.getClassName() + ":" +
-                             frame.getMethodName() + ":" +
-                             frame.getLineNumber())
-                .orElseThrow(() -> new IllegalStateException("Could not determine call site")));
+    private Object getPrimaryLambda() {
+        // First predicate takes priority
+        if (!predicates.isEmpty()) {
+            return predicates.get(0);
+        }
+        // Selector for projection-only queries
+        if (selector != null) {
+            return selector;
+        }
+        // Aggregation mapper for aggregation queries
+        if (aggregationMapper != null) {
+            return aggregationMapper;
+        }
+        // Sort key extractor for sort-only queries
+        // Note: sortOrders are prepended (newest at index 0), so we pick the last
+        // element (first added) to match build-time's sortLambdas.get(0)
+        if (!sortOrders.isEmpty()) {
+            return sortOrders.get(sortOrders.size() - 1).keyExtractor();
+        }
+        return null;
     }
 
     /**
@@ -455,6 +446,17 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
 
             if (predicateCapturedCount > 0) {
                 Object[] predicateValues = CapturedVariableExtractor.extract(predicate, predicateCapturedCount);
+
+                // Issue #20 Fix: Per-predicate validation for easier debugging
+                // Validates that extractor returned the expected number of values
+                if (predicateValues.length != predicateCapturedCount) {
+                    throw new IllegalStateException(String.format(
+                            "Captured variable extraction mismatch for predicate in %s: " +
+                            "expected %d values from predicate fields but extractor returned %d. " +
+                            "This may indicate a compiler/runtime field naming inconsistency.",
+                            callSiteId, predicateCapturedCount, predicateValues.length));
+                }
+
                 Collections.addAll(allCapturedValues, predicateValues);
                 remainingCount -= predicateCapturedCount;
             }
@@ -469,33 +471,6 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
         return allCapturedValues.toArray(new Object[0]);
     }
 
-    /**
-     * Counts the number of captured variable fields in a lambda instance.
-     * Lambda instances store captured variables as non-static instance fields.
-     *
-     * @param lambdaInstance the lambda instance (QuerySpec)
-     * @return number of captured variable fields
-     */
-    private int countCapturedFields(Object lambdaInstance) {
-        if (lambdaInstance == null) {
-            return 0;
-        }
-
-        Class<?> lambdaClass = lambdaInstance.getClass();
-        Field[] allFields = lambdaClass.getDeclaredFields();
-
-        // Count non-static instance fields - these are the captured variables
-        // Lambda instances only have fields for captured variables (no other instance fields)
-        int count = 0;
-        for (Field field : allFields) {
-            if (!Modifier.isStatic(field.getModifiers())) {
-                count++;
-            }
-        }
-
-        return count;
-    }
-
     // =============================================================================================
     // JOIN OPERATIONS
     // =============================================================================================
@@ -503,6 +478,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     @Override
     @SuppressWarnings("unchecked")
     public <R> JoinStream<T, R> join(QuerySpec<T, Collection<R>> relationship) {
+        requireNonNullLambda(relationship, "Relationship", "join");
         // Infer joined entity class from the relationship
         // For now, use Object.class as placeholder - actual type is resolved at build time
         Class<R> joinedClass = (Class<R>) Object.class;
@@ -512,6 +488,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     @Override
     @SuppressWarnings("unchecked")
     public <R> JoinStream<T, R> leftJoin(QuerySpec<T, Collection<R>> relationship) {
+        requireNonNullLambda(relationship, "Relationship", "leftJoin");
         // Infer joined entity class from the relationship
         // For now, use Object.class as placeholder - actual type is resolved at build time
         Class<R> joinedClass = (Class<R>) Object.class;
@@ -524,6 +501,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
 
     @Override
     public <K> GroupStream<T, K> groupBy(QuerySpec<T, K> keyExtractor) {
+        requireNonNullLambda(keyExtractor, "Key extractor", "groupBy");
         // Create a new GroupStream with the accumulated predicates
         return new GroupStreamImpl<>(entityClass, keyExtractor, new ArrayList<>(predicates));
     }

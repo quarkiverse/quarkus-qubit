@@ -13,9 +13,6 @@ public final class TypeConverter {
     private TypeConverter() {
     }
 
-    /**
-     * Converts primitive type descriptor character to Class.
-     */
     public static Class<?> primitiveCharToClass(char typeChar) {
         return switch (typeChar) {
             case 'Z' -> boolean.class;
@@ -30,9 +27,6 @@ public final class TypeConverter {
         };
     }
 
-    /**
-     * Converts type descriptor string to Class.
-     */
     public static Class<?> descriptorToClass(String descriptor) {
         if (descriptor.length() == 1) {
             return primitiveCharToClass(descriptor.charAt(0));
@@ -53,9 +47,6 @@ public final class TypeConverter {
         };
     }
 
-    /**
-     * Returns boxed type for primitive type.
-     */
     public static Class<?> getBoxedType(Class<?> type) {
         if (type == int.class) {
             return Integer.class;
@@ -78,22 +69,12 @@ public final class TypeConverter {
         }
     }
 
-    /**
-     * Returns true if type is boolean (primitive or wrapper).
-     *
-     * @param type the class to check
-     * @return true if type is boolean or Boolean
-     */
+    /** Returns true if type is boolean (primitive or wrapper). */
     public static boolean isBooleanType(Class<?> type) {
         return type == boolean.class || type == Boolean.class;
     }
 
-    /**
-     * Returns true if type is numeric (primitive or wrapper).
-     *
-     * @param type the class to check
-     * @return true if type is a numeric type
-     */
+    /** Returns true if type is numeric (primitive or wrapper). */
     public static boolean isNumericType(Class<?> type) {
         return type == int.class || type == Integer.class ||
                type == long.class || type == Long.class ||
@@ -104,12 +85,7 @@ public final class TypeConverter {
                Number.class.isAssignableFrom(type);
     }
 
-    /**
-     * Returns true if type is a temporal type (LocalDate, LocalDateTime, LocalTime).
-     *
-     * @param type the class to check
-     * @return true if type is a temporal type
-     */
+    /** Returns true if type is a temporal type (LocalDate, LocalDateTime, LocalTime). */
     public static boolean isTemporalType(Class<?> type) {
         return type == LocalDate.class ||
                type == LocalDateTime.class ||

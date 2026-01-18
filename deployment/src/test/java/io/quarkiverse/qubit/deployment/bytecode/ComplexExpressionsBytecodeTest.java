@@ -68,6 +68,11 @@ class ComplexExpressionsBytecodeTest extends PrecompiledLambdaAnalyzer {
     void complexNestedOrAnd() {
         LambdaExpression expr = analyzeLambda("complexNestedOrAnd");
 
+        // DEBUG: Print actual AST structure
+        System.out.println("=== complexNestedOrAnd AST STRUCTURE ===");
+        printAst(expr, 0);
+        System.out.println("=== END AST ===");
+
         // (p.age < 30 || p.age > 40) && (p.active || p.salary > 70000)
         assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.AND);
         LambdaExpression.BinaryOp andOp = (LambdaExpression.BinaryOp) expr;
@@ -97,6 +102,11 @@ class ComplexExpressionsBytecodeTest extends PrecompiledLambdaAnalyzer {
     @Test
     void deeplyNestedMultipleOrGroups() {
         LambdaExpression expr = analyzeLambda("deeplyNestedMultipleOrGroups");
+
+        // DEBUG: Print actual AST structure
+        System.out.println("=== deeplyNestedMultipleOrGroups AST STRUCTURE ===");
+        printAst(expr, 0);
+        System.out.println("=== END AST ===");
 
         // ((p.age > 25 && p.age < 40) || p.salary > 85000) && (p.active || p.firstName.startsWith("B"))
         assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.AND);
@@ -187,5 +197,72 @@ class ComplexExpressionsBytecodeTest extends PrecompiledLambdaAnalyzer {
         // Verify it's an AND chain with multiple conditions
         assertThat(andOp.left()).isNotNull();
         assertThat(andOp.right()).isNotNull();
+    }
+
+    /**
+     * Test for pattern: (A && B) || (C && D)
+     * This is a critical case where two AND groups are connected by OR.
+     * The structure MUST be: OR at the top level with two AND children.
+     */
+    @Test
+    void twoAndGroupsWithOr() {
+        LambdaExpression expr = analyzeLambda("twoAndGroupsWithOr");
+
+        // DEBUG: Print actual AST structure
+        System.out.println("=== ACTUAL AST STRUCTURE ===");
+        printAst(expr, 0);
+        System.out.println("=== END AST ===");
+
+        // (p.active && p.age > 0) || (p.salary > 50000 && p.height > 1.70f)
+        // Expected structure: OR at top with two AND children
+        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.OR);
+        LambdaExpression.BinaryOp orOp = (LambdaExpression.BinaryOp) expr;
+
+        // Left: p.active && p.age > 0
+        assertBinaryOp(orOp.left(), LambdaExpression.BinaryOp.Operator.AND);
+        LambdaExpression.BinaryOp leftAnd = (LambdaExpression.BinaryOp) orOp.left();
+
+        // Left-left: p.active == true (boolean field comparison)
+        assertBinaryOp(leftAnd.left(), LambdaExpression.BinaryOp.Operator.EQ);
+        LambdaExpression.BinaryOp activeCheck = (LambdaExpression.BinaryOp) leftAnd.left();
+        assertFieldAccess(activeCheck.left(), "active");
+
+        // Left-right: p.age > 0
+        assertBinaryOp(leftAnd.right(), LambdaExpression.BinaryOp.Operator.GT);
+        LambdaExpression.BinaryOp ageCheck = (LambdaExpression.BinaryOp) leftAnd.right();
+        assertFieldAccess(ageCheck.left(), "age");
+        assertConstant(ageCheck.right(), 0);
+
+        // Right: p.salary > 50000 && p.height > 1.70f
+        assertBinaryOp(orOp.right(), LambdaExpression.BinaryOp.Operator.AND);
+        LambdaExpression.BinaryOp rightAnd = (LambdaExpression.BinaryOp) orOp.right();
+
+        // Right-left: p.salary > 50000
+        assertBinaryOp(rightAnd.left(), LambdaExpression.BinaryOp.Operator.GT);
+        LambdaExpression.BinaryOp salaryCheck = (LambdaExpression.BinaryOp) rightAnd.left();
+        assertFieldAccess(salaryCheck.left(), "salary");
+
+        // Right-right: p.height > 1.70f
+        assertBinaryOp(rightAnd.right(), LambdaExpression.BinaryOp.Operator.GT);
+        LambdaExpression.BinaryOp heightCheck = (LambdaExpression.BinaryOp) rightAnd.right();
+        assertFieldAccess(heightCheck.left(), "height");
+    }
+
+    private void printAst(LambdaExpression expr, int depth) {
+        String indent = "  ".repeat(depth);
+        if (expr instanceof LambdaExpression.BinaryOp binOp) {
+            System.out.println(indent + binOp.operator());
+            printAst(binOp.left(), depth + 1);
+            printAst(binOp.right(), depth + 1);
+        } else if (expr instanceof LambdaExpression.UnaryOp unaryOp) {
+            System.out.println(indent + "NOT");
+            printAst(unaryOp.operand(), depth + 1);
+        } else if (expr instanceof LambdaExpression.FieldAccess fieldAccess) {
+            System.out.println(indent + "field:" + fieldAccess.fieldName());
+        } else if (expr instanceof LambdaExpression.Constant constant) {
+            System.out.println(indent + "const:" + constant.value());
+        } else {
+            System.out.println(indent + expr.getClass().getSimpleName() + ": " + expr);
+        }
     }
 }

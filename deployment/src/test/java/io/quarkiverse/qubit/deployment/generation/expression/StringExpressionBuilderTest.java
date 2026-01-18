@@ -30,7 +30,7 @@ class StringExpressionBuilderTest {
 
     @BeforeEach
     void setUp() {
-        builder = new StringExpressionBuilder();
+        builder = StringExpressionBuilder.INSTANCE;
     }
 
     @Nested

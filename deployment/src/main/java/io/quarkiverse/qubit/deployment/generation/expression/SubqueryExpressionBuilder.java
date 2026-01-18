@@ -1,11 +1,14 @@
 package io.quarkiverse.qubit.deployment.generation.expression;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.AND;
-import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.OR;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.*;
+import static io.quarkiverse.qubit.deployment.common.PatternDetector.isLogicalOperation;
+import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.isGetterMethodName;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.*;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_EQUALS;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.common.OperatorMethodMapper;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.ExistsSubquery;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.FieldAccess;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.InSubquery;
@@ -21,45 +24,11 @@ import io.quarkus.gizmo.ResultHandle;
 import io.quarkus.logging.Log;
 import jakarta.persistence.criteria.Predicate;
 
-/**
- * Generates JPA Criteria API bytecode for subquery expressions.
- * <p>
- * Handles ScalarSubquery, ExistsSubquery, and InSubquery.
- *
- * <p>Architecture:
- * <ul>
- *   <li>ScalarSubquery → JPA Subquery with aggregation function</li>
- *   <li>ExistsSubquery → cb.exists(subquery) or cb.not(cb.exists(subquery))</li>
- *   <li>InSubquery → path.in(subquery) or cb.not(path.in(subquery))</li>
- * </ul>
- *
- * <p>Example generated code for ScalarSubquery:
- * <pre>
- * // p.salary > subquery(Person.class).avg(q -> q.salary)
- * Subquery&lt;Double&gt; avgSub = query.subquery(Double.class);
- * Root&lt;Person&gt; subRoot = avgSub.from(Person.class);
- * avgSub.select(cb.avg(subRoot.get("salary")));
- * // Used in: cb.greaterThan(root.get("salary"), avgSub)
- * </pre>
- *
- * internal generate* methods return ResultHandle, but callers
- * typically know the result is non-null in their specific context.
- */
-public class SubqueryExpressionBuilder implements ExpressionBuilder {
+/** Generates JPA bytecode for subquery expressions (ScalarSubquery, ExistsSubquery, InSubquery). */
+public enum SubqueryExpressionBuilder implements ExpressionBuilder {
+    INSTANCE;
 
-    /**
-     * Generates JPA scalar aggregation subquery.
-     *
-     * <p>Creates a subquery that returns a single aggregated value (AVG, SUM, MIN, MAX, COUNT).
-     *
-     * @param method the method creator for bytecode generation
-     * @param scalar the scalar subquery expression
-     * @param cb the CriteriaBuilder handle
-     * @param query the CriteriaQuery handle (needed to create subqueries)
-     * @param outerRoot the outer query's root handle (for correlated subqueries)
-     * @param capturedValues the captured variables array handle
-     * @return the JPA Subquery handle
-     */
+    /** Generates JPA scalar aggregation subquery. */
     public ResultHandle buildScalarSubquery(
             MethodCreator method,
             ScalarSubquery scalar,
@@ -69,7 +38,7 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
             ResultHandle capturedValues) {
 
         if (scalar == null) {
-            throw new IllegalArgumentException("ScalarSubquery cannot be null");
+            throw new IllegalArgumentException(SCALAR_SUBQUERY_NULL);
         }
 
         // Determine the subquery result type based on aggregation
@@ -103,19 +72,7 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
         return subquery;
     }
 
-    /**
-     * Generates JPA EXISTS subquery predicate.
-     *
-     * <p>Creates cb.exists(subquery) or cb.not(cb.exists(subquery)).
-     *
-     * @param method the method creator for bytecode generation
-     * @param exists the EXISTS subquery expression
-     * @param cb the CriteriaBuilder handle
-     * @param query the CriteriaQuery handle
-     * @param outerRoot the outer query's root handle (for correlation)
-     * @param capturedValues the captured variables array handle
-     * @return the JPA Predicate handle
-     */
+    /** Generates JPA EXISTS subquery predicate. */
     public ResultHandle buildExistsSubquery(
             MethodCreator method,
             ExistsSubquery exists,
@@ -125,7 +82,7 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
             ResultHandle capturedValues) {
 
         if (exists == null) {
-            throw new IllegalArgumentException("ExistsSubquery cannot be null");
+            throw new IllegalArgumentException(EXISTS_SUBQUERY_NULL);
         }
 
         // Create subquery: query.subquery(entityClass)
@@ -158,19 +115,7 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
         return existsPredicate;
     }
 
-    /**
-     * Generates JPA IN subquery predicate.
-     *
-     * <p>Creates path.in(subquery) or cb.not(path.in(subquery)).
-     *
-     * @param method the method creator for bytecode generation
-     * @param inSubquery the IN subquery expression
-     * @param cb the CriteriaBuilder handle
-     * @param query the CriteriaQuery handle
-     * @param outerRoot the outer query's root handle
-     * @param capturedValues the captured variables array handle
-     * @return the JPA Predicate handle
-     */
+    /** Generates JPA IN subquery predicate. */
     public ResultHandle buildInSubquery(
             MethodCreator method,
             InSubquery inSubquery,
@@ -180,7 +125,7 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
             ResultHandle capturedValues) {
 
         if (inSubquery == null) {
-            throw new IllegalArgumentException("InSubquery cannot be null");
+            throw new IllegalArgumentException(IN_SUBQUERY_NULL);
         }
 
         // Generate the left-hand field expression from the outer query
@@ -226,21 +171,16 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
         return inPredicate;
     }
 
-    /**
-     * Returns the JPA result type for an aggregation.
-     */
     private Class<?> getAggregationResultType(SubqueryAggregationType aggType) {
         return switch (aggType) {
             case AVG -> Double.class;
-            case SUM -> Number.class;          case MIN, MAX -> Comparable.class;
+            case SUM -> Number.class;
+            case MIN, MAX -> Comparable.class;
             case COUNT -> Long.class;
-            default -> throw new IllegalStateException("Unexpected aggregation type: " + aggType);
+            default -> throw new IllegalStateException(unexpectedAggregationType(aggType));
         };
     }
 
-    /**
-     * Generates the aggregation function call for a scalar subquery.
-     */
     private ResultHandle generateAggregation(
             MethodCreator method,
             ScalarSubquery scalar,
@@ -261,25 +201,15 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
             case SUM -> method.invokeInterfaceMethod(CB_SUM, cb, fieldPath);
             case MIN -> method.invokeInterfaceMethod(CB_MIN, cb, fieldPath);
             case MAX -> method.invokeInterfaceMethod(CB_MAX, cb, fieldPath);
-            case COUNT -> throw new IllegalStateException("COUNT should be handled above");
-            default -> throw new IllegalStateException("Unexpected aggregation type: " + scalar.aggregationType());
+            case COUNT -> throw new IllegalStateException(COUNT_SHOULD_BE_HANDLED_ABOVE);
+            default -> throw new IllegalStateException(unexpectedAggregationType(scalar.aggregationType()));
         };
     }
 
-    /**
-     * Generates a field path expression.
-     *
-     * @param method the method creator for bytecode generation
-     * @param expr the expression to generate a path for (must be FieldAccess or PathExpression)
-     * @param root the root handle to build the path from
-     * @return ResultHandle for the generated path expression
-     * @throws IllegalArgumentException if expr is null or an unsupported expression type
-     */
     private ResultHandle generateFieldPath(MethodCreator method, LambdaExpression expr, ResultHandle root) {
         if (expr == null) {
-            throw new IllegalArgumentException("Field path expression cannot be null");
+            throw new IllegalArgumentException(FIELD_PATH_EXPRESSION_NULL);
         }
-        // Java 21 pattern matching switch for type dispatch
         return switch (expr) {
             case FieldAccess field -> {
                 ResultHandle fieldName = method.load(field.fieldName());
@@ -296,25 +226,10 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
             }
 
             default -> throw new IllegalArgumentException(
-                    "Unsupported expression type for field path generation: " + expr.getClass().getSimpleName()
-                            + ". Expected FieldAccess or PathExpression.");
+                    unsupportedFieldPathExpressionType(expr.getClass().getSimpleName()));
         };
     }
 
-    /**
-     * Generates a predicate for the subquery's WHERE clause.
-     *
-     * <p>This handles both simple predicates (using only subquery root) and
-     * correlated predicates (referencing the outer query's root).
-     *
-     * @param method the method creator for bytecode generation
-     * @param predicate the predicate expression, or null
-     * @param cb the CriteriaBuilder handle
-     * @param subRoot the subquery root handle
-     * @param outerRoot the outer query root handle
-     * @param capturedValues the captured values array handle
-     * @return the generated predicate handle, or null if predicate is null or unhandled
-     */
     private ResultHandle generateSubqueryPredicate(
             MethodCreator method,
             LambdaExpression predicate,
@@ -364,17 +279,6 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
         };
     }
 
-    /**
-     * Generates a predicate for method call expressions in subquery WHERE clauses.
-     *
-     * @param method the method creator for bytecode generation
-     * @param methodCall the method call expression
-     * @param cb the CriteriaBuilder handle
-     * @param subRoot the subquery root handle
-     * @param outerRoot the outer query root handle
-     * @param capturedValues the captured values array handle
-     * @return the generated predicate handle, or null if method is not recognized
-     */
     private ResultHandle generateMethodCallPredicate(
             MethodCreator method,
             LambdaExpression.MethodCall methodCall,
@@ -403,17 +307,6 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
         return null;
     }
 
-    /**
-     * Generates a binary operation predicate for subquery WHERE clause.
-     *
-     * @param method the method creator for bytecode generation
-     * @param binOp the binary operation expression
-     * @param cb the CriteriaBuilder handle
-     * @param subRoot the subquery root handle
-     * @param outerRoot the outer query root handle
-     * @param capturedValues the captured values array handle
-     * @return the generated predicate, or null for unsupported operators
-     */
     private ResultHandle generateBinaryOpPredicate(
             MethodCreator method,
             LambdaExpression.BinaryOp binOp,
@@ -423,14 +316,12 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
             ResultHandle capturedValues) {
 
         // Handle logical operators (AND/OR) differently - they need predicates
-        if (binOp.operator() == AND ||binOp.operator() == OR) {
+        if (isLogicalOperation(binOp)) {
             // Recursively generate predicates for both sides
             ResultHandle leftPredicate = generateSubqueryPredicate(method, binOp.left(), cb, subRoot, outerRoot, capturedValues);
             ResultHandle rightPredicate = generateSubqueryPredicate(method, binOp.right(), cb, subRoot, outerRoot, capturedValues);
 
-            ResultHandle predicateArray = method.newArray(Predicate.class, 2);
-            method.writeArrayValue(predicateArray, 0, leftPredicate);
-            method.writeArrayValue(predicateArray, 1, rightPredicate);
+            ResultHandle predicateArray = GizmoHelper.createElementArray(method, Predicate.class, leftPredicate, rightPredicate);
 
             MethodDescriptor cbOperator = binOp.operator() == AND ? CB_AND : CB_OR;
             return method.invokeInterfaceMethod(cbOperator, cb, predicateArray);
@@ -441,31 +332,13 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
         ResultHandle right = generateSubqueryExpression(method, binOp.right(), cb, subRoot, outerRoot, capturedValues);
 
         // Generate the appropriate comparison
-        return switch (binOp.operator()) {
-            case EQ -> method.invokeInterfaceMethod(CB_EQUAL, cb, left, right);
-            case NE -> method.invokeInterfaceMethod(CB_NOT_EQUAL, cb, left, right);
-            case GT -> method.invokeInterfaceMethod(CB_GREATER_THAN, cb, left, right);
-            case GE -> method.invokeInterfaceMethod(CB_GREATER_THAN_OR_EQUAL, cb, left, right);
-            case LT -> method.invokeInterfaceMethod(CB_LESS_THAN, cb, left, right);
-            case LE -> method.invokeInterfaceMethod(CB_LESS_THAN_OR_EQUAL, cb, left, right);
-            default -> null;
-        };
+        if (OperatorMethodMapper.isComparisonOperator(binOp.operator())) {
+            var comparisonMethod = OperatorMethodMapper.mapComparisonOperator(binOp.operator(), false);
+            return method.invokeInterfaceMethod(comparisonMethod, cb, left, right);
+        }
+        return null;
     }
 
-    /**
-     * Generates an expression for use in subquery predicates.
-     *
-     * <p>This handles both subquery-local expressions and correlated references
-     * to the outer query.
-     *
-     * @param method the method creator for bytecode generation
-     * @param expr the expression to generate, or null
-     * @param cb the CriteriaBuilder handle
-     * @param subRoot the subquery root handle
-     * @param outerRoot the outer query root handle (for correlated subqueries)
-     * @param capturedValues the captured values array handle
-     * @return ResultHandle for the generated expression, or null if expr is null or unhandled
-     */
     private ResultHandle generateSubqueryExpression(
             MethodCreator method,
             LambdaExpression expr,
@@ -521,17 +394,6 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
         };
     }
 
-    /**
-     * Generates a JPA expression for method call expressions in subqueries.
-     *
-     * @param method the method creator for bytecode generation
-     * @param methodCall the method call expression
-     * @param cb the CriteriaBuilder handle
-     * @param subRoot the subquery root handle
-     * @param outerRoot the outer query root handle
-     * @param capturedValues the captured values array handle
-     * @return the generated expression handle
-     */
     private ResultHandle generateMethodCallExpression(
             MethodCreator method,
             LambdaExpression.MethodCall methodCall,
@@ -543,7 +405,7 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
         String methodName = methodCall.methodName();
 
         // Handle getter methods (getXxx, isXxx) → path navigation
-        if (methodName.startsWith("get") || methodName.startsWith("is")) {
+        if (isGetterMethodName(methodName)) {
             // First, resolve the target expression
             ResultHandle targetPath = generateSubqueryExpression(
                     method, methodCall.target(), cb, subRoot, outerRoot, capturedValues);
@@ -562,17 +424,6 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
         return null;
     }
 
-    /**
-     * Generates a JPA expression for binary operations in subquery expressions.
-     *
-     * @param method the method creator for bytecode generation
-     * @param binOp the binary operation expression
-     * @param cb the CriteriaBuilder handle
-     * @param subRoot the subquery root handle
-     * @param outerRoot the outer query root handle
-     * @param capturedValues the captured values array handle
-     * @return the generated expression handle
-     */
     private ResultHandle generateBinaryOpExpression(
             MethodCreator method,
             LambdaExpression.BinaryOp binOp,
@@ -585,24 +436,14 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
         ResultHandle right = generateSubqueryExpression(method, binOp.right(), cb, subRoot, outerRoot, capturedValues);
 
         // Generate the appropriate arithmetic operation
-        return switch (binOp.operator()) {
-            case ADD -> method.invokeInterfaceMethod(CB_SUM_BINARY, cb, left, right);
-            case SUB -> method.invokeInterfaceMethod(CB_DIFF, cb, left, right);
-            case MUL -> method.invokeInterfaceMethod(CB_PROD, cb, left, right);
-            case DIV -> method.invokeInterfaceMethod(CB_QUOT, cb, left, right);
-            default -> {
-                Log.warnf("Unhandled binary operator in subquery expression: %s", binOp.operator());
-                yield null;
-            }
-        };
+        if (OperatorMethodMapper.isArithmeticOperator(binOp.operator())) {
+            var arithmeticMethod = OperatorMethodMapper.mapArithmeticOperator(binOp.operator());
+            return method.invokeInterfaceMethod(arithmeticMethod, cb, left, right);
+        }
+        Log.warnf("Unhandled binary operator in subquery expression: %s", binOp.operator());
+        return null;
     }
 
-    /**
-     * Checks if an operator is a comparison or logical operator.
-     *
-     * @param operator the binary operator to check
-     * @return true if the operator is EQ, NE, GT, GE, LT, LE, AND, or OR
-     */
     private boolean isComparisonOrLogicalOperator(LambdaExpression.BinaryOp.Operator operator) {
         return switch (operator) {
             case EQ, NE, GT, GE, LT, LE, AND, OR -> true;
@@ -611,41 +452,13 @@ public class SubqueryExpressionBuilder implements ExpressionBuilder {
         };
     }
 
-    /**
-     * Generates a constant value.
-     */
     private ResultHandle generateConstant(MethodCreator method, LambdaExpression.Constant constant) {
-        Object value = constant.value();
-        // Java 21 pattern matching switch for type dispatch
-        return switch (value) {
-            case null -> method.loadNull();
-            case String s -> method.load(s);
-            case Integer i -> method.load(i);
-            case Long l -> method.load(l);
-            case Boolean b -> method.load(b);
-            case Double d -> method.load(d);
-            case Float f -> method.load(f);
-            default -> {
-                Log.warnf("Unhandled constant type in subquery generateConstant: %s. "
-                        + "This may indicate a missing case handler. Returning null literal.",
-                        value.getClass().getSimpleName());
-                yield method.loadNull();
-            }
-        };
+        return GizmoHelper.loadConstant(method, constant.value());
     }
 
-    /**
-     * Applies a WHERE predicate to a subquery using the correct JPA API.
-     * <p>
-     * JPA's Subquery.where() method takes Predicate... (varargs), so we need
-     * to create an array for the invocation.
-     */
+    /** JPA's Subquery.where() takes Predicate... varargs. */
     private void applySubqueryWhere(MethodCreator method, ResultHandle subquery, ResultHandle predicate) {
-        // Create a Predicate[] array with a single element
-        ResultHandle predicateArray = method.newArray(Predicate.class, 1);
-        method.writeArrayValue(predicateArray, 0, predicate);
-
-        // Call subquery.where(predicateArray)
+        ResultHandle predicateArray = GizmoHelper.createElementArray(method, Predicate.class, predicate);
         method.invokeInterfaceMethod(SUBQUERY_WHERE, subquery, predicateArray);
     }
 }

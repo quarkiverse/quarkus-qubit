@@ -16,9 +16,7 @@ import java.util.List;
  */
 public interface GroupStream<T, K> {
 
-    // =============================================================================================
-    // HAVING CLAUSE
-    // =============================================================================================
+    // ========== Having Clause ==========
 
     /**
      * Filters groups based on aggregate conditions (SQL HAVING).
@@ -29,9 +27,7 @@ public interface GroupStream<T, K> {
      */
     GroupStream<T, K> having(GroupQuerySpec<T, K, Boolean> condition);
 
-    // =============================================================================================
-    // PROJECTION
-    // =============================================================================================
+    // ========== Projection ==========
 
     /**
      * Projects each group to a new type.
@@ -50,9 +46,7 @@ public interface GroupStream<T, K> {
      */
     QubitStream<K> selectKey();
 
-    // =============================================================================================
-    // SORTING
-    // =============================================================================================
+    // ========== Sorting ==========
 
     /**
      * Sorts groups ascending. Can sort by key or aggregate values.
@@ -72,9 +66,7 @@ public interface GroupStream<T, K> {
      */
     <C extends Comparable<C>> GroupStream<T, K> sortedDescendingBy(GroupQuerySpec<T, K, C> keyExtractor);
 
-    // =============================================================================================
-    // PAGINATION
-    // =============================================================================================
+    // ========== Pagination ==========
 
     /**
      * Skips the first {@code n} groups (SQL OFFSET).
@@ -94,9 +86,7 @@ public interface GroupStream<T, K> {
      */
     GroupStream<T, K> limit(int n);
 
-    // =============================================================================================
-    // TERMINAL OPERATIONS
-    // =============================================================================================
+    // ========== Terminal Operations ==========
 
     /**
      * Executes the query and returns all grouping keys as a list.

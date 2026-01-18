@@ -6,122 +6,57 @@ import java.util.Optional;
 
 /**
  * Type-safe, fluent query builder translated to JPA Criteria Queries at build time.
- * <pre>{@code
- * Person.where(p -> p.active && p.salary > 100000)
- *       .select(p -> p.city).distinct().sortedBy(c -> c).limit(10).toList();
- * }</pre>
  *
  * @param <T> the type of elements in this stream
  */
 public interface QubitStream<T> {
 
-    // =============================================================================================
-    // FILTERING
-    // =============================================================================================
+    // ========== Filtering ==========
 
-    /**
-     * Filters entities matching the predicate. Multiple calls combine with AND.
-     *
-     * @param predicate filter condition
-     * @return filtered stream
-     */
+    /** Filters entities matching the predicate. Multiple calls combine with AND. */
     QubitStream<T> where(QuerySpec<T, Boolean> predicate);
 
-    // =============================================================================================
-    // PROJECTION
-    // =============================================================================================
+    // ========== Projection ==========
 
-    /**
-     * Projects each entity to a new type. Supports field access, expressions, and DTO construction.
-     *
-     * @param <R> result type
-     * @param mapper projection function
-     * @return projected stream
-     */
+    /** Projects each entity to a new type. Supports field access, expressions, and DTO construction. */
     <R> QubitStream<R> select(QuerySpec<T, R> mapper);
 
-    // =============================================================================================
-    // SORTING
-    // =============================================================================================
+    // ========== Sorting ==========
 
-    /**
-     * Sorts ascending. Last call becomes primary sort key.
-     *
-     * @param <K> comparable sort key type
-     * @param keyExtractor sort key function
-     * @return sorted stream
-     */
+    /** Sorts ascending. Last call becomes primary sort key. */
     <K extends Comparable<K>> QubitStream<T> sortedBy(QuerySpec<T, K> keyExtractor);
 
-    /**
-     * Sorts descending.
-     *
-     * @param <K> comparable sort key type
-     * @param keyExtractor sort key function
-     * @return sorted stream
-     */
+    /** Sorts descending. Last call becomes primary sort key. */
     <K extends Comparable<K>> QubitStream<T> sortedDescendingBy(QuerySpec<T, K> keyExtractor);
 
-    // =============================================================================================
-    // PAGINATION
-    // =============================================================================================
+    // ========== Pagination ==========
 
     /**
      * Skips the first {@code n} results (SQL OFFSET).
-     *
-     * @param n number of results to skip (must be >= 0)
-     * @return a new stream with offset applied
      * @throws IllegalArgumentException if {@code n < 0}
      */
     QubitStream<T> skip(int n);
 
     /**
      * Limits results to {@code n} items (SQL LIMIT).
-     *
-     * @param n maximum number of results (must be >= 0)
-     * @return a new stream with limit applied
      * @throws IllegalArgumentException if {@code n < 0}
      */
     QubitStream<T> limit(int n);
 
-    // =============================================================================================
-    // DISTINCT
-    // =============================================================================================
+    // ========== Distinct ==========
 
-    /**
-     * Returns only distinct results (SQL SELECT DISTINCT).
-     *
-     * @return a new stream with distinct constraint applied
-     */
+    /** Returns only distinct results (SQL SELECT DISTINCT). */
     QubitStream<T> distinct();
 
-    // =============================================================================================
-    // AGGREGATION OPERATIONS
-    // =============================================================================================
+    // ========== Aggregation Operations ==========
 
-    /**
-     * Counts matching entities (terminal operation).
-     *
-     * @return the count of matching entities
-     */
+    /** Counts matching entities (terminal operation). */
     long count();
 
-    /**
-     * Prepares MIN aggregation. Call {@link #getSingleResult()} to execute.
-     *
-     * @param <K> comparable value type
-     * @param mapper extracts value to minimize
-     * @return stream configured for MIN aggregation
-     */
+    /** Prepares MIN aggregation. Call {@link #getSingleResult()} to execute. */
     <K extends Comparable<K>> QubitStream<K> min(QuerySpec<T, K> mapper);
 
-    /**
-     * Prepares MAX aggregation. Call {@link #getSingleResult()} to execute.
-     *
-     * @param <K> comparable value type
-     * @param mapper extracts value to maximize
-     * @return stream configured for MAX aggregation
-     */
+    /** Prepares MAX aggregation. Call {@link #getSingleResult()} to execute. */
     <K extends Comparable<K>> QubitStream<K> max(QuerySpec<T, K> mapper);
 
     /**
@@ -156,9 +91,7 @@ public interface QubitStream<T> {
      */
     QubitStream<Double> avg(QuerySpec<T, ? extends Number> mapper);
 
-    // =============================================================================================
-    // TERMINAL OPERATIONS
-    // =============================================================================================
+    // ========== Terminal Operations ==========
 
     /**
      * Executes query and returns all results as a list (terminal operation).
@@ -190,9 +123,7 @@ public interface QubitStream<T> {
      */
     boolean exists();
 
-    // =============================================================================================
-    // JOIN OPERATIONS
-    // =============================================================================================
+    // ========== Join Operations ==========
 
     /**
      * Creates an inner join with a related collection.
@@ -214,9 +145,7 @@ public interface QubitStream<T> {
      */
     <R> JoinStream<T, R> leftJoin(QuerySpec<T, Collection<R>> relationship);
 
-    // =============================================================================================
-    // GROUPING OPERATIONS
-    // =============================================================================================
+    // ========== Grouping Operations ==========
 
     /**
      * Groups entities by the specified key (SQL GROUP BY).

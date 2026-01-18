@@ -4,10 +4,14 @@ import io.quarkiverse.qubit.runtime.SortDirection;
 import io.quarkus.logging.Log;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Handle;
+import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.InsnList;
+import org.objectweb.asm.tree.IntInsnNode;
 import org.objectweb.asm.tree.InvokeDynamicInsnNode;
+import org.objectweb.asm.tree.LabelNode;
+import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.LineNumberNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
@@ -15,24 +19,17 @@ import org.objectweb.asm.tree.MethodNode;
 import java.util.ArrayList;
 import java.util.List;
 
+import static io.quarkiverse.qubit.deployment.util.DescriptorParser.returnsBooleanType;
+import static io.quarkiverse.qubit.deployment.util.DescriptorParser.returnTypeContains;
 import static io.quarkiverse.qubit.runtime.QubitConstants.*;
 
 /**
  * Scans bytecode for invokedynamic instructions creating QuerySpec lambdas.
- * Detects fluent API terminal operations.
- * <p>
- * Enhanced to support join queries with BiQuerySpec lambdas.
- * Detects join()/leftJoin() entry points and JoinStream terminal operations.
- * <p>
- * Enhanced to support group queries with GroupQuerySpec lambdas.
- * Detects groupBy() entry points and GroupStream terminal operations.
+ * Supports standard, join (BiQuerySpec), and group (GroupQuerySpec) queries.
  */
 public class InvokeDynamicScanner {
 
-    /**
-     * Join type for join queries.
-     * Tracks whether a join is INNER or LEFT OUTER.
-     */
+    /** Join type: INNER or LEFT OUTER. */
     public enum JoinType {
         /** Standard inner join - excludes source entities without matching joined entities. */
         INNER,
@@ -40,10 +37,7 @@ public class InvokeDynamicScanner {
         LEFT
     }
 
-    /**
-     * Context type for tracking query context during scanning.
-     * Tracks whether we're in a group query context.
-     */
+    /** Query context type: STANDARD, JOIN, or GROUP. */
     public enum QueryContext {
         /** Standard query (no special context). */
         STANDARD,
@@ -53,27 +47,13 @@ public class InvokeDynamicScanner {
         GROUP
     }
 
-    /**
-     * Pair of lambda method name and descriptor.
-     */
+    /** Pair of lambda method name and descriptor. */
     public record LambdaPair(String methodName, String descriptor) {}
 
-    /**
-     * Sort lambda with direction (ascending/descending).
-     * Used to track sortedBy() and sortedDescendingBy() operations.
-     */
+    /** Sort lambda with direction (ascending/descending). */
     public record SortLambda(String methodName, String descriptor, SortDirection direction) {}
 
-    /**
-     * Discovered lambda call site for fluent API terminal operations.
-     * Enhanced to track both predicate and projection lambdas for combined queries.
-     * Enhanced to support multiple where() predicates.
-     * Enhanced to support sorting (sortedBy/sortedDescendingBy).
-     * Enhanced to support aggregations (min/max/avg/sum*).
-     * Enhanced to support join queries with BiQuerySpec lambdas.
-     * Enhanced to support join projections with BiQuerySpec select().
-     * Enhanced to support group queries with GroupQuerySpec lambdas.
-     */
+    /** Discovered lambda call site with predicates, projections, sorting, joins, and groups. */
     public record LambdaCallSite(
             String ownerClassName,
             String methodName,
@@ -101,66 +81,43 @@ public class InvokeDynamicScanner {
             String groupByLambdaDescriptor,        // groupBy() lambda descriptor
             List<LambdaPair> havingLambdas,        // having() lambdas (GroupQuerySpec)
             List<LambdaPair> groupSelectLambdas,   // select() lambdas in group context (GroupQuerySpec)
-            List<SortLambda> groupSortLambdas) {   // sortedBy() lambdas in group context (GroupQuerySpec)
+            List<SortLambda> groupSortLambdas,     // sortedBy() lambdas in group context (GroupQuerySpec)
+            boolean isGroupSelectKey,              // True if selectKey() was called on GroupStream
+            boolean hasDistinct,                   // True if distinct() was called
+            Integer skipValue,                     // Value passed to skip(), null if not called
+            Integer limitValue) {                  // Value passed to limit(), null if not called
 
-        /**
-         * Returns true if this is a count query.
-         * Both count() and exists() are count queries since exists() delegates to count().
-         */
+        /** Returns true if this is a count query (count() or exists()). */
         public boolean isCountQuery() {
             return METHOD_COUNT.equals(targetMethodName) || METHOD_EXISTS.equals(targetMethodName);
         }
 
-        /**
-         * Returns true if this is an aggregation query (min, max, avg, sum*).
-         * Aggregation terminals require mapper lambda analysis.
-         */
+        /** Returns true if this is an aggregation query (min, max, avg, sum*). */
         public boolean isAggregationQuery() {
-            return METHOD_MIN.equals(targetMethodName) ||
-                   METHOD_MAX.equals(targetMethodName) ||
-                   METHOD_AVG.equals(targetMethodName) ||
-                   METHOD_SUM_INTEGER.equals(targetMethodName) ||
-                   METHOD_SUM_LONG.equals(targetMethodName) ||
-                   METHOD_SUM_DOUBLE.equals(targetMethodName);
+            return AGGREGATION_METHOD_NAMES.contains(targetMethodName);
         }
 
-        /**
-         * Returns true if this is a join query.
-         * Join queries have a non-null join type.
-         */
+        /** Returns true if this is a join query. */
         public boolean isJoinQuery() {
             return joinType != null;
         }
 
-        /**
-         * Returns true if this is a selectJoined() query.
-         * selectJoined() returns joined entities instead of source entities.
-         */
+        /** Returns true if selectJoined() was called. */
         public boolean isSelectJoinedQuery() {
             return isSelectJoined;
         }
 
-        /**
-         * Returns true if this is a join projection query.
-         * join().select((p, ph) -> ...) uses BiQuerySpec to project entities.
-         */
+        /** Returns true if this is a join projection query with BiQuerySpec. */
         public boolean isJoinProjectionQuery() {
             return joinType != null && biEntityProjectionLambdaMethodName != null;
         }
 
-        /**
-         * Returns true if this is a GROUP BY query.
-         * Group queries have isGroupQuery flag set.
-         */
+        /** Returns true if this is a GROUP BY query. */
         public boolean isGroupByQuery() {
             return isGroupQuery;
         }
 
-        /**
-         * Returns true if this is a projection query (select).
-         * Checks if projection lambda is present.
-         * Excludes sorting methods from being treated as projections.
-         */
+        /** Returns true if this is a projection query (select). */
         public boolean isProjectionQuery() {
             // Check if projection lambda is present
             if (projectionLambdaMethodName != null) {
@@ -182,17 +139,12 @@ public class InvokeDynamicScanner {
             }
 
             // Aggregation methods are not projections - they are aggregations
-            if (METHOD_MIN.equals(fluentMethodName) || METHOD_MAX.equals(fluentMethodName) ||
-                METHOD_AVG.equals(fluentMethodName) || METHOD_SUM_INTEGER.equals(fluentMethodName) ||
-                METHOD_SUM_LONG.equals(fluentMethodName) || METHOD_SUM_DOUBLE.equals(fluentMethodName)) {
+            if (AGGREGATION_METHOD_NAMES.contains(fluentMethodName)) {
                 return false;
             }
 
             // Fallback: Use descriptor heuristic
-            boolean returnsBoolean = lambdaMethodDescriptor.endsWith(")Z") ||
-                                    lambdaMethodDescriptor.endsWith(")Ljava/lang/Boolean;");
-
-            if (returnsBoolean) {
+            if (returnsBooleanType(lambdaMethodDescriptor)) {
                 return false;
             }
 
@@ -200,19 +152,50 @@ public class InvokeDynamicScanner {
             return true;
         }
 
-        /**
-         * Returns true if this call site has both a where() predicate and a select() projection.
-         * This indicates a combined query.
-         */
+        /** Returns true if this is a combined WHERE + SELECT query. */
         public boolean isCombinedQuery() {
             return (predicateLambdas != null && !predicateLambdas.isEmpty()) && projectionLambdaMethodName != null;
         }
 
-        /**
-         * Returns unique identifier for this call site.
-         */
+        /** Returns unique identifier: ownerClassName:methodName:lineNumber:lambdaMethodName. */
         public String getCallSiteId() {
-            return ownerClassName + ":" + methodName + ":" + lineNumber;
+            // Use the primary lambda method name as discriminator
+            // Priority: predicate > groupBy > join relationship > projection > aggregation
+            String primaryLambda = getPrimaryLambdaMethodName();
+            return ownerClassName + ":" + methodName + ":" + lineNumber + ":" + primaryLambda;
+        }
+
+        /** Returns primary lambda method name (predicate > groupBy > join > projection > sort). */
+        public String getPrimaryLambdaMethodName() {
+            // Single-entity predicates first (QubitStream.where())
+            if (predicateLambdas != null && !predicateLambdas.isEmpty()) {
+                return predicateLambdas.get(0).methodName();
+            }
+            // Bi-entity predicates for join queries (JoinStream.where(BiQuerySpec))
+            if (biEntityPredicateLambdas != null && !biEntityPredicateLambdas.isEmpty()) {
+                return biEntityPredicateLambdas.get(0).methodName();
+            }
+            if (groupByLambdaMethodName != null) {
+                return groupByLambdaMethodName;
+            }
+            if (joinRelationshipLambdaMethodName != null) {
+                return joinRelationshipLambdaMethodName;
+            }
+            if (projectionLambdaMethodName != null) {
+                return projectionLambdaMethodName;
+            }
+            if (aggregationLambdaMethodName != null) {
+                return aggregationLambdaMethodName;
+            }
+            // Sort lambdas (sortedBy/sortedDescendingBy)
+            if (sortLambdas != null && !sortLambdas.isEmpty()) {
+                return sortLambdas.get(0).methodName();
+            }
+            if (lambdaMethodName != null) {
+                return lambdaMethodName;
+            }
+            // Fallback to terminal instruction index for queries without explicit lambdas
+            return String.valueOf(terminalInsnIndex);
         }
 
         @Override
@@ -241,9 +224,7 @@ public class InvokeDynamicScanner {
         }
     }
 
-    /**
-     * Scans class bytecode for QuerySpec lambda call sites.
-     */
+    /** Scans class bytecode for QuerySpec lambda call sites. */
     public List<LambdaCallSite> scanClass(byte[] classBytes, String className) {
         List<LambdaCallSite> callSites = new ArrayList<>();
 
@@ -262,10 +243,7 @@ public class InvokeDynamicScanner {
         return callSites;
     }
 
-    /**
-     * Lambda spec type for tracking lambda kind during scanning.
-     * Added GROUP for GroupQuerySpec lambdas.
-     */
+    /** Lambda spec type: QUERY_SPEC, BI_QUERY_SPEC, or GROUP_QUERY_SPEC. */
     private enum LambdaSpecType {
         /** Standard QuerySpec lambda. */
         QUERY_SPEC,
@@ -275,11 +253,7 @@ public class InvokeDynamicScanner {
         GROUP_QUERY_SPEC
     }
 
-    /**
-     * Tracked lambda in the pipeline.
-     * Added isBiEntity to track BiQuerySpec vs QuerySpec lambdas.
-     * Enhanced with LambdaSpecType to support GroupQuerySpec.
-     */
+    /** Tracked lambda with spec type (QuerySpec, BiQuerySpec, GroupQuerySpec). */
     private record PendingLambda(String methodName, String descriptor, String fluentMethod, LambdaSpecType specType) {
         boolean isBiEntity() {
             return specType == LambdaSpecType.BI_QUERY_SPEC;
@@ -290,19 +264,10 @@ public class InvokeDynamicScanner {
         }
     }
 
-    /**
-     * Tracked aggregation method in the pipeline.
-     * Used to detect aggregation methods that are now intermediate operations.
-     */
+    /** Tracked aggregation method (min, max, avg, sum). */
     private record PendingAggregation(String aggregationMethod) {}
 
-    /**
-     * Grouped lambda information for building call sites.
-     * Added aggregation lambda fields.
-     * Added join-related fields.
-     * Added bi-entity projection fields for join select().
-     * Added group-related fields.
-     */
+    /** Grouped lambda info with aggregation, join, and group fields. */
     private record LambdaInfo(
         String primaryLambdaMethod,
         String primaryLambdaDescriptor,
@@ -337,6 +302,9 @@ public class InvokeDynamicScanner {
         boolean pendingJoinSelect = false; //Track select() with BiQuerySpec on JoinStream
         boolean pendingGroupQuery = false; //Track group query context
         boolean pendingGroupSelectKey = false; //Track selectKey() on GroupStream
+        boolean pendingDistinct = false; //Track distinct() on QubitStream or JoinStream
+        Integer pendingSkipValue = null; //Track skip() value
+        Integer pendingLimitValue = null; //Track limit() value
         int currentLine = -1;
         int groupSelectLine = -1;  //Track line of select() on GroupStream
         int joinSelectJoinedLine = -1; //Track line of selectJoined() on JoinStream
@@ -387,6 +355,21 @@ public class InvokeDynamicScanner {
                 groupSelectLine = currentLine;  // Record line of select()
             }
 
+            // Detect distinct() method calls on QubitStream or JoinStream
+            if (insn instanceof MethodInsnNode methodCall && isDistinctMethod(methodCall)) {
+                pendingDistinct = true;
+            }
+
+            // Detect skip() method calls and extract integer value
+            if (insn instanceof MethodInsnNode methodCall && isSkipMethod(methodCall)) {
+                pendingSkipValue = extractIntegerArgument(instructions, i);
+            }
+
+            // Detect limit() method calls and extract integer value
+            if (insn instanceof MethodInsnNode methodCall && isLimitMethod(methodCall)) {
+                pendingLimitValue = extractIntegerArgument(instructions, i);
+            }
+
             if (isTerminalOperation(insn, pendingLambdas, pendingJoinType, pendingJoinSelectJoined, pendingJoinSelect, pendingGroupQuery, pendingGroupSelectKey)) {
                 // For group queries with select(), use the select() line, not terminal line
                 // For join queries with selectJoined(), use the selectJoined() line
@@ -401,7 +384,9 @@ public class InvokeDynamicScanner {
                 }
                 LambdaCallSite callSite = createCallSite(classNode, method, (MethodInsnNode) insn,
                                                           pendingLambdas, pendingAggregation, pendingJoinType,
-                                                          pendingJoinSelectJoined, pendingGroupQuery, effectiveLine, i);
+                                                          pendingJoinSelectJoined, pendingGroupQuery, pendingGroupSelectKey,
+                                                          pendingDistinct, pendingSkipValue, pendingLimitValue,
+                                                          effectiveLine, i);
                 callSites.add(callSite);
                 Log.debugf("Found fluent API terminal operation: %s", callSite);
                 // Temporary debug: log group call sites at info level
@@ -421,6 +406,9 @@ public class InvokeDynamicScanner {
                 pendingGroupQuery = false; //Reset group query flag
                 pendingGroupSelectKey = false; //Reset selectKey flag
                 groupSelectLine = -1;  //Reset select line
+                pendingDistinct = false; //Reset distinct flag
+                pendingSkipValue = null; //Reset skip value
+                pendingLimitValue = null; //Reset limit value
             }
         }
     }
@@ -444,10 +432,7 @@ public class InvokeDynamicScanner {
         }
     }
 
-    /**
-     * Determines the lambda spec type from the invokedynamic descriptor.
-     * Added GroupQuerySpec detection.
-     */
+    /** Determines lambda spec type from invokedynamic descriptor. */
     private LambdaSpecType determineLambdaSpecType(InvokeDynamicInsnNode invokeDynamic) {
         String desc = invokeDynamic.desc;
         if (desc.contains(GROUP_QUERY_SPEC_DESCRIPTOR)) {
@@ -458,14 +443,7 @@ public class InvokeDynamicScanner {
         return LambdaSpecType.QUERY_SPEC;
     }
 
-    /**
-     * Checks if instruction is a terminal operation.
-     * Also checks for JoinStream terminal calls when in join context.
-     * Also handles selectJoined() returning QubitStream from JoinStream.
-     * Also handles select() with BiQuerySpec returning QubitStream from JoinStream.
-     * Also checks for GroupStream terminal calls when in group context.
-     *              Also handles select()/selectKey() returning QubitStream from GroupStream.
-     */
+    /** Checks if instruction is a terminal operation on QubitStream/JoinStream/GroupStream. */
     private boolean isTerminalOperation(AbstractInsnNode insn, List<PendingLambda> pendingLambdas,
                                          JoinType joinType, boolean hasJoinSelectJoined, boolean hasJoinSelect,
                                          boolean isGroupQuery, boolean hasGroupSelectKey) {
@@ -512,72 +490,117 @@ public class InvokeDynamicScanner {
         return isQubitStreamTerminalCall(methodCall);
     }
 
-    /**
-     * Checks if pending lambdas include a select() call with GroupQuerySpec.
-     * Used to detect when GroupStream.select() returns QubitStream.
-     */
+    /** Checks if pending lambdas include a select() with the specified spec type. */
+    private boolean hasSelectLambdaOfType(List<PendingLambda> pendingLambdas, LambdaSpecType specType) {
+        for (PendingLambda lambda : pendingLambdas) {
+            if (METHOD_SELECT.equals(lambda.fluentMethod) && lambda.specType == specType) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Checks if pending lambdas include a select() call with GroupQuerySpec. */
     private boolean hasGroupSelectLambda(List<PendingLambda> pendingLambdas) {
-        for (PendingLambda lambda : pendingLambdas) {
-            if (METHOD_SELECT.equals(lambda.fluentMethod) && lambda.isGroupSpec()) {
-                return true;
-            }
-        }
-        return false;
+        return hasSelectLambdaOfType(pendingLambdas, LambdaSpecType.GROUP_QUERY_SPEC);
     }
 
-    /**
-     * Checks if pending lambdas include a select() call with BiQuerySpec.
-     * Used to detect when JoinStream.select() returns QubitStream.
-     */
+    /** Checks if pending lambdas include a select() call with BiQuerySpec. */
     private boolean hasJoinSelectLambda(List<PendingLambda> pendingLambdas) {
-        for (PendingLambda lambda : pendingLambdas) {
-            if (METHOD_SELECT.equals(lambda.fluentMethod) && lambda.isBiEntity()) {
-                return true;
-            }
-        }
-        return false;
+        return hasSelectLambdaOfType(pendingLambdas, LambdaSpecType.BI_QUERY_SPEC);
     }
 
-    /**
-     * Checks if method call is selectJoined() on JoinStream.
-     * selectJoined() returns QubitStream containing joined entities.
-     */
+    /** Checks if method call is selectJoined() on JoinStream. */
     private boolean isJoinSelectJoinedMethod(MethodInsnNode methodCall) {
         return METHOD_SELECT_JOINED.equals(methodCall.name) &&
                JOIN_STREAM_INTERNAL_NAME.equals(methodCall.owner);
     }
 
-    /**
-     * Checks if method call is select() on JoinStream.
-     * select() with BiQuerySpec returns QubitStream.
-     */
+    /** Checks if method call is select() on JoinStream. */
     private boolean isJoinSelectMethod(MethodInsnNode methodCall) {
         return METHOD_SELECT.equals(methodCall.name) &&
                JOIN_STREAM_INTERNAL_NAME.equals(methodCall.owner);
     }
 
-    /**
-     * Checks if method call is selectKey() on GroupStream.
-     * selectKey() returns QubitStream without a lambda argument.
-     */
+    /** Checks if method call is selectKey() on GroupStream. */
     private boolean isGroupSelectKeyMethod(MethodInsnNode methodCall) {
         return METHOD_SELECT_KEY.equals(methodCall.name) &&
                GROUP_STREAM_INTERNAL_NAME.equals(methodCall.owner);
     }
 
-    /**
-     * Checks if method call is select() on GroupStream.
-     * select() with GroupQuerySpec returns QubitStream.
-     */
+    /** Checks if method call is select() on GroupStream. */
     private boolean isGroupSelectMethod(MethodInsnNode methodCall) {
         return METHOD_SELECT.equals(methodCall.name) &&
                GROUP_STREAM_INTERNAL_NAME.equals(methodCall.owner);
     }
 
+    /** Checks if method call is distinct() on QubitStream or JoinStream. */
+    private boolean isDistinctMethod(MethodInsnNode methodCall) {
+        return METHOD_DISTINCT.equals(methodCall.name) &&
+               (QUBIT_STREAM_INTERNAL_NAME.equals(methodCall.owner) ||
+                JOIN_STREAM_INTERNAL_NAME.equals(methodCall.owner));
+    }
+
+    /** Checks if method call is skip() on QubitStream (OFFSET in SQL). */
+    private boolean isSkipMethod(MethodInsnNode methodCall) {
+        return METHOD_SKIP.equals(methodCall.name) &&
+               QUBIT_STREAM_INTERNAL_NAME.equals(methodCall.owner);
+    }
+
+    /** Checks if method call is limit() on QubitStream (LIMIT in SQL). */
+    private boolean isLimitMethod(MethodInsnNode methodCall) {
+        return METHOD_LIMIT.equals(methodCall.name) &&
+               QUBIT_STREAM_INTERNAL_NAME.equals(methodCall.owner);
+    }
+
+    /** Extracts integer argument from instruction before method call. */
+    private Integer extractIntegerArgument(InsnList instructions, int methodCallIndex) {
+        // Look backward to find the instruction that pushes the integer argument
+        for (int i = methodCallIndex - 1; i >= 0 && i >= methodCallIndex - 3; i--) {
+            AbstractInsnNode insn = instructions.get(i);
+
+            // ICONST_M1 to ICONST_5 (opcode 2-8)
+            if (insn.getOpcode() >= Opcodes.ICONST_M1 &&
+                insn.getOpcode() <= Opcodes.ICONST_5) {
+                return insn.getOpcode() - Opcodes.ICONST_0;
+            }
+
+            // BIPUSH (byte value)
+            if (insn instanceof IntInsnNode intInsn &&
+                insn.getOpcode() == Opcodes.BIPUSH) {
+                return intInsn.operand;
+            }
+
+            // SIPUSH (short value)
+            if (insn instanceof IntInsnNode intInsn &&
+                insn.getOpcode() == Opcodes.SIPUSH) {
+                return intInsn.operand;
+            }
+
+            // LDC (constant from pool)
+            if (insn instanceof LdcInsnNode ldcInsn &&
+                ldcInsn.cst instanceof Integer intValue) {
+                return intValue;
+            }
+
+            // Skip labels and line numbers
+            if (insn instanceof LineNumberNode || insn instanceof LabelNode) {
+                continue;
+            }
+
+            // If we hit any other instruction type, stop looking
+            break;
+        }
+        return null;  // Value is not a constant (e.g., from a variable)
+    }
+
     private LambdaCallSite createCallSite(ClassNode classNode, MethodNode method, MethodInsnNode methodCall,
                                           List<PendingLambda> pendingLambdas, PendingAggregation pendingAggregation,
                                           JoinType pendingJoinType, boolean pendingJoinSelectJoined,
-                                          boolean pendingGroupQuery, int lineNumber, int insnIndex) {
+                                          boolean pendingGroupQuery, boolean pendingGroupSelectKey,
+                                          boolean pendingDistinct,
+                                          Integer pendingSkipValue, Integer pendingLimitValue,
+                                          int lineNumber, int insnIndex) {
         // Pass aggregation method to extractLambdaInfo
         String aggregationMethod = pendingAggregation != null ? pendingAggregation.aggregationMethod : null;
         LambdaInfo info = extractLambdaInfo(pendingLambdas, methodCall.name, aggregationMethod, pendingGroupQuery);
@@ -612,7 +635,11 @@ public class InvokeDynamicScanner {
             info.groupByLambdaDescriptor,  //groupBy() descriptor
             info.havingLambdas,  //having() lambdas
             info.groupSelectLambdas,  //select() in group context
-            info.groupSortLambdas  //sortedBy() in group context
+            info.groupSortLambdas,  //sortedBy() in group context
+            pendingGroupSelectKey,  //selectKey() flag
+            pendingDistinct,  //distinct() flag
+            pendingSkipValue,  //skip() value
+            pendingLimitValue  //limit() value
         );
     }
 
@@ -668,7 +695,7 @@ public class InvokeDynamicScanner {
             } else if (METHOD_SORTED_DESCENDING_BY.equals(lambda.fluentMethod) && lambda.isGroupSpec()) {
                 // sortedDescendingBy() in group context (GroupQuerySpec)
                 groupSortLambdas.add(new SortLambda(lambda.methodName, lambda.descriptor, SortDirection.DESCENDING));
-            } else if (METHOD_JOIN.equals(lambda.fluentMethod) || METHOD_LEFT_JOIN.equals(lambda.fluentMethod)) {
+            } else if (JOIN_ENTRY_METHODS.contains(lambda.fluentMethod)) {
                 // Join relationship lambda (e.g., p -> p.phones)
                 joinRelationshipMethod = lambda.methodName;
                 joinRelationshipDescriptor = lambda.descriptor;
@@ -728,15 +755,7 @@ public class InvokeDynamicScanner {
         );
     }
 
-    /**
-     * Looks forward from invokedynamic to find the fluent method call (where/select/join/groupBy).
-     * Also recognizes join methods.
-     * Also recognizes group methods.
-     *
-     * @param instructions the instruction list
-     * @param startIndex the starting index to look forward from
-     * @return the fluent method name, or null if not found within lookahead
-     */
+    /** Looks forward to find fluent method (where/select/join/groupBy). */
     private String findFluentMethodForward(InsnList instructions, int startIndex) {
         // Look ahead a few instructions to find where/select/join/groupBy call
         for (int j = startIndex + 1; j < Math.min(startIndex + 5, instructions.size()); j++) {
@@ -751,14 +770,12 @@ public class InvokeDynamicScanner {
                 }
             }
         }
+        Log.tracef("No fluent method found within %d instructions of index %d (total instructions: %d)",
+                Math.min(5, instructions.size() - startIndex - 1), startIndex, instructions.size());
         return null;
     }
 
-    /**
-     * Checks if invokedynamic creates a QuerySpec, BiQuerySpec, or GroupQuerySpec lambda.
-     * Also detects BiQuerySpec for join query lambdas.
-     * Also detects GroupQuerySpec for group query lambdas.
-     */
+    /** Checks if invokedynamic creates a QuerySpec/BiQuerySpec/GroupQuerySpec lambda. */
     private boolean isQuerySpecLambda(InvokeDynamicInsnNode invokeDynamic) {
         String desc = invokeDynamic.desc;
         return desc.contains(QUERY_SPEC_DESCRIPTOR) ||
@@ -766,12 +783,7 @@ public class InvokeDynamicScanner {
                desc.contains(GROUP_QUERY_SPEC_DESCRIPTOR);
     }
 
-    /**
-     * Extracts the lambda method handle from an invokedynamic instruction.
-     *
-     * @param invokeDynamic the invokedynamic instruction
-     * @return the lambda method handle, or null if not found
-     */
+    /** Extracts lambda method handle from invokedynamic instruction. */
     private Handle extractLambdaHandle(InvokeDynamicInsnNode invokeDynamic) {
         Object[] bsmArgs = invokeDynamic.bsmArgs;
 
@@ -779,60 +791,42 @@ public class InvokeDynamicScanner {
             return handle;
         }
 
+        // Log why extraction failed for debugging
+        if (bsmArgs == null) {
+            Log.tracef("Lambda handle extraction failed: bsmArgs is null for invokedynamic %s", invokeDynamic.name);
+        } else if (bsmArgs.length < 2) {
+            Log.tracef("Lambda handle extraction failed: bsmArgs has %d elements (expected >= 2) for invokedynamic %s",
+                    bsmArgs.length, invokeDynamic.name);
+        } else {
+            Log.tracef("Lambda handle extraction failed: bsmArgs[1] is %s (expected Handle) for invokedynamic %s",
+                    bsmArgs[1] != null ? bsmArgs[1].getClass().getSimpleName() : "null", invokeDynamic.name);
+        }
+
         return null;
     }
 
-    /**
-     * Checks if method call is a terminal operation on QubitStream.
-     */
+    /** Checks if method call is a terminal on the specified stream type. */
+    private boolean isStreamTerminalCall(MethodInsnNode methodCall, String streamInternalName) {
+        return FLUENT_TERMINAL_METHODS.contains(methodCall.name) &&
+               streamInternalName.equals(methodCall.owner);
+    }
+
+    /** Checks if method call is a terminal operation on QubitStream. */
     private boolean isQubitStreamTerminalCall(MethodInsnNode methodCall) {
-        String name = methodCall.name;
-
-        // Check if it's a terminal method name
-        if (!FLUENT_TERMINAL_METHODS.contains(name)) {
-            return false;
-        }
-
-        // Check if owner is QubitStream interface
-        return QUBIT_STREAM_INTERNAL_NAME.equals(methodCall.owner);
+        return isStreamTerminalCall(methodCall, QUBIT_STREAM_INTERNAL_NAME);
     }
 
-    /**
-     * Checks if method call is a terminal operation on JoinStream.
-     * JoinStream has the same terminal methods as QubitStream.
-     */
+    /** Checks if method call is a terminal operation on JoinStream. */
     private boolean isJoinStreamTerminalCall(MethodInsnNode methodCall) {
-        String name = methodCall.name;
-
-        // Check if it's a terminal method name
-        if (!FLUENT_TERMINAL_METHODS.contains(name)) {
-            return false;
-        }
-
-        // Check if owner is JoinStream interface
-        return JOIN_STREAM_INTERNAL_NAME.equals(methodCall.owner);
+        return isStreamTerminalCall(methodCall, JOIN_STREAM_INTERNAL_NAME);
     }
 
-    /**
-     * Checks if method call is a terminal operation on GroupStream.
-     * GroupStream has the same terminal methods as QubitStream.
-     */
+    /** Checks if method call is a terminal operation on GroupStream. */
     private boolean isGroupStreamTerminalCall(MethodInsnNode methodCall) {
-        String name = methodCall.name;
-
-        // Check if it's a terminal method name
-        if (!FLUENT_TERMINAL_METHODS.contains(name)) {
-            return false;
-        }
-
-        // Check if owner is GroupStream interface
-        return GROUP_STREAM_INTERNAL_NAME.equals(methodCall.owner);
+        return isStreamTerminalCall(methodCall, GROUP_STREAM_INTERNAL_NAME);
     }
 
-    /**
-     * Checks if method call is a groupBy entry point.
-     * Detects groupBy calls on QubitEntity, QubitRepository, or QubitStream.
-     */
+    /** Checks if method call is groupBy on QubitEntity/Repository/Stream. */
     private boolean isGroupMethod(MethodInsnNode methodCall) {
         String name = methodCall.name;
 
@@ -857,19 +851,15 @@ public class InvokeDynamicScanner {
         }
 
         // Accept if return type is GroupStream (covers virtual calls)
-        String desc = methodCall.desc;
-        return desc.contains("Lio/quarkiverse/qubit/runtime/GroupStream;");
+        return returnTypeContains(methodCall.desc, GROUP_STREAM_INTERNAL_NAME);
     }
 
-    /**
-     * Checks if method call is a join entry point (join or leftJoin).
-     * Detects join/leftJoin calls on QubitEntity, QubitRepository, or QubitStream.
-     */
+    /** Checks if method call is join/leftJoin on QubitEntity/Repository/Stream. */
     private boolean isJoinMethod(MethodInsnNode methodCall) {
         String name = methodCall.name;
 
-        // Check if it's a join method name
-        if (!METHOD_JOIN.equals(name) && !METHOD_LEFT_JOIN.equals(name)) {
+        // Check if it's a join entry point method name
+        if (!JOIN_ENTRY_METHODS.contains(name)) {
             return false;
         }
 
@@ -884,29 +874,15 @@ public class InvokeDynamicScanner {
         }
 
         // Accept if return type is JoinStream (covers virtual calls)
-        String desc = methodCall.desc;
-        return desc.contains("Lio/quarkiverse/qubit/runtime/JoinStream;");
+        return returnTypeContains(methodCall.desc, JOIN_STREAM_INTERNAL_NAME);
     }
 
-    /**
-     * Checks if method call is an aggregation method.
-     * Aggregation methods are now intermediate operations.
-     * Detects both:
-     * - Instance calls on QubitStream: stream.min(...)
-     * - Static calls on entities: Person.min(...)
-     */
+    /** Checks if method call is an aggregation (min/max/avg/sum). */
     private boolean isAggregationMethod(MethodInsnNode methodCall) {
         String name = methodCall.name;
 
         // Check if it's an aggregation method name
-        boolean isAggregationName = METHOD_MIN.equals(name) ||
-                                     METHOD_MAX.equals(name) ||
-                                     METHOD_AVG.equals(name) ||
-                                     METHOD_SUM_INTEGER.equals(name) ||
-                                     METHOD_SUM_LONG.equals(name) ||
-                                     METHOD_SUM_DOUBLE.equals(name);
-
-        if (!isAggregationName) {
+        if (!AGGREGATION_METHOD_NAMES.contains(name)) {
             return false;
         }
 
@@ -917,18 +893,15 @@ public class InvokeDynamicScanner {
 
         // Also accept if it's a static method call (invokestatic) with QubitStream return type
         // This handles direct static calls like Person.min(...)
-        if (methodCall.getOpcode() == org.objectweb.asm.Opcodes.INVOKESTATIC) {
-            // Check if return type is QubitStream
-            String desc = methodCall.desc;
-            return desc.contains("Lio/quarkiverse/qubit/runtime/QubitStream;");
+        if (methodCall.getOpcode() == Opcodes.INVOKESTATIC) {
+            return returnTypeContains(methodCall.desc, QUBIT_STREAM_INTERNAL_NAME);
         }
 
         // Also accept instance method calls on QubitRepository that return QubitStream
         // This handles repository.min(...) calls
-        if (methodCall.getOpcode() == org.objectweb.asm.Opcodes.INVOKEVIRTUAL ||
-            methodCall.getOpcode() == org.objectweb.asm.Opcodes.INVOKEINTERFACE) {
-            String desc = methodCall.desc;
-            return desc.contains("Lio/quarkiverse/qubit/runtime/QubitStream;");
+        if (methodCall.getOpcode() == Opcodes.INVOKEVIRTUAL ||
+            methodCall.getOpcode() == Opcodes.INVOKEINTERFACE) {
+            return returnTypeContains(methodCall.desc, QUBIT_STREAM_INTERNAL_NAME);
         }
 
         return false;

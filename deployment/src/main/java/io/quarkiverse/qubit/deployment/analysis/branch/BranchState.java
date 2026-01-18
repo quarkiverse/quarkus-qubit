@@ -3,15 +3,13 @@ package io.quarkiverse.qubit.deployment.analysis.branch;
 import java.util.Optional;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkus.logging.Log;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.AND;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.OR;
 
-/**
- * Immutable state machine for AND/OR combination during branch analysis.
- * Sealed interface with three states: {@link Initial}, {@link AndMode}, {@link OrMode}.
- */
+/** Immutable state machine for AND/OR combination during branch analysis. */
 public sealed interface BranchState permits BranchState.Initial, BranchState.AndMode, BranchState.OrMode {
 
     /**
@@ -101,6 +99,8 @@ sealed interface BranchStateTestingAPI permits BranchState.Initial, BranchState.
             BranchState newState = jumpTarget ?
                     new OrMode(Optional.of(jumpTarget), isBooleanCheck) :
                     new AndMode(Optional.of(jumpTarget), isBooleanCheck);
+            Log.tracef("BranchState Initial -> %s (jumpTarget=%b, isBooleanCheck=%b)",
+                    newState.getClass().getSimpleName(), jumpTarget, isBooleanCheck);
             return new BranchResult(null, newState);
         }
 
@@ -148,9 +148,13 @@ sealed interface BranchStateTestingAPI permits BranchState.Initial, BranchState.
             // 3. We combined with AND (not OR - if we used OR, we were already in an OR group!)
             if (currentJumpTarget && prevJumpFalse && usedAndOperator) {
                 // Completed nested AND group, entering OR mode for next comparison
+                Log.tracef("BranchState AndMode -> OrMode after combination (currentJump=%b, prevJump=%s, combineOp=%s)",
+                        currentJumpTarget, previousJumpTarget, combineOp);
                 return new OrMode(Optional.of(currentJumpTarget), prevWasBooleanCheck);
             }
 
+            Log.tracef("BranchState AndMode stays (currentJump=%b, prevJump=%s, combineOp=%s)",
+                    currentJumpTarget, previousJumpTarget, combineOp);
             return this; // No mode transition
         }
 
@@ -247,9 +251,13 @@ sealed interface BranchStateTestingAPI permits BranchState.Initial, BranchState.
             // 3. Starting a new nested AND group
             if (!jumpTarget && lastJumpTarget.isPresent() && !lastJumpTarget.get()) {
                 // Two FALSE jumps in a row → nested AND group
+                Log.tracef("BranchState OrMode -> AndMode (jumpTarget=%b, lastJump=%s, isBooleanCheck=%b)",
+                        jumpTarget, lastJumpTarget, isBooleanCheck);
                 return new AndMode(Optional.of(jumpTarget), isBooleanCheck);
             }
 
+            Log.tracef("BranchState OrMode stays (jumpTarget=%b, lastJump=%s, isBooleanCheck=%b)",
+                    jumpTarget, lastJumpTarget, isBooleanCheck);
             // Stay in OR mode, update history
             return new OrMode(Optional.of(jumpTarget), isBooleanCheck);
         }

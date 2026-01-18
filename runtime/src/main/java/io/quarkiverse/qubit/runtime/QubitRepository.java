@@ -87,9 +87,7 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
         throw implementationInjectionMissing();
     }
 
-    // =============================================================================================
-    // AGGREGATION ENTRY POINTS
-    // =============================================================================================
+    // ========== Aggregation Entry Points ==========
 
     /**
      * Prepares a minimum value aggregation query.
@@ -243,9 +241,7 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
         throw implementationInjectionMissing();
     }
 
-    // =============================================================================================
-    // JOIN OPERATIONS
-    // =============================================================================================
+    // ========== Join Operations ==========
 
     /**
      * Creates an inner join query with a related entity collection.

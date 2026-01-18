@@ -30,7 +30,7 @@ class InvokeDynamicHandlerTest {
 
     @BeforeEach
     void setUp() {
-        handler = new InvokeDynamicHandler();
+        handler = InvokeDynamicHandler.INSTANCE;
         testMethod = new MethodNode();
         testMethod.name = "testLambda";
         testMethod.desc = "(Ljava/lang/Object;)Z";

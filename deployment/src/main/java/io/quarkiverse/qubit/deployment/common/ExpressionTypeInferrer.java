@@ -1,39 +1,19 @@
 package io.quarkiverse.qubit.deployment.common;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import static io.quarkiverse.qubit.runtime.QubitConstants.PREFIX_GET;
+import static io.quarkiverse.qubit.runtime.QubitConstants.PREFIX_IS;
 
-/**
- * Utility class for inferring types from lambda expressions.
- *
- * <p>This class provides a centralized location for type inference logic
- * used across the bytecode analysis and code generation phases.
- * <ul>
- *   <li>{@code GroupMethodAnalyzer.inferFieldType()}</li>
- *   <li>{@code SubqueryAnalyzer.inferResultType()}</li>
- *   <li>{@code SubqueryExpressionBuilder.inferExpressionType()}</li>
- * </ul>
- *
- * @see LambdaExpression
- */
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.util.TypeConverter;
+
+/** Infers types from lambda expressions (FieldAccess, PathExpression). */
 public final class ExpressionTypeInferrer {
 
     private ExpressionTypeInferrer() {
         // Utility class
     }
 
-    /**
-     * Infers the type of a field expression.
-     *
-     * <p>Handles:
-     * <ul>
-     *   <li>{@link LambdaExpression.FieldAccess} - returns {@code fieldType()}</li>
-     *   <li>{@link LambdaExpression.PathExpression} - returns {@code resultType()}</li>
-     *   <li>All other expressions - returns {@code Object.class}</li>
-     * </ul>
-     *
-     * @param expression the expression to infer the type from
-     * @return the inferred type, or {@code Object.class} if unknown
-     */
+    /** Infers type from FieldAccess or PathExpression; returns Object.class otherwise. */
     public static Class<?> inferFieldType(LambdaExpression expression) {
         if (expression == null) {
             return Object.class;
@@ -46,16 +26,7 @@ public final class ExpressionTypeInferrer {
         };
     }
 
-    /**
-     * Infers the result type for an expression, with a fallback default.
-     *
-     * <p>This is useful when a specific default type should be returned
-     * if the expression type cannot be determined.
-     *
-     * @param expression the expression to infer the type from
-     * @param defaultType the default type to return if inference fails
-     * @return the inferred type, or {@code defaultType} if unknown
-     */
+    /** Infers type with fallback default. */
     public static Class<?> inferFieldType(LambdaExpression expression, Class<?> defaultType) {
         if (expression == null) {
             return defaultType;
@@ -68,79 +39,48 @@ public final class ExpressionTypeInferrer {
         };
     }
 
-    /**
-     * Checks if the expression represents a numeric type.
-     *
-     * @param expression the expression to check
-     * @return true if the expression type is numeric
-     */
+    /** Checks if expression is numeric. */
     public static boolean isNumericType(LambdaExpression expression) {
         Class<?> type = inferFieldType(expression);
-        return isNumericClass(type);
+        return TypeConverter.isNumericType(type);
     }
 
-    /**
-     * Checks if the class represents a numeric type.
-     *
-     * @param type the class to check
-     * @return true if the class is a numeric type
-     */
+    /** Checks if class is numeric. */
     public static boolean isNumericClass(Class<?> type) {
-        return type == int.class || type == Integer.class ||
-               type == long.class || type == Long.class ||
-               type == double.class || type == Double.class ||
-               type == float.class || type == Float.class ||
-               type == short.class || type == Short.class ||
-               type == byte.class || type == Byte.class ||
-               Number.class.isAssignableFrom(type);
+        return TypeConverter.isNumericType(type);
     }
 
-    /**
-     * Checks if the expression represents a comparable type.
-     *
-     * @param expression the expression to check
-     * @return true if the expression type is comparable
-     */
+    /** Checks if expression is comparable. */
     public static boolean isComparableType(LambdaExpression expression) {
         Class<?> type = inferFieldType(expression);
         return Comparable.class.isAssignableFrom(type) || type.isPrimitive();
     }
 
-    /**
-     * Checks if the class represents a boolean type.
-     *
-     * @param type the class to check
-     * @return true if the class is boolean or Boolean
-     */
+    /** Checks if class is boolean or Boolean. */
     public static boolean isBooleanType(Class<?> type) {
-        return type == boolean.class || type == Boolean.class;
+        return TypeConverter.isBooleanType(type);
     }
 
-    /**
-     * Extracts the field name from a getter method name.
-     *
-     * <p>Handles standard JavaBean naming conventions:
-     * <ul>
-     *   <li>{@code getAge} → {@code age}</li>
-     *   <li>{@code getName} → {@code name}</li>
-     *   <li>{@code isActive} → {@code active}</li>
-     *   <li>{@code isEnabled} → {@code enabled}</li>
-     *   <li>{@code other} → {@code other} (returned as-is)</li>
-     * </ul>
-     *
-     * @param methodName the getter method name
-     * @return the extracted field name, or the original method name if not a getter
-     */
+    /** Checks if name follows JavaBean getter conventions (getXxx or isXxx). */
+    public static boolean isGetterMethodName(String methodName) {
+        if (methodName == null) {
+            return false;
+        }
+        return (methodName.startsWith(PREFIX_GET) && methodName.length() > PREFIX_GET.length()) ||
+               (methodName.startsWith(PREFIX_IS) && methodName.length() > PREFIX_IS.length());
+    }
+
+    /** Extracts field name from getter (getAge→age, isActive→active). */
     public static String extractFieldName(String methodName) {
         if (methodName == null) {
             return null;
         }
-        if (methodName.startsWith("get") && methodName.length() > 3) {
-            String fieldName = methodName.substring(3);
+        if (methodName.startsWith(PREFIX_GET) && methodName.length() > PREFIX_GET.length()) {
+            String fieldName = methodName.substring(PREFIX_GET.length());
             return Character.toLowerCase(fieldName.charAt(0)) + fieldName.substring(1);
         }
-        if (methodName.startsWith("is") && methodName.length() > 2) {
-            String fieldName = methodName.substring(2);
+        if (methodName.startsWith(PREFIX_IS) && methodName.length() > PREFIX_IS.length()) {
+            String fieldName = methodName.substring(PREFIX_IS.length());
             return Character.toLowerCase(fieldName.charAt(0)) + fieldName.substring(1);
         }
         return methodName;

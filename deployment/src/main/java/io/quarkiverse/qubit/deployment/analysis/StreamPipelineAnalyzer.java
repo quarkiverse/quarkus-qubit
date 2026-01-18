@@ -11,16 +11,11 @@ import java.util.List;
 import static io.quarkiverse.qubit.runtime.QubitConstants.*;
 
 /**
- * Analyzes bytecode to extract fluent API operation pipelines.
- * <p>
- * Scans backwards from a terminal operation to collect all intermediate operations
- * and their lambda expressions.
+ * Extracts fluent API pipelines by scanning backwards from terminal operations.
  */
 public class StreamPipelineAnalyzer {
 
-    /**
-     * Represents a single operation in a fluent API pipeline.
-     */
+    /** Single operation in a fluent API pipeline. */
     public record PipelineOperation(
             String operationName,
             String lambdaMethodName,
@@ -33,9 +28,7 @@ public class StreamPipelineAnalyzer {
         }
     }
 
-    /**
-     * Represents a complete fluent API pipeline from entry point to terminal operation.
-     */
+    /** Complete pipeline from entry point to terminal operation. */
     public record StreamPipeline(
             String className,
             String methodName,
@@ -59,19 +52,7 @@ public class StreamPipelineAnalyzer {
         }
     }
 
-    /**
-     * Analyzes bytecode to extract the complete pipeline for a fluent API call.
-     * <p>
-     * Scans backwards from the terminal operation instruction to find all
-     * intermediate operations and their associated lambda expressions.
-     *
-     * @param classNode the class containing the method
-     * @param method the method containing the fluent API call
-     * @param terminalInsnIndex instruction index of the terminal operation
-     * @param terminalOperation name of terminal operation (e.g., "toList")
-     * @param lineNumber source line number
-     * @return the complete pipeline, or null if analysis fails or no operations found
-     */
+    /** Extracts complete pipeline by scanning backwards from terminal operation. */
     public StreamPipeline analyzePipeline(
             ClassNode classNode,
             MethodNode method,

@@ -26,7 +26,7 @@ class InvokeDynamicHandlerErrorTest {
 
     @BeforeEach
     void setUp() {
-        handler = new InvokeDynamicHandler();
+        handler = InvokeDynamicHandler.INSTANCE;
         testMethod = new MethodNode();
         testMethod.name = "testPredicate";
         testMethod.desc = "(Lio/quarkiverse/qubit/test/Person;)Z";

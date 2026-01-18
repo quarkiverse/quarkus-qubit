@@ -558,6 +558,14 @@ public class LambdaTestSources {
         return p -> (p.age * 2 - 10 > 50) || (p.age + 15 < 50);
     }
 
+    /**
+     * Pattern: (A && B) || (C && D)
+     * Two AND groups connected by OR - this is a critical pattern that must be handled correctly.
+     */
+    public static QuerySpec<TestPerson, Boolean> twoAndGroupsWithOr() {
+        return p -> (p.active && p.age > 0) || (p.salary > 50000 && p.height > 1.70f);
+    }
+
     public static QuerySpec<TestPerson, Boolean> complexNestedConditions() {
         return p -> (p.firstName.equals("John") || p.firstName.equals("Jane")) &&
                     p.age >= 25 && p.active;

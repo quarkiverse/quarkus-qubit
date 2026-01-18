@@ -90,6 +90,21 @@ public class QueryExecutorRecorder {
     }
 
     /**
+     * Clears all registered executors and cached registry reference.
+     * <p>
+     * Called during dev mode hot reload to prevent stale executor accumulation
+     * and ensure the cached registry is refreshed.
+     * <p>
+     * <b>Issue #17 Fix:</b> Also clears the cached registry to prevent stale
+     * references after CDI container restart during hot reload.
+     */
+    public void clearAllExecutors() {
+        LOG.debug("Clearing all query executors and cached registry for dev mode reload");
+        QueryExecutorRegistry.clearAllExecutors();
+        LambdaReflectionUtils.clearCachedRegistry();
+    }
+
+    /**
      * Generic executor registration method that handles the common logic for all executor types.
      */
     private <T> void registerExecutor(

@@ -1,10 +1,16 @@
 package io.quarkiverse.qubit.deployment;
 
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.CHARACTERISTICS_REQUIRED;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.GENERATED_CLASS_NAME_REQUIRED;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.QUERY_ID_REQUIRED;
 import static io.quarkiverse.qubit.runtime.QubitConstants.QUBIT_ENTITY_CLASS_NAME;
 import static io.quarkiverse.qubit.runtime.QubitConstants.QUBIT_REPOSITORY_CLASS_NAME;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -29,11 +35,13 @@ import io.quarkus.hibernate.orm.panache.deployment.PanacheEntityClassBuildItem;
 import io.quarkiverse.qubit.runtime.QueryExecutorRecorder;
 import io.quarkiverse.qubit.runtime.QueryExecutorRegistry;
 import io.quarkiverse.qubit.runtime.QubitEntity;
+import io.quarkiverse.qubit.deployment.analysis.AnalysisException;
 import io.quarkiverse.qubit.deployment.analysis.CallSiteProcessor;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner;
 import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
 import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator;
 import io.quarkiverse.qubit.deployment.analysis.QueryCharacteristics;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.generation.QueryExecutorClassGenerator;
 import io.quarkiverse.qubit.deployment.util.BytecodeLoader;
 
@@ -192,27 +200,24 @@ public class QubitProcessor {
 
         Log.debugf("Qubit: Found %d total lambda call site(s)", allCallSites.size());
 
+        validateUniqueCallSiteIds(allCallSites);
+
         AtomicInteger generatedCount = new AtomicInteger(0);
         AtomicInteger deduplicatedCount = new AtomicInteger(0);
 
         allCallSites.stream()
-                .forEach(callSite -> configuredProcessor.processCallSite(
+                .forEach(callSite -> configuredProcessor.processCallSiteWithHandlers(
                         callSite, applicationArchives,
                         generatedCount, deduplicatedCount,
                         generatedClass, queryTransformations,
-                        config.logging()));
+                        config.logging(),
+                        true));
 
         Log.infof("Qubit extension initialized - Call sites: %d | Query executors: %d generated, %d deduplicated",
                 allCallSites.size(), generatedCount.get(), deduplicatedCount.get());
     }
 
-    /**
-     * Determines if a class should be included in lambda scanning.
-     *
-     * @param classInfo the class to check
-     * @param scanningConfig scanning configuration from QubitBuildTimeConfig
-     * @return true if the class should be scanned, false if excluded
-     */
+    /** Determines if a class should be included in lambda scanning. */
     private boolean isNotExcludedClass(ClassInfo classInfo, QubitBuildTimeConfig.ScanningConfig scanningConfig) {
         String className = classInfo.name().toString();
 
@@ -268,10 +273,6 @@ public class QubitProcessor {
 
             byte[] classBytes = BytecodeLoader.loadClassBytecode(className, applicationArchives);
 
-            if (classBytes == null) {
-                return Collections.emptyList();
-            }
-
             List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(classBytes, className);
 
             if (!callSites.isEmpty()) {
@@ -280,9 +281,64 @@ public class QubitProcessor {
 
             return callSites;
 
-        } catch (Exception e) {
-            Log.debugf(e, "Error scanning class: %s", classInfo.name());
+        } catch (AnalysisException e) {
+            // Expected: bytecode analysis failed (e.g., class not found, unsupported bytecode)
+            Log.debugf(e, "Could not analyze class %s: %s", classInfo.name(), e.getMessage());
             return Collections.emptyList();
+        } catch (Exception e) {
+            // Unexpected: log at warn level to surface potential bugs
+            Log.warnf(e, "Unexpected error scanning class %s - this may indicate a bug in Qubit",
+                    classInfo.name());
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Validates unique call site IDs. Duplicate IDs (multiple queries on same line)
+     * cause silent data corruption - second registration overwrites first.
+     */
+    // Package-private for testing
+    void validateUniqueCallSiteIds(List<InvokeDynamicScanner.LambdaCallSite> callSites) {
+        Map<String, List<InvokeDynamicScanner.LambdaCallSite>> callSiteIdToSites = new HashMap<>();
+
+        for (InvokeDynamicScanner.LambdaCallSite callSite : callSites) {
+            String callSiteId = callSite.getCallSiteId();
+            callSiteIdToSites.computeIfAbsent(callSiteId, k -> new ArrayList<>()).add(callSite);
+        }
+
+        // Find duplicates
+        List<Map.Entry<String, List<InvokeDynamicScanner.LambdaCallSite>>> duplicates = callSiteIdToSites.entrySet()
+                .stream()
+                .filter(e -> e.getValue().size() > 1)
+                .toList();
+
+        if (!duplicates.isEmpty()) {
+            StringBuilder errorMessage = new StringBuilder();
+            errorMessage.append("QUBIT BUILD ERROR: Duplicate call site IDs detected!\n\n");
+            errorMessage.append("Multiple Qubit query expressions on the same source line will cause silent data corruption.\n");
+            errorMessage.append("Each query must be on a separate line to ensure unique call site identification.\n\n");
+
+            for (Map.Entry<String, List<InvokeDynamicScanner.LambdaCallSite>> duplicate : duplicates) {
+                String callSiteId = duplicate.getKey();
+                List<InvokeDynamicScanner.LambdaCallSite> sites = duplicate.getValue();
+
+                errorMessage.append("Call site ID: ").append(callSiteId).append("\n");
+                errorMessage.append("  Found ").append(sites.size()).append(" queries on this line:\n");
+                for (InvokeDynamicScanner.LambdaCallSite site : sites) {
+                    errorMessage.append("    - ").append(site).append("\n");
+                }
+                errorMessage.append("\n");
+            }
+
+            errorMessage.append("FIX: Move each query to a separate source line.\n");
+            errorMessage.append("Example - WRONG:\n");
+            errorMessage.append("  process(Qubit.stream(A.class).toList(), Qubit.stream(B.class).toList());\n\n");
+            errorMessage.append("Example - CORRECT:\n");
+            errorMessage.append("  List<A> listA = Qubit.stream(A.class).toList();\n");
+            errorMessage.append("  List<B> listB = Qubit.stream(B.class).toList();\n");
+            errorMessage.append("  process(listA, listB);");
+
+            throw new IllegalStateException(errorMessage.toString());
         }
     }
 
@@ -292,6 +348,9 @@ public class QubitProcessor {
     void registerQueryExecutors(
             QueryExecutorRecorder recorder,
             List<QueryTransformationBuildItem> transformations) {
+
+        // Clear stale executors before registration (essential for dev mode hot reload)
+        recorder.clearAllExecutors();
 
         Log.debugf("Qubit: Registering %d query executors in registry", transformations.size());
 
@@ -367,30 +426,91 @@ public class QubitProcessor {
     public static final class QueryTransformationBuildItem extends MultiBuildItem {
         private final String queryId;
         private final String generatedClassName;
-        private final Class<?> entityClass;
+        private final String entityClassName;
         private final QueryCharacteristics characteristics;
         private final int capturedVarCount;
+        // Optional expressions for DevUI JPQL generation (only populated in dev mode)
+        private final LambdaExpression predicateExpression;
+        private final LambdaExpression projectionExpression;
+        // Additional expressions for enhanced DevUI display
+        private final LambdaExpression sortExpression;
+        private final LambdaExpression aggregationExpression;
+        private final LambdaExpression groupByKeyExpression;
+        private final LambdaExpression havingExpression;
+        private final LambdaExpression joinRelationshipExpression;
+        private final String terminalMethodName;
+        private final boolean hasDistinct;
+        private final boolean sortDescending;
+        private final boolean isSelectKey;  // True if selectKey() was used instead of select() in group queries
+        private final String aggregationType;  // MIN, MAX, AVG, SUM_INTEGER, SUM_LONG, SUM_DOUBLE
+        private final Integer skipValue;  // Value passed to skip(), null if not called
+        private final Integer limitValue;  // Value passed to limit(), null if not called
+
+        /** Primary constructor using QueryCharacteristics. */
+        public QueryTransformationBuildItem(
+                String queryId,
+                String generatedClassName,
+                String entityClassName,
+                QueryCharacteristics characteristics,
+                int capturedVarCount) {
+            this(queryId, generatedClassName, entityClassName, characteristics, capturedVarCount, null, null);
+        }
+
+        /** Full constructor with optional expressions for DevUI. */
+        public QueryTransformationBuildItem(
+                String queryId,
+                String generatedClassName,
+                String entityClassName,
+                QueryCharacteristics characteristics,
+                int capturedVarCount,
+                LambdaExpression predicateExpression,
+                LambdaExpression projectionExpression) {
+            this(queryId, generatedClassName, entityClassName, characteristics, capturedVarCount,
+                 predicateExpression, projectionExpression, null, null, null, null, null, null, false, false, false, null, null, null);
+        }
 
         /**
-         * Primary constructor using QueryCharacteristics.
-         *
-         * @param queryId unique query identifier (call site ID)
-         * @param generatedClassName generated executor class name
-         * @param entityClass entity class for this query
-         * @param characteristics query type characteristics
-         * @param capturedVarCount number of captured variables
+         * Extended constructor including all optional expressions for enhanced DevUI display.
          */
         public QueryTransformationBuildItem(
                 String queryId,
                 String generatedClassName,
-                Class<?> entityClass,
+                String entityClassName,
                 QueryCharacteristics characteristics,
-                int capturedVarCount) {
+                int capturedVarCount,
+                LambdaExpression predicateExpression,
+                LambdaExpression projectionExpression,
+                LambdaExpression sortExpression,
+                LambdaExpression aggregationExpression,
+                LambdaExpression groupByKeyExpression,
+                LambdaExpression havingExpression,
+                LambdaExpression joinRelationshipExpression,
+                String terminalMethodName,
+                boolean hasDistinct,
+                boolean sortDescending,
+                boolean isSelectKey,
+                String aggregationType,
+                Integer skipValue,
+                Integer limitValue) {
             this.queryId = queryId;
             this.generatedClassName = generatedClassName;
-            this.entityClass = entityClass;
+            this.entityClassName = entityClassName;
             this.characteristics = characteristics;
             this.capturedVarCount = capturedVarCount;
+            this.predicateExpression = predicateExpression;
+            this.projectionExpression = projectionExpression;
+            this.sortExpression = sortExpression;
+            this.aggregationExpression = aggregationExpression;
+            this.groupByKeyExpression = groupByKeyExpression;
+            this.havingExpression = havingExpression;
+            this.joinRelationshipExpression = joinRelationshipExpression;
+            this.terminalMethodName = terminalMethodName;
+            this.hasDistinct = hasDistinct;
+            this.sortDescending = sortDescending;
+            this.isSelectKey = isSelectKey;
+            this.aggregationType = aggregationType;
+            this.skipValue = skipValue;
+            this.limitValue = limitValue;
         }
 
         /**
@@ -400,10 +520,10 @@ public class QubitProcessor {
         public QueryTransformationBuildItem(
                 String queryId,
                 String generatedClassName,
-                Class<?> entityClass,
+                String entityClassName,
                 boolean isCountQuery,
                 int capturedVarCount) {
-            this(queryId, generatedClassName, entityClass,
+            this(queryId, generatedClassName, entityClassName,
                     isCountQuery ? QueryCharacteristics.forCount() : QueryCharacteristics.forList(),
                     capturedVarCount);
         }
@@ -414,11 +534,11 @@ public class QubitProcessor {
         public QueryTransformationBuildItem(
                 String queryId,
                 String generatedClassName,
-                Class<?> entityClass,
+                String entityClassName,
                 boolean isCountQuery,
                 boolean isAggregationQuery,
                 int capturedVarCount) {
-            this(queryId, generatedClassName, entityClass,
+            this(queryId, generatedClassName, entityClassName,
                     new QueryCharacteristics(isCountQuery, isAggregationQuery, false, false, false, false),
                     capturedVarCount);
         }
@@ -433,9 +553,9 @@ public class QubitProcessor {
             return generatedClassName;
         }
 
-        /** Returns entity class for this query. */
-        public Class<?> getEntityClass() {
-            return entityClass;
+        /** Returns entity class name for this query (fully qualified). */
+        public String getEntityClassName() {
+            return entityClassName;
         }
 
         /** Returns query characteristics */
@@ -476,6 +596,227 @@ public class QubitProcessor {
         /** Returns number of captured variables. */
         public int getCapturedVarCount() {
             return capturedVarCount;
+        }
+
+        /** Returns the predicate expression (for DevUI, may be null). */
+        public LambdaExpression getPredicateExpression() {
+            return predicateExpression;
+        }
+
+        /** Returns the projection expression (for DevUI, may be null). */
+        public LambdaExpression getProjectionExpression() {
+            return projectionExpression;
+        }
+
+        /** Returns the sort expression (for DevUI, may be null). */
+        public LambdaExpression getSortExpression() {
+            return sortExpression;
+        }
+
+        /** Returns the aggregation expression (for DevUI, may be null). */
+        public LambdaExpression getAggregationExpression() {
+            return aggregationExpression;
+        }
+
+        /** Returns the groupBy key expression (for DevUI, may be null). */
+        public LambdaExpression getGroupByKeyExpression() {
+            return groupByKeyExpression;
+        }
+
+        /** Returns the HAVING clause expression (for DevUI, may be null). */
+        public LambdaExpression getHavingExpression() {
+            return havingExpression;
+        }
+
+        /** Returns the join relationship expression (for DevUI, may be null). */
+        public LambdaExpression getJoinRelationshipExpression() {
+            return joinRelationshipExpression;
+        }
+
+        /** Returns true if selectKey() was used instead of select() in group queries. */
+        public boolean isSelectKey() {
+            return isSelectKey;
+        }
+
+        /** Returns the terminal method name (toList, count, findFirst, etc.). */
+        public String getTerminalMethodName() {
+            return terminalMethodName;
+        }
+
+        /** Returns true if distinct() was called. */
+        public boolean hasDistinct() {
+            return hasDistinct;
+        }
+
+        /** Returns true if sorting is descending. */
+        public boolean isSortDescending() {
+            return sortDescending;
+        }
+
+        /** Returns the aggregation type (MIN, MAX, AVG, SUM_*, etc.). */
+        public String getAggregationType() {
+            return aggregationType;
+        }
+
+        /** Returns the skip value (null if skip() was not called). */
+        public Integer getSkipValue() {
+            return skipValue;
+        }
+
+        /** Returns the limit value (null if limit() was not called). */
+        public Integer getLimitValue() {
+            return limitValue;
+        }
+
+        /** Creates a new builder (avoids error-prone 19-parameter constructor). */
+        public static Builder builder() {
+            return new Builder();
+        }
+
+        /** Builder with named setters. Required fields validated in build(). */
+        public static final class Builder {
+            // Required fields
+            private String queryId;
+            private String generatedClassName;
+            private String entityClassName;
+            private QueryCharacteristics characteristics;
+            private int capturedVarCount;
+
+            // Optional fields with defaults
+            private LambdaExpression predicateExpression;
+            private LambdaExpression projectionExpression;
+            private LambdaExpression sortExpression;
+            private LambdaExpression aggregationExpression;
+            private LambdaExpression groupByKeyExpression;
+            private LambdaExpression havingExpression;
+            private LambdaExpression joinRelationshipExpression;
+            private String terminalMethodName;
+            private boolean hasDistinct;
+            private boolean sortDescending;
+            private boolean isSelectKey;
+            private String aggregationType;
+            private Integer skipValue;
+            private Integer limitValue;
+
+            private Builder() {}
+
+            // Required field setters
+
+            public Builder queryId(String queryId) {
+                this.queryId = queryId;
+                return this;
+            }
+
+            public Builder generatedClassName(String generatedClassName) {
+                this.generatedClassName = generatedClassName;
+                return this;
+            }
+
+            public Builder entityClassName(String entityClassName) {
+                this.entityClassName = entityClassName;
+                return this;
+            }
+
+            public Builder characteristics(QueryCharacteristics characteristics) {
+                this.characteristics = characteristics;
+                return this;
+            }
+
+            public Builder capturedVarCount(int capturedVarCount) {
+                this.capturedVarCount = capturedVarCount;
+                return this;
+            }
+
+            // Optional field setters
+
+            public Builder predicateExpression(LambdaExpression predicateExpression) {
+                this.predicateExpression = predicateExpression;
+                return this;
+            }
+
+            public Builder projectionExpression(LambdaExpression projectionExpression) {
+                this.projectionExpression = projectionExpression;
+                return this;
+            }
+
+            public Builder sortExpression(LambdaExpression sortExpression) {
+                this.sortExpression = sortExpression;
+                return this;
+            }
+
+            public Builder aggregationExpression(LambdaExpression aggregationExpression) {
+                this.aggregationExpression = aggregationExpression;
+                return this;
+            }
+
+            public Builder groupByKeyExpression(LambdaExpression groupByKeyExpression) {
+                this.groupByKeyExpression = groupByKeyExpression;
+                return this;
+            }
+
+            public Builder havingExpression(LambdaExpression havingExpression) {
+                this.havingExpression = havingExpression;
+                return this;
+            }
+
+            public Builder joinRelationshipExpression(LambdaExpression joinRelationshipExpression) {
+                this.joinRelationshipExpression = joinRelationshipExpression;
+                return this;
+            }
+
+            public Builder terminalMethodName(String terminalMethodName) {
+                this.terminalMethodName = terminalMethodName;
+                return this;
+            }
+
+            public Builder hasDistinct(boolean hasDistinct) {
+                this.hasDistinct = hasDistinct;
+                return this;
+            }
+
+            public Builder sortDescending(boolean sortDescending) {
+                this.sortDescending = sortDescending;
+                return this;
+            }
+
+            public Builder isSelectKey(boolean isSelectKey) {
+                this.isSelectKey = isSelectKey;
+                return this;
+            }
+
+            public Builder aggregationType(String aggregationType) {
+                this.aggregationType = aggregationType;
+                return this;
+            }
+
+            public Builder skipValue(Integer skipValue) {
+                this.skipValue = skipValue;
+                return this;
+            }
+
+            public Builder limitValue(Integer limitValue) {
+                this.limitValue = limitValue;
+                return this;
+            }
+
+            /** Builds the item. Throws IllegalStateException if required fields are missing. */
+            public QueryTransformationBuildItem build() {
+                if (queryId == null) {
+                    throw new IllegalStateException(QUERY_ID_REQUIRED);
+                }
+                if (generatedClassName == null) {
+                    throw new IllegalStateException(GENERATED_CLASS_NAME_REQUIRED);
+                }
+                if (characteristics == null) {
+                    throw new IllegalStateException(CHARACTERISTICS_REQUIRED);
+                }
+                return new QueryTransformationBuildItem(
+                        queryId, generatedClassName, entityClassName, characteristics, capturedVarCount,
+                        predicateExpression, projectionExpression, sortExpression, aggregationExpression,
+                        groupByKeyExpression, havingExpression, joinRelationshipExpression,
+                        terminalMethodName, hasDistinct, sortDescending, isSelectKey, aggregationType,
+                        skipValue, limitValue);
+            }
         }
     }
 

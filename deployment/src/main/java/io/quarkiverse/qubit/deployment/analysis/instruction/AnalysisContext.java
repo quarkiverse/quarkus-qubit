@@ -3,8 +3,12 @@ package io.quarkiverse.qubit.deployment.analysis.instruction;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
 import io.quarkiverse.qubit.deployment.analysis.branch.BranchCoordinator;
+import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
+
+import org.jspecify.annotations.Nullable;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.LabelNode;
+import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodNode;
 
 import java.util.ArrayDeque;
@@ -16,54 +20,19 @@ import java.util.Objects;
 import java.util.function.BiFunction;
 
 /**
- * Encapsulates all state and context needed during lambda bytecode analysis.
- *
- * <p>This class serves as a parameter object to avoid passing 10+ parameters
- * between instruction handlers. It provides:
- * <ul>
- *   <li>Evaluation stack for building lambda expression AST</li>
- *   <li>Bytecode instruction list and current position</li>
- *   <li>Control flow analysis results (label classifications)</li>
- *   <li>Branch handling coordination</li>
- *   <li>Method metadata (local variables, descriptor)</li>
- *   <li>Utility methods for common operations</li>
- * </ul>
- *
- * <p><b>State Categories:</b>
- * <ul>
- *   <li><b>Configuration State</b>: Set at construction, immutable thereafter
- *       (groupContextMode, classMethods, nestedLambdaAnalyzer)</li>
- *   <li><b>Processing State</b>: Mutated during instruction analysis
- *       (currentInstructionIndex, hasSeenBranch, pendingArray*)</li>
- * </ul>
- *
- * <p>Handlers receive this context and can query/modify processing state as needed.
- *
- * @see NestedLambdaSupport
+ * Parameter object for lambda bytecode analysis, avoiding 10+ method parameters.
+ * Contains evaluation stack, instruction state, control flow, and method metadata.
  */
 public class AnalysisContext {
 
     // ==================== Nested Lambda Support Configuration ====================
 
-    /**
-     * Configuration record for nested lambda analysis support.
-     *
-     * <p>Bundles the classMethods list and analyzer function together to ensure
-     * they are always set consistently. This configuration is immutable once
-     * the context is created.
-     *
-     * @param classMethods list of all methods in the class (for finding nested lambdas)
-     * @param analyzer function that takes (MethodNode, entityParamIndex) and returns analyzed expression
-     */
+    /** Configuration for nested lambda analysis (classMethods + analyzer function). */
     public record NestedLambdaSupport(
             List<MethodNode> classMethods,
             BiFunction<MethodNode, Integer, LambdaExpression> analyzer) {
 
-        /**
-         * Creates nested lambda support with validation.
-         *
-         * @throws NullPointerException if classMethods or analyzer is null
-         */
+        /** Creates nested lambda support with validation. */
         public NestedLambdaSupport {
             Objects.requireNonNull(classMethods, "classMethods cannot be null");
             Objects.requireNonNull(analyzer, "analyzer cannot be null");
@@ -73,161 +42,84 @@ public class AnalysisContext {
 
     // ==================== Core State ====================
 
-    /**
-     * Evaluation stack holding lambda expression AST nodes being constructed.
-     * Handlers pop operands from this stack and push results.
-     */
+    /** Evaluation stack for building lambda expression AST. */
     private final Deque<LambdaExpression> stack = new ArrayDeque<>();
 
-    /**
-     * The bytecode instruction list being analyzed.
-     */
+    /** The bytecode instruction list being analyzed. */
     private final InsnList instructions;
 
-    /**
-     * Total number of instructions in the method.
-     */
+    /** Total number of instructions in the method. */
     private final int instructionCount;
 
-    /**
-     * Classification of label nodes (TRUE/FALSE/INTERMEDIATE destinations).
-     */
+    /** Label classifications (TRUE/FALSE/INTERMEDIATE destinations). */
     private final Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications;
 
-    /**
-     * Mapping of labels to their boolean evaluation result (true/false).
-     */
+    /** Mapping of labels to their boolean evaluation result. */
     private final Map<LabelNode, Boolean> labelToValue;
 
-    /**
-     * Coordinator for handling branch instructions (IFEQ, IFNE, IF_ICMP*, etc.).
-     */
+    /** Coordinator for branch instructions (IFEQ, IFNE, IF_ICMP*, etc.). */
     private final BranchCoordinator branchCoordinator = new BranchCoordinator();
 
-    /**
-     * The method node being analyzed (for accessing local variable info).
-     */
+    /** The method node being analyzed. */
     private final MethodNode method;
 
-    /**
-     * Index of the entity parameter in the local variable table.
-     * Used to distinguish entity field accesses from captured variables.
-     * For single-entity lambdas (QuerySpec), this is the only entity parameter.
-     * For bi-entity lambdas (BiQuerySpec), this is the FIRST entity parameter.
-     */
+    /** Entity parameter slot index (first entity for bi-entity lambdas). */
     private final int entityParameterIndex;
 
-    /**
-     * Index of the second entity parameter for bi-entity lambdas (BiQuerySpec).
-     * -1 if this is a single-entity lambda.
-     */
+    /** Second entity parameter index for bi-entity lambdas (-1 if single-entity). */
     private final int secondEntityParameterIndex;
 
-    /**
-     * True if this is a bi-entity lambda (BiQuerySpec) with two entity parameters.
-     */
+    /** True if this is a bi-entity lambda (BiQuerySpec). */
     private final boolean biEntityMode;
 
-    /**
-     * True if this is a group context lambda (GroupQuerySpec).
-     * In group context, the parameter is a Group<T, K> and supports aggregation methods.
-     */
+    /** True if this is a group context lambda (GroupQuerySpec). */
     private final boolean groupContextMode;
 
-    /**
-     * Configuration for nested lambda analysis.
-     * Bundles classMethods and nestedLambdaAnalyzer together as immutable configuration.
-     * Null when nested lambda analysis is not supported.
-     */
+    /** Configuration for nested lambda analysis (null if not supported). */
     private final NestedLambdaSupport nestedLambdaSupport;
 
-    /**
-     * Current instruction index in the instruction list.
-     */
+    /** Current instruction index in the instruction list. */
     private int currentInstructionIndex;
 
-    /**
-     * Tracks whether any branch instruction has been encountered.
-     * Used to detect boolean expressions vs simple field accesses.
-     */
+    /** Tracks whether any branch instruction has been encountered. */
     private boolean hasSeenBranch = false;
 
-    /**
-     * Tracks array creation for Object[] projections.
-     * Non-null when we're in the middle of building an array (after ANEWARRAY).
-     * Added for GROUP BY multi-value select projections.
-     */
+    /** Pending array element type for GROUP BY multi-value projections. */
     private String pendingArrayElementType = null;
 
-    /**
-     * Collects elements for the pending array.
-     * Added for GROUP BY multi-value select projections.
-     */
+    /** Collected elements for pending array creation. */
     private java.util.List<LambdaExpression> pendingArrayElements = null;
 
     // ==================== Constructors ====================
 
-    /**
-     * Creates a new analysis context for the given method (single-entity lambda).
-     *
-     * @param method the lambda method being analyzed
-     * @param entityParameterIndex the slot index of the entity parameter
-     */
+    /** Creates context for single-entity lambda. */
     public AnalysisContext(MethodNode method, int entityParameterIndex) {
         this(method, entityParameterIndex, -1, false, false, null);
     }
 
-    /**
-     * Creates a new analysis context for bi-entity lambdas (BiQuerySpec).
-     *
-     * @param method the lambda method being analyzed
-     * @param firstEntityParameterIndex the slot index of the first entity parameter
-     * @param secondEntityParameterIndex the slot index of the second entity parameter
-     */
+    /** Creates context for bi-entity lambda (BiQuerySpec). */
     public AnalysisContext(MethodNode method, int firstEntityParameterIndex, int secondEntityParameterIndex) {
         this(method, firstEntityParameterIndex, secondEntityParameterIndex, true, false, null);
     }
 
-    /**
-     * Creates a new analysis context for group context lambdas (GroupQuerySpec).
-     *
-     * @param method the lambda method being analyzed
-     * @param entityParameterIndex the slot index of the entity parameter
-     * @param nestedLambdaSupport configuration for nested lambda analysis
-     */
+    /** Creates context for group lambda (GroupQuerySpec). */
     public AnalysisContext(MethodNode method, int entityParameterIndex, NestedLambdaSupport nestedLambdaSupport) {
         this(method, entityParameterIndex, -1, false, true, nestedLambdaSupport);
     }
 
-    /**
-     * Creates a new analysis context with nested lambda support (single-entity lambda).
-     *
-     * @param method the lambda method being analyzed
-     * @param entityParameterIndex the slot index of the entity parameter
-     * @param nestedLambdaSupport configuration for nested lambda analysis
-     * @param groupContextMode true if this is a group context lambda
-     */
+    /** Creates context for single-entity lambda with nested support. */
     public AnalysisContext(MethodNode method, int entityParameterIndex,
                            boolean groupContextMode, NestedLambdaSupport nestedLambdaSupport) {
         this(method, entityParameterIndex, -1, false, groupContextMode, nestedLambdaSupport);
     }
 
-    /**
-     * Creates a new analysis context for bi-entity lambdas with nested lambda support.
-     *
-     * @param method the lambda method being analyzed
-     * @param firstEntityParameterIndex the slot index of the first entity parameter
-     * @param secondEntityParameterIndex the slot index of the second entity parameter
-     * @param nestedLambdaSupport configuration for nested lambda analysis
-     */
+    /** Creates context for bi-entity lambda with nested support. */
     public AnalysisContext(MethodNode method, int firstEntityParameterIndex,
                            int secondEntityParameterIndex, NestedLambdaSupport nestedLambdaSupport) {
         this(method, firstEntityParameterIndex, secondEntityParameterIndex, true, false, nestedLambdaSupport);
     }
 
-    /**
-     * Internal constructor for all cases.
-     */
+    /** Internal constructor for all cases. */
     private AnalysisContext(MethodNode method, int entityParameterIndex,
                             int secondEntityParameterIndex, boolean biEntityMode,
                             boolean groupContextMode, NestedLambdaSupport nestedLambdaSupport) {
@@ -248,93 +140,56 @@ public class AnalysisContext {
 
     // ==================== Stack Operations ====================
 
-    /**
-     * Returns the evaluation stack.
-     *
-     * @return the stack of lambda expressions
-     */
+    /** Returns the evaluation stack. */
     public Deque<LambdaExpression> getStack() {
         return stack;
     }
 
-    /**
-     * Pushes a lambda expression onto the evaluation stack.
-     *
-     * @param expr the expression to push
-     */
+    /** Pushes expression onto evaluation stack. */
     public void push(LambdaExpression expr) {
         stack.push(expr);
     }
 
-    /**
-     * Pops a lambda expression from the evaluation stack.
-     *
-     * @return the top expression, or null if stack is empty
-     */
+    /** Pops expression from stack. Throws BytecodeAnalysisException if empty. */
     public LambdaExpression pop() {
-        return stack.isEmpty() ? null : stack.pop();
+        if (stack.isEmpty()) {
+            throw BytecodeAnalysisException.stackUnderflow("pop", 1, 0);
+        }
+        return stack.pop();
     }
 
-    /**
-     * Peeks at the top of the evaluation stack without removing it.
-     *
-     * @return the top expression, or null if stack is empty
-     */
+    /** Peeks at top of stack without removing. Returns null if empty. */
     public LambdaExpression peek() {
         return stack.isEmpty() ? null : stack.peek();
     }
 
-    /**
-     * Checks if the evaluation stack is empty.
-     *
-     * @return true if stack is empty
-     */
+    /** Checks if evaluation stack is empty. */
     public boolean isStackEmpty() {
         return stack.isEmpty();
     }
 
-    /**
-     * Returns the current size of the evaluation stack.
-     *
-     * @return stack size
-     */
+    /** Returns current stack size. */
     public int getStackSize() {
         return stack.size();
     }
 
-    /**
-     * Pops two expressions from the stack for binary operations.
-     *
-     * @return record containing [left, right] where left was second-to-top and right was top,
-     *         or null if stack has fewer than 2 elements
-     */
+    /** Pops two expressions for binary ops. Returns [left, right]. */
     public PopPairResult popPair() {
         if (stack.size() < 2) {
-            return null;
+            throw BytecodeAnalysisException.stackUnderflow("popPair", 2, stack.size());
         }
         LambdaExpression right = stack.pop();
         LambdaExpression left = stack.pop();
         return new PopPairResult(left, right);
     }
 
-    /**
-     * Result of a popPair() operation containing two expressions.
-     *
-     * @param left the second-to-top element (left operand in binary ops)
-     * @param right the top element (right operand in binary ops)
-     */
+    /** Result of popPair(): left (second-to-top), right (top). */
     public record PopPairResult(LambdaExpression left, LambdaExpression right) {}
 
-    /**
-     * Pops N expressions from the stack.
-     *
-     * @param n number of elements to pop
-     * @return list of N expressions in reverse stack order (first element was deepest),
-     *         or null if stack has fewer than N elements
-     */
+    /** Pops N expressions in reverse stack order (first was deepest). */
     public List<LambdaExpression> popN(int n) {
         if (stack.size() < n) {
-            return null;
+            throw BytecodeAnalysisException.stackUnderflow("popN(" + n + ")", n, stack.size());
         }
         List<LambdaExpression> result = new ArrayList<>(n);
         for (int i = 0; i < n; i++) {
@@ -343,12 +198,7 @@ public class AnalysisContext {
         return result;
     }
 
-    /**
-     * Discards up to N elements from the stack without returning them.
-     *
-     * @param n maximum number of elements to discard
-     * @return actual number of elements discarded
-     */
+    /** Discards up to N elements. Returns actual count discarded. */
     public int discardN(int n) {
         int discarded = 0;
         while (discarded < n && !stack.isEmpty()) {
@@ -360,145 +210,81 @@ public class AnalysisContext {
 
     // ==================== Instruction Access ====================
 
-    /**
-     * Returns the bytecode instruction list.
-     *
-     * @return the instruction list
-     */
+    /** Returns the bytecode instruction list. */
     public InsnList getInstructions() {
         return instructions;
     }
 
-    /**
-     * Returns the total number of instructions.
-     *
-     * @return instruction count
-     */
+    /** Returns total instruction count. */
     public int getInstructionCount() {
         return instructionCount;
     }
 
-    /**
-     * Returns the current instruction index.
-     *
-     * @return current index
-     */
+    /** Returns current instruction index. */
     public int getCurrentInstructionIndex() {
         return currentInstructionIndex;
     }
 
-    /**
-     * Sets the current instruction index.
-     *
-     * @param index the new index
-     */
+    /** Sets current instruction index. */
     public void setCurrentInstructionIndex(int index) {
         this.currentInstructionIndex = index;
     }
 
     // ==================== Control Flow ====================
 
-    /**
-     * Returns the label classifications map.
-     *
-     * @return label classifications
-     */
+    /** Returns label classifications map. */
     public Map<LabelNode, ControlFlowAnalyzer.LabelClassification> getLabelClassifications() {
         return labelClassifications;
     }
 
-    /**
-     * Returns the label-to-boolean-value map.
-     *
-     * @return label value mappings
-     */
+    /** Returns label-to-boolean-value map. */
     public Map<LabelNode, Boolean> getLabelToValue() {
         return labelToValue;
     }
 
-    /**
-     * Returns the branch coordinator.
-     *
-     * @return branch coordinator
-     */
+    /** Returns branch coordinator. */
     public BranchCoordinator getBranchCoordinator() {
         return branchCoordinator;
     }
 
-    /**
-     * Checks if any branch instruction has been encountered.
-     *
-     * @return true if branch seen
-     */
+    /** Checks if any branch instruction has been encountered. */
     public boolean hasSeenBranch() {
         return hasSeenBranch;
     }
 
-    /**
-     * Marks that a branch instruction has been encountered.
-     */
+    /** Marks that a branch instruction has been encountered. */
     public void markBranchSeen() {
         this.hasSeenBranch = true;
     }
 
     // ==================== Method Metadata ====================
 
-    /**
-     * Returns the method node being analyzed.
-     *
-     * @return the method node
-     */
+    /** Returns the method node being analyzed. */
     public MethodNode getMethod() {
         return method;
     }
 
-    /**
-     * Returns the entity parameter index (first entity for bi-entity lambdas).
-     *
-     * @return entity parameter slot index
-     */
+    /** Returns entity parameter index (first entity for bi-entity). */
     public int getEntityParameterIndex() {
         return entityParameterIndex;
     }
 
-    /**
-     * Returns the first entity parameter index (alias for getEntityParameterIndex).
-     * <p>
-     * For bi-entity lambdas, use this method for clarity.
-     *
-     * @return first entity parameter slot index
-     */
+    /** Returns first entity parameter index (alias for bi-entity clarity). */
     public int getFirstEntityParameterIndex() {
         return entityParameterIndex;
     }
 
-    /**
-     * Returns the second entity parameter index for bi-entity lambdas.
-     *
-     * @return second entity parameter slot index, or -1 if single-entity
-     */
+    /** Returns second entity parameter index (-1 if single-entity). */
     public int getSecondEntityParameterIndex() {
         return secondEntityParameterIndex;
     }
 
-    /**
-     * Returns true if this is a bi-entity lambda (BiQuerySpec) context.
-     *
-     * @return true for bi-entity, false for single-entity
-     */
+    /** Returns true if this is a bi-entity lambda (BiQuerySpec). */
     public boolean isBiEntityMode() {
         return biEntityMode;
     }
 
-    /**
-     * Checks if the given slot index is an entity parameter.
-     * <p>
-     * In single-entity mode, checks against the single entity parameter.
-     * In bi-entity mode, checks against both entity parameters.
-     *
-     * @param slotIndex the slot index to check
-     * @return true if the slot is an entity parameter
-     */
+    /** Checks if slot index is an entity parameter. */
     public boolean isEntityParameter(int slotIndex) {
         if (slotIndex == entityParameterIndex) {
             return true;
@@ -506,12 +292,7 @@ public class AnalysisContext {
         return biEntityMode && slotIndex == secondEntityParameterIndex;
     }
 
-    /**
-     * Determines which entity (FIRST or SECOND) for a given slot index in bi-entity mode.
-     *
-     * @param slotIndex the slot index to check
-     * @return EntityPosition.FIRST, EntityPosition.SECOND, or null if not an entity parameter
-     */
+    /** Returns FIRST, SECOND, or null for slot index in bi-entity mode. */
     public LambdaExpression.EntityPosition getEntityPosition(int slotIndex) {
         if (slotIndex == entityParameterIndex) {
             return LambdaExpression.EntityPosition.FIRST;
@@ -524,34 +305,17 @@ public class AnalysisContext {
 
     // ==================== Group Context ====================
 
-    /**
-     * Returns true if this is a group context lambda (GroupQuerySpec).
-     * <p>
-     * In group context, the parameter is a Group&lt;T, K&gt; and supports
-     * aggregation methods like key(), count(), avg(), min(), max(), etc.
-     *
-     * @return true for group context, false otherwise
-     */
+    /** Returns true if this is a group context lambda (GroupQuerySpec). */
     public boolean isGroupContextMode() {
         return groupContextMode;
     }
 
-    /**
-     * Returns true if nested lambda analysis is supported.
-     *
-     * @return true if nested lambda support is configured
-     */
+    /** Returns true if nested lambda analysis is supported. */
     public boolean hasNestedLambdaSupport() {
         return nestedLambdaSupport != null;
     }
 
-    /**
-     * Finds a method in the class by name and descriptor.
-     *
-     * @param name method name
-     * @param descriptor method descriptor
-     * @return the MethodNode if found, null otherwise
-     */
+    /** Finds method by name and descriptor. Returns null if not found. */
     public MethodNode findMethod(String name, String descriptor) {
         if (nestedLambdaSupport == null) {
             return null;
@@ -564,13 +328,7 @@ public class AnalysisContext {
         return null;
     }
 
-    /**
-     * Analyzes a nested lambda method and returns its expression.
-     *
-     * @param nestedMethod the nested lambda method to analyze
-     * @param entityParamIndex the entity parameter slot index
-     * @return the analyzed lambda expression, or null if analysis fails
-     */
+    /** Analyzes nested lambda method. Returns null if analysis fails. */
     public LambdaExpression analyzeNestedLambda(MethodNode nestedMethod, int entityParamIndex) {
         if (nestedLambdaSupport == null) {
             return null;
@@ -580,36 +338,18 @@ public class AnalysisContext {
 
     // ==================== Array Creation Tracking ====================
 
-    /**
-     * Starts tracking an array creation.
-     * <p>
-     * Called when ANEWARRAY instruction is encountered.
-     *
-     * @param elementType the internal name of the array element type (e.g., "java/lang/Object")
-     */
+    /** Starts tracking array creation (called on ANEWARRAY). */
     public void startArrayCreation(String elementType) {
         this.pendingArrayElementType = elementType;
         this.pendingArrayElements = new ArrayList<>();
     }
 
-    /**
-     * Returns true if we're currently building an array.
-     *
-     * @return true if in array creation mode
-     */
+    /** Returns true if currently building an array. */
     public boolean isInArrayCreation() {
         return pendingArrayElementType != null;
     }
 
-    /**
-     * Adds an element to the pending array.
-     * <p>
-     * Called when AASTORE instruction stores a value into the array.
-     *
-     * @param element the element expression to add
-     * @throws IllegalStateException if called when not in array creation mode
-     *         (i.e., startArrayCreation was not called first)
-     */
+    /** Adds element to pending array (on AASTORE). Throws if not in array mode. */
     public void addArrayElement(LambdaExpression element) {
         if (pendingArrayElements == null) {
             throw new IllegalStateException(
@@ -619,31 +359,17 @@ public class AnalysisContext {
         pendingArrayElements.add(element);
     }
 
-    /**
-     * Returns the pending array element type.
-     *
-     * @return the element type internal name, or null if not in array creation
-     */
+    /** Returns pending array element type (null if not in array creation). */
     public String getPendingArrayElementType() {
         return pendingArrayElementType;
     }
 
-    /**
-     * Returns the collected array elements.
-     *
-     * @return list of collected elements, or null if not in array creation
-     */
+    /** Returns collected array elements (null if not in array creation). */
     public java.util.List<LambdaExpression> getPendingArrayElements() {
         return pendingArrayElements;
     }
 
-    /**
-     * Completes array creation and returns an ArrayCreation expression.
-     * <p>
-     * Called when the array is being returned (ARETURN) or otherwise finalized.
-     *
-     * @return ArrayCreation expression, or null if not in array creation mode
-     */
+    /** Completes array creation. Returns null if not in array mode. */
     public LambdaExpression.ArrayCreation completeArrayCreation() {
         if (pendingArrayElementType == null || pendingArrayElements == null) {
             return null;
@@ -654,5 +380,22 @@ public class AnalysisContext {
         pendingArrayElementType = null;
         pendingArrayElements = null;
         return result;
+    }
+
+    // ==================== Variable Name Lookup ====================
+
+    /** Looks up variable name from debug info (null if unavailable). */
+    public @Nullable String getVariableNameForSlot(int slotIndex) {
+        if (method.localVariables == null) {
+            return null;
+        }
+
+        for (LocalVariableNode localVar : method.localVariables) {
+            if (localVar.index == slotIndex) {
+                return localVar.name;
+            }
+        }
+
+        return null;
     }
 }

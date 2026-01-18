@@ -8,57 +8,28 @@ import io.quarkus.deployment.pkg.steps.NativeOrNativeSourcesBuild;
 import io.quarkus.logging.Log;
 
 import java.nio.charset.StandardCharsets;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
- * Quarkus build processor for native image configuration.
- * <p>
  * Generates GraalVM native image metadata for lambda reflection.
- * When lambdas have captured variables, their synthetic classes need
- * reflection configuration to access fields in native mode.
- * <p>
- * Uses the GraalVM 25+ reachability-metadata.json format with lambda reflection syntax:
- * <pre>
- * {
- *   "reflection": [
- *     {
- *       "type": {
- *         "lambda": {
- *           "declaringClass": "com.example.MyClass",
- *           "interfaces": ["io.quarkiverse.qubit.runtime.QuerySpec"]
- *         }
- *       },
- *       "allDeclaredFields": true
- *     }
- *   ]
- * }
- * </pre>
- * <p>
- * <strong>Note:</strong> Lambda reflection in native mode requires GraalVM/Mandrel 25 or later.
- * Earlier versions do not support reflection on lambda-proxy class fields.
- *
- * @see <a href="https://www.graalvm.org/latest/reference-manual/native-image/metadata/">GraalVM Reachability Metadata</a>
+ * Uses GraalVM 25+ reachability-metadata.json format. Earlier versions don't support lambda reflection.
  */
 @SuppressWarnings("deprecation")  // NativeOrNativeSourcesBuild is deprecated but still recommended
 public class QubitNativeImageProcessor {
 
-    // GraalVM 25+ uses reachability-metadata.json format
     private static final String QUBIT_REACHABILITY_METADATA_PATH =
             "META-INF/native-image/io.quarkiverse.qubit/quarkus-qubit/reachability-metadata.json";
 
-    // Lambda interface class names
     private static final String QUERY_SPEC_CLASS = "io.quarkiverse.qubit.runtime.QuerySpec";
     private static final String BI_QUERY_SPEC_CLASS = "io.quarkiverse.qubit.runtime.BiQuerySpec";
     private static final String GROUP_QUERY_SPEC_CLASS = "io.quarkiverse.qubit.runtime.GroupQuerySpec";
 
+    /** Format: "ownerClassName:methodName:lineNumber:lambdaMethodName" */
+    private static final int QUERY_ID_MIN_PARTS = 4;
+
     /**
-     * Collects lambda reflection information from query transformations.
-     * <p>
-     * For each query transformation with captured variables, produces a
-     * LambdaReflectionBuildItem that will be used to generate native image
-     * reflection configuration.
+     * Collects lambda reflection info. ALL lambdas need writeReplace() for call site ID (Issue #14).
+     * Fail-fast on invalid queryId (Issue #16) - prevents cryptic native runtime errors.
      */
     @BuildStep
     void collectLambdaReflectionInfo(
@@ -66,24 +37,43 @@ public class QubitNativeImageProcessor {
             BuildProducer<LambdaReflectionBuildItem> lambdaReflections) {
 
         for (QubitProcessor.QueryTransformationBuildItem transformation : transformations) {
-            if (transformation.getCapturedVarCount() <= 0) {
-                continue;
-            }
-
-            // Parse queryId format: "ownerClassName:methodName:lineNumber"
+            // Parse queryId format: "ownerClassName:methodName:lineNumber:lambdaMethodName"
             String queryId = transformation.getQueryId();
             String[] parts = queryId.split(":");
-            if (parts.length < 2) {
-                Log.warnf("Qubit: Invalid queryId format: %s", queryId);
-                continue;
+
+            // Validate queryId format strictly - fail build on invalid format
+            // Silent skip would cause missing native image metadata, leading to
+            // cryptic runtime failures in native mode
+            if (parts.length < QUERY_ID_MIN_PARTS) {
+                throw new IllegalStateException(String.format(
+                        "Invalid queryId format: '%s' (expected %d parts separated by ':' but got %d).%n" +
+                        "Expected format: 'ownerClassName:methodName:lineNumber:lambdaMethodName'.%n" +
+                        "This indicates a bug in build-time query analysis.%n" +
+                        "Please report this issue with the full stack trace.",
+                        queryId, QUERY_ID_MIN_PARTS, parts.length));
             }
 
             String declaringClass = parts[0];
             String methodName = parts[1];
+            // parts[2] is lineNumber (not used for native config)
+            // parts[3] is lambdaMethodName (not used for native config)
+
+            // Validate extracted components
+            if (declaringClass.isEmpty()) {
+                throw new IllegalStateException(String.format(
+                        "Empty declaringClass in queryId: '%s'. This indicates a bug in build-time query analysis.",
+                        queryId));
+            }
+            if (methodName.isEmpty()) {
+                throw new IllegalStateException(String.format(
+                        "Empty methodName in queryId: '%s'. This indicates a bug in build-time query analysis.",
+                        queryId));
+            }
 
             // Determine interface type based on query characteristics
             String interfaceType = determineInterfaceType(transformation);
 
+            // Register ALL lambdas - writeReplace needed for call site ID extraction
             lambdaReflections.produce(new LambdaReflectionBuildItem(
                     declaringClass, methodName, interfaceType, transformation.getCapturedVarCount()));
 
@@ -92,9 +82,7 @@ public class QubitNativeImageProcessor {
         }
     }
 
-    /**
-     * Determines the lambda interface type based on query characteristics.
-     */
+    /** Determines lambda interface type: BiQuerySpec, GroupQuerySpec, or QuerySpec. */
     private String determineInterfaceType(QubitProcessor.QueryTransformationBuildItem transformation) {
         if (transformation.isJoinQuery()) {
             return BI_QUERY_SPEC_CLASS;
@@ -105,37 +93,51 @@ public class QubitNativeImageProcessor {
         return QUERY_SPEC_CLASS;
     }
 
-    /**
-     * Registers runtime classes for reflection.
-     * These classes are used by the generated query executors and need
-     * to be accessible via reflection in native mode.
-     */
+    /** Registers runtime classes for native reflection. */
     @BuildStep(onlyIf = NativeOrNativeSourcesBuild.class)
     void registerRuntimeClassesForReflection(BuildProducer<ReflectiveClassBuildItem> reflectiveClass) {
-        // Register CapturedVariableExtractor for reflection
         reflectiveClass.produce(ReflectiveClassBuildItem.builder(
                 "io.quarkiverse.qubit.runtime.CapturedVariableExtractor")
-                .methods()
-                .fields()
-                .build());
+                .methods().fields().build());
 
-        // Register FieldNamingStrategy implementations
         reflectiveClass.produce(ReflectiveClassBuildItem.builder(
                 "io.quarkiverse.qubit.runtime.FieldNamingStrategy$JavacStrategy",
                 "io.quarkiverse.qubit.runtime.FieldNamingStrategy$EclipseStrategy",
                 "io.quarkiverse.qubit.runtime.FieldNamingStrategy$GraalVMStrategy",
                 "io.quarkiverse.qubit.runtime.FieldNamingStrategy$IndexBasedStrategy")
-                .constructors()
-                .methods()
-                .build());
+                .constructors().methods().build());
+
+        // Uses getDeclaredMethod/getDeclaredFields for lambda extraction
+        reflectiveClass.produce(ReflectiveClassBuildItem.builder(
+                "io.quarkiverse.qubit.runtime.LambdaReflectionUtils")
+                .methods().fields().build());
+
+        // CDI bean lookup via Arc.container().instance()
+        reflectiveClass.produce(ReflectiveClassBuildItem.builder(
+                "io.quarkiverse.qubit.runtime.QueryExecutorRegistry")
+                .constructors().methods().fields().build());
+
+        // Group interface used in group lambda parameter
+        reflectiveClass.produce(ReflectiveClassBuildItem.builder(
+                "io.quarkiverse.qubit.runtime.Group")
+                .methods().build());
+
+        // Return type for projection queries
+        reflectiveClass.produce(ReflectiveClassBuildItem.builder(
+                "io.quarkiverse.qubit.runtime.ImmutableResultStream")
+                .constructors().methods().build());
+
+        // Stream implementation classes
+        reflectiveClass.produce(ReflectiveClassBuildItem.builder(
+                "io.quarkiverse.qubit.runtime.QubitStreamImpl",
+                "io.quarkiverse.qubit.runtime.JoinStreamImpl",
+                "io.quarkiverse.qubit.runtime.GroupStreamImpl")
+                .constructors().methods().build());
     }
 
     /**
-     * Generates reachability-metadata.json with lambda reflection entries.
-     * <p>
-     * Uses GraalVM 25+ format with the "reflection" array wrapper.
-     * Only lambdas with captured variables need reflection registration.
-     * Lambdas without captured variables don't have fields to access.
+     * Generates reachability-metadata.json. writeReplace() for all (Issue #14),
+     * allDeclaredFields only for lambdas with captured variables.
      */
     @BuildStep(onlyIf = NativeOrNativeSourcesBuild.class)
     void generateLambdaReflectionConfig(
@@ -143,12 +145,23 @@ public class QubitNativeImageProcessor {
             BuildProducer<GeneratedResourceBuildItem> generatedResource) {
 
         if (lambdaReflections.isEmpty()) {
-            Log.debug("Qubit: No lambdas with captured variables found, skipping reachability-metadata.json generation");
+            Log.debug("Qubit: No lambdas found, skipping reachability-metadata.json generation");
             return;
         }
 
-        // Deduplicate by (declaringClass, interfaceType) pair
-        Set<String> seen = new HashSet<>();
+        // Track which (declaringClass, interfaceType) pairs need fields vs just methods
+        // Key: "declaringClass:interfaceType", Value: true if needs fields (captured vars)
+        java.util.Map<String, Boolean> lambdaEntries = new java.util.LinkedHashMap<>();
+        for (LambdaReflectionBuildItem item : lambdaReflections) {
+            String key = item.getDeclaringClass() + ":" + item.getInterfaceType();
+            // If any lambda with this key has captured vars, mark as needing fields
+            Boolean needsFields = lambdaEntries.getOrDefault(key, Boolean.FALSE);
+            if (item.getCapturedVarCount() > 0) {
+                needsFields = Boolean.TRUE;
+            }
+            lambdaEntries.put(key, needsFields);
+        }
+
         StringBuilder json = new StringBuilder();
 
         // GraalVM 25+ reachability-metadata.json format with "reflection" wrapper
@@ -156,16 +169,11 @@ public class QubitNativeImageProcessor {
         json.append("  \"reflection\": [\n");
 
         boolean first = true;
-        for (LambdaReflectionBuildItem item : lambdaReflections) {
-            if (item.getCapturedVarCount() <= 0) {
-                continue;
-            }
-
-            String key = item.getDeclaringClass() + ":" + item.getInterfaceType();
-            if (seen.contains(key)) {
-                continue;
-            }
-            seen.add(key);
+        for (java.util.Map.Entry<String, Boolean> entry : lambdaEntries.entrySet()) {
+            String[] parts = entry.getKey().split(":");
+            String declaringClass = parts[0];
+            String interfaceType = parts[1];
+            boolean needsFields = entry.getValue();
 
             if (!first) {
                 json.append(",\n");
@@ -176,23 +184,30 @@ public class QubitNativeImageProcessor {
             json.append("    {\n");
             json.append("      \"type\": {\n");
             json.append("        \"lambda\": {\n");
-            json.append("          \"declaringClass\": \"").append(item.getDeclaringClass()).append("\",\n");
-            json.append("          \"interfaces\": [\"").append(item.getInterfaceType()).append("\"]\n");
+            json.append("          \"declaringClass\": \"").append(declaringClass).append("\",\n");
+            json.append("          \"interfaces\": [\"").append(interfaceType).append("\"]\n");
             json.append("        }\n");
             json.append("      },\n");
-            json.append("      \"allDeclaredFields\": true\n");
+
+            // writeReplace method needed for SerializedLambda extraction (Issue #14)
+            json.append("      \"methods\": [\n");
+            json.append("        { \"name\": \"writeReplace\", \"parameterTypes\": [] }\n");
+            json.append("      ]");
+
+            // allDeclaredFields needed only for lambdas with captured variables
+            if (needsFields) {
+                json.append(",\n      \"allDeclaredFields\": true\n");
+            } else {
+                json.append("\n");
+            }
+
             json.append("    }");
         }
 
         json.append("\n  ]\n");
         json.append("}");
 
-        if (seen.isEmpty()) {
-            Log.debug("Qubit: No lambdas with captured variables after deduplication");
-            return;
-        }
-
-        Log.infof("Qubit: Generating native image lambda reflection config for %d lambda type(s)", seen.size());
+        Log.infof("Qubit: Generating native image lambda reflection config for %d lambda type(s)", lambdaEntries.size());
         generatedResource.produce(new GeneratedResourceBuildItem(
                 QUBIT_REACHABILITY_METADATA_PATH,
                 json.toString().getBytes(StandardCharsets.UTF_8)));

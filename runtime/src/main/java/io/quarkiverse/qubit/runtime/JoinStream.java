@@ -17,9 +17,7 @@ import java.util.Optional;
  */
 public interface JoinStream<T, R> {
 
-    // =============================================================================================
-    // JOIN CONDITIONS
-    // =============================================================================================
+    // ========== Join Conditions ==========
 
     /**
      * Adds an ON clause condition to the join.
@@ -30,9 +28,7 @@ public interface JoinStream<T, R> {
      */
     JoinStream<T, R> on(BiQuerySpec<T, R, Boolean> condition);
 
-    // =============================================================================================
-    // FILTERING
-    // =============================================================================================
+    // ========== Filtering ==========
 
     /**
      * Filters joined results with access to both entities. Multiple calls combine with AND.
@@ -51,9 +47,7 @@ public interface JoinStream<T, R> {
      */
     JoinStream<T, R> where(QuerySpec<T, Boolean> predicate);
 
-    // =============================================================================================
-    // PROJECTION
-    // =============================================================================================
+    // ========== Projection ==========
 
     /**
      * Projects joined result to a new type using both entities.
@@ -79,9 +73,7 @@ public interface JoinStream<T, R> {
      */
     QubitStream<R> selectJoined();
 
-    // =============================================================================================
-    // SORTING
-    // =============================================================================================
+    // ========== Sorting ==========
 
     /**
      * Sorts results in ascending order using a key from either entity.
@@ -101,9 +93,7 @@ public interface JoinStream<T, R> {
      */
     <K extends Comparable<K>> JoinStream<T, R> sortedDescendingBy(BiQuerySpec<T, R, K> keyExtractor);
 
-    // =============================================================================================
-    // PAGINATION
-    // =============================================================================================
+    // ========== Pagination ==========
 
     /**
      * Skips the first {@code n} results (SQL OFFSET).
@@ -123,9 +113,7 @@ public interface JoinStream<T, R> {
      */
     JoinStream<T, R> limit(int n);
 
-    // =============================================================================================
-    // DISTINCT
-    // =============================================================================================
+    // ========== Distinct ==========
 
     /**
      * Returns only distinct results (SQL SELECT DISTINCT).
@@ -134,9 +122,7 @@ public interface JoinStream<T, R> {
      */
     JoinStream<T, R> distinct();
 
-    // =============================================================================================
-    // TERMINAL OPERATIONS
-    // =============================================================================================
+    // ========== Terminal Operations ==========
 
     /**
      * Executes the query and returns all source entities as a list.

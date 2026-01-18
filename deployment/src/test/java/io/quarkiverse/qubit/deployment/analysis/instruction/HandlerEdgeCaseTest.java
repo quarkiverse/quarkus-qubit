@@ -141,7 +141,7 @@ class HandlerEdgeCaseTest {
     @Nested
     class ArithmeticHandlerTests {
 
-        private final ArithmeticInstructionHandler handler = new ArithmeticInstructionHandler();
+        private final ArithmeticInstructionHandler handler = ArithmeticInstructionHandler.INSTANCE;
 
         @Test
         void canHandle_withArithmeticOpcode_returnsTrue() {
@@ -221,7 +221,7 @@ class HandlerEdgeCaseTest {
     @Nested
     class LoadHandlerTests {
 
-        private final LoadInstructionHandler handler = new LoadInstructionHandler();
+        private final LoadInstructionHandler handler = LoadInstructionHandler.INSTANCE;
 
         @Test
         void canHandle_withLoadOpcodes_returnsTrue() {
@@ -284,7 +284,7 @@ class HandlerEdgeCaseTest {
     @Nested
     class ConstantHandlerTests {
 
-        private final ConstantInstructionHandler handler = new ConstantInstructionHandler();
+        private final ConstantInstructionHandler handler = ConstantInstructionHandler.INSTANCE;
 
         @Test
         void canHandle_withIconst_returnsTrue() {
@@ -1120,7 +1120,7 @@ class HandlerEdgeCaseTest {
     @Nested
     class TypeConversionHandlerTests {
 
-        private final TypeConversionHandler handler = new TypeConversionHandler();
+        private final TypeConversionHandler handler = TypeConversionHandler.INSTANCE;
 
         @Test
         void canHandle_withPrimitiveConversions_returnsTrue() {
@@ -1238,7 +1238,7 @@ class HandlerEdgeCaseTest {
         void handlers_returnsImmutableCopy() {
             InstructionHandlerRegistry registry = InstructionHandlerRegistry.createDefault();
 
-            assertThatThrownBy(() -> registry.handlers().add(new ArithmeticInstructionHandler()))
+            assertThatThrownBy(() -> registry.handlers().add(ArithmeticInstructionHandler.INSTANCE))
                     .isInstanceOf(UnsupportedOperationException.class);
         }
     }
@@ -1248,7 +1248,7 @@ class HandlerEdgeCaseTest {
     @Nested
     class MethodInvocationHandlerTests {
 
-        private final MethodInvocationHandler handler = new MethodInvocationHandler();
+        private final MethodInvocationHandler handler = MethodInvocationHandler.INSTANCE;
 
         // ==================== canHandle Tests ====================
 
@@ -2074,29 +2074,24 @@ class HandlerEdgeCaseTest {
         // ==================== handleCollectionContains empty stack test (kill mutation 354) ====================
 
         @Test
-        void handle_collectionContains_emptyStack_doesNotThrow() {
-            // Empty stack should be handled gracefully via popPair() returning null
+        void handle_collectionContains_emptyStack_throwsException() {
+            // Empty stack should throw BytecodeAnalysisException
             MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z", true);
 
-            // Should not throw - returns early when popPair() returns null
-            handler.handle(containsInsn, context);
-
-            assertThat(context.isStackEmpty())
-                    .as("Empty stack should remain empty")
-                    .isTrue();
+            assertThatThrownBy(() -> handler.handle(containsInsn, context))
+                    .isInstanceOf(BytecodeAnalysisException.class)
+                    .hasMessageContaining("Stack underflow");
         }
 
         @Test
-        void handle_collectionContains_oneElementStack_doesNotThrow() {
+        void handle_collectionContains_oneElementStack_throwsException() {
             // Only one element - popPair() needs 2
             context.push(captured(0, java.util.List.class));
             MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z", true);
 
-            // Should not throw
-            handler.handle(containsInsn, context);
-
-            // Stack may have been partially modified
-            assertThat(context.getStackSize()).isGreaterThanOrEqualTo(0);
+            assertThatThrownBy(() -> handler.handle(containsInsn, context))
+                    .isInstanceOf(BytecodeAnalysisException.class)
+                    .hasMessageContaining("Stack underflow");
         }
 
         // ==================== Temporal Factory Method condition tests (kill mutations 711, 717) ====================

@@ -25,16 +25,10 @@ import static org.objectweb.asm.Opcodes.*;
 
 /**
  * Handles load instructions: ALOAD, primitives, GETFIELD.
- * <p>
- * Enhanced to support relationship navigation by detecting
- * chained GETFIELD instructions and building PathExpression AST nodes.
- * <p>
- * Enhanced to support bi-entity lambdas (BiQuerySpec) for join
- * queries. In bi-entity mode, produces BiEntityParameter, BiEntityFieldAccess,
- * and BiEntityPathExpression nodes that track which entity the expression
- * belongs to (FIRST or SECOND).
+ * Supports relationship navigation and bi-entity lambdas for join queries.
  */
-public class LoadInstructionHandler implements InstructionHandler {
+public enum LoadInstructionHandler implements InstructionHandler {
+    INSTANCE;
 
     @Override
     public boolean canHandle(AbstractInsnNode insn) {
@@ -56,34 +50,20 @@ public class LoadInstructionHandler implements InstructionHandler {
         return false;
     }
 
-    /**
-     * Handles ALOAD: entity parameter, group parameter, or captured variable.
-     * <p>
-     * In bi-entity mode (join queries), checks both entity parameter slots and
-     * produces BiEntityParameter nodes that track the entity position.
-     * <p>
-     * In group context mode (GroupQuerySpec), produces GroupParameter nodes
-     * for the Group parameter.
-     */
+    /** Handles ALOAD: entity parameter, group parameter, or captured variable. */
     private void handleALoad(AnalysisContext ctx, VarInsnNode varInsn) {
         EntityPosition entityPosition = ctx.getEntityPosition(varInsn.var);
 
         if (entityPosition != null) {
-            // This is an entity parameter (or group parameter in group context)
             if (ctx.isGroupContextMode()) {
-                // Group context lambda: produce GroupParameter
-                // In group lambdas, the Group parameter is at the entity slot
                 ctx.push(new GroupParameter("group", Group.class, varInsn.var, Object.class, Object.class));
             } else if (ctx.isBiEntityMode()) {
-                // Bi-entity lambda: produce BiEntityParameter
                 String paramName = entityPosition == EntityPosition.FIRST ? "entity" : "joinedEntity";
                 ctx.push(new BiEntityParameter(paramName, Object.class, varInsn.var, entityPosition));
             } else {
-                // Single-entity lambda: produce Parameter
                 ctx.push(new LambdaExpression.Parameter("entity", Object.class, varInsn.var));
             }
         } else {
-            // This is a captured variable from the enclosing scope
             int paramIndex = DescriptorParser.slotIndexToParameterIndex(
                     ctx.getMethod().desc, varInsn.var);
 
@@ -96,7 +76,8 @@ public class LoadInstructionHandler implements InstructionHandler {
             }
 
             Class<?> varType = DescriptorParser.getParameterType(ctx.getMethod().desc, paramIndex);
-            ctx.push(new LambdaExpression.CapturedVariable(paramIndex, varType));
+            String varName = ctx.getVariableNameForSlot(varInsn.var);
+            ctx.push(new LambdaExpression.CapturedVariable(paramIndex, varType, varName));
         }
     }
 
@@ -126,7 +107,8 @@ public class LoadInstructionHandler implements InstructionHandler {
             actualType = DescriptorParser.getParameterType(ctx.getMethod().desc, paramIndex);
         }
 
-        ctx.push(new LambdaExpression.CapturedVariable(paramIndex, actualType));
+        String varName = ctx.getVariableNameForSlot(varInsn.var);
+        ctx.push(new LambdaExpression.CapturedVariable(paramIndex, actualType, varName));
     }
 
     /**
@@ -159,16 +141,11 @@ public class LoadInstructionHandler implements InstructionHandler {
         Class<?> fieldType = TypeConverter.descriptorToClass(fieldInsn.desc);
         String fieldName = fieldInsn.name;
 
-        // Create new segment for this field access
-        // Note: RelationType.FIELD is used as default; actual relationship type
-        // will be resolved during JPA generation using RelationshipMetadataExtractor
+        // RelationType.FIELD is default; resolved during JPA generation
         PathSegment newSegment = new PathSegment(fieldName, fieldType, RelationType.FIELD);
 
-        // Java 21 pattern matching switch for type dispatch
         switch (target) {
-            // =========================================================================
-            // Bi-entity mode handling (join queries)
-            // =========================================================================
+            // ========== Bi-entity mode (join queries) ==========
             case BiEntityParameter biParam ->
                 // First-level field access from bi-entity parameter: ph.type
                 ctx.push(new BiEntityFieldAccess(fieldName, fieldType, biParam.position()));
@@ -196,10 +173,7 @@ public class LoadInstructionHandler implements InstructionHandler {
                 ctx.push(new BiEntityPathExpression(segments, fieldType, biPath.entityPosition()));
             }
 
-            // =========================================================================
-            // Single-entity mode handling (original behavior)
-            // =========================================================================
-
+            // ========== Single-entity mode ==========
             case LambdaExpression.Parameter ignored ->
                 // First-level field access from entity parameter: p.age
                 // For single-level access, continue using FieldAccess for backward compatibility
@@ -229,20 +203,9 @@ public class LoadInstructionHandler implements InstructionHandler {
                 ctx.push(new PathExpression(segments, fieldType));
             }
 
-            // =========================================================================
-            // Subquery correlated variable handling
-            // =========================================================================
-
+            // ========== Subquery correlated variables ==========
             case LambdaExpression.CapturedVariable capturedVar -> {
-                // Field access on a captured outer scope variable
-                // This occurs in subquery lambdas like: ph -> ph.owner.id.equals(p.id)
-                // where 'p' is captured from the outer lambda and 'p.id' should become
-                // CorrelatedVariable to correlate the subquery with the outer query.
-                //
-                // Example bytecode:
-                // ALOAD 1          // Stack: [CapturedVariable(0, Person.class)] - the outer 'p'
-                // GETFIELD id      // Stack: [CorrelatedVariable(FieldAccess(id), 0, Person.class)]
-                //
+                // Field access on captured variable → CorrelatedVariable for subquery correlation
                 LambdaExpression fieldExpr = new FieldAccess(fieldName, fieldType);
                 ctx.push(new LambdaExpression.CorrelatedVariable(
                         fieldExpr,
@@ -251,14 +214,7 @@ public class LoadInstructionHandler implements InstructionHandler {
             }
 
             case LambdaExpression.CorrelatedVariable correlatedVar -> {
-                // Chained field access on a correlated variable
-                // This occurs when accessing nested fields like p.owner.id where p is captured.
-                //
-                // Example bytecode for p.owner.id where p is captured:
-                // ALOAD 1          // Stack: [CapturedVariable(0, Person.class)]
-                // GETFIELD owner   // Stack: [CorrelatedVariable(FieldAccess(owner), 0, Person.class)]
-                // GETFIELD id      // Stack: [CorrelatedVariable(PathExpression([owner, id]), 0, Person.class)]
-                //
+                // Chained field access on correlated variable → extend path (e.g., p.owner.id)
                 LambdaExpression innerField = correlatedVar.fieldExpression();
 
                 LambdaExpression extendedPath = switch (innerField) {

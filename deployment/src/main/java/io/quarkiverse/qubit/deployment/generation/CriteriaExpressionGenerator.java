@@ -1,18 +1,7 @@
 package io.quarkiverse.qubit.deployment.generation;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.EQ;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_ADD;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_DIVIDE;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_EQUALS;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_MULTIPLY;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_OF;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SUBSTRING;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SUBTRACT;
-import static io.quarkiverse.qubit.runtime.QubitConstants.STRING_PATTERN_METHOD_NAMES;
-import static io.quarkiverse.qubit.runtime.QubitConstants.PREFIX_GET;
-import static io.quarkiverse.qubit.runtime.QubitConstants.PREFIX_IS;
-import static io.quarkiverse.qubit.runtime.QubitConstants.TEMPORAL_COMPARISON_METHOD_NAMES;
-import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.extractFieldName;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.expectedAndOrOperator;
 import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.isBooleanType;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.BinaryOperationCategory;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.containsScalarSubquery;
@@ -27,8 +16,6 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_EQ
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_IS_FALSE;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_IS_MEMBER;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_IS_NOT_MEMBER;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_IS_NOT_NULL;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_IS_NULL;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_IS_TRUE;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_LITERAL;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NOT;
@@ -38,14 +25,7 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CLASS
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.EXPRESSION_IN_COLLECTION;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.PATH_GET;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.MethodDescriptor;
@@ -60,6 +40,10 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.ScalarSubquery;
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionBuilderRegistry;
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionGeneratorHelper;
+import io.quarkiverse.qubit.deployment.generation.methodcall.GenerationResult;
+import io.quarkiverse.qubit.deployment.generation.methodcall.MethodCallHandlerChain;
+
+import static io.quarkiverse.qubit.deployment.generation.GizmoHelper.createElementArray;
 import io.quarkiverse.qubit.deployment.util.TypeConverter;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Selection;
@@ -75,53 +59,29 @@ import jakarta.persistence.criteria.Selection;
  */
 public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
-    private static final Set<String> BIG_DECIMAL_ARITHMETIC_METHOD_NAMES = Set.of(
-        METHOD_ADD, METHOD_SUBTRACT, METHOD_MULTIPLY, METHOD_DIVIDE
-    );
-
-    /**
-     * Registry holding all expression builders for dependency injection.
-     */
     private final ExpressionBuilderRegistry builderRegistry;
+    private final MethodCallHandlerChain methodCallHandlerChain;
 
-    /**
-     * Creates a generator with the default expression builder registry.
-     *
-     * <p>This is the standard constructor for production use.
-     */
+    /** Creates a generator with the default expression builder registry. */
     public CriteriaExpressionGenerator() {
-        this(ExpressionBuilderRegistry.createDefault());
+        this(ExpressionBuilderRegistry.createDefault(), MethodCallHandlerChain.defaultInstance());
     }
 
-    /**
-     * Creates a generator with a custom expression builder registry.
-     *
-     * <p>This constructor enables testability by allowing injection of mock
-     * or custom builder implementations.
-     *
-     * @param builderRegistry the registry containing expression builders
-     * @throws NullPointerException if builderRegistry is null
-     */
+    /** Creates a generator with custom registry for testing. */
     public CriteriaExpressionGenerator(ExpressionBuilderRegistry builderRegistry) {
+        this(builderRegistry, MethodCallHandlerChain.defaultInstance());
+    }
+
+    /** Creates a generator with full dependency injection for testing. */
+    public CriteriaExpressionGenerator(ExpressionBuilderRegistry builderRegistry,
+            MethodCallHandlerChain methodCallHandlerChain) {
         this.builderRegistry = Objects.requireNonNull(builderRegistry,
                 "builderRegistry cannot be null");
+        this.methodCallHandlerChain = Objects.requireNonNull(methodCallHandlerChain,
+                "methodCallHandlerChain cannot be null");
     }
 
-    /** Creates MethodDescriptor for method. */
-    private static MethodDescriptor methodDescriptor(Class<?> clazz, String methodName, Class<?> returnType, Class<?>... params) {
-        return MethodDescriptor.ofMethod(clazz, methodName, returnType, params);
-    }
-
-    /** Creates MethodDescriptor for constructor. */
-    private static MethodDescriptor constructorDescriptor(Class<?> clazz, Class<?>... params) {
-        return MethodDescriptor.ofConstructor(clazz, params);
-    }
-
-    /**
-     * Generates JPA Predicate from lambda expression AST.
-     * <p>
-     * Refactored for Java 21: Uses pattern matching switch for cleaner type dispatch.
-     */
+    /** Generates JPA Predicate from lambda expression AST. */
     public ResultHandle generatePredicate(
             MethodCreator method,
             LambdaExpression expression,
@@ -133,7 +93,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             return null;
         }
 
-        // Java 21 pattern matching switch for type dispatch
         return switch (expression) {
             case LambdaExpression.BinaryOp binOp ->
                 generateBinaryOperation(method, binOp, cb, root, capturedValues);
@@ -143,18 +102,12 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
             case LambdaExpression.FieldAccess field -> {
                 ResultHandle path = generateFieldAccess(method, field, root);
-                if (isBooleanType(field.fieldType())) {
-                    yield method.invokeInterfaceMethod(CB_IS_TRUE, cb, path);
-                }
-                yield path;
+                yield wrapBooleanAsPredicateIfNeeded(method, cb, path, field.fieldType());
             }
 
             case PathExpression pathExpr -> {
                 ResultHandle path = generatePathExpression(method, pathExpr, root);
-                if (isBooleanType(pathExpr.resultType())) {
-                    yield method.invokeInterfaceMethod(CB_IS_TRUE, cb, path);
-                }
-                yield path;
+                yield wrapBooleanAsPredicateIfNeeded(method, cb, path, pathExpr.resultType());
             }
 
             case LambdaExpression.MethodCall methodCall ->
@@ -166,24 +119,13 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             case MemberOfExpression memberOfExpr ->
                 generateMemberOfPredicate(method, memberOfExpr, cb, root, capturedValues);
 
-            default -> null;
+            default -> throw new UnsupportedExpressionException(expression, "predicate generation");
         };
     }
 
     /**
-     * Generates JPA Predicate from lambda expression AST with subquery support.
-     * <p>
-     * Overloaded version that accepts CriteriaQuery for creating subqueries.
-     * Use this method when the predicate may contain subquery expressions
-     * (ExistsSubquery, InSubquery, or comparisons with ScalarSubquery).
-     *
-     * @param method the method creator for bytecode generation
-     * @param expression the lambda expression AST
-     * @param cb the CriteriaBuilder handle
-     * @param query the CriteriaQuery handle (needed for subquery creation)
-     * @param root the root entity handle
-     * @param capturedValues the captured variables array handle
-     * @return the JPA Predicate handle
+     * Generates JPA Predicate with subquery support (ExistsSubquery, InSubquery, ScalarSubquery).
+     * Accepts CriteriaQuery for creating subqueries.
      */
     public ResultHandle generatePredicateWithSubqueries(
             MethodCreator method,
@@ -197,7 +139,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             return null;
         }
 
-        // Java 21 pattern matching switch for type dispatch
         return switch (expression) {
             // Handle subquery expressions first
             case ExistsSubquery existsSubquery ->
@@ -218,20 +159,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         };
     }
 
-    /**
-     * Generates JPA Expression from lambda expression with subquery support.
-     * <p>
-     * Overloaded version that handles ScalarSubquery expressions
-     * which need the CriteriaQuery to create the subquery.
-     *
-     * @param method the method creator for bytecode generation
-     * @param expression the lambda expression AST
-     * @param cb the CriteriaBuilder handle
-     * @param query the CriteriaQuery handle (needed for subquery creation)
-     * @param root the root entity handle
-     * @param capturedValues the captured variables array handle
-     * @return the JPA Expression handle
-     */
+    /** Generates JPA Expression with ScalarSubquery support. */
     public ResultHandle generateExpressionWithSubqueries(
             MethodCreator method,
             LambdaExpression expression,
@@ -244,7 +172,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             return null;
         }
 
-        // Java 21 pattern matching switch for type dispatch
         return switch (expression) {
             case ScalarSubquery scalarSubquery ->
                 builderRegistry.subqueryBuilder().buildScalarSubquery(method, scalarSubquery, cb, query, root, capturedValues);
@@ -350,7 +277,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             return null;
         }
 
-        // Java 21 pattern matching switch for type dispatch
         return switch (expression) {
             case LambdaExpression.FieldAccess field ->
                 generateFieldAccess(method, field, root);
@@ -361,29 +287,16 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             case LambdaExpression.Constant constant ->
                 generateConstant(method, constant);
 
-            case LambdaExpression.CapturedVariable capturedVar -> {
-                ResultHandle index = method.load(capturedVar.index());
-                ResultHandle value = method.readArrayValue(capturedValues, index);
-                Class<?> targetType = TypeConverter.getBoxedType(capturedVar.type());
-                yield method.checkCast(value, targetType);
-            }
+            case LambdaExpression.CapturedVariable capturedVar ->
+                loadCapturedValue(method, capturedVar, capturedValues);
 
             case LambdaExpression.MethodCall methodCall ->
                 generateMethodCall(method, methodCall, cb, root, capturedValues);
 
-            case LambdaExpression.CorrelatedVariable correlated -> {
-                LambdaExpression fieldExpr = correlated.fieldExpression();
-                // CorrelatedVariable always references the outer query's root entity
-                yield switch (fieldExpr) {
-                    case LambdaExpression.FieldAccess field ->
-                        generateFieldAccess(method, field, root);
-                    case PathExpression path ->
-                        generatePathExpression(method, path, root);
-                    default -> null;
-                };
-            }
+            case LambdaExpression.CorrelatedVariable correlated ->
+                generateCorrelatedFieldExpression(method, correlated, root);
 
-            default -> null;
+            default -> throw new UnsupportedExpressionException(expression, "raw expression generation");
         };
     }
 
@@ -404,7 +317,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             return null;
         }
 
-        // Java 21 pattern matching switch for type dispatch
         return switch (expression) {
             case LambdaExpression.FieldAccess field ->
                 generateFieldAccess(method, field, root);
@@ -417,13 +329,8 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
                 yield wrapAsLiteral(method, cb, constantValue);
             }
 
-            case LambdaExpression.CapturedVariable capturedVar -> {
-                ResultHandle index = method.load(capturedVar.index());
-                ResultHandle value = method.readArrayValue(capturedValues, index);
-                Class<?> targetType = TypeConverter.getBoxedType(capturedVar.type());
-                ResultHandle castedValue = method.checkCast(value, targetType);
-                yield wrapAsLiteral(method, cb, castedValue);
-            }
+            case LambdaExpression.CapturedVariable capturedVar ->
+                loadAndWrapCapturedValue(method, cb, capturedVar, capturedValues);
 
             case LambdaExpression.MethodCall methodCall ->
                 generateMethodCall(method, methodCall, cb, root, capturedValues);
@@ -454,19 +361,10 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
                 // This occurs when IFEQ creates NOT(InExpression) for short-circuit evaluation
                 generateUnaryOperation(method, unaryOp, cb, root, capturedValues);
 
-            case LambdaExpression.CorrelatedVariable correlated -> {
-                LambdaExpression fieldExpr = correlated.fieldExpression();
-                // CorrelatedVariable always references the outer query's root entity
-                yield switch (fieldExpr) {
-                    case LambdaExpression.FieldAccess field ->
-                        generateFieldAccess(method, field, root);
-                    case PathExpression path ->
-                        generatePathExpression(method, path, root);
-                    default -> null;
-                };
-            }
+            case LambdaExpression.CorrelatedVariable correlated ->
+                generateCorrelatedFieldExpression(method, correlated, root);
 
-            default -> null;
+            default -> throw new UnsupportedExpressionException(expression);
         };
     }
 
@@ -541,15 +439,9 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle root,
             ResultHandle capturedValues) {
 
-        boolean leftIsNull = binOp.left() instanceof LambdaExpression.NullLiteral;
-        LambdaExpression nonNullExpr = leftIsNull ? binOp.right() : binOp.left();
+        LambdaExpression nonNullExpr = extractNonNullExpression(binOp);
         ResultHandle expression = generateExpression(method, nonNullExpr, cb, root, capturedValues);
-
-        if (binOp.operator() == EQ) {
-            return method.invokeInterfaceMethod(CB_IS_NULL, cb, expression);
-        } else {
-            return method.invokeInterfaceMethod(CB_IS_NOT_NULL, cb, expression);
-        }
+        return generateNullCheckPredicate(method, cb, expression, binOp.operator());
     }
 
     /** Generates boolean field comparison with constant 0 or 1. */
@@ -648,26 +540,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
     /**
      * Generates JPA path expression for relationship navigation.
-     * <p>
-     * Converts a PathExpression like {@code p.owner.firstName} to chained
-     * {@code Path.get()} calls: {@code root.get("owner").get("firstName")}.
-     * <p>
-     * This method handles both simple field chains and relationship navigation.
-     * For relationships requiring JPA joins, the path segments are marked with
-     * their relationship type, though this initial implementation uses simple
-     * chained get() calls which work for @ManyToOne and @OneToOne navigation.
-     * <p>
-     * Example:
-     * <pre>
-     * // Lambda: phone -> phone.owner.firstName
-     * // PathExpression: [owner (MANY_TO_ONE), firstName (FIELD)]
-     * // Generated JPA: root.get("owner").get("firstName")
-     * </pre>
-     *
-     * @param method the method creator for bytecode generation
-     * @param pathExpr the path expression from the lambda AST
-     * @param root the root entity handle (From or Path)
-     * @return the final Path handle after all navigation steps
+     * Converts PathExpression to chained Path.get() calls.
      */
     @Override
     public ResultHandle generatePathExpression(
@@ -690,61 +563,17 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
     /**
      * Generates constant value bytecode.
      * <p>
-     * Refactored for Java 21: Uses pattern matching switch for cleaner type dispatch.
+     * Delegates to {@link GizmoHelper#loadConstant(MethodCreator, Object)} for the
+     * actual bytecode generation.
      */
     @Override
     public ResultHandle generateConstant(MethodCreator method, LambdaExpression.Constant constant) {
-        Object value = constant.value();
-
-        // Java 21 pattern matching switch for type dispatch
-        return switch (value) {
-            case String s -> method.load(s);
-            case Integer i -> method.load(i);
-            case Long l -> method.load(l);
-            case Boolean b -> method.load(b);
-            case Double d -> method.load(d);
-            case Float f -> method.load(f);
-
-            case BigDecimal bd -> {
-                ResultHandle bdString = method.load(bd.toString());
-                yield method.newInstance(constructorDescriptor(BigDecimal.class, String.class), bdString);
-            }
-
-            case LocalDate ld -> {
-                ResultHandle year = method.load(ld.getYear());
-                ResultHandle month = method.load(ld.getMonthValue());
-                ResultHandle day = method.load(ld.getDayOfMonth());
-                yield method.invokeStaticMethod(methodDescriptor(LocalDate.class, METHOD_OF, LocalDate.class, int.class, int.class, int.class), year, month, day);
-            }
-
-            case LocalDateTime ldt -> {
-                ResultHandle year = method.load(ldt.getYear());
-                ResultHandle month = method.load(ldt.getMonthValue());
-                ResultHandle day = method.load(ldt.getDayOfMonth());
-                ResultHandle hour = method.load(ldt.getHour());
-                ResultHandle minute = method.load(ldt.getMinute());
-                yield method.invokeStaticMethod(methodDescriptor(LocalDateTime.class, METHOD_OF, LocalDateTime.class, int.class, int.class, int.class, int.class, int.class), year, month, day, hour, minute);
-            }
-
-            case LocalTime lt -> {
-                ResultHandle hour = method.load(lt.getHour());
-                ResultHandle minute = method.load(lt.getMinute());
-                yield method.invokeStaticMethod(methodDescriptor(LocalTime.class, METHOD_OF, LocalTime.class, int.class, int.class), hour, minute);
-            }
-
-            default -> method.loadNull();
-        };
+        return GizmoHelper.loadConstant(method, constant.value());
     }
 
     /**
-     * Generates JPA expression for method call.
-     *
-     * @param method the method creator for bytecode generation
-     * @param methodCall the method call expression
-     * @param cb the CriteriaBuilder handle
-     * @param root the root entity handle
-     * @param capturedValues the captured variables array handle
-     * @return the JPA expression, or null if the method is not recognized
+     * Generates JPA expression for method call using handler chain.
+     * @throws UnsupportedExpressionException if the method call is not supported
      */
     public ResultHandle generateMethodCall(
             MethodCreator method,
@@ -753,74 +582,17 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle root,
             ResultHandle capturedValues) {
 
-        ResultHandle temporalResult = generateTemporalAccessorFunction(method, methodCall, cb, root, capturedValues);
-        if (temporalResult != null) {
-            return temporalResult;
-        }
+        GenerationResult result = methodCallHandlerChain.handleMethodCall(
+                method, methodCall, cb, root, capturedValues, builderRegistry, this);
 
-        ResultHandle temporalComparisonResult = generateTemporalComparison(method, methodCall, cb, root, capturedValues);
-        if (temporalComparisonResult != null) {
-            return temporalComparisonResult;
-        }
-
-        ResultHandle stringTransformResult = generateStringTransformation(method, methodCall, cb, root, capturedValues);
-        if (stringTransformResult != null) {
-            return stringTransformResult;
-        }
-
-        ResultHandle bigDecimalArithmeticResult = generateBigDecimalArithmetic(method, methodCall, cb, root, capturedValues);
-        if (bigDecimalArithmeticResult != null) {
-            return bigDecimalArithmeticResult;
-        }
-
-        ResultHandle stringLikeResult = generateStringLikePattern(method, methodCall, cb, root, capturedValues);
-        if (stringLikeResult != null) {
-            return stringLikeResult;
-        }
-
-        ResultHandle substringResult = generateStringSubstring(method, methodCall, cb, root, capturedValues);
-        if (substringResult != null) {
-            return substringResult;
-        }
-
-        ResultHandle stringUtilityResult = generateStringUtilityMethod(method, methodCall, cb, root, capturedValues);
-        if (stringUtilityResult != null) {
-            return stringUtilityResult;
-        }
-
-        if (methodCall.methodName().startsWith(PREFIX_GET) || methodCall.methodName().startsWith(PREFIX_IS)) {
-            String fieldName = extractFieldName(methodCall.methodName());
-            return generateFieldAccess(
-                    method,
-                    new LambdaExpression.FieldAccess(fieldName, methodCall.returnType()),
-                    root);
-        }
-
-        return null;
+        return switch (result) {
+            case GenerationResult.Success(var handle) -> handle;
+            case GenerationResult.Unsupported(var methodName, var reason) ->
+                throw new UnsupportedExpressionException(methodCall, "method call: " + methodName + " - " + reason);
+        };
     }
 
-    /**
-     * Generates JPA constructor expression for DTO projections.
-     * <p>
-     * Converts {@code new PersonDTO(p.firstName, p.age)} to
-     * {@code cb.construct(PersonDTO.class, root.get("firstName"), root.get("age"))}.
-     * <p>
-     * Example bytecode generation:
-     * <pre>
-     * Class dtoClass = Class.forName("io.quarkiverse.qubit.it.dto.PersonNameDTO");
-     * Selection[] selections = new Selection[2];
-     * selections[0] = root.get("firstName");
-     * selections[1] = root.get("age");
-     * return cb.construct(dtoClass, selections);
-     * </pre>
-     *
-     * @param method the method creator for bytecode generation
-     * @param constructorCall the constructor call expression from the lambda AST
-     * @param cb the CriteriaBuilder handle
-     * @param root the root entity handle
-     * @param capturedValues the captured variables array handle
-     * @return the JPA CompoundSelection handle representing the constructor expression
-     */
+    /** Generates JPA cb.construct() for DTO projections. */
     private ResultHandle generateConstructorCall(
             MethodCreator method,
             LambdaExpression.ConstructorCall constructorCall,
@@ -828,15 +600,8 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle root,
             ResultHandle capturedValues) {
 
-        // Get the DTO class name (e.g., "io/quarkiverse/qubit/it/dto/PersonNameDTO")
-        String className = constructorCall.className();
-
-        // Convert internal class name to fully qualified class name (replace / with .)
-        String fqClassName = className.replace('/', '.');
-
-        // Load the class at runtime using Class.forName()
-        ResultHandle classNameHandle = method.load(fqClassName);
-        ResultHandle resultClassHandle = method.invokeStaticMethod(CLASS_FOR_NAME, classNameHandle);
+        // Load the DTO class at runtime
+        ResultHandle resultClassHandle = loadDtoClass(method, constructorCall.className());
 
         // Generate JPA expressions for each constructor argument
         int argCount = constructorCall.arguments().size();
@@ -845,6 +610,12 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         for (int i = 0; i < argCount; i++) {
             LambdaExpression arg = constructorCall.arguments().get(i);
             ResultHandle argExpression = generateExpressionAsJpaExpression(method, arg, cb, root, capturedValues);
+
+            // Null check: Parameter expressions return null and are not allowed in constructor arguments
+            if (argExpression == null) {
+                throw UnsupportedExpressionException.inConstructorArgument(arg, i, constructorCall.className());
+            }
+
             method.writeArrayValue(selectionsArray, i, argExpression);
         }
 
@@ -852,32 +623,9 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         return method.invokeInterfaceMethod(CB_CONSTRUCT, cb, resultClassHandle, selectionsArray);
     }
 
-    // =============================================================================================
-    // COLLECTION OPERATIONS (IN and MEMBER OF)
-    // =============================================================================================
+    // ========== Collection Operations (IN, MEMBER OF) ==========
 
-    /**
-     * Generates JPA IN predicate for collection membership testing.
-     * <p>
-     * Converts {@code cities.contains(p.city)} to JPA {@code root.get("city").in(cities)}.
-     * <p>
-     * Example:
-     * <pre>
-     * // Lambda: cities.contains(p.city)
-     * // InExpression(field=FieldAccess("city"), collection=CapturedVariable(0), negated=false)
-     *
-     * // Generated JPA:
-     * Expression&lt;String&gt; cityPath = root.get("city");
-     * Predicate inPred = cityPath.in(capturedValues[0]); // capturedValues[0] is the cities collection
-     * </pre>
-     *
-     * @param method the method creator for bytecode generation
-     * @param inExpr the IN expression from the lambda AST
-     * @param cb the CriteriaBuilder handle
-     * @param root the root entity handle
-     * @param capturedValues the captured variables array handle
-     * @return the JPA Predicate handle representing the IN clause
-     */
+    /** Generates JPA IN predicate: cities.contains(p.city) -> root.get("city").in(cities). */
     private ResultHandle generateInPredicate(
             MethodCreator method,
             InExpression inExpr,
@@ -887,6 +635,11 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
         // Generate the field expression (e.g., root.get("city"))
         ResultHandle fieldExpr = generateExpressionAsJpaExpression(method, inExpr.field(), cb, root, capturedValues);
+
+        // Null check: Parameter expressions return null and are not allowed in IN predicates
+        if (fieldExpr == null) {
+            throw new UnsupportedExpressionException(inExpr.field(), "IN predicate field");
+        }
 
         // Generate the collection expression (e.g., capturedValues[0])
         ResultHandle collectionExpr = generateExpression(method, inExpr.collection(), cb, root, capturedValues);
@@ -905,28 +658,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         return inPredicate;
     }
 
-    /**
-     * Generates JPA MEMBER OF predicate for collection field membership.
-     * <p>
-     * Converts {@code p.roles.contains("admin")} to JPA {@code cb.isMember("admin", root.get("roles"))}.
-     * <p>
-     * Example:
-     * <pre>
-     * // Lambda: p.roles.contains("admin")
-     * // MemberOfExpression(value=Constant("admin"), collectionField=FieldAccess("roles"), negated=false)
-     *
-     * // Generated JPA:
-     * Expression&lt;Collection&lt;String&gt;&gt; rolesPath = root.get("roles");
-     * Predicate memberPred = cb.isMember("admin", rolesPath);
-     * </pre>
-     *
-     * @param method the method creator for bytecode generation
-     * @param memberOfExpr the MEMBER OF expression from the lambda AST
-     * @param cb the CriteriaBuilder handle
-     * @param root the root entity handle
-     * @param capturedValues the captured variables array handle
-     * @return the JPA Predicate handle representing the MEMBER OF clause
-     */
+    /** Generates JPA MEMBER OF: p.roles.contains("admin") -> cb.isMember("admin", root.get("roles")). */
     private ResultHandle generateMemberOfPredicate(
             MethodCreator method,
             MemberOfExpression memberOfExpr,
@@ -974,7 +706,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
      * Checks if expression evaluates to String type.
      */
     private boolean isStringType(LambdaExpression expr) {
-        // Java 21 pattern matching switch for type dispatch
         return switch (expr) {
             case LambdaExpression.FieldAccess field -> field.fieldType() == String.class;
             case LambdaExpression.Constant constant -> constant.value() instanceof String;
@@ -1019,151 +750,15 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle right,
             LambdaExpression.BinaryOp.Operator operator) {
 
-        ResultHandle predicateArray = method.newArray(Predicate.class, 2);
-        method.writeArrayValue(predicateArray, 0, left);
-        method.writeArrayValue(predicateArray, 1, right);
+        ResultHandle predicateArray = createElementArray(method, Predicate.class, left, right);
 
         MethodDescriptor combineMethod = switch (operator) {
             case AND -> CB_AND;
             case OR -> CB_OR;
-            default -> throw new IllegalArgumentException("Expected AND or OR operator, got: " + operator);
+            default -> throw new IllegalArgumentException(expectedAndOrOperator(operator));
         };
 
         return method.invokeInterfaceMethod(combineMethod, cb, predicateArray);
-    }
-
-    /** Generates temporal accessor functions. Returns null if not a temporal accessor. */
-    private ResultHandle generateTemporalAccessorFunction(
-            MethodCreator method,
-            LambdaExpression.MethodCall methodCall,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle capturedValues) {
-
-        ResultHandle fieldExpression = generateExpressionAsJpaExpression(method, methodCall.target(), cb, root, capturedValues);
-        return builderRegistry.temporalBuilder().buildTemporalAccessorFunction(method, methodCall, cb, fieldExpression);
-    }
-
-    /** Generates String transformations. Returns null if not a transformation. */
-    private ResultHandle generateStringTransformation(
-            MethodCreator method,
-            LambdaExpression.MethodCall methodCall,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle capturedValues) {
-
-        ResultHandle fieldExpression = generateExpressionAsJpaExpression(method, methodCall.target(), cb, root, capturedValues);
-        return builderRegistry.stringBuilder().buildStringTransformation(method, methodCall, cb, fieldExpression);
-    }
-
-    /** Generates temporal comparisons. Returns null if not a temporal comparison. */
-    private ResultHandle generateTemporalComparison(
-            MethodCreator method,
-            LambdaExpression.MethodCall methodCall,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle capturedValues) {
-
-        if (!TEMPORAL_COMPARISON_METHOD_NAMES.contains(methodCall.methodName())) {
-            return null;
-        }
-
-        ResultHandle fieldExpression = generateExpressionAsJpaExpression(method, methodCall.target(), cb, root, capturedValues);
-
-        if (methodCall.arguments().isEmpty()) {
-            return null;
-        }
-
-        ResultHandle argument = generateExpression(method, methodCall.arguments().get(0), cb, root, capturedValues);
-
-        return builderRegistry.temporalBuilder().buildTemporalComparison(method, methodCall, cb, fieldExpression, argument);
-    }
-
-    /** Generates BigDecimal arithmetic. Returns null if not a BigDecimal method. */
-    private ResultHandle generateBigDecimalArithmetic(
-            MethodCreator method,
-            LambdaExpression.MethodCall methodCall,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle capturedValues) {
-
-        if (!BIG_DECIMAL_ARITHMETIC_METHOD_NAMES.contains(methodCall.methodName())) {
-            return null;
-        }
-
-        ResultHandle fieldExpression = generateExpressionAsJpaExpression(method, methodCall.target(), cb, root, capturedValues);
-
-        if (methodCall.arguments().isEmpty()) {
-            return null;
-        }
-
-        ResultHandle argument = generateExpressionAsJpaExpression(method, methodCall.arguments().get(0), cb, root, capturedValues);
-
-        return builderRegistry.bigDecimalBuilder().buildBigDecimalArithmetic(method, methodCall, cb, fieldExpression, argument, builderRegistry.arithmeticBuilder());
-    }
-
-    /** Generates String LIKE patterns. Returns null if not a pattern method. */
-    private ResultHandle generateStringLikePattern(
-            MethodCreator method,
-            LambdaExpression.MethodCall methodCall,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle capturedValues) {
-
-        if (!STRING_PATTERN_METHOD_NAMES.contains(methodCall.methodName())) {
-            return null;
-        }
-
-        ResultHandle fieldExpression = generateExpression(method, methodCall.target(), cb, root, capturedValues);
-
-        if (methodCall.arguments().isEmpty()) {
-            return null;
-        }
-
-        ResultHandle argument = generateExpression(method, methodCall.arguments().get(0), cb, root, capturedValues);
-
-        return builderRegistry.stringBuilder().buildStringPattern(method, methodCall, cb, fieldExpression, argument);
-    }
-
-    /** Generates String substring. Returns null if not substring. */
-    private ResultHandle generateStringSubstring(
-            MethodCreator method,
-            LambdaExpression.MethodCall methodCall,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle capturedValues) {
-
-        if (!methodCall.methodName().equals(METHOD_SUBSTRING)) {
-            return null;
-        }
-
-        ResultHandle fieldExpression = generateExpressionAsJpaExpression(method, methodCall.target(), cb, root, capturedValues);
-
-        // Generate argument expressions
-        List<ResultHandle> arguments = new ArrayList<>();
-        for (LambdaExpression arg : methodCall.arguments()) {
-            arguments.add(generateExpressionAsJpaExpression(method, arg, cb, root, capturedValues));
-        }
-
-        return builderRegistry.stringBuilder().buildStringSubstring(method, methodCall, cb, fieldExpression, arguments);
-    }
-
-    /** Generates String utility methods. Returns null if not recognized. */
-    private ResultHandle generateStringUtilityMethod(
-            MethodCreator method,
-            LambdaExpression.MethodCall methodCall,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle capturedValues) {
-
-        ResultHandle fieldExpression = generateExpressionAsJpaExpression(method, methodCall.target(), cb, root, capturedValues);
-
-        ResultHandle argument = null;
-        if (methodCall.methodName().equals(METHOD_EQUALS) && !methodCall.arguments().isEmpty()) {
-            argument = generateExpression(method, methodCall.arguments().get(0), cb, root, capturedValues);
-        }
-
-        return builderRegistry.stringBuilder().buildStringUtility(method, methodCall, cb, fieldExpression, argument);
     }
 
     /** Wraps value as literal Expression. */
@@ -1172,21 +767,57 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         return method.invokeInterfaceMethod(CB_LITERAL, cb, value);
     }
 
-    // =============================================================================================
-    // BI-ENTITY EXPRESSIONS (Join Queries) - Delegated to BiEntityExpressionBuilder
-    // =============================================================================================
+    // ========== Captured Variable Utilities ==========
 
     /**
-     * Generates JPA Predicate from bi-entity lambda expression AST.
-     *
-     * @param method the method creator for bytecode generation
-     * @param expression the bi-entity lambda expression AST
-     * @param cb the CriteriaBuilder handle
-     * @param root the root entity handle (FIRST entity in join)
-     * @param join the joined entity handle (SECOND entity in join)
-     * @param capturedValues the captured variables array handle
-     * @return the JPA Predicate handle
+     * {@inheritDoc}
      */
+    @Override
+    public ResultHandle loadCapturedValue(MethodCreator method,
+            LambdaExpression.CapturedVariable capturedVar, ResultHandle capturedValues) {
+        ResultHandle index = method.load(capturedVar.index());
+        ResultHandle value = method.readArrayValue(capturedValues, index);
+        Class<?> targetType = TypeConverter.getBoxedType(capturedVar.type());
+        return method.checkCast(value, targetType);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ResultHandle loadAndWrapCapturedValue(MethodCreator method, ResultHandle cb,
+            LambdaExpression.CapturedVariable capturedVar, ResultHandle capturedValues) {
+        ResultHandle castedValue = loadCapturedValue(method, capturedVar, capturedValues);
+        return wrapAsLiteral(method, cb, castedValue);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ResultHandle loadDtoClass(MethodCreator method, String internalClassName) {
+        // Convert internal class name to fully qualified class name (replace / with .)
+        String fqClassName = internalClassName.replace('/', '.');
+        // Load the class at runtime using Class.forName()
+        ResultHandle classNameHandle = method.load(fqClassName);
+        return method.invokeStaticMethod(CLASS_FOR_NAME, classNameHandle);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ResultHandle wrapBooleanAsPredicateIfNeeded(MethodCreator method, ResultHandle cb,
+            ResultHandle path, Class<?> type) {
+        if (isBooleanType(type)) {
+            return method.invokeInterfaceMethod(CB_IS_TRUE, cb, path);
+        }
+        return path;
+    }
+
+    // ========== Bi-Entity Expressions (Join Queries) ==========
+
+    /** Generates JPA Predicate from bi-entity lambda (for join queries). */
     public ResultHandle generateBiEntityPredicate(
             MethodCreator method,
             LambdaExpression expression,
@@ -1198,18 +829,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         return builderRegistry.biEntityBuilder().generateBiEntityPredicate(method, expression, cb, root, join, capturedValues, this);
     }
 
-    /**
-     * Generates JPA Predicate from bi-entity lambda expression AST with subquery support.
-     *
-     * @param method the method creator for bytecode generation
-     * @param expression the bi-entity lambda expression AST
-     * @param cb the CriteriaBuilder handle
-     * @param query the CriteriaQuery handle (needed for subquery creation)
-     * @param root the root entity handle (FIRST entity in join)
-     * @param join the joined entity handle (SECOND entity in join)
-     * @param capturedValues the captured variables array handle
-     * @return the JPA Predicate handle
-     */
+    /** Generates bi-entity JPA Predicate with subquery support. */
     public ResultHandle generateBiEntityPredicateWithSubqueries(
             MethodCreator method,
             LambdaExpression expression,
@@ -1222,17 +842,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         return builderRegistry.biEntityBuilder().generateBiEntityPredicateWithSubqueries(method, expression, cb, query, root, join, capturedValues, this);
     }
 
-    /**
-     * Generates JPA Expression from bi-entity lambda expression AST.
-     *
-     * @param method the method creator for bytecode generation
-     * @param expression the bi-entity lambda expression AST
-     * @param cb the CriteriaBuilder handle
-     * @param root the root entity handle (FIRST entity in join)
-     * @param join the joined entity handle (SECOND entity in join)
-     * @param capturedValues the captured variables array handle
-     * @return the JPA Expression handle
-     */
+    /** Generates JPA Expression from bi-entity lambda. */
     public ResultHandle generateBiEntityExpressionAsJpaExpression(
             MethodCreator method,
             LambdaExpression expression,
@@ -1244,21 +854,9 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         return builderRegistry.biEntityBuilder().generateBiEntityExpressionAsJpaExpression(method, expression, cb, root, join, capturedValues, this);
     }
 
-    // =============================================================================================
-    // BI-ENTITY PROJECTIONS (Join Projections) - Delegated to BiEntityExpressionBuilder
-    // =============================================================================================
+    // ========== Bi-Entity Projections ==========
 
-    /**
-     * Generates JPA Selection from bi-entity projection expression AST.
-     *
-     * @param method the method creator for bytecode generation
-     * @param expression the bi-entity projection expression AST
-     * @param cb the CriteriaBuilder handle
-     * @param root the root entity handle (source entity)
-     * @param join the join handle (joined entity)
-     * @param capturedValues the captured variables array handle
-     * @return the JPA Selection handle representing the projection
-     */
+    /** Generates JPA Selection from bi-entity projection. */
     public ResultHandle generateBiEntityProjection(
             MethodCreator method,
             LambdaExpression expression,
@@ -1270,21 +868,9 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         return builderRegistry.biEntityBuilder().generateBiEntityProjection(method, expression, cb, root, join, capturedValues, this);
     }
 
-    // =============================================================================================
-    // GROUP EXPRESSIONS (GROUP BY) - Delegated to GroupExpressionBuilder
-    // =============================================================================================
+    // ========== Group Expressions (GROUP BY) ==========
 
-    /**
-     * Generates JPA Predicate from group lambda expression AST (HAVING clause).
-     *
-     * @param method the method creator for bytecode generation
-     * @param expression the group lambda expression AST
-     * @param cb the CriteriaBuilder handle
-     * @param root the root entity handle
-     * @param groupKeyExpr the JPA expression for the grouping key
-     * @param capturedValues the captured variables array handle
-     * @return the JPA Predicate handle for the HAVING clause
-     */
+    /** Generates JPA Predicate for HAVING clause in GROUP BY queries. */
     public ResultHandle generateGroupPredicate(
             MethodCreator method,
             LambdaExpression expression,
@@ -1296,17 +882,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         return builderRegistry.groupBuilder().generateGroupPredicate(method, expression, cb, root, groupKeyExpr, capturedValues, this);
     }
 
-    /**
-     * Generates JPA Expression from group lambda expression AST (GROUP BY SELECT).
-     *
-     * @param method the method creator for bytecode generation
-     * @param expression the group lambda expression AST
-     * @param cb the CriteriaBuilder handle
-     * @param root the root entity handle
-     * @param groupKeyExpr the JPA expression for the grouping key
-     * @param capturedValues the captured variables array handle
-     * @return the JPA Expression handle for the SELECT clause
-     */
+    /** Generates JPA Expression for GROUP BY SELECT clause. */
     public ResultHandle generateGroupSelectExpression(
             MethodCreator method,
             LambdaExpression expression,
@@ -1318,17 +894,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         return builderRegistry.groupBuilder().generateGroupSelectExpression(method, expression, cb, root, groupKeyExpr, capturedValues, this);
     }
 
-    /**
-     * Generates JPA Expression for group ORDER BY clause.
-     *
-     * @param method the method creator for bytecode generation
-     * @param expression the sort key expression AST
-     * @param cb the CriteriaBuilder handle
-     * @param root the root entity handle
-     * @param groupKeyExpr the JPA expression for the grouping key
-     * @param capturedValues the captured variables array handle
-     * @return the JPA Expression handle for ORDER BY
-     */
+    /** Generates JPA Expression for group ORDER BY clause. */
     public ResultHandle generateGroupSortExpression(
             MethodCreator method,
             LambdaExpression expression,
@@ -1340,17 +906,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         return builderRegistry.groupBuilder().generateGroupSortExpression(method, expression, cb, root, groupKeyExpr, capturedValues, this);
     }
 
-    /**
-     * Generates JPA multiselect array for Object[] projections in group context.
-     *
-     * @param method the method creator for bytecode generation
-     * @param arrayCreation the array creation expression from the lambda AST
-     * @param cb the CriteriaBuilder handle
-     * @param root the root entity handle
-     * @param groupKeyExpr the JPA expression for the grouping key
-     * @param capturedValues the captured variables array handle
-     * @return an array of JPA Selection handles for multiselect
-     */
+    /** Generates JPA multiselect array for Object[] projections in group context. */
     public ResultHandle generateGroupArraySelections(
             MethodCreator method,
             LambdaExpression.ArrayCreation arrayCreation,

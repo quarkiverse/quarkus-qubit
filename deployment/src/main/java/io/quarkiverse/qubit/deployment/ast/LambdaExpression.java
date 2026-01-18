@@ -1,8 +1,13 @@
 package io.quarkiverse.qubit.deployment.ast;
 
+import static io.quarkiverse.qubit.runtime.QubitConstants.JVM_JAVA_LANG_OBJECT;
+
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.jspecify.annotations.Nullable;
 
 /**
  * Sealed AST for parsed lambda expressions.
@@ -22,56 +27,24 @@ import java.util.Optional;
  */
 public sealed interface LambdaExpression {
 
-    // ========================================
-    // Common AST Operations
-    // ========================================
+    // ========== Common AST Operations ==========
 
-    /**
-     * Extracts the field name from this expression if applicable.
-     *
-     * <p>This method provides a unified way to extract field names from
-     * different expression types, avoiding instanceof checks scattered
-     * throughout the codebase.
-     *
-     * <p>Supported expression types:
-     * <ul>
-     *   <li>{@link FieldAccess} - returns the field name</li>
-     *   <li>{@link PathExpression} - returns the first segment's field name</li>
-     *   <li>{@link BiEntityFieldAccess} - returns the field name</li>
-     *   <li>{@link BiEntityPathExpression} - returns the first segment's field name</li>
-     *   <li>All other types - returns empty Optional</li>
-     * </ul>
-     *
-     * @return Optional containing the field name, or empty if not applicable
-     */
+    /** Extracts field name if applicable (FieldAccess, PathExpression, BiEntity variants). */
     default Optional<String> getFieldName() {
         return Optional.empty();
     }
 
-    /**
-     * Extracts the field name from this expression, throwing if not available.
-     *
-     * <p>This is a convenience method for cases where a field name is required.
-     *
-     * @return the field name
-     * @throws IllegalArgumentException if this expression doesn't have a field name
-     */
+    /** Extracts field name, throwing if not available. */
     default String getFieldNameOrThrow() {
         return getFieldName().orElseThrow(() ->
             new IllegalArgumentException("Cannot extract field name from expression: " + this));
     }
 
-    // ========================================
-    // Core Expressions
-    // ========================================
+    // ========== Core Expressions ==========
 
-    /**
-     * Binary operation (comparison, logical, or arithmetic).
-     */
+    /** Binary operation (comparison, logical, or arithmetic). */
     record BinaryOp(LambdaExpression left, Operator operator, LambdaExpression right) implements LambdaExpression {
-        /**
-         * Binary operation types.
-         */
+        /** Binary operation types with symbols. */
         public enum Operator {
             EQ("=="), NE("!="), LT("<"), LE("<="), GT(">"), GE(">="),
             AND("&&"), OR("||"),
@@ -83,119 +56,67 @@ public sealed interface LambdaExpression {
                 this.symbol = symbol;
             }
 
-            /**
-             * Returns the operator symbol.
-             */
             public String symbol() {
                 return symbol;
             }
         }
 
-        // ===== Logical Operations =====
-
-        /**
-         * Creates a logical AND operation.
-         */
+        // Factory methods for all operator types
         public static BinaryOp and(LambdaExpression left, LambdaExpression right) {
             return new BinaryOp(left, Operator.AND, right);
         }
 
-        /**
-         * Creates a logical OR operation.
-         */
         public static BinaryOp or(LambdaExpression left, LambdaExpression right) {
             return new BinaryOp(left, Operator.OR, right);
         }
 
-        // ===== Comparison Operations =====
-
-        /**
-         * Creates an equality comparison.
-         */
         public static BinaryOp eq(LambdaExpression left, LambdaExpression right) {
             return new BinaryOp(left, Operator.EQ, right);
         }
 
-        /**
-         * Creates a not-equals comparison.
-         */
         public static BinaryOp ne(LambdaExpression left, LambdaExpression right) {
             return new BinaryOp(left, Operator.NE, right);
         }
 
-        /**
-         * Creates a less-than comparison.
-         */
         public static BinaryOp lt(LambdaExpression left, LambdaExpression right) {
             return new BinaryOp(left, Operator.LT, right);
         }
 
-        /**
-         * Creates a less-than-or-equal comparison.
-         */
         public static BinaryOp le(LambdaExpression left, LambdaExpression right) {
             return new BinaryOp(left, Operator.LE, right);
         }
 
-        /**
-         * Creates a greater-than comparison.
-         */
         public static BinaryOp gt(LambdaExpression left, LambdaExpression right) {
             return new BinaryOp(left, Operator.GT, right);
         }
 
-        /**
-         * Creates a greater-than-or-equal comparison.
-         */
         public static BinaryOp ge(LambdaExpression left, LambdaExpression right) {
             return new BinaryOp(left, Operator.GE, right);
         }
 
-        // ===== Arithmetic Operations =====
-
-        /**
-         * Creates an addition operation.
-         */
         public static BinaryOp add(LambdaExpression left, LambdaExpression right) {
             return new BinaryOp(left, Operator.ADD, right);
         }
 
-        /**
-         * Creates a subtraction operation.
-         */
         public static BinaryOp sub(LambdaExpression left, LambdaExpression right) {
             return new BinaryOp(left, Operator.SUB, right);
         }
 
-        /**
-         * Creates a multiplication operation.
-         */
         public static BinaryOp mul(LambdaExpression left, LambdaExpression right) {
             return new BinaryOp(left, Operator.MUL, right);
         }
 
-        /**
-         * Creates a division operation.
-         */
         public static BinaryOp div(LambdaExpression left, LambdaExpression right) {
             return new BinaryOp(left, Operator.DIV, right);
         }
 
-        /**
-         * Creates a modulo operation.
-         */
         public static BinaryOp mod(LambdaExpression left, LambdaExpression right) {
             return new BinaryOp(left, Operator.MOD, right);
         }
     }
 
-    /**
-     * Unary operation (NOT).
-     */
+    /** Unary operation (NOT). */
     record UnaryOp(Operator operator, LambdaExpression operand) implements LambdaExpression {
-        /**
-         * Unary operation types.
-         */
         public enum Operator {
             NOT("!");
 
@@ -205,25 +126,17 @@ public sealed interface LambdaExpression {
                 this.symbol = symbol;
             }
 
-            /**
-             * Returns the operator symbol.
-             */
             public String symbol() {
                 return symbol;
             }
         }
 
-        /**
-         * Creates a logical NOT operation.
-         */
         public static UnaryOp not(LambdaExpression operand) {
             return new UnaryOp(Operator.NOT, operand);
         }
     }
 
-    /**
-     * Field access expression.
-     */
+    /** Field access expression (e.g., p.name, p.age). */
     record FieldAccess(String fieldName, Class<?> fieldType) implements LambdaExpression {
         public FieldAccess {
             Objects.requireNonNull(fieldName, "Field name cannot be null");
@@ -236,9 +149,7 @@ public sealed interface LambdaExpression {
         }
     }
 
-    /**
-     * Method invocation expression.
-     */
+    /** Method invocation expression. */
     record MethodCall(
             LambdaExpression target,
             String methodName,
@@ -252,24 +163,11 @@ public sealed interface LambdaExpression {
         }
     }
 
-    /**
-     * Constant literal value.
-     */
+    /** Constant literal value. */
     record Constant(Object value, Class<?> type) implements LambdaExpression {
-
-        /**
-         * Common constant for boolean true value.
-         */
+        // Common constants
         public static final Constant TRUE = new Constant(true, boolean.class);
-
-        /**
-         * Common constant for boolean false value.
-         */
         public static final Constant FALSE = new Constant(false, boolean.class);
-
-        /**
-         * Common constant for integer zero value.
-         */
         public static final Constant ZERO_INT = new Constant(0, int.class);
 
         public Constant {
@@ -277,9 +175,7 @@ public sealed interface LambdaExpression {
         }
     }
 
-    /**
-     * Lambda parameter reference.
-     */
+    /** Lambda parameter reference. */
     record Parameter(String name, Class<?> type, int index) implements LambdaExpression {
         public Parameter {
             Objects.requireNonNull(name, "Parameter name cannot be null");
@@ -289,14 +185,10 @@ public sealed interface LambdaExpression {
 
     /**
      * Captured variable from enclosing scope.
-     * <p>
-     * The index corresponds to the parameter position in the lambda's method descriptor,
-     * where captured variables precede the entity parameter(s). Index must be non-negative.
-     *
-     * @param index zero-based parameter index (must be >= 0)
-     * @param type the captured variable's type
+     * Index = parameter position in lambda descriptor (captured vars precede entity params).
+     * Name from LocalVariableTable debug info, or null if unavailable.
      */
-    record CapturedVariable(int index, Class<?> type) implements LambdaExpression {
+    record CapturedVariable(int index, Class<?> type, @Nullable String name) implements LambdaExpression {
         public CapturedVariable {
             // Validate index bounds to prevent ArrayIndexOutOfBoundsException when accessing capturedValues array in generated code
             if (index < 0) {
@@ -306,17 +198,22 @@ public sealed interface LambdaExpression {
             }
             Objects.requireNonNull(type, "Type cannot be null");
         }
+
+        public CapturedVariable(int index, Class<?> type) {
+            this(index, type, null);
+        }
+
+        /** Returns original name or fallback like "capturedVar0". */
+        public String displayName() {
+            return name != null ? name : "capturedVar" + index;
+        }
     }
 
-    /**
-     * Null literal constant.
-     */
+    /** Null literal constant. */
     record NullLiteral(Class<?> expectedType) implements LambdaExpression {
     }
 
-    /**
-     * Type cast expression.
-     */
+    /** Type cast expression. */
     record Cast(LambdaExpression expression, Class<?> targetType) implements LambdaExpression {
         public Cast {
             Objects.requireNonNull(expression, "Expression cannot be null");
@@ -324,9 +221,7 @@ public sealed interface LambdaExpression {
         }
     }
 
-    /**
-     * Instance type check expression.
-     */
+    /** Instance type check expression. */
     record InstanceOf(LambdaExpression expression, Class<?> targetType) implements LambdaExpression {
         public InstanceOf {
             Objects.requireNonNull(expression, "Expression cannot be null");
@@ -334,9 +229,7 @@ public sealed interface LambdaExpression {
         }
     }
 
-    /**
-     * Ternary conditional expression.
-     */
+    /** Ternary conditional expression. */
     record Conditional(
             LambdaExpression condition,
             LambdaExpression trueValue,
@@ -350,21 +243,8 @@ public sealed interface LambdaExpression {
     }
 
     /**
-     * Constructor invocation expression for DTO projections.
-     * <p>
-     * Represents {@code new ClassName(arg1, arg2, ...)} in lambda expressions.
-     * Used for JPA constructor expressions: {@code cb.construct(ClassName.class, arg1, arg2, ...)}.
-     * <p>
-     * Example:
-     * <pre>
-     * Person.select(p -> new PersonDTO(p.firstName, p.age)).toList()
-     * → ConstructorCall("PersonDTO", [FieldAccess("firstName"), FieldAccess("age")])
-     * → cb.construct(PersonDTO.class, root.get("firstName"), root.get("age"))
-     * </pre>
-     *
-     * @param className Fully qualified class name (e.g., "com/example/PersonDTO")
-     * @param arguments Constructor arguments (field accesses, constants, expressions)
-     * @param resultType The class being instantiated
+     * Constructor invocation for DTO projections (new ClassName(arg1, arg2, ...)).
+     * Maps to JPA: cb.construct(ClassName.class, arg1, arg2, ...).
      */
     record ConstructorCall(
             String className,
@@ -379,21 +259,8 @@ public sealed interface LambdaExpression {
     }
 
     /**
-     * Array creation expression for multi-value projections.
-     * <p>
-     * Represents {@code new T[]{element1, element2, ...}} in lambda expressions.
+     * Array creation for multi-value projections (new T[]{e1, e2, ...}).
      * Used for GROUP BY projections returning multiple values.
-     * <p>
-     * Example:
-     * <pre>
-     * .select(g -> new Object[]{g.key(), g.count()})
-     * → ArrayCreation("java/lang/Object", [GroupKeyReference, GroupAggregation], Object[].class)
-     * → cb.array(keyExpr, cb.count(root))
-     * </pre>
-     *
-     * @param elementType Internal name of array element type (e.g., "java/lang/Object")
-     * @param elements The array elements
-     * @param resultType The array type (e.g., Object[].class)
      */
     record ArrayCreation(
             String elementType,
@@ -406,46 +273,19 @@ public sealed interface LambdaExpression {
             Objects.requireNonNull(resultType, "Result type cannot be null");
         }
 
-        /**
-         * Returns true if this is an Object[] array.
-         */
         public boolean isObjectArray() {
-            return "java/lang/Object".equals(elementType);
+            return JVM_JAVA_LANG_OBJECT.equals(elementType);
         }
     }
 
-    // =============================================================================================
-    // RELATIONSHIP NAVIGATION
-    // =============================================================================================
+    // ========== Relationship Navigation ==========
 
-    /**
-     * Relationship type for path segments.
-     * <p>
-     * Used to determine whether a path segment requires a JPA join or simple field access.
-     */
+    /** Relationship type - determines whether path segment requires JPA join. */
     enum RelationType {
-        /** Regular field access (no join required). */
-        FIELD,
-        /** @ManyToOne relationship (requires implicit join). */
-        MANY_TO_ONE,
-        /** @OneToOne relationship (requires implicit join). */
-        ONE_TO_ONE,
-        /** @OneToMany relationship (requires implicit join for collection access). */
-        ONE_TO_MANY,
-        /** @ManyToMany relationship (requires implicit join for collection access). */
-        MANY_TO_MANY
+        FIELD, MANY_TO_ONE, ONE_TO_ONE, ONE_TO_MANY, MANY_TO_MANY
     }
 
-    /**
-     * A segment in a path expression representing a single navigation step.
-     * <p>
-     * Each segment captures the field name, its type, and whether it's a relationship
-     * that requires a JPA join.
-     *
-     * @param fieldName The field name for this navigation step
-     * @param fieldType The type of this field
-     * @param relationType Whether this is a relationship requiring a join
-     */
+    /** A segment in a path expression representing a single navigation step. */
     record PathSegment(
             String fieldName,
             Class<?> fieldType,
@@ -460,9 +300,6 @@ public sealed interface LambdaExpression {
             Objects.requireNonNull(relationType, "Relation type cannot be null");
         }
 
-        /**
-         * Returns true if this segment requires a JPA join.
-         */
         public boolean requiresJoin() {
             return relationType != RelationType.FIELD;
         }
@@ -503,6 +340,21 @@ public sealed interface LambdaExpression {
         default Optional<String> getFieldName() {
             // Constructors of implementing records guarantee segments is non-empty
             return Optional.of(segments().getFirst().fieldName());
+        }
+
+        /**
+         * Returns the dot-separated path string for all segments.
+         * <p>
+         * For example, a path with segments ["owner", "firstName"] returns "owner.firstName".
+         * <p>
+         * This is useful for display purposes in JPQL generation and debugging.
+         *
+         * @return the dot-joined path string
+         */
+        default String toPath() {
+            return segments().stream()
+                    .map(PathSegment::fieldName)
+                    .collect(Collectors.joining("."));
         }
 
         /**
@@ -610,9 +462,7 @@ public sealed interface LambdaExpression {
         // getFieldName() inherited from SegmentBasedPath
     }
 
-    // =============================================================================================
-    // COLLECTION OPERATIONS
-    // =============================================================================================
+    // ========== Collection Operations ==========
 
     /**
      * IN expression for collection membership testing.
@@ -708,9 +558,7 @@ public sealed interface LambdaExpression {
         }
     }
 
-    // =============================================================================================
-    // JOIN QUERIES
-    // =============================================================================================
+    // ========== Join Queries ==========
 
     /**
      * Identifies which entity in a bi-entity lambda (BiQuerySpec).
@@ -719,7 +567,21 @@ public sealed interface LambdaExpression {
         /** First entity in the join (source/left side). */
         FIRST,
         /** Second entity in the join (joined/right side). */
-        SECOND
+        SECOND;
+
+        /**
+         * Selects the appropriate alias based on entity position.
+         * <p>
+         * Simplifies the common pattern of choosing between two aliases
+         * based on whether this position is FIRST or SECOND.
+         *
+         * @param firstAlias alias to return for FIRST position
+         * @param secondAlias alias to return for SECOND position
+         * @return the selected alias
+         */
+        public String selectAlias(String firstAlias, String secondAlias) {
+            return this == FIRST ? firstAlias : secondAlias;
+        }
     }
 
     /**
@@ -911,9 +773,7 @@ public sealed interface LambdaExpression {
         // getFieldName() inherited from SegmentBasedPath
     }
 
-    // =============================================================================================
-    // GROUPING OPERATIONS
-    // =============================================================================================
+    // ========== Grouping Operations ==========
 
     /**
      * Group key reference in a GroupQuerySpec lambda.
@@ -1098,9 +958,7 @@ public sealed interface LambdaExpression {
         }
     }
 
-    // =============================================================================================
-    // SUBQUERIES
-    // =============================================================================================
+    // ========== Subqueries ==========
 
     /**
      * Types of scalar aggregation subqueries.

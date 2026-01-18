@@ -21,6 +21,10 @@
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-devui-spi</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
             <artifactId>quarkus-hibernate-orm-panache-deployment</artifactId>
         </dependency>
         <dependency>
@@ -70,6 +74,23 @@
             <artifactId>mockito-core</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-devui-test-spi</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Playwright for DevUI browser testing -->
+        <dependency>
+            <groupId>com.microsoft.playwright</groupId>
+            <artifactId>playwright</artifactId>
+            <version>1.48.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-vertx-http-deployment</artifactId>
+            <scope>test</scope>
+        </dependency>
         <!-- Property-based testing (TEST-003) -->
         <dependency>
             <groupId>net.jqwik</groupId>
@@ -103,6 +124,17 @@
                             <version>${quarkus.version}</version>
                         </path>
                     </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            <!-- Surefire configuration - exclude Playwright tests from default run -->
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- Exclude Playwright tests from default run (they use QuarkusDevModeTest
+                         which is incompatible with DevUIBuildTimeDataTest). Run with -Pplaywright -->
+                    <excludes>
+                        <exclude>**/*PlaywrightTest.java</exclude>
+                    </excludes>
                 </configuration>
             </plugin>
             <!-- TEST-006: Mutation Testing - run with: mvn -pl deployment pitest:mutationCoverage -->
@@ -158,4 +190,72 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!--
+            Playwright browser testing profile.
+            Activates browser installation and Playwright-based DevUI tests.
+
+            Usage (local development):
+              mvn test -Pplaywright                    # Install browser and run tests
+              mvn test -Pplaywright -Dplaywright.browser=chromium  # Use Chromium
+
+            Usage (CI uses pre-installed browsers in Docker container):
+              mvn test -Pplaywright -Dplaywright.skip-install=true
+
+            Note: Browser installation requires system dependencies. On Linux, you may
+            need to run once with sudo. See deployment/README.md for details.
+        -->
+        <profile>
+            <id>playwright</id>
+            <build>
+                <plugins>
+                    <!-- Install Playwright browsers before tests (unless skip-install is set) -->
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.5.0</version>
+                        <executions>
+                            <execution>
+                                <id>install-playwright-browsers</id>
+                                <phase>process-test-classes</phase>
+                                <goals>
+                                    <goal>java</goal>
+                                </goals>
+                                <configuration>
+                                    <mainClass>com.microsoft.playwright.CLI</mainClass>
+                                    <!-- Include test scope to access Playwright CLI -->
+                                    <classpathScope>test</classpathScope>
+                                    <arguments>
+                                        <argument>install</argument>
+                                        <argument>${playwright.browser}</argument>
+                                    </arguments>
+                                    <skip>${playwright.skip-install}</skip>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <!-- Enable Playwright tests (excluded by default) -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <includes>
+                                <include>**/*PlaywrightTest.java</include>
+                            </includes>
+                            <systemPropertyVariables>
+                                <playwright.browser>${playwright.browser}</playwright.browser>
+                            </systemPropertyVariables>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+            <properties>
+                <!-- Default browser for Playwright tests (firefox has better Vaadin support) -->
+                <playwright.browser>firefox</playwright.browser>
+                <!-- Skip browser installation (use when browsers are pre-installed, e.g., CI container) -->
+                <playwright.skip-install>false</playwright.skip-install>
+            </properties>
+        </profile>
+    </profiles>
 </project>

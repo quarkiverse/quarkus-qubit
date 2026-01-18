@@ -1,32 +1,30 @@
 package io.quarkiverse.qubit.deployment.common;
 
-/**
- * Bytecode analysis configuration constants.
- */
+/** Bytecode analysis constants: DESC_* method descriptors and lookahead limits. */
 public final class BytecodeAnalysisConstants {
 
     private BytecodeAnalysisConstants() {
     }
 
-    /**
-     * Lookahead window for detecting boolean markers (ICONST_0/1).
-     * Javac 11-21 emits these within 5-10 instructions of comparisons.
-     */
+    // ========== JVM Method Descriptors ==========
+
+    public static final String DESC_BOOLEAN_VALUE_OF = "(Z)Ljava/lang/Boolean;";          // Boolean.valueOf(boolean)
+    public static final String DESC_OBJECT_TO_BOOLEAN = "(Ljava/lang/Object;)Z";          // equals(), contains()
+    public static final String DESC_BIG_DECIMAL_ARITHMETIC = "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;";
+    public static final String DESC_STRING_TO_BOOLEAN = "(Ljava/lang/String;)Z";          // startsWith, endsWith
+    public static final String DESC_CHAR_SEQUENCE_TO_BOOLEAN = "(Ljava/lang/CharSequence;)Z"; // String.contains
+    public static final String DESC_NO_ARG_TO_INT = "()I";                                // String.length()
+    public static final String DESC_NO_ARG_TO_BOOLEAN = "()Z";                            // String.isEmpty()
+    public static final String DESC_NO_ARG_TO_STRING = "()Ljava/lang/String;";            // toLowerCase, trim
+    public static final String DESC_INT_TO_STRING = "(I)Ljava/lang/String;";              // substring(int)
+    public static final String DESC_TWO_INTS_TO_STRING = "(II)Ljava/lang/String;";        // substring(int, int)
+
+    // ========== Lookahead Limits ==========
+
+    /** Boolean markers (ICONST_0/1) - javac 11-21 emits within 5-10 instructions. */
     public static final int LOOKAHEAD_WINDOW_SIZE = 10;
-
-    /**
-     * Lookahead for label classification (same as LOOKAHEAD_WINDOW_SIZE for consistency).
-     */
     public static final int LABEL_CLASSIFICATION_LOOKAHEAD_LIMIT = LOOKAHEAD_WINDOW_SIZE;
-
-    /**
-     * Lookahead for GOTO after conditional jumps (&&, || patterns).
-     */
-    public static final int CONDITIONAL_JUMP_LOOKAHEAD_LIMIT = 5;
-
-    /**
-     * Max depth for label tracing (prevents infinite loops on malformed bytecode).
-     */
-    public static final int LABEL_TRACE_DEPTH_LIMIT = 20;
+    public static final int CONDITIONAL_JUMP_LOOKAHEAD_LIMIT = 5;  // GOTO after conditional jumps
+    public static final int LABEL_TRACE_DEPTH_LIMIT = 20;          // Prevents infinite loops
 
 }

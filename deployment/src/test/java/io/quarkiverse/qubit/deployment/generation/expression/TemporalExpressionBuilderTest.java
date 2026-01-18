@@ -32,7 +32,7 @@ class TemporalExpressionBuilderTest {
 
     @BeforeEach
     void setUp() {
-        builder = new TemporalExpressionBuilder();
+        builder = TemporalExpressionBuilder.INSTANCE;
     }
 
     @Nested

@@ -17,10 +17,16 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.eq;
+import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.*;
 import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.extractFieldName;
+import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.isGetterMethodName;
+import static io.quarkiverse.qubit.deployment.common.PatternDetector.isEntityFieldExpression;
+import static io.quarkiverse.qubit.deployment.util.DescriptorParser.returnsIntType;
 import static io.quarkiverse.qubit.runtime.QubitConstants.*;
 import static org.objectweb.asm.Opcodes.*;
 
@@ -30,92 +36,35 @@ import static org.objectweb.asm.Opcodes.*;
  * INVOKESPECIAL (constructors including BigDecimal constant folding),
  * INVOKEINTERFACE (Collection.contains for IN and MEMBER OF expressions).
  */
-public class MethodInvocationHandler implements InstructionHandler {
+public enum MethodInvocationHandler implements InstructionHandler {
+    INSTANCE;
 
-    /**
-     * Delegate for subquery analysis.
-     */
     private final SubqueryAnalyzer subqueryAnalyzer = new SubqueryAnalyzer();
-
-    /**
-     * Delegate for group method analysis.
-     */
     private final GroupMethodAnalyzer groupMethodAnalyzer = new GroupMethodAnalyzer();
 
-    // ========== Virtual Method Category Detection ==========
-
     /**
-     * Enumeration of virtual method categories for bytecode analysis.
-     * <p>
-     * Categories are mutually exclusive and checked in priority order during detection.
-     * This enum reduces cyclomatic complexity in {@link #handleInvokeVirtual(AnalysisContext, MethodInsnNode)}
-     * by consolidating the pattern detection logic into a single categorization method.
-     * <p>
-     * <b>Design Rationale:</b>
-     * <ul>
-     *   <li>Enum provides exhaustive switch with compile-time safety</li>
-     *   <li>Single point of truth for pattern priority ordering</li>
-     *   <li>Categorization can be tested independently from handling</li>
-     *   <li>Follows established pattern from {@code PatternDetector.BinaryOperationCategory}</li>
-     * </ul>
+     * Maps temporal type owners to their valid accessor method sets.
+     * Used to dispatch temporal accessor methods without duplicating method lists.
      */
+    private static final Map<String, Set<String>> TEMPORAL_ACCESSOR_METHODS_BY_TYPE = Map.of(
+        JVM_JAVA_TIME_LOCAL_DATE, LOCAL_DATE_ACCESSOR_METHODS,
+        JVM_JAVA_TIME_LOCAL_DATE_TIME, LOCAL_DATE_TIME_ACCESSOR_METHODS,
+        JVM_JAVA_TIME_LOCAL_TIME, LOCAL_TIME_ACCESSOR_METHODS
+    );
+
+    /** Virtual method categories, checked in priority order. */
     public enum VirtualMethodCategory {
-        /**
-         * Object.equals() method call.
-         * Converts to equality comparison expression.
-         */
         EQUALS,
-
-        /**
-         * SubqueryBuilder method call (where, avg, sum, min, max, count, exists, in, etc.).
-         * Delegated to SubqueryAnalyzer.
-         */
         SUBQUERY_BUILDER,
-
-        /**
-         * String method call (startsWith, endsWith, contains, length, etc.).
-         * Generates JPA string predicates/expressions.
-         */
         STRING_METHOD,
-
-        /**
-         * Comparable.compareTo() method call.
-         * Returns int for comparison result.
-         */
         COMPARE_TO,
-
-        /**
-         * BigDecimal arithmetic method call (add, subtract, multiply, divide).
-         * Generates BigDecimal arithmetic expressions.
-         */
         BIG_DECIMAL_ARITHMETIC,
-
-        /**
-         * Temporal method call on LocalDate, LocalDateTime, LocalTime.
-         * Handles temporal accessor methods.
-         */
         TEMPORAL_METHOD,
-
-        /**
-         * Getter method call (getXxx() or isXxx()).
-         * Generates field access expression.
-         */
         GETTER,
-
-        /**
-         * Unrecognized virtual method call.
-         * No-op handling.
-         */
         UNHANDLED;
 
         /**
          * Categorizes a virtual method invocation by checking patterns in priority order.
-         * <p>
-         * The order of checks matters and is preserved from the original if-else chain.
-         *
-         * @param methodInsn the method instruction to categorize
-         * @param handler the handler instance (provides access to subqueryAnalyzer and helper methods)
-         * @return the detected category (never null)
          */
         public static VirtualMethodCategory categorize(
                 MethodInsnNode methodInsn,
@@ -208,7 +157,7 @@ public class MethodInvocationHandler implements InstructionHandler {
         // Skip Boolean.valueOf (optimization - we work directly with boolean expressions)
         if (staticInsn.owner.equals(JVM_JAVA_LANG_BOOLEAN) &&
             staticInsn.name.equals(METHOD_VALUE_OF) &&
-            staticInsn.desc.equals("(Z)Ljava/lang/Boolean;")) {
+            staticInsn.desc.equals(DESC_BOOLEAN_VALUE_OF)) {
             return;
         }
 
@@ -257,41 +206,7 @@ public class MethodInvocationHandler implements InstructionHandler {
         }
     }
 
-    // ========== INVOKEINTERFACE Handler (Collections, Group) ==========
-
-    /**
-     * Handles INVOKEINTERFACE: Collection.contains() for IN/MEMBER OF, and Group methods.
-     * <p>
-     * Detects multiple patterns:
-     * <ul>
-     *   <li><b>IN clause</b>: {@code collection.contains(p.field)} where collection is a captured variable
-     *       → Creates {@link InExpression}</li>
-     *   <li><b>MEMBER OF</b>: {@code p.collectionField.contains(value)} where collectionField is a mapped collection
-     *       → Creates {@link MemberOfExpression}</li>
-     *   <li><b>Group.key()</b>: {@code g.key()} in group context
-     *       → Creates {@link GroupKeyReference}</li>
-     *   <li><b>Group.count()</b>: {@code g.count()} in group context
-     *       → Creates {@link GroupAggregation} with COUNT type</li>
-     *   <li><b>Group aggregations</b>: {@code g.avg(...)}, {@code g.min(...)}, etc.
-     *       → Creates {@link GroupAggregation} with appropriate type</li>
-     * </ul>
-     * <p>
-     * Bytecode pattern for IN clause ({@code cities.contains(p.city)}):
-     * <pre>
-     * ALOAD 1              // Load captured cities collection (CapturedVariable)
-     * ALOAD 0              // Load lambda parameter (Person)
-     * GETFIELD Person.city // Get city field (FieldAccess)
-     * INVOKEINTERFACE Collection.contains(Object)
-     * </pre>
-     * <p>
-     * Bytecode pattern for MEMBER OF ({@code p.roles.contains("admin")}):
-     * <pre>
-     * ALOAD 0              // Load lambda parameter (Person)
-     * GETFIELD Person.roles // Get roles collection field (FieldAccess)
-     * LDC "admin"          // Load constant value
-     * INVOKEINTERFACE Collection.contains(Object)
-     * </pre>
-     */
+    /** Handles INVOKEINTERFACE: Collection.contains() for IN/MEMBER OF, and Group methods. */
     private void handleInvokeInterface(AnalysisContext ctx, MethodInsnNode interfaceInsn) {
         // Check if this is a Group interface method call (delegated to GroupMethodAnalyzer)
         if (groupMethodAnalyzer.isGroupMethodCall(interfaceInsn)) {
@@ -317,28 +232,13 @@ public class MethodInvocationHandler implements InstructionHandler {
         }
     }
 
-    // Note: Group Interface Methods have been extracted to GroupMethodAnalyzer
-
-    /**
-     * Checks if the instruction is a Collection.contains() call.
-     */
     private boolean isCollectionContainsCall(MethodInsnNode methodInsn) {
         return methodInsn.name.equals(METHOD_CONTAINS) &&
-               methodInsn.desc.equals("(Ljava/lang/Object;)Z") &&
+               methodInsn.desc.equals(DESC_OBJECT_TO_BOOLEAN) &&
                COLLECTION_INTERFACE_OWNERS.contains(methodInsn.owner);
     }
 
-    /**
-     * Handles Collection.contains() by determining whether it's an IN clause or MEMBER OF pattern.
-     * <p>
-     * The key distinction is based on the target (collection) expression:
-     * <ul>
-     *   <li><b>IN clause</b>: target is CapturedVariable (collection from outer scope)
-     *       → Field is in collection, creates {@code InExpression(field, collection, false)}</li>
-     *   <li><b>MEMBER OF</b>: target is FieldAccess or PathExpression (collection field on entity)
-     *       → Value is in collection field, creates {@code MemberOfExpression(value, collectionField, false)}</li>
-     * </ul>
-     */
+    /** Distinguishes IN clause (captured collection) from MEMBER OF (entity collection field). */
     private void handleCollectionContains(AnalysisContext ctx) {
         PopPairResult pair = ctx.popPair();
         if (pair == null) {
@@ -369,16 +269,7 @@ public class MethodInvocationHandler implements InstructionHandler {
     }
 
     /**
-     * Determines if the contains() call represents an IN clause pattern.
-     * <p>
-     * IN clause pattern: captured collection.contains(entity field)
-     * Example: {@code cities.contains(p.city)}
-     * - target (collection) is CapturedVariable
-     * - argument (field) is FieldAccess, PathExpression, BiEntityFieldAccess, or BiEntityPathExpression
-     *
-     * @param target The collection (left side of contains)
-     * @param argument The value being checked (argument to contains)
-     * @return true if this is an IN clause pattern
+     * IN clause: captured collection.contains(entity field) → cities.contains(p.city)
      */
     private boolean isInClausePattern(LambdaExpression target, LambdaExpression argument) {
         // Target must be a captured variable (the collection from outer scope)
@@ -386,33 +277,16 @@ public class MethodInvocationHandler implements InstructionHandler {
 
         // Argument must be a field access or path expression (entity field)
         // Supports both single-entity and bi-entity expressions
-        boolean argumentIsEntityField = argument instanceof LambdaExpression.FieldAccess ||
-                                         argument instanceof LambdaExpression.PathExpression ||
-                                         argument instanceof LambdaExpression.BiEntityFieldAccess ||
-                                         argument instanceof LambdaExpression.BiEntityPathExpression;
-
-        return targetIsCaptured && argumentIsEntityField;
+        return targetIsCaptured && isEntityFieldExpression(argument);
     }
 
     /**
-     * Determines if the contains() call represents a MEMBER OF pattern.
-     * <p>
-     * MEMBER OF pattern: entity collection field.contains(value)
-     * Example: {@code p.roles.contains("admin")}
-     * - target (collection field) is FieldAccess, PathExpression, BiEntityFieldAccess, or BiEntityPathExpression
-     * - argument (value) is Constant or CapturedVariable
-     *
-     * @param target The collection field (left side of contains)
-     * @param argument The value being checked (argument to contains)
-     * @return true if this is a MEMBER OF pattern
+     * MEMBER OF: entity collection.contains(value) → p.roles.contains("admin")
      */
     private boolean isMemberOfPattern(LambdaExpression target, LambdaExpression argument) {
         // Target must be a field access or path expression (collection field on entity)
         // Supports both single-entity and bi-entity expressions
-        boolean targetIsEntityField = target instanceof LambdaExpression.FieldAccess ||
-                                       target instanceof LambdaExpression.PathExpression ||
-                                       target instanceof LambdaExpression.BiEntityFieldAccess ||
-                                       target instanceof LambdaExpression.BiEntityPathExpression;
+        boolean targetIsEntityField = isEntityFieldExpression(target);
 
         // Argument must be a constant or captured variable (the value to check)
         boolean argumentIsValue = argument instanceof LambdaExpression.Constant ||
@@ -421,18 +295,10 @@ public class MethodInvocationHandler implements InstructionHandler {
         return targetIsEntityField && argumentIsValue;
     }
 
-    // ========== INVOKEVIRTUAL Helper Methods ==========
-
-    /**
-     * Checks if instruction is an equals() method call.
-     */
     private boolean isEqualsMethodCall(MethodInsnNode methodInsn) {
-        return methodInsn.name.equals(METHOD_EQUALS) && methodInsn.desc.equals("(Ljava/lang/Object;)Z");
+        return methodInsn.name.equals(METHOD_EQUALS) && methodInsn.desc.equals(DESC_OBJECT_TO_BOOLEAN);
     }
 
-    /**
-     * Handles equals() method call by converting to equality comparison.
-     */
     private void handleEqualsMethod(AnalysisContext ctx) {
         PopPairResult pair = ctx.popPair();
         if (pair != null) {
@@ -440,48 +306,35 @@ public class MethodInvocationHandler implements InstructionHandler {
         }
     }
 
-    /**
-     * Checks if instruction is a compareTo() method call.
-     */
     private boolean isCompareToMethodCall(MethodInsnNode methodInsn) {
-        return methodInsn.name.equals(METHOD_COMPARE_TO) && methodInsn.desc.endsWith(")I");
+        return methodInsn.name.equals(METHOD_COMPARE_TO) && returnsIntType(methodInsn.desc);
     }
 
-    /**
-     * Checks if instruction is a BigDecimal arithmetic method call.
-     */
     private boolean isBigDecimalArithmeticCall(MethodInsnNode methodInsn) {
         return methodInsn.owner.equals(JVM_JAVA_MATH_BIG_DECIMAL) &&
-               methodInsn.desc.equals("(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;");
+               methodInsn.desc.equals(DESC_BIG_DECIMAL_ARITHMETIC);
     }
 
-    /**
-     * Checks if instruction is a getter method call (getXxx or isXxx).
-     */
     private boolean isGetterMethodCall(MethodInsnNode methodInsn) {
-        return (methodInsn.name.startsWith("get") || methodInsn.name.startsWith("is")) &&
-               methodInsn.desc.startsWith("()");
+        return isGetterMethodName(methodInsn.name) && methodInsn.desc.startsWith("()");
     }
 
-    /**
-     * Handles String method calls (startsWith, endsWith, contains, length, etc.).
-     */
     private void handleStringMethods(AnalysisContext ctx, MethodInsnNode methodInsn) {
         switch (methodInsn.name) {
             case METHOD_STARTS_WITH, METHOD_ENDS_WITH ->
-                handleSingleArgumentStringMethod(ctx, methodInsn, "(Ljava/lang/String;)Z", boolean.class);
+                handleSingleArgumentStringMethod(ctx, methodInsn, DESC_STRING_TO_BOOLEAN, boolean.class);
 
             case METHOD_CONTAINS ->
-                handleSingleArgumentStringMethod(ctx, methodInsn, "(Ljava/lang/CharSequence;)Z", boolean.class);
+                handleSingleArgumentStringMethod(ctx, methodInsn, DESC_CHAR_SEQUENCE_TO_BOOLEAN, boolean.class);
 
             case METHOD_LENGTH ->
-                handleNoArgumentStringMethod(ctx, methodInsn, "()I", int.class);
+                handleNoArgumentStringMethod(ctx, methodInsn, DESC_NO_ARG_TO_INT, int.class);
 
             case METHOD_IS_EMPTY ->
-                handleNoArgumentStringMethod(ctx, methodInsn, "()Z", boolean.class);
+                handleNoArgumentStringMethod(ctx, methodInsn, DESC_NO_ARG_TO_BOOLEAN, boolean.class);
 
             case METHOD_TO_LOWER_CASE, METHOD_TO_UPPER_CASE, METHOD_TRIM ->
-                handleNoArgumentStringMethod(ctx, methodInsn, "()Ljava/lang/String;", String.class);
+                handleNoArgumentStringMethod(ctx, methodInsn, DESC_NO_ARG_TO_STRING, String.class);
 
             case METHOD_SUBSTRING ->
                 handleSubstringMethod(ctx, methodInsn);
@@ -490,9 +343,6 @@ public class MethodInvocationHandler implements InstructionHandler {
         }
     }
 
-    /**
-     * Handles String methods with a single argument.
-     */
     private void handleSingleArgumentStringMethod(AnalysisContext ctx, MethodInsnNode methodInsn,
                                                    String expectedDescriptor, Class<?> returnType) {
         if (methodInsn.desc.equals(expectedDescriptor)) {
@@ -500,9 +350,6 @@ public class MethodInvocationHandler implements InstructionHandler {
         }
     }
 
-    /**
-     * Handles String methods with no arguments.
-     */
     private void handleNoArgumentStringMethod(AnalysisContext ctx, MethodInsnNode methodInsn,
                                               String expectedDescriptor, Class<?> returnType) {
         if (methodInsn.desc.equals(expectedDescriptor)) {
@@ -510,13 +357,10 @@ public class MethodInvocationHandler implements InstructionHandler {
         }
     }
 
-    /**
-     * Handles String.substring method (supports both single and two-argument variants).
-     */
     private void handleSubstringMethod(AnalysisContext ctx, MethodInsnNode methodInsn) {
-        if (methodInsn.desc.equals("(I)Ljava/lang/String;") ||
-            methodInsn.desc.equals("(II)Ljava/lang/String;")) {
-            int argCount = methodInsn.desc.equals("(I)Ljava/lang/String;") ? 1 : 2;
+        if (methodInsn.desc.equals(DESC_INT_TO_STRING) ||
+            methodInsn.desc.equals(DESC_TWO_INTS_TO_STRING)) {
+            int argCount = methodInsn.desc.equals(DESC_INT_TO_STRING) ? 1 : 2;
             if (ctx.getStackSize() >= argCount + 1) {
                 List<LambdaExpression> arguments = new ArrayList<>();
                 for (int i = 0; i < argCount; i++) {
@@ -528,101 +372,38 @@ public class MethodInvocationHandler implements InstructionHandler {
         }
     }
 
-    /**
-     * Handles BigDecimal method calls (add, subtract, multiply, divide).
-     */
     private void handleBigDecimalMethods(AnalysisContext ctx, MethodInsnNode methodInsn) {
         switch (methodInsn.name) {
             case METHOD_ADD, METHOD_SUBTRACT, METHOD_MULTIPLY, METHOD_DIVIDE ->
                 handleSingleArgumentMethodCall(ctx, methodInsn.name, BigDecimal.class);
-            default -> { /* No action for unrecognized BigDecimal methods */ }
+            default -> { /* no-op */ }
         }
     }
 
-    /**
-     * Handles temporal (java.time) method calls.
-     */
     private void handleTemporalMethods(AnalysisContext ctx, MethodInsnNode methodInsn) {
         if (TEMPORAL_COMPARISON_METHOD_NAMES.contains(methodInsn.name)) {
             handleSingleArgumentMethodCall(ctx, methodInsn.name, boolean.class);
         } else {
-            switch (methodInsn.owner) {
-                case JVM_JAVA_TIME_LOCAL_DATE -> handleLocalDateMethods(ctx, methodInsn);
-                case JVM_JAVA_TIME_LOCAL_DATE_TIME -> handleLocalDateTimeMethods(ctx, methodInsn);
-                case JVM_JAVA_TIME_LOCAL_TIME -> handleLocalTimeMethods(ctx, methodInsn);
-                default -> { /* No action for unrecognized temporal types */ }
+            Set<String> validMethods = TEMPORAL_ACCESSOR_METHODS_BY_TYPE.get(methodInsn.owner);
+            if (validMethods != null && validMethods.contains(methodInsn.name)) {
+                handleTemporalAccessorMethod(ctx, methodInsn);
             }
         }
     }
 
-    /**
-     * Handles LocalDate accessor methods (getYear, getMonthValue, getDayOfMonth).
-     */
-    private void handleLocalDateMethods(AnalysisContext ctx, MethodInsnNode methodInsn) {
-        switch (methodInsn.name) {
-            case METHOD_GET_YEAR, METHOD_GET_MONTH_VALUE, METHOD_GET_DAY_OF_MONTH ->
-                handleTemporalAccessorMethod(ctx, methodInsn, JVM_JAVA_TIME_LOCAL_DATE,
-                    METHOD_GET_YEAR, METHOD_GET_MONTH_VALUE, METHOD_GET_DAY_OF_MONTH);
-            default -> { /* No action for unrecognized LocalDate methods */ }
+    private void handleTemporalAccessorMethod(AnalysisContext ctx, MethodInsnNode methodInsn) {
+        if (!ctx.isStackEmpty()) {
+            LambdaExpression target = ctx.pop();
+            ctx.push(new LambdaExpression.MethodCall(
+                target,
+                methodInsn.name,
+                List.of(),
+                int.class
+            ));
         }
     }
 
-    /**
-     * Handles LocalDateTime accessor methods (getYear, getMonthValue, getDayOfMonth, getHour, getMinute, getSecond).
-     */
-    private void handleLocalDateTimeMethods(AnalysisContext ctx, MethodInsnNode methodInsn) {
-        switch (methodInsn.name) {
-            case METHOD_GET_YEAR, METHOD_GET_MONTH_VALUE, METHOD_GET_DAY_OF_MONTH,
-                 METHOD_GET_HOUR, METHOD_GET_MINUTE, METHOD_GET_SECOND ->
-                handleTemporalAccessorMethod(ctx, methodInsn, JVM_JAVA_TIME_LOCAL_DATE_TIME,
-                    METHOD_GET_YEAR, METHOD_GET_MONTH_VALUE, METHOD_GET_DAY_OF_MONTH,
-                    METHOD_GET_HOUR, METHOD_GET_MINUTE, METHOD_GET_SECOND);
-            default -> { /* No action for unrecognized LocalDateTime methods */ }
-        }
-    }
-
-    /**
-     * Handles LocalTime accessor methods (getHour, getMinute, getSecond).
-     */
-    private void handleLocalTimeMethods(AnalysisContext ctx, MethodInsnNode methodInsn) {
-        switch (methodInsn.name) {
-            case METHOD_GET_HOUR, METHOD_GET_MINUTE, METHOD_GET_SECOND ->
-                handleTemporalAccessorMethod(ctx, methodInsn, JVM_JAVA_TIME_LOCAL_TIME,
-                    METHOD_GET_HOUR, METHOD_GET_MINUTE, METHOD_GET_SECOND);
-            default -> { /* No action for unrecognized LocalTime methods */ }
-        }
-    }
-
-    /**
-     * Handles temporal accessor methods (getYear, getMonthValue, etc.).
-     */
-    private void handleTemporalAccessorMethod(AnalysisContext ctx, MethodInsnNode methodInsn,
-                                              String ownerType, String... validMethods) {
-        if (!methodInsn.owner.equals(ownerType)) {
-            return;
-        }
-
-        for (String validMethod : validMethods) {
-            if (methodInsn.name.equals(validMethod)) {
-                if (!ctx.isStackEmpty()) {
-                    LambdaExpression target = ctx.pop();
-                    ctx.push(new LambdaExpression.MethodCall(
-                        target,
-                        methodInsn.name,
-                        List.of(),
-                        int.class
-                    ));
-                }
-                return;
-            }
-        }
-    }
-
-    /**
-     * Handles getter method calls (getXxx, isXxx) and converts to field access.
-     * <p>
-     * In bi-entity mode, produces BiEntityFieldAccess when called on a BiEntityParameter.
-     */
+    /** Converts getter calls to field access; produces BiEntityFieldAccess in bi-entity mode. */
     private void handleGetterMethod(AnalysisContext ctx, MethodInsnNode methodInsn) {
         if (ctx.isStackEmpty()) {
             return;
@@ -641,9 +422,6 @@ public class MethodInvocationHandler implements InstructionHandler {
         }
     }
 
-    /**
-     * Handles zero-argument method calls (e.g., length(), isEmpty()).
-     */
     private void handleNoArgumentMethodCall(AnalysisContext ctx, String methodName, Class<?> returnType) {
         if (!ctx.isStackEmpty()) {
             LambdaExpression target = ctx.pop();
@@ -656,9 +434,6 @@ public class MethodInvocationHandler implements InstructionHandler {
         }
     }
 
-    /**
-     * Handles single-argument method calls (e.g., startsWith(), compareTo()).
-     */
     private void handleSingleArgumentMethodCall(AnalysisContext ctx, String methodName, Class<?> returnType) {
         PopPairResult pair = ctx.popPair();
         if (pair != null) {
@@ -671,21 +446,7 @@ public class MethodInvocationHandler implements InstructionHandler {
         }
     }
 
-    // ========== INVOKESTATIC Helper Methods ==========
-
-    /**
-     * Handles temporal factory methods with constant folding optimization.
-     *
-     * <p>If all arguments are constants, the temporal value is created at analysis time.
-     * Otherwise, a MethodCall is created for runtime evaluation.
-     *
-     * @param ctx the analysis context
-     * @param staticInsn the static method instruction
-     * @param temporalClass the temporal class (LocalDate, LocalDateTime, LocalTime)
-     * @param expectedArgCount the expected number of arguments
-     * @param evaluator function to create the temporal value from constant arguments
-     * @param <T> the temporal type
-     */
+    /** Temporal factory methods with constant folding: evaluates at analysis time if all args constant. */
     private <T> void handleTemporalFactoryMethod(
             AnalysisContext ctx,
             MethodInsnNode staticInsn,
@@ -737,11 +498,6 @@ public class MethodInvocationHandler implements InstructionHandler {
         ctx.push(new LambdaExpression.MethodCall(null, METHOD_OF, List.of(args), temporalClass));
     }
 
-    // ========== INVOKESPECIAL Helper Methods ==========
-
-    /**
-     * Checks if instruction is a BigDecimal string constructor call.
-     */
     private boolean isBigDecimalStringConstruction(MethodInsnNode specialInsn, int argCount,
                                                     List<LambdaExpression> args) {
         return specialInsn.owner.equals(JVM_JAVA_MATH_BIG_DECIMAL) &&
@@ -751,10 +507,7 @@ public class MethodInvocationHandler implements InstructionHandler {
                constant.value() instanceof String;
     }
 
-    /**
-     * Attempts to fold BigDecimal string construction into a constant at build time.
-     * Falls back to constructor call if the string is not a valid number.
-     */
+    /** Folds BigDecimal(String) to constant at build time; falls back to constructor call. */
     private void handleBigDecimalConstantFolding(AnalysisContext ctx, List<LambdaExpression> args,
                                                   String stringValue, String owner) {
         try {
@@ -765,10 +518,6 @@ public class MethodInvocationHandler implements InstructionHandler {
         }
     }
 
-    /**
-     * Pushes a constructor call expression onto the stack.
-     * Creates a ConstructorCall for DTO projections.
-     */
     private void pushConstructorCall(AnalysisContext ctx, List<LambdaExpression> args, String owner) {
         Class<?> constructedType = TypeConverter.descriptorToClass("L" + owner + ";");
         ctx.push(new LambdaExpression.ConstructorCall(owner, args, constructedType));

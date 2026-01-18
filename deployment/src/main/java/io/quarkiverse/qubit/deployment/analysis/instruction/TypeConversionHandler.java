@@ -2,6 +2,7 @@ package io.quarkiverse.qubit.deployment.analysis.instruction;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
+import io.quarkiverse.qubit.deployment.common.OpcodeClassifier;
 import org.objectweb.asm.tree.AbstractInsnNode;
 
 import static org.objectweb.asm.Opcodes.*;
@@ -9,12 +10,12 @@ import static org.objectweb.asm.Opcodes.*;
 /**
  * Handles primitive type conversion instructions with constant folding optimization.
  */
-public class TypeConversionHandler implements InstructionHandler {
+public enum TypeConversionHandler implements InstructionHandler {
+    INSTANCE;
 
     @Override
     public boolean canHandle(AbstractInsnNode insn) {
-        int opcode = insn.getOpcode();
-        return isTypeConversionOpcode(opcode);
+        return OpcodeClassifier.isTypeConversionOpcode(insn.getOpcode());
     }
 
     @Override
@@ -23,14 +24,6 @@ public class TypeConversionHandler implements InstructionHandler {
         TypeConversionInfo conversionInfo = getConversionInfo(opcode);
         handleTypeConversion(ctx, conversionInfo.sourceType, conversionInfo.targetType);
         return false;
-    }
-
-    /** Checks if opcode is type conversion. */
-    private boolean isTypeConversionOpcode(int opcode) {
-        return opcode == I2L || opcode == I2F || opcode == I2D ||
-               opcode == L2I || opcode == L2F || opcode == L2D ||
-               opcode == F2I || opcode == F2L || opcode == F2D ||
-               opcode == D2I || opcode == D2L || opcode == D2F;
     }
 
     /** Handles type conversion with constant folding. */

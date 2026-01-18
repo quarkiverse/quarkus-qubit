@@ -1,15 +1,6 @@
 package io.quarkiverse.qubit.deployment.generation.expression;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.CB_DIFF;
-import static io.quarkiverse.qubit.runtime.QubitConstants.CB_EQUAL;
-import static io.quarkiverse.qubit.runtime.QubitConstants.CB_LENGTH;
-import static io.quarkiverse.qubit.runtime.QubitConstants.CB_LIKE;
-import static io.quarkiverse.qubit.runtime.QubitConstants.CB_LITERAL;
-import static io.quarkiverse.qubit.runtime.QubitConstants.CB_LOWER;
-import static io.quarkiverse.qubit.runtime.QubitConstants.CB_SUBSTRING;
-import static io.quarkiverse.qubit.runtime.QubitConstants.CB_SUM;
-import static io.quarkiverse.qubit.runtime.QubitConstants.CB_TRIM;
-import static io.quarkiverse.qubit.runtime.QubitConstants.CB_UPPER;
+import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_CONTAINS;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_ENDS_WITH;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_EQUALS;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_IS_EMPTY;
@@ -19,19 +10,18 @@ import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SUBSTRING;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_TO_LOWER_CASE;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_TO_UPPER_CASE;
 import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_TRIM;
-import static io.quarkiverse.qubit.runtime.QubitConstants.STRING_CONCAT;
+import static io.quarkiverse.qubit.runtime.QubitConstants.SQL_LIKE_WILDCARD;
 import static io.quarkiverse.qubit.runtime.QubitConstants.STRING_PATTERN_METHOD_NAMES;
+import static io.quarkiverse.qubit.runtime.QubitConstants.STRING_TRANSFORMATION_METHODS;
+import static io.quarkiverse.qubit.runtime.QubitConstants.STRING_UTILITY_METHODS;
 
 import java.util.List;
-import java.util.Set;
 
 import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.MethodDescriptor;
 import io.quarkus.gizmo.ResultHandle;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.Expression;
-import jakarta.persistence.criteria.Predicate;
+import io.quarkiverse.qubit.deployment.generation.MethodDescriptors;
 
 /**
  * Builds JPA Criteria API expressions for String operations.
@@ -47,28 +37,10 @@ import jakarta.persistence.criteria.Predicate;
  * <p><b>Note:</b> Java's substring() uses 0-based indexing, but JPA uses 1-based.
  * This builder automatically adds 1 to the start index.
  */
-public class StringExpressionBuilder implements ExpressionBuilder {
+public enum StringExpressionBuilder implements ExpressionBuilder {
+    INSTANCE;
 
-    /**
-     * String transformation methods.
-     */
-    private static final Set<String> STRING_TRANSFORMATION_METHODS = Set.of(
-        METHOD_TO_LOWER_CASE, METHOD_TO_UPPER_CASE, METHOD_TRIM
-    );
-
-    /**
-     * String utility methods.
-     */
-    private static final Set<String> STRING_UTILITY_METHODS = Set.of(
-        METHOD_EQUALS, METHOD_LENGTH, METHOD_IS_EMPTY
-    );
-
-    /**
-     * Determines the string operation type for a method call.
-     *
-     * @param methodCall the method call expression
-     * @return the operation type, or null if not a string operation
-     */
+    /** Determines the string operation type for a method call. */
     public StringOperationType getOperationType(LambdaExpression.MethodCall methodCall) {
         String methodName = methodCall.methodName();
 
@@ -88,9 +60,7 @@ public class StringExpressionBuilder implements ExpressionBuilder {
         return null;
     }
 
-    /**
-     * Categories of string operations.
-     */
+    /** Categories of string operations. */
     public enum StringOperationType {
         TRANSFORMATION,  // toLowerCase, toUpperCase, trim
         PATTERN,         // startsWith, endsWith, contains
@@ -98,85 +68,71 @@ public class StringExpressionBuilder implements ExpressionBuilder {
         UTILITY          // equals, length, isEmpty
     }
 
-    /**
-     * Generates bytecode for String transformations: toLowerCase, toUpperCase, trim.
-     *
-     * @param method the Gizmo method creator
-     * @param methodCall the method call expression
-     * @param cb the CriteriaBuilder handle
-     * @param fieldExpression the target field expression
-     * @return the transformation Expression, or null if not a recognized transformation
-     */
-    public ResultHandle buildStringTransformation(
+    /** Generates bytecode for String transformations: toLowerCase, toUpperCase, trim. */
+    public BuilderResult buildStringTransformation(
             MethodCreator method,
             LambdaExpression.MethodCall methodCall,
             ResultHandle cb,
             ResultHandle fieldExpression) {
 
         MethodDescriptor transformMethod = switch (methodCall.methodName()) {
-            case METHOD_TO_LOWER_CASE -> md(CB_LOWER);
-            case METHOD_TO_UPPER_CASE -> md(CB_UPPER);
-            case METHOD_TRIM -> md(CB_TRIM);
+            case METHOD_TO_LOWER_CASE -> MethodDescriptors.CB_LOWER;
+            case METHOD_TO_UPPER_CASE -> MethodDescriptors.CB_UPPER;
+            case METHOD_TRIM -> MethodDescriptors.CB_TRIM;
             default -> null;
         };
 
         if (transformMethod == null) {
-            return null;
+            return BuilderResult.notApplicable();
         }
 
-        return method.invokeInterfaceMethod(transformMethod, cb, fieldExpression);
+        ResultHandle result = method.invokeInterfaceMethod(transformMethod, cb, fieldExpression);
+        return BuilderResult.success(result);
     }
 
-    /**
-     * Generates bytecode for LIKE patterns: startsWith, endsWith, contains.
-     *
-     * @param method the Gizmo method creator
-     * @param methodCall the method call expression
-     * @param cb the CriteriaBuilder handle
-     * @param fieldExpression the target field expression
-     * @param argument the pattern argument
-     * @return the LIKE Predicate, or null if not a pattern method
-     */
-    public ResultHandle buildStringPattern(
+    /** Generates bytecode for LIKE patterns: startsWith, endsWith, contains. */
+    public BuilderResult buildStringPattern(
             MethodCreator method,
             LambdaExpression.MethodCall methodCall,
             ResultHandle cb,
             ResultHandle fieldExpression,
             ResultHandle argument) {
 
-        if (!STRING_PATTERN_METHOD_NAMES.contains(methodCall.methodName())) {
-            return null;
+        String methodName = methodCall.methodName();
+        if (!STRING_PATTERN_METHOD_NAMES.contains(methodName)) {
+            return BuilderResult.notApplicable();
         }
 
-        ResultHandle pattern;
-        if (methodCall.methodName().equals(METHOD_STARTS_WITH)) {
-            ResultHandle percent = method.load("%");
-            pattern = method.invokeVirtualMethod(md(STRING_CONCAT), argument, percent);
-        } else if (methodCall.methodName().equals(METHOD_ENDS_WITH)) {
-            ResultHandle percent = method.load("%");
-            pattern = method.invokeVirtualMethod(md(STRING_CONCAT), percent, argument);
-        } else {
-            // contains
-            ResultHandle percentPrefix = method.load("%");
-            ResultHandle withPrefix = method.invokeVirtualMethod(md(STRING_CONCAT), percentPrefix, argument);
-            ResultHandle percentSuffix = method.load("%");
-            pattern = method.invokeVirtualMethod(md(STRING_CONCAT), withPrefix, percentSuffix);
-        }
+        // Determine wildcard placement: startsWith = suffix, endsWith = prefix, contains = both
+        boolean addPrefix = METHOD_ENDS_WITH.equals(methodName) || METHOD_CONTAINS.equals(methodName);
+        boolean addSuffix = METHOD_STARTS_WITH.equals(methodName) || METHOD_CONTAINS.equals(methodName);
+        ResultHandle pattern = buildWildcardPattern(method, argument, addPrefix, addSuffix);
 
-        return method.invokeInterfaceMethod(md(CB_LIKE), cb, fieldExpression, pattern);
+        ResultHandle result = method.invokeInterfaceMethod(MethodDescriptors.CB_LIKE_STRING, cb, fieldExpression, pattern);
+        return BuilderResult.success(result);
     }
 
-    /**
-     * Generates bytecode for substring with 0-based to 1-based index conversion.
-     *
-     * @param method the Gizmo method creator
-     * @param methodCall the method call expression
-     * @param cb the CriteriaBuilder handle
-     * @param fieldExpression the target field expression
-     * @param arguments the argument expressions (start or start+end)
-     * @return the substring Expression, or null if not a substring method or wrong arg count
-     */
-    public ResultHandle buildStringSubstring(
+    /** Builds SQL LIKE wildcard pattern by adding '%' prefix and/or suffix. */
+    private ResultHandle buildWildcardPattern(
+            MethodCreator method,
+            ResultHandle argument,
+            boolean addPrefix,
+            boolean addSuffix) {
+
+        ResultHandle result = argument;
+        if (addPrefix) {
+            ResultHandle percent = method.load(SQL_LIKE_WILDCARD);
+            result = method.invokeVirtualMethod(MethodDescriptors.STRING_CONCAT, percent, result);
+        }
+        if (addSuffix) {
+            ResultHandle percent = method.load(SQL_LIKE_WILDCARD);
+            result = method.invokeVirtualMethod(MethodDescriptors.STRING_CONCAT, result, percent);
+        }
+        return result;
+    }
+
+    /** Generates bytecode for substring with 0-based to 1-based index conversion. */
+    public BuilderResult buildStringSubstring(
             MethodCreator method,
             LambdaExpression.MethodCall methodCall,
             ResultHandle cb,
@@ -184,7 +140,7 @@ public class StringExpressionBuilder implements ExpressionBuilder {
             List<ResultHandle> arguments) {
 
         if (!methodCall.methodName().equals(METHOD_SUBSTRING)) {
-            return null;
+            return BuilderResult.notApplicable();
         }
 
         if (arguments.size() == 1) {
@@ -192,9 +148,10 @@ public class StringExpressionBuilder implements ExpressionBuilder {
             ResultHandle startJava = arguments.get(0);
             ResultHandle startJpa = addOneToExpression(method, cb, startJava);
 
-            return method.invokeInterfaceMethod(
-                    md(CB_SUBSTRING, Expression.class, Expression.class),
+            ResultHandle result = method.invokeInterfaceMethod(
+                    MethodDescriptors.CB_SUBSTRING_2,
                     cb, fieldExpression, startJpa);
+            return BuilderResult.success(result);
         } else if (arguments.size() == 2) {
             // substring(start, end)
             ResultHandle startJava = arguments.get(0);
@@ -202,28 +159,20 @@ public class StringExpressionBuilder implements ExpressionBuilder {
 
             ResultHandle startJpa = addOneToExpression(method, cb, startJava);
             ResultHandle length = method.invokeInterfaceMethod(
-                    md(CB_DIFF),
+                    MethodDescriptors.CB_DIFF,
                     cb, endJava, startJava);
 
-            return method.invokeInterfaceMethod(
-                    md(CB_SUBSTRING, Expression.class, Expression.class, Expression.class),
+            ResultHandle result = method.invokeInterfaceMethod(
+                    MethodDescriptors.CB_SUBSTRING_3,
                     cb, fieldExpression, startJpa, length);
+            return BuilderResult.success(result);
         }
 
-        return null;
+        return BuilderResult.notApplicable();
     }
 
-    /**
-     * Generates bytecode for utility methods: equals, length, isEmpty.
-     *
-     * @param method the Gizmo method creator
-     * @param methodCall the method call expression
-     * @param cb the CriteriaBuilder handle
-     * @param fieldExpression the target field expression
-     * @param argument the argument (for equals), or null for length/isEmpty
-     * @return the Predicate or Expression, or null if not a recognized utility method
-     */
-    public ResultHandle buildStringUtility(
+    /** Generates bytecode for utility methods: equals, length, isEmpty. */
+    public BuilderResult buildStringUtility(
             MethodCreator method,
             LambdaExpression.MethodCall methodCall,
             ResultHandle cb,
@@ -234,131 +183,52 @@ public class StringExpressionBuilder implements ExpressionBuilder {
 
         if (methodName.equals(METHOD_EQUALS)) {
             if (argument == null) {
-                return null;
+                return BuilderResult.notApplicable();
             }
-            return method.invokeInterfaceMethod(
-                    md(CB_EQUAL, Expression.class, Object.class),
+            ResultHandle result = method.invokeInterfaceMethod(
+                    MethodDescriptors.CB_EQUAL,
                     cb, fieldExpression, argument);
+            return BuilderResult.success(result);
         }
 
         if (methodName.equals(METHOD_LENGTH) && methodCall.returnType() == int.class) {
-            return method.invokeInterfaceMethod(
-                    md(CB_LENGTH),
+            ResultHandle result = method.invokeInterfaceMethod(
+                    MethodDescriptors.CB_LENGTH,
                     cb, fieldExpression);
+            return BuilderResult.success(result);
         }
 
         if (methodName.equals(METHOD_IS_EMPTY)) {
             ResultHandle lengthExpression = method.invokeInterfaceMethod(
-                    md(CB_LENGTH),
+                    MethodDescriptors.CB_LENGTH,
                     cb, fieldExpression);
 
             ResultHandle zeroValue = method.load(0);
             ResultHandle zeroLiteral = wrapAsLiteral(method, cb, zeroValue);
 
-            return method.invokeInterfaceMethod(
-                    md(CB_EQUAL, Expression.class, Expression.class),
+            ResultHandle result = method.invokeInterfaceMethod(
+                    MethodDescriptors.CB_EQUAL_EXPR,
                     cb, lengthExpression, zeroLiteral);
+            return BuilderResult.success(result);
         }
 
-        return null;
+        return BuilderResult.notApplicable();
     }
 
-    /**
-     * Wraps value as literal Expression.
-     */
+    /** Wraps value as literal Expression. */
     private ResultHandle wrapAsLiteral(MethodCreator method, ResultHandle cb, ResultHandle value) {
         return method.invokeInterfaceMethod(
-                md(CB_LITERAL, Object.class),
+                MethodDescriptors.CB_LITERAL,
                 cb, value);
     }
 
-    /**
-     * Adds 1 to expression for 0-based to 1-based index conversion.
-     */
+    /** Adds 1 to expression for 0-based to 1-based index conversion. */
     private ResultHandle addOneToExpression(MethodCreator method, ResultHandle cb, ResultHandle expression) {
         ResultHandle one = method.load(1);
         ResultHandle oneLiteral = wrapAsLiteral(method, cb, one);
         return method.invokeInterfaceMethod(
-                md(CB_SUM),
+                MethodDescriptors.CB_SUM_BINARY,
                 cb, expression, oneLiteral);
     }
 
-    /**
-     * Creates MethodDescriptor for CriteriaBuilder methods.
-     */
-    private static MethodDescriptor md(String methodName, Class<?>... params) {
-        if (methodName.equals(CB_LOWER) || methodName.equals(CB_UPPER) || methodName.equals(CB_TRIM)) {
-            return MethodDescriptor.ofMethod(
-                    CriteriaBuilder.class,
-                    methodName,
-                    Expression.class,
-                    Expression.class);
-        }
-        if (methodName.equals(CB_LIKE)) {
-            return MethodDescriptor.ofMethod(
-                    CriteriaBuilder.class,
-                    methodName,
-                    Predicate.class,
-                    Expression.class,
-                    String.class);
-        }
-        if (methodName.equals(CB_SUBSTRING)) {
-            if (params.length == 2) {
-                // substring(expr, start)
-                return MethodDescriptor.ofMethod(
-                        CriteriaBuilder.class,
-                        methodName,
-                        Expression.class,
-                        Expression.class,
-                        Expression.class);
-            } else {
-                // substring(expr, start, length)
-                return MethodDescriptor.ofMethod(
-                        CriteriaBuilder.class,
-                        methodName,
-                        Expression.class,
-                        Expression.class,
-                        Expression.class,
-                        Expression.class);
-            }
-        }
-        if (methodName.equals(CB_LENGTH)) {
-            return MethodDescriptor.ofMethod(
-                    CriteriaBuilder.class,
-                    methodName,
-                    Expression.class,
-                    Expression.class);
-        }
-        if (methodName.equals(CB_EQUAL) && params.length == 2) {
-            return MethodDescriptor.ofMethod(
-                    CriteriaBuilder.class,
-                    methodName,
-                    Predicate.class,
-                    params[0],
-                    params[1]);
-        }
-        if (methodName.equals(CB_LITERAL)) {
-            return MethodDescriptor.ofMethod(
-                    CriteriaBuilder.class,
-                    methodName,
-                    Expression.class,
-                    Object.class);
-        }
-        if (methodName.equals(CB_SUM) || methodName.equals(CB_DIFF)) {
-            return MethodDescriptor.ofMethod(
-                    CriteriaBuilder.class,
-                    methodName,
-                    Expression.class,
-                    Expression.class,
-                    Expression.class);
-        }
-        if (methodName.equals(STRING_CONCAT)) {
-            return MethodDescriptor.ofMethod(
-                    String.class,
-                    methodName,
-                    String.class,
-                    String.class);
-        }
-        throw new IllegalArgumentException("Unknown method: " + methodName);
-    }
 }

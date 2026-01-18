@@ -6,87 +6,53 @@ import io.quarkiverse.qubit.deployment.QubitProcessor;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkus.logging.Log;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HashMap;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
+
+import static io.quarkiverse.qubit.runtime.QubitConstants.QUERY_TYPE_LIST;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Deduplicates lambda expressions to reuse executors and reduce bytecode size.
+ * <p>
+ * Uses {@link HashBuilder} to construct query hashes in a consistent, fluent manner.
  */
 public class LambdaDeduplicator {
 
-    private static final String QUERY_TYPE = "|queryType=";
-    private static final String WHERE_PREFIX = "WHERE=";
-    private static final String SELECT_PREFIX = "|SELECT=";
-    private static final String SORT_PREFIX = "SORT=";
-    private static final String SORT_SEPARATOR = "|SORT=";
+    private final Map<String, String> lambdaHashToExecutor = new ConcurrentHashMap<>();
 
-    private final Map<String, String> lambdaHashToExecutor = new HashMap<>();
-
-    /**
-     * Computes MD5 hash of input string.
-     * Falls back to hashCode() if MD5 algorithm is unavailable.
-     */
-    private static String computeMd5Hash(String input) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] digest = md.digest(input.getBytes(UTF_8));
-            return HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException e) {
-            return String.valueOf(input.hashCode());
-        }
-    }
-
-    /**
-     * Converts sort expressions to comma-separated string representation.
-     */
-    private static String buildSortString(List<SortExpression> sortExpressions) {
-        return sortExpressions.stream()
-                .map(s -> s.keyExtractor().toString() + s.direction().getSuffix())
-                .collect(Collectors.joining(","));
-    }
-
-    /**
-     * Computes MD5 hash for lambda expression and query type.
-     */
+    /** Computes MD5 hash for lambda expression and query type. */
     public String computeLambdaHash(LambdaExpression expression, boolean isCountQuery, boolean isProjectionQuery) {
         String queryType = CallSiteProcessor.getQueryType(isCountQuery, !isProjectionQuery, isProjectionQuery);
-        String astString = expression.toString() + QUERY_TYPE + queryType;
-        return computeMd5Hash(astString);
+        return HashBuilder.create()
+                .expression(expression)
+                .queryType(queryType)
+                .buildHash();
     }
 
-    /**
-     * Computes MD5 hash for combined where + select query.
-     */
+    /** Computes MD5 hash for combined WHERE + SELECT query. */
     public String computeCombinedHash(LambdaExpression predicateExpression,
                                      LambdaExpression projectionExpression,
                                      boolean isCountQuery) {
         String queryType = CallSiteProcessor.getQueryType(isCountQuery, true, true);
-        String astString = WHERE_PREFIX + predicateExpression.toString() +
-                          SELECT_PREFIX + projectionExpression.toString() +
-                          QUERY_TYPE + queryType;
-        return computeMd5Hash(astString);
+        return HashBuilder.create()
+                .where(predicateExpression)
+                .select(projectionExpression)
+                .queryType(queryType)
+                .buildHash();
     }
 
-    /**
-     * Computes MD5 hash for sorting-only query.
-     */
+    /** Computes MD5 hash for sorting-only query. */
     public String computeSortingHash(List<SortExpression> sortExpressions) {
-        String sortString = buildSortString(sortExpressions);
-        String astString = SORT_PREFIX + sortString + QUERY_TYPE + "LIST";
-        return computeMd5Hash(astString);
+        return HashBuilder.create()
+                .sort(sortExpressions)
+                .queryType(QUERY_TYPE_LIST)
+                .buildHash();
     }
 
-    /**
-     * Computes MD5 hash for WHERE+SORT or SELECT+SORT query.
-     */
+    /** Computes MD5 hash for WHERE+SORT or SELECT+SORT query. */
     public String computeQueryWithSortingHash(
             LambdaExpression expression,
             List<SortExpression> sortExpressions,
@@ -94,14 +60,14 @@ public class LambdaDeduplicator {
             boolean isProjectionQuery) {
 
         String queryType = CallSiteProcessor.getQueryType(isCountQuery, !isProjectionQuery, isProjectionQuery);
-        String sortString = buildSortString(sortExpressions);
-        String astString = expression.toString() + SORT_SEPARATOR + sortString + QUERY_TYPE + queryType;
-        return computeMd5Hash(astString);
+        return HashBuilder.create()
+                .expression(expression)
+                .sort(sortExpressions)
+                .queryType(queryType)
+                .buildHash();
     }
 
-    /**
-     * Computes MD5 hash for WHERE+SELECT+SORT query.
-     */
+    /** Computes MD5 hash for WHERE+SELECT+SORT query. */
     public String computeFullQueryHash(
             LambdaExpression predicateExpression,
             LambdaExpression projectionExpression,
@@ -109,53 +75,28 @@ public class LambdaDeduplicator {
             boolean isCountQuery) {
 
         String queryType = CallSiteProcessor.getQueryType(isCountQuery, true, true);
-        String sortString = buildSortString(sortExpressions);
-        String astString = WHERE_PREFIX + predicateExpression.toString() +
-                          SELECT_PREFIX + projectionExpression.toString() +
-                          SORT_SEPARATOR + sortString + QUERY_TYPE + queryType;
-        return computeMd5Hash(astString);
+        return HashBuilder.create()
+                .where(predicateExpression)
+                .select(projectionExpression)
+                .sort(sortExpressions)
+                .queryType(queryType)
+                .buildHash();
     }
 
-    /**
-     * Computes MD5 hash for aggregation query.
-     * Supports optional WHERE predicate before aggregation.
-     *
-     * @param predicateExpression WHERE clause (null if no filtering)
-     * @param aggregationExpression Aggregation mapper lambda (e.g., p -> p.salary)
-     * @param aggregationType Aggregation type: MIN, MAX, AVG, SUM_INTEGER, SUM_LONG, SUM_DOUBLE
-     * @return MD5 hash uniquely identifying this aggregation query
-     */
+    /** Computes MD5 hash for aggregation query with optional WHERE. */
     public String computeAggregationHash(
             LambdaExpression predicateExpression,
             LambdaExpression aggregationExpression,
             String aggregationType) {
 
-        StringBuilder astString = new StringBuilder();
-
-        // Include WHERE predicate if present
-        if (predicateExpression != null) {
-            astString.append(WHERE_PREFIX).append(predicateExpression.toString());
-        }
-
-        // Include aggregation mapper (e.g., "p -> p.salary")
-        astString.append("|AGG=").append(aggregationExpression.toString());
-
-        // Include aggregation type (MIN/MAX/AVG/SUM_*)
-        astString.append("|TYPE=").append(aggregationType);
-
-        return computeMd5Hash(astString.toString());
+        return HashBuilder.create()
+                .where(predicateExpression)
+                .aggregation(aggregationExpression)
+                .aggregationType(aggregationType)
+                .buildHash();
     }
 
-    /**
-     * Computes MD5 hash for join query.
-     * Supports optional bi-entity predicate after join.
-     *
-     * @param joinRelationshipExpression Join relationship lambda (e.g., p -> p.phones)
-     * @param biEntityPredicateExpression Bi-entity WHERE clause (null if no filtering)
-     * @param joinType Join type: INNER or LEFT
-     * @param isCountQuery True if this is a count query (JoinStream.count())
-     * @return MD5 hash uniquely identifying this join query
-     */
+    /** Computes MD5 hash for join query with optional bi-entity predicate. */
     public String computeJoinHash(
             LambdaExpression joinRelationshipExpression,
             LambdaExpression biEntityPredicateExpression,
@@ -165,17 +106,7 @@ public class LambdaDeduplicator {
                 null, joinType, isCountQuery);
     }
 
-    /**
-     * Computes MD5 hash for join query with sorting.
-     * Supports optional bi-entity predicate and sort expressions after join.
-     *
-     * @param joinRelationshipExpression Join relationship lambda (e.g., p -> p.phones)
-     * @param biEntityPredicateExpression Bi-entity WHERE clause (null if no filtering)
-     * @param sortExpressions List of sort expressions (null or empty if no sorting)
-     * @param joinType Join type: INNER or LEFT
-     * @param isCountQuery True if this is a count query (JoinStream.count())
-     * @return MD5 hash uniquely identifying this join query
-     */
+    /** Computes MD5 hash for join query with sorting. */
     public String computeJoinHash(
             LambdaExpression joinRelationshipExpression,
             LambdaExpression biEntityPredicateExpression,
@@ -186,18 +117,7 @@ public class LambdaDeduplicator {
                 sortExpressions, joinType, isCountQuery, false);
     }
 
-    /**
-     * Computes MD5 hash for join query with sorting and selectJoined.
-     * Supports optional bi-entity predicate, sort expressions, and selectJoined flag.
-     *
-     * @param joinRelationshipExpression Join relationship lambda (e.g., p -> p.phones)
-     * @param biEntityPredicateExpression Bi-entity WHERE clause (null if no filtering)
-     * @param sortExpressions List of sort expressions (null or empty if no sorting)
-     * @param joinType Join type: INNER or LEFT
-     * @param isCountQuery True if this is a count query (JoinStream.count())
-     * @param isSelectJoined True if selectJoined() was called (returns joined entities)
-     * @return MD5 hash uniquely identifying this join query
-     */
+    /** Computes MD5 hash for join query with sorting and selectJoined flag. */
     public String computeJoinHash(
             LambdaExpression joinRelationshipExpression,
             LambdaExpression biEntityPredicateExpression,
@@ -209,20 +129,7 @@ public class LambdaDeduplicator {
                 null, sortExpressions, joinType, isCountQuery, isSelectJoined, false);
     }
 
-    /**
-     * Computes MD5 hash for join query with projection.
-     * Supports optional bi-entity predicate, bi-entity projection, sort expressions.
-     *
-     * @param joinRelationshipExpression Join relationship lambda (e.g., p -> p.phones)
-     * @param biEntityPredicateExpression Bi-entity WHERE clause (null if no filtering)
-     * @param biEntityProjectionExpression Bi-entity SELECT projection (null if no projection)
-     * @param sortExpressions List of sort expressions (null or empty if no sorting)
-     * @param joinType Join type: INNER or LEFT
-     * @param isCountQuery True if this is a count query (JoinStream.count())
-     * @param isSelectJoined True if selectJoined() was called (returns joined entities)
-     * @param isJoinProjection True if select() with BiQuerySpec was called (returns projected objects)
-     * @return MD5 hash uniquely identifying this join query
-     */
+    /** Computes MD5 hash for join query with bi-entity projection. */
     public String computeJoinHash(
             LambdaExpression joinRelationshipExpression,
             LambdaExpression biEntityPredicateExpression,
@@ -233,73 +140,37 @@ public class LambdaDeduplicator {
             boolean isSelectJoined,
             boolean isJoinProjection) {
 
-        StringBuilder astString = new StringBuilder();
-
-        // Include join relationship (e.g., "p -> p.phones")
-        astString.append("JOIN=");
-        if (joinRelationshipExpression != null) {
-            astString.append(joinRelationshipExpression.toString());
-        }
-
-        // Include bi-entity predicate if present
-        if (biEntityPredicateExpression != null) {
-            astString.append("|BI_WHERE=").append(biEntityPredicateExpression.toString());
-        }
-
-        // Include bi-entity projection if present
-        if (biEntityProjectionExpression != null) {
-            astString.append("|BI_SELECT=").append(biEntityProjectionExpression.toString());
-        }
-
-        // Include sort expressions if present
-        if (sortExpressions != null && !sortExpressions.isEmpty()) {
-            String sortString = buildSortString(sortExpressions);
-            astString.append(SORT_SEPARATOR).append(sortString);
-        }
-
-        // Include join type (INNER/LEFT)
-        astString.append("|JOIN_TYPE=").append(joinType);
-
-        // Include selectJoined flag
-        if (isSelectJoined) {
-            astString.append("|SELECT_JOINED=true");
-        }
-
-        // Include joinProjection flag
-        if (isJoinProjection) {
-            astString.append("|JOIN_PROJECTION=true");
-        }
-
-        // Include query type (LIST or COUNT) to differentiate
-        astString.append("|QUERY_TYPE=").append(isCountQuery ? "COUNT" : "LIST");
-
-        return computeMd5Hash(astString.toString());
+        return HashBuilder.create()
+                .join(joinRelationshipExpression)
+                .biWhere(biEntityPredicateExpression)
+                .biSelect(biEntityProjectionExpression)
+                .sort(sortExpressions)
+                .joinType(joinType)
+                .selectJoined(isSelectJoined)
+                .joinProjection(isJoinProjection)
+                .queryType(isCountQuery)
+                .buildHash();
     }
 
-    /**
-     * Returns true if lambda is duplicate and reuses existing executor.
-     * Query type information is already encoded in the lambdaHash parameter.
-     *
-     * @param callSiteId unique identifier for the call site
-     * @param lambdaHash MD5 hash of the lambda expression
-     * @param characteristics query type characteristics
-     * @param capturedVarCount number of captured variables
-     * @param deduplicatedCount counter for deduplicated lambdas
-     * @param queryTransformations build producer for query transformations
-     * @param logDeduplication whether to log deduplication events
-     * @return true if this is a duplicate lambda and an existing executor was reused
-     */
+    /** Returns true if lambda is duplicate and reuses existing executor. */
     public boolean handleDuplicateLambda(
             String callSiteId,
             String lambdaHash,
             QueryCharacteristics characteristics,
             int capturedVarCount,
+            String entityClassName,
+            LambdaExpression predicateExpression,
+            LambdaExpression projectionExpression,
+            LambdaExpression sortExpression,
+            String terminalMethodName,
+            boolean sortDescending,
             AtomicInteger deduplicatedCount,
             BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations,
             boolean logDeduplication) {
 
-        if (lambdaHashToExecutor.containsKey(lambdaHash)) {
-            String existingExecutor = lambdaHashToExecutor.get(lambdaHash);
+        // Use atomic get instead of containsKey+get to avoid race conditions
+        String existingExecutor = lambdaHashToExecutor.get(lambdaHash);
+        if (existingExecutor != null) {
 
             if (logDeduplication) {
                 Log.debugf("Deduplicated lambda at %s (reusing %s)", callSiteId, existingExecutor);
@@ -308,26 +179,25 @@ public class LambdaDeduplicator {
             deduplicatedCount.incrementAndGet();
 
             queryTransformations.produce(
-                    new QubitProcessor.QueryTransformationBuildItem(
-                            callSiteId, existingExecutor, Object.class, characteristics, capturedVarCount));
+                    QubitProcessor.QueryTransformationBuildItem.builder()
+                            .queryId(callSiteId)
+                            .generatedClassName(existingExecutor)
+                            .entityClassName(entityClassName)
+                            .characteristics(characteristics)
+                            .capturedVarCount(capturedVarCount)
+                            .predicateExpression(predicateExpression)
+                            .projectionExpression(projectionExpression)
+                            .sortExpression(sortExpression)
+                            .terminalMethodName(terminalMethodName)
+                            .sortDescending(sortDescending)
+                            .build());
             return true;
         }
 
         return false;
     }
 
-    /**
-     * Computes MD5 hash for group query.
-     * Supports groupBy(), having(), select(), and sortedBy() in group context.
-     *
-     * @param predicateExpression Pre-grouping WHERE clause (null if no filtering)
-     * @param groupByKeyExpression groupBy() key extractor lambda (e.g., p -> p.department)
-     * @param havingExpression having() predicate (null if no having)
-     * @param groupSelectExpression select() projection in group context (null if no select)
-     * @param groupSortExpressions sortedBy() in group context (null or empty if no sorting)
-     * @param isCountQuery True if this is a count query (counting groups)
-     * @return MD5 hash uniquely identifying this group query
-     */
+    /** Computes MD5 hash for GROUP BY query with HAVING, select, and sort. */
     public String computeGroupHash(
             LambdaExpression predicateExpression,
             LambdaExpression groupByKeyExpression,
@@ -336,52 +206,78 @@ public class LambdaDeduplicator {
             List<SortExpression> groupSortExpressions,
             boolean isCountQuery) {
 
-        StringBuilder astString = new StringBuilder();
-
-        // Include WHERE predicate if present (pre-grouping filter)
-        if (predicateExpression != null) {
-            astString.append(WHERE_PREFIX).append(predicateExpression.toString());
-        }
-
-        // Include groupBy key expression
-        astString.append("|GROUP_BY=");
-        if (groupByKeyExpression != null) {
-            astString.append(groupByKeyExpression.toString());
-        }
-
-        // Include having predicate if present
-        if (havingExpression != null) {
-            astString.append("|HAVING=").append(havingExpression.toString());
-        }
-
-        // Include group select expression if present
-        if (groupSelectExpression != null) {
-            astString.append("|GROUP_SELECT=").append(groupSelectExpression.toString());
-        }
-
-        // Include group sort expressions if present
-        if (groupSortExpressions != null && !groupSortExpressions.isEmpty()) {
-            String sortString = buildSortString(groupSortExpressions);
-            astString.append(SORT_SEPARATOR).append(sortString);
-        }
-
-        // Include query type (LIST or COUNT) to differentiate
-        astString.append("|QUERY_TYPE=").append(isCountQuery ? "COUNT" : "LIST");
-
-        return computeMd5Hash(astString.toString());
+        return HashBuilder.create()
+                .where(predicateExpression)
+                .groupBy(groupByKeyExpression)
+                .having(havingExpression)
+                .groupSelect(groupSelectExpression)
+                .sort(groupSortExpressions)
+                .queryType(isCountQuery)
+                .buildHash();
     }
 
-    /**
-     * Registers executor class for lambda hash.
-     */
-    public void registerExecutor(String lambdaHash, String executorClassName) {
-        lambdaHashToExecutor.put(lambdaHash, executorClassName);
+    /** Registers executor class for lambda hash (atomic putIfAbsent). */
+    public String registerExecutor(String lambdaHash, String executorClassName) {
+        return lambdaHashToExecutor.putIfAbsent(lambdaHash, executorClassName);
     }
 
-    /**
-     * Returns number of unique lambda expressions.
-     */
+    /** Returns number of unique lambda expressions. */
     public int getUniqueCount() {
         return lambdaHashToExecutor.size();
+    }
+
+    // ========== Parameter Objects ==========
+
+    /** Bundles deduplication request parameters to reduce method parameter count. */
+    public record DeduplicationRequest(
+            String callSiteId,
+            String lambdaHash,
+            QueryCharacteristics characteristics,
+            int capturedVarCount,
+            String entityClassName,
+            LambdaExpression predicateExpression,
+            LambdaExpression projectionExpression,
+            LambdaExpression sortExpression,
+            String terminalMethodName,
+            boolean sortDescending) {
+
+        /** Validates required fields. */
+        public DeduplicationRequest {
+            requireNonNull(callSiteId, "callSiteId must not be null");
+            requireNonNull(lambdaHash, "lambdaHash must not be null");
+            requireNonNull(characteristics, "characteristics must not be null");
+            requireNonNull(entityClassName, "entityClassName must not be null");
+        }
+    }
+
+    /** Bundles deduplication processing context parameters. */
+    public record DeduplicationContext(
+            AtomicInteger deduplicatedCount,
+            BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations,
+            boolean logDeduplication) {
+
+        /** Validates required fields. */
+        public DeduplicationContext {
+            requireNonNull(deduplicatedCount, "deduplicatedCount must not be null");
+            requireNonNull(queryTransformations, "queryTransformations must not be null");
+        }
+    }
+
+    /** Returns true if lambda is duplicate (overload using parameter objects). */
+    public boolean handleDuplicateLambda(DeduplicationRequest request, DeduplicationContext context) {
+        return handleDuplicateLambda(
+                request.callSiteId(),
+                request.lambdaHash(),
+                request.characteristics(),
+                request.capturedVarCount(),
+                request.entityClassName(),
+                request.predicateExpression(),
+                request.projectionExpression(),
+                request.sortExpression(),
+                request.terminalMethodName(),
+                request.sortDescending(),
+                context.deduplicatedCount(),
+                context.queryTransformations(),
+                context.logDeduplication());
     }
 }

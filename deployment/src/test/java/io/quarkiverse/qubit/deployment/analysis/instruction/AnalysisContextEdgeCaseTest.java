@@ -1,6 +1,7 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -37,8 +38,10 @@ class AnalysisContextEdgeCaseTest {
     class EmptyStackTests {
 
         @Test
-        void pop_onEmptyStack_returnsNull() {
-            assertThat(context.pop()).isNull();
+        void pop_onEmptyStack_throwsException() {
+            assertThatThrownBy(() -> context.pop())
+                    .isInstanceOf(BytecodeAnalysisException.class)
+                    .hasMessageContaining("Stack underflow");
         }
 
         @Test
@@ -57,14 +60,17 @@ class AnalysisContextEdgeCaseTest {
         }
 
         @Test
-        void popPair_onEmptyStack_returnsNull() {
-            assertThat(context.popPair()).isNull();
+        void popPair_onEmptyStack_throwsException() {
+            assertThatThrownBy(() -> context.popPair())
+                    .isInstanceOf(BytecodeAnalysisException.class)
+                    .hasMessageContaining("Stack underflow");
         }
 
         @Test
-        void popN_onEmptyStack_returnsNull() {
-            assertThat(context.popN(1)).isNull();
-            assertThat(context.popN(5)).isNull();
+        void popN_onEmptyStack_throwsException() {
+            assertThatThrownBy(() -> context.popN(1))
+                    .isInstanceOf(BytecodeAnalysisException.class)
+                    .hasMessageContaining("Stack underflow");
         }
 
         @Test
@@ -97,18 +103,17 @@ class AnalysisContextEdgeCaseTest {
         }
 
         @Test
-        void popPair_withOneElement_returnsNull() {
-            assertThat(context.popPair()).isNull();
-            // Element should still be on stack
-            assertThat(context.getStackSize()).isEqualTo(1);
+        void popPair_withOneElement_throwsException() {
+            assertThatThrownBy(() -> context.popPair())
+                    .isInstanceOf(BytecodeAnalysisException.class)
+                    .hasMessageContaining("Stack underflow");
         }
 
         @Test
-        void popN_withInsufficientElements_returnsNull() {
-            assertThat(context.popN(2)).isNull();
-            assertThat(context.popN(10)).isNull();
-            // Element should still be on stack
-            assertThat(context.getStackSize()).isEqualTo(1);
+        void popN_withInsufficientElements_throwsException() {
+            assertThatThrownBy(() -> context.popN(2))
+                    .isInstanceOf(BytecodeAnalysisException.class)
+                    .hasMessageContaining("Stack underflow");
         }
 
         @Test

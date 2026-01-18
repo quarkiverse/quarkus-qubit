@@ -1,0 +1,54 @@
+package io.quarkiverse.qubit.deployment.analysis.handler;
+
+import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaCallSite;
+
+import java.util.List;
+
+/**
+ * Registry for query type handlers. Immutable and thread-safe.
+ * Handlers checked in order: Group, Join, Aggregation, Simple (default).
+ */
+public final class QueryTypeHandlerRegistry {
+
+    private static final QueryTypeHandlerRegistry DEFAULT = new QueryTypeHandlerRegistry(
+            List.of(
+                    GroupQueryHandler.instance(),
+                    JoinQueryHandler.instance(),
+                    AggregationQueryHandler.instance(),
+                    SimpleQueryHandler.instance()
+            )
+    );
+
+    private final List<QueryTypeHandler> handlers;
+
+    /** Creates registry with handlers in priority order (specific handlers first). */
+    public QueryTypeHandlerRegistry(List<QueryTypeHandler> handlers) {
+        this.handlers = List.copyOf(handlers);
+    }
+
+    /** Returns the default registry with all standard handlers. */
+    public static QueryTypeHandlerRegistry getDefault() {
+        return DEFAULT;
+    }
+
+    /**
+     * Finds handler for call site.
+     * @throws IllegalStateException if no handler found
+     */
+    public QueryTypeHandler handlerFor(LambdaCallSite callSite) {
+        for (QueryTypeHandler handler : handlers) {
+            if (handler.canHandle(callSite)) {
+                return handler;
+            }
+        }
+
+        // This should never happen since SimpleQueryHandler handles everything else
+        throw new IllegalStateException(
+                "No handler found for call site: " + callSite.getCallSiteId());
+    }
+
+    /** Returns all registered handlers. */
+    public List<QueryTypeHandler> handlers() {
+        return handlers;
+    }
+}

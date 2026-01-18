@@ -470,4 +470,269 @@ public class PersonResourceIT {
                 .statusCode(200)
                 .body(is("true"));
     }
+
+    // =============================================================================================
+    // JOIN QUERIES - BiQuerySpec lambda native mode tests
+    // Tests join operations between Person and Phone entities using bi-entity predicates
+    // =============================================================================================
+
+    @Test
+    void joinWithPhones_returnsPersonsWithPhones() {
+        given()
+            .when().get("/api/persons/join/with-phones")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("$", hasSize(greaterThanOrEqualTo(1)));
+    }
+
+    @Test
+    void joinWithMobilePhones_filtersOnJoinedEntity() {
+        given()
+            .when().get("/api/persons/join/with-mobile-phones")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("$", hasSize(greaterThanOrEqualTo(1)));
+    }
+
+    @Test
+    void joinWithPhoneType_capturedVariable() {
+        given()
+            .when().get("/api/persons/join/with-phone-type/work")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("$", hasSize(greaterThanOrEqualTo(1)));
+    }
+
+    @Test
+    void joinActiveWithMobile_combinedPredicates() {
+        given()
+            .when().get("/api/persons/join/active-with-mobile")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("$", hasSize(greaterThanOrEqualTo(1)))
+                .body("active", everyItem(is(true)));
+    }
+
+    @Test
+    void joinCountMobile_returnsCount() {
+        given()
+            .when().get("/api/persons/join/count-mobile")
+            .then()
+                .statusCode(200)
+                .body(greaterThanOrEqualTo("1"));
+    }
+
+    @Test
+    void joinExistsWork_returnsTrue() {
+        given()
+            .when().get("/api/persons/join/exists-work")
+            .then()
+                .statusCode(200)
+                .body(is("true"));
+    }
+
+    @Test
+    void joinSelectJoined_returnsPhones() {
+        given()
+            .when().get("/api/persons/join/select-joined")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("$", hasSize(greaterThanOrEqualTo(1)))
+                .body("number", everyItem(notNullValue()));
+    }
+
+    @Test
+    void joinSelectJoinedMobile_returnsMobilePhones() {
+        given()
+            .when().get("/api/persons/join/select-joined-mobile")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("$", hasSize(greaterThanOrEqualTo(1)))
+                .body("type", everyItem(is("mobile")));
+    }
+
+    @Test
+    void joinProjection_returnsPersonPhoneDTOs() {
+        given()
+            .when().get("/api/persons/join/projection")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("$", hasSize(greaterThanOrEqualTo(1)))
+                .body("personName", everyItem(notNullValue()))
+                .body("phoneNumber", everyItem(notNullValue()));
+    }
+
+    @Test
+    void joinProjectionMobile_filtersThenProjects() {
+        given()
+            .when().get("/api/persons/join/projection-mobile")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("$", hasSize(greaterThanOrEqualTo(1)))
+                .body("personName", everyItem(notNullValue()))
+                .body("phoneNumber", everyItem(notNullValue()));
+    }
+
+    @Test
+    void leftJoinWithPhones_returnsAllPersons() {
+        given()
+            .when().get("/api/persons/join/left/with-phones")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("$", hasSize(greaterThanOrEqualTo(1)));
+    }
+
+    @Test
+    void leftJoinWithPhoneType_capturedVariable() {
+        given()
+            .when().get("/api/persons/join/left/with-phone-type/home")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+    }
+
+    @Test
+    void joinWithLimit_limitResults() {
+        given()
+            .when().get("/api/persons/join/with-limit/2")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("$", hasSize(lessThanOrEqualTo(2)));
+    }
+
+    // =============================================================================================
+    // GROUP BY QUERIES - GroupQuerySpec lambda native mode tests
+    // Tests GROUP BY operations with aggregations using Group<T,K> parameter
+    // =============================================================================================
+
+    @Test
+    void groupByDepartment_returnsDistinctDepartments() {
+        given()
+            .when().get("/api/persons/group/by-department")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("$", hasSize(greaterThanOrEqualTo(1)));
+    }
+
+    @Test
+    void groupByDepartmentCount_returnsNumberOfGroups() {
+        given()
+            .when().get("/api/persons/group/by-department/count")
+            .then()
+                .statusCode(200)
+                .body(greaterThanOrEqualTo("1"));
+    }
+
+    @Test
+    void groupByDepartmentStats_returnsStatsDTO() {
+        given()
+            .when().get("/api/persons/group/by-department/stats")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("$", hasSize(greaterThanOrEqualTo(1)))
+                .body("departmentName", everyItem(notNullValue()))
+                .body("employeeCount", everyItem(greaterThanOrEqualTo(1)));
+    }
+
+    @Test
+    void groupByDepartmentStatsWithAvg_includesAverageSalary() {
+        given()
+            .when().get("/api/persons/group/by-department/stats-with-avg")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("$", hasSize(greaterThanOrEqualTo(1)))
+                .body("departmentName", everyItem(notNullValue()))
+                .body("employeeCount", everyItem(greaterThanOrEqualTo(1)))
+                .body("averageSalary", everyItem(notNullValue()));
+    }
+
+    @Test
+    void groupByDepartmentHavingCount_filtersGroups() {
+        given()
+            .when().get("/api/persons/group/by-department/having-count-greater/1")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+    }
+
+    @Test
+    void groupByDepartmentHavingAvgSalary_filtersGroupsBySalary() {
+        given()
+            .when().get("/api/persons/group/by-department/having-avg-salary-greater/50000")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+    }
+
+    @Test
+    void groupByDepartmentSortedByKey_sortsByDepartmentName() {
+        var departments = given()
+            .when().get("/api/persons/group/by-department/sorted-by-key")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("$", hasSize(greaterThanOrEqualTo(1)))
+                .extract().jsonPath().getList("$", String.class);
+
+        // Verify alphabetical order
+        for (int i = 1; i < departments.size(); i++) {
+            assert departments.get(i - 1).compareTo(departments.get(i)) <= 0
+                    : "Departments should be sorted alphabetically";
+        }
+    }
+
+    @Test
+    void groupByDepartmentSortedByCountDesc_sortsByEmployeeCount() {
+        given()
+            .when().get("/api/persons/group/by-department/sorted-by-count-desc")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("$", hasSize(greaterThanOrEqualTo(1)))
+                .body("departmentName", everyItem(notNullValue()))
+                .body("employeeCount", everyItem(greaterThanOrEqualTo(1)));
+    }
+
+    @Test
+    void groupByDepartmentWithLimit_limitsGroups() {
+        given()
+            .when().get("/api/persons/group/by-department/limit/2")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("$", hasSize(lessThanOrEqualTo(2)));
+    }
+
+    @Test
+    void groupActiveByDepartment_preFiltersBeforeGrouping() {
+        given()
+            .when().get("/api/persons/group/active/by-department")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+    }
+
+    @Test
+    void groupActiveByDepartmentStats_combinesWhereAndGroup() {
+        given()
+            .when().get("/api/persons/group/active/by-department/stats")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("departmentName", everyItem(notNullValue()))
+                .body("employeeCount", everyItem(greaterThanOrEqualTo(1)));
+    }
 }

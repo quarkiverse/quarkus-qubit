@@ -1,8 +1,6 @@
 package io.quarkiverse.qubit.runtime;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.util.Arrays;
 import java.util.Optional;
 
 /**
@@ -11,24 +9,13 @@ import java.util.Optional;
  */
 public interface FieldNamingStrategy {
 
-    /**
-     * Attempts to find the captured variable field at the specified index.
-     *
-     * @param lambdaClass the lambda class to search
-     * @param index the zero-based index of the captured variable
-     * @return Optional containing the field if found, empty otherwise
-     */
+    /** Returns field at index if found by this strategy's naming pattern. */
     Optional<Field> findCapturedField(Class<?> lambdaClass, int index);
 
-    /**
-     * Returns the name of this strategy for logging purposes.
-     */
+    /** Strategy name for logging. */
     String getStrategyName();
 
-    /**
-     * Standard javac strategy: arg$1, arg$2, arg$3, ...
-     * Used by Oracle/OpenJDK javac (JDK 11-21+).
-     */
+    /** Standard javac strategy: arg$1, arg$2, ... */
     class JavacStrategy implements FieldNamingStrategy {
         @Override
         public Optional<Field> findCapturedField(Class<?> lambdaClass, int index) {
@@ -48,10 +35,7 @@ public interface FieldNamingStrategy {
         }
     }
 
-    /**
-     * Eclipse compiler strategy: val$1, val$2, val$3, ...
-     * Used by Eclipse JDT compiler.
-     */
+    /** Eclipse JDT strategy: val$1, val$2, ... */
     class EclipseStrategy implements FieldNamingStrategy {
         @Override
         public Optional<Field> findCapturedField(Class<?> lambdaClass, int index) {
@@ -71,10 +55,7 @@ public interface FieldNamingStrategy {
         }
     }
 
-    /**
-     * GraalVM native-image strategy: arg0, arg1, arg2, ...
-     * Used by GraalVM native-image compiler.
-     */
+    /** GraalVM native-image strategy: arg0, arg1, ... */
     class GraalVMStrategy implements FieldNamingStrategy {
         @Override
         public Optional<Field> findCapturedField(Class<?> lambdaClass, int index) {
@@ -94,35 +75,16 @@ public interface FieldNamingStrategy {
         }
     }
 
-    /**
-     * Fallback strategy: iterate all declared fields and select by index.
-     * This is a last-resort strategy when naming conventions are unknown.
-     */
+    /** Disabled fallback - returns empty to prevent silent data corruption from field ordering. */
     class IndexBasedStrategy implements FieldNamingStrategy {
         @Override
         public Optional<Field> findCapturedField(Class<?> lambdaClass, int index) {
-            Field[] allFields = lambdaClass.getDeclaredFields();
-            if (index < 0 || index >= allFields.length) {
-                return Optional.empty();
-            }
-
-            // Filter out synthetic or static fields (lambdas shouldn't have static fields)
-            Field[] instanceFields = Arrays.stream(allFields)
-                    .filter(f -> !Modifier.isStatic(f.getModifiers()))
-                    .toArray(Field[]::new);
-
-            if (index >= instanceFields.length) {
-                return Optional.empty();
-            }
-
-            Field field = instanceFields[index];
-            field.setAccessible(true);
-            return Optional.of(field);
+            return Optional.empty(); // Always fail - field ordering is non-deterministic
         }
 
         @Override
         public String getStrategyName() {
-            return "Index-based fallback";
+            return "Index-based fallback (DISABLED - unreliable field ordering)";
         }
     }
 }

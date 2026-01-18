@@ -128,11 +128,49 @@ jobs:
           retention-days: 7
 
   # ============================================
+  # DEVUI BROWSER TESTS (Playwright)
+  # ============================================
+  playwright-tests:
+    name: DevUI Browser Tests
+    needs: build
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright/java:v1.48.0-noble
+      options: --user 1001
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Build project
+        run: ./mvnw -B install -DskipTests --no-transfer-progress
+
+      - name: Run Playwright tests
+        run: |
+          ./mvnw -B test -Pplaywright \
+            -pl deployment \
+            -Dmaven.test.failure.ignore=false
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-playwright
+          path: |
+            deployment/target/surefire-reports/
+          retention-days: 7
+
+  # ============================================
   # CI SUMMARY
   # ============================================
   ci-status:
     name: CI Status
-    needs: [build, jvm-tests, native-tests]
+    needs: [build, jvm-tests, native-tests, playwright-tests]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -141,10 +179,12 @@ jobs:
           echo "Build: ${{ needs.build.result }}"
           echo "JVM Tests: ${{ needs.jvm-tests.result }}"
           echo "Native Tests: ${{ needs.native-tests.result }}"
+          echo "Playwright Tests: ${{ needs.playwright-tests.result }}"
 
           if [[ "${{ needs.build.result }}" == "failure" ]] || \
              [[ "${{ needs.jvm-tests.result }}" == "failure" ]] || \
-             [[ "${{ needs.native-tests.result }}" == "failure" ]]; then
+             [[ "${{ needs.native-tests.result }}" == "failure" ]] || \
+             [[ "${{ needs.playwright-tests.result }}" == "failure" ]]; then
             echo "CI failed"
             exit 1
           fi

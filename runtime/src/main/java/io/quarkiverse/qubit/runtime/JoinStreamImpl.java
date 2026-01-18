@@ -1,14 +1,14 @@
 package io.quarkiverse.qubit.runtime;
 
-import io.quarkus.arc.Arc;
-import jakarta.persistence.NoResultException;
-import jakarta.persistence.NonUniqueResultException;
+import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.extractFromLambdas;
+import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.getCallSiteId;
+import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.getQueryExecutorRegistry;
+import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.requireNonNullLambda;
+import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.requireSingleResult;
+import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.validateLimitCount;
+import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.validateSkipCount;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,9 +24,7 @@ import java.util.Optional;
  */
 public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
 
-    // =============================================================================================
-    // STATE FIELDS
-    // =============================================================================================
+    // ========== State Fields ==========
 
     /**
      * The source entity class being queried.
@@ -83,9 +81,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
      */
     private final boolean distinct;
 
-    // =============================================================================================
-    // CONSTRUCTORS
-    // =============================================================================================
+    // ========== Constructors ==========
 
     /**
      * Creates a new JoinStream for the given source entity and relationship.
@@ -102,6 +98,11 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
 
     /**
      * Internal constructor for creating derived streams.
+     * <p>
+     * <b>Issue #19 Fix (Thread Safety):</b> Defensive copies are made of mutable
+     * List parameters to prevent unsafe publication. While the current derivation
+     * methods always create new lists, this defensive copying ensures the class
+     * remains safe even if future code changes introduce shared references.
      */
     private JoinStreamImpl(
             Class<T> sourceEntityClass,
@@ -119,33 +120,31 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         this.joinedEntityClass = joinedEntityClass;
         this.relationshipAccessor = relationshipAccessor;
         this.joinType = joinType;
-        this.onConditions = onConditions;
-        this.biPredicates = biPredicates;
-        this.sourcePredicates = sourcePredicates;
-        this.sortOrders = sortOrders;
+        this.onConditions = List.copyOf(onConditions);
+        this.biPredicates = List.copyOf(biPredicates);
+        this.sourcePredicates = List.copyOf(sourcePredicates);
+        this.sortOrders = List.copyOf(sortOrders);
         this.offset = offset;
         this.limit = limit;
         this.distinct = distinct;
     }
 
-    // =============================================================================================
-    // JOIN CONDITIONS
-    // =============================================================================================
+    // ========== Join Conditions ==========
 
     @Override
     public JoinStream<T, R> on(BiQuerySpec<T, R, Boolean> condition) {
+        requireNonNullLambda(condition, "Condition", "on");
         List<BiQuerySpec<T, R, Boolean>> newOnConditions = new ArrayList<>(this.onConditions);
         newOnConditions.add(condition);
         return new JoinStreamImpl<>(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
                 newOnConditions, biPredicates, sourcePredicates, sortOrders, offset, limit, distinct);
     }
 
-    // =============================================================================================
-    // FILTERING
-    // =============================================================================================
+    // ========== Filtering ==========
 
     @Override
     public JoinStream<T, R> where(BiQuerySpec<T, R, Boolean> predicate) {
+        requireNonNullLambda(predicate, "Predicate", "where");
         List<BiQuerySpec<T, R, Boolean>> newBiPredicates = new ArrayList<>(this.biPredicates);
         newBiPredicates.add(predicate);
         return new JoinStreamImpl<>(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
@@ -154,50 +153,53 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
 
     @Override
     public JoinStream<T, R> where(QuerySpec<T, Boolean> predicate) {
+        requireNonNullLambda(predicate, "Predicate", "where");
         List<QuerySpec<T, Boolean>> newSourcePredicates = new ArrayList<>(this.sourcePredicates);
         newSourcePredicates.add(predicate);
         return new JoinStreamImpl<>(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
                 onConditions, biPredicates, newSourcePredicates, sortOrders, offset, limit, distinct);
     }
 
-    // =============================================================================================
-    // PROJECTION
-    // =============================================================================================
+    // ========== Projection ==========
 
     @Override
     public <S> QubitStream<S> select(BiQuerySpec<T, R, S> mapper) {
+        requireNonNullLambda(mapper, "Mapper", "select");
         // Execute join projection query and return wrapped results
-        String callSiteId = getCallSiteId();
+        String callSiteId = getCallSiteId(QubitConstants.JOIN_METHODS, getPrimaryLambda());
         Object[] capturedValues = extractCapturedVariables();
 
-        QueryExecutorRegistry registry = Arc.container().instance(QueryExecutorRegistry.class).get();
+        QueryExecutorRegistry registry = getQueryExecutorRegistry();
         List<S> results = registry.executeJoinProjectionQuery(callSiteId, sourceEntityClass, capturedValues, offset, limit, distinct);
-        return new ListProjectionQubitStream<>(results);
+        return new ImmutableResultStream<>(results, "join projection");
     }
 
     @Override
     public QubitStream<T> selectSource() {
-        // Return source entities only - this is handled by toList()
-        return new QubitStreamImpl<>(sourceEntityClass);
+        // Execute join query and return source entities wrapped in ImmutableResultStream
+        // Issue #22 Fix: Previously this created an empty QubitStreamImpl, losing all
+        // join context (ON conditions, WHERE predicates, sort orders, pagination).
+        // Now correctly delegates to toList() which executes the join query via registry.
+        List<T> results = toList();
+        return new ImmutableResultStream<>(results, "selectSource projection");
     }
 
     @Override
     public QubitStream<R> selectJoined() {
         // Execute query selecting joined entities and return wrapped results
-        String callSiteId = getCallSiteId();
+        String callSiteId = getCallSiteId(QubitConstants.JOIN_METHODS, getPrimaryLambda());
         Object[] capturedValues = extractCapturedVariables();
 
-        QueryExecutorRegistry registry = Arc.container().instance(QueryExecutorRegistry.class).get();
+        QueryExecutorRegistry registry = getQueryExecutorRegistry();
         List<R> results = registry.executeJoinSelectJoinedQuery(callSiteId, sourceEntityClass, capturedValues, offset, limit, distinct);
-        return new ListJoinedQubitStream<>(results);
+        return new ImmutableResultStream<>(results, "selectJoined projection");
     }
 
-    // =============================================================================================
-    // SORTING
-    // =============================================================================================
+    // ========== Sorting ==========
 
     @Override
     public <K extends Comparable<K>> JoinStream<T, R> sortedBy(BiQuerySpec<T, R, K> keyExtractor) {
+        requireNonNullLambda(keyExtractor, "Key extractor", "sortedBy");
         List<BiSortOrder<T, R>> newSortOrders = new ArrayList<>(this.sortOrders);
         newSortOrders.add(0, new BiSortOrder<>(keyExtractor, SortDirection.ASCENDING));
         return new JoinStreamImpl<>(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
@@ -206,37 +208,28 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
 
     @Override
     public <K extends Comparable<K>> JoinStream<T, R> sortedDescendingBy(BiQuerySpec<T, R, K> keyExtractor) {
+        requireNonNullLambda(keyExtractor, "Key extractor", "sortedDescendingBy");
         List<BiSortOrder<T, R>> newSortOrders = new ArrayList<>(this.sortOrders);
         newSortOrders.add(0, new BiSortOrder<>(keyExtractor, SortDirection.DESCENDING));
         return new JoinStreamImpl<>(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
                 onConditions, biPredicates, sourcePredicates, newSortOrders, offset, limit, distinct);
     }
 
-    // =============================================================================================
-    // PAGINATION
-    // =============================================================================================
+    // ========== Pagination ==========
 
     @Override
     public JoinStream<T, R> skip(int n) {
-        if (n < 0) {
-            throw new IllegalArgumentException("skip count must be >= 0, got: " + n);
-        }
         return new JoinStreamImpl<>(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
-                onConditions, biPredicates, sourcePredicates, sortOrders, n, limit, distinct);
+                onConditions, biPredicates, sourcePredicates, sortOrders, validateSkipCount(n), limit, distinct);
     }
 
     @Override
     public JoinStream<T, R> limit(int n) {
-        if (n < 0) {
-            throw new IllegalArgumentException("limit count must be >= 0, got: " + n);
-        }
         return new JoinStreamImpl<>(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
-                onConditions, biPredicates, sourcePredicates, sortOrders, offset, n, distinct);
+                onConditions, biPredicates, sourcePredicates, sortOrders, offset, validateLimitCount(n), distinct);
     }
 
-    // =============================================================================================
-    // DISTINCT
-    // =============================================================================================
+    // ========== Distinct ==========
 
     @Override
     public JoinStream<T, R> distinct() {
@@ -244,17 +237,15 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
                 onConditions, biPredicates, sourcePredicates, sortOrders, offset, limit, true);
     }
 
-    // =============================================================================================
-    // TERMINAL OPERATIONS
-    // =============================================================================================
+    // ========== Terminal Operations ==========
 
     @Override
     public List<T> toList() {
         // Delegate to build-time generated executor via registry
-        String callSiteId = getCallSiteId();
+        String callSiteId = getCallSiteId(QubitConstants.JOIN_METHODS, getPrimaryLambda());
         Object[] capturedValues = extractCapturedVariables();
 
-        QueryExecutorRegistry registry = Arc.container().instance(QueryExecutorRegistry.class).get();
+        QueryExecutorRegistry registry = getQueryExecutorRegistry();
 
         // Execute as join query - registry will need to handle this specially
         return registry.executeJoinListQuery(callSiteId, sourceEntityClass, capturedValues, offset, limit, distinct);
@@ -262,19 +253,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
 
     @Override
     public T getSingleResult() {
-        List<T> results = toList();
-
-        if (results.isEmpty()) {
-            throw new NoResultException(
-                    "getSingleResult() expected exactly one result but found none");
-        }
-
-        if (results.size() > 1) {
-            throw new NonUniqueResultException(
-                    "getSingleResult() expected exactly one result but found " + results.size());
-        }
-
-        return results.get(0);
+        return requireSingleResult(toList());
     }
 
     @Override
@@ -286,10 +265,10 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
 
     @Override
     public long count() {
-        String callSiteId = getCallSiteId();
+        String callSiteId = getCallSiteId(QubitConstants.JOIN_METHODS, getPrimaryLambda());
         Object[] capturedValues = extractCapturedVariables();
 
-        QueryExecutorRegistry registry = Arc.container().instance(QueryExecutorRegistry.class).get();
+        QueryExecutorRegistry registry = getQueryExecutorRegistry();
         return registry.executeJoinCountQuery(callSiteId, sourceEntityClass, capturedValues);
     }
 
@@ -298,26 +277,39 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         return count() > 0;
     }
 
-    // =============================================================================================
-    // INTERNAL HELPER METHODS
-    // =============================================================================================
+    // ========== Internal Helper Methods ==========
 
     /**
-     * Gets the call site ID using stack walking.
+     * Returns the primary lambda for call site ID uniqueness.
+     * <p>
+     * Priority order (matching build-time InvokeDynamicScanner.getPrimaryLambdaMethodName):
+     * <ol>
+     *   <li>First source predicate (single-entity WHERE on source)</li>
+     *   <li>First bi-entity predicate (bi-entity WHERE on both)</li>
+     *   <li>Relationship accessor (join relationship)</li>
+     *   <li>First ON condition</li>
+     * </ol>
+     *
+     * @return the primary lambda, or null if no lambdas are present
      */
-    private String getCallSiteId() {
-        StackWalker walker = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
-        return walker.walk(frames -> frames
-                .skip(1)
-                .filter(frame -> !frame.getClassName().startsWith("io.quarkiverse.qubit.runtime."))
-                .filter(frame -> !QubitConstants.FLUENT_INTERMEDIATE_METHODS.contains(frame.getMethodName()))
-                .filter(frame -> !QubitConstants.FLUENT_TERMINAL_METHODS.contains(frame.getMethodName()))
-                .filter(frame -> !QubitConstants.JOIN_METHODS.contains(frame.getMethodName()))
-                .findFirst()
-                .map(frame -> frame.getClassName() + ":" +
-                             frame.getMethodName() + ":" +
-                             frame.getLineNumber())
-                .orElseThrow(() -> new IllegalStateException("Could not determine call site")));
+    private Object getPrimaryLambda() {
+        // Source predicate first (matches build-time predicateLambdas priority)
+        if (!sourcePredicates.isEmpty()) {
+            return sourcePredicates.get(0);
+        }
+        // Bi-entity predicate (matches build-time biEntityPredicateLambdas)
+        if (!biPredicates.isEmpty()) {
+            return biPredicates.get(0);
+        }
+        // Relationship accessor (always present for joins)
+        if (relationshipAccessor != null) {
+            return relationshipAccessor;
+        }
+        // ON condition
+        if (!onConditions.isEmpty()) {
+            return onConditions.get(0);
+        }
+        return null;
     }
 
     /**
@@ -326,7 +318,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
      * Variables are extracted in the order they appear and combined into a single array.
      */
     private Object[] extractCapturedVariables() {
-        String callSiteId = getCallSiteId();
+        String callSiteId = getCallSiteId(QubitConstants.JOIN_METHODS, getPrimaryLambda());
         int capturedCount = QueryExecutorRegistry.getCapturedVariableCount(callSiteId);
 
         if (capturedCount == 0) {
@@ -337,41 +329,13 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         List<Object> allCapturedValues = new ArrayList<>();
         int remainingCount = capturedCount;
 
-        // Extract from bi-entity predicates (most common for join queries)
-        for (BiQuerySpec<T, R, Boolean> biPredicate : biPredicates) {
-            if (remainingCount == 0) break;
-
-            int predicateCapturedCount = countCapturedFields(biPredicate);
-            if (predicateCapturedCount > 0) {
-                Object[] predicateValues = CapturedVariableExtractor.extract(biPredicate, predicateCapturedCount);
-                Collections.addAll(allCapturedValues, predicateValues);
-                remainingCount -= predicateCapturedCount;
-            }
-        }
-
-        // Extract from source predicates (single-entity predicates on source)
-        for (QuerySpec<T, Boolean> sourcePredicate : sourcePredicates) {
-            if (remainingCount == 0) break;
-
-            int predicateCapturedCount = countCapturedFields(sourcePredicate);
-            if (predicateCapturedCount > 0) {
-                Object[] predicateValues = CapturedVariableExtractor.extract(sourcePredicate, predicateCapturedCount);
-                Collections.addAll(allCapturedValues, predicateValues);
-                remainingCount -= predicateCapturedCount;
-            }
-        }
-
-        // Extract from ON conditions
-        for (BiQuerySpec<T, R, Boolean> onCondition : onConditions) {
-            if (remainingCount == 0) break;
-
-            int conditionCapturedCount = countCapturedFields(onCondition);
-            if (conditionCapturedCount > 0) {
-                Object[] conditionValues = CapturedVariableExtractor.extract(onCondition, conditionCapturedCount);
-                Collections.addAll(allCapturedValues, conditionValues);
-                remainingCount -= conditionCapturedCount;
-            }
-        }
+        // Extract from all lambda sources using helper method
+        remainingCount = extractFromLambdas(biPredicates, "bi-predicate", callSiteId,
+                allCapturedValues, remainingCount);
+        remainingCount = extractFromLambdas(sourcePredicates, "source-predicate", callSiteId,
+                allCapturedValues, remainingCount);
+        remainingCount = extractFromLambdas(onConditions, "ON-condition", callSiteId,
+                allCapturedValues, remainingCount);
 
         if (remainingCount != 0) {
             throw new IllegalStateException(
@@ -382,35 +346,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         return allCapturedValues.toArray(new Object[0]);
     }
 
-    /**
-     * Counts the number of captured variable fields in a lambda instance.
-     * Lambda instances store captured variables as non-static instance fields.
-     *
-     * @param lambdaInstance the lambda instance
-     * @return number of captured variable fields
-     */
-    private int countCapturedFields(Object lambdaInstance) {
-        if (lambdaInstance == null) {
-            return 0;
-        }
-
-        Class<?> lambdaClass = lambdaInstance.getClass();
-        Field[] allFields = lambdaClass.getDeclaredFields();
-
-        // Count non-static instance fields - these are the captured variables
-        int count = 0;
-        for (Field field : allFields) {
-            if (!Modifier.isStatic(field.getModifiers())) {
-                count++;
-            }
-        }
-
-        return count;
-    }
-
-    // =============================================================================================
-    // INTERNAL CLASSES
-    // =============================================================================================
+    // ========== Internal Classes ==========
 
     /**
      * Represents a bi-entity sort order specification.
@@ -418,255 +354,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
     private record BiSortOrder<T, R>(BiQuerySpec<T, R, ?> keyExtractor, SortDirection direction) {
     }
 
-    /**
-     * Simple QubitStream implementation wrapping results from select() with BiQuerySpec.
-     * Used for returning projected results after select((source, joined) -> projection) operation.
-     */
-    private static class ListProjectionQubitStream<T> implements QubitStream<T> {
-        private final List<T> results;
-
-        ListProjectionQubitStream(List<T> results) {
-            this.results = results;
-        }
-
-        @Override
-        public QubitStream<T> where(QuerySpec<T, Boolean> predicate) {
-            throw new UnsupportedOperationException("Cannot filter after join projection");
-        }
-
-        @Override
-        public <R> QubitStream<R> select(QuerySpec<T, R> mapper) {
-            throw new UnsupportedOperationException("Cannot project after join projection");
-        }
-
-        @Override
-        public <K extends Comparable<K>> QubitStream<T> sortedBy(QuerySpec<T, K> keyExtractor) {
-            throw new UnsupportedOperationException("Cannot sort after join projection");
-        }
-
-        @Override
-        public <K extends Comparable<K>> QubitStream<T> sortedDescendingBy(QuerySpec<T, K> keyExtractor) {
-            throw new UnsupportedOperationException("Cannot sort after join projection");
-        }
-
-        @Override
-        public QubitStream<T> skip(int n) {
-            return new ListProjectionQubitStream<>(results.subList(Math.min(n, results.size()), results.size()));
-        }
-
-        @Override
-        public QubitStream<T> limit(int n) {
-            return new ListProjectionQubitStream<>(results.subList(0, Math.min(n, results.size())));
-        }
-
-        @Override
-        public QubitStream<T> distinct() {
-            return new ListProjectionQubitStream<>(results.stream().distinct().toList());
-        }
-
-        @Override
-        public long count() {
-            return results.size();
-        }
-
-        @Override
-        public <K extends Comparable<K>> QubitStream<K> min(QuerySpec<T, K> mapper) {
-            throw new UnsupportedOperationException("Cannot aggregate after join projection");
-        }
-
-        @Override
-        public <K extends Comparable<K>> QubitStream<K> max(QuerySpec<T, K> mapper) {
-            throw new UnsupportedOperationException("Cannot aggregate after join projection");
-        }
-
-        @Override
-        public QubitStream<Long> sumInteger(QuerySpec<T, Integer> mapper) {
-            throw new UnsupportedOperationException("Cannot aggregate after join projection");
-        }
-
-        @Override
-        public QubitStream<Long> sumLong(QuerySpec<T, Long> mapper) {
-            throw new UnsupportedOperationException("Cannot aggregate after join projection");
-        }
-
-        @Override
-        public QubitStream<Double> sumDouble(QuerySpec<T, Double> mapper) {
-            throw new UnsupportedOperationException("Cannot aggregate after join projection");
-        }
-
-        @Override
-        public QubitStream<Double> avg(QuerySpec<T, ? extends Number> mapper) {
-            throw new UnsupportedOperationException("Cannot aggregate after join projection");
-        }
-
-        @Override
-        public List<T> toList() {
-            return new ArrayList<>(results);
-        }
-
-        @Override
-        public T getSingleResult() {
-            if (results.isEmpty()) {
-                throw new NoResultException("getSingleResult() expected exactly one result but found none");
-            }
-            if (results.size() > 1) {
-                throw new NonUniqueResultException("getSingleResult() expected exactly one result but found " + results.size());
-            }
-            return results.get(0);
-        }
-
-        @Override
-        public Optional<T> findFirst() {
-            return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
-        }
-
-        @Override
-        public boolean exists() {
-            return !results.isEmpty();
-        }
-
-        @Override
-        public <R> JoinStream<T, R> join(QuerySpec<T, Collection<R>> relationship) {
-            throw new UnsupportedOperationException("Cannot join after join projection");
-        }
-
-        @Override
-        public <R> JoinStream<T, R> leftJoin(QuerySpec<T, Collection<R>> relationship) {
-            throw new UnsupportedOperationException("Cannot join after join projection");
-        }
-
-        @Override
-        public <K> GroupStream<T, K> groupBy(QuerySpec<T, K> keyExtractor) {
-            throw new UnsupportedOperationException("Cannot group after join projection");
-        }
-    }
-
-    /**
-     * Simple QubitStream implementation wrapping results from selectJoined().
-     * Used for returning joined entity results after selectJoined() projection.
-     */
-    private static class ListJoinedQubitStream<T> implements QubitStream<T> {
-        private final List<T> results;
-
-        ListJoinedQubitStream(List<T> results) {
-            this.results = results;
-        }
-
-        @Override
-        public QubitStream<T> where(QuerySpec<T, Boolean> predicate) {
-            throw new UnsupportedOperationException("Cannot filter after selectJoined projection");
-        }
-
-        @Override
-        public <R> QubitStream<R> select(QuerySpec<T, R> mapper) {
-            throw new UnsupportedOperationException("Cannot project after selectJoined projection");
-        }
-
-        @Override
-        public <K extends Comparable<K>> QubitStream<T> sortedBy(QuerySpec<T, K> keyExtractor) {
-            throw new UnsupportedOperationException("Cannot sort after selectJoined projection");
-        }
-
-        @Override
-        public <K extends Comparable<K>> QubitStream<T> sortedDescendingBy(QuerySpec<T, K> keyExtractor) {
-            throw new UnsupportedOperationException("Cannot sort after selectJoined projection");
-        }
-
-        @Override
-        public QubitStream<T> skip(int n) {
-            return new ListJoinedQubitStream<>(results.subList(Math.min(n, results.size()), results.size()));
-        }
-
-        @Override
-        public QubitStream<T> limit(int n) {
-            return new ListJoinedQubitStream<>(results.subList(0, Math.min(n, results.size())));
-        }
-
-        @Override
-        public QubitStream<T> distinct() {
-            return new ListJoinedQubitStream<>(results.stream().distinct().toList());
-        }
-
-        @Override
-        public long count() {
-            return results.size();
-        }
-
-        @Override
-        public <K extends Comparable<K>> QubitStream<K> min(QuerySpec<T, K> mapper) {
-            throw new UnsupportedOperationException("Cannot aggregate after selectJoined projection");
-        }
-
-        @Override
-        public <K extends Comparable<K>> QubitStream<K> max(QuerySpec<T, K> mapper) {
-            throw new UnsupportedOperationException("Cannot aggregate after selectJoined projection");
-        }
-
-        @Override
-        public QubitStream<Long> sumInteger(QuerySpec<T, Integer> mapper) {
-            throw new UnsupportedOperationException("Cannot aggregate after selectJoined projection");
-        }
-
-        @Override
-        public QubitStream<Long> sumLong(QuerySpec<T, Long> mapper) {
-            throw new UnsupportedOperationException("Cannot aggregate after selectJoined projection");
-        }
-
-        @Override
-        public QubitStream<Double> sumDouble(QuerySpec<T, Double> mapper) {
-            throw new UnsupportedOperationException("Cannot aggregate after selectJoined projection");
-        }
-
-        @Override
-        public QubitStream<Double> avg(QuerySpec<T, ? extends Number> mapper) {
-            throw new UnsupportedOperationException("Cannot aggregate after selectJoined projection");
-        }
-
-        @Override
-        public List<T> toList() {
-            return new ArrayList<>(results);
-        }
-
-        @Override
-        public T getSingleResult() {
-            if (results.isEmpty()) {
-                throw new NoResultException("getSingleResult() expected exactly one result but found none");
-            }
-            if (results.size() > 1) {
-                throw new NonUniqueResultException("getSingleResult() expected exactly one result but found " + results.size());
-            }
-            return results.get(0);
-        }
-
-        @Override
-        public Optional<T> findFirst() {
-            return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
-        }
-
-        @Override
-        public boolean exists() {
-            return !results.isEmpty();
-        }
-
-        @Override
-        public <R> JoinStream<T, R> join(QuerySpec<T, Collection<R>> relationship) {
-            throw new UnsupportedOperationException("Cannot join after selectJoined projection");
-        }
-
-        @Override
-        public <R> JoinStream<T, R> leftJoin(QuerySpec<T, Collection<R>> relationship) {
-            throw new UnsupportedOperationException("Cannot join after selectJoined projection");
-        }
-
-        @Override
-        public <K> GroupStream<T, K> groupBy(QuerySpec<T, K> keyExtractor) {
-            throw new UnsupportedOperationException("Cannot group after selectJoined projection");
-        }
-    }
-
-    // =============================================================================================
-    // GETTERS FOR BUILD-TIME ANALYSIS
-    // =============================================================================================
+    // ========== Getters for Build-Time Analysis ==========
 
     public Class<T> getSourceEntityClass() {
         return sourceEntityClass;

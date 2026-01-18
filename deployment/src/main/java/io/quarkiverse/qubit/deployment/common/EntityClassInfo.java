@@ -1,33 +1,17 @@
 package io.quarkiverse.qubit.deployment.common;
 
 /**
- * Holds entity class information including both the Class object and optional class name.
- *
- * <p>The className is only set when the class cannot be loaded at build-time.
- * In this case, the class will be Object.class and className will contain the
- * fully qualified name for runtime resolution.
- *
- * @param clazz the entity class (may be Object.class for placeholders)
- * @param className optional entity class name (for placeholders when class not loadable)
+ * Entity class info with optional className for build-time unloadable classes.
+ * When className is set, clazz is Object.class as a placeholder for runtime resolution.
  */
 public record EntityClassInfo(Class<?> clazz, String className) {
 
-    /**
-     * Creates an EntityClassInfo with a loaded class.
-     *
-     * @param clazz the loaded entity class
-     * @return entity class info with no className (class was successfully loaded)
-     */
+    /** Creates info for a successfully loaded class. */
     public static EntityClassInfo of(Class<?> clazz) {
         return new EntityClassInfo(clazz, null);
     }
 
-    /**
-     * Creates an EntityClassInfo for a class that couldn't be loaded at build-time.
-     *
-     * @param className the fully qualified class name for runtime resolution
-     * @return entity class info with Object.class placeholder and className set
-     */
+    /** Creates placeholder for a class not loadable at build-time. */
     public static EntityClassInfo placeholder(String className) {
         return new EntityClassInfo(Object.class, className);
     }

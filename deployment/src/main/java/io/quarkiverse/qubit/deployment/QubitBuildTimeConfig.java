@@ -8,49 +8,28 @@ import io.quarkus.runtime.annotations.ConfigRoot;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Build-time configuration for the QUBIT extension.
- * @see <a href="https://quarkus.io/guides/writing-extensions">Quarkus Extension Writing Guide</a>
- */
+/** Build-time configuration for the Qubit extension. */
 @ConfigMapping(prefix = "quarkus.qubit")
 @ConfigRoot(phase = ConfigPhase.BUILD_TIME)
 public interface QubitBuildTimeConfig {
 
-    /**
-     * Scanning configuration for lambda analysis.
-     */
+    /** Scanning configuration for lambda analysis. */
     ScanningConfig scanning();
 
-    /**
-     * Code generation configuration.
-     */
+    /** Code generation configuration. */
     GenerationConfig generation();
 
-    /**
-     * Logging configuration for build-time processing.
-     */
+    /** Logging configuration for build-time processing. */
     LoggingConfig logging();
 
-    /**
-     * Configuration for package scanning during lambda analysis.
-     */
+    /** Package scanning configuration. */
     interface ScanningConfig {
 
-        /**
-         * Package prefixes to exclude from lambda scanning.
-         * Classes in these packages will be skipped during build-time analysis.
-         * <p>
-         * Default excludes: {@code java.}, {@code jakarta.}
-         */
+        /** Package prefixes to exclude from scanning. Default: java., jakarta. */
         @WithDefault("java.,jakarta.")
         List<String> excludePackages();
 
-        /**
-         * Additional package prefixes to include (overrides exclude).
-         * Useful for including specific framework packages that contain lambda queries.
-         * <p>
-         * If a class matches both exclude and include, include takes precedence.
-         */
+        /** Package prefixes to include (overrides excludes). */
         Optional<List<String>> includePackages();
 
         /**

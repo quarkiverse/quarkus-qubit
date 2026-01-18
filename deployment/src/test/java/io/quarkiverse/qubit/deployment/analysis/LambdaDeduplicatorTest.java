@@ -572,10 +572,16 @@ class LambdaDeduplicatorTest {
         }
 
         @Test
-        void registerSameHashTwice_overwritesExecutor() {
-            deduplicator.registerExecutor("hash1", "Executor1");
-            deduplicator.registerExecutor("hash1", "Executor2");
+        void registerSameHashTwice_keepsFirstExecutor() {
+            // First registration succeeds (returns null)
+            String firstResult = deduplicator.registerExecutor("hash1", "Executor1");
+            assertThat(firstResult).isNull();
 
+            // Second registration is ignored (returns existing executor)
+            String secondResult = deduplicator.registerExecutor("hash1", "Executor2");
+            assertThat(secondResult).isEqualTo("Executor1");
+
+            // Only one entry exists
             assertThat(deduplicator.getUniqueCount()).isEqualTo(1);
         }
     }

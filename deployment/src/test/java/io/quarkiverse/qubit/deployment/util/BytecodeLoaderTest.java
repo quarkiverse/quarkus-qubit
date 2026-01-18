@@ -1,5 +1,6 @@
 package io.quarkiverse.qubit.deployment.util;
 
+import io.quarkiverse.qubit.deployment.analysis.AnalysisException;
 import io.quarkus.deployment.ApplicationArchive;
 import io.quarkus.deployment.builditem.ApplicationArchivesBuildItem;
 import io.quarkus.paths.PathList;
@@ -13,6 +14,7 @@ import java.nio.file.Path;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -55,29 +57,25 @@ class BytecodeLoaderTest {
         }
 
         @Test
-        void loadClassBytecode_withNonExistentClass_returnsEmptyArray() {
+        void loadClassBytecode_withNonExistentClass_throwsAnalysisException() {
             ApplicationArchivesBuildItem emptyArchives = mock(ApplicationArchivesBuildItem.class);
             when(emptyArchives.getAllApplicationArchives()).thenReturn(Set.of());
 
-            byte[] result = BytecodeLoader.loadClassBytecode(
-                    "com.nonexistent.NonExistentClass", emptyArchives);
-
-            assertThat(result)
-                    .as("Non-existent class should return empty array")
-                    .isEmpty();
+            assertThatThrownBy(() -> BytecodeLoader.loadClassBytecode(
+                    "com.nonexistent.NonExistentClass", emptyArchives))
+                    .isInstanceOf(AnalysisException.class)
+                    .hasMessageContaining("com.nonexistent.NonExistentClass");
         }
 
         @Test
-        void loadClassBytecode_withInvalidClassName_returnsEmptyArray() {
+        void loadClassBytecode_withInvalidClassName_throwsAnalysisException() {
             ApplicationArchivesBuildItem emptyArchives = mock(ApplicationArchivesBuildItem.class);
             when(emptyArchives.getAllApplicationArchives()).thenReturn(Set.of());
 
-            byte[] result = BytecodeLoader.loadClassBytecode(
-                    "not.a.valid.class!", emptyArchives);
-
-            assertThat(result)
-                    .as("Invalid class name should return empty array")
-                    .isEmpty();
+            assertThatThrownBy(() -> BytecodeLoader.loadClassBytecode(
+                    "not.a.valid.class!", emptyArchives))
+                    .isInstanceOf(AnalysisException.class)
+                    .hasMessageContaining("not.a.valid.class!");
         }
 
         @Test

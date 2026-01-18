@@ -59,9 +59,7 @@ import jakarta.persistence.MappedSuperclass;
 @MappedSuperclass
 public abstract class QubitEntity extends PanacheEntity {
 
-    // =============================================================================================
-    // QUERY ENTRY POINTS
-    // =============================================================================================
+    // ========== Query Entry Points ==========
 
     /**
      * Creates a query filtered by the given predicate.
@@ -196,9 +194,7 @@ public abstract class QubitEntity extends PanacheEntity {
                 "Or is the Qubit build-time processor not properly configured?");
     }
 
-    // =============================================================================================
-    // AGGREGATION OPERATIONS
-    // =============================================================================================
+    // ========== Aggregation Operations ==========
 
     /**
      * Prepares a minimum value aggregation query.
@@ -394,9 +390,7 @@ public abstract class QubitEntity extends PanacheEntity {
                 "Or is the Qubit build-time processor not properly configured?");
     }
 
-    // =============================================================================================
-    // JOIN OPERATIONS
-    // =============================================================================================
+    // ========== Join Operations ==========
 
     /**
      * Creates an inner join query with a related entity collection.
@@ -473,9 +467,7 @@ public abstract class QubitEntity extends PanacheEntity {
                 "Or is the Qubit build-time processor not properly configured?");
     }
 
-    // =============================================================================================
-    // GROUPING OPERATIONS
-    // =============================================================================================
+    // ========== Grouping Operations ==========
 
     /**
      * Creates a GROUP BY query grouped by the specified key extractor.

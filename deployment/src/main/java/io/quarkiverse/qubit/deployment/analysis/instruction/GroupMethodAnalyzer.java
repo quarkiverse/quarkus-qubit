@@ -13,43 +13,13 @@ import java.util.function.Function;
 
 import static io.quarkiverse.qubit.runtime.QubitConstants.*;
 
-/**
- * Analyzes Group interface method calls for GROUP BY queries.
- *
- * <p>This class handles:
- * <ul>
- *   <li>{@code g.key()} → GroupKeyReference</li>
- *   <li>{@code g.count()} → GroupAggregation(COUNT)</li>
- *   <li>{@code g.countDistinct(field)} → GroupAggregation(COUNT_DISTINCT, field)</li>
- *   <li>{@code g.avg(field)} → GroupAggregation(AVG, field)</li>
- *   <li>{@code g.min(field)} → GroupAggregation(MIN, field)</li>
- *   <li>{@code g.max(field)} → GroupAggregation(MAX, field)</li>
- *   <li>{@code g.sumInteger(field)} → GroupAggregation(SUM_INTEGER, field)</li>
- *   <li>{@code g.sumLong(field)} → GroupAggregation(SUM_LONG, field)</li>
- *   <li>{@code g.sumDouble(field)} → GroupAggregation(SUM_DOUBLE, field)</li>
- * </ul>
- *
- * @see MethodInvocationHandler
- * @see GroupAggregation
- */
+/** Analyzes Group interface method calls: key(), count(), avg(), min(), max(), sum*(). */
 public class GroupMethodAnalyzer {
 
-    /**
-     * Checks if the instruction is a Group interface method call.
-     *
-     * @param methodInsn the method instruction to check
-     * @return true if this is a Group interface method call
-     */
     public boolean isGroupMethodCall(MethodInsnNode methodInsn) {
         return methodInsn.owner.equals(GROUP_INTERNAL_NAME);
     }
 
-    /**
-     * Handles Group interface method calls for GROUP BY queries.
-     *
-     * @param ctx the analysis context
-     * @param methodInsn the method instruction
-     */
     public void handleGroupMethod(AnalysisContext ctx, MethodInsnNode methodInsn) {
         String methodName = methodInsn.name;
 
@@ -67,9 +37,6 @@ public class GroupMethodAnalyzer {
         }
     }
 
-    /**
-     * Handles g.key() - returns the grouping key.
-     */
     private void handleGroupKey(AnalysisContext ctx) {
         if (ctx.isStackEmpty()) {
             return;
@@ -77,17 +44,13 @@ public class GroupMethodAnalyzer {
 
         LambdaExpression target = ctx.pop();
         if (target instanceof GroupParameter) {
-            // For now, we create a placeholder GroupKeyReference
-            // The actual key expression will be resolved at code generation time
+            // Placeholder; actual key expression resolved at code generation time
             ctx.push(new GroupKeyReference(null, Object.class));
         } else {
             Log.warnf("Unexpected target for g.key(): %s", target);
         }
     }
 
-    /**
-     * Handles g.count() - counts entities in the group.
-     */
     private void handleGroupCount(AnalysisContext ctx) {
         if (ctx.isStackEmpty()) {
             return;
@@ -101,9 +64,6 @@ public class GroupMethodAnalyzer {
         }
     }
 
-    /**
-     * Handles g.countDistinct(field) - counts distinct values.
-     */
     private void handleGroupCountDistinct(AnalysisContext ctx) {
         PopPairResult pair = ctx.popPair();
         if (pair == null) {
@@ -120,9 +80,6 @@ public class GroupMethodAnalyzer {
         }
     }
 
-    /**
-     * Handles g.avg/sumInteger/sumLong/sumDouble(field) - aggregations that return fixed types.
-     */
     private void handleGroupAggregationWithField(
             AnalysisContext ctx,
             Function<LambdaExpression, GroupAggregation> aggregationFactory) {
@@ -131,8 +88,8 @@ public class GroupMethodAnalyzer {
             return;
         }
 
-        LambdaExpression fieldArg = pair.right();  // The field extractor (was on top)
-        LambdaExpression target = pair.left();     // The Group parameter
+        LambdaExpression fieldArg = pair.right();
+        LambdaExpression target = pair.left();
 
         if (target instanceof GroupParameter) {
             ctx.push(aggregationFactory.apply(fieldArg));
@@ -141,9 +98,7 @@ public class GroupMethodAnalyzer {
         }
     }
 
-    /**
-     * Handles g.min(field) and g.max(field) - aggregations that preserve field type.
-     */
+    /** Preserves field type for min/max aggregations. */
     private void handleGroupMinMax(AnalysisContext ctx, boolean isMin) {
         PopPairResult pair = ctx.popPair();
         if (pair == null) {

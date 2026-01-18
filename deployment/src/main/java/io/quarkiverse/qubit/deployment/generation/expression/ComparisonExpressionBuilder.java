@@ -1,14 +1,10 @@
 package io.quarkiverse.qubit.deployment.generation.expression;
 
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.common.OperatorMethodMapper;
 import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.MethodDescriptor;
 import io.quarkus.gizmo.ResultHandle;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.Expression;
-import jakarta.persistence.criteria.Predicate;
-
-import static io.quarkiverse.qubit.runtime.QubitConstants.*;
 
 /**
  * Builds JPA Criteria API predicates for comparison operations.
@@ -23,18 +19,10 @@ import static io.quarkiverse.qubit.runtime.QubitConstants.*;
  *   <li>LE (<=) → {@code CriteriaBuilder.lessThanOrEqualTo()}</li>
  * </ul>
  */
-public class ComparisonExpressionBuilder implements ExpressionBuilder {
+public enum ComparisonExpressionBuilder implements ExpressionBuilder {
+    INSTANCE;
 
-    /**
-     * Generates bytecode for comparison operations.
-     *
-     * @param method the Gizmo method creator
-     * @param operator the comparison operator (EQ, NE, GT, GE, LT, LE)
-     * @param cb the CriteriaBuilder handle
-     * @param left the left operand Expression
-     * @param right the right operand Expression or Object
-     * @return the comparison Predicate
-     */
+    /** Generates bytecode for comparison operations. */
     public ResultHandle buildComparisonOperation(
             MethodCreator method,
             LambdaExpression.BinaryOp.Operator operator,
@@ -42,23 +30,7 @@ public class ComparisonExpressionBuilder implements ExpressionBuilder {
             ResultHandle left,
             ResultHandle right) {
 
-        MethodDescriptor comparisonMethod = switch (operator) {
-            case EQ -> md(CB_EQUAL, Expression.class, Object.class);
-            case NE -> md(CB_NOT_EQUAL, Expression.class, Object.class);
-            case GT -> md(CB_GREATER_THAN, Expression.class, Expression.class);
-            case GE -> md(CB_GREATER_THAN_OR_EQUAL_TO, Expression.class, Expression.class);
-            case LT -> md(CB_LESS_THAN, Expression.class, Expression.class);
-            case LE -> md(CB_LESS_THAN_OR_EQUAL_TO, Expression.class, Expression.class);
-            default -> throw new IllegalArgumentException("Not a comparison operator: " + operator);
-        };
-
+        MethodDescriptor comparisonMethod = OperatorMethodMapper.mapComparisonOperator(operator, true);
         return method.invokeInterfaceMethod(comparisonMethod, cb, left, right);
-    }
-
-    /**
-     * Creates MethodDescriptor for a method.
-     */
-    private static MethodDescriptor md(String methodName, Class<?>... params) {
-        return MethodDescriptor.ofMethod(CriteriaBuilder.class, methodName, Predicate.class, params);
     }
 }

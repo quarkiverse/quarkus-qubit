@@ -11,10 +11,15 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Extracts captured variable values from lambda instances via reflection.
  * Uses multiple field naming strategies to support different Java compilers:
- * - javac: arg$1, arg$2, ... (Oracle/OpenJDK)
- * - Eclipse JDT: val$1, val$2, ...
- * - GraalVM: arg0, arg1, ...
- * - Index-based fallback: iterates all fields
+ * <ul>
+ *   <li><b>javac:</b> arg$1, arg$2, ... (Oracle/OpenJDK)</li>
+ *   <li><b>Eclipse JDT:</b> val$1, val$2, ...</li>
+ *   <li><b>GraalVM:</b> arg0, arg1, ...</li>
+ * </ul>
+ *
+ * <p><strong>Important:</strong> Index-based field extraction is intentionally NOT supported
+ * because {@link Class#getDeclaredFields()} does not guarantee field ordering. Using it would
+ * cause silent data corruption when captured variables are extracted in the wrong order.
  *
  * <p><strong>Native Image Requirement:</strong> GraalVM/Mandrel 25 or later is required for native builds.
  * This version introduced lambda reflection support, allowing captured variables to be accessed via reflection.
@@ -29,10 +34,7 @@ public final class CapturedVariableExtractor {
     private static final Map<String, Field[]> FIELD_CACHE = new ConcurrentHashMap<>();
     private static final boolean IS_NATIVE_IMAGE = isNativeImage();
 
-    /**
-     * Field naming strategies in order of priority.
-     * Javac is first as it's the most common compiler.
-     */
+    /** Field naming strategies in priority order (javac first as most common). */
     private static final List<FieldNamingStrategy> STRATEGIES = List.of(
             new FieldNamingStrategy.JavacStrategy(),
             new FieldNamingStrategy.EclipseStrategy(),
@@ -43,18 +45,12 @@ public final class CapturedVariableExtractor {
     private CapturedVariableExtractor() {
     }
 
-    /**
-     * Detects if running in GraalVM Native Image mode.
-     */
     private static boolean isNativeImage() {
-        // GraalVM sets this property to "Substrate VM" in native mode
         String vmName = System.getProperty("java.vm.name", "");
         return vmName.contains("Substrate") || vmName.contains("GraalVM");
     }
 
-    /**
-     * Extracts captured variable values from lambda instance.
-     */
+    /** Extracts captured variable values from lambda instance. */
     public static Object[] extract(Object lambdaInstance, int count) {
         if (lambdaInstance == null) {
             throw new IllegalArgumentException("Lambda instance cannot be null");
@@ -68,8 +64,20 @@ public final class CapturedVariableExtractor {
             Class<?> lambdaClass = lambdaInstance.getClass();
             Field[] fields = getFields(lambdaClass, count);
 
+            // Defense-in-depth: validate array is properly sized and has no null entries
+            if (fields.length != count) {
+                throw new CapturedVariableExtractionException(
+                        String.format("Field array length mismatch in %s: expected %d fields but got %d",
+                                lambdaClass.getName(), count, fields.length));
+            }
+
             Object[] values = new Object[count];
             for (int i = 0; i < count; i++) {
+                if (fields[i] == null) {
+                    throw new CapturedVariableExtractionException(
+                            String.format("Field at index %d in %s is null (naming strategy mismatch)",
+                                    i, lambdaClass.getName()));
+                }
                 values[i] = fields[i].get(lambdaInstance);
             }
 
@@ -105,26 +113,27 @@ public final class CapturedVariableExtractor {
                             i, lambdaClass.getName()));
                 }
                 throw new NoSuchFieldException(String.format(
-                        "Could not find captured variable at index %d in lambda class %s using any known strategy. " +
-                        "Available fields: %s",
+                        "Could not find captured variable at index %d in lambda class %s. " +
+                        "Your Java compiler uses an unsupported field naming convention. " +
+                        "Supported compilers: Oracle/OpenJDK javac (arg$N), Eclipse JDT (val$N), GraalVM (argN). " +
+                        "Available fields in lambda: [%s]. " +
+                        "To fix: (1) Use a supported compiler, or (2) File an issue to add support for your compiler's naming convention.",
                         i, lambdaClass.getName(), availableFields));
             }
             fields[i] = field;
         }
 
-        FIELD_CACHE.put(cacheKey, fields);
+        // Use putIfAbsent for atomic check-and-put to prevent duplicate computation in races
+        Field[] existing = FIELD_CACHE.putIfAbsent(cacheKey, fields);
+        if (existing != null) {
+            // Another thread already cached this, use their version for consistency
+            return existing;
+        }
         LOG.debugf("Cached field lookups for %s (%d fields)", lambdaClass.getName(), count);
         return fields;
     }
 
-    /**
-     * Attempts to find the captured variable field at the specified index
-     * using all available strategies in order.
-     *
-     * @param lambdaClass the lambda class to search
-     * @param index the zero-based index of the captured variable
-     * @return the field if found, null otherwise
-     */
+    /** Tries each naming strategy in order, returns field or null. */
     private static Field findFieldUsingStrategies(Class<?> lambdaClass, int index) {
         for (FieldNamingStrategy strategy : STRATEGIES) {
             Optional<Field> field = strategy.findCapturedField(lambdaClass, index);

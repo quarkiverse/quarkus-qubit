@@ -1,16 +1,16 @@
 package io.quarkiverse.qubit.runtime;
 
-import io.quarkus.arc.Arc;
-import jakarta.persistence.NoResultException;
-import jakarta.persistence.NonUniqueResultException;
+import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.extractFromLambdas;
+import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.extractFromSingleLambda;
+import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.getCallSiteId;
+import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.getQueryExecutorRegistry;
+import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.requireNonNullLambda;
+import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.validateLimitCount;
+import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.validateSkipCount;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
+import java.util.Set;
 
 /**
  * Default implementation of {@link GroupStream} using JPA Criteria Queries.
@@ -24,9 +24,7 @@ import java.util.Optional;
  */
 public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
 
-    // =============================================================================================
-    // STATE FIELDS
-    // =============================================================================================
+    // ========== State Fields ==========
 
     /**
      * The entity class being queried.
@@ -68,9 +66,7 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
      */
     private final Integer limit;
 
-    // =============================================================================================
-    // CONSTRUCTORS
-    // =============================================================================================
+    // ========== Constructors ==========
 
     /**
      * Creates a new group stream for the given entity class and key extractor.
@@ -88,6 +84,11 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
 
     /**
      * Internal constructor for creating derived streams.
+     * <p>
+     * <b>Issue #19 Fix (Thread Safety):</b> Defensive copies are made of mutable
+     * List parameters to prevent unsafe publication. While the current derivation
+     * methods always create new lists, this defensive copying ensures the class
+     * remains safe even if future code changes introduce shared references.
      */
     private GroupStreamImpl(
             Class<T> entityClass,
@@ -100,57 +101,54 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
             Integer limit) {
         this.entityClass = entityClass;
         this.keyExtractor = keyExtractor;
-        this.predicates = predicates;
-        this.havingConditions = havingConditions;
+        this.predicates = List.copyOf(predicates);
+        this.havingConditions = List.copyOf(havingConditions);
         this.selector = selector;
-        this.sortOrders = sortOrders;
+        this.sortOrders = List.copyOf(sortOrders);
         this.offset = offset;
         this.limit = limit;
     }
 
-    // =============================================================================================
-    // HAVING CLAUSE
-    // =============================================================================================
+    // ========== Having Clause ==========
 
     @Override
     public GroupStream<T, K> having(GroupQuerySpec<T, K, Boolean> condition) {
+        requireNonNullLambda(condition, "Condition", "having");
         List<GroupQuerySpec<T, K, Boolean>> newConditions = new ArrayList<>(this.havingConditions);
         newConditions.add(condition);
         return withHavingConditions(newConditions);
     }
 
-    // =============================================================================================
-    // PROJECTION
-    // =============================================================================================
+    // ========== Projection ==========
 
     @Override
     public <R> QubitStream<R> select(GroupQuerySpec<T, K, R> mapper) {
+        requireNonNullLambda(mapper, "Mapper", "select");
         // Create a new stream that represents the projected result
         // The actual type inference and query generation is done at build time
-        String callSiteId = getCallSiteId();
+        String callSiteId = getCallSiteId(Set.of(), getPrimaryLambda());
         Object[] capturedValues = extractCapturedVariables(callSiteId);
 
-        QueryExecutorRegistry registry = Arc.container().instance(QueryExecutorRegistry.class).get();
+        QueryExecutorRegistry registry = getQueryExecutorRegistry();
         List<R> results = registry.executeGroupQuery(callSiteId, entityClass, capturedValues, offset, limit);
-        return new ListQubitStream<>(results);
+        return new ImmutableResultStream<>(results, "group projection");
     }
 
     @Override
     public QubitStream<K> selectKey() {
-        String callSiteId = getCallSiteId();
+        String callSiteId = getCallSiteId(Set.of(), getPrimaryLambda());
         Object[] capturedValues = extractCapturedVariables(callSiteId);
 
-        QueryExecutorRegistry registry = Arc.container().instance(QueryExecutorRegistry.class).get();
+        QueryExecutorRegistry registry = getQueryExecutorRegistry();
         List<K> results = registry.executeGroupKeyQuery(callSiteId, entityClass, capturedValues, offset, limit);
-        return new ListQubitStream<>(results);
+        return new ImmutableResultStream<>(results, "group projection");
     }
 
-    // =============================================================================================
-    // SORTING
-    // =============================================================================================
+    // ========== Sorting ==========
 
     @Override
     public <C extends Comparable<C>> GroupStream<T, K> sortedBy(GroupQuerySpec<T, K, C> keyExtractor) {
+        requireNonNullLambda(keyExtractor, "Key extractor", "sortedBy");
         List<GroupSortOrder<T, K>> newSortOrders = new ArrayList<>(this.sortOrders);
         newSortOrders.add(0, new GroupSortOrder<>(keyExtractor, SortDirection.ASCENDING));
         return withSortOrders(newSortOrders);
@@ -158,56 +156,45 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
 
     @Override
     public <C extends Comparable<C>> GroupStream<T, K> sortedDescendingBy(GroupQuerySpec<T, K, C> keyExtractor) {
+        requireNonNullLambda(keyExtractor, "Key extractor", "sortedDescendingBy");
         List<GroupSortOrder<T, K>> newSortOrders = new ArrayList<>(this.sortOrders);
         newSortOrders.add(0, new GroupSortOrder<>(keyExtractor, SortDirection.DESCENDING));
         return withSortOrders(newSortOrders);
     }
 
-    // =============================================================================================
-    // PAGINATION
-    // =============================================================================================
+    // ========== Pagination ==========
 
     @Override
     public GroupStream<T, K> skip(int n) {
-        if (n < 0) {
-            throw new IllegalArgumentException("skip count must be >= 0, got: " + n);
-        }
-        return withOffset(n);
+        return withOffset(validateSkipCount(n));
     }
 
     @Override
     public GroupStream<T, K> limit(int n) {
-        if (n < 0) {
-            throw new IllegalArgumentException("limit count must be >= 0, got: " + n);
-        }
-        return withLimit(n);
+        return withLimit(validateLimitCount(n));
     }
 
-    // =============================================================================================
-    // TERMINAL OPERATIONS
-    // =============================================================================================
+    // ========== Terminal Operations ==========
 
     @Override
     public List<K> toList() {
-        String callSiteId = getCallSiteId();
+        String callSiteId = getCallSiteId(Set.of(), getPrimaryLambda());
         Object[] capturedValues = extractCapturedVariables(callSiteId);
 
-        QueryExecutorRegistry registry = Arc.container().instance(QueryExecutorRegistry.class).get();
+        QueryExecutorRegistry registry = getQueryExecutorRegistry();
         return registry.executeGroupKeyQuery(callSiteId, entityClass, capturedValues, offset, limit);
     }
 
     @Override
     public long count() {
-        String callSiteId = getCallSiteId();
+        String callSiteId = getCallSiteId(Set.of(), getPrimaryLambda());
         Object[] capturedValues = extractCapturedVariables(callSiteId);
 
-        QueryExecutorRegistry registry = Arc.container().instance(QueryExecutorRegistry.class).get();
+        QueryExecutorRegistry registry = getQueryExecutorRegistry();
         return registry.executeGroupCountQuery(callSiteId, entityClass, capturedValues);
     }
 
-    // =============================================================================================
-    // INTERNAL HELPER METHODS - Stream Derivation
-    // =============================================================================================
+    // ========== Stream Derivation Helpers ==========
 
     private GroupStreamImpl<T, K> withHavingConditions(List<GroupQuerySpec<T, K, Boolean>> havingConditions) {
         return new GroupStreamImpl<>(entityClass, keyExtractor, predicates, havingConditions, selector, sortOrders, offset, limit);
@@ -225,22 +212,39 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
         return new GroupStreamImpl<>(entityClass, keyExtractor, predicates, havingConditions, selector, sortOrders, offset, limit);
     }
 
-    // =============================================================================================
-    // INTERNAL HELPER METHODS - Call Site Resolution
-    // =============================================================================================
+    // ========== Call Site Resolution Helpers ==========
 
-    private String getCallSiteId() {
-        StackWalker walker = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
-        return walker.walk(frames -> frames
-                .skip(1)
-                .filter(frame -> !frame.getClassName().startsWith("io.quarkiverse.qubit.runtime."))
-                .filter(frame -> !QubitConstants.FLUENT_INTERMEDIATE_METHODS.contains(frame.getMethodName()))
-                .filter(frame -> !QubitConstants.FLUENT_TERMINAL_METHODS.contains(frame.getMethodName()))
-                .findFirst()
-                .map(frame -> frame.getClassName() + ":" +
-                             frame.getMethodName() + ":" +
-                             frame.getLineNumber())
-                .orElseThrow(() -> new IllegalStateException("Could not determine call site")));
+    /**
+     * Returns the primary lambda for call site ID uniqueness.
+     * <p>
+     * Priority order (matching build-time InvokeDynamicScanner.getPrimaryLambdaMethodName):
+     * <ol>
+     *   <li>First predicate (WHERE clause before grouping)</li>
+     *   <li>groupBy key extractor</li>
+     *   <li>First having condition</li>
+     *   <li>Selector (select projection)</li>
+     * </ol>
+     *
+     * @return the primary lambda, or null if no lambdas are present
+     */
+    private Object getPrimaryLambda() {
+        // First predicate takes priority
+        if (!predicates.isEmpty()) {
+            return predicates.get(0);
+        }
+        // groupBy key extractor (always present for group queries)
+        if (keyExtractor != null) {
+            return keyExtractor;
+        }
+        // Having condition
+        if (!havingConditions.isEmpty()) {
+            return havingConditions.get(0);
+        }
+        // Selector for projection
+        if (selector != null) {
+            return selector;
+        }
+        return null;
     }
 
     private Object[] extractCapturedVariables(String callSiteId) {
@@ -254,206 +258,33 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
         int remainingCount = capturedCount;
 
         // Extract from predicates (WHERE clauses before grouping)
-        for (QuerySpec<T, Boolean> predicate : predicates) {
-            if (remainingCount == 0) {
-                break;
-            }
-
-            int predicateCapturedCount = countCapturedFields(predicate);
-
-            if (predicateCapturedCount > 0) {
-                Object[] predicateValues = CapturedVariableExtractor.extract(predicate, predicateCapturedCount);
-                Collections.addAll(allCapturedValues, predicateValues);
-                remainingCount -= predicateCapturedCount;
-            }
-        }
+        remainingCount = extractFromLambdas(predicates, "predicate", callSiteId,
+                allCapturedValues, remainingCount);
 
         // Extract from keyExtractor (groupBy key)
         if (remainingCount > 0 && keyExtractor != null) {
-            int keyExtractorCapturedCount = countCapturedFields(keyExtractor);
-            if (keyExtractorCapturedCount > 0) {
-                Object[] keyValues = CapturedVariableExtractor.extract(keyExtractor, keyExtractorCapturedCount);
-                Collections.addAll(allCapturedValues, keyValues);
-                remainingCount -= keyExtractorCapturedCount;
-            }
+            remainingCount = extractFromSingleLambda(keyExtractor, "keyExtractor", callSiteId,
+                    allCapturedValues, remainingCount);
         }
 
         // Extract from havingConditions (HAVING clauses)
-        for (GroupQuerySpec<T, K, Boolean> havingCondition : havingConditions) {
-            if (remainingCount == 0) {
-                break;
-            }
-
-            int havingCapturedCount = countCapturedFields(havingCondition);
-
-            if (havingCapturedCount > 0) {
-                Object[] havingValues = CapturedVariableExtractor.extract(havingCondition, havingCapturedCount);
-                Collections.addAll(allCapturedValues, havingValues);
-                remainingCount -= havingCapturedCount;
-            }
-        }
+        remainingCount = extractFromLambdas(havingConditions, "havingCondition", callSiteId,
+                allCapturedValues, remainingCount);
 
         // Extract from selector (select projection)
         if (remainingCount > 0 && selector != null) {
-            int selectorCapturedCount = countCapturedFields(selector);
-            if (selectorCapturedCount > 0) {
-                Object[] selectorValues = CapturedVariableExtractor.extract(selector, selectorCapturedCount);
-                Collections.addAll(allCapturedValues, selectorValues);
-                remainingCount -= selectorCapturedCount;
-            }
+            extractFromSingleLambda(selector, "selector", callSiteId,
+                    allCapturedValues, remainingCount);
         }
 
         return allCapturedValues.toArray(new Object[0]);
     }
 
-    private int countCapturedFields(Object lambdaInstance) {
-        if (lambdaInstance == null) {
-            return 0;
-        }
-
-        Class<?> lambdaClass = lambdaInstance.getClass();
-        Field[] allFields = lambdaClass.getDeclaredFields();
-
-        int count = 0;
-        for (Field field : allFields) {
-            if (!Modifier.isStatic(field.getModifiers())) {
-                count++;
-            }
-        }
-
-        return count;
-    }
-
-    // =============================================================================================
-    // INTERNAL CLASSES
-    // =============================================================================================
+    // ========== Internal Classes ==========
 
     /**
      * Represents a sort order specification for groups.
      */
     private record GroupSortOrder<T, K>(GroupQuerySpec<T, K, ?> keyExtractor, SortDirection direction) {
-    }
-
-    /**
-     * Simple QubitStream implementation that wraps a list of results.
-     * Used for returning results from group projections.
-     */
-    private static class ListQubitStream<T> implements QubitStream<T> {
-        private final List<T> results;
-
-        ListQubitStream(List<T> results) {
-            this.results = results;
-        }
-
-        @Override
-        public QubitStream<T> where(QuerySpec<T, Boolean> predicate) {
-            throw new UnsupportedOperationException("Cannot filter after group projection");
-        }
-
-        @Override
-        public <R> QubitStream<R> select(QuerySpec<T, R> mapper) {
-            throw new UnsupportedOperationException("Cannot project after group projection");
-        }
-
-        @Override
-        public <K extends Comparable<K>> QubitStream<T> sortedBy(QuerySpec<T, K> keyExtractor) {
-            throw new UnsupportedOperationException("Cannot sort after group projection");
-        }
-
-        @Override
-        public <K extends Comparable<K>> QubitStream<T> sortedDescendingBy(QuerySpec<T, K> keyExtractor) {
-            throw new UnsupportedOperationException("Cannot sort after group projection");
-        }
-
-        @Override
-        public QubitStream<T> skip(int n) {
-            return new ListQubitStream<>(results.subList(Math.min(n, results.size()), results.size()));
-        }
-
-        @Override
-        public QubitStream<T> limit(int n) {
-            return new ListQubitStream<>(results.subList(0, Math.min(n, results.size())));
-        }
-
-        @Override
-        public QubitStream<T> distinct() {
-            return new ListQubitStream<>(results.stream().distinct().toList());
-        }
-
-        @Override
-        public long count() {
-            return results.size();
-        }
-
-        @Override
-        public <K extends Comparable<K>> QubitStream<K> min(QuerySpec<T, K> mapper) {
-            throw new UnsupportedOperationException("Cannot aggregate after group projection");
-        }
-
-        @Override
-        public <K extends Comparable<K>> QubitStream<K> max(QuerySpec<T, K> mapper) {
-            throw new UnsupportedOperationException("Cannot aggregate after group projection");
-        }
-
-        @Override
-        public QubitStream<Long> sumInteger(QuerySpec<T, Integer> mapper) {
-            throw new UnsupportedOperationException("Cannot aggregate after group projection");
-        }
-
-        @Override
-        public QubitStream<Long> sumLong(QuerySpec<T, Long> mapper) {
-            throw new UnsupportedOperationException("Cannot aggregate after group projection");
-        }
-
-        @Override
-        public QubitStream<Double> sumDouble(QuerySpec<T, Double> mapper) {
-            throw new UnsupportedOperationException("Cannot aggregate after group projection");
-        }
-
-        @Override
-        public QubitStream<Double> avg(QuerySpec<T, ? extends Number> mapper) {
-            throw new UnsupportedOperationException("Cannot aggregate after group projection");
-        }
-
-        @Override
-        public List<T> toList() {
-            return new ArrayList<>(results);
-        }
-
-        @Override
-        public T getSingleResult() {
-            if (results.isEmpty()) {
-                throw new NoResultException("getSingleResult() expected exactly one result but found none");
-            }
-            if (results.size() > 1) {
-                throw new NonUniqueResultException("getSingleResult() expected exactly one result but found " + results.size());
-            }
-            return results.get(0);
-        }
-
-        @Override
-        public Optional<T> findFirst() {
-            return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
-        }
-
-        @Override
-        public boolean exists() {
-            return !results.isEmpty();
-        }
-
-        @Override
-        public <R> JoinStream<T, R> join(QuerySpec<T, Collection<R>> relationship) {
-            throw new UnsupportedOperationException("Cannot join after group projection");
-        }
-
-        @Override
-        public <R> JoinStream<T, R> leftJoin(QuerySpec<T, Collection<R>> relationship) {
-            throw new UnsupportedOperationException("Cannot join after group projection");
-        }
-
-        @Override
-        public <K> GroupStream<T, K> groupBy(QuerySpec<T, K> keyExtractor) {
-            throw new UnsupportedOperationException("Cannot group after group projection");
-        }
     }
 }

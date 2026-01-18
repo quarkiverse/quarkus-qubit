@@ -8,43 +8,22 @@ import java.util.List;
 import java.util.Set;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.and;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.CANNOT_COMBINE_EMPTY_PREDICATE_LIST;
 
-/**
- * Utility class for captured variable operations in lambda expressions.
- * <p>
- * Provides methods for:
- * <ul>
- *   <li>Counting captured variables in expressions</li>
- *   <li>Collecting captured variable indices</li>
- *   <li>Renumbering captured variable indices for predicate combination</li>
- * </ul>
- *
- * @see CallSiteProcessor
- */
+/** Captured variable operations: counting, collecting indices, renumbering, validation. */
 public final class CapturedVariableHelper {
 
     private CapturedVariableHelper() {
-        // Utility class
     }
 
-    /**
-     * Counts distinct captured variables in lambda expression.
-     *
-     * @param expression the lambda expression to analyze
-     * @return the number of distinct captured variables
-     */
+    /** Counts distinct captured variables in lambda expression. */
     public static int countCapturedVariables(LambdaExpression expression) {
         Set<Integer> capturedIndices = new HashSet<>();
         collectCapturedVariableIndices(expression, capturedIndices);
         return capturedIndices.size();
     }
 
-    /**
-     * Counts total captured variables across all sort expressions.
-     *
-     * @param sortExpressions the list of sort expressions
-     * @return 0 if sortExpressions is null or empty, otherwise the total count
-     */
+    /** Counts total captured variables across all sort expressions. */
     public static int countCapturedVariablesInSortExpressions(List<LambdaAnalysisResult.SortExpression> sortExpressions) {
         if (sortExpressions == null || sortExpressions.isEmpty()) {
             return 0;
@@ -57,20 +36,12 @@ public final class CapturedVariableHelper {
         return count;
     }
 
-    /**
-     * Recursively collects captured variable indices.
-     * <p>
-     * Uses Java 21 pattern matching switch for cleaner type dispatch.
-     *
-     * @param expression the lambda expression to analyze
-     * @param capturedIndices the set to populate with indices
-     */
+    /** Recursively collects captured variable indices. */
     public static void collectCapturedVariableIndices(LambdaExpression expression, Set<Integer> capturedIndices) {
         if (expression == null) {
             return;
         }
 
-        // Java 21 pattern matching switch for type dispatch
         switch (expression) {
             case LambdaExpression.CapturedVariable capturedVar ->
                 capturedIndices.add(capturedVar.index());
@@ -91,60 +62,36 @@ public final class CapturedVariableHelper {
             }
 
             case LambdaExpression.ConstructorCall constructorCall -> {
-                // Handle DTO constructor calls
                 for (LambdaExpression arg : constructorCall.arguments()) {
                     collectCapturedVariableIndices(arg, capturedIndices);
                 }
             }
 
             case LambdaExpression.InExpression inExpr -> {
-                // Handle IN clause expressions
                 collectCapturedVariableIndices(inExpr.field(), capturedIndices);
                 collectCapturedVariableIndices(inExpr.collection(), capturedIndices);
             }
 
             case LambdaExpression.MemberOfExpression memberOfExpr -> {
-                // Handle MEMBER OF expressions
                 collectCapturedVariableIndices(memberOfExpr.value(), capturedIndices);
                 collectCapturedVariableIndices(memberOfExpr.collectionField(), capturedIndices);
             }
 
-            // These expression types don't contain captured variables - use separate cases
-            // because multi-pattern cases with unnamed `_` require preview features in Java 21
-            case LambdaExpression.PathExpression ignored1 -> { /* no captured variables */ }
-            case LambdaExpression.BiEntityFieldAccess ignored2 -> { /* no captured variables */ }
-            case LambdaExpression.BiEntityPathExpression ignored3 -> { /* no captured variables */ }
-            case LambdaExpression.BiEntityParameter ignored4 -> { /* no captured variables */ }
-
-            // Other expression types: FieldAccess, Constant, Parameter, NullLiteral, etc.
-            default -> { /* no captured variables */ }
+            // No captured variables (separate cases: Java 21 `_` requires preview)
+            case LambdaExpression.PathExpression ignored1 -> { /* no-op */ }
+            case LambdaExpression.BiEntityFieldAccess ignored2 -> { /* no-op */ }
+            case LambdaExpression.BiEntityPathExpression ignored3 -> { /* no-op */ }
+            case LambdaExpression.BiEntityParameter ignored4 -> { /* no-op */ }
+            default -> { /* no-op */ }
         }
     }
 
-    /**
-     * Renumbers captured variable indices in lambda expression tree by adding offset.
-     * This ensures sequential indices when combining multiple lambdas.
-     * <p>
-     * Example: For second predicate with offset=1:
-     * <ul>
-     *   <li>CapturedVariable(0) becomes CapturedVariable(1)</li>
-     *   <li>CapturedVariable(1) becomes CapturedVariable(2)</li>
-     * </ul>
-     * <p>
-     * Recursively walks the entire AST tree to renumber all CapturedVariable nodes.
-     * <p>
-     * Uses Java 21 pattern matching switch expression for cleaner type dispatch.
-     *
-     * @param expression the lambda expression AST
-     * @param offset the offset to add to each captured variable index
-     * @return new expression tree with renumbered indices
-     */
+    /** Renumbers captured variable indices by adding offset. */
     public static LambdaExpression renumberCapturedVariables(LambdaExpression expression, int offset) {
         if (expression == null || offset == 0) {
             return expression;
         }
 
-        // Java 21 pattern matching switch expression for type dispatch
         return switch (expression) {
             case LambdaExpression.CapturedVariable capturedVar ->
                 new LambdaExpression.CapturedVariable(capturedVar.index() + offset, capturedVar.type());
@@ -190,42 +137,30 @@ public final class CapturedVariableHelper {
                         renumberCapturedVariables(conditional.falseValue(), offset));
 
             case LambdaExpression.InExpression inExpr ->
-                // Handle IN clause expressions
                 new LambdaExpression.InExpression(
                         renumberCapturedVariables(inExpr.field(), offset),
                         renumberCapturedVariables(inExpr.collection(), offset),
                         inExpr.negated());
 
             case LambdaExpression.MemberOfExpression memberOfExpr ->
-                // Handle MEMBER OF expressions
                 new LambdaExpression.MemberOfExpression(
                         renumberCapturedVariables(memberOfExpr.value(), offset),
                         renumberCapturedVariables(memberOfExpr.collectionField(), offset),
                         memberOfExpr.negated());
 
-            // These expression types don't contain captured variables, return as-is
-            // Using separate cases because multi-pattern with `_` requires Java 21 preview
+            // No captured variables - return as-is (multi-pattern `_` requires Java 21 preview)
             case LambdaExpression.PathExpression ignored1 -> expression;
             case LambdaExpression.BiEntityFieldAccess ignored2 -> expression;
             case LambdaExpression.BiEntityPathExpression ignored3 -> expression;
             case LambdaExpression.BiEntityParameter ignored4 -> expression;
-
-            // Other expression types: FieldAccess, Constant, Parameter, NullLiteral, etc.
             default -> expression;
         };
     }
 
-    /**
-     * Combines multiple predicates with AND operation.
-     * Supports multiple where() chaining.
-     *
-     * @param predicates the list of predicate expressions to combine
-     * @return a single combined expression with AND operations
-     * @throws IllegalArgumentException if predicates is empty
-     */
+    /** Combines multiple predicates with AND. Throws if predicates is empty. */
     public static LambdaExpression combinePredicatesWithAnd(List<LambdaExpression> predicates) {
         if (predicates.isEmpty()) {
-            throw new IllegalArgumentException("Cannot combine empty predicate list");
+            throw new IllegalArgumentException(CANNOT_COMBINE_EMPTY_PREDICATE_LIST);
         }
 
         if (predicates.size() == 1) {
@@ -241,22 +176,7 @@ public final class CapturedVariableHelper {
         return combined;
     }
 
-    /**
-     * Combines two predicates with AND operator if both are non-null.
-     *
-     * <p>This is a convenience method for combining exactly two predicates,
-     * handling null cases gracefully:
-     * <ul>
-     *   <li>Both non-null: returns {@code AND(predicate1, predicate2)}</li>
-     *   <li>Only predicate1 non-null: returns {@code predicate1}</li>
-     *   <li>Only predicate2 non-null: returns {@code predicate2}</li>
-     *   <li>Both null: returns {@code null}</li>
-     * </ul>
-     *
-     * @param predicate1 the first predicate (may be null)
-     * @param predicate2 the second predicate (may be null)
-     * @return combined expression with AND, or single non-null predicate, or null
-     */
+    /** Combines two predicates with AND if both non-null. */
     public static LambdaExpression combinePredicatesWithAnd(LambdaExpression predicate1, LambdaExpression predicate2) {
         if (predicate1 != null && predicate2 != null) {
             return and(predicate1, predicate2);
@@ -264,6 +184,50 @@ public final class CapturedVariableHelper {
             return predicate1;
         } else {
             return predicate2;
+        }
+    }
+
+    /** Validates CapturedVariable indices are within bounds (build-time safety check). */
+    public static void validateCapturedVariableIndices(LambdaExpression expression, int expectedCount) {
+        if (expression == null) {
+            return;
+        }
+
+        Set<Integer> capturedIndices = new HashSet<>();
+        collectCapturedVariableIndices(expression, capturedIndices);
+
+        // If no captured variables in expression, nothing to validate
+        if (capturedIndices.isEmpty()) {
+            return;
+        }
+
+        // If we have captured variables but expectedCount is 0, that's an error
+        if (expectedCount == 0) {
+            throw new IllegalStateException(String.format(
+                    "Expression contains %d captured variable(s) but expectedCount=0. " +
+                    "This indicates a mismatch between bytecode analysis and captured variable counting.",
+                    capturedIndices.size()));
+        }
+
+        for (int index : capturedIndices) {
+            // Note: CapturedVariable constructor already validates index >= 0,
+            // so we only need to check the upper bound here
+            if (index >= expectedCount) {
+                throw new IllegalStateException(String.format(
+                        "CapturedVariable index %d is out of bounds (expectedCount=%d). " +
+                        "This indicates a mismatch between bytecode analysis and captured variable counting. " +
+                        "The generated code would fail with ArrayIndexOutOfBoundsException at runtime.",
+                        index, expectedCount));
+            }
+        }
+    }
+
+    /** Validates captured variable indices for multiple expressions. */
+    public static void validateCapturedVariableIndices(int expectedCount, LambdaExpression... expressions) {
+        for (LambdaExpression expression : expressions) {
+            if (expression != null) {
+                validateCapturedVariableIndices(expression, expectedCount);
+            }
         }
     }
 }

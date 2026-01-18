@@ -2,6 +2,8 @@ package io.quarkiverse.qubit.deployment.analysis.branch;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.common.BytecodeValidator;
+import io.quarkiverse.qubit.deployment.common.PatternDetector;
+import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
 import io.quarkus.logging.Log;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
@@ -12,20 +14,16 @@ import java.util.Deque;
 import java.util.Map;
 import java.util.Optional;
 
-import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
-import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.isBooleanType;
-
 /**
  * Base class for IFEQ/IFNE instruction handlers.
+ * <p>
+ * Consolidates the common switch-based pattern handling used by both handlers,
+ * delegating opcode-specific expression creation to abstract methods.
  */
 public abstract class AbstractZeroEqualityBranchHandler implements BranchHandler {
 
     /**
      * Creates boolean evaluation expression based on instruction semantics.
-     *
-     * @param fieldAccess the field access expression from the stack
-     * @param jumpTarget the target value from label-to-value mapping (null if label not found)
-     * @return the boolean evaluation expression
      */
     protected abstract LambdaExpression createBooleanEvaluationExpression(
             LambdaExpression fieldAccess,
@@ -37,62 +35,106 @@ public abstract class AbstractZeroEqualityBranchHandler implements BranchHandler
     protected abstract String getInstructionName();
 
     /**
-     * Handles boolean field pattern with AND/OR combination logic.
+     * Creates expression for numeric comparison (ISUB/LSUB/DCMPL/DCMPG).
+     * IFEQ: (a-b)==0 → a!=b; IFNE: (a-b)!=0 → a==b
      */
-    protected BranchState handleBooleanFieldPattern(
+    protected abstract LambdaExpression createNumericComparisonExpression(
+            LambdaExpression left, LambdaExpression right);
+
+    /**
+     * Creates expression for compareTo pattern.
+     * IFEQ: compareTo()==0 → equality; IFNE: compareTo()!=0 → non-equality
+     */
+    protected abstract LambdaExpression createCompareToExpression(LambdaExpression compareToExpr);
+
+    /**
+     * Creates expression for arithmetic pattern (comparison with zero).
+     */
+    protected abstract LambdaExpression createArithmeticExpression(LambdaExpression arithmeticExpr);
+
+    @Override
+    public BranchState handle(
             Deque<LambdaExpression> stack,
             JumpInsnNode jumpInsn,
             Map<LabelNode, Boolean> labelToValue,
-            BranchState state) {
+            Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications,
+            BranchState state,
+            boolean sameLabel,
+            boolean completingAndGroup,
+            boolean startingNewOrGroup) {
+
+        if (stack.isEmpty()) {
+            Log.tracef("%s: Stack empty, skipping", getInstructionName());
+            return state;
+        }
+
+        PatternDetector.BranchPatternAnalysis patterns = PatternDetector.BranchPatternAnalysis.analyze(stack);
+
+        return switch (patterns.pattern()) {
+            case NUMERIC_COMPARISON -> {
+                // Handle numeric comparison: ISUB/LSUB or DCMPL/DCMPG → instruction
+                LambdaExpression right = BytecodeValidator.popSafe(stack, getInstructionName() + "-NumericComp");
+                LambdaExpression left = BytecodeValidator.popSafe(stack, getInstructionName() + "-NumericComp");
+                stack.push(createNumericComparisonExpression(left, right));
+                Log.tracef("%s: Numeric comparison pattern - created comparison", getInstructionName());
+                yield state;
+            }
+            case COMPARE_TO -> {
+                // Handle compareTo pattern: a.compareTo(b) → instruction
+                LambdaExpression expr = BytecodeValidator.popSafe(stack, getInstructionName() + "-CompareTo");
+                stack.push(createCompareToExpression(expr));
+                Log.tracef("%s: CompareTo pattern - created comparison", getInstructionName());
+                yield state;
+            }
+            case ARITHMETIC -> {
+                // Handle arithmetic pattern: (arithmetic expr) → instruction
+                LambdaExpression expr = BytecodeValidator.popSafe(stack, getInstructionName() + "-Arithmetic");
+                stack.push(createArithmeticExpression(expr));
+                Log.tracef("%s: Arithmetic pattern - created comparison", getInstructionName());
+                yield state;
+            }
+            case OTHER -> {
+                // Handle boolean field pattern: field.booleanValue → instruction.
+                // This is the complex case requiring AND/OR combination logic
+                yield handleBooleanFieldPattern(stack, jumpInsn, labelToValue, labelClassifications,
+                        state, sameLabel, completingAndGroup, startingNewOrGroup);
+            }
+        };
+    }
+
+    /**
+     * Handles boolean field pattern with AND/OR combination logic.
+     */
+    private BranchState handleBooleanFieldPattern(
+            Deque<LambdaExpression> stack,
+            JumpInsnNode jumpInsn,
+            Map<LabelNode, Boolean> labelToValue,
+            Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications,
+            BranchState state,
+            boolean sameLabel,
+            boolean completingAndGroup,
+            boolean startingNewOrGroup) {
 
         LambdaExpression fieldAccess = BytecodeValidator.popSafe(stack, getInstructionName() + "-Boolean");
         Boolean jumpTarget = labelToValue.get(jumpInsn.label);
+        ControlFlowAnalyzer.LabelClassification jumpLabelClass = labelClassifications.get(jumpInsn.label);
 
         LambdaExpression boolExpr = createBooleanEvaluationExpression(fieldAccess, jumpTarget);
 
-        Log.tracef("%s boolean field: jumpTarget=%s, boolExpr=%s", getInstructionName(), jumpTarget, boolExpr);
+        Log.debugf("%s boolean field: jumpTarget=%s, jumpLabelClass=%s, boolExpr=%s",
+                getInstructionName(), jumpTarget, jumpLabelClass, boolExpr);
 
         Optional<Boolean> previousJumpTarget = state.getLastJumpTarget();
 
         LambdaExpression stackTop = stack.isEmpty() ? null : stack.peek();
         BranchState.BranchResult result = state.processBranch(TRUE.equals(jumpTarget), true, stackTop);
-        Operator combineOp = result.combineOperator();
-        BranchState newState = result.newState();
 
-        if (combineOp != null && !stack.isEmpty() && isPredicateExpression(stack.peek())) {
-            LambdaExpression previousCondition = BytecodeValidator.popSafe(stack, getInstructionName() + "-Combine");
-            LambdaExpression combined = combineAndRestructureIfNeeded(combineOp, previousCondition, boolExpr);
-            stack.push(combined);
-            newState = newState.afterCombination(TRUE.equals(jumpTarget), previousJumpTarget, combineOp);
-            Log.debugf("%s: Combined with %s: %s", getInstructionName(), combineOp, combined);
-        } else {
-            stack.push(boolExpr);
-            Log.debugf("%s: Pushed without combining: %s", getInstructionName(), boolExpr);
-        }
-
-        return newState;
+        // Delegate to shared combination logic (includes operator adjustment)
+        CombinationContext ctx = new CombinationContext(
+                getInstructionName(), state, result.newState(), result.combineOperator(),
+                jumpTarget, previousJumpTarget, sameLabel, stackTop,
+                jumpLabelClass, completingAndGroup, startingNewOrGroup);
+        return performCombination(stack, boolExpr, ctx);
     }
 
-    /**
-     * Checks if expression is a predicate that can be combined with AND/OR.
-     * <p>
-     * These expression types can be combined:
-     * <ul>
-     *   <li>{@link LambdaExpression.BinaryOp} (comparisons, logical ops)</li>
-     *   <li>{@link LambdaExpression.MethodCall} returning boolean (e.g., String.equals())</li>
-     *   <li>{@link LambdaExpression.InExpression} (already a predicate)</li>
-     *   <li>{@link LambdaExpression.MemberOfExpression} (already a predicate)</li>
-     *   <li>{@link LambdaExpression.UnaryOp} (e.g., NOT expressions)</li>
-     * </ul>
-     */
-    protected boolean isPredicateExpression(LambdaExpression expr) {
-        return switch (expr) {
-            case LambdaExpression.BinaryOp ignored -> true;
-            case LambdaExpression.MethodCall methodCall -> isBooleanType(methodCall.returnType());
-            case LambdaExpression.InExpression ignored -> true;
-            case LambdaExpression.MemberOfExpression ignored -> true;
-            case LambdaExpression.UnaryOp ignored -> true;
-            default -> false;
-        };
-    }
 }

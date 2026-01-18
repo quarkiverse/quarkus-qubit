@@ -10,11 +10,15 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.and;
+import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.or;
 import static org.objectweb.asm.Opcodes.*;
 
 /**
@@ -44,24 +48,12 @@ public class LambdaBytecodeAnalyzer {
      */
     private final InstructionHandlerRegistry handlerRegistry;
 
-    /**
-     * Creates an analyzer with the default instruction handler registry.
-     *
-     * <p>This is the standard constructor for production use.
-     */
+    /** Creates an analyzer with the default instruction handler registry. */
     public LambdaBytecodeAnalyzer() {
         this(InstructionHandlerRegistry.createDefault());
     }
 
-    /**
-     * Creates an analyzer with a custom instruction handler registry.
-     *
-     * <p>This constructor enables testability by allowing injection of mock
-     * or custom handler implementations.
-     *
-     * @param handlerRegistry the registry containing instruction handlers
-     * @throws NullPointerException if handlerRegistry is null
-     */
+    /** Creates an analyzer with custom registry for testing. */
     public LambdaBytecodeAnalyzer(InstructionHandlerRegistry handlerRegistry) {
         this.handlerRegistry = Objects.requireNonNull(handlerRegistry,
                 "handlerRegistry cannot be null");
@@ -69,152 +61,128 @@ public class LambdaBytecodeAnalyzer {
 
     /**
      * Analyzes synthetic lambda bytecode and returns expression AST.
-     *
-     * @param classBytes bytecode of the lambda class
-     * @param lambdaMethodName lambda method name (usually "lambda$methodName$N")
-     * @param lambdaDescriptor method descriptor (e.g., "(LPerson;)Z")
-     * @return lambda expression AST, or null if analysis fails
+     * @throws AnalysisException if bytecode cannot be read or lambda method not found
      */
     public LambdaExpression analyze(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor) {
         return analyze(classBytes, lambdaMethodName, lambdaDescriptor, false);
     }
 
     /**
-     * Analyzes synthetic lambda bytecode for bi-entity lambdas (BiQuerySpec).
-     * <p>
-     * Used for join query predicates and projections that take two entity parameters.
-     * For example: {@code (Person p, Phone ph) -> ph.type.equals("mobile")}
-     *
-     * @param classBytes bytecode of the lambda class
-     * @param lambdaMethodName lambda method name (usually "lambda$methodName$N")
-     * @param lambdaDescriptor method descriptor (e.g., "(LPerson;LPhone;)Z")
-     * @return lambda expression AST with BiEntity nodes, or null if analysis fails
+     * Analyzes bi-entity lambda (BiQuerySpec) for join query predicates and projections.
+     * @throws AnalysisException if bytecode cannot be read or lambda method not found
      */
     public LambdaExpression analyzeBiEntity(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor) {
         return analyze(classBytes, lambdaMethodName, lambdaDescriptor, true);
     }
 
     /**
-     * Analyzes synthetic lambda bytecode for group query lambdas (GroupQuerySpec).
-     * <p>
-     * Used for group query operations that take a Group parameter.
-     * For example: {@code (Group<Person, String> g) -> g.count()}
-     * <p>
-     * Group lambdas support:
-     * <ul>
-     *   <li>{@code g.key()} - returns grouping key</li>
-     *   <li>{@code g.count()} - returns count of entities in group</li>
-     *   <li>{@code g.countDistinct(p -> p.field)} - returns distinct count</li>
-     *   <li>{@code g.avg(p -> p.field)} - returns average of field values</li>
-     *   <li>{@code g.min(p -> p.field)} - returns minimum value</li>
-     *   <li>{@code g.max(p -> p.field)} - returns maximum value</li>
-     *   <li>{@code g.sumInteger/sumLong/sumDouble(p -> p.field)} - returns sum</li>
-     * </ul>
-     *
-     * @param classBytes bytecode of the lambda class
-     * @param lambdaMethodName lambda method name (usually "lambda$methodName$N")
-     * @param lambdaDescriptor method descriptor (e.g., "(LGroup;)J")
-     * @return lambda expression AST with Group nodes, or null if analysis fails
+     * Analyzes group lambda (GroupQuerySpec) with aggregation methods (key, count, avg, etc).
+     * @throws AnalysisException if bytecode cannot be read or lambda method not found
      */
     public LambdaExpression analyzeGroupQuerySpec(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor) {
         return analyzeGroupContext(classBytes, lambdaMethodName, lambdaDescriptor);
     }
 
-    /**
-     * Internal analyze method for group context lambdas (GroupQuerySpec).
-     *
-     * @param classBytes bytecode of the lambda class
-     * @param lambdaMethodName lambda method name
-     * @param lambdaDescriptor method descriptor
-     * @return lambda expression AST with Group nodes, or null if analysis fails
-     */
+    /** Internal: analyzes group context lambda (fail-fast on error). */
     private LambdaExpression analyzeGroupContext(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor) {
+        ClassNode classNode;
         try {
             ClassReader reader = new ClassReader(classBytes);
-            ClassNode classNode = new ClassNode();
+            classNode = new ClassNode();
             reader.accept(classNode, 0);
+        } catch (Exception e) {
+            throw new AnalysisException(
+                    "Failed to read class bytecode for group lambda analysis",
+                    null, lambdaMethodName, lambdaDescriptor, e);
+        }
 
-            MethodNode lambdaMethod = null;
-            for (MethodNode method : classNode.methods) {
-                if (method.name.equals(lambdaMethodName) && method.desc.equals(lambdaDescriptor)) {
-                    lambdaMethod = method;
-                    break;
-                }
+        MethodNode lambdaMethod = null;
+        for (MethodNode method : classNode.methods) {
+            if (method.name.equals(lambdaMethodName) && method.desc.equals(lambdaDescriptor)) {
+                lambdaMethod = method;
+                break;
             }
+        }
 
-            if (lambdaMethod == null) {
-                Log.warnf("Could not find group lambda method %s%s in class", lambdaMethodName, lambdaDescriptor);
-                return null;
-            }
+        if (lambdaMethod == null) {
+            String availableMethods = classNode.methods.stream()
+                    .map(m -> m.name + m.desc)
+                    .collect(Collectors.joining(", "));
+            throw AnalysisException.lambdaMethodNotFound(
+                    classNode.name + " (group lambda). Available methods: [" + availableMethods + "]",
+                    lambdaMethodName, lambdaDescriptor);
+        }
 
+        try {
             // For group context, the Group parameter is at slot 0 (first parameter)
             int groupParameterIndex = DescriptorParser.calculateEntityParameterSlotIndex(lambdaDescriptor);
             AnalysisContext.NestedLambdaSupport nestedLambdaSupport = createNestedLambdaSupport(classNode.methods);
             AnalysisContext ctx = new AnalysisContext(lambdaMethod, groupParameterIndex, nestedLambdaSupport);
 
             return processInstructions(ctx);
-
+        } catch (AnalysisException e) {
+            throw e; // Re-throw our own exceptions
         } catch (Exception e) {
-            Log.warnf(e, "Failed to analyze group lambda method %s", lambdaMethodName);
-            return null;
+            throw new AnalysisException(
+                    String.format("Failed to analyze group lambda method %s%s in class %s",
+                            lambdaMethodName, lambdaDescriptor, classNode.name),
+                    classNode.name, lambdaMethodName, lambdaDescriptor, e);
         }
     }
 
-    /**
-     * Internal analyze method that supports both single-entity and bi-entity lambdas.
-     *
-     * @param classBytes bytecode of the lambda class
-     * @param lambdaMethodName lambda method name
-     * @param lambdaDescriptor method descriptor
-     * @param biEntityMode true for bi-entity lambdas (BiQuerySpec)
-     * @return lambda expression AST, or null if analysis fails
-     */
+    /** Internal: analyzes single or bi-entity lambda (fail-fast on error). */
     private LambdaExpression analyze(byte[] classBytes, String lambdaMethodName,
                                       String lambdaDescriptor, boolean biEntityMode) {
+        ClassNode classNode;
         try {
             ClassReader reader = new ClassReader(classBytes);
-            ClassNode classNode = new ClassNode();
+            classNode = new ClassNode();
             reader.accept(classNode, 0);
+        } catch (Exception e) {
+            throw new AnalysisException(
+                    "Failed to read class bytecode for lambda analysis: " + e.getMessage(), e);
+        }
 
-            MethodNode lambdaMethod = null;
-            for (MethodNode method : classNode.methods) {
-                if (method.name.equals(lambdaMethodName) && method.desc.equals(lambdaDescriptor)) {
-                    lambdaMethod = method;
-                    break;
-                }
+        MethodNode lambdaMethod = null;
+        for (MethodNode method : classNode.methods) {
+            if (method.name.equals(lambdaMethodName) && method.desc.equals(lambdaDescriptor)) {
+                lambdaMethod = method;
+                break;
             }
+        }
 
-            if (lambdaMethod == null) {
-                Log.warnf("Could not find lambda method %s%s in class", lambdaMethodName, lambdaDescriptor);
-                return null;
-            }
+        if (lambdaMethod == null) {
+            String availableMethods = classNode.methods.stream()
+                    .map(m -> m.name + m.desc)
+                    .collect(Collectors.joining(", "));
+            throw AnalysisException.lambdaMethodNotFound(
+                    classNode.name + ". Available methods: [" + availableMethods + "]",
+                    lambdaMethodName, lambdaDescriptor);
+        }
 
+        try {
             if (biEntityMode) {
                 int[] biEntitySlots = DescriptorParser.calculateBiEntityParameterSlotIndices(lambdaDescriptor);
                 if (biEntitySlots == null) {
-                    Log.warnf("Bi-entity mode requires at least 2 parameters in descriptor: %s", lambdaDescriptor);
-                    return null;
+                    throw new AnalysisException(
+                            "Bi-entity mode requires at least 2 parameters in descriptor: " + lambdaDescriptor);
                 }
                 return analyzeMethodInstructions(lambdaMethod, biEntitySlots[0], biEntitySlots[1], classNode.methods);
             } else {
                 int entityParameterIndex = DescriptorParser.calculateEntityParameterSlotIndex(lambdaDescriptor);
                 return analyzeMethodInstructions(lambdaMethod, entityParameterIndex, classNode.methods);
             }
-
+        } catch (AnalysisException e) {
+            throw e; // Re-throw our own exceptions
         } catch (Exception e) {
-            Log.warnf(e, "Failed to analyze lambda method %s", lambdaMethodName);
-            return null;
+            throw new AnalysisException(
+                    String.format("Failed to analyze lambda method %s%s in class %s",
+                            lambdaMethodName, lambdaDescriptor, classNode.name),
+                    classNode.name, lambdaMethodName, lambdaDescriptor, e);
         }
     }
 
-    /**
-     * Analyzes method instructions to build lambda expression AST (single-entity).
-     *
-     * @param method lambda method to analyze
-     * @param entityParameterIndex local variable slot index of the entity parameter
-     * @param classMethods list of all methods in the class (for nested lambda analysis)
-     * @return lambda expression AST
-     */
+    /** Analyzes single-entity lambda instructions. */
     private LambdaExpression analyzeMethodInstructions(MethodNode method, int entityParameterIndex,
                                                         List<MethodNode> classMethods) {
         AnalysisContext.NestedLambdaSupport nestedLambdaSupport = createNestedLambdaSupport(classMethods);
@@ -222,15 +190,7 @@ public class LambdaBytecodeAnalyzer {
         return processInstructions(ctx);
     }
 
-    /**
-     * Analyzes method instructions to build lambda expression AST (bi-entity).
-     *
-     * @param method lambda method to analyze
-     * @param firstEntityParameterIndex local variable slot index of the first entity parameter
-     * @param secondEntityParameterIndex local variable slot index of the second entity parameter
-     * @param classMethods list of all methods in the class (for nested lambda analysis)
-     * @return lambda expression AST with BiEntity nodes
-     */
+    /** Analyzes bi-entity lambda instructions. */
     private LambdaExpression analyzeMethodInstructions(MethodNode method,
                                                         int firstEntityParameterIndex,
                                                         int secondEntityParameterIndex,
@@ -240,15 +200,7 @@ public class LambdaBytecodeAnalyzer {
         return processInstructions(ctx);
     }
 
-    /**
-     * Creates nested lambda support configuration for the given class methods.
-     * <p>
-     * This enables analysis of nested lambdas used in subqueries and group aggregations.
-     * For example: {@code subquery(Person.class).avg(q -> q.salary)}
-     *
-     * @param classMethods list of all methods in the class
-     * @return NestedLambdaSupport configuration
-     */
+    /** Creates nested lambda support for subqueries and group aggregations. */
     private AnalysisContext.NestedLambdaSupport createNestedLambdaSupport(List<MethodNode> classMethods) {
         return new AnalysisContext.NestedLambdaSupport(
                 classMethods,
@@ -259,12 +211,7 @@ public class LambdaBytecodeAnalyzer {
         );
     }
 
-    /**
-     * Processes all instructions in the method to build the lambda expression AST.
-     *
-     * @param ctx analysis context (single or bi-entity)
-     * @return lambda expression AST
-     */
+    /** Processes all instructions to build the lambda expression AST. */
     private LambdaExpression processInstructions(AnalysisContext ctx) {
         // Process each instruction
         for (int i = 0; i < ctx.getInstructionCount(); i++) {
@@ -294,13 +241,7 @@ public class LambdaBytecodeAnalyzer {
         return finalizeExpressionStack(ctx);
     }
 
-    /**
-     * Delegates instruction processing to the appropriate handler.
-     *
-     * @param ctx analysis context
-     * @param insn instruction to process
-     * @return true if analysis should terminate early
-     */
+    /** Delegates instruction to appropriate handler. Returns true to terminate early. */
     private boolean delegateToHandlers(AnalysisContext ctx, AbstractInsnNode insn) {
         for (InstructionHandler handler : handlerRegistry.handlers()) {
             if (handler.canHandle(insn)) {
@@ -317,14 +258,7 @@ public class LambdaBytecodeAnalyzer {
         return false;
     }
 
-    /**
-     * Handles branch instructions via {@link io.quarkiverse.qubit.deployment.analysis.branch.BranchCoordinator}.
-     *
-     * @param ctx analysis context
-     * @param insn instruction
-     * @param opcode opcode
-     * @return true if instruction was a branch instruction
-     */
+    /** Handles branch instructions via BranchCoordinator. */
     private boolean handleBranchInstruction(AnalysisContext ctx, AbstractInsnNode insn, int opcode) {
         switch (opcode) {
             case IF_ICMPGT, IF_ICMPGE, IF_ICMPLT, IF_ICMPLE, IF_ICMPEQ, IF_ICMPNE,
@@ -346,16 +280,7 @@ public class LambdaBytecodeAnalyzer {
         }
     }
 
-    /**
-     * Handles NEW, DUP, ANEWARRAY, and AASTORE instructions inline.
-     * <p>
-     * Extended to support Object[] array creation for GROUP BY multi-value projections.
-     *
-     * @param ctx analysis context
-     * @param insn instruction
-     * @param opcode opcode
-     * @return true if instruction was handled
-     */
+    /** Handles NEW, DUP, ANEWARRAY, AASTORE for GROUP BY multi-value projections. */
     private boolean handleNewAndDup(AnalysisContext ctx, AbstractInsnNode insn, int opcode) {
         if (opcode == NEW) {
             org.objectweb.asm.tree.TypeInsnNode newInsn = (org.objectweb.asm.tree.TypeInsnNode) insn;
@@ -386,14 +311,7 @@ public class LambdaBytecodeAnalyzer {
         return false;
     }
 
-    /**
-     * Finalizes expression stack by combining remaining expressions with AND.
-     * <p>
-     * Extended to check for pending array creation and finalize it.
-     *
-     * @param ctx analysis context for array completion
-     * @return final combined expression
-     */
+    /** Finalizes stack by combining expressions (AND/OR) and completing pending arrays. */
     private LambdaExpression finalizeExpressionStack(AnalysisContext ctx) {
         // If we have a pending array, complete it
         if (ctx.isInArrayCreation()) {
@@ -404,11 +322,33 @@ public class LambdaBytecodeAnalyzer {
         }
 
         Deque<LambdaExpression> stack = ctx.getStack();
-        while (stack.size() > 1) {
-            LambdaExpression right = stack.pop();
-            LambdaExpression left = stack.pop();
-            stack.push(and(left, right));
+
+        // Convert to list for left-to-right (bottom-to-top) processing
+        // Stack stores top at front, so we reverse to get bottom-to-top order
+        List<LambdaExpression> exprs = new ArrayList<>(stack);
+        Collections.reverse(exprs);
+
+        // Process expressions left-to-right (in evaluation order)
+        // Operator selection based on left operand type:
+        // - [AND, _] → OR  (pattern: (A && B) || ...)
+        // - [OR, _] → AND  (pattern: (A || B) && ...)
+        // - [comparison, _] → AND  (default AND chain)
+        while (exprs.size() > 1) {
+            LambdaExpression left = exprs.remove(0);
+            LambdaExpression right = exprs.remove(0);
+
+            boolean leftIsAnd = left instanceof LambdaExpression.BinaryOp binOp
+                    && binOp.operator() == LambdaExpression.BinaryOp.Operator.AND;
+
+            LambdaExpression combined;
+            if (leftIsAnd) {
+                combined = or(left, right);
+            } else {
+                combined = and(left, right);
+            }
+
+            exprs.add(0, combined);
         }
-        return stack.isEmpty() ? null : stack.peek();
+        return exprs.isEmpty() ? null : exprs.get(0);
     }
 }

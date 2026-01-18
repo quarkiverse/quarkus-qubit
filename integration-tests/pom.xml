@@ -53,6 +53,12 @@
             <artifactId>quarkus-junit5</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Required for QuarkusDevModeTest (DevUI testing) -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-junit5-internal</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>rest-assured</artifactId>
@@ -69,6 +75,13 @@
             <groupId>net.jqwik</groupId>
             <artifactId>jqwik</artifactId>
             <version>1.9.2</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Playwright for DevUI browser testing -->
+        <dependency>
+            <groupId>com.microsoft.playwright</groupId>
+            <artifactId>playwright</artifactId>
+            <version>1.48.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -98,6 +111,11 @@
                         <!-- Pass database kind to tests for conditional logic -->
                         <db.kind>${db.kind}</db.kind>
                     </systemPropertyVariables>
+                    <!-- Exclude Playwright tests from default run (they use QuarkusDevModeTest
+                         which is incompatible with QuarkusTestExtension-based tests) -->
+                    <excludes>
+                        <exclude>**/*PlaywrightTest.java</exclude>
+                    </excludes>
                 </configuration>
             </plugin>
             <!-- Failsafe plugin for integration tests (IT) -->
@@ -312,6 +330,64 @@
             <properties>
                 <quarkus.native.enabled>true</quarkus.native.enabled>
                 <quarkus.package.jar.enabled>false</quarkus.package.jar.enabled>
+            </properties>
+        </profile>
+
+        <!--
+            ==========================================
+            PLAYWRIGHT DEVUI TESTING PROFILE
+            ==========================================
+            Usage:
+              mvn test -Pplaywright                    # Install browser and run tests
+              mvn test -Pplaywright -Dplaywright.browser=chromium  # Use Chromium
+              mvn test -Pplaywright -Dplaywright.skip-install=true  # Skip browser install (CI)
+        -->
+        <profile>
+            <id>playwright</id>
+            <build>
+                <plugins>
+                    <!-- Install Playwright browsers before tests (unless skip-install is set) -->
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.5.0</version>
+                        <executions>
+                            <execution>
+                                <id>install-playwright-browsers</id>
+                                <phase>process-test-classes</phase>
+                                <goals>
+                                    <goal>java</goal>
+                                </goals>
+                                <configuration>
+                                    <mainClass>com.microsoft.playwright.CLI</mainClass>
+                                    <classpathScope>test</classpathScope>
+                                    <arguments>
+                                        <argument>install</argument>
+                                        <argument>${playwright.browser}</argument>
+                                    </arguments>
+                                    <skip>${playwright.skip-install}</skip>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <!-- Enable Playwright tests (excluded by default) -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <includes>
+                                <include>**/*PlaywrightTest.java</include>
+                            </includes>
+                            <systemPropertyVariables>
+                                <playwright.browser>${playwright.browser}</playwright.browser>
+                            </systemPropertyVariables>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+            <properties>
+                <playwright.browser>firefox</playwright.browser>
+                <playwright.skip-install>false</playwright.skip-install>
             </properties>
         </profile>
     </profiles>

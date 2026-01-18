@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.CONDITIONAL_JUMP_LOOKAHEAD_LIMIT;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.unexpectedLabelClassification;
 import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.LABEL_CLASSIFICATION_LOOKAHEAD_LIMIT;
 import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.LABEL_TRACE_DEPTH_LIMIT;
 import static io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer.LabelClassification.FALSE_SINK;
@@ -27,16 +28,12 @@ import static org.objectweb.asm.Opcodes.ICONST_1;
  */
 public final class ControlFlowAnalyzer {
 
-    /**
-     * Formats label for logging.
-     */
+    /** Formats label for logging. */
     private static String formatLabelForLogging(LabelNode label) {
         return String.valueOf(System.identityHashCode(label));
     }
 
-    /**
-     * Label role in boolean expression evaluation.
-     */
+    /** Label role in boolean expression evaluation. */
     public enum LabelClassification {
         TRUE_SINK("TRUE_SINK"),
         FALSE_SINK("FALSE_SINK"),
@@ -53,9 +50,7 @@ public final class ControlFlowAnalyzer {
         }
     }
 
-    /**
-     * Classifies all labels in method instructions.
-     */
+    /** Classifies all labels in method instructions. */
     public Map<LabelNode, LabelClassification> classifyLabels(InsnList instructions) {
         Map<LabelNode, LabelClassification> classifications = new HashMap<>();
 
@@ -73,15 +68,7 @@ public final class ControlFlowAnalyzer {
         return classifications;
     }
 
-    /**
-     * Classifies label by examining following instructions.
-     *
-     * @param labelNode the label to classify
-     * @param instructions the instruction list
-     * @param labelIndex the index of the label
-     * @param instructionCount total instruction count
-     * @return the label classification, or null if no classification determined
-     */
+    /** Classifies label by examining following instructions. Returns null if not determined. */
     private LabelClassification classifyLabel(LabelNode labelNode, InsnList instructions, int labelIndex, int instructionCount) {
         int limit = Math.min(labelIndex + LABEL_CLASSIFICATION_LOOKAHEAD_LIMIT, instructionCount);
 
@@ -106,9 +93,7 @@ public final class ControlFlowAnalyzer {
         return null;
     }
 
-    /**
-     * Maps labels to their boolean destination values.
-     */
+    /** Maps labels to their boolean destination values. */
     public Map<LabelNode, Boolean> traceLabelDestinations(InsnList instructions,
                                                           Map<LabelNode, LabelClassification> classifications) {
         Map<LabelNode, Integer> labelToIndex = buildLabelToIndexMap(instructions);
@@ -121,9 +106,7 @@ public final class ControlFlowAnalyzer {
         return labelToValue;
     }
 
-    /**
-     * Builds label-to-index map.
-     */
+    /** Builds label-to-index map. */
     private Map<LabelNode, Integer> buildLabelToIndexMap(InsnList instructions) {
         Map<LabelNode, Integer> labelToIndex = new HashMap<>();
         int instructionCount = instructions.size();
@@ -136,9 +119,7 @@ public final class ControlFlowAnalyzer {
         return labelToIndex;
     }
 
-    /**
-     * Resolves label classification to boolean value.
-     */
+    /** Resolves label classification to boolean value. */
     private void resolveLabelValue(
             LabelNode label,
             LabelClassification classification,
@@ -151,13 +132,11 @@ public final class ControlFlowAnalyzer {
             case TRUE_SINK -> labelToValue.put(label, true);
             case FALSE_SINK -> labelToValue.put(label, false);
             case INTERMEDIATE -> resolveIntermediateLabel(label, instructions, labelToIndex, classifications, labelToValue);
-            default -> throw new IllegalStateException("Unexpected label classification: " + classification);
+            default -> throw new IllegalStateException(unexpectedLabelClassification(classification));
         }
     }
 
-    /**
-     * Resolves intermediate label by tracing to sink destination.
-     */
+    /** Resolves intermediate label by tracing to sink destination. */
     private void resolveIntermediateLabel(
             LabelNode label,
             InsnList instructions,
@@ -183,16 +162,7 @@ public final class ControlFlowAnalyzer {
         }
     }
 
-    /**
-     * Traces label to TRUE_SINK or FALSE_SINK destination.
-     *
-     * @param label the label to trace
-     * @param instructions the instruction list
-     * @param labelToIndex label to index map
-     * @param classifications current label classifications
-     * @param visited set of already-visited labels to prevent cycles
-     * @return the sink classification, or null if not traceable
-     */
+    /** Traces label to TRUE_SINK or FALSE_SINK destination. Returns null if not traceable. */
     private LabelClassification traceLabelDestination(
             LabelNode label,
             InsnList instructions,
@@ -218,13 +188,7 @@ public final class ControlFlowAnalyzer {
         return traceFromIndex(startIndex, instructions, labelToIndex, classifications, visited);
     }
 
-    /**
-     * Returns classification if label is already a sink, null otherwise.
-     *
-     * @param label the label to check
-     * @param classifications current label classifications
-     * @return the sink classification (TRUE_SINK or FALSE_SINK), or null if intermediate or unknown
-     */
+    /** Returns classification if label is already a sink (TRUE_SINK/FALSE_SINK), null otherwise. */
     private LabelClassification getDirectSinkClassification(
             LabelNode label,
             Map<LabelNode, LabelClassification> classifications) {
@@ -236,16 +200,7 @@ public final class ControlFlowAnalyzer {
         return null;
     }
 
-    /**
-     * Traces label destination from instruction index.
-     *
-     * @param startIndex the index to start tracing from
-     * @param instructions the instruction list
-     * @param labelToIndex label to index map
-     * @param classifications current label classifications
-     * @param visited set of already-visited labels
-     * @return the sink classification, or null if depth limit exceeded or not found
-     */
+    /** Traces label destination from instruction index. Returns null if depth limit exceeded. */
     private LabelClassification traceFromIndex(
             int startIndex,
             InsnList instructions,
@@ -277,18 +232,7 @@ public final class ControlFlowAnalyzer {
         return null;
     }
 
-    /**
-     * Processes instruction during label tracing.
-     *
-     * @param insn the instruction to process
-     * @param opcode the instruction opcode
-     * @param currentIndex current instruction index
-     * @param instructions the instruction list
-     * @param labelToIndex label to index map
-     * @param classifications current label classifications
-     * @param visited set of already-visited labels
-     * @return the sink classification, or null if not determined
-     */
+    /** Processes instruction during label tracing. Returns null if not determined. */
     private LabelClassification processInstruction(
             AbstractInsnNode insn,
             int opcode,
@@ -308,17 +252,7 @@ public final class ControlFlowAnalyzer {
         return classifyIconstInstruction(opcode);
     }
 
-    /**
-     * Handles conditional jump instructions by looking ahead for subsequent GOTO.
-     *
-     * @param conditionalJump the conditional jump instruction
-     * @param currentIndex current instruction index
-     * @param instructions the instruction list
-     * @param labelToIndex label to index map
-     * @param classifications current label classifications
-     * @param visited set of already-visited labels
-     * @return the sink classification, or null if not traceable
-     */
+    /** Handles conditional jump by looking ahead for subsequent GOTO. */
     private LabelClassification handleConditionalJump(
             JumpInsnNode conditionalJump,
             int currentIndex,
@@ -335,13 +269,7 @@ public final class ControlFlowAnalyzer {
         return traceLabelDestination(conditionalJump.label, instructions, labelToIndex, classifications, visited);
     }
 
-    /**
-     * Finds subsequent GOTO target after conditional jump.
-     *
-     * @param startIndex the index to start looking from
-     * @param instructions the instruction list
-     * @return the GOTO target label, or null if no GOTO found within lookahead
-     */
+    /** Finds subsequent GOTO target after conditional jump. Returns null if not found within lookahead. */
     private LabelNode findSubsequentGotoTarget(int startIndex, InsnList instructions) {
         int instructionCount = instructions.size();
         int limit = Math.min(startIndex + CONDITIONAL_JUMP_LOOKAHEAD_LIMIT, instructionCount);
@@ -361,12 +289,7 @@ public final class ControlFlowAnalyzer {
         return null;
     }
 
-    /**
-     * Returns sink classification for ICONST instructions.
-     *
-     * @param opcode the instruction opcode
-     * @return FALSE_SINK for ICONST_0, TRUE_SINK for ICONST_1, or null for other opcodes
-     */
+    /** Returns FALSE_SINK for ICONST_0, TRUE_SINK for ICONST_1, null otherwise. */
     private LabelClassification classifyIconstInstruction(int opcode) {
         if (opcode == ICONST_0) {
             return FALSE_SINK;

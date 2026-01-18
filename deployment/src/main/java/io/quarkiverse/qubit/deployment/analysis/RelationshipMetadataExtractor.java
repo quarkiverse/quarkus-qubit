@@ -14,13 +14,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Extracts JPA relationship annotations from entity classes at build time.
- * <p>
- * Scans entity bytecode for @ManyToOne, @OneToOne, @OneToMany, and @ManyToMany
- * annotations to build a relationship metadata cache used during lambda bytecode
- * analysis for relationship navigation.
- * <p>
- * Thread-safe and supports caching to avoid repeated Jandex lookups.
+ * Extracts JPA relationship annotations (@ManyToOne, @OneToOne, @OneToMany, @ManyToMany)
+ * from entity classes at build time. Thread-safe with caching.
  */
 public class RelationshipMetadataExtractor {
 
@@ -36,54 +31,25 @@ public class RelationshipMetadataExtractor {
     // Jandex index for class introspection
     private final IndexView index;
 
-    /**
-     * Creates a new extractor with the given Jandex index.
-     *
-     * @param index Jandex index containing entity class metadata
-     */
     public RelationshipMetadataExtractor(IndexView index) {
         this.index = index;
     }
 
-    /**
-     * Information about an entity's relationship fields.
-     *
-     * @param entityClass The fully qualified entity class name
-     * @param relationships Map of field name to relationship info
-     */
+    /** Entity's relationship field metadata. */
     public record EntityRelationshipInfo(
             String entityClass,
             Map<String, FieldRelationship> relationships) {
 
-        /**
-         * Checks if a field is a relationship field.
-         *
-         * @param fieldName The field name to check
-         * @return true if the field is a relationship
-         */
         public boolean isRelationship(String fieldName) {
             return relationships.containsKey(fieldName);
         }
 
-        /**
-         * Gets relationship info for a field.
-         *
-         * @param fieldName The field name
-         * @return Relationship info or null if not a relationship
-         */
         public FieldRelationship getRelationship(String fieldName) {
             return relationships.get(fieldName);
         }
     }
 
-    /**
-     * Information about a single relationship field.
-     *
-     * @param fieldName The field name
-     * @param targetEntity The target entity class (fully qualified name)
-     * @param relationType The type of relationship
-     * @param mappedBy The mappedBy attribute value (for bidirectional relationships)
-     */
+    /** Single relationship field metadata. */
     public record FieldRelationship(
             String fieldName,
             String targetEntity,
@@ -91,47 +57,25 @@ public class RelationshipMetadataExtractor {
             String mappedBy) {
     }
 
-    /**
-     * Gets relationship metadata for an entity class.
-     * <p>
-     * Uses caching to avoid repeated Jandex lookups.
-     *
-     * @param entityClassName The fully qualified entity class name
-     * @return Entity relationship info, or empty info if entity not found
-     */
+    /** Gets relationship metadata for an entity class (cached). */
     public EntityRelationshipInfo getEntityRelationships(String entityClassName) {
         return entityCache.computeIfAbsent(entityClassName, this::extractRelationships);
     }
 
-    /**
-     * Checks if a field on an entity is a relationship field.
-     *
-     * @param entityClassName The fully qualified entity class name
-     * @param fieldName The field name to check
-     * @return The relationship type, or FIELD if not a relationship
-     */
+    /** Returns RelationType for a field, or FIELD if not a relationship. */
     public RelationType getRelationType(String entityClassName, String fieldName) {
         EntityRelationshipInfo info = getEntityRelationships(entityClassName);
         FieldRelationship relationship = info.getRelationship(fieldName);
         return relationship != null ? relationship.relationType() : RelationType.FIELD;
     }
 
-    /**
-     * Gets the target entity class for a relationship field.
-     *
-     * @param entityClassName The owner entity class name
-     * @param fieldName The relationship field name
-     * @return The target entity class name, or null if not a relationship
-     */
+    /** Returns target entity class name, or null if not a relationship. */
     public String getTargetEntity(String entityClassName, String fieldName) {
         EntityRelationshipInfo info = getEntityRelationships(entityClassName);
         FieldRelationship relationship = info.getRelationship(fieldName);
         return relationship != null ? relationship.targetEntity() : null;
     }
 
-    /**
-     * Extracts relationship info from an entity class using Jandex.
-     */
     private EntityRelationshipInfo extractRelationships(String entityClassName) {
         ClassInfo classInfo = index.getClassByName(DotName.createSimple(entityClassName));
         Map<String, FieldRelationship> relationships = new HashMap<>();
@@ -177,12 +121,6 @@ public class RelationshipMetadataExtractor {
         return new EntityRelationshipInfo(entityClassName, relationships);
     }
 
-    /**
-     * Extracts relationship info from a single field.
-     *
-     * @param field the field to examine
-     * @return relationship info, or null if field is not a relationship
-     */
     private FieldRelationship extractFieldRelationship(FieldInfo field) {
         // Check for @ManyToOne
         AnnotationInstance manyToOne = field.annotation(MANY_TO_ONE);
@@ -211,9 +149,6 @@ public class RelationshipMetadataExtractor {
         return null;
     }
 
-    /**
-     * Creates a FieldRelationship from annotation info.
-     */
     private FieldRelationship createFieldRelationship(
             FieldInfo field,
             AnnotationInstance annotation,
@@ -229,9 +164,6 @@ public class RelationshipMetadataExtractor {
                 mappedBy);
     }
 
-    /**
-     * Extracts the target entity class from the field type or annotation.
-     */
     private String extractTargetEntity(FieldInfo field, AnnotationInstance annotation, RelationType relationType) {
         // First, try to get targetEntity from annotation
         var targetEntityValue = annotation.value("targetEntity");
@@ -260,12 +192,6 @@ public class RelationshipMetadataExtractor {
         return field.type().name().toString();
     }
 
-    /**
-     * Extracts the mappedBy attribute from a relationship annotation.
-     *
-     * @param annotation the relationship annotation
-     * @return the mappedBy attribute value, or null if not specified or empty
-     */
     private String extractMappedBy(AnnotationInstance annotation) {
         var mappedByValue = annotation.value("mappedBy");
         if (mappedByValue != null) {
@@ -277,18 +203,10 @@ public class RelationshipMetadataExtractor {
         return null;
     }
 
-    /**
-     * Clears the entity relationship cache.
-     * Useful for testing or when index changes.
-     */
     public void clearCache() {
         entityCache.clear();
     }
 
-    /**
-     * Returns the current cache size.
-     * Useful for debugging and monitoring.
-     */
     public int getCacheSize() {
         return entityCache.size();
     }
