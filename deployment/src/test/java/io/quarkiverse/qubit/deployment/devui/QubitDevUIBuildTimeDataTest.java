@@ -24,10 +24,11 @@ public class QubitDevUIBuildTimeDataTest extends DevUIBuildTimeDataTest {
     static final QuarkusDevModeTest config = new QuarkusDevModeTest()
             .withApplicationRoot((jar) -> jar
                     .addClass(Dummy.class)
-                    .addAsResource(new StringAsset(
-                            "quarkus.datasource.db-kind=h2\n" +
-                                    "quarkus.datasource.jdbc.url=jdbc:h2:mem:test\n" +
-                                    "quarkus.hibernate-orm.database.generation=drop-and-create\n"),
+                    .addAsResource(new StringAsset("""
+                            quarkus.datasource.db-kind=h2
+                            quarkus.datasource.jdbc.url=jdbc:h2:mem:test
+                            quarkus.hibernate-orm.schema-management.strategy=drop-and-create
+                            """),
                             "application.properties"));
 
     public QubitDevUIBuildTimeDataTest() {

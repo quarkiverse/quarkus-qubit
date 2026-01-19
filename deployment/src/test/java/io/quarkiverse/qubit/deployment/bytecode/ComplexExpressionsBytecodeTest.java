@@ -68,11 +68,6 @@ class ComplexExpressionsBytecodeTest extends PrecompiledLambdaAnalyzer {
     void complexNestedOrAnd() {
         LambdaExpression expr = analyzeLambda("complexNestedOrAnd");
 
-        // DEBUG: Print actual AST structure
-        System.out.println("=== complexNestedOrAnd AST STRUCTURE ===");
-        printAst(expr, 0);
-        System.out.println("=== END AST ===");
-
         // (p.age < 30 || p.age > 40) && (p.active || p.salary > 70000)
         assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.AND);
         LambdaExpression.BinaryOp andOp = (LambdaExpression.BinaryOp) expr;
@@ -102,11 +97,6 @@ class ComplexExpressionsBytecodeTest extends PrecompiledLambdaAnalyzer {
     @Test
     void deeplyNestedMultipleOrGroups() {
         LambdaExpression expr = analyzeLambda("deeplyNestedMultipleOrGroups");
-
-        // DEBUG: Print actual AST structure
-        System.out.println("=== deeplyNestedMultipleOrGroups AST STRUCTURE ===");
-        printAst(expr, 0);
-        System.out.println("=== END AST ===");
 
         // ((p.age > 25 && p.age < 40) || p.salary > 85000) && (p.active || p.firstName.startsWith("B"))
         assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.AND);
@@ -208,11 +198,6 @@ class ComplexExpressionsBytecodeTest extends PrecompiledLambdaAnalyzer {
     void twoAndGroupsWithOr() {
         LambdaExpression expr = analyzeLambda("twoAndGroupsWithOr");
 
-        // DEBUG: Print actual AST structure
-        System.out.println("=== ACTUAL AST STRUCTURE ===");
-        printAst(expr, 0);
-        System.out.println("=== END AST ===");
-
         // (p.active && p.age > 0) || (p.salary > 50000 && p.height > 1.70f)
         // Expected structure: OR at top with two AND children
         assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.OR);
@@ -246,23 +231,5 @@ class ComplexExpressionsBytecodeTest extends PrecompiledLambdaAnalyzer {
         assertBinaryOp(rightAnd.right(), LambdaExpression.BinaryOp.Operator.GT);
         LambdaExpression.BinaryOp heightCheck = (LambdaExpression.BinaryOp) rightAnd.right();
         assertFieldAccess(heightCheck.left(), "height");
-    }
-
-    private void printAst(LambdaExpression expr, int depth) {
-        String indent = "  ".repeat(depth);
-        if (expr instanceof LambdaExpression.BinaryOp binOp) {
-            System.out.println(indent + binOp.operator());
-            printAst(binOp.left(), depth + 1);
-            printAst(binOp.right(), depth + 1);
-        } else if (expr instanceof LambdaExpression.UnaryOp unaryOp) {
-            System.out.println(indent + "NOT");
-            printAst(unaryOp.operand(), depth + 1);
-        } else if (expr instanceof LambdaExpression.FieldAccess fieldAccess) {
-            System.out.println(indent + "field:" + fieldAccess.fieldName());
-        } else if (expr instanceof LambdaExpression.Constant constant) {
-            System.out.println(indent + "const:" + constant.value());
-        } else {
-            System.out.println(indent + expr.getClass().getSimpleName() + ": " + expr);
-        }
     }
 }
