@@ -2,13 +2,10 @@ package io.quarkiverse.qubit.deployment.analysis.branch;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.common.BytecodeValidator;
-import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
 import io.quarkus.logging.Log;
 import org.objectweb.asm.tree.JumpInsnNode;
-import org.objectweb.asm.tree.LabelNode;
 
 import java.util.Deque;
-import java.util.Map;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.EQ;
@@ -37,26 +34,18 @@ public class NullCheckHandler implements BranchHandler {
     }
 
     @Override
-    public BranchState handle(
-            Deque<LambdaExpression> stack,
-            JumpInsnNode jumpInsn,
-            Map<LabelNode, Boolean> labelToValue,
-            Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications,
-            BranchState state,
-            boolean sameLabel,
-            boolean completingAndGroup,
-            boolean startingNewOrGroup) {
+    public BranchState handle(BranchContext ctx) {
+        Deque<LambdaExpression> stack = ctx.stack();
 
         if (stack.isEmpty()) {
             Log.tracef(INSTRUCTION_NAME + ": Stack empty, skipping");
-            return state;
+            return ctx.state();
         }
 
         LambdaExpression fieldAccess = BytecodeValidator.popSafe(stack, INSTRUCTION_NAME);
         LambdaExpression nullLiteral = new LambdaExpression.NullLiteral(Object.class);
 
-        Boolean jumpTarget = labelToValue.get(jumpInsn.label);
-        ControlFlowAnalyzer.LabelClassification jumpLabelClass = labelClassifications.get(jumpInsn.label);
+        Boolean jumpTarget = ctx.jumpTarget();
 
         // Determine the null check operator based on opcode AND jump target
         // The correct operator depends on what the jump means:
@@ -64,7 +53,7 @@ public class NullCheckHandler implements BranchHandler {
         // - IFNULL jumping to FALSE: field != null (NE)
         // - IFNONNULL jumping to TRUE: field != null (NE)
         // - IFNONNULL jumping to FALSE: field == null (EQ)
-        boolean isIfNull = (jumpInsn.getOpcode() == IFNULL);
+        boolean isIfNull = (ctx.opcode() == IFNULL);
         boolean jumpingToTrue = TRUE.equals(jumpTarget);
 
         Operator operator;
@@ -85,11 +74,9 @@ public class NullCheckHandler implements BranchHandler {
         );
 
         Log.tracef(INSTRUCTION_NAME + ": opcode=%d, jumpTarget=%s, operator=%s, comparison=%s",
-                jumpInsn.getOpcode(), jumpTarget, operator, comparison);
+                ctx.opcode(), jumpTarget, operator, comparison);
 
         // Delegate to shared branch processing and combination logic
-        return processAndCombineBranch(stack, comparison, INSTRUCTION_NAME, state,
-                jumpTarget, jumpLabelClass, sameLabel, completingAndGroup, startingNewOrGroup,
-                TRUE.equals(jumpTarget));
+        return processAndCombineBranch(ctx, comparison, INSTRUCTION_NAME, TRUE.equals(jumpTarget));
     }
 }

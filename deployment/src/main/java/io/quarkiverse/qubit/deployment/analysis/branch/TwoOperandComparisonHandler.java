@@ -3,13 +3,10 @@ package io.quarkiverse.qubit.deployment.analysis.branch;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.common.BytecodeValidator;
 import io.quarkiverse.qubit.deployment.common.OpcodeOperatorMapper;
-import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
 import io.quarkus.logging.Log;
 import org.objectweb.asm.tree.JumpInsnNode;
-import org.objectweb.asm.tree.LabelNode;
 
 import java.util.Deque;
-import java.util.Map;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
 import static org.objectweb.asm.Opcodes.*;
@@ -38,36 +35,26 @@ public class TwoOperandComparisonHandler implements BranchHandler {
     }
 
     @Override
-    public BranchState handle(
-            Deque<LambdaExpression> stack,
-            JumpInsnNode jumpInsn,
-            Map<LabelNode, Boolean> labelToValue,
-            Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications,
-            BranchState state,
-            boolean sameLabel,
-            boolean completingAndGroup,
-            boolean startingNewOrGroup) {
+    public BranchState handle(BranchContext ctx) {
+        Deque<LambdaExpression> stack = ctx.stack();
 
         BytecodeValidator.requireStackSize(stack, 2, INSTRUCTION_NAME);
 
         LambdaExpression right = BytecodeValidator.popSafe(stack, INSTRUCTION_NAME + "-right");
         LambdaExpression left = BytecodeValidator.popSafe(stack, INSTRUCTION_NAME + "-left");
 
-        Boolean jumpTarget = labelToValue.get(jumpInsn.label);
         Log.debugf(INSTRUCTION_NAME + ": Jump target label %s -> %s",
-                System.identityHashCode(jumpInsn.label), jumpTarget);
+                System.identityHashCode(ctx.jumpInsn().label), ctx.jumpTarget());
 
-        ControlFlowAnalyzer.LabelClassification jumpLabelClass = labelClassifications.get(jumpInsn.label);
-
-        Operator op = OpcodeOperatorMapper.determineTwoOperandOperator(jumpLabelClass, jumpTarget, jumpInsn.getOpcode());
+        Operator op = OpcodeOperatorMapper.determineTwoOperandOperator(
+                ctx.jumpLabelClass(), ctx.jumpTarget(), ctx.opcode());
         LambdaExpression result = new LambdaExpression.BinaryOp(left, op, right);
 
         // Determine jumpToTrue using consolidated helper
-        boolean jumpToTrue = determineJumpToTrue(jumpTarget, jumpLabelClass, jumpInsn.getOpcode(),
+        boolean jumpToTrue = determineJumpToTrue(ctx.jumpTarget(), ctx.jumpLabelClass(), ctx.opcode(),
                 OpcodeOperatorMapper::isSuccessJumpTwoOperand);
 
         // Delegate to shared branch processing and combination logic
-        return processAndCombineBranch(stack, result, INSTRUCTION_NAME, state,
-                jumpTarget, jumpLabelClass, sameLabel, completingAndGroup, startingNewOrGroup, jumpToTrue);
+        return processAndCombineBranch(ctx, result, INSTRUCTION_NAME, jumpToTrue);
     }
 }

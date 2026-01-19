@@ -5,20 +5,20 @@ import io.quarkiverse.qubit.deployment.common.BytecodeValidator;
 import io.quarkiverse.qubit.deployment.common.PatternDetector;
 import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
 import io.quarkus.logging.Log;
-import org.objectweb.asm.tree.JumpInsnNode;
-import org.objectweb.asm.tree.LabelNode;
 
 import static java.lang.Boolean.TRUE;
 
 import java.util.Deque;
-import java.util.Map;
 import java.util.Optional;
 
 /**
  * Base class for IFEQ/IFNE instruction handlers.
- * <p>
- * Consolidates the common switch-based pattern handling used by both handlers,
+ *
+ * <p>Consolidates the common switch-based pattern handling used by both handlers,
  * delegating opcode-specific expression creation to abstract methods.
+ *
+ * @see IfEqualsZeroInstructionHandler
+ * @see IfNotEqualsZeroInstructionHandler
  */
 public abstract class AbstractZeroEqualityBranchHandler implements BranchHandler {
 
@@ -53,19 +53,12 @@ public abstract class AbstractZeroEqualityBranchHandler implements BranchHandler
     protected abstract LambdaExpression createArithmeticExpression(LambdaExpression arithmeticExpr);
 
     @Override
-    public BranchState handle(
-            Deque<LambdaExpression> stack,
-            JumpInsnNode jumpInsn,
-            Map<LabelNode, Boolean> labelToValue,
-            Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications,
-            BranchState state,
-            boolean sameLabel,
-            boolean completingAndGroup,
-            boolean startingNewOrGroup) {
+    public BranchState handle(BranchContext ctx) {
+        Deque<LambdaExpression> stack = ctx.stack();
 
         if (stack.isEmpty()) {
             Log.tracef("%s: Stack empty, skipping", getInstructionName());
-            return state;
+            return ctx.state();
         }
 
         PatternDetector.BranchPatternAnalysis patterns = PatternDetector.BranchPatternAnalysis.analyze(stack);
@@ -77,27 +70,26 @@ public abstract class AbstractZeroEqualityBranchHandler implements BranchHandler
                 LambdaExpression left = BytecodeValidator.popSafe(stack, getInstructionName() + "-NumericComp");
                 stack.push(createNumericComparisonExpression(left, right));
                 Log.tracef("%s: Numeric comparison pattern - created comparison", getInstructionName());
-                yield state;
+                yield ctx.state();
             }
             case COMPARE_TO -> {
                 // Handle compareTo pattern: a.compareTo(b) → instruction
                 LambdaExpression expr = BytecodeValidator.popSafe(stack, getInstructionName() + "-CompareTo");
                 stack.push(createCompareToExpression(expr));
                 Log.tracef("%s: CompareTo pattern - created comparison", getInstructionName());
-                yield state;
+                yield ctx.state();
             }
             case ARITHMETIC -> {
                 // Handle arithmetic pattern: (arithmetic expr) → instruction
                 LambdaExpression expr = BytecodeValidator.popSafe(stack, getInstructionName() + "-Arithmetic");
                 stack.push(createArithmeticExpression(expr));
                 Log.tracef("%s: Arithmetic pattern - created comparison", getInstructionName());
-                yield state;
+                yield ctx.state();
             }
             case OTHER -> {
                 // Handle boolean field pattern: field.booleanValue → instruction.
                 // This is the complex case requiring AND/OR combination logic
-                yield handleBooleanFieldPattern(stack, jumpInsn, labelToValue, labelClassifications,
-                        state, sameLabel, completingAndGroup, startingNewOrGroup);
+                yield handleBooleanFieldPattern(ctx);
             }
         };
     }
@@ -105,19 +97,13 @@ public abstract class AbstractZeroEqualityBranchHandler implements BranchHandler
     /**
      * Handles boolean field pattern with AND/OR combination logic.
      */
-    private BranchState handleBooleanFieldPattern(
-            Deque<LambdaExpression> stack,
-            JumpInsnNode jumpInsn,
-            Map<LabelNode, Boolean> labelToValue,
-            Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications,
-            BranchState state,
-            boolean sameLabel,
-            boolean completingAndGroup,
-            boolean startingNewOrGroup) {
+    private BranchState handleBooleanFieldPattern(BranchContext ctx) {
+        Deque<LambdaExpression> stack = ctx.stack();
+        BranchState state = ctx.state();
 
         LambdaExpression fieldAccess = BytecodeValidator.popSafe(stack, getInstructionName() + "-Boolean");
-        Boolean jumpTarget = labelToValue.get(jumpInsn.label);
-        ControlFlowAnalyzer.LabelClassification jumpLabelClass = labelClassifications.get(jumpInsn.label);
+        Boolean jumpTarget = ctx.jumpTarget();
+        ControlFlowAnalyzer.LabelClassification jumpLabelClass = ctx.jumpLabelClass();
 
         LambdaExpression boolExpr = createBooleanEvaluationExpression(fieldAccess, jumpTarget);
 
@@ -130,11 +116,10 @@ public abstract class AbstractZeroEqualityBranchHandler implements BranchHandler
         BranchState.BranchResult result = state.processBranch(TRUE.equals(jumpTarget), true, stackTop);
 
         // Delegate to shared combination logic (includes operator adjustment)
-        CombinationContext ctx = new CombinationContext(
+        BranchExpressionCombiner.CombinationContext combineCtx = new BranchExpressionCombiner.CombinationContext(
                 getInstructionName(), state, result.newState(), result.combineOperator(),
-                jumpTarget, previousJumpTarget, sameLabel, stackTop,
-                jumpLabelClass, completingAndGroup, startingNewOrGroup);
-        return performCombination(stack, boolExpr, ctx);
+                jumpTarget, previousJumpTarget, ctx.sameLabel(), stackTop,
+                jumpLabelClass, ctx.completingAndGroup(), ctx.startingNewOrGroup());
+        return BranchExpressionCombiner.performCombination(stack, boolExpr, combineCtx);
     }
-
 }

@@ -27,6 +27,20 @@ import static org.objectweb.asm.Opcodes.*;
  */
 class BranchHandlerTest {
 
+    /** Helper to create BranchContext from individual parameters. */
+    private static BranchContext ctx(
+            Deque<LambdaExpression> stack,
+            JumpInsnNode jumpInsn,
+            Map<LabelNode, Boolean> labelToValue,
+            Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications,
+            BranchState state,
+            boolean sameLabel,
+            boolean completingAndGroup,
+            boolean startingNewOrGroup) {
+        return new BranchContext(stack, jumpInsn, labelToValue, labelClassifications,
+                state, sameLabel, completingAndGroup, startingNewOrGroup);
+    }
+
     // ==================== NullCheckHandler Tests ====================
 
     @Nested
@@ -73,7 +87,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            BranchState result = handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            BranchState result = handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(result).isSameAs(initialState);
         }
@@ -89,7 +103,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             assertThat(stack.peek()).isInstanceOf(LambdaExpression.BinaryOp.class);
@@ -108,7 +122,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -126,7 +140,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -144,7 +158,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -169,7 +183,7 @@ class BranchHandlerTest {
             // Use AndMode to trigger combining
             BranchState andMode = new BranchState.AndMode(java.util.Optional.of(false), false);
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, andMode, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, andMode, false, false, false));
 
             // Stack should have combined expression
             assertThat(stack).hasSize(1);
@@ -245,7 +259,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            BranchState result = handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            BranchState result = handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(result)
                     .as("Empty stack should return original state")
@@ -263,7 +277,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -283,7 +297,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -303,7 +317,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -323,7 +337,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -343,7 +357,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -363,7 +377,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -383,7 +397,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -403,7 +417,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -430,7 +444,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState andMode = new BranchState.AndMode(java.util.Optional.of(false), false);
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, andMode, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, andMode, false, false, false));
 
             assertThat(stack).hasSize(1);
             assertThat(stack.peek())
@@ -451,7 +465,7 @@ class BranchHandlerTest {
             // In AndMode, INTERMEDIATE→TRUE should invert
             BranchState andMode = new BranchState.AndMode(java.util.Optional.of(false), false);
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, andMode, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, andMode, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -473,7 +487,7 @@ class BranchHandlerTest {
             labelClassifications.put(label, ControlFlowAnalyzer.LabelClassification.INTERMEDIATE);
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -567,7 +581,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -588,7 +602,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -609,7 +623,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -630,7 +644,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -651,7 +665,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -672,7 +686,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -693,7 +707,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -714,7 +728,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -735,7 +749,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -756,7 +770,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -777,7 +791,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -798,7 +812,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -819,7 +833,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -840,7 +854,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -868,7 +882,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState andMode = new BranchState.AndMode(java.util.Optional.of(false), false);
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, andMode, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, andMode, false, false, false));
 
             assertThat(stack).hasSize(1);
             assertThat(stack.peek())
@@ -891,7 +905,7 @@ class BranchHandlerTest {
             // In Initial state, INTERMEDIATE→TRUE should NOT invert
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -913,7 +927,7 @@ class BranchHandlerTest {
             labelClassifications.put(label, ControlFlowAnalyzer.LabelClassification.INTERMEDIATE);
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -936,7 +950,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
             assertThat(binOp.left())
@@ -963,7 +977,7 @@ class BranchHandlerTest {
             // The key difference: requireStackSize(2) throws "expected 2 elements"
             // If mutation removes it, popSafe would throw "expected 1 elements" later
             assertThatThrownBy(() ->
-                    handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false))
+                    handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false)))
                     .as("Should throw BytecodeAnalysisException with expected 2 elements (killing requireStackSize mutation)")
                     .isInstanceOf(io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException.class)
                     .hasMessageContaining("expected 2 elements");
@@ -979,7 +993,7 @@ class BranchHandlerTest {
             BranchState initialState = new BranchState.Initial();
 
             assertThatThrownBy(() ->
-                    handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false))
+                    handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false)))
                     .as("Should throw BytecodeAnalysisException for empty stack")
                     .isInstanceOf(io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException.class);
         }
@@ -1023,7 +1037,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            BranchState result = handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            BranchState result = handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(result)
                     .as("Empty stack should return original state unchanged")
@@ -1045,7 +1059,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -1068,7 +1082,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             assertThat(stack.peek())
@@ -1090,7 +1104,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             assertThat(stack.peek())
@@ -1164,7 +1178,7 @@ class BranchHandlerTest {
             // Use AndMode with previous jump target to trigger combining
             BranchState andMode = new BranchState.AndMode(java.util.Optional.of(false), false);
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, andMode, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, andMode, false, false, false));
 
             // Should have combined into a single BinaryOp (AND of the two conditions)
             assertThat(stack).hasSize(1);
@@ -1216,7 +1230,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            BranchState result = handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            BranchState result = handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(result)
                     .as("Empty stack should return original state unchanged")
@@ -1238,7 +1252,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) stack.peek();
@@ -1261,7 +1275,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             assertThat(stack.peek())
@@ -1283,7 +1297,7 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(stack).hasSize(1);
             assertThat(stack.peek())
@@ -1386,7 +1400,7 @@ class BranchHandlerTest {
             // Use AndMode with previous jump target TRUE → triggers OR combining
             BranchState andMode = new BranchState.AndMode(java.util.Optional.of(true), false);
 
-            handler.handle(stack, jumpInsn, labelToValue, labelClassifications, andMode, false, false, false);
+            handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, andMode, false, false, false));
 
             // Should have combined into a single BinaryOp (OR in this case due to state)
             assertThat(stack).hasSize(1);

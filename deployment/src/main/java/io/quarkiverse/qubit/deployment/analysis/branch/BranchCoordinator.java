@@ -14,6 +14,10 @@ import java.util.Map;
 /**
  * Coordinates branch instruction handling using the Strategy pattern.
  * Delegates to specialized handlers and manages {@link BranchState} lifecycle.
+ *
+ * @see BranchHandler
+ * @see BranchContext
+ * @see BranchState
  */
 public class BranchCoordinator {
 
@@ -67,9 +71,11 @@ public class BranchCoordinator {
                         completingAndGroupFromIntermediate,
                         startingNewGroupAfterAnd);
 
-                // Delegate to handler and receive new immutable state
-                BranchState newState = handler.handle(stack, jumpInsn, labelToValue, labelClassifications, state,
+                // Create context and delegate to handler
+                BranchContext ctx = new BranchContext(
+                        stack, jumpInsn, labelToValue, labelClassifications, state,
                         sameLabel, completingAndGroupFromIntermediate, startingNewGroupAfterAnd);
+                BranchState newState = handler.handle(ctx);
 
                 if (newState != state) {
                     Log.tracef("State transition: %s -> %s",
