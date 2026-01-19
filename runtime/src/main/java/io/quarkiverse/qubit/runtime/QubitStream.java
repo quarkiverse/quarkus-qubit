@@ -59,45 +59,21 @@ public interface QubitStream<T> {
     /** Prepares MAX aggregation. Call {@link #getSingleResult()} to execute. */
     <K extends Comparable<K>> QubitStream<K> max(QuerySpec<T, K> mapper);
 
-    /**
-     * Prepares SUM aggregation for Integer values. Call {@link #getSingleResult()} to execute.
-     *
-     * @param mapper extracts integer values to sum
-     * @return stream configured for SUM (returns Long)
-     */
+    /** Prepares SUM for Integer values (returns Long). Call {@link #getSingleResult()} to execute. */
     QubitStream<Long> sumInteger(QuerySpec<T, Integer> mapper);
 
-    /**
-     * Prepares SUM aggregation for Long values. Call {@link #getSingleResult()} to execute.
-     *
-     * @param mapper extracts long values to sum
-     * @return stream configured for SUM (returns Long)
-     */
+    /** Prepares SUM for Long values (returns Long). Call {@link #getSingleResult()} to execute. */
     QubitStream<Long> sumLong(QuerySpec<T, Long> mapper);
 
-    /**
-     * Prepares SUM aggregation for Double values. Call {@link #getSingleResult()} to execute.
-     *
-     * @param mapper extracts double values to sum
-     * @return stream configured for SUM (returns Double)
-     */
+    /** Prepares SUM for Double values (returns Double). Call {@link #getSingleResult()} to execute. */
     QubitStream<Double> sumDouble(QuerySpec<T, Double> mapper);
 
-    /**
-     * Prepares AVG aggregation for numeric values. Call {@link #getSingleResult()} to execute.
-     *
-     * @param mapper extracts numeric values to average
-     * @return stream configured for AVG (returns Double)
-     */
+    /** Prepares AVG for numeric values (returns Double). Call {@link #getSingleResult()} to execute. */
     QubitStream<Double> avg(QuerySpec<T, ? extends Number> mapper);
 
     // ========== Terminal Operations ==========
 
-    /**
-     * Executes query and returns all results as a list (terminal operation).
-     *
-     * @return list of matching results (never null, may be empty)
-     */
+    /** Executes query and returns all results as a list. Never null, may be empty. */
     List<T> toList();
 
     /**
@@ -109,18 +85,10 @@ public interface QubitStream<T> {
      */
     T getSingleResult();
 
-    /**
-     * Executes query and returns first result as Optional (terminal operation).
-     *
-     * @return Optional with first result, or empty if no results
-     */
+    /** Executes query and returns first result as Optional, or empty if no results. */
     Optional<T> findFirst();
 
-    /**
-     * Checks if any entity matches (terminal operation).
-     *
-     * @return true if at least one entity matches
-     */
+    /** Checks if any entity matches (terminal operation). */
     boolean exists();
 
     // ========== Join Operations ==========

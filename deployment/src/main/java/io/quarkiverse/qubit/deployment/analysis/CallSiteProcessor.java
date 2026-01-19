@@ -420,7 +420,7 @@ public class CallSiteProcessor {
 
         if (ctx.loggingConfig().logGeneratedClasses()) {
             String queryTypeDesc = getQueryTypeDescription(predicateExpression, projectionExpression, sortExpressions,
-                    aggregationExpression, aggregationType, ctx.isCountQuery(), isAggregationQuery);
+                    aggregationType, ctx.isCountQuery(), isAggregationQuery);
             Log.debugf("Generated query executor: %s (%s, %d captured vars)",
                     className, queryTypeDesc, capturedVarCount);
         }
@@ -483,9 +483,16 @@ public class CallSiteProcessor {
         if (ctx.loggingConfig().logGeneratedClasses()) {
             String joinTypeDesc = (join.joinType() == InvokeDynamicScanner.JoinType.LEFT)
                     ? "LEFT JOIN" : "INNER JOIN";
-            String queryTypeDesc = ctx.isCountQuery() ? joinTypeDesc + " COUNT" :
-                    (isJoinProjection ? joinTypeDesc + " PROJECTION" :
-                    (isSelectJoined ? joinTypeDesc + " SELECT JOINED" : joinTypeDesc));
+            String queryTypeDesc;
+            if (ctx.isCountQuery()) {
+                queryTypeDesc = joinTypeDesc + " COUNT";
+            } else if (isJoinProjection) {
+                queryTypeDesc = joinTypeDesc + " PROJECTION";
+            } else if (isSelectJoined) {
+                queryTypeDesc = joinTypeDesc + " SELECT JOINED";
+            } else {
+                queryTypeDesc = joinTypeDesc;
+            }
             Log.debugf("Generated join query executor: %s (%s, %d captured vars)",
                     className, queryTypeDesc, capturedVarCount);
         }
@@ -583,7 +590,6 @@ public class CallSiteProcessor {
             LambdaExpression predicateExpression,
             LambdaExpression projectionExpression,
             List<SortExpression> sortExpressions,
-            LambdaExpression aggregationExpression,
             String aggregationType,
             boolean isCountQuery,
             boolean isAggregationQuery) {

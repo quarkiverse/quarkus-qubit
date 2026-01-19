@@ -222,8 +222,9 @@ public class QubitProcessor {
         String className = classInfo.name().toString();
 
         // Check include packages first (override excludes)
-        if (scanningConfig.includePackages().isPresent()) {
-            for (String includePrefix : scanningConfig.includePackages().get()) {
+        var includePackages = scanningConfig.includePackages();
+        if (includePackages.isPresent()) {
+            for (String includePrefix : includePackages.get()) {
                 if (className.startsWith(includePrefix)) {
                     return true;
                 }
@@ -355,68 +356,62 @@ public class QubitProcessor {
         Log.debugf("Qubit: Registering %d query executors in registry", transformations.size());
 
         for (QueryTransformationBuildItem transformation : transformations) {
-            String callSiteId = transformation.getQueryId();
+            registerExecutorForTransformation(recorder, transformation);
+        }
+    }
 
-            if (transformation.isGroupQuery()) {
-                // Register group executors
-                if (transformation.isCountQuery()) {
-                    recorder.registerGroupCountExecutor(
-                            callSiteId,
-                            transformation.getGeneratedClassName(),
-                            transformation.getCapturedVarCount());
-                } else {
-                    recorder.registerGroupListExecutor(
-                            callSiteId,
-                            transformation.getGeneratedClassName(),
-                            transformation.getCapturedVarCount());
-                }
-            } else if (transformation.isJoinQuery()) {
-                // Register join executors
-                if (transformation.isCountQuery()) {
-                    recorder.registerJoinCountExecutor(
-                            callSiteId,
-                            transformation.getGeneratedClassName(),
-                            transformation.getCapturedVarCount());
-                } else if (transformation.isJoinProjection()) {
-                    // Register join projection executor
-                    recorder.registerJoinProjectionExecutor(
-                            callSiteId,
-                            transformation.getGeneratedClassName(),
-                            transformation.getCapturedVarCount());
-                } else if (transformation.isSelectJoined()) {
-                    // Register selectJoined executor
-                    recorder.registerJoinSelectJoinedExecutor(
-                            callSiteId,
-                            transformation.getGeneratedClassName(),
-                            transformation.getCapturedVarCount());
-                } else {
-                    recorder.registerJoinListExecutor(
-                            callSiteId,
-                            transformation.getGeneratedClassName(),
-                            transformation.getCapturedVarCount());
-                }
-            } else if (transformation.isAggregationQuery()) {
-                // Register aggregation executors (min, max, avg, sum*)
-                recorder.registerAggregationExecutor(
-                        callSiteId,
-                        transformation.getGeneratedClassName(),
-                        transformation.getCapturedVarCount());
-            } else if (transformation.isCountQuery()) {
-                recorder.registerCountExecutor(
-                        callSiteId,
-                        transformation.getGeneratedClassName(),
-                        transformation.getCapturedVarCount());
-            } else {
-                recorder.registerListExecutor(
-                        callSiteId,
-                        transformation.getGeneratedClassName(),
-                        transformation.getCapturedVarCount());
-            }
+    /** Registers the appropriate executor type based on transformation characteristics. */
+    private void registerExecutorForTransformation(
+            QueryExecutorRecorder recorder,
+            QueryTransformationBuildItem transformation) {
 
-            Log.tracef("Registered executor for call site: %s → %s (captured variables: %d)",
-                    callSiteId,
-                    transformation.getGeneratedClassName(),
-                    transformation.getCapturedVarCount());
+        String callSiteId = transformation.getQueryId();
+        String className = transformation.getGeneratedClassName();
+        int capturedVarCount = transformation.getCapturedVarCount();
+
+        if (transformation.isGroupQuery()) {
+            registerGroupExecutor(recorder, transformation, callSiteId, className, capturedVarCount);
+        } else if (transformation.isJoinQuery()) {
+            registerJoinExecutor(recorder, transformation, callSiteId, className, capturedVarCount);
+        } else if (transformation.isAggregationQuery()) {
+            recorder.registerAggregationExecutor(callSiteId, className, capturedVarCount);
+        } else if (transformation.isCountQuery()) {
+            recorder.registerCountExecutor(callSiteId, className, capturedVarCount);
+        } else {
+            recorder.registerListExecutor(callSiteId, className, capturedVarCount);
+        }
+
+        Log.tracef("Registered executor for call site: %s → %s (captured variables: %d)",
+                callSiteId, className, capturedVarCount);
+    }
+
+    /** Registers group query executor (count or list). */
+    private void registerGroupExecutor(
+            QueryExecutorRecorder recorder,
+            QueryTransformationBuildItem transformation,
+            String callSiteId, String className, int capturedVarCount) {
+
+        if (transformation.isCountQuery()) {
+            recorder.registerGroupCountExecutor(callSiteId, className, capturedVarCount);
+        } else {
+            recorder.registerGroupListExecutor(callSiteId, className, capturedVarCount);
+        }
+    }
+
+    /** Registers join query executor (count, projection, selectJoined, or list). */
+    private void registerJoinExecutor(
+            QueryExecutorRecorder recorder,
+            QueryTransformationBuildItem transformation,
+            String callSiteId, String className, int capturedVarCount) {
+
+        if (transformation.isCountQuery()) {
+            recorder.registerJoinCountExecutor(callSiteId, className, capturedVarCount);
+        } else if (transformation.isJoinProjection()) {
+            recorder.registerJoinProjectionExecutor(callSiteId, className, capturedVarCount);
+        } else if (transformation.isSelectJoined()) {
+            recorder.registerJoinSelectJoinedExecutor(callSiteId, className, capturedVarCount);
+        } else {
+            recorder.registerJoinListExecutor(callSiteId, className, capturedVarCount);
         }
     }
 
@@ -429,22 +424,40 @@ public class QubitProcessor {
         private final String entityClassName;
         private final QueryCharacteristics characteristics;
         private final int capturedVarCount;
-        // Optional expressions for DevUI JPQL generation (only populated in dev mode)
-        private final LambdaExpression predicateExpression;
-        private final LambdaExpression projectionExpression;
-        // Additional expressions for enhanced DevUI display
-        private final LambdaExpression sortExpression;
-        private final LambdaExpression aggregationExpression;
-        private final LambdaExpression groupByKeyExpression;
-        private final LambdaExpression havingExpression;
-        private final LambdaExpression joinRelationshipExpression;
-        private final String terminalMethodName;
-        private final boolean hasDistinct;
-        private final boolean sortDescending;
-        private final boolean isSelectKey;  // True if selectKey() was used instead of select() in group queries
-        private final String aggregationType;  // MIN, MAX, AVG, SUM_INTEGER, SUM_LONG, SUM_DOUBLE
-        private final Integer skipValue;  // Value passed to skip(), null if not called
-        private final Integer limitValue;  // Value passed to limit(), null if not called
+        private final DevUIExpressions devUIExpressions;
+        private final DevUIMetadata devUIMetadata;
+
+        /** Groups optional LambdaExpression fields for DevUI JPQL generation. */
+        public record DevUIExpressions(
+                LambdaExpression predicateExpression,
+                LambdaExpression projectionExpression,
+                LambdaExpression sortExpression,
+                LambdaExpression aggregationExpression,
+                LambdaExpression groupByKeyExpression,
+                LambdaExpression havingExpression,
+                LambdaExpression joinRelationshipExpression) {
+
+            /** Creates empty expressions (all null). */
+            public static DevUIExpressions empty() {
+                return new DevUIExpressions(null, null, null, null, null, null, null);
+            }
+        }
+
+        /** Groups optional metadata fields for DevUI display. */
+        public record DevUIMetadata(
+                String terminalMethodName,
+                boolean hasDistinct,
+                boolean sortDescending,
+                boolean isSelectKey,
+                String aggregationType,
+                Integer skipValue,
+                Integer limitValue) {
+
+            /** Creates empty metadata (all defaults). */
+            public static DevUIMetadata empty() {
+                return new DevUIMetadata(null, false, false, false, null, null, null);
+            }
+        }
 
         /** Primary constructor using QueryCharacteristics. */
         public QueryTransformationBuildItem(
@@ -453,7 +466,8 @@ public class QubitProcessor {
                 String entityClassName,
                 QueryCharacteristics characteristics,
                 int capturedVarCount) {
-            this(queryId, generatedClassName, entityClassName, characteristics, capturedVarCount, null, null);
+            this(queryId, generatedClassName, entityClassName, characteristics, capturedVarCount,
+                    DevUIExpressions.empty(), DevUIMetadata.empty());
         }
 
         /** Full constructor with optional expressions for DevUI. */
@@ -466,51 +480,26 @@ public class QubitProcessor {
                 LambdaExpression predicateExpression,
                 LambdaExpression projectionExpression) {
             this(queryId, generatedClassName, entityClassName, characteristics, capturedVarCount,
-                 predicateExpression, projectionExpression, null, null, null, null, null, null, false, false, false, null, null, null);
+                    new DevUIExpressions(predicateExpression, projectionExpression, null, null, null, null, null),
+                    DevUIMetadata.empty());
         }
 
-        /**
-         * Extended constructor including all optional expressions for enhanced DevUI display.
-         */
-        public QueryTransformationBuildItem(
+        /** Canonical constructor with parameter objects. */
+        private QueryTransformationBuildItem(
                 String queryId,
                 String generatedClassName,
                 String entityClassName,
                 QueryCharacteristics characteristics,
                 int capturedVarCount,
-                LambdaExpression predicateExpression,
-                LambdaExpression projectionExpression,
-                LambdaExpression sortExpression,
-                LambdaExpression aggregationExpression,
-                LambdaExpression groupByKeyExpression,
-                LambdaExpression havingExpression,
-                LambdaExpression joinRelationshipExpression,
-                String terminalMethodName,
-                boolean hasDistinct,
-                boolean sortDescending,
-                boolean isSelectKey,
-                String aggregationType,
-                Integer skipValue,
-                Integer limitValue) {
+                DevUIExpressions devUIExpressions,
+                DevUIMetadata devUIMetadata) {
             this.queryId = queryId;
             this.generatedClassName = generatedClassName;
             this.entityClassName = entityClassName;
             this.characteristics = characteristics;
             this.capturedVarCount = capturedVarCount;
-            this.predicateExpression = predicateExpression;
-            this.projectionExpression = projectionExpression;
-            this.sortExpression = sortExpression;
-            this.aggregationExpression = aggregationExpression;
-            this.groupByKeyExpression = groupByKeyExpression;
-            this.havingExpression = havingExpression;
-            this.joinRelationshipExpression = joinRelationshipExpression;
-            this.terminalMethodName = terminalMethodName;
-            this.hasDistinct = hasDistinct;
-            this.sortDescending = sortDescending;
-            this.isSelectKey = isSelectKey;
-            this.aggregationType = aggregationType;
-            this.skipValue = skipValue;
-            this.limitValue = limitValue;
+            this.devUIExpressions = devUIExpressions;
+            this.devUIMetadata = devUIMetadata;
         }
 
         /**
@@ -600,72 +589,72 @@ public class QubitProcessor {
 
         /** Returns the predicate expression (for DevUI, may be null). */
         public LambdaExpression getPredicateExpression() {
-            return predicateExpression;
+            return devUIExpressions.predicateExpression();
         }
 
         /** Returns the projection expression (for DevUI, may be null). */
         public LambdaExpression getProjectionExpression() {
-            return projectionExpression;
+            return devUIExpressions.projectionExpression();
         }
 
         /** Returns the sort expression (for DevUI, may be null). */
         public LambdaExpression getSortExpression() {
-            return sortExpression;
+            return devUIExpressions.sortExpression();
         }
 
         /** Returns the aggregation expression (for DevUI, may be null). */
         public LambdaExpression getAggregationExpression() {
-            return aggregationExpression;
+            return devUIExpressions.aggregationExpression();
         }
 
         /** Returns the groupBy key expression (for DevUI, may be null). */
         public LambdaExpression getGroupByKeyExpression() {
-            return groupByKeyExpression;
+            return devUIExpressions.groupByKeyExpression();
         }
 
         /** Returns the HAVING clause expression (for DevUI, may be null). */
         public LambdaExpression getHavingExpression() {
-            return havingExpression;
+            return devUIExpressions.havingExpression();
         }
 
         /** Returns the join relationship expression (for DevUI, may be null). */
         public LambdaExpression getJoinRelationshipExpression() {
-            return joinRelationshipExpression;
+            return devUIExpressions.joinRelationshipExpression();
         }
 
         /** Returns true if selectKey() was used instead of select() in group queries. */
         public boolean isSelectKey() {
-            return isSelectKey;
+            return devUIMetadata.isSelectKey();
         }
 
         /** Returns the terminal method name (toList, count, findFirst, etc.). */
         public String getTerminalMethodName() {
-            return terminalMethodName;
+            return devUIMetadata.terminalMethodName();
         }
 
         /** Returns true if distinct() was called. */
         public boolean hasDistinct() {
-            return hasDistinct;
+            return devUIMetadata.hasDistinct();
         }
 
         /** Returns true if sorting is descending. */
         public boolean isSortDescending() {
-            return sortDescending;
+            return devUIMetadata.sortDescending();
         }
 
         /** Returns the aggregation type (MIN, MAX, AVG, SUM_*, etc.). */
         public String getAggregationType() {
-            return aggregationType;
+            return devUIMetadata.aggregationType();
         }
 
         /** Returns the skip value (null if skip() was not called). */
         public Integer getSkipValue() {
-            return skipValue;
+            return devUIMetadata.skipValue();
         }
 
         /** Returns the limit value (null if limit() was not called). */
         public Integer getLimitValue() {
-            return limitValue;
+            return devUIMetadata.limitValue();
         }
 
         /** Creates a new builder (avoids error-prone 19-parameter constructor). */
@@ -810,12 +799,15 @@ public class QubitProcessor {
                 if (characteristics == null) {
                     throw new IllegalStateException(CHARACTERISTICS_REQUIRED);
                 }
-                return new QueryTransformationBuildItem(
-                        queryId, generatedClassName, entityClassName, characteristics, capturedVarCount,
+                var expressions = new DevUIExpressions(
                         predicateExpression, projectionExpression, sortExpression, aggregationExpression,
-                        groupByKeyExpression, havingExpression, joinRelationshipExpression,
+                        groupByKeyExpression, havingExpression, joinRelationshipExpression);
+                var metadata = new DevUIMetadata(
                         terminalMethodName, hasDistinct, sortDescending, isSelectKey, aggregationType,
                         skipValue, limitValue);
+                return new QueryTransformationBuildItem(
+                        queryId, generatedClassName, entityClassName, characteristics, capturedVarCount,
+                        expressions, metadata);
             }
         }
     }

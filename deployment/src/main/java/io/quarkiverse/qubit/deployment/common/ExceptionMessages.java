@@ -83,4 +83,9 @@ public final class ExceptionMessages {
     public static String cannotGetValueFromUnsupported(String reason) {
         return "Cannot get value from Unsupported: " + reason;
     }
+
+    // ========== Warning Suffixes ==========
+
+    /** Common suffix for warnings about unhandled cases in switch expressions. */
+    public static final String MISSING_CASE_HANDLER_HINT = "This may indicate a missing case handler.";
 }

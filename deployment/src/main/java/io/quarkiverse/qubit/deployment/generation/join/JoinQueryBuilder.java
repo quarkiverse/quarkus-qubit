@@ -92,10 +92,9 @@ public final class JoinQueryBuilder {
             case JoinSelectionStrategy.SelectRoot ignored -> {
                 // No explicit selection needed - JPA defaults to root
             }
-            case JoinSelectionStrategy.SelectJoined ignored -> {
-                // SELECT the joined entity
+            // SELECT the joined entity
+            case JoinSelectionStrategy.SelectJoined ignored ->
                 method.invokeInterfaceMethod(CQ_SELECT, query, joinHandle);
-            }
             case JoinSelectionStrategy.SelectProjection projection -> {
                 // Generate and SELECT the projection
                 ResultHandle projectionResult = expressionGenerator.generateBiEntityProjection(

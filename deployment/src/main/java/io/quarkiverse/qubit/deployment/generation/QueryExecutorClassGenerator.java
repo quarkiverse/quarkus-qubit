@@ -110,8 +110,6 @@ public class QueryExecutorClassGenerator {
         MethodCreator method() { return base.method(); }
         ResultHandle em() { return base.em(); }
         ResultHandle entityClass() { return base.entityClass(); }
-        LambdaExpression predicateExpression() { return base.predicateExpression(); }
-        LambdaExpression groupByKeyExpression() { return base.groupByKeyExpression(); }
         LambdaExpression havingExpression() { return base.havingExpression(); }
         ResultHandle capturedValues() { return base.capturedValues(); }
     }

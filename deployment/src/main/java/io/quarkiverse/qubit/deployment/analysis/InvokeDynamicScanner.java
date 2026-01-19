@@ -603,7 +603,7 @@ public class InvokeDynamicScanner {
                                           int lineNumber, int insnIndex) {
         // Pass aggregation method to extractLambdaInfo
         String aggregationMethod = pendingAggregation != null ? pendingAggregation.aggregationMethod : null;
-        LambdaInfo info = extractLambdaInfo(pendingLambdas, methodCall.name, aggregationMethod, pendingGroupQuery);
+        LambdaInfo info = extractLambdaInfo(pendingLambdas, aggregationMethod, pendingGroupQuery);
 
         // For aggregation queries, use aggregation method as target instead of getSingleResult
         String targetMethod = aggregationMethod != null ? aggregationMethod : methodCall.name;
@@ -643,7 +643,7 @@ public class InvokeDynamicScanner {
         );
     }
 
-    private LambdaInfo extractLambdaInfo(List<PendingLambda> pendingLambdas, String terminalMethodName,
+    private LambdaInfo extractLambdaInfo(List<PendingLambda> pendingLambdas,
                                           String aggregationMethodName, boolean isGroupQuery) {
         List<LambdaPair> whereLambdas = new ArrayList<>();
         List<SortLambda> sortLambdas = new ArrayList<>();

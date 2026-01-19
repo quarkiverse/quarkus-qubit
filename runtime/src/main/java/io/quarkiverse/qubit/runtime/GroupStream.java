@@ -18,92 +18,44 @@ public interface GroupStream<T, K> {
 
     // ========== Having Clause ==========
 
-    /**
-     * Filters groups based on aggregate conditions (SQL HAVING).
-     * Multiple calls combine with AND.
-     *
-     * @param condition aggregate-based filter
-     * @return GroupStream with HAVING condition applied
-     */
+    /** Filters groups based on aggregate conditions (SQL HAVING). Multiple calls combine with AND. */
     GroupStream<T, K> having(GroupQuerySpec<T, K, Boolean> condition);
 
     // ========== Projection ==========
 
-    /**
-     * Projects each group to a new type.
-     * Access {@link Group} methods: key(), count(), avg(), sum*(), min(), max().
-     *
-     * @param <R> result type
-     * @param mapper transforms group to projection
-     * @return QubitStream with projection applied
-     */
+    /** Projects each group to a new type using {@link Group} methods: key(), count(), avg(), sum*(), min(), max(). */
     <R> QubitStream<R> select(GroupQuerySpec<T, K, R> mapper);
 
-    /**
-     * Selects only the grouping keys.
-     *
-     * @return QubitStream of grouping keys
-     */
+    /** Selects only the grouping keys. */
     QubitStream<K> selectKey();
 
     // ========== Sorting ==========
 
-    /**
-     * Sorts groups ascending. Can sort by key or aggregate values.
-     *
-     * @param <C> comparable sort key type
-     * @param keyExtractor extracts sort key from group
-     * @return GroupStream with sort applied
-     */
+    /** Sorts groups ascending by key or aggregate values. */
     <C extends Comparable<C>> GroupStream<T, K> sortedBy(GroupQuerySpec<T, K, C> keyExtractor);
 
-    /**
-     * Sorts groups in descending order by the specified key extractor.
-     *
-     * @param <C> the type of the sort key (must be comparable)
-     * @param keyExtractor lambda extracting sort key from group
-     * @return a new GroupStream with the descending sort order applied
-     */
+    /** Sorts groups descending by key or aggregate values. */
     <C extends Comparable<C>> GroupStream<T, K> sortedDescendingBy(GroupQuerySpec<T, K, C> keyExtractor);
 
     // ========== Pagination ==========
 
     /**
      * Skips the first {@code n} groups (SQL OFFSET).
-     *
-     * @param n number of groups to skip (must be >= 0)
-     * @return a new GroupStream with offset applied
      * @throws IllegalArgumentException if {@code n < 0}
      */
     GroupStream<T, K> skip(int n);
 
     /**
      * Limits results to {@code n} groups (SQL LIMIT).
-     *
-     * @param n maximum number of groups to return (must be >= 0)
-     * @return a new GroupStream with limit applied
      * @throws IllegalArgumentException if {@code n < 0}
      */
     GroupStream<T, K> limit(int n);
 
     // ========== Terminal Operations ==========
 
-    /**
-     * Executes the query and returns all grouping keys as a list.
-     * <p>
-     * Equivalent to {@code .selectKey().toList()}.
-     *
-     * @return list of all grouping keys
-     */
+    /** Executes query and returns all grouping keys. Equivalent to {@code .selectKey().toList()}. */
     List<K> toList();
 
-    /**
-     * Counts the number of groups.
-     * <p>
-     * Note: This counts the number of distinct groups, not the total
-     * number of entities across all groups.
-     *
-     * @return the count of groups
-     */
+    /** Counts the number of distinct groups (not total entities). */
     long count();
 }

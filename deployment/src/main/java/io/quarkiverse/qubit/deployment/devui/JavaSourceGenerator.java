@@ -89,8 +89,8 @@ public final class JavaSourceGenerator {
             case GroupParameter ignored -> "g";
 
             // Subquery expressions
-            case ScalarSubquery scalarSub -> scalarSubqueryToJava(scalarSub, param);
-            case ExistsSubquery existsSub -> existsSubqueryToJava(existsSub, param);
+            case ScalarSubquery scalarSub -> scalarSubqueryToJava(scalarSub);
+            case ExistsSubquery existsSub -> existsSubqueryToJava(existsSub);
             case InSubquery inSub -> inSubqueryToJava(inSub, param);
             case CorrelatedVariable correlated -> param + "." + expressionToJava(correlated.fieldExpression(), param);
             case SubqueryBuilderReference ignored -> "subquery(...)";
@@ -390,7 +390,7 @@ public final class JavaSourceGenerator {
         };
     }
 
-    private static String scalarSubqueryToJava(ScalarSubquery scalarSub, String param) {
+    private static String scalarSubqueryToJava(ScalarSubquery scalarSub) {
         String entityName = scalarSub.entityClass().getSimpleName();
         String field = scalarSub.fieldExpression() != null ?
                 expressionToJava(scalarSub.fieldExpression(), "s") : "";
@@ -416,7 +416,7 @@ public final class JavaSourceGenerator {
         return sb.toString();
     }
 
-    private static String existsSubqueryToJava(ExistsSubquery existsSub, String param) {
+    private static String existsSubqueryToJava(ExistsSubquery existsSub) {
         String entityName = existsSub.entityClass().getSimpleName();
         String method = existsSub.negated() ? "notExists" : "exists";
         String predicate = expressionToJava(existsSub.predicate(), "s");

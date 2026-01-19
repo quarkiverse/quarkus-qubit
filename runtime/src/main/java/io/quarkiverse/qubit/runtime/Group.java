@@ -42,95 +42,30 @@ package io.quarkiverse.qubit.runtime;
  */
 public interface Group<T, K> {
 
-    /**
-     * Returns the grouping key for this group.
-     * <p>
-     * Maps to the expression used in {@code groupBy()}.
-     *
-     * @return the grouping key value
-     */
+    /** Returns the grouping key (maps to {@code groupBy()} expression). */
     K key();
 
-    /**
-     * Returns the count of entities in this group.
-     * <p>
-     * Maps to JPA {@code cb.count(root)}.
-     *
-     * @return the count of entities in the group
-     */
+    /** Counts entities in this group (JPA {@code cb.count(root)}). */
     long count();
 
-    /**
-     * Returns the count of distinct values for the specified field in this group.
-     * <p>
-     * Maps to JPA {@code cb.countDistinct(root.get("field"))}.
-     *
-     * @param <V> the field type
-     * @param fieldExtractor lambda expression extracting the field
-     * @return the count of distinct values
-     */
+    /** Counts distinct values for a field (JPA {@code cb.countDistinct(...)}). */
     <V> long countDistinct(QuerySpec<T, V> fieldExtractor);
 
-    /**
-     * Returns the average of a numeric field across entities in this group.
-     * <p>
-     * Maps to JPA {@code cb.avg(root.get("field"))}.
-     *
-     * @param <N> the numeric field type
-     * @param fieldExtractor lambda expression extracting the numeric field
-     * @return the average value (always Double, null if no non-null values)
-     */
+    /** Averages a numeric field (JPA {@code cb.avg(...)}). Returns null if no non-null values. */
     <N extends Number> Double avg(QuerySpec<T, N> fieldExtractor);
 
-    /**
-     * Returns the sum of an integer field across entities in this group.
-     * <p>
-     * Maps to JPA {@code cb.sum(root.get("field"))}.
-     *
-     * @param fieldExtractor lambda expression extracting the integer field
-     * @return the sum (as Long)
-     */
+    /** Sums Integer field values (returns Long). */
     Long sumInteger(QuerySpec<T, Integer> fieldExtractor);
 
-    /**
-     * Returns the sum of a long field across entities in this group.
-     * <p>
-     * Maps to JPA {@code cb.sum(root.get("field"))}.
-     *
-     * @param fieldExtractor lambda expression extracting the long field
-     * @return the sum (as Long)
-     */
+    /** Sums Long field values (returns Long). */
     Long sumLong(QuerySpec<T, Long> fieldExtractor);
 
-    /**
-     * Returns the sum of a double field across entities in this group.
-     * <p>
-     * Maps to JPA {@code cb.sum(root.get("field"))}.
-     *
-     * @param fieldExtractor lambda expression extracting the double field
-     * @return the sum (as Double)
-     */
+    /** Sums Double field values (returns Double). */
     Double sumDouble(QuerySpec<T, Double> fieldExtractor);
 
-    /**
-     * Returns the minimum value of a comparable field across entities in this group.
-     * <p>
-     * Maps to JPA {@code cb.min(root.get("field"))} or {@code cb.least(root.get("field"))}.
-     *
-     * @param <C> the comparable field type
-     * @param fieldExtractor lambda expression extracting the comparable field
-     * @return the minimum value
-     */
+    /** Minimum value of a comparable field. */
     <C extends Comparable<C>> C min(QuerySpec<T, C> fieldExtractor);
 
-    /**
-     * Returns the maximum value of a comparable field across entities in this group.
-     * <p>
-     * Maps to JPA {@code cb.max(root.get("field"))} or {@code cb.greatest(root.get("field"))}.
-     *
-     * @param <C> the comparable field type
-     * @param fieldExtractor lambda expression extracting the comparable field
-     * @return the maximum value
-     */
+    /** Maximum value of a comparable field. */
     <C extends Comparable<C>> C max(QuerySpec<T, C> fieldExtractor);
 }

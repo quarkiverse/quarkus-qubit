@@ -212,11 +212,7 @@ public abstract sealed class AbstractQueryHandler implements QueryTypeHandler
         return AnalysisOutcome.UnsupportedPattern.lambdaNotFound(methodName, callSiteId);
     }
 
-    /**
-     * Casts LambdaAnalysisResult to expected subtype with validation.
-     *
-     * @throws IllegalArgumentException if result is not of expected type
-     */
+    /** Casts LambdaAnalysisResult to expected subtype; throws if type mismatch. */
     protected <R extends LambdaAnalysisResult> R castResult(
             LambdaAnalysisResult result,
             Class<R> expectedType) {

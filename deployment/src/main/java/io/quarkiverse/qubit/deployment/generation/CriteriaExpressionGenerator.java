@@ -213,34 +213,45 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             return generateComparisonOperation(method, binOp.operator(), cb, left, right);
         }
 
-        // Pattern: ExistsSubquery == true → just return the ExistsSubquery predicate
-        // This handles bytecode patterns where boolean short-circuit creates comparison to constant.
+        // Handle EXISTS/IN subquery patterns
         boolean leftHasSubquery = containsSubquery(binOp.left());
         boolean rightHasSubquery = containsSubquery(binOp.right());
 
         if (leftHasSubquery || rightHasSubquery) {
-            // If comparing a subquery predicate to a boolean constant, simplify
-            if (isSubqueryBooleanComparison(binOp)) {
-                // Return just the subquery predicate (EXISTS == true → EXISTS)
-                LambdaExpression subqueryExpr = leftHasSubquery ? binOp.left() : binOp.right();
-                LambdaExpression constantExpr = leftHasSubquery ? binOp.right() : binOp.left();
-                ResultHandle predicate = generatePredicateWithSubqueries(method, subqueryExpr, cb, query, root, capturedValues);
-
-                // If comparing to false or using NE with true, negate the result
-                if (isNegatedSubqueryComparison(binOp.operator(), constantExpr)) {
-                    return method.invokeInterfaceMethod(CB_NOT, cb, predicate);
-                }
-                return predicate;
-            }
-
-            // For other patterns with subqueries, recursively process with subquery support
-            ResultHandle left = generatePredicateWithSubqueries(method, binOp.left(), cb, query, root, capturedValues);
-            ResultHandle right = generatePredicateWithSubqueries(method, binOp.right(), cb, query, root, capturedValues);
-            return generateComparisonOperation(method, binOp.operator(), cb, left, right);
+            return handleSubqueryComparison(method, binOp, cb, query, root, capturedValues, leftHasSubquery);
         }
 
         // No subqueries - delegate to original method
         return generateBinaryOperation(method, binOp, cb, root, capturedValues);
+    }
+
+    /** Handles comparison operations involving EXISTS/IN subqueries. */
+    private ResultHandle handleSubqueryComparison(
+            MethodCreator method,
+            LambdaExpression.BinaryOp binOp,
+            ResultHandle cb,
+            ResultHandle query,
+            ResultHandle root,
+            ResultHandle capturedValues,
+            boolean leftHasSubquery) {
+
+        // If comparing a subquery predicate to a boolean constant, simplify
+        if (isSubqueryBooleanComparison(binOp)) {
+            LambdaExpression subqueryExpr = leftHasSubquery ? binOp.left() : binOp.right();
+            LambdaExpression constantExpr = leftHasSubquery ? binOp.right() : binOp.left();
+            ResultHandle predicate = generatePredicateWithSubqueries(method, subqueryExpr, cb, query, root, capturedValues);
+
+            // If comparing to false or using NE with true, negate the result
+            if (isNegatedSubqueryComparison(binOp.operator(), constantExpr)) {
+                return method.invokeInterfaceMethod(CB_NOT, cb, predicate);
+            }
+            return predicate;
+        }
+
+        // For other patterns with subqueries, recursively process with subquery support
+        ResultHandle left = generatePredicateWithSubqueries(method, binOp.left(), cb, query, root, capturedValues);
+        ResultHandle right = generatePredicateWithSubqueries(method, binOp.right(), cb, query, root, capturedValues);
+        return generateComparisonOperation(method, binOp.operator(), cb, left, right);
     }
 
     /**

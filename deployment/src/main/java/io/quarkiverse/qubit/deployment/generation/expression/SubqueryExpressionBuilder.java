@@ -1,7 +1,14 @@
 package io.quarkiverse.qubit.deployment.generation.expression;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.AND;
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.*;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.COUNT_SHOULD_BE_HANDLED_ABOVE;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.EXISTS_SUBQUERY_NULL;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.FIELD_PATH_EXPRESSION_NULL;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.IN_SUBQUERY_NULL;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.MISSING_CASE_HANDLER_HINT;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.SCALAR_SUBQUERY_NULL;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.unexpectedAggregationType;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.unsupportedFieldPathExpressionType;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isLogicalOperation;
 import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.isGetterMethodName;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.*;
@@ -271,9 +278,8 @@ public enum SubqueryExpressionBuilder implements ExpressionBuilder {
             }
 
             default -> {
-                Log.warnf("Unhandled predicate type in generateSubqueryPredicate: %s. "
-                        + "This may indicate a missing case handler.",
-                        predicate.getClass().getSimpleName());
+                Log.warnf("Unhandled predicate type in generateSubqueryPredicate: %s. %s",
+                        predicate.getClass().getSimpleName(), MISSING_CASE_HANDLER_HINT);
                 yield null;
             }
         };
@@ -301,9 +307,8 @@ public enum SubqueryExpressionBuilder implements ExpressionBuilder {
             return method.invokeInterfaceMethod(CB_EQUAL, cb, targetExpr, argumentExpr);
         }
 
-        Log.warnf("Unhandled method call in subquery predicate: %s. "
-                + "This may indicate a missing case handler.",
-                methodCall.methodName());
+        Log.warnf("Unhandled method call in subquery predicate: %s. %s",
+                methodCall.methodName(), MISSING_CASE_HANDLER_HINT);
         return null;
     }
 
@@ -386,9 +391,8 @@ public enum SubqueryExpressionBuilder implements ExpressionBuilder {
             }
 
             default -> {
-                Log.warnf("Unhandled expression type in generateSubqueryExpression: %s. "
-                        + "This may indicate a missing case handler or an unexpected AST structure.",
-                        expr.getClass().getSimpleName());
+                Log.warnf("Unhandled expression type in generateSubqueryExpression: %s. %s",
+                        expr.getClass().getSimpleName(), MISSING_CASE_HANDLER_HINT);
                 yield null;
             }
         };
@@ -418,9 +422,8 @@ public enum SubqueryExpressionBuilder implements ExpressionBuilder {
             return method.invokeInterfaceMethod(PATH_GET, targetPath, fieldNameHandle);
         }
 
-        Log.warnf("Unhandled method call expression in subquery: %s. "
-                + "This may indicate a missing case handler.",
-                methodName);
+        Log.warnf("Unhandled method call expression in subquery: %s. %s",
+                methodName, MISSING_CASE_HANDLER_HINT);
         return null;
     }
 
