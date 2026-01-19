@@ -15,6 +15,8 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_SU
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_SUM_AS_LONG;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_TUPLE;
 
+import org.jspecify.annotations.Nullable;
+
 import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.ResultHandle;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
@@ -30,9 +32,9 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
     INSTANCE;
 
     /** Generates JPA Predicate for HAVING clause. */
-    public ResultHandle generateGroupPredicate(
+    public @Nullable ResultHandle generateGroupPredicate(
             MethodCreator method,
-            LambdaExpression expression,
+            @Nullable LambdaExpression expression,
             ResultHandle cb,
             ResultHandle root,
             ResultHandle groupKeyExpr,
@@ -63,9 +65,9 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
     }
 
     /** Generates JPA Expression for GROUP BY SELECT. */
-    public ResultHandle generateGroupSelectExpression(
+    public @Nullable ResultHandle generateGroupSelectExpression(
             MethodCreator method,
-            LambdaExpression expression,
+            @Nullable LambdaExpression expression,
             ResultHandle cb,
             ResultHandle root,
             ResultHandle groupKeyExpr,
@@ -116,9 +118,9 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
     }
 
     /** Generates JPA Expression for group ORDER BY clause. */
-    public ResultHandle generateGroupSortExpression(
+    public @Nullable ResultHandle generateGroupSortExpression(
             MethodCreator method,
-            LambdaExpression expression,
+            @Nullable LambdaExpression expression,
             ResultHandle cb,
             ResultHandle root,
             ResultHandle groupKeyExpr,

@@ -9,6 +9,8 @@ import static io.quarkiverse.qubit.deployment.common.PatternDetector.isSubqueryB
 import static io.quarkiverse.qubit.deployment.generation.GizmoHelper.buildConstructorExpression;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NOT;
 
+import org.jspecify.annotations.Nullable;
+
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityFieldAccess;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityPathExpression;
@@ -30,9 +32,9 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
     INSTANCE;
 
     /** Generates JPA Predicate from bi-entity lambda AST. */
-    public ResultHandle generateBiEntityPredicate(
+    public @Nullable ResultHandle generateBiEntityPredicate(
             MethodCreator method,
-            LambdaExpression expression,
+            @Nullable LambdaExpression expression,
             ResultHandle cb,
             ResultHandle root,
             ResultHandle join,
@@ -80,9 +82,9 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
     }
 
     /** Generates JPA Predicate from bi-entity lambda AST with subquery support. */
-    public ResultHandle generateBiEntityPredicateWithSubqueries(
+    public @Nullable ResultHandle generateBiEntityPredicateWithSubqueries(
             MethodCreator method,
-            LambdaExpression expression,
+            @Nullable LambdaExpression expression,
             ResultHandle cb,
             ResultHandle query,
             ResultHandle root,
@@ -114,9 +116,9 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
     }
 
     /** Generates JPA Expression from bi-entity lambda AST with subquery support. */
-    public ResultHandle generateBiEntityExpressionWithSubqueries(
+    public @Nullable ResultHandle generateBiEntityExpressionWithSubqueries(
             MethodCreator method,
-            LambdaExpression expression,
+            @Nullable LambdaExpression expression,
             ResultHandle cb,
             ResultHandle query,
             ResultHandle root,
@@ -138,9 +140,9 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
     }
 
     /** Generates JPA Expression from bi-entity lambda AST. */
-    public ResultHandle generateBiEntityExpressionAsJpaExpression(
+    public @Nullable ResultHandle generateBiEntityExpressionAsJpaExpression(
             MethodCreator method,
-            LambdaExpression expression,
+            @Nullable LambdaExpression expression,
             ResultHandle cb,
             ResultHandle root,
             ResultHandle join,
@@ -188,9 +190,9 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
     }
 
     /** Generates JPA Selection from bi-entity projection expression AST. */
-    public ResultHandle generateBiEntityProjection(
+    public @Nullable ResultHandle generateBiEntityProjection(
             MethodCreator method,
-            LambdaExpression expression,
+            @Nullable LambdaExpression expression,
             ResultHandle cb,
             ResultHandle root,
             ResultHandle join,
@@ -223,9 +225,9 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
     }
 
     /** Generates raw value from bi-entity expression (for method arguments). */
-    public ResultHandle generateBiEntityExpression(
+    public @Nullable ResultHandle generateBiEntityExpression(
             MethodCreator method,
-            LambdaExpression expression,
+            @Nullable LambdaExpression expression,
             ResultHandle cb,
             ResultHandle root,
             ResultHandle join,

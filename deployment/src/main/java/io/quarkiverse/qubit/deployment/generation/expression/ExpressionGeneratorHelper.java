@@ -3,6 +3,8 @@ package io.quarkiverse.qubit.deployment.generation.expression;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_IS_NOT_NULL;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_IS_NULL;
 
+import org.jspecify.annotations.Nullable;
+
 import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.ResultHandle;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
@@ -44,15 +46,15 @@ public interface ExpressionGeneratorHelper {
     /** Generates string concatenation using cb.concat(). */
     ResultHandle generateStringConcatenation(MethodCreator method, ResultHandle cb, ResultHandle left, ResultHandle right);
 
-    /** Generates JPA Expression from lambda expression. Returns null if unsupported. */
-    ResultHandle generateExpressionAsJpaExpression(MethodCreator method, LambdaExpression expression,
+    /** Generates JPA Expression from lambda expression. Returns null if expression is null. */
+    @Nullable ResultHandle generateExpressionAsJpaExpression(MethodCreator method, @Nullable LambdaExpression expression,
             ResultHandle cb, ResultHandle root, ResultHandle capturedValues);
 
     /**
      * Generates bytecode for lambda expression, returning raw values or JPA expressions.
-     * Unlike generateExpressionAsJpaExpression, may return raw values (e.g., LIKE patterns).
+     * Returns null if expression is null.
      */
-    ResultHandle generateExpression(MethodCreator method, LambdaExpression expression,
+    @Nullable ResultHandle generateExpression(MethodCreator method, @Nullable LambdaExpression expression,
             ResultHandle cb, ResultHandle root, ResultHandle capturedValues);
 
     // ========== Captured Variable Utilities ==========
@@ -76,8 +78,8 @@ public interface ExpressionGeneratorHelper {
 
     // ========== Correlated Variable Utilities ==========
 
-    /** Generates field expression from CorrelatedVariable (wraps FieldAccess or PathExpression). */
-    default ResultHandle generateCorrelatedFieldExpression(
+    /** Generates field expression from CorrelatedVariable. Returns null if unsupported expression type. */
+    default @Nullable ResultHandle generateCorrelatedFieldExpression(
             MethodCreator method,
             LambdaExpression.CorrelatedVariable correlated,
             ResultHandle root) {

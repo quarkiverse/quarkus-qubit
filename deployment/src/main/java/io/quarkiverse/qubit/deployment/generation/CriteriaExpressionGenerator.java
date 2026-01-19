@@ -27,6 +27,8 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.PATH_
 
 import java.util.Objects;
 
+import org.jspecify.annotations.Nullable;
+
 import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.MethodDescriptor;
 import io.quarkus.gizmo.ResultHandle;
@@ -81,8 +83,8 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
                 "methodCallHandlerChain cannot be null");
     }
 
-    /** Generates JPA Predicate from lambda expression AST. */
-    public ResultHandle generatePredicate(
+    /** Generates JPA Predicate from lambda expression AST. Returns null if expression is null. */
+    public @Nullable ResultHandle generatePredicate(
             MethodCreator method,
             LambdaExpression expression,
             ResultHandle cb,
@@ -127,7 +129,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
      * Generates JPA Predicate with subquery support (ExistsSubquery, InSubquery, ScalarSubquery).
      * Accepts CriteriaQuery for creating subqueries.
      */
-    public ResultHandle generatePredicateWithSubqueries(
+    public @Nullable ResultHandle generatePredicateWithSubqueries(
             MethodCreator method,
             LambdaExpression expression,
             ResultHandle cb,
@@ -159,8 +161,8 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         };
     }
 
-    /** Generates JPA Expression with ScalarSubquery support. */
-    public ResultHandle generateExpressionWithSubqueries(
+    /** Generates JPA Expression with ScalarSubquery support. Returns null if expression is null. */
+    public @Nullable ResultHandle generateExpressionWithSubqueries(
             MethodCreator method,
             LambdaExpression expression,
             ResultHandle cb,
@@ -266,9 +268,9 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
      * <p>
      * Refactored for Java 21: Uses pattern matching switch for cleaner type dispatch.
      */
-    public ResultHandle generateExpression(
+    public @Nullable ResultHandle generateExpression(
             MethodCreator method,
-            LambdaExpression expression,
+            @Nullable LambdaExpression expression,
             ResultHandle cb,
             ResultHandle root,
             ResultHandle capturedValues) {
@@ -306,9 +308,9 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
      * <p>
      * Refactored for Java 21: Uses pattern matching switch for cleaner type dispatch.
      */
-    public ResultHandle generateExpressionAsJpaExpression(
+    public @Nullable ResultHandle generateExpressionAsJpaExpression(
             MethodCreator method,
-            LambdaExpression expression,
+            @Nullable LambdaExpression expression,
             ResultHandle cb,
             ResultHandle root,
             ResultHandle capturedValues) {
