@@ -35,7 +35,7 @@ import io.quarkus.hibernate.orm.panache.deployment.PanacheEntityClassBuildItem;
 import io.quarkiverse.qubit.runtime.QueryExecutorRecorder;
 import io.quarkiverse.qubit.runtime.QueryExecutorRegistry;
 import io.quarkiverse.qubit.runtime.QubitEntity;
-import io.quarkiverse.qubit.deployment.analysis.AnalysisException;
+import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
 import io.quarkiverse.qubit.deployment.analysis.CallSiteProcessor;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner;
 import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
@@ -281,7 +281,7 @@ public class QubitProcessor {
 
             return callSites;
 
-        } catch (AnalysisException e) {
+        } catch (BytecodeAnalysisException e) {
             // Expected: bytecode analysis failed (e.g., class not found, unsupported bytecode)
             Log.debugf(e, "Could not analyze class %s: %s", classInfo.name(), e.getMessage());
             return Collections.emptyList();

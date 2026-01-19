@@ -19,6 +19,7 @@ import io.quarkiverse.qubit.deployment.analysis.handler.QueryTypeHandlerRegistry
 import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator.DeduplicationContext;
 import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator.DeduplicationRequest;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
 import io.quarkiverse.qubit.deployment.QubitBuildTimeConfig;
 import io.quarkiverse.qubit.deployment.QubitProcessor;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
@@ -103,7 +104,7 @@ public class CallSiteProcessor {
         byte[] classBytes;
         try {
             classBytes = BytecodeLoader.loadClassBytecode(callSite.ownerClassName(), applicationArchives);
-        } catch (AnalysisException e) {
+        } catch (BytecodeAnalysisException e) {
             Log.warnf("Could not load bytecode for class: %s - %s", callSite.ownerClassName(), e.getMessage());
             return AnalysisOutcome.unsupported(e.getMessage(), callSite.getCallSiteId());
         }

@@ -2,6 +2,7 @@ package io.quarkiverse.qubit.deployment.analysis;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.analysis.instruction.*;
+import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
 import io.quarkiverse.qubit.deployment.util.DescriptorParser;
 import io.quarkus.logging.Log;
 import org.objectweb.asm.ClassReader;
@@ -61,7 +62,7 @@ public class LambdaBytecodeAnalyzer {
 
     /**
      * Analyzes synthetic lambda bytecode and returns expression AST.
-     * @throws AnalysisException if bytecode cannot be read or lambda method not found
+     * @throws BytecodeAnalysisException if bytecode cannot be read or lambda method not found
      */
     public LambdaExpression analyze(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor) {
         return analyze(classBytes, lambdaMethodName, lambdaDescriptor, false);
@@ -69,7 +70,7 @@ public class LambdaBytecodeAnalyzer {
 
     /**
      * Analyzes bi-entity lambda (BiQuerySpec) for join query predicates and projections.
-     * @throws AnalysisException if bytecode cannot be read or lambda method not found
+     * @throws BytecodeAnalysisException if bytecode cannot be read or lambda method not found
      */
     public LambdaExpression analyzeBiEntity(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor) {
         return analyze(classBytes, lambdaMethodName, lambdaDescriptor, true);
@@ -77,7 +78,7 @@ public class LambdaBytecodeAnalyzer {
 
     /**
      * Analyzes group lambda (GroupQuerySpec) with aggregation methods (key, count, avg, etc).
-     * @throws AnalysisException if bytecode cannot be read or lambda method not found
+     * @throws BytecodeAnalysisException if bytecode cannot be read or lambda method not found
      */
     public LambdaExpression analyzeGroupQuerySpec(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor) {
         return analyzeGroupContext(classBytes, lambdaMethodName, lambdaDescriptor);
@@ -91,7 +92,7 @@ public class LambdaBytecodeAnalyzer {
             classNode = new ClassNode();
             reader.accept(classNode, 0);
         } catch (Exception e) {
-            throw new AnalysisException(
+            throw BytecodeAnalysisException.analysisFailedWithContext(
                     "Failed to read class bytecode for group lambda analysis",
                     null, lambdaMethodName, lambdaDescriptor, e);
         }
@@ -108,7 +109,7 @@ public class LambdaBytecodeAnalyzer {
             String availableMethods = classNode.methods.stream()
                     .map(m -> m.name + m.desc)
                     .collect(Collectors.joining(", "));
-            throw AnalysisException.lambdaMethodNotFound(
+            throw BytecodeAnalysisException.lambdaMethodNotFound(
                     classNode.name + " (group lambda). Available methods: [" + availableMethods + "]",
                     lambdaMethodName, lambdaDescriptor);
         }
@@ -120,10 +121,10 @@ public class LambdaBytecodeAnalyzer {
             AnalysisContext ctx = new AnalysisContext(lambdaMethod, groupParameterIndex, nestedLambdaSupport);
 
             return processInstructions(ctx);
-        } catch (AnalysisException e) {
+        } catch (BytecodeAnalysisException e) {
             throw e; // Re-throw our own exceptions
         } catch (Exception e) {
-            throw new AnalysisException(
+            throw BytecodeAnalysisException.analysisFailedWithContext(
                     String.format("Failed to analyze group lambda method %s%s in class %s",
                             lambdaMethodName, lambdaDescriptor, classNode.name),
                     classNode.name, lambdaMethodName, lambdaDescriptor, e);
@@ -139,7 +140,7 @@ public class LambdaBytecodeAnalyzer {
             classNode = new ClassNode();
             reader.accept(classNode, 0);
         } catch (Exception e) {
-            throw new AnalysisException(
+            throw new BytecodeAnalysisException(
                     "Failed to read class bytecode for lambda analysis: " + e.getMessage(), e);
         }
 
@@ -155,7 +156,7 @@ public class LambdaBytecodeAnalyzer {
             String availableMethods = classNode.methods.stream()
                     .map(m -> m.name + m.desc)
                     .collect(Collectors.joining(", "));
-            throw AnalysisException.lambdaMethodNotFound(
+            throw BytecodeAnalysisException.lambdaMethodNotFound(
                     classNode.name + ". Available methods: [" + availableMethods + "]",
                     lambdaMethodName, lambdaDescriptor);
         }
@@ -164,7 +165,7 @@ public class LambdaBytecodeAnalyzer {
             if (biEntityMode) {
                 int[] biEntitySlots = DescriptorParser.calculateBiEntityParameterSlotIndices(lambdaDescriptor);
                 if (biEntitySlots == null) {
-                    throw new AnalysisException(
+                    throw new BytecodeAnalysisException(
                             "Bi-entity mode requires at least 2 parameters in descriptor: " + lambdaDescriptor);
                 }
                 return analyzeMethodInstructions(lambdaMethod, biEntitySlots[0], biEntitySlots[1], classNode.methods);
@@ -172,10 +173,10 @@ public class LambdaBytecodeAnalyzer {
                 int entityParameterIndex = DescriptorParser.calculateEntityParameterSlotIndex(lambdaDescriptor);
                 return analyzeMethodInstructions(lambdaMethod, entityParameterIndex, classNode.methods);
             }
-        } catch (AnalysisException e) {
+        } catch (BytecodeAnalysisException e) {
             throw e; // Re-throw our own exceptions
         } catch (Exception e) {
-            throw new AnalysisException(
+            throw BytecodeAnalysisException.analysisFailedWithContext(
                     String.format("Failed to analyze lambda method %s%s in class %s",
                             lambdaMethodName, lambdaDescriptor, classNode.name),
                     classNode.name, lambdaMethodName, lambdaDescriptor, e);

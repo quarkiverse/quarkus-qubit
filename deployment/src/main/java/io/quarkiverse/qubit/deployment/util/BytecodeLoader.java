@@ -1,6 +1,6 @@
 package io.quarkiverse.qubit.deployment.util;
 
-import io.quarkiverse.qubit.deployment.analysis.AnalysisException;
+import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
 import io.quarkus.deployment.builditem.ApplicationArchivesBuildItem;
 import io.quarkus.logging.Log;
 
@@ -67,6 +67,6 @@ public final class BytecodeLoader {
                 className, locationsSummary, errorsSummary);
 
         Log.warnf(message);
-        throw AnalysisException.bytecodeNotFound(className);
+        throw BytecodeAnalysisException.bytecodeNotFound(className);
     }
 }

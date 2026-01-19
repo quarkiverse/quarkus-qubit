@@ -25,9 +25,7 @@ public class QueryExecutorRegistry {
 
     private static final Logger LOG = Logger.getLogger(QueryExecutorRegistry.class);
 
-    // =============================================================================================
-    // EXECUTOR TYPE ENUM - Centralizes all executor type metadata
-    // =============================================================================================
+    // ========== Executor Type Enum ==========
 
     /**
      * Enumeration of all query executor types with their metadata.
@@ -61,9 +59,7 @@ public class QueryExecutorRegistry {
         }
     }
 
-    // =============================================================================================
-    // EXECUTOR STORAGE MAPS
-    // =============================================================================================
+    // ========== Executor Storage Maps ==========
 
     private static final Map<String, QueryExecutor<List<?>>> LIST_EXECUTORS = new ConcurrentHashMap<>();
     private static final Map<String, QueryExecutor<Long>> COUNT_EXECUTORS = new ConcurrentHashMap<>();
@@ -90,9 +86,7 @@ public class QueryExecutorRegistry {
     @Inject
     EntityManager entityManager;
 
-    // =============================================================================================
-    // GENERIC REGISTRATION HELPER
-    // =============================================================================================
+    // ========== Generic Registration Helper ==========
 
     /** Registers executor with write lock for atomic executor+captured-var-count update. */
     private static <T> void registerExecutor(
@@ -140,9 +134,7 @@ public class QueryExecutorRegistry {
         }
     }
 
-    // =============================================================================================
-    // ERROR MESSAGE GENERATION
-    // =============================================================================================
+    // ========== Error Message Generation ==========
 
     /** Builds error message for missing executor. */
     private static String buildExecutorNotFoundError(String callSiteId, ExecutorType type, Supplier<String> registeredCounts) {
@@ -180,9 +172,7 @@ public class QueryExecutorRegistry {
         }
     }
 
-    // =============================================================================================
-    // STANDARD QUERY REGISTRATION
-    // =============================================================================================
+    // ========== Standard Query Registration ==========
 
     /**
      * Registers list query executor for call site.
@@ -231,9 +221,7 @@ public class QueryExecutorRegistry {
         }
     }
 
-    // =============================================================================================
-    // STANDARD QUERY EXECUTION
-    // =============================================================================================
+    // ========== Standard Query Execution ==========
 
     /** Executes list query (lock held only during lookup, not DB execution). */
     @SuppressWarnings("unchecked")
@@ -295,13 +283,8 @@ public class QueryExecutorRegistry {
         return (R) executor.execute(entityManager, entityClass, capturedValues, null, null, null);
     }
 
-    // =============================================================================================
-    // EXECUTOR COUNT METHODS
-    // =============================================================================================
-    //
-    // These methods acquire read locks to prevent data races with clearAllExecutors() during
-    // dev mode hot reload. Without locking, concurrent clear operations could result in
-    // inconsistent counts or visibility issues across threads.
+    // ========== Executor Count Methods ==========
+    // Acquires read locks to prevent data races with clearAllExecutors() during dev mode hot reload.
 
     public static int getListExecutorCount() {
         return getExecutorCount(LIST_EXECUTORS);
@@ -339,9 +322,7 @@ public class QueryExecutorRegistry {
         return getExecutorCount(GROUP_COUNT_EXECUTORS);
     }
 
-    // =============================================================================================
-    // JOIN QUERY REGISTRATION
-    // =============================================================================================
+    // ========== Join Query Registration ==========
 
     /**
      * Registers join list query executor for call site (join() and leftJoin()).
@@ -371,9 +352,7 @@ public class QueryExecutorRegistry {
         registerExecutor(callSiteId, executor, capturedVarCount, JOIN_PROJECTION_EXECUTORS, ExecutorType.JOIN_PROJECTION);
     }
 
-    // =============================================================================================
-    // JOIN QUERY EXECUTION
-    // =============================================================================================
+    // ========== Join Query Execution ==========
 
     /**
      * Executes join list query for call site, returning source entities.
@@ -458,9 +437,7 @@ public class QueryExecutorRegistry {
         return (List<S>) executor.execute(entityManager, entityClass, capturedValues, offset, limit, distinct);
     }
 
-    // =============================================================================================
-    // GROUP QUERY REGISTRATION
-    // =============================================================================================
+    // ========== Group Query Registration ==========
 
     /**
      * Registers group list query executor for call site.
@@ -476,9 +453,7 @@ public class QueryExecutorRegistry {
         registerExecutor(callSiteId, executor, capturedVarCount, GROUP_COUNT_EXECUTORS, ExecutorType.GROUP_COUNT);
     }
 
-    // =============================================================================================
-    // GROUP QUERY EXECUTION
-    // =============================================================================================
+    // ========== Group Query Execution ==========
 
     /**
      * Executes group list query for call site with projection.
@@ -550,9 +525,7 @@ public class QueryExecutorRegistry {
         return executor.execute(entityManager, entityClass, capturedValues, null, null, null);
     }
 
-    // =============================================================================================
-    // DEV MODE SUPPORT
-    // =============================================================================================
+    // ========== Dev Mode Support ==========
 
     /** Clears all executors (dev mode hot reload). Acquires exclusive write lock. */
     public static void clearAllExecutors() {

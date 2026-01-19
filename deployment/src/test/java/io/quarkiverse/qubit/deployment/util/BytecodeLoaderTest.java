@@ -1,6 +1,6 @@
 package io.quarkiverse.qubit.deployment.util;
 
-import io.quarkiverse.qubit.deployment.analysis.AnalysisException;
+import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
 import io.quarkus.deployment.ApplicationArchive;
 import io.quarkus.deployment.builditem.ApplicationArchivesBuildItem;
 import io.quarkus.paths.PathList;
@@ -63,7 +63,7 @@ class BytecodeLoaderTest {
 
             assertThatThrownBy(() -> BytecodeLoader.loadClassBytecode(
                     "com.nonexistent.NonExistentClass", emptyArchives))
-                    .isInstanceOf(AnalysisException.class)
+                    .isInstanceOf(BytecodeAnalysisException.class)
                     .hasMessageContaining("com.nonexistent.NonExistentClass");
         }
 
@@ -74,7 +74,7 @@ class BytecodeLoaderTest {
 
             assertThatThrownBy(() -> BytecodeLoader.loadClassBytecode(
                     "not.a.valid.class!", emptyArchives))
-                    .isInstanceOf(AnalysisException.class)
+                    .isInstanceOf(BytecodeAnalysisException.class)
                     .hasMessageContaining("not.a.valid.class!");
         }
 

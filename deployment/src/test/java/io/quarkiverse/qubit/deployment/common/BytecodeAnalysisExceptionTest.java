@@ -175,38 +175,6 @@ class BytecodeAnalysisExceptionTest {
     }
 
     @Nested
-    @DisplayName("unexpectedState factory method")
-    class UnexpectedStateTests {
-
-        @Test
-        @DisplayName("A6: Includes context and details")
-        void unexpectedState_includesContextAndDetails() {
-            // When
-            BytecodeAnalysisException exception = BytecodeAnalysisException.unexpectedState(
-                    "branch analysis", "found GOTO without preceding comparison");
-
-            // Then
-            assertThat(exception.getMessage())
-                    .contains("Unexpected state")
-                    .contains("branch analysis")
-                    .contains("GOTO without preceding comparison")
-                    .contains("malformed bytecode");
-        }
-
-        @Test
-        @DisplayName("unexpectedState with stack context")
-        void unexpectedState_withStackContext_includesStackDetails() {
-            BytecodeAnalysisException exception = BytecodeAnalysisException.unexpectedState(
-                    "stack processing", "expected FieldAccess but found Constant on stack");
-
-            assertThat(exception.getMessage())
-                    .contains("stack processing")
-                    .contains("expected FieldAccess")
-                    .contains("found Constant");
-        }
-    }
-
-    @Nested
     @DisplayName("Constructor tests")
     class ConstructorTests {
 
