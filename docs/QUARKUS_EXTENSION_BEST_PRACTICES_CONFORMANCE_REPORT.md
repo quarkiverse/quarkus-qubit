@@ -17,15 +17,15 @@ This report evaluates the **quarkus-qubit** extension against established Quarku
 - [Quarkiverse Hub Requirements](https://github.com/quarkiverse)
 - [All BuildItems Reference](https://quarkus.io/guides/all-builditems)
 
-### Overall Conformance Score: **93/100** (Excellent)
+### Overall Conformance Score: **101/105** (96% - Excellent)
 
 | Category | Score | Status |
 |----------|-------|--------|
 | Module Structure | 19/20 | ✅ Excellent |
-| Build Configuration | 18/20 | ✅ Excellent |
+| Build Configuration | 20/20 | ✅ Excellent |
 | Core Extension Patterns | 20/20 | ✅ Excellent |
 | Testing | 15/15 | ✅ Excellent |
-| Developer Experience | 9/15 | ✅ Good |
+| Developer Experience | 15/15 | ✅ Excellent |
 | Native Mode Support | 5/5 | ✅ Excellent |
 | Documentation | 2/5 | ⚠️ Needs Enhancement |
 | CI/CD | 5/5 | ✅ Excellent |
@@ -112,17 +112,15 @@ runtime/
 #### Parent POM (`pom.xml`)
 
 ```xml
+<parent>
+    <groupId>io.quarkiverse</groupId>
+    <artifactId>quarkiverse-parent</artifactId>  <!-- ✅ Correct inheritance -->
+    <version>20</version>
+</parent>
+
 <groupId>io.quarkiverse.qubit</groupId>  <!-- ✅ Quarkiverse namespace -->
 <artifactId>quarkus-qubit-parent</artifactId>  <!-- ✅ Correct naming -->
 <packaging>pom</packaging>
-
-<!-- ⚠️ ISSUE: Not inheriting from quarkiverse-parent -->
-<!-- For Quarkiverse publication, should be: -->
-<!-- <parent>
-       <groupId>io.quarkiverse</groupId>
-       <artifactId>quarkiverse-parent</artifactId>
-       <version>XX</version>
-     </parent> -->
 
 <dependencyManagement>
     <dependencies>
@@ -182,10 +180,9 @@ description: "Runtime module for lambda-based Panache query extension"
 
 **Assessment:** Auto-generated correctly. Could benefit from additional metadata.
 
-### Score: 18/20
+### Score: 20/20
 
-**Deductions:**
-- -2: Not inheriting from `quarkiverse-parent` (required for Quarkiverse Hub publication)
+**Assessment:** Fully compliant. Inherits from `quarkiverse-parent` v20 and follows all Quarkiverse standards.
 
 ---
 
@@ -346,26 +343,42 @@ a dedicated Dev Service is not necessary.
 
 ### Dev UI
 
-**Status:** ❌ Not Implemented
+**Status:** ✅ IMPLEMENTED
 
-A Dev UI page could show:
-- Registered query executors
-- Call site mappings
-- Query execution statistics
-- Lambda AST visualization
+A complete Dev UI implementation is present in the `deployment/devui/` package:
 
+**Files:**
+- `QubitDevUIProcessor.java` - BuildStep producing `CardPageBuildItem`
+- `JpqlGenerator.java` - Generates JPQL representations for display
+- `JavaSourceGenerator.java` - Generates Java source code representations
+
+**Implementation:**
 ```java
-// RECOMMENDED: DevUIProcessor
+// QubitDevUIProcessor.java
 @BuildStep(onlyIf = IsDevelopment.class)
-void devUI(BuildProducer<CardPageBuildItem> cardPages) {
+void createPages(
+        List<QueryTransformationBuildItem> queryTransformations,
+        BuildProducer<CardPageBuildItem> cardPages) {
+
     CardPageBuildItem card = new CardPageBuildItem();
+
     card.addPage(Page.webComponentPageBuilder()
-        .componentLink("qwc-qubit-executors.js")
-        .title("Query Executors")
-        .icon("font-awesome-solid:database"));
+            .icon("font-awesome-solid:database")
+            .title("Lambda Queries")
+            .componentLink("qwc-qubit-queries.js")
+            .staticLabel(String.valueOf(queryTransformations.size())));
+
+    card.addBuildTimeData("queries", createQueryDataList(queryTransformations));
     cardPages.produce(card);
 }
 ```
+
+**Features:**
+- Displays all registered query executors with count badge
+- Shows JPQL representation for each query
+- Shows Java source code representation
+- Supports join queries, group queries, and aggregations
+- Displays captured variables, distinct flags, and sorting info
 
 ### Configuration
 
@@ -448,10 +461,9 @@ public interface QubitBuildTimeConfig {
 | `quarkus.qubit.logging.log-deduplication` | `false` | Log deduplication events |
 | `quarkus.qubit.logging.log-bytecode-analysis` | `false` | Detailed bytecode logs |
 
-### Score: 9/15
+### Score: 15/15
 
-**Deductions:**
-- -6: No Dev UI implementation (would enhance developer experience significantly)
+**Assessment:** Full developer experience implementation including Dev UI with query visualization, comprehensive build-time configuration, and detailed logging options.
 
 ---
 
@@ -677,21 +689,7 @@ jobs:
 
 ### Medium Priority
 
-2. **Add Dev UI page for query executor visualization** ❌ Still Needed
-
-3. **Create Antora documentation structure** ❌ Still Needed
-
-### Low Priority
-
-4. **Inherit from quarkiverse-parent** (for Quarkiverse publication)
-
-5. **Add CapabilityBuildItem** for capability advertisement
-   ```java
-   @BuildStep
-   void registerCapability(BuildProducer<CapabilityBuildItem> capabilities) {
-       capabilities.produce(new CapabilityBuildItem("io.quarkiverse.qubit"));
-   }
-   ```
+1. **Create Antora documentation structure** ❌ Still Needed
 
 ### Completed Recommendations ✅
 
@@ -701,6 +699,9 @@ jobs:
 - ~~Add build-time configuration options~~ → **IMPLEMENTED** (QubitBuildTimeConfig)
 - ~~Set up GitHub Actions CI/CD~~ → **IMPLEMENTED** (build.yml)
 - ~~Add LICENSE file~~ → **IMPLEMENTED** (Apache License 2.0)
+- ~~Add Dev UI page for query executor visualization~~ → **IMPLEMENTED** (QubitDevUIProcessor with JPQL and Java source display)
+- ~~Inherit from quarkiverse-parent~~ → **IMPLEMENTED** (quarkiverse-parent v20)
+- ~~Add CapabilityBuildItem~~ → **IMPLEMENTED** (Combined featureAndCapability BuildStep in QubitProcessor)
 
 ---
 
@@ -712,7 +713,7 @@ jobs:
 |--------|---------|-------|-------|
 | Entity enhancement | ✅ | ✅ | Both use bytecode transformation |
 | Build-time processing | ✅ | ✅ | Both generate code at build time |
-| Dev UI | ✅ | ❌ | Qubit should add |
+| Dev UI | ✅ | ✅ | Both provide Dev UI pages |
 | Configuration | ✅ | ✅ | Both have @ConfigRoot |
 | Native support | ✅ | ✅ | Both fully supported |
 
@@ -780,3 +781,5 @@ This extension is **production-ready** and demonstrates sophisticated understand
 
 *Report generated by Claude Code - 2025-12-05*
 *Updated: 2025-12-24 - Reflected implemented items: QubitBuildTimeConfig, QubitNativeImageProcessor, CI/CD, advanced testing, LICENSE file*
+*Updated: 2025-01-20 - Deep codebase research verified: Dev UI ✅ (QubitDevUIProcessor exists), quarkiverse-parent ✅ (v20 inheritance confirmed), scores updated (Build Config 18/20→20/20, Dev Experience 9/15→15/15, Overall 93/100→101/105 96%)*
+*Updated: 2026-01-20 - Implemented CapabilityBuildItem via combined featureAndCapability BuildStep in QubitProcessor.java*

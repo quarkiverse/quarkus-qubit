@@ -131,6 +131,9 @@ public final class QubitConstants {
         METHOD_IS_AFTER, METHOD_IS_BEFORE, METHOD_IS_EQUAL
     );
 
+    // Extension capability name for interoperability with other extensions
+    public static final String QUBIT_CAPABILITY = "io.quarkiverse.qubit";
+
     public static final String QUBIT_ENTITY_CLASS_NAME = "io.quarkiverse.qubit.QubitEntity";
     public static final String QUBIT_REPOSITORY_CLASS_NAME = "io.quarkiverse.qubit.QubitRepository";
     public static final String QUBIT_STREAM_CLASS_NAME = "io.quarkiverse.qubit.QubitStream";
