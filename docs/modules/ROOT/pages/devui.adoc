@@ -1,0 +1,57 @@
+= Dev UI
+
+Qubit provides a Dev UI extension for inspecting transformed lambda queries during development.
+
+== Accessing the Dev UI
+
+Run your application in dev mode:
+
+[source,bash]
+----
+./mvnw quarkus:dev
+----
+
+Open the Quarkus Dev UI at `http://localhost:8080/q/dev-ui` and locate the **Qubit** card.
+
+== Lambda Queries View
+
+The Dev UI displays all lambda queries detected and transformed at build time.
+
+=== Query Grid
+
+The grid shows:
+
+[cols="1,2"]
+|===
+|Column |Description
+
+|Entity
+|Entity class name and package
+
+|Query type
+|Query category: List, Count, Join, Group, Aggregation, or variants
+
+|Captured vars
+|Number of external variables captured by the lambda
+
+|Query ID
+|Unique identifier linking to source location
+|===
+
+=== Query Details
+
+Click any row to view:
+
+* **Lambda expression** - Reconstructed method chain from the original fluent API
+* **Generated JPQL** - JPA query generated from the lambda
+* **Query ID** - Full identifier with class and method
+* **Generated class** - Executor class created at build time
+
+== Use Cases
+
+Use the Dev UI to:
+
+* Verify lambda expressions are correctly transformed
+* Debug unexpected query behavior by inspecting generated JPQL
+* Identify queries with captured variables that may affect caching
+* Confirm query types match intended operations

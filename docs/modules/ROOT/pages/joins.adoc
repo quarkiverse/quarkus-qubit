@@ -1,0 +1,113 @@
+= Join Queries
+
+Qubit supports inner joins and left joins with access to both entities in predicates and projections.
+
+== Inner Join
+
+Use `join()` to create an inner join. Entities without matching related entities are excluded:
+
+[source,java]
+----
+// Join Person with their Phones
+List<PersonPhoneDTO> results = personRepository
+    .join((Person p) -> p.phones)
+    .where((Person p, Phone ph) -> ph.type.equals("mobile"))
+    .select((Person p, Phone ph) -> new PersonPhoneDTO(p.firstName, ph.number))
+    .toList();
+----
+
+== Left Join
+
+Use `leftJoin()` to include all source entities, even those without matching related entities:
+
+[source,java]
+----
+// Include persons without phones (ph may be null)
+List<Person> results = personRepository
+    .leftJoin((Person p) -> p.phones)
+    .where((Person p, Phone ph) -> ph == null || ph.type.equals("mobile"))
+    .toList();
+----
+
+== ON Clause
+
+Use `on()` to add conditions to the join itself, rather than filtering results:
+
+[source,java]
+----
+// ON clause doesn't filter NULL rows in left joins
+personRepository
+    .leftJoin((Person p) -> p.phones)
+    .on((Person p, Phone ph) -> ph.type.equals("mobile"))
+    .toList();
+----
+
+The difference between `on()` and `where()`:
+
+* `on()` - Applies to the join condition; in left joins, source entities without matches still appear
+* `where()` - Filters the final result set; removes rows that don't match
+
+== Projection Options
+
+Project to different result types:
+
+[source,java]
+----
+// Project using both entities
+List<DTO> dtos = personRepository
+    .join((Person p) -> p.phones)
+    .select((Person p, Phone ph) -> new DTO(p.firstName, ph.number))
+    .toList();
+
+// Select source entity only
+List<Person> persons = personRepository
+    .join((Person p) -> p.phones)
+    .selectSource()
+    .toList();
+
+// Select joined entity only
+List<Phone> phones = personRepository
+    .join((Person p) -> p.phones)
+    .selectJoined()
+    .toList();
+----
+
+== Sorting and Pagination
+
+Joins support the same sorting and pagination as regular queries:
+
+[source,java]
+----
+List<PersonPhoneDTO> page = personRepository
+    .join((Person p) -> p.phones)
+    .sortedBy((Person p, Phone ph) -> p.lastName)
+    .sortedDescendingBy((Person p, Phone ph) -> ph.number)
+    .skip(10)
+    .limit(20)
+    .select((Person p, Phone ph) -> new PersonPhoneDTO(p.firstName, ph.number))
+    .toList();
+----
+
+== Terminal Operations
+
+JoinStream supports these terminal operations:
+
+[cols="1,2"]
+|===
+|Method |Description
+
+|`toList()`
+|Returns source entities as a list
+
+|`getSingleResult()`
+|Returns exactly one result
+
+|`findFirst()`
+|Returns an Optional for the first result
+
+|`count()`
+|Counts matching join results
+
+|`exists()`
+|Checks if any result matches
+|===

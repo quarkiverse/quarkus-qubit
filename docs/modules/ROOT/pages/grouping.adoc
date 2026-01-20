@@ -1,0 +1,148 @@
+= Grouping & Aggregations
+
+Qubit supports GROUP BY operations with HAVING clauses and aggregate functions through the `Group` interface.
+
+== Basic GROUP BY
+
+Use `groupBy()` to group entities by a key:
+
+[source,java]
+----
+// Group by department and get keys
+List<String> departments = personRepository
+    .groupBy((Person p) -> p.department.name)
+    .toList();
+----
+
+== The Group Interface
+
+The `Group<T, K>` interface provides access to the grouping key and aggregate functions:
+
+[cols="1,2"]
+|===
+|Method |Description
+
+|`key()`
+|Returns the grouping key
+
+|`count()`
+|Counts entities in the group
+
+|`countDistinct(field)`
+|Counts distinct values for a field
+
+|`avg(field)`
+|Averages a numeric field (returns Double)
+
+|`min(field)`
+|Minimum value of a comparable field
+
+|`max(field)`
+|Maximum value of a comparable field
+
+|`sumInteger(field)`
+|Sums Integer values (returns Long)
+
+|`sumLong(field)`
+|Sums Long values (returns Long)
+
+|`sumDouble(field)`
+|Sums Double values (returns Double)
+|===
+
+== Aggregations with GROUP BY
+
+Project groups to DTOs with aggregate values:
+
+[source,java]
+----
+List<DeptStats> stats = personRepository
+    .groupBy((Person p) -> p.department.name)
+    .select((Group<Person, String> g) -> new DeptStats(
+        g.key(),
+        g.count(),
+        g.avg((Person p) -> p.salary),
+        g.min((Person p) -> p.salary),
+        g.max((Person p) -> p.salary)
+    ))
+    .toList();
+----
+
+== HAVING Clause
+
+Use `having()` to filter groups based on aggregate conditions:
+
+[source,java]
+----
+// Only departments with more than 5 employees
+List<DeptStats> largeDepts = personRepository
+    .groupBy((Person p) -> p.department.name)
+    .having((Group<Person, String> g) -> g.count() > 5)
+    .select((Group<Person, String> g) -> new DeptStats(
+        g.key(),
+        g.count(),
+        g.avg((Person p) -> p.salary)
+    ))
+    .toList();
+----
+
+Multiple `having()` calls combine with AND:
+
+[source,java]
+----
+personRepository
+    .groupBy((Person p) -> p.department.name)
+    .having((Group<Person, String> g) -> g.count() > 5)
+    .having((Group<Person, String> g) -> g.avg((Person p) -> p.salary) > 50000)
+    .selectKey()
+    .toList();
+----
+
+== Sorting Groups
+
+Sort by key or aggregate values:
+
+[source,java]
+----
+// Sort by count descending
+List<DeptStats> sorted = personRepository
+    .groupBy((Person p) -> p.department.name)
+    .sortedDescendingBy((Group<Person, String> g) -> g.count())
+    .select((Group<Person, String> g) -> new DeptStats(
+        g.key(), g.count()
+    ))
+    .toList();
+----
+
+== Pagination
+
+Use `skip()` and `limit()` on groups:
+
+[source,java]
+----
+// Top 5 departments by employee count
+List<String> topDepts = personRepository
+    .groupBy((Person p) -> p.department.name)
+    .sortedDescendingBy((Group<Person, String> g) -> g.count())
+    .limit(5)
+    .selectKey()
+    .toList();
+----
+
+== Terminal Operations
+
+GroupStream supports these terminal operations:
+
+[cols="1,2"]
+|===
+|Method |Description
+
+|`toList()`
+|Returns all grouping keys
+
+|`selectKey()`
+|Returns a QubitStream of keys for further operations
+
+|`count()`
+|Counts the number of distinct groups
+|===

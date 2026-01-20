@@ -4,7 +4,7 @@ A Quarkus extension that enables type-safe, lambda-based queries on Panache enti
 
 ## Overview
 
-**Qubit** (QUery Bytecode Into Typed-queries) transforms lambda expressions into JPA Criteria Queries at build time:
+**Qubit** transforms lambda expressions into JPA Criteria Queries at build time:
 
 - **Type-safe**: Full IDE support with compile-time verification
 - **Zero overhead**: Queries are pre-compiled, not interpreted at runtime

@@ -16,7 +16,7 @@
     <packaging>pom</packaging>
 
     <name>Quarkus - Qubit - Parent</name>
-    <description>Quarkus extension for lambda-based Panache queries with build-time Criteria Query transformation (QUery Bytecode Into Typed-queries)</description>
+    <description>Quarkus extension for lambda-based Panache queries with build-time Criteria Query transformation</description>
 
     <properties>
         <!-- Override quarkiverse-parent default Java version -->

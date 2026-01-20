@@ -1,0 +1,184 @@
+= Query Operations
+
+Qubit provides a fluent API for building type-safe queries with filtering, sorting, pagination, and projections.
+
+== Filtering
+
+Use `where()` to filter entities. Multiple calls combine with AND:
+
+[source,java]
+----
+// Simple filter
+List<Person> adults = personRepository
+    .where((Person p) -> p.age >= 18)
+    .toList();
+
+// Multiple conditions
+List<Person> activeAdults = personRepository
+    .where((Person p) -> p.age >= 18)
+    .where((Person p) -> p.active)
+    .toList();
+
+// Combined in single lambda
+List<Person> results = personRepository
+    .where((Person p) -> p.age >= 18 && p.active)
+    .toList();
+----
+
+== Projection
+
+Use `select()` to project entities to different types:
+
+[source,java]
+----
+// Project to single field
+List<String> names = personRepository
+    .select((Person p) -> p.firstName)
+    .toList();
+
+// Project to DTO
+List<PersonDTO> dtos = personRepository
+    .select((Person p) -> new PersonDTO(p.firstName, p.lastName))
+    .toList();
+----
+
+== Sorting
+
+Use `sortedBy()` for ascending order and `sortedDescendingBy()` for descending:
+
+[source,java]
+----
+// Ascending
+List<Person> byName = personRepository
+    .sortedBy((Person p) -> p.lastName)
+    .toList();
+
+// Descending
+List<Person> byAgeDesc = personRepository
+    .sortedDescendingBy((Person p) -> p.age)
+    .toList();
+
+// Multiple sort keys: sorts by lastName first, then firstName
+List<Person> sorted = personRepository
+    .sortedBy((Person p) -> p.firstName)
+    .sortedBy((Person p) -> p.lastName)
+    .toList();
+----
+
+== Pagination
+
+Use `skip()` and `limit()` for pagination:
+
+[source,java]
+----
+// Skip first 10, take next 20
+List<Person> page = personRepository
+    .sortedBy((Person p) -> p.id)
+    .skip(10)
+    .limit(20)
+    .toList();
+----
+
+== Distinct
+
+Use `distinct()` to eliminate duplicates:
+
+[source,java]
+----
+List<String> departments = personRepository
+    .select((Person p) -> p.department.name)
+    .distinct()
+    .toList();
+----
+
+== Terminal Operations
+
+Terminal operations execute the query and return results:
+
+[cols="1,2"]
+|===
+|Method |Description
+
+|`toList()`
+|Returns all results as a list
+
+|`getSingleResult()`
+|Returns exactly one result; throws if none or multiple
+
+|`findFirst()`
+|Returns an Optional for the first result
+
+|`count()`
+|Returns the count of matching entities
+
+|`exists()`
+|Returns true if any results match
+|===
+
+== Aggregations
+
+Compute aggregate values across entities. Use `sumInteger()` for Integer fields, `sumLong()` for Long fields, and `sumDouble()` for Double fields:
+
+[source,java]
+----
+// Minimum
+Integer minAge = personRepository
+    .min((Person p) -> p.age)
+    .getSingleResult();
+
+// Maximum
+Double maxSalary = personRepository
+    .max((Person p) -> p.salary)
+    .getSingleResult();
+
+// Average
+Double avgSalary = personRepository
+    .avg((Person p) -> p.salary)
+    .getSingleResult();
+
+// Sum
+Long totalAge = personRepository
+    .sumInteger((Person p) -> p.age)
+    .getSingleResult();
+----
+
+== IN Clause
+
+Use `contains()` for IN queries:
+
+[source,java]
+----
+List<String> names = List.of("John", "Jane", "Alice");
+
+List<Person> matching = personRepository
+    .where((Person p) -> names.contains(p.firstName))
+    .toList();
+----
+
+== Supported Expressions
+
+[cols="1,2"]
+|===
+|Category |Examples
+
+|Comparison
+|`==`, `!=`, `<`, `\<=`, `>`, `>=`
+
+|Logical
+|`&&`, `\|\|`, `!`
+
+|Arithmetic
+|`+`, `-`, `*`, `/`, `%`
+
+|String
+|`startsWith()`, `endsWith()`, `contains()`, `toLowerCase()`, `toUpperCase()`, `trim()`, `length()`, `substring()`
+
+|Null
+|`== null`, `!= null`
+
+|Temporal
+|`isAfter()`, `isBefore()`, `isEqual()` for LocalDate, LocalDateTime, LocalTime
+
+|BigDecimal
+|`compareTo()`
+|===

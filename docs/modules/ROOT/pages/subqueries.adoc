@@ -1,0 +1,126 @@
+= Subqueries
+
+Qubit supports subqueries for scalar comparisons, existence checks, and membership tests.
+
+== Import
+
+Import the static `subquery()` method:
+
+[source,java]
+----
+import static io.quarkiverse.qubit.Subqueries.*;
+----
+
+== Scalar Comparisons
+
+Compare field values against subquery results:
+
+[source,java]
+----
+// Persons with salary above average
+List<Person> aboveAvg = Person
+    .where((Person p) -> p.salary > subquery(Person.class).avg(q -> q.salary))
+    .toList();
+
+// Persons with maximum salary
+List<Person> topEarners = Person
+    .where((Person p) -> p.salary == subquery(Person.class).max(q -> q.salary))
+    .toList();
+----
+
+== Aggregate Functions
+
+The subquery builder supports these aggregate functions:
+
+[cols="1,2"]
+|===
+|Method |Description
+
+|`avg(field)`
+|Average of numeric field
+
+|`sum(field)`
+|Sum of numeric field
+
+|`min(field)`
+|Minimum value
+
+|`max(field)`
+|Maximum value
+
+|`count()`
+|Count of matching entities
+|===
+
+== EXISTS and NOT EXISTS
+
+Check for the existence of related entities:
+
+[source,java]
+----
+// Persons who have at least one phone
+List<Person> withPhones = Person
+    .where((Person p) -> subquery(Phone.class)
+        .exists(ph -> ph.owner.id.equals(p.id)))
+    .toList();
+
+// Persons without any phones
+List<Person> noPhones = Person
+    .where((Person p) -> subquery(Phone.class)
+        .notExists(ph -> ph.owner.id.equals(p.id)))
+    .toList();
+----
+
+== IN and NOT IN
+
+Check membership in a subquery result set:
+
+[source,java]
+----
+// Persons in departments with budget > 100000
+List<Person> inLargeDepts = Person
+    .where((Person p) -> subquery(Department.class)
+        .in(p.department.id, d -> d.id, d -> d.budget > 100000))
+    .toList();
+
+// Persons NOT in large departments
+List<Person> inSmallDepts = Person
+    .where((Person p) -> subquery(Department.class)
+        .notIn(p.department.id, d -> d.id, d -> d.budget > 100000))
+    .toList();
+----
+
+The `in()` method takes three arguments:
+
+1. The outer query field to check (`p.department.id`)
+2. The subquery field to match against (`d -> d.id`)
+3. The subquery filter condition (`d -> d.budget > 100000`)
+
+== Correlated Subqueries
+
+Subqueries can reference the outer query entity:
+
+[source,java]
+----
+// Persons earning more than their department average
+List<Person> aboveDeptAvg = Person
+    .where((Person p) -> p.salary > subquery(Person.class)
+        .where(q -> q.department.id.equals(p.department.id))
+        .avg(q -> q.salary))
+    .toList();
+----
+
+== Combining with Other Operations
+
+Subqueries work with all other Qubit operations:
+
+[source,java]
+----
+List<PersonDTO> results = Person
+    .where((Person p) -> p.salary > subquery(Person.class).avg(q -> q.salary))
+    .where((Person p) -> p.active)
+    .sortedBy((Person p) -> p.lastName)
+    .select((Person p) -> new PersonDTO(p.firstName, p.salary))
+    .limit(10)
+    .toList();
+----

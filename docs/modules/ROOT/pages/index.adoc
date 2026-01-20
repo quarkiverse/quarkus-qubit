@@ -1,0 +1,65 @@
+= Quarkus Qubit
+
+Type-safe, lambda-based queries on Panache entities with build-time transformation to JPA Criteria Queries.
+
+== What is Qubit?
+
+**Qubit** analyzes lambda expressions at build time and transforms them into JPA Criteria Queries. This approach combines the readability of streams with the performance of pre-compiled queries.
+
+[source,java]
+----
+List<Person> adults = personRepository
+    .where((Person p) -> p.age >= 18 && p.active)
+    .sortedBy((Person p) -> p.lastName)
+    .toList();
+----
+
+== Key Features
+
+* **Type-safe**: Full IDE support with compile-time verification
+* **Zero overhead**: Queries are pre-compiled, not interpreted at runtime
+* **Fluent API**: JINQ-inspired method chaining for readable queries
+
+== Capabilities
+
+[cols="1,2"]
+|===
+|Feature |Description
+
+|xref:queries.adoc[Query Operations]
+|Filtering, sorting, pagination, and projections
+
+|xref:joins.adoc[Join Queries]
+|Inner and left joins with access to both entities
+
+|xref:grouping.adoc[Grouping & Aggregations]
+|GROUP BY with HAVING clauses and aggregate functions
+
+|xref:subqueries.adoc[Subqueries]
+|EXISTS, IN, and scalar comparisons with subqueries
+|===
+
+== Installation
+
+Add the dependency to your project:
+
+[source,xml,subs=attributes+]
+----
+<dependency>
+    <groupId>io.quarkiverse.qubit</groupId>
+    <artifactId>quarkus-qubit</artifactId>
+    <version>${quarkus-qubit.version}</version>
+</dependency>
+----
+
+== Requirements
+
+* Java 21+
+* Quarkus 3.29+
+* Hibernate ORM with Panache
+* GraalVM 25+ (optional, for native compilation)
+
+== Where to Go Next
+
+* xref:getting-started.adoc[Getting Started] - Set up your first Qubit entity
+* xref:queries.adoc[Query Operations] - Learn filtering, sorting, and projections

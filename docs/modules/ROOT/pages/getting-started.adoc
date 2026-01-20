@@ -1,0 +1,104 @@
+= Getting Started
+
+This guide shows how to set up Qubit and write your first type-safe query.
+
+== Installation
+
+Add the Qubit dependency to your `pom.xml`:
+
+[source,xml,subs=attributes+]
+----
+<dependency>
+    <groupId>io.quarkiverse.qubit</groupId>
+    <artifactId>quarkus-qubit</artifactId>
+    <version>${quarkus-qubit.version}</version>
+</dependency>
+----
+
+For Gradle:
+
+[source,groovy]
+----
+implementation 'io.quarkiverse.qubit:quarkus-qubit:1.0.0-SNAPSHOT'
+----
+
+== Choose Your Pattern
+
+Qubit supports two patterns for defining queryable entities.
+
+=== Repository Pattern (Recommended)
+
+Create a repository interface that extends `QubitRepository`:
+
+[source,java]
+----
+@ApplicationScoped
+public class PersonRepository implements QubitRepository<Person, Long> {
+}
+----
+
+Inject and use the repository:
+
+[source,java]
+----
+@Inject
+PersonRepository personRepository;
+
+List<Person> adults = personRepository
+    .where((Person p) -> p.age >= 18)
+    .toList();
+----
+
+=== ActiveRecord Pattern
+
+Extend `QubitEntity` in your entity class:
+
+[source,java]
+----
+@Entity
+public class Person extends QubitEntity {
+    public String firstName;
+    public String lastName;
+    public int age;
+    public boolean active;
+}
+----
+
+Call static methods directly on the entity:
+
+[source,java]
+----
+List<Person> adults = Person
+    .where((Person p) -> p.age >= 18)
+    .toList();
+----
+
+== Your First Query
+
+Here is a complete example showing filtering, projection, and aggregation:
+
+[source,java]
+----
+// Filter and sort
+List<Person> activeAdults = personRepository
+    .where((Person p) -> p.age >= 18 && p.active)
+    .sortedBy((Person p) -> p.lastName)
+    .toList();
+
+// Project to DTO
+List<PersonDTO> dtos = personRepository
+    .where((Person p) -> p.active)
+    .select((Person p) -> new PersonDTO(p.firstName, p.lastName))
+    .toList();
+
+// Aggregate
+Double avgSalary = personRepository
+    .avg((Person p) -> p.salary)
+    .getSingleResult();
+----
+
+== What's Next
+
+* xref:queries.adoc[Query Operations] - Filtering, sorting, pagination
+* xref:joins.adoc[Join Queries] - Working with related entities
+* xref:grouping.adoc[Grouping & Aggregations] - GROUP BY and aggregate functions
