@@ -2,6 +2,7 @@ package io.quarkiverse.qubit.deployment.generation.expression;
 
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_IS_NOT_NULL;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_IS_NULL;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NOT;
 
 import org.jspecify.annotations.Nullable;
 
@@ -110,5 +111,18 @@ public interface ExpressionGeneratorHelper {
         } else {
             return method.invokeInterfaceMethod(CB_IS_NOT_NULL, cb, expression);
         }
+    }
+
+    // ========== Unary Operation Utilities ==========
+
+    /** Applies unary operator to operand. Currently only NOT is supported. */
+    default ResultHandle applyUnaryOperator(
+            MethodCreator method,
+            ResultHandle cb,
+            ResultHandle operand,
+            LambdaExpression.UnaryOp.Operator operator) {
+        return switch (operator) {
+            case NOT -> method.invokeInterfaceMethod(CB_NOT, cb, operand);
+        };
     }
 }

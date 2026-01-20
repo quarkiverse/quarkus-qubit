@@ -9,7 +9,6 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_CO
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_COUNT_DISTINCT;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_MAX;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_MIN;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NOT;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_SUM;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_SUM_AS_DOUBLE;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_SUM_AS_LONG;
@@ -232,10 +231,7 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
             ExpressionGeneratorHelper helper) {
 
         ResultHandle operand = generateGroupPredicate(method, unOp.operand(), cb, root, groupKeyExpr, capturedValues, helper);
-
-        return switch (unOp.operator()) {
-            case NOT -> method.invokeInterfaceMethod(CB_NOT, cb, operand);
-        };
+        return helper.applyUnaryOperator(method, cb, operand, unOp.operator());
     }
 
     private ResultHandle generateGroupArrayCreation(

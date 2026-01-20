@@ -267,11 +267,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle capturedValues) {
 
         ResultHandle operand = generatePredicateWithSubqueries(method, unOp.operand(), cb, query, root, capturedValues);
-
-        return switch (unOp.operator()) {
-            case NOT -> method.invokeInterfaceMethod(
-                    CB_NOT, cb, operand);
-        };
+        return applyUnaryOperator(method, cb, operand, unOp.operator());
     }
 
     /**
@@ -534,10 +530,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle capturedValues) {
 
         ResultHandle operand = generatePredicate(method, unOp.operand(), cb, root, capturedValues);
-
-        return switch (unOp.operator()) {
-            case NOT -> method.invokeInterfaceMethod(CB_NOT, cb, operand);
-        };
+        return applyUnaryOperator(method, cb, operand, unOp.operator());
     }
 
     /** Generates JPA field access expression. */

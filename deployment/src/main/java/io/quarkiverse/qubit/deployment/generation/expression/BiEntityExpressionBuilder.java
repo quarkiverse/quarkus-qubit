@@ -357,10 +357,7 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
             ExpressionGeneratorHelper helper) {
 
         ResultHandle operand = generateBiEntityPredicate(method, unOp.operand(), cb, root, join, capturedValues, helper);
-
-        return switch (unOp.operator()) {
-            case NOT -> method.invokeInterfaceMethod(CB_NOT, cb, operand);
-        };
+        return helper.applyUnaryOperator(method, cb, operand, unOp.operator());
     }
 
     private ResultHandle generateBiEntityBinaryOperationWithSubqueries(
@@ -434,10 +431,7 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
             ExpressionGeneratorHelper helper) {
 
         ResultHandle operand = generateBiEntityPredicateWithSubqueries(method, unOp.operand(), cb, query, root, join, capturedValues, helper);
-
-        return switch (unOp.operator()) {
-            case NOT -> method.invokeInterfaceMethod(CB_NOT, cb, operand);
-        };
+        return helper.applyUnaryOperator(method, cb, operand, unOp.operator());
     }
 
     /** Generates bi-entity method call via MethodCallHandlerChain. */
