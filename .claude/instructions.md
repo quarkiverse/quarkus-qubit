@@ -88,58 +88,65 @@ This helps maintain visibility into the overall quality backlog.
 - **Remove ALL debug-marked logging before marking functionality as complete** - search for `// DEBUG` comments and remove those lines
 - Debug logging is temporary and must never be committed to the final implementation
 
-### Modern Java 17 Code Review (Pre-Test Requirement)
+### Modern Java 21 Code Review (Pre-Test Requirement)
 
-**Before running tests on any generated or modified code, perform a code review for idiomatic Java 17 patterns.**
+**Before running tests on any generated or modified code, perform a code review for idiomatic Java 21 patterns.**
 
 **Required Review Checklist:**
 
 1. **Records over POJOs**
-   - Use `record` for immutable data carriers
+   - Use `record` for immutable data carriers (89 records in use across 31 files)
    - Replace Lombok `@Value`/`@Data` with records where appropriate
    - Keep records simple (no complex logic in compact constructors)
 
-2. **Pattern Matching**
+2. **Pattern Matching for instanceof**
    - Use `instanceof` pattern matching: `if (obj instanceof String s)`
-   - Use switch pattern matching for type checks (Java 17 preview)
-   - Eliminate redundant casts after type checks
+   - Eliminate redundant casts after type checks (69 usages in codebase)
 
-3. **Text Blocks**
+3. **Pattern Matching for switch (Java 21 - stable)**
+   - Use switch expressions with type patterns for polymorphic dispatch
+   - Use `case Type t when condition ->` for guarded patterns
+   - Use `case null ->` for explicit null handling
+   - **Note**: Multi-pattern cases with unnamed `_` require preview; use separate named variables instead
+
+4. **Text Blocks**
    - Use `"""` for multi-line strings (SQL, JSON, error messages)
    - Proper indentation alignment with closing `"""`
    - Use `\` for line continuation where needed
 
-4. **Sealed Classes**
-   - Use `sealed` for restricted hierarchies (like LambdaExpression)
+5. **Sealed Classes and Interfaces**
+   - Use `sealed` for restricted hierarchies (11 files use sealed/permits)
+   - Examples: LambdaExpression (AST nodes), LambdaAnalysisResult, BuilderResult, AnalysisOutcome
    - Define `permits` clause explicitly
    - Use `non-sealed` or `final` for permitted subclasses
 
-5. **Switch Expressions**
-   - Use switch expressions with `->` instead of `:` for simple cases
+6. **Switch Expressions**
+   - Use switch expressions with `->` instead of `:` for all cases (648 usages)
    - Use `yield` for complex blocks
-   - Ensure exhaustiveness (no missing cases)
+   - Ensure exhaustiveness (compiler enforces for sealed types)
+   - Add default cases to non-sealed enum switches for future-proofing
 
-6. **Stream API Best Practices**
+7. **Stream API Best Practices**
    - Use `toList()` instead of `.collect(Collectors.toList())`
    - Prefer `Stream.ofNullable()` for nullable sources
    - Use `takeWhile()`/`dropWhile()` for conditional processing
 
-7. **Optional Improvements**
+8. **Optional Improvements**
    - Use `Optional.isEmpty()` instead of `!isPresent()`
    - Use `Optional.ifPresentOrElse()` for branching
    - Avoid `Optional.get()` - use `orElseThrow()` with message
 
-8. **Null Safety**
+9. **Null Safety**
    - Use `Objects.requireNonNull()` for parameter validation
    - Use `Objects.requireNonNullElse()` for defaults
    - Prefer empty collections over null
 
-9. **Local Variable Type Inference**
-   - Use `var` for local variables when type is obvious
-   - Avoid `var` when it reduces readability
-   - Never use `var` for method parameters or fields
+10. **Local Variable Type Inference**
+    - Use `var` for local variables when type is obvious
+    - Avoid `var` when it reduces readability
+    - Never use `var` for method parameters or fields
 
-10. **API Deprecation Awareness**
+11. **API Deprecation Awareness**
     - No `new Integer()`, `new Long()` - use `valueOf()`
     - No `Thread.stop()` or `finalize()`
     - Use `Files.readString()` / `Files.writeString()`
@@ -148,7 +155,7 @@ This helps maintain visibility into the overall quality backlog.
 ```
 1. Write/generate code
 2. Review against checklist above
-3. Refactor to modern Java 17 idioms
+3. Refactor to modern Java 21 idioms
 4. Run tests to verify correctness
 5. Fix any issues, repeat until all pass
 ```
@@ -163,21 +170,40 @@ public class PersonDto {
     // constructor, getters, equals, hashCode, toString...
 }
 
-// After (Java 17)
+// After (Java 21)
 public record PersonDto(String name, int age) {}
 ```
 
 ```java
-// Before
+// Before (if-else instanceof chain)
 if (expression instanceof MethodCall) {
     MethodCall mc = (MethodCall) expression;
     return mc.methodName();
 }
 
-// After
+// After (pattern matching instanceof)
 if (expression instanceof MethodCall mc) {
     return mc.methodName();
 }
+```
+
+```java
+// Before (if-else type checks)
+if (result instanceof SimpleQueryResult simple) {
+    return processSimple(simple);
+} else if (result instanceof JoinQueryResult join) {
+    return processJoin(join);
+} else {
+    throw new IllegalStateException("Unknown result type");
+}
+
+// After (Java 21 pattern matching switch)
+return switch (result) {
+    case SimpleQueryResult simple -> processSimple(simple);
+    case JoinQueryResult join -> processJoin(join);
+    case GroupQueryResult group -> processGroup(group);
+    // Exhaustive for sealed types - compiler enforces completeness
+};
 ```
 
 ```java
@@ -186,7 +212,7 @@ String query = "SELECT p FROM Person p\n" +
                "WHERE p.age > :minAge\n" +
                "ORDER BY p.name";
 
-// After
+// After (text block)
 String query = """
     SELECT p FROM Person p
     WHERE p.age > :minAge
@@ -1161,10 +1187,10 @@ A feature is fully tested when:
 
 ### Test Count Reference
 
-Current test distribution (as of Iteration 7):
-- **Deployment module**: ~280 tests (bytecode analysis, AST parsing, code generation)
-- **Integration-tests module**: ~770 tests (Entity API + Repository API parity)
-- **Total**: ~1050+ tests
+Current test distribution (as of 2025-12):
+- **Deployment module**: ~1769 tests (79 test files - bytecode analysis, AST parsing, code generation)
+- **Integration-tests module**: ~835 tests (125 test files - Entity API + Repository API parity)
+- **Total**: ~2600+ tests
 
 When adding new features, expect to add tests to **all three areas**:
 1. Deployment bytecode tests
@@ -1921,3 +1947,173 @@ mvn clean test
 # Watch for unexpected test failures in UNRELATED features
 # Group tests failing after join changes = constructor mismatch likely
 ```
+
+---
+
+## Code Quality Improvements Summary (2024-2025)
+
+### Completed Refactoring Phases
+
+The codebase underwent extensive quality improvements tracked in `docs/code-quality-tracking.md`:
+
+**Phase 1 - Critical Fixes**: Fixed silent fallback and null returns in SubqueryExpressionBuilder
+**Phase 2 - High-Priority**: Extracted large classes, consolidated magic strings
+**Phase 3 - Medium-Priority**: Created analyzers, performance optimizations
+**Phase 4 - Pattern Matching Modernization**: Upgraded to Java 21, refactored 22 methods to pattern matching switch
+
+### Key Architectural Changes
+
+| Change | Before | After | Reduction |
+|--------|--------|-------|-----------|
+| MethodInvocationHandler | 1143 lines | 715 lines | 37% |
+| CriteriaExpressionGenerator | 1977 lines | 1355 lines | 31% |
+| CallSiteProcessor | 1359 lines | 1087 lines | 20% |
+
+### Registry Patterns Implemented
+
+Three registry patterns enable dependency injection and testability:
+
+1. **ExpressionBuilderRegistry** (`generation/expression/ExpressionBuilderRegistry.java`)
+   - Holds 8 expression builder instances
+   - Enables mock injection for unit testing
+
+2. **InstructionHandlerRegistry** (`analysis/instruction/InstructionHandlerRegistry.java`)
+   - Holds 6 instruction handlers
+   - Chain of responsibility pattern
+
+3. **QueryTypeHandlerRegistry** (`analysis/handler/QueryTypeHandlerRegistry.java`)
+   - Manages query type handlers
+   - Strategy pattern for query processing
+
+### Package Structure (After ARCH-008)
+
+```
+deployment/src/main/java/io/quarkiverse/qubit/deployment/
+├── ast/                    # AST node types (LambdaExpression sealed interface)
+├── analysis/               # Lambda analysis, call site processing
+│   ├── branch/             # Branch instruction handlers
+│   ├── handler/            # Query type handlers
+│   └── instruction/        # Bytecode instruction handlers
+├── common/                 # Shared utilities, constants
+├── devui/                  # Dev UI processors
+├── generation/             # Code generation
+│   ├── expression/         # Expression builders
+│   ├── join/               # Join query builders
+│   └── methodcall/         # Method call handlers
+└── util/                   # Helper utilities
+```
+
+---
+
+## Antora Documentation
+
+Documentation is implemented using Antora in `docs/` directory:
+
+**Configuration**: `docs/antora.yml`
+```yaml
+name: quarkus-qubit
+title: Qubit
+version: dev
+nav:
+  - modules/ROOT/nav.adoc
+```
+
+**Pages** (`docs/modules/ROOT/pages/`):
+1. `index.adoc` - Overview and installation
+2. `getting-started.adoc` - Initial setup guide
+3. `queries.adoc` - Query operations documentation
+4. `joins.adoc` - Join query documentation
+5. `grouping.adoc` - GROUP BY and aggregations
+6. `subqueries.adoc` - Subquery documentation
+7. `devui.adoc` - Dev UI usage guide
+
+**When adding new features**, update the relevant documentation pages.
+
+---
+
+## Dev UI Implementation
+
+Full Dev UI support is implemented in `deployment/src/main/java/io/quarkiverse/qubit/deployment/devui/`:
+
+**Components**:
+- `QubitDevUIProcessor.java` - Build step creating CardPageBuildItem
+- `JpqlGenerator.java` - Generates JPQL representation for display
+- `JavaSourceGenerator.java` - Generates Java lambda source for display
+- `qwc-qubit-queries.js` - Web component for query visualization
+
+**Features**:
+- Displays all detected lambda queries
+- Shows JPQL representation
+- Shows Java source reconstruction
+- Displays query metadata (type, captured variables, etc.)
+
+---
+
+## Behavior-Rich Enums (Learned Pattern)
+
+When creating enums that encapsulate behavior, follow this pattern from ENUM-001 and ENUM-002:
+
+```java
+public enum FluentMethodType {
+    WHERE(config -> config.withPredicate()),
+    SELECT(config -> config.withProjection()),
+    MIN(config -> config.withAggregation(MIN)),
+    // ...
+
+    private final Function<Config, Config> configFactory;
+
+    FluentMethodType(Function<Config, Config> configFactory) {
+        this.configFactory = configFactory;
+    }
+
+    public Config createConfig(Config base) {
+        return configFactory.apply(base);
+    }
+
+    public static Optional<FluentMethodType> fromMethodName(String name) {
+        return Arrays.stream(values())
+            .filter(t -> t.name().equals(name.toUpperCase()))
+            .findFirst();
+    }
+}
+```
+
+**When behavior-rich enums work well**:
+- Multiple switch statements on the same value (eliminates duplication)
+- Common factory method signature across all values
+- Simple 1:1 mappings between values and behaviors
+
+**When to avoid**:
+- Different method signatures for different values
+- Single switch location (no duplication to eliminate)
+- Complex per-value logic requiring multiple abstract methods
+
+---
+
+## Equivalent Mutations (Testing Insight)
+
+Some mutation testing survivors are **equivalent mutations** - mutations that produce identical observable behavior:
+
+| Type | Example | Why It Survives |
+|------|---------|-----------------|
+| Performance optimization | Wrapper type checks before `Number.isAssignableFrom()` | Same result, different performance |
+| Defensive programming | Empty stack early returns | `null instanceof X` returns false anyway |
+| Dead code guards | Constructor validates, so runtime check unreachable | Input already guaranteed valid |
+
+**Don't chase 100% mutation coverage** - understand why mutations survive:
+1. **Logging removed** - Ignore per project instruction
+2. **Equivalent** - Same observable behavior
+3. **Integration-required** - Quarkus/JPA build-time code needs integration tests
+
+---
+
+## Quarkiverse Extension Compliance
+
+The extension follows Quarkiverse best practices:
+
+- ✅ **quarkiverse-parent v20** - Inherited in pom.xml
+- ✅ **CapabilityBuildItem** - Registered in QubitProcessor.featureAndCapability()
+- ✅ **FeatureBuildItem** - Standard Quarkus extension pattern
+- ✅ **Antora documentation** - Full docs structure
+- ✅ **Dev UI** - Lambda query visualization
+- ✅ **Build-time processing** - All analysis at build time, no runtime reflection

@@ -24,8 +24,11 @@ buildNumber.properties
 .DS_Store
 Thumbs.db
 
-# Quarkus
-.quarkus/
+# Ignore all dot directories
+.*/
+
+# Keep .gitignore tracked
+!.gitignore
 
 # Logs
 *.log
