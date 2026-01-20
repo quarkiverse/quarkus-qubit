@@ -1,4 +1,7 @@
-package io.quarkiverse.qubit.runtime;
+package io.quarkiverse.qubit.runtime.internal;
+
+import io.quarkiverse.qubit.CapturedVariableExtractionException;
+import io.quarkiverse.qubit.FieldNamingStrategy;
 
 import org.jboss.logging.Logger;
 

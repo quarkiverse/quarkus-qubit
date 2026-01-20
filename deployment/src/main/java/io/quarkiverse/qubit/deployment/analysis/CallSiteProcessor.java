@@ -3,12 +3,12 @@ package io.quarkiverse.qubit.deployment.analysis;
 import static io.quarkiverse.qubit.deployment.analysis.CapturedVariableHelper.countCapturedVariables;
 import static io.quarkiverse.qubit.deployment.analysis.CapturedVariableHelper.countCapturedVariablesInSortExpressions;
 import static io.quarkiverse.qubit.deployment.analysis.CapturedVariableHelper.validateCapturedVariableIndices;
-import static io.quarkiverse.qubit.runtime.QubitConstants.HASH_CHARS_FOR_CLASS_NAME;
-import static io.quarkiverse.qubit.runtime.QubitConstants.HASH_CHARS_FOR_LOG;
-import static io.quarkiverse.qubit.runtime.QubitConstants.QUERY_TYPE_COMBINED;
-import static io.quarkiverse.qubit.runtime.QubitConstants.QUERY_TYPE_COUNT;
-import static io.quarkiverse.qubit.runtime.QubitConstants.QUERY_TYPE_LIST;
-import static io.quarkiverse.qubit.runtime.QubitConstants.QUERY_TYPE_PROJECTION;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.HASH_CHARS_FOR_CLASS_NAME;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.HASH_CHARS_FOR_LOG;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_TYPE_COMBINED;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_TYPE_COUNT;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_TYPE_LIST;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_TYPE_PROJECTION;
 
 import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.builditem.ApplicationArchivesBuildItem;
@@ -625,7 +625,7 @@ public class CallSiteProcessor {
             return new SortDisplayInfo(null, false);
         }
         SortExpression first = sortExpressions.get(0);
-        boolean descending = first.direction() == io.quarkiverse.qubit.runtime.SortDirection.DESCENDING;
+        boolean descending = first.direction() == io.quarkiverse.qubit.SortDirection.DESCENDING;
         return new SortDisplayInfo(first.keyExtractor(), descending);
     }
 

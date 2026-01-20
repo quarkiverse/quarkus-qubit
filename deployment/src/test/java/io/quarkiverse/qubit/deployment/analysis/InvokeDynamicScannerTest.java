@@ -564,12 +564,12 @@ class InvokeDynamicScannerTest {
                     new InvokeDynamicScanner.SortLambda(
                             "lambda$sort",
                             "(LTestEntity;)Ljava/lang/String;",
-                            io.quarkiverse.qubit.runtime.SortDirection.ASCENDING);
+                            io.quarkiverse.qubit.SortDirection.ASCENDING);
 
             assertThat(sortLambda.methodName()).isEqualTo("lambda$sort");
             assertThat(sortLambda.descriptor()).isEqualTo("(LTestEntity;)Ljava/lang/String;");
             assertThat(sortLambda.direction())
-                    .isEqualTo(io.quarkiverse.qubit.runtime.SortDirection.ASCENDING);
+                    .isEqualTo(io.quarkiverse.qubit.SortDirection.ASCENDING);
         }
 
         @Test
@@ -578,10 +578,10 @@ class InvokeDynamicScannerTest {
                     new InvokeDynamicScanner.SortLambda(
                             "lambda$sort",
                             "(LTestEntity;)Ljava/lang/Integer;",
-                            io.quarkiverse.qubit.runtime.SortDirection.DESCENDING);
+                            io.quarkiverse.qubit.SortDirection.DESCENDING);
 
             assertThat(sortLambda.direction())
-                    .isEqualTo(io.quarkiverse.qubit.runtime.SortDirection.DESCENDING);
+                    .isEqualTo(io.quarkiverse.qubit.SortDirection.DESCENDING);
         }
     }
 }

@@ -16,7 +16,7 @@ import io.quarkus.builder.item.MultiBuildItem;
  *   "type": {
  *     "lambda": {
  *       "declaringClass": "com.example.MyClass",
- *       "interfaces": ["io.quarkiverse.qubit.runtime.QuerySpec"]
+ *       "interfaces": ["io.quarkiverse.qubit.QuerySpec"]
  *     }
  *   },
  *   "allDeclaredFields": true

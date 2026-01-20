@@ -1,6 +1,6 @@
 package io.quarkiverse.qubit.deployment.generation.methodcall;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.TEMPORAL_COMPARISON_METHOD_NAMES;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.TEMPORAL_COMPARISON_METHOD_NAMES;
 
 import io.quarkus.gizmo.ResultHandle;
 

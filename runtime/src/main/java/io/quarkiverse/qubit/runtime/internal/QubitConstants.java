@@ -1,4 +1,4 @@
-package io.quarkiverse.qubit.runtime;
+package io.quarkiverse.qubit.runtime.internal;
 
 import java.util.Set;
 
@@ -93,7 +93,7 @@ public final class QubitConstants {
     );
 
     // Group interface internal name
-    public static final String GROUP_INTERNAL_NAME = "io/quarkiverse/qubit/runtime/Group";
+    public static final String GROUP_INTERNAL_NAME = "io/quarkiverse/qubit/Group";
 
     // Subquery method names
     public static final String SUBQUERY_AVG = "avg";
@@ -113,11 +113,11 @@ public final class QubitConstants {
     );
 
     // Subqueries utility class internal name
-    public static final String SUBQUERIES_INTERNAL_NAME = "io/quarkiverse/qubit/runtime/Subqueries";
+    public static final String SUBQUERIES_INTERNAL_NAME = "io/quarkiverse/qubit/Subqueries";
 
     // SubqueryBuilder class internal name and descriptor
-    public static final String SUBQUERY_BUILDER_INTERNAL_NAME = "io/quarkiverse/qubit/runtime/SubqueryBuilder";
-    public static final String SUBQUERY_BUILDER_DESCRIPTOR = "Lio/quarkiverse/qubit/runtime/SubqueryBuilder;";
+    public static final String SUBQUERY_BUILDER_INTERNAL_NAME = "io/quarkiverse/qubit/SubqueryBuilder";
+    public static final String SUBQUERY_BUILDER_DESCRIPTOR = "Lio/quarkiverse/qubit/SubqueryBuilder;";
 
     // Subquery factory method name
     public static final String METHOD_SUBQUERY = "subquery";
@@ -131,21 +131,21 @@ public final class QubitConstants {
         METHOD_IS_AFTER, METHOD_IS_BEFORE, METHOD_IS_EQUAL
     );
 
-    public static final String QUBIT_ENTITY_CLASS_NAME = "io.quarkiverse.qubit.runtime.QubitEntity";
-    public static final String QUBIT_REPOSITORY_CLASS_NAME = "io.quarkiverse.qubit.runtime.QubitRepository";
-    public static final String QUBIT_STREAM_CLASS_NAME = "io.quarkiverse.qubit.runtime.QubitStream";
-    public static final String QUERY_EXECUTOR_CLASS_NAME = "io.quarkiverse.qubit.runtime.QueryExecutor";
+    public static final String QUBIT_ENTITY_CLASS_NAME = "io.quarkiverse.qubit.QubitEntity";
+    public static final String QUBIT_REPOSITORY_CLASS_NAME = "io.quarkiverse.qubit.QubitRepository";
+    public static final String QUBIT_STREAM_CLASS_NAME = "io.quarkiverse.qubit.QubitStream";
+    public static final String QUERY_EXECUTOR_CLASS_NAME = "io.quarkiverse.qubit.runtime.internal.QueryExecutor";
 
     // JVM internal names (slash-separated format for ASM bytecode generation)
-    public static final String QUBIT_ENTITY_INTERNAL_NAME = "io/quarkiverse/qubit/runtime/QubitEntity";
-    public static final String QUBIT_REPOSITORY_INTERNAL_NAME = "io/quarkiverse/qubit/runtime/QubitRepository";
-    public static final String QUBIT_STREAM_INTERNAL_NAME = "io/quarkiverse/qubit/runtime/QubitStream";
-    public static final String JOIN_STREAM_INTERNAL_NAME = "io/quarkiverse/qubit/runtime/JoinStream";
-    public static final String GROUP_STREAM_INTERNAL_NAME = "io/quarkiverse/qubit/runtime/GroupStream";
-    public static final String QUERY_SPEC_INTERNAL_NAME = "io/quarkiverse/qubit/runtime/QuerySpec";
-    public static final String QUERY_SPEC_DESCRIPTOR = "Lio/quarkiverse/qubit/runtime/QuerySpec;";
-    public static final String BI_QUERY_SPEC_DESCRIPTOR = "Lio/quarkiverse/qubit/runtime/BiQuerySpec;";
-    public static final String GROUP_QUERY_SPEC_DESCRIPTOR = "Lio/quarkiverse/qubit/runtime/GroupQuerySpec;";
+    public static final String QUBIT_ENTITY_INTERNAL_NAME = "io/quarkiverse/qubit/QubitEntity";
+    public static final String QUBIT_REPOSITORY_INTERNAL_NAME = "io/quarkiverse/qubit/QubitRepository";
+    public static final String QUBIT_STREAM_INTERNAL_NAME = "io/quarkiverse/qubit/QubitStream";
+    public static final String JOIN_STREAM_INTERNAL_NAME = "io/quarkiverse/qubit/JoinStream";
+    public static final String GROUP_STREAM_INTERNAL_NAME = "io/quarkiverse/qubit/GroupStream";
+    public static final String QUERY_SPEC_INTERNAL_NAME = "io/quarkiverse/qubit/QuerySpec";
+    public static final String QUERY_SPEC_DESCRIPTOR = "Lio/quarkiverse/qubit/QuerySpec;";
+    public static final String BI_QUERY_SPEC_DESCRIPTOR = "Lio/quarkiverse/qubit/BiQuerySpec;";
+    public static final String GROUP_QUERY_SPEC_DESCRIPTOR = "Lio/quarkiverse/qubit/GroupQuerySpec;";
 
     // Standard Java method names for lambda expression analysis
     public static final String METHOD_DOUBLE_VALUE = "doubleValue";
@@ -371,13 +371,13 @@ public final class QubitConstants {
 
     // Qubit Runtime Implementation Class Names
     public static final String QUBIT_STREAM_IMPL_INTERNAL_NAME =
-            "io/quarkiverse/qubit/runtime/QubitStreamImpl";
+            "io/quarkiverse/qubit/runtime/internal/QubitStreamImpl";
     public static final String JOIN_STREAM_IMPL_INTERNAL_NAME =
-            "io/quarkiverse/qubit/runtime/JoinStreamImpl";
+            "io/quarkiverse/qubit/runtime/internal/JoinStreamImpl";
     public static final String JOIN_TYPE_INTERNAL_NAME =
-            "io/quarkiverse/qubit/runtime/JoinType";
+            "io/quarkiverse/qubit/JoinType";
     public static final String JOIN_TYPE_DESCRIPTOR =
-            "Lio/quarkiverse/qubit/runtime/JoinType;";
+            "Lio/quarkiverse/qubit/JoinType;";
 
     // Lambda Hash Constants
     public static final int HASH_CHARS_FOR_CLASS_NAME = 16; // 64 bits entropy for class names

@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.*;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
 
 /**
  * Extracts fluent API pipelines by scanning backwards from terminal operations.

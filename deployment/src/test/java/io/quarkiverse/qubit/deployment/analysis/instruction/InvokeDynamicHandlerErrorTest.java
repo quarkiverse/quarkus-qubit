@@ -10,7 +10,7 @@ import org.objectweb.asm.tree.InvokeDynamicInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
 import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
-import static io.quarkiverse.qubit.runtime.QubitConstants.*;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.objectweb.asm.Opcodes.*;
 
@@ -177,7 +177,7 @@ class InvokeDynamicHandlerErrorTest {
             // Create LambdaMetafactory INVOKEDYNAMIC with insufficient bsmArgs
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode(
                     "apply",
-                    "()Lio/quarkiverse/qubit/runtime/QuerySpec;",
+                    "()Lio/quarkiverse/qubit/QuerySpec;",
                     new Handle(H_INVOKESTATIC,
                             JVM_JAVA_LANG_INVOKE_LAMBDA_METAFACTORY,
                             "metafactory",
@@ -342,7 +342,7 @@ class InvokeDynamicHandlerErrorTest {
     private InvokeDynamicInsnNode createLambdaMetafactoryIndy(String implMethodName, String implMethodDesc) {
         return new InvokeDynamicInsnNode(
                 "apply",
-                "()Lio/quarkiverse/qubit/runtime/QuerySpec;",
+                "()Lio/quarkiverse/qubit/QuerySpec;",
                 new Handle(H_INVOKESTATIC,
                         JVM_JAVA_LANG_INVOKE_LAMBDA_METAFACTORY,
                         "metafactory",

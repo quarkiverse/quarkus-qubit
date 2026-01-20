@@ -1,6 +1,6 @@
 package io.quarkiverse.qubit.it.subquery;
 
-import io.quarkiverse.qubit.runtime.QubitEntity;
+import io.quarkiverse.qubit.QubitEntity;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.persistence.Entity;
 import jakarta.transaction.Transactional;
@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static io.quarkiverse.qubit.runtime.Subqueries.subquery;
+import static io.quarkiverse.qubit.Subqueries.subquery;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**

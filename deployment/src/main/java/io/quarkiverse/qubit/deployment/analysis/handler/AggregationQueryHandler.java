@@ -1,17 +1,17 @@
 package io.quarkiverse.qubit.deployment.analysis.handler;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.AGG_TYPE_AVG;
-import static io.quarkiverse.qubit.runtime.QubitConstants.AGG_TYPE_MAX;
-import static io.quarkiverse.qubit.runtime.QubitConstants.AGG_TYPE_MIN;
-import static io.quarkiverse.qubit.runtime.QubitConstants.AGG_TYPE_SUM_DOUBLE;
-import static io.quarkiverse.qubit.runtime.QubitConstants.AGG_TYPE_SUM_INTEGER;
-import static io.quarkiverse.qubit.runtime.QubitConstants.AGG_TYPE_SUM_LONG;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_AVG;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_MAX;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_MIN;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SUM_DOUBLE;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SUM_INTEGER;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SUM_LONG;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_AVG;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_MAX;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_MIN;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_SUM_DOUBLE;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_SUM_INTEGER;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_SUM_LONG;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_AVG;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_MAX;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_MIN;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUM_DOUBLE;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUM_INTEGER;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUM_LONG;
 
 import io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaCallSite;

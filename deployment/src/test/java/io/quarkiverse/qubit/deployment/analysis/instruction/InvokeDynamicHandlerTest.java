@@ -257,7 +257,7 @@ class InvokeDynamicHandlerTest {
             Handle bsm = new Handle(H_INVOKESTATIC, LAMBDA_METAFACTORY, "metafactory",
                     "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("apply",
-                    "()Lio/quarkiverse/qubit/runtime/QuerySpec;", bsm);
+                    "()Lio/quarkiverse/qubit/QuerySpec;", bsm);
 
             boolean terminated = handler.handle(indy, context);
 
@@ -270,7 +270,7 @@ class InvokeDynamicHandlerTest {
             Handle bsm = new Handle(H_INVOKESTATIC, LAMBDA_METAFACTORY, "metafactory",
                     "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("apply",
-                    "()Lio/quarkiverse/qubit/runtime/QuerySpec;", bsm, "onlyOneArg");
+                    "()Lio/quarkiverse/qubit/QuerySpec;", bsm, "onlyOneArg");
 
             boolean terminated = handler.handle(indy, context);
 
@@ -283,7 +283,7 @@ class InvokeDynamicHandlerTest {
             Handle bsm = new Handle(H_INVOKESTATIC, LAMBDA_METAFACTORY, "metafactory",
                     "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("apply",
-                    "()Lio/quarkiverse/qubit/runtime/QuerySpec;", bsm, "arg0", "notAHandle");
+                    "()Lio/quarkiverse/qubit/QuerySpec;", bsm, "arg0", "notAHandle");
 
             boolean terminated = handler.handle(indy, context);
 
@@ -298,7 +298,7 @@ class InvokeDynamicHandlerTest {
             Handle implHandle = new Handle(H_INVOKESTATIC, "TestClass", "lambda$test$0",
                     "(LPerson;LPerson;)Z", false);
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("apply",
-                    "(LPerson;)Lio/quarkiverse/qubit/runtime/QuerySpec;", bsm, "arg0", implHandle);
+                    "(LPerson;)Lio/quarkiverse/qubit/QuerySpec;", bsm, "arg0", implHandle);
 
             // Push captured variable on stack
             context.push(param("person", Object.class, 0));
@@ -321,7 +321,7 @@ class InvokeDynamicHandlerTest {
                     "(LPerson;LPerson;)Z", false);
             // Two captured variables: (LPerson;LString;)QuerySpec;
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("apply",
-                    "(LPerson;Ljava/lang/String;)Lio/quarkiverse/qubit/runtime/QuerySpec;", bsm, "arg0", implHandle);
+                    "(LPerson;Ljava/lang/String;)Lio/quarkiverse/qubit/QuerySpec;", bsm, "arg0", implHandle);
 
             // Push captured variables on stack
             context.push(param("person", Object.class, 0));
@@ -559,7 +559,7 @@ class InvokeDynamicHandlerTest {
             Handle implHandle = new Handle(H_INVOKESTATIC, "TestClass", "lambda$test$0",
                     "(LPerson;)Z", false);
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("apply",
-                    "()Lio/quarkiverse/qubit/runtime/QuerySpec;", bsm, "arg0", implHandle);
+                    "()Lio/quarkiverse/qubit/QuerySpec;", bsm, "arg0", implHandle);
 
             boolean terminated = handler.handle(indy, context);
 

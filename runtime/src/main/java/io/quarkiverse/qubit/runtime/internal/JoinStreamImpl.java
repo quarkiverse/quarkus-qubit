@@ -1,12 +1,19 @@
-package io.quarkiverse.qubit.runtime;
+package io.quarkiverse.qubit.runtime.internal;
 
-import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.extractFromLambdas;
-import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.getCallSiteId;
-import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.getQueryExecutorRegistry;
-import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.requireNonNullLambda;
-import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.requireSingleResult;
-import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.validateLimitCount;
-import static io.quarkiverse.qubit.runtime.LambdaReflectionUtils.validateSkipCount;
+import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.extractFromLambdas;
+import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.getCallSiteId;
+import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.getQueryExecutorRegistry;
+import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.requireNonNullLambda;
+import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.requireSingleResult;
+import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.validateLimitCount;
+import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.validateSkipCount;
+
+import io.quarkiverse.qubit.BiQuerySpec;
+import io.quarkiverse.qubit.JoinStream;
+import io.quarkiverse.qubit.JoinType;
+import io.quarkiverse.qubit.QuerySpec;
+import io.quarkiverse.qubit.QubitStream;
+import io.quarkiverse.qubit.SortDirection;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -372,7 +372,7 @@ class AnalysisContextEdgeCaseTest {
         void setUp() {
             MethodNode groupMethod = new MethodNode();
             groupMethod.name = "groupLambda";
-            groupMethod.desc = "(Lio/quarkiverse/qubit/runtime/Group;)Ljava/lang/Object;";
+            groupMethod.desc = "(Lio/quarkiverse/qubit/Group;)Ljava/lang/Object;";
             groupMethod.instructions = new InsnList();
 
             var nestedSupport = new AnalysisContext.NestedLambdaSupport(

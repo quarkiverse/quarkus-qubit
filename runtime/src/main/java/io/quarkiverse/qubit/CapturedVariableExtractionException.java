@@ -1,4 +1,4 @@
-package io.quarkiverse.qubit.runtime;
+package io.quarkiverse.qubit;
 
 /**
  * Thrown when captured variable extraction from lambda instance fails.

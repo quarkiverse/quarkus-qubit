@@ -1,4 +1,6 @@
-package io.quarkiverse.qubit.runtime;
+package io.quarkiverse.qubit.runtime.internal;
+
+import io.quarkiverse.qubit.QueryExecutorRegistrationException;
 
 import io.quarkus.runtime.annotations.Recorder;
 import org.jboss.logging.Logger;

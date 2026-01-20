@@ -19,7 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.QUERY_SPEC_DESCRIPTOR;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_SPEC_DESCRIPTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**

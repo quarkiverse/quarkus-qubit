@@ -1,4 +1,4 @@
-package io.quarkiverse.qubit.runtime;
+package io.quarkiverse.qubit;
 
 /**
  * Fluent builder for constructing subquery expressions.
@@ -9,7 +9,7 @@ package io.quarkiverse.qubit.runtime;
  * <p>
  * Usage:
  * <pre>{@code
- * import static io.quarkiverse.qubit.runtime.Subqueries.*;
+ * import static io.quarkiverse.qubit.Subqueries.*;
  *
  * // Scalar aggregation
  * Person.where(p -> p.salary > subquery(Person.class).avg(q -> q.salary)).toList();

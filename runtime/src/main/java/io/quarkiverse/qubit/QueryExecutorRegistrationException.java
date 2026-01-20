@@ -1,4 +1,4 @@
-package io.quarkiverse.qubit.runtime;
+package io.quarkiverse.qubit;
 
 /**
  * Thrown when query executor registration fails during static initialization.

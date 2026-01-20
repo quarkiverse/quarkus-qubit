@@ -16,7 +16,7 @@ import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Oper
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.NE;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.OR;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.SUB;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_COMPARE_TO;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_COMPARE_TO;
 
 /**
  * Detects bytecode patterns: dcmpl/fcmpl/lcmp, compareTo, arithmetic, arithmetic+constant.

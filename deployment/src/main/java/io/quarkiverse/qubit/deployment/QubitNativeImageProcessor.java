@@ -20,9 +20,9 @@ public class QubitNativeImageProcessor {
     private static final String QUBIT_REACHABILITY_METADATA_PATH =
             "META-INF/native-image/io.quarkiverse.qubit/quarkus-qubit/reachability-metadata.json";
 
-    private static final String QUERY_SPEC_CLASS = "io.quarkiverse.qubit.runtime.QuerySpec";
-    private static final String BI_QUERY_SPEC_CLASS = "io.quarkiverse.qubit.runtime.BiQuerySpec";
-    private static final String GROUP_QUERY_SPEC_CLASS = "io.quarkiverse.qubit.runtime.GroupQuerySpec";
+    private static final String QUERY_SPEC_CLASS = "io.quarkiverse.qubit.QuerySpec";
+    private static final String BI_QUERY_SPEC_CLASS = "io.quarkiverse.qubit.BiQuerySpec";
+    private static final String GROUP_QUERY_SPEC_CLASS = "io.quarkiverse.qubit.GroupQuerySpec";
 
     /** Format: "ownerClassName:methodName:lineNumber:lambdaMethodName" */
     private static final int QUERY_ID_MIN_PARTS = 4;
@@ -97,41 +97,41 @@ public class QubitNativeImageProcessor {
     @BuildStep(onlyIf = NativeOrNativeSourcesBuild.class)
     void registerRuntimeClassesForReflection(BuildProducer<ReflectiveClassBuildItem> reflectiveClass) {
         reflectiveClass.produce(ReflectiveClassBuildItem.builder(
-                "io.quarkiverse.qubit.runtime.CapturedVariableExtractor")
+                "io.quarkiverse.qubit.runtime.internal.CapturedVariableExtractor")
                 .methods().fields().build());
 
         reflectiveClass.produce(ReflectiveClassBuildItem.builder(
-                "io.quarkiverse.qubit.runtime.FieldNamingStrategy$JavacStrategy",
-                "io.quarkiverse.qubit.runtime.FieldNamingStrategy$EclipseStrategy",
-                "io.quarkiverse.qubit.runtime.FieldNamingStrategy$GraalVMStrategy",
-                "io.quarkiverse.qubit.runtime.FieldNamingStrategy$IndexBasedStrategy")
+                "io.quarkiverse.qubit.FieldNamingStrategy$JavacStrategy",
+                "io.quarkiverse.qubit.FieldNamingStrategy$EclipseStrategy",
+                "io.quarkiverse.qubit.FieldNamingStrategy$GraalVMStrategy",
+                "io.quarkiverse.qubit.FieldNamingStrategy$IndexBasedStrategy")
                 .constructors().methods().build());
 
         // Uses getDeclaredMethod/getDeclaredFields for lambda extraction
         reflectiveClass.produce(ReflectiveClassBuildItem.builder(
-                "io.quarkiverse.qubit.runtime.LambdaReflectionUtils")
+                "io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils")
                 .methods().fields().build());
 
         // CDI bean lookup via Arc.container().instance()
         reflectiveClass.produce(ReflectiveClassBuildItem.builder(
-                "io.quarkiverse.qubit.runtime.QueryExecutorRegistry")
+                "io.quarkiverse.qubit.runtime.internal.QueryExecutorRegistry")
                 .constructors().methods().fields().build());
 
         // Group interface used in group lambda parameter
         reflectiveClass.produce(ReflectiveClassBuildItem.builder(
-                "io.quarkiverse.qubit.runtime.Group")
+                "io.quarkiverse.qubit.Group")
                 .methods().build());
 
         // Return type for projection queries
         reflectiveClass.produce(ReflectiveClassBuildItem.builder(
-                "io.quarkiverse.qubit.runtime.ImmutableResultStream")
+                "io.quarkiverse.qubit.runtime.internal.ImmutableResultStream")
                 .constructors().methods().build());
 
         // Stream implementation classes
         reflectiveClass.produce(ReflectiveClassBuildItem.builder(
-                "io.quarkiverse.qubit.runtime.QubitStreamImpl",
-                "io.quarkiverse.qubit.runtime.JoinStreamImpl",
-                "io.quarkiverse.qubit.runtime.GroupStreamImpl")
+                "io.quarkiverse.qubit.runtime.internal.QubitStreamImpl",
+                "io.quarkiverse.qubit.runtime.internal.JoinStreamImpl",
+                "io.quarkiverse.qubit.runtime.internal.GroupStreamImpl")
                 .constructors().methods().build());
     }
 

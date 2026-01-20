@@ -1,7 +1,7 @@
 package io.quarkiverse.qubit.deployment.common;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.PREFIX_GET;
-import static io.quarkiverse.qubit.runtime.QubitConstants.PREFIX_IS;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.PREFIX_GET;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.PREFIX_IS;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.util.TypeConverter;

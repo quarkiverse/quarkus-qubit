@@ -1,12 +1,12 @@
 package io.quarkiverse.qubit.deployment.generation;
 
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.*;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_OF;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_OF;
 
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.runtime.SortDirection;
+import io.quarkiverse.qubit.SortDirection;
 import io.quarkus.gizmo.FieldDescriptor;
 import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.MethodDescriptor;

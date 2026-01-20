@@ -12,7 +12,7 @@ import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.unsupport
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isLogicalOperation;
 import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.isGetterMethodName;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.*;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_EQUALS;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_EQUALS;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.common.OperatorMethodMapper;

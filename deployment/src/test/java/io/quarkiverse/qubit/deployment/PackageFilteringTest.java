@@ -163,7 +163,7 @@ class PackageFilteringTest {
                     Optional.empty(),
                     true);
 
-            assertTrue(isNotExcludedClass("io.quarkiverse.qubit.runtime.QubitEntity", config));
+            assertTrue(isNotExcludedClass("io.quarkiverse.qubit.QubitEntity", config));
             assertTrue(isNotExcludedClass("io.quarkiverse.qubit.api.QueryStream", config));
         }
     }

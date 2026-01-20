@@ -15,17 +15,17 @@ import static org.jboss.jandex.Type.Kind.PARAMETERIZED_TYPE;
 import java.util.List;
 import java.util.function.BiFunction;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.JOIN_STREAM_IMPL_INTERNAL_NAME;
-import static io.quarkiverse.qubit.runtime.QubitConstants.JOIN_STREAM_INTERNAL_NAME;
-import static io.quarkiverse.qubit.runtime.QubitConstants.JOIN_TYPE_DESCRIPTOR;
-import static io.quarkiverse.qubit.runtime.QubitConstants.JOIN_TYPE_INTERNAL_NAME;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_JOIN;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_LEFT_JOIN;
-import static io.quarkiverse.qubit.runtime.QubitConstants.QUERY_SPEC_DESCRIPTOR;
-import static io.quarkiverse.qubit.runtime.QubitConstants.QUBIT_REPOSITORY_CLASS_NAME;
-import static io.quarkiverse.qubit.runtime.QubitConstants.QUBIT_REPOSITORY_INTERNAL_NAME;
-import static io.quarkiverse.qubit.runtime.QubitConstants.QUBIT_STREAM_IMPL_INTERNAL_NAME;
-import static io.quarkiverse.qubit.runtime.QubitConstants.QUBIT_STREAM_INTERNAL_NAME;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JOIN_STREAM_IMPL_INTERNAL_NAME;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JOIN_STREAM_INTERNAL_NAME;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JOIN_TYPE_DESCRIPTOR;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JOIN_TYPE_INTERNAL_NAME;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_JOIN;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_LEFT_JOIN;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_SPEC_DESCRIPTOR;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_REPOSITORY_CLASS_NAME;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_REPOSITORY_INTERNAL_NAME;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_STREAM_IMPL_INTERNAL_NAME;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_STREAM_INTERNAL_NAME;
 
 /**
  * Generates @GenerateBridge fluent API entry point implementations for QubitRepository beans.
@@ -239,8 +239,8 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             // Method signature: (QuerySpec)JoinStream
             // Note: Generic types are erased at bytecode level
             String methodDescriptor = "(" + QUERY_SPEC_DESCRIPTOR + ")L" + JOIN_STREAM_INTERNAL_NAME + ";";
-            String genericSignature = "<R:Ljava/lang/Object;>(Lio/quarkiverse/qubit/runtime/QuerySpec<L" +
-                    entityType.getInternalName() + ";Ljava/util/Collection<TR;>;>;)Lio/quarkiverse/qubit/runtime/JoinStream<L" +
+            String genericSignature = "<R:Ljava/lang/Object;>(Lio/quarkiverse/qubit/QuerySpec<L" +
+                    entityType.getInternalName() + ";Ljava/util/Collection<TR;>;>;)Lio/quarkiverse/qubit/JoinStream<L" +
                     entityType.getInternalName() + ";TR;>;";
 
             Log.tracef("Generating join method %s with descriptor %s", methodName, methodDescriptor);

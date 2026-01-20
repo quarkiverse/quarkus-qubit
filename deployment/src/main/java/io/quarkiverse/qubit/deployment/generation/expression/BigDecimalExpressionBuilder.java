@@ -12,7 +12,7 @@ import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Oper
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.DIV;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.MUL;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.SUB;
-import static io.quarkiverse.qubit.runtime.QubitConstants.*;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
 
 /**
  * Builds JPA Criteria API expressions for BigDecimal arithmetic operations.

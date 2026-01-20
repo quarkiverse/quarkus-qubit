@@ -1,6 +1,6 @@
 package io.quarkiverse.qubit.deployment.generation.methodcall;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.BIG_DECIMAL_ARITHMETIC_METHODS;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.BIG_DECIMAL_ARITHMETIC_METHODS;
 
 import io.quarkiverse.qubit.deployment.generation.expression.BuilderResult;
 import io.quarkus.gizmo.ResultHandle;

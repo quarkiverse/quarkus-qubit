@@ -1,7 +1,7 @@
 package io.quarkiverse.qubit.it;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.quarkiverse.qubit.runtime.QubitEntity;
+import io.quarkiverse.qubit.QubitEntity;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;

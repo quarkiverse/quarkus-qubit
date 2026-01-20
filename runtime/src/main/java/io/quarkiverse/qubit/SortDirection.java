@@ -1,4 +1,4 @@
-package io.quarkiverse.qubit.runtime;
+package io.quarkiverse.qubit;
 
 /**
  * Enumeration of sort directions for query ordering.

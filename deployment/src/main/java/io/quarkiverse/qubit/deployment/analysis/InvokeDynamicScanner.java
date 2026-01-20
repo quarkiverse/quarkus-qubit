@@ -1,6 +1,6 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
-import io.quarkiverse.qubit.runtime.SortDirection;
+import io.quarkiverse.qubit.SortDirection;
 import io.quarkus.logging.Log;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Handle;
@@ -21,7 +21,7 @@ import java.util.List;
 
 import static io.quarkiverse.qubit.deployment.util.DescriptorParser.returnsBooleanType;
 import static io.quarkiverse.qubit.deployment.util.DescriptorParser.returnTypeContains;
-import static io.quarkiverse.qubit.runtime.QubitConstants.*;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
 
 /**
  * Scans bytecode for invokedynamic instructions creating QuerySpec lambdas.

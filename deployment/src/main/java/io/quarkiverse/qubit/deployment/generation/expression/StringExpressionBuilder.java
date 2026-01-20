@@ -1,19 +1,19 @@
 package io.quarkiverse.qubit.deployment.generation.expression;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_CONTAINS;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_ENDS_WITH;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_EQUALS;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_IS_EMPTY;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_LENGTH;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_STARTS_WITH;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SUBSTRING;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_TO_LOWER_CASE;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_TO_UPPER_CASE;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_TRIM;
-import static io.quarkiverse.qubit.runtime.QubitConstants.SQL_LIKE_WILDCARD;
-import static io.quarkiverse.qubit.runtime.QubitConstants.STRING_PATTERN_METHOD_NAMES;
-import static io.quarkiverse.qubit.runtime.QubitConstants.STRING_TRANSFORMATION_METHODS;
-import static io.quarkiverse.qubit.runtime.QubitConstants.STRING_UTILITY_METHODS;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_CONTAINS;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_ENDS_WITH;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_EQUALS;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_IS_EMPTY;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_LENGTH;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_STARTS_WITH;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUBSTRING;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_TO_LOWER_CASE;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_TO_UPPER_CASE;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_TRIM;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.SQL_LIKE_WILDCARD;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.STRING_PATTERN_METHOD_NAMES;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.STRING_TRANSFORMATION_METHODS;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.STRING_UTILITY_METHODS;
 
 import java.util.List;
 

@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.QUERY_TYPE_LIST;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_TYPE_LIST;
 import static java.util.Objects.requireNonNull;
 
 /**

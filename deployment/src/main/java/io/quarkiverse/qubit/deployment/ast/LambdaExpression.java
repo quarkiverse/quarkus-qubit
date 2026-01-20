@@ -1,6 +1,6 @@
 package io.quarkiverse.qubit.deployment.ast;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.JVM_JAVA_LANG_OBJECT;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JVM_JAVA_LANG_OBJECT;
 
 import java.util.List;
 import java.util.Objects;

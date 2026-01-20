@@ -1,7 +1,7 @@
 package io.quarkiverse.qubit.deployment.devui;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.LAMBDA_SUFFIX_MARKER;
-import static io.quarkiverse.qubit.runtime.QubitConstants.QUERY_ID_SEPARATOR;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.LAMBDA_SUFFIX_MARKER;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_ID_SEPARATOR;
 
 import java.util.List;
 

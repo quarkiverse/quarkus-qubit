@@ -27,7 +27,7 @@ import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.extr
 import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.isGetterMethodName;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isEntityFieldExpression;
 import static io.quarkiverse.qubit.deployment.util.DescriptorParser.returnsIntType;
-import static io.quarkiverse.qubit.runtime.QubitConstants.*;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
 import static org.objectweb.asm.Opcodes.*;
 
 /**

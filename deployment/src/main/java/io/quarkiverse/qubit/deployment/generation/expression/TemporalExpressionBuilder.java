@@ -13,10 +13,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_IS_AFTER;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_IS_BEFORE;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_IS_EQUAL;
-import static io.quarkiverse.qubit.runtime.QubitConstants.TEMPORAL_COMPARISON_METHOD_NAMES;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_IS_AFTER;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_IS_BEFORE;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_IS_EQUAL;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.TEMPORAL_COMPARISON_METHOD_NAMES;
 
 /**
  * Builds JPA Criteria API expressions for temporal (date/time) operations.

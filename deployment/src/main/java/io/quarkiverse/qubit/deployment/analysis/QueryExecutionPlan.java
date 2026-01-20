@@ -2,7 +2,7 @@ package io.quarkiverse.qubit.deployment.analysis;
 
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.LAMBDA_HASH_REQUIRED;
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.QUERY_ID_REQUIRED;
-import static io.quarkiverse.qubit.runtime.QubitConstants.HASH_CHARS_FOR_CLASS_NAME;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.HASH_CHARS_FOR_CLASS_NAME;
 
 /**
  * Parameter Object consolidating query executor generation metadata.

@@ -13,9 +13,9 @@ import java.util.List;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.add;
 import static io.quarkiverse.qubit.deployment.util.DescriptorParser.returnsType;
-import static io.quarkiverse.qubit.runtime.QubitConstants.JVM_JAVA_LANG_INVOKE_LAMBDA_METAFACTORY;
-import static io.quarkiverse.qubit.runtime.QubitConstants.JVM_JAVA_LANG_INVOKE_STRING_CONCAT_FACTORY;
-import static io.quarkiverse.qubit.runtime.QubitConstants.QUERY_SPEC_INTERNAL_NAME;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JVM_JAVA_LANG_INVOKE_LAMBDA_METAFACTORY;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JVM_JAVA_LANG_INVOKE_STRING_CONCAT_FACTORY;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_SPEC_INTERNAL_NAME;
 import static org.objectweb.asm.Opcodes.INVOKEDYNAMIC;
 
 /**
@@ -91,7 +91,7 @@ public enum InvokeDynamicHandler implements InstructionHandler {
 
         // Pop any captured variables from the stack
         // The INVOKEDYNAMIC descriptor tells us how many captured variables there are
-        // For example: (LPerson;)Lio/quarkiverse/qubit/runtime/QuerySpec; means 1 captured variable
+        // For example: (LPerson;)Lio/quarkiverse/qubit/QuerySpec; means 1 captured variable
         int capturedVarCount = DescriptorParser.countMethodArguments(indy.desc);
         for (int i = 0; i < capturedVarCount; i++) {
             if (!ctx.isStackEmpty()) {

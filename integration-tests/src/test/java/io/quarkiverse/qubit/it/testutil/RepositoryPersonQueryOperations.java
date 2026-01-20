@@ -2,9 +2,9 @@ package io.quarkiverse.qubit.it.testutil;
 
 import io.quarkiverse.qubit.it.Person;
 import io.quarkiverse.qubit.it.PersonRepository;
-import io.quarkiverse.qubit.runtime.JoinStream;
-import io.quarkiverse.qubit.runtime.QuerySpec;
-import io.quarkiverse.qubit.runtime.QubitStream;
+import io.quarkiverse.qubit.JoinStream;
+import io.quarkiverse.qubit.QuerySpec;
+import io.quarkiverse.qubit.QubitStream;
 
 import java.util.Collection;
 

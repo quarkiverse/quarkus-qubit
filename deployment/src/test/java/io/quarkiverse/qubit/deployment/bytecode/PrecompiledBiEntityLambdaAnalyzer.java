@@ -5,7 +5,7 @@ import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
 import io.quarkiverse.qubit.deployment.testutil.AbstractLambdaAnalyzer;
 import org.objectweb.asm.Handle;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.BI_QUERY_SPEC_DESCRIPTOR;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.BI_QUERY_SPEC_DESCRIPTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**

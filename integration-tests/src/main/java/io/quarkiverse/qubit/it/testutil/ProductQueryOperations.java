@@ -1,8 +1,8 @@
 package io.quarkiverse.qubit.it.testutil;
 
 import io.quarkiverse.qubit.it.Product;
-import io.quarkiverse.qubit.runtime.QuerySpec;
-import io.quarkiverse.qubit.runtime.QubitStream;
+import io.quarkiverse.qubit.QuerySpec;
+import io.quarkiverse.qubit.QubitStream;
 
 /**
  * Abstraction for Product query operations.

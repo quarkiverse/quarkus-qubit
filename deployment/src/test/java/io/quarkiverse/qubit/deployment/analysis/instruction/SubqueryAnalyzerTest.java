@@ -15,7 +15,7 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
 import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
-import static io.quarkiverse.qubit.runtime.QubitConstants.*;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.objectweb.asm.Opcodes.*;
 
@@ -57,7 +57,7 @@ class SubqueryAnalyzerTest {
         void isSubqueriesMethodCall_withSubqueriesClass_returnsTrue() {
             MethodInsnNode methodInsn = new MethodInsnNode(INVOKESTATIC,
                     SUBQUERIES_INTERNAL_NAME, METHOD_SUBQUERY,
-                    "(Ljava/lang/Class;)Lio/quarkiverse/qubit/runtime/SubqueryBuilder;", false);
+                    "(Ljava/lang/Class;)Lio/quarkiverse/qubit/SubqueryBuilder;", false);
 
             assertThat(analyzer.isSubqueriesMethodCall(methodInsn))
                     .as("Should recognize Subqueries factory method call")
@@ -140,7 +140,7 @@ class SubqueryAnalyzerTest {
             // Use an unexpected method name
             MethodInsnNode methodInsn = new MethodInsnNode(INVOKESTATIC,
                     SUBQUERIES_INTERNAL_NAME, "unknownMethod",
-                    "(Ljava/lang/Class;)Lio/quarkiverse/qubit/runtime/SubqueryBuilder;", false);
+                    "(Ljava/lang/Class;)Lio/quarkiverse/qubit/SubqueryBuilder;", false);
 
             analyzer.handleSubqueriesFactoryMethod(context, methodInsn);
 
@@ -436,7 +436,7 @@ class SubqueryAnalyzerTest {
     private MethodInsnNode createSubqueriesMethodInsn(String methodName) {
         return new MethodInsnNode(INVOKESTATIC,
                 SUBQUERIES_INTERNAL_NAME, methodName,
-                "(Ljava/lang/Class;)Lio/quarkiverse/qubit/runtime/SubqueryBuilder;", false);
+                "(Ljava/lang/Class;)Lio/quarkiverse/qubit/SubqueryBuilder;", false);
     }
 
     private MethodInsnNode createSubqueryBuilderMethodInsn(String methodName, String descriptor) {

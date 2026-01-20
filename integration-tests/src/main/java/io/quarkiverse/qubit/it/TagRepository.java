@@ -1,6 +1,6 @@
 package io.quarkiverse.qubit.it;
 
-import io.quarkiverse.qubit.runtime.QubitRepository;
+import io.quarkiverse.qubit.QubitRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 
 /**

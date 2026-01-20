@@ -10,7 +10,7 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupParameter;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType;
-import io.quarkiverse.qubit.runtime.Group;
+import io.quarkiverse.qubit.Group;
 import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
 import io.quarkiverse.qubit.deployment.util.DescriptorParser;
 import io.quarkiverse.qubit.deployment.util.TypeConverter;

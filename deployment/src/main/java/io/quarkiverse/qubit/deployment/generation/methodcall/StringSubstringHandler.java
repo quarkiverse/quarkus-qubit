@@ -1,6 +1,6 @@
 package io.quarkiverse.qubit.deployment.generation.methodcall;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SUBSTRING;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUBSTRING;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkus.gizmo.ResultHandle;

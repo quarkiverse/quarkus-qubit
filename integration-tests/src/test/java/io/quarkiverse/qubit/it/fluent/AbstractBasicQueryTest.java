@@ -3,7 +3,7 @@ package io.quarkiverse.qubit.it.fluent;
 import io.quarkiverse.qubit.it.Person;
 import io.quarkiverse.qubit.it.testdata.TestDataFactory;
 import io.quarkiverse.qubit.it.testutil.PersonQueryOperations;
-import io.quarkiverse.qubit.runtime.QubitStream;
+import io.quarkiverse.qubit.QubitStream;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

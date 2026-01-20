@@ -11,7 +11,7 @@ import org.objectweb.asm.tree.MethodInsnNode;
 
 import java.util.function.Function;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.*;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
 
 /** Analyzes Group interface method calls: key(), count(), avg(), min(), max(), sum*(). */
 public class GroupMethodAnalyzer {

@@ -17,7 +17,7 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import java.util.ArrayList;
 import java.util.List;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.*;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
 
 /** Analyzes subquery bytecode: Subqueries.subquery() factory and SubqueryBuilder.* methods. */
 public class SubqueryAnalyzer {

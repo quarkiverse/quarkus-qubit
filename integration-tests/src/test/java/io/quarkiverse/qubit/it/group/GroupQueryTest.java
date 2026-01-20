@@ -3,7 +3,7 @@ package io.quarkiverse.qubit.it.group;
 import io.quarkiverse.qubit.it.Person;
 import io.quarkiverse.qubit.it.dto.DepartmentStatsDTO;
 import io.quarkiverse.qubit.it.testdata.TestDataFactory;
-import io.quarkiverse.qubit.runtime.Group;
+import io.quarkiverse.qubit.Group;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;

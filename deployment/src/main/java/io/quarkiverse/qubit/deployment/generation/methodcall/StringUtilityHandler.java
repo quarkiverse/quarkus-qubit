@@ -1,6 +1,6 @@
 package io.quarkiverse.qubit.deployment.generation.methodcall;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_EQUALS;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_EQUALS;
 
 import io.quarkus.gizmo.ResultHandle;
 

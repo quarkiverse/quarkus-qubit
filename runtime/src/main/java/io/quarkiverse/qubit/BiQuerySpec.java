@@ -1,4 +1,4 @@
-package io.quarkiverse.qubit.runtime;
+package io.quarkiverse.qubit;
 
 import java.io.Serializable;
 import java.util.function.BiFunction;

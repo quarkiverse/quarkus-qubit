@@ -1,4 +1,4 @@
-package io.quarkiverse.qubit.runtime;
+package io.quarkiverse.qubit;
 
 /** Entry point for subquery expressions (bytecode markers, never called at runtime). */
 public final class Subqueries {

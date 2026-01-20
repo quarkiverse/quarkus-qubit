@@ -5,7 +5,7 @@ import io.quarkiverse.qubit.it.Person;
 import io.quarkiverse.qubit.it.Phone;
 import io.quarkiverse.qubit.it.dto.DepartmentStatsDTO;
 import io.quarkiverse.qubit.it.testdata.TestDataFactory;
-import io.quarkiverse.qubit.runtime.Group;
+import io.quarkiverse.qubit.Group;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static io.quarkiverse.qubit.runtime.Subqueries.subquery;
+import static io.quarkiverse.qubit.Subqueries.subquery;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**

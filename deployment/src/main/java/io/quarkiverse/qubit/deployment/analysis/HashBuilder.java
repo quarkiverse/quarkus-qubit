@@ -9,8 +9,8 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.QUERY_TYPE_COUNT;
-import static io.quarkiverse.qubit.runtime.QubitConstants.QUERY_TYPE_LIST;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_TYPE_COUNT;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_TYPE_LIST;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /** Fluent builder for constructing query hash strings. */

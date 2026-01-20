@@ -6,16 +6,16 @@ import java.util.EnumSet;
 import java.util.Optional;
 import java.util.Set;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_AVG;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_MAX;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_MIN;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SELECT;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SORTED_BY;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SORTED_DESCENDING_BY;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SUM_DOUBLE;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SUM_INTEGER;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SUM_LONG;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_WHERE;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_AVG;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_MAX;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_MIN;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SELECT;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SORTED_BY;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SORTED_DESCENDING_BY;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUM_DOUBLE;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUM_INTEGER;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUM_LONG;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_WHERE;
 
 /** Fluent API method types with factory methods for FluentMethodConfig creation. */
 public enum FluentMethodType {

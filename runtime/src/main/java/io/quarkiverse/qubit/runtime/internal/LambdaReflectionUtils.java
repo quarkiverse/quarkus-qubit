@@ -1,4 +1,4 @@
-package io.quarkiverse.qubit.runtime;
+package io.quarkiverse.qubit.runtime.internal;
 
 import io.quarkus.arc.Arc;
 import io.quarkus.arc.ArcContainer;

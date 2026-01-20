@@ -1,6 +1,6 @@
 package io.quarkiverse.qubit.deployment.analysis.handler;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SELECT;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SELECT;
 
 import io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaCallSite;

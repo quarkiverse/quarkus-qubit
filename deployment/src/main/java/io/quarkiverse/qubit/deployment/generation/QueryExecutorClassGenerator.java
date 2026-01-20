@@ -1,15 +1,15 @@
 package io.quarkiverse.qubit.deployment.generation;
 
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.unknownAggregationType;
-import static io.quarkiverse.qubit.runtime.QubitConstants.AGG_TYPE_AVG;
-import static io.quarkiverse.qubit.runtime.QubitConstants.AGG_TYPE_MAX;
-import static io.quarkiverse.qubit.runtime.QubitConstants.AGG_TYPE_MIN;
-import static io.quarkiverse.qubit.runtime.QubitConstants.AGG_TYPE_SUM_DOUBLE;
-import static io.quarkiverse.qubit.runtime.QubitConstants.AGG_TYPE_SUM_INTEGER;
-import static io.quarkiverse.qubit.runtime.QubitConstants.AGG_TYPE_SUM_LONG;
-import static io.quarkiverse.qubit.runtime.QubitConstants.CONSTRUCTOR;
-import static io.quarkiverse.qubit.runtime.QubitConstants.QE_EXECUTE;
-import static io.quarkiverse.qubit.runtime.QubitConstants.QUERY_EXECUTOR_CLASS_NAME;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_AVG;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_MAX;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_MIN;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_SUM_DOUBLE;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_SUM_INTEGER;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_SUM_LONG;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.CONSTRUCTOR;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QE_EXECUTE;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_EXECUTOR_CLASS_NAME;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_AVG;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_COUNT;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_COUNT_DISTINCT;

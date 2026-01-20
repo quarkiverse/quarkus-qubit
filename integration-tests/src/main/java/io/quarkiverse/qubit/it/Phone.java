@@ -1,6 +1,6 @@
 package io.quarkiverse.qubit.it;
 
-import io.quarkiverse.qubit.runtime.QubitEntity;
+import io.quarkiverse.qubit.QubitEntity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;
 

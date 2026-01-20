@@ -5,30 +5,30 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_AVG;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_GROUP_BY;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_JOIN;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_LEFT_JOIN;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_MAX;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_MIN;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SELECT;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SORTED_BY;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SORTED_DESCENDING_BY;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SUM_DOUBLE;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SUM_INTEGER;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_SUM_LONG;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_WHERE;
-import static io.quarkiverse.qubit.runtime.QubitConstants.QUBIT_STREAM_IMPL_INTERNAL_NAME;
-import static io.quarkiverse.qubit.runtime.QubitConstants.QUBIT_STREAM_INTERNAL_NAME;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_AVG;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_GROUP_BY;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_JOIN;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_LEFT_JOIN;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_MAX;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_MIN;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SELECT;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SORTED_BY;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SORTED_DESCENDING_BY;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUM_DOUBLE;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUM_INTEGER;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUM_LONG;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_WHERE;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_STREAM_IMPL_INTERNAL_NAME;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_STREAM_INTERNAL_NAME;
 
 /**
  * Generates fluent API entry point methods for QubitEntity and QubitRepository.
  */
 public final class QubitBytecodeGenerator {
 
-    private static final String DESC_QUERY_SPEC_TO_STREAM = "(Lio/quarkiverse/qubit/runtime/QuerySpec;)Lio/quarkiverse/qubit/runtime/QubitStream;";
-    private static final String DESC_QUERY_SPEC_TO_JOIN_STREAM = "(Lio/quarkiverse/qubit/runtime/QuerySpec;)Lio/quarkiverse/qubit/runtime/JoinStream;";
-    private static final String DESC_QUERY_SPEC_TO_GROUP_STREAM = "(Lio/quarkiverse/qubit/runtime/QuerySpec;)Lio/quarkiverse/qubit/runtime/GroupStream;";
+    private static final String DESC_QUERY_SPEC_TO_STREAM = "(Lio/quarkiverse/qubit/QuerySpec;)Lio/quarkiverse/qubit/QubitStream;";
+    private static final String DESC_QUERY_SPEC_TO_JOIN_STREAM = "(Lio/quarkiverse/qubit/QuerySpec;)Lio/quarkiverse/qubit/JoinStream;";
+    private static final String DESC_QUERY_SPEC_TO_GROUP_STREAM = "(Lio/quarkiverse/qubit/QuerySpec;)Lio/quarkiverse/qubit/GroupStream;";
 
     private QubitBytecodeGenerator() {
     }
@@ -161,9 +161,9 @@ public final class QubitBytecodeGenerator {
          * Signature: <R> JoinStream<T, R> join(QuerySpec<T, Collection<R>> relationship)
          */
         public static JoinMethodConfig forJoin(Type entityType, String entityInternalName) {
-            // Generic signature: <R:Ljava/lang/Object;>(Lio/quarkiverse/qubit/runtime/QuerySpec<LPerson;Ljava/util/Collection<TR;>;>;)Lio/quarkiverse/qubit/runtime/JoinStream<LPerson;TR;>;
-            String genericSignature = "<R:Ljava/lang/Object;>(Lio/quarkiverse/qubit/runtime/QuerySpec<L" +
-                    entityInternalName + ";Ljava/util/Collection<TR;>;>;)Lio/quarkiverse/qubit/runtime/JoinStream<L" +
+            // Generic signature: <R:Ljava/lang/Object;>(Lio/quarkiverse/qubit/QuerySpec<LPerson;Ljava/util/Collection<TR;>;>;)Lio/quarkiverse/qubit/JoinStream<LPerson;TR;>;
+            String genericSignature = "<R:Ljava/lang/Object;>(Lio/quarkiverse/qubit/QuerySpec<L" +
+                    entityInternalName + ";Ljava/util/Collection<TR;>;>;)Lio/quarkiverse/qubit/JoinStream<L" +
                     entityInternalName + ";TR;>;";
 
             return new JoinMethodConfig(
@@ -180,8 +180,8 @@ public final class QubitBytecodeGenerator {
          * Signature: <R> JoinStream<T, R> leftJoin(QuerySpec<T, Collection<R>> relationship)
          */
         public static JoinMethodConfig forLeftJoin(Type entityType, String entityInternalName) {
-            String genericSignature = "<R:Ljava/lang/Object;>(Lio/quarkiverse/qubit/runtime/QuerySpec<L" +
-                    entityInternalName + ";Ljava/util/Collection<TR;>;>;)Lio/quarkiverse/qubit/runtime/JoinStream<L" +
+            String genericSignature = "<R:Ljava/lang/Object;>(Lio/quarkiverse/qubit/QuerySpec<L" +
+                    entityInternalName + ";Ljava/util/Collection<TR;>;>;)Lio/quarkiverse/qubit/JoinStream<L" +
                     entityInternalName + ";TR;>;";
 
             return new JoinMethodConfig(
@@ -267,9 +267,9 @@ public final class QubitBytecodeGenerator {
          * Signature: <K> GroupStream<T, K> groupBy(QuerySpec<T, K> keyExtractor)
          */
         public static GroupMethodConfig forGroupBy(Type entityType, String entityInternalName) {
-            // Generic signature: <K:Ljava/lang/Object;>(Lio/quarkiverse/qubit/runtime/QuerySpec<LPerson;TK;>;)Lio/quarkiverse/qubit/runtime/GroupStream<LPerson;TK;>;
-            String genericSignature = "<K:Ljava/lang/Object;>(Lio/quarkiverse/qubit/runtime/QuerySpec<L" +
-                    entityInternalName + ";TK;>;)Lio/quarkiverse/qubit/runtime/GroupStream<L" +
+            // Generic signature: <K:Ljava/lang/Object;>(Lio/quarkiverse/qubit/QuerySpec<LPerson;TK;>;)Lio/quarkiverse/qubit/GroupStream<LPerson;TK;>;
+            String genericSignature = "<K:Ljava/lang/Object;>(Lio/quarkiverse/qubit/QuerySpec<L" +
+                    entityInternalName + ";TK;>;)Lio/quarkiverse/qubit/GroupStream<L" +
                     entityInternalName + ";TK;>;";
 
             return new GroupMethodConfig(
@@ -299,8 +299,8 @@ public final class QubitBytecodeGenerator {
          * Creates config for where() method.
          */
         public static FluentMethodConfig forWhere(Type entityType, String entityInternalName) {
-            String genericSignature = "(Lio/quarkiverse/qubit/runtime/QuerySpec<L" + entityInternalName +
-                    ";Ljava/lang/Boolean;>;)Lio/quarkiverse/qubit/runtime/QubitStream<L" + entityInternalName + ";>;";
+            String genericSignature = "(Lio/quarkiverse/qubit/QuerySpec<L" + entityInternalName +
+                    ";Ljava/lang/Boolean;>;)Lio/quarkiverse/qubit/QubitStream<L" + entityInternalName + ";>;";
 
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
@@ -318,8 +318,8 @@ public final class QubitBytecodeGenerator {
          * Creates config for select() method.
          */
         public static FluentMethodConfig forSelect(Type entityType, String entityInternalName) {
-            String genericSignature = "<R:Ljava/lang/Object;>(Lio/quarkiverse/qubit/runtime/QuerySpec<L" +
-                    entityInternalName + ";TR;>;)Lio/quarkiverse/qubit/runtime/QubitStream<TR;>;";
+            String genericSignature = "<R:Ljava/lang/Object;>(Lio/quarkiverse/qubit/QuerySpec<L" +
+                    entityInternalName + ";TR;>;)Lio/quarkiverse/qubit/QubitStream<TR;>;";
 
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
@@ -337,8 +337,8 @@ public final class QubitBytecodeGenerator {
          * Creates config for sortedBy() method.
          */
         public static FluentMethodConfig forSortedBy(Type entityType, String entityInternalName) {
-            String genericSignature = "<K::Ljava/lang/Comparable<TK;>;>(Lio/quarkiverse/qubit/runtime/QuerySpec<L" +
-                    entityInternalName + ";TK;>;)Lio/quarkiverse/qubit/runtime/QubitStream<L" + entityInternalName + ";>;";
+            String genericSignature = "<K::Ljava/lang/Comparable<TK;>;>(Lio/quarkiverse/qubit/QuerySpec<L" +
+                    entityInternalName + ";TK;>;)Lio/quarkiverse/qubit/QubitStream<L" + entityInternalName + ";>;";
 
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
@@ -356,8 +356,8 @@ public final class QubitBytecodeGenerator {
          * Creates config for sortedDescendingBy() method.
          */
         public static FluentMethodConfig forSortedDescendingBy(Type entityType, String entityInternalName) {
-            String genericSignature = "<K::Ljava/lang/Comparable<TK;>;>(Lio/quarkiverse/qubit/runtime/QuerySpec<L" +
-                    entityInternalName + ";TK;>;)Lio/quarkiverse/qubit/runtime/QubitStream<L" + entityInternalName + ";>;";
+            String genericSignature = "<K::Ljava/lang/Comparable<TK;>;>(Lio/quarkiverse/qubit/QuerySpec<L" +
+                    entityInternalName + ";TK;>;)Lio/quarkiverse/qubit/QubitStream<L" + entityInternalName + ";>;";
 
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
@@ -378,8 +378,8 @@ public final class QubitBytecodeGenerator {
          * Returns: <K extends Comparable<K>> QubitStream<K>
          */
         public static FluentMethodConfig forMin(Type entityType, String entityInternalName) {
-            String genericSignature = "<K::Ljava/lang/Comparable<TK;>;>(Lio/quarkiverse/qubit/runtime/QuerySpec<L" +
-                    entityInternalName + ";TK;>;)Lio/quarkiverse/qubit/runtime/QubitStream<TK;>;";
+            String genericSignature = "<K::Ljava/lang/Comparable<TK;>;>(Lio/quarkiverse/qubit/QuerySpec<L" +
+                    entityInternalName + ";TK;>;)Lio/quarkiverse/qubit/QubitStream<TK;>;";
 
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
@@ -398,8 +398,8 @@ public final class QubitBytecodeGenerator {
          * Returns: <K extends Comparable<K>> QubitStream<K>
          */
         public static FluentMethodConfig forMax(Type entityType, String entityInternalName) {
-            String genericSignature = "<K::Ljava/lang/Comparable<TK;>;>(Lio/quarkiverse/qubit/runtime/QuerySpec<L" +
-                    entityInternalName + ";TK;>;)Lio/quarkiverse/qubit/runtime/QubitStream<TK;>;";
+            String genericSignature = "<K::Ljava/lang/Comparable<TK;>;>(Lio/quarkiverse/qubit/QuerySpec<L" +
+                    entityInternalName + ";TK;>;)Lio/quarkiverse/qubit/QubitStream<TK;>;";
 
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
@@ -418,8 +418,8 @@ public final class QubitBytecodeGenerator {
          * Returns: QubitStream<Double>
          */
         public static FluentMethodConfig forAvg(Type entityType, String entityInternalName) {
-            String genericSignature = "(Lio/quarkiverse/qubit/runtime/QuerySpec<L" +
-                    entityInternalName + ";+Ljava/lang/Number;>;)Lio/quarkiverse/qubit/runtime/QubitStream<Ljava/lang/Double;>;";
+            String genericSignature = "(Lio/quarkiverse/qubit/QuerySpec<L" +
+                    entityInternalName + ";+Ljava/lang/Number;>;)Lio/quarkiverse/qubit/QubitStream<Ljava/lang/Double;>;";
 
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
@@ -438,8 +438,8 @@ public final class QubitBytecodeGenerator {
          * Returns: QubitStream<Long>
          */
         public static FluentMethodConfig forSumInteger(Type entityType, String entityInternalName) {
-            String genericSignature = "(Lio/quarkiverse/qubit/runtime/QuerySpec<L" +
-                    entityInternalName + ";Ljava/lang/Integer;>;)Lio/quarkiverse/qubit/runtime/QubitStream<Ljava/lang/Long;>;";
+            String genericSignature = "(Lio/quarkiverse/qubit/QuerySpec<L" +
+                    entityInternalName + ";Ljava/lang/Integer;>;)Lio/quarkiverse/qubit/QubitStream<Ljava/lang/Long;>;";
 
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
@@ -458,8 +458,8 @@ public final class QubitBytecodeGenerator {
          * Returns: QubitStream<Long>
          */
         public static FluentMethodConfig forSumLong(Type entityType, String entityInternalName) {
-            String genericSignature = "(Lio/quarkiverse/qubit/runtime/QuerySpec<L" +
-                    entityInternalName + ";Ljava/lang/Long;>;)Lio/quarkiverse/qubit/runtime/QubitStream<Ljava/lang/Long;>;";
+            String genericSignature = "(Lio/quarkiverse/qubit/QuerySpec<L" +
+                    entityInternalName + ";Ljava/lang/Long;>;)Lio/quarkiverse/qubit/QubitStream<Ljava/lang/Long;>;";
 
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
@@ -478,8 +478,8 @@ public final class QubitBytecodeGenerator {
          * Returns: QubitStream<Double>
          */
         public static FluentMethodConfig forSumDouble(Type entityType, String entityInternalName) {
-            String genericSignature = "(Lio/quarkiverse/qubit/runtime/QuerySpec<L" +
-                    entityInternalName + ";Ljava/lang/Double;>;)Lio/quarkiverse/qubit/runtime/QubitStream<Ljava/lang/Double;>;";
+            String genericSignature = "(Lio/quarkiverse/qubit/QuerySpec<L" +
+                    entityInternalName + ";Ljava/lang/Double;>;)Lio/quarkiverse/qubit/QubitStream<Ljava/lang/Double;>;";
 
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,

@@ -1,7 +1,7 @@
 package io.quarkiverse.qubit.deployment.testutil;
 
-import io.quarkiverse.qubit.runtime.QuerySpec;
-import static io.quarkiverse.qubit.runtime.Subqueries.*;
+import io.quarkiverse.qubit.QuerySpec;
+import static io.quarkiverse.qubit.Subqueries.*;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 

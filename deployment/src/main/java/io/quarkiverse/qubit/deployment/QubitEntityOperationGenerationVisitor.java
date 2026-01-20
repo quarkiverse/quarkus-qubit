@@ -4,7 +4,7 @@ import io.quarkus.logging.Log;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Type;
 
-import static io.quarkiverse.qubit.runtime.QubitConstants.QUBIT_ENTITY_INTERNAL_NAME;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_ENTITY_INTERNAL_NAME;
 
 /**
  * Injects static query methods into QubitEntity subclasses.

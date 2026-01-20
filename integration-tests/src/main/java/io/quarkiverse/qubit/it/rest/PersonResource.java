@@ -4,7 +4,7 @@ import io.quarkiverse.qubit.it.Person;
 import io.quarkiverse.qubit.it.Phone;
 import io.quarkiverse.qubit.it.dto.DepartmentStatsDTO;
 import io.quarkiverse.qubit.it.dto.PersonPhoneDTO;
-import io.quarkiverse.qubit.runtime.Group;
+import io.quarkiverse.qubit.Group;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;

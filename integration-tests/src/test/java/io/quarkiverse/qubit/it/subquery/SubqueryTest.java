@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static io.quarkiverse.qubit.runtime.Subqueries.*;
+import static io.quarkiverse.qubit.Subqueries.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**

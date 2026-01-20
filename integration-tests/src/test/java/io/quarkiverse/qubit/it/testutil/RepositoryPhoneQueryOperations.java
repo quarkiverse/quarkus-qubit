@@ -2,8 +2,8 @@ package io.quarkiverse.qubit.it.testutil;
 
 import io.quarkiverse.qubit.it.Phone;
 import io.quarkiverse.qubit.it.PhoneRepository;
-import io.quarkiverse.qubit.runtime.QuerySpec;
-import io.quarkiverse.qubit.runtime.QubitStream;
+import io.quarkiverse.qubit.QuerySpec;
+import io.quarkiverse.qubit.QubitStream;
 
 /**
  * Implementation of {@link PhoneQueryOperations} using repository instance methods.

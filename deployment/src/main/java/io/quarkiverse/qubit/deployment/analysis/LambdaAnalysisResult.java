@@ -1,7 +1,7 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.runtime.SortDirection;
+import io.quarkiverse.qubit.SortDirection;
 
 import java.util.List;
 

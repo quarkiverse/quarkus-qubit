@@ -1,7 +1,7 @@
 package io.quarkiverse.qubit.deployment.testutil;
 
-import io.quarkiverse.qubit.runtime.QubitEntity;
-import io.quarkiverse.qubit.runtime.QuerySpec;
+import io.quarkiverse.qubit.QubitEntity;
+import io.quarkiverse.qubit.QuerySpec;
 import jakarta.persistence.Entity;
 
 import java.math.BigDecimal;

@@ -13,7 +13,7 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
 import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
-import static io.quarkiverse.qubit.runtime.QubitConstants.*;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.objectweb.asm.Opcodes.*;
@@ -35,7 +35,7 @@ class GroupMethodAnalyzerTest {
         analyzer = new GroupMethodAnalyzer();
         testMethod = new MethodNode();
         testMethod.name = "testHaving";
-        testMethod.desc = "(Lio/quarkiverse/qubit/runtime/Group;)Z";
+        testMethod.desc = "(Lio/quarkiverse/qubit/Group;)Z";
         testMethod.instructions = new InsnList();
         context = new AnalysisContext(testMethod, 0);
     }
@@ -172,7 +172,7 @@ class GroupMethodAnalyzerTest {
             context.push(new GroupParameter("g", Object.class, 0, Object.class, Object.class));
             context.push(field("name", String.class));
             MethodInsnNode methodInsn = createGroupMethodInsn(METHOD_COUNT_DISTINCT,
-                    "(Lio/quarkiverse/qubit/runtime/QuerySpec;)J");
+                    "(Lio/quarkiverse/qubit/QuerySpec;)J");
 
             analyzer.handleGroupMethod(context, methodInsn);
 
@@ -189,7 +189,7 @@ class GroupMethodAnalyzerTest {
         @Test
         void handleGroupMethod_countDistinct_withEmptyStack_throwsException() {
             MethodInsnNode methodInsn = createGroupMethodInsn(METHOD_COUNT_DISTINCT,
-                    "(Lio/quarkiverse/qubit/runtime/QuerySpec;)J");
+                    "(Lio/quarkiverse/qubit/QuerySpec;)J");
 
             assertThatThrownBy(() -> analyzer.handleGroupMethod(context, methodInsn))
                     .isInstanceOf(BytecodeAnalysisException.class)
@@ -201,7 +201,7 @@ class GroupMethodAnalyzerTest {
             context.push(new GroupParameter("g", Object.class, 0, Object.class, Object.class));
             // Missing field argument
             MethodInsnNode methodInsn = createGroupMethodInsn(METHOD_COUNT_DISTINCT,
-                    "(Lio/quarkiverse/qubit/runtime/QuerySpec;)J");
+                    "(Lio/quarkiverse/qubit/QuerySpec;)J");
 
             assertThatThrownBy(() -> analyzer.handleGroupMethod(context, methodInsn))
                     .isInstanceOf(BytecodeAnalysisException.class)
@@ -213,7 +213,7 @@ class GroupMethodAnalyzerTest {
             context.push(constant("not a group"));
             context.push(field("name", String.class));
             MethodInsnNode methodInsn = createGroupMethodInsn(METHOD_COUNT_DISTINCT,
-                    "(Lio/quarkiverse/qubit/runtime/QuerySpec;)J");
+                    "(Lio/quarkiverse/qubit/QuerySpec;)J");
 
             analyzer.handleGroupMethod(context, methodInsn);
 
@@ -233,7 +233,7 @@ class GroupMethodAnalyzerTest {
             context.push(new GroupParameter("g", Object.class, 0, Object.class, Object.class));
             context.push(field("salary", Double.class));
             MethodInsnNode methodInsn = createGroupMethodInsn(METHOD_AVG,
-                    "(Lio/quarkiverse/qubit/runtime/QuerySpec;)D");
+                    "(Lio/quarkiverse/qubit/QuerySpec;)D");
 
             analyzer.handleGroupMethod(context, methodInsn);
 
@@ -249,7 +249,7 @@ class GroupMethodAnalyzerTest {
             context.push(new GroupParameter("g", Object.class, 0, Object.class, Object.class));
             context.push(field("count", Integer.class));
             MethodInsnNode methodInsn = createGroupMethodInsn(METHOD_SUM_INTEGER,
-                    "(Lio/quarkiverse/qubit/runtime/QuerySpec;)I");
+                    "(Lio/quarkiverse/qubit/QuerySpec;)I");
 
             analyzer.handleGroupMethod(context, methodInsn);
 
@@ -265,7 +265,7 @@ class GroupMethodAnalyzerTest {
             context.push(new GroupParameter("g", Object.class, 0, Object.class, Object.class));
             context.push(field("count", Long.class));
             MethodInsnNode methodInsn = createGroupMethodInsn(METHOD_SUM_LONG,
-                    "(Lio/quarkiverse/qubit/runtime/QuerySpec;)J");
+                    "(Lio/quarkiverse/qubit/QuerySpec;)J");
 
             analyzer.handleGroupMethod(context, methodInsn);
 
@@ -281,7 +281,7 @@ class GroupMethodAnalyzerTest {
             context.push(new GroupParameter("g", Object.class, 0, Object.class, Object.class));
             context.push(field("amount", Double.class));
             MethodInsnNode methodInsn = createGroupMethodInsn(METHOD_SUM_DOUBLE,
-                    "(Lio/quarkiverse/qubit/runtime/QuerySpec;)D");
+                    "(Lio/quarkiverse/qubit/QuerySpec;)D");
 
             analyzer.handleGroupMethod(context, methodInsn);
 
@@ -295,7 +295,7 @@ class GroupMethodAnalyzerTest {
         @Test
         void handleGroupMethod_avg_withEmptyStack_throwsException() {
             MethodInsnNode methodInsn = createGroupMethodInsn(METHOD_AVG,
-                    "(Lio/quarkiverse/qubit/runtime/QuerySpec;)D");
+                    "(Lio/quarkiverse/qubit/QuerySpec;)D");
 
             assertThatThrownBy(() -> analyzer.handleGroupMethod(context, methodInsn))
                     .isInstanceOf(BytecodeAnalysisException.class)
@@ -307,7 +307,7 @@ class GroupMethodAnalyzerTest {
             context.push(field("wrongTarget", Object.class));
             context.push(field("salary", Double.class));
             MethodInsnNode methodInsn = createGroupMethodInsn(METHOD_AVG,
-                    "(Lio/quarkiverse/qubit/runtime/QuerySpec;)D");
+                    "(Lio/quarkiverse/qubit/QuerySpec;)D");
 
             analyzer.handleGroupMethod(context, methodInsn);
 
@@ -327,7 +327,7 @@ class GroupMethodAnalyzerTest {
             context.push(new GroupParameter("g", Object.class, 0, Object.class, Object.class));
             context.push(field("salary", Double.class));
             MethodInsnNode methodInsn = createGroupMethodInsn(METHOD_MIN,
-                    "(Lio/quarkiverse/qubit/runtime/QuerySpec;)Ljava/lang/Object;");
+                    "(Lio/quarkiverse/qubit/QuerySpec;)Ljava/lang/Object;");
 
             analyzer.handleGroupMethod(context, methodInsn);
 
@@ -343,7 +343,7 @@ class GroupMethodAnalyzerTest {
             context.push(new GroupParameter("g", Object.class, 0, Object.class, Object.class));
             context.push(field("salary", Double.class));
             MethodInsnNode methodInsn = createGroupMethodInsn(METHOD_MAX,
-                    "(Lio/quarkiverse/qubit/runtime/QuerySpec;)Ljava/lang/Object;");
+                    "(Lio/quarkiverse/qubit/QuerySpec;)Ljava/lang/Object;");
 
             analyzer.handleGroupMethod(context, methodInsn);
 
@@ -357,7 +357,7 @@ class GroupMethodAnalyzerTest {
         @Test
         void handleGroupMethod_min_withEmptyStack_throwsException() {
             MethodInsnNode methodInsn = createGroupMethodInsn(METHOD_MIN,
-                    "(Lio/quarkiverse/qubit/runtime/QuerySpec;)Ljava/lang/Object;");
+                    "(Lio/quarkiverse/qubit/QuerySpec;)Ljava/lang/Object;");
 
             assertThatThrownBy(() -> analyzer.handleGroupMethod(context, methodInsn))
                     .isInstanceOf(BytecodeAnalysisException.class)
@@ -367,7 +367,7 @@ class GroupMethodAnalyzerTest {
         @Test
         void handleGroupMethod_max_withEmptyStack_throwsException() {
             MethodInsnNode methodInsn = createGroupMethodInsn(METHOD_MAX,
-                    "(Lio/quarkiverse/qubit/runtime/QuerySpec;)Ljava/lang/Object;");
+                    "(Lio/quarkiverse/qubit/QuerySpec;)Ljava/lang/Object;");
 
             assertThatThrownBy(() -> analyzer.handleGroupMethod(context, methodInsn))
                     .isInstanceOf(BytecodeAnalysisException.class)
@@ -379,7 +379,7 @@ class GroupMethodAnalyzerTest {
             context.push(constant("not a group"));
             context.push(field("salary", Double.class));
             MethodInsnNode methodInsn = createGroupMethodInsn(METHOD_MIN,
-                    "(Lio/quarkiverse/qubit/runtime/QuerySpec;)Ljava/lang/Object;");
+                    "(Lio/quarkiverse/qubit/QuerySpec;)Ljava/lang/Object;");
 
             analyzer.handleGroupMethod(context, methodInsn);
 
@@ -393,7 +393,7 @@ class GroupMethodAnalyzerTest {
             context.push(param("entity", Object.class, 0));
             context.push(field("salary", Double.class));
             MethodInsnNode methodInsn = createGroupMethodInsn(METHOD_MAX,
-                    "(Lio/quarkiverse/qubit/runtime/QuerySpec;)Ljava/lang/Object;");
+                    "(Lio/quarkiverse/qubit/QuerySpec;)Ljava/lang/Object;");
 
             analyzer.handleGroupMethod(context, methodInsn);
 

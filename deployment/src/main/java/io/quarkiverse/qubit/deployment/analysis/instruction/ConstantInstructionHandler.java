@@ -9,8 +9,8 @@ import org.objectweb.asm.tree.LdcInsnNode;
 
 import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.DESC_BOOLEAN_VALUE_OF;
 import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.LOOKAHEAD_WINDOW_SIZE;
-import static io.quarkiverse.qubit.runtime.QubitConstants.JVM_JAVA_LANG_BOOLEAN;
-import static io.quarkiverse.qubit.runtime.QubitConstants.METHOD_VALUE_OF;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JVM_JAVA_LANG_BOOLEAN;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_VALUE_OF;
 import static org.objectweb.asm.Opcodes.*;
 
 /**
