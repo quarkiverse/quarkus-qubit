@@ -14,6 +14,9 @@ import java.util.function.Function;
 public interface QuerySpec<T, R> extends Function<T, R>, Serializable {
     /**
      * Never called at runtime - exists only for lambda bytecode generation.
+     *
+     * @param entity build-time marker, never read at runtime
+     * @return build-time marker only
      */
     @Override
     R apply(T entity);
