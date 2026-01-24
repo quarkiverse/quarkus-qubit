@@ -1060,6 +1060,323 @@ class DescriptorParserTest {
         }
     }
 
+    // ========== Return Type Descriptor Tests ==========
+
+    @Nested
+    @DisplayName("Return Type Descriptor Extraction")
+    class ReturnTypeDescriptorTests {
+
+        @Test
+        @DisplayName("getReturnTypeDescriptor extracts void return type")
+        void getReturnTypeDescriptor_voidReturn_returnsV() {
+            assertThat(DescriptorParser.getReturnTypeDescriptor("(I)V")).isEqualTo("V");
+        }
+
+        @Test
+        @DisplayName("getReturnTypeDescriptor extracts primitive return type")
+        void getReturnTypeDescriptor_primitiveReturn_returnsCorrectDescriptor() {
+            assertThat(DescriptorParser.getReturnTypeDescriptor("(I)I")).isEqualTo("I");
+            assertThat(DescriptorParser.getReturnTypeDescriptor("(I)J")).isEqualTo("J");
+            assertThat(DescriptorParser.getReturnTypeDescriptor("(I)D")).isEqualTo("D");
+            assertThat(DescriptorParser.getReturnTypeDescriptor("(I)Z")).isEqualTo("Z");
+        }
+
+        @Test
+        @DisplayName("getReturnTypeDescriptor extracts object return type")
+        void getReturnTypeDescriptor_objectReturn_returnsFullDescriptor() {
+            assertThat(DescriptorParser.getReturnTypeDescriptor("(I)Ljava/lang/String;"))
+                    .isEqualTo("Ljava/lang/String;");
+        }
+
+        @Test
+        @DisplayName("getReturnTypeDescriptor handles empty parameters")
+        void getReturnTypeDescriptor_emptyParams_extractsReturnType() {
+            assertThat(DescriptorParser.getReturnTypeDescriptor("()Z")).isEqualTo("Z");
+        }
+
+        @Test
+        @DisplayName("getReturnTypeDescriptor returns empty for null descriptor")
+        void getReturnTypeDescriptor_nullDescriptor_returnsEmpty() {
+            assertThat(DescriptorParser.getReturnTypeDescriptor(null)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("getReturnTypeDescriptor returns empty for malformed descriptor without closing paren")
+        void getReturnTypeDescriptor_noClosingParen_returnsEmpty() {
+            assertThat(DescriptorParser.getReturnTypeDescriptor("(I")).isEmpty();
+        }
+
+        @Test
+        @DisplayName("getReturnTypeDescriptor returns empty when paren is at end")
+        void getReturnTypeDescriptor_parenAtEnd_returnsEmpty() {
+            assertThat(DescriptorParser.getReturnTypeDescriptor("(I)")).isEmpty();
+        }
+    }
+
+    // ========== Boolean Return Type Tests ==========
+
+    @Nested
+    @DisplayName("Boolean Return Type Detection")
+    class ReturnsBooleanTypeTests {
+
+        @Test
+        @DisplayName("returnsBooleanType returns true for primitive boolean")
+        void returnsBooleanType_primitiveBoolean_returnsTrue() {
+            assertThat(DescriptorParser.returnsBooleanType("(I)Z")).isTrue();
+        }
+
+        @Test
+        @DisplayName("returnsBooleanType returns true for boxed Boolean")
+        void returnsBooleanType_boxedBoolean_returnsTrue() {
+            assertThat(DescriptorParser.returnsBooleanType("(I)Ljava/lang/Boolean;")).isTrue();
+        }
+
+        @Test
+        @DisplayName("returnsBooleanType returns false for int return")
+        void returnsBooleanType_intReturn_returnsFalse() {
+            assertThat(DescriptorParser.returnsBooleanType("(I)I")).isFalse();
+        }
+
+        @Test
+        @DisplayName("returnsBooleanType returns false for object return")
+        void returnsBooleanType_objectReturn_returnsFalse() {
+            assertThat(DescriptorParser.returnsBooleanType("(I)Ljava/lang/String;")).isFalse();
+        }
+
+        @Test
+        @DisplayName("returnsBooleanType returns false for void return")
+        void returnsBooleanType_voidReturn_returnsFalse() {
+            assertThat(DescriptorParser.returnsBooleanType("(I)V")).isFalse();
+        }
+    }
+
+    // ========== Int Return Type Tests ==========
+
+    @Nested
+    @DisplayName("Int Return Type Detection")
+    class ReturnsIntTypeTests {
+
+        @Test
+        @DisplayName("returnsIntType returns true for int return")
+        void returnsIntType_intReturn_returnsTrue() {
+            assertThat(DescriptorParser.returnsIntType("(Ljava/lang/String;)I")).isTrue();
+        }
+
+        @Test
+        @DisplayName("returnsIntType returns false for long return")
+        void returnsIntType_longReturn_returnsFalse() {
+            assertThat(DescriptorParser.returnsIntType("(Ljava/lang/String;)J")).isFalse();
+        }
+
+        @Test
+        @DisplayName("returnsIntType returns false for Integer wrapper return")
+        void returnsIntType_IntegerWrapperReturn_returnsFalse() {
+            assertThat(DescriptorParser.returnsIntType("(I)Ljava/lang/Integer;")).isFalse();
+        }
+
+        @Test
+        @DisplayName("returnsIntType returns false for void return")
+        void returnsIntType_voidReturn_returnsFalse() {
+            assertThat(DescriptorParser.returnsIntType("(I)V")).isFalse();
+        }
+    }
+
+    // ========== Returns Specific Type Tests ==========
+
+    @Nested
+    @DisplayName("Returns Specific Type Detection")
+    class ReturnsTypeTests {
+
+        @Test
+        @DisplayName("returnsType returns true for matching class")
+        void returnsType_matchingClass_returnsTrue() {
+            assertThat(DescriptorParser.returnsType("(I)Ljava/lang/String;", "java/lang/String"))
+                    .isTrue();
+        }
+
+        @Test
+        @DisplayName("returnsType returns false for non-matching class")
+        void returnsType_nonMatchingClass_returnsFalse() {
+            assertThat(DescriptorParser.returnsType("(I)Ljava/lang/String;", "java/lang/Integer"))
+                    .isFalse();
+        }
+
+        @Test
+        @DisplayName("returnsType returns false for primitive return")
+        void returnsType_primitiveReturn_returnsFalse() {
+            assertThat(DescriptorParser.returnsType("(I)I", "java/lang/Integer"))
+                    .isFalse();
+        }
+
+        @Test
+        @DisplayName("returnsType handles fully qualified names")
+        void returnsType_fullyQualifiedName_returnsTrue() {
+            assertThat(DescriptorParser.returnsType(
+                    "(I)Lio/quarkiverse/qubit/Person;",
+                    "io/quarkiverse/qubit/Person")).isTrue();
+        }
+    }
+
+    // ========== Return Type Contains Tests ==========
+
+    @Nested
+    @DisplayName("Return Type Contains Detection")
+    class ReturnTypeContainsTests {
+
+        @Test
+        @DisplayName("returnTypeContains returns true when type contains class name")
+        void returnTypeContains_containsClassName_returnsTrue() {
+            assertThat(DescriptorParser.returnTypeContains("(I)Ljava/lang/String;", "String"))
+                    .isTrue();
+        }
+
+        @Test
+        @DisplayName("returnTypeContains returns true for partial package match")
+        void returnTypeContains_partialPackageMatch_returnsTrue() {
+            assertThat(DescriptorParser.returnTypeContains("(I)Ljava/lang/String;", "java/lang"))
+                    .isTrue();
+        }
+
+        @Test
+        @DisplayName("returnTypeContains returns false when type does not contain class name")
+        void returnTypeContains_noMatch_returnsFalse() {
+            assertThat(DescriptorParser.returnTypeContains("(I)Ljava/lang/String;", "Integer"))
+                    .isFalse();
+        }
+
+        @Test
+        @DisplayName("returnTypeContains returns false for primitive type")
+        void returnTypeContains_primitiveType_returnsFalse() {
+            assertThat(DescriptorParser.returnTypeContains("(I)I", "Integer"))
+                    .isFalse();
+        }
+    }
+
+    // ========== Entity Class Name Tests ==========
+
+    @Nested
+    @DisplayName("Entity Class Name Extraction")
+    class GetEntityClassNameTests {
+
+        @Test
+        @DisplayName("getEntityClassName returns class name from last parameter")
+        void getEntityClassName_simpleDescriptor_returnsClassName() {
+            assertThat(DescriptorParser.getEntityClassName("(Ljava/lang/String;)V"))
+                    .isEqualTo("java.lang.String");
+        }
+
+        @Test
+        @DisplayName("getEntityClassName returns last param class with multiple params")
+        void getEntityClassName_multipleParams_returnsLastClassName() {
+            assertThat(DescriptorParser.getEntityClassName("(ILjava/lang/Person;)Z"))
+                    .isEqualTo("java.lang.Person");
+        }
+
+        @Test
+        @DisplayName("getEntityClassName returns Object for empty params")
+        void getEntityClassName_emptyParams_returnsObject() {
+            assertThat(DescriptorParser.getEntityClassName("()V"))
+                    .isEqualTo("java.lang.Object");
+        }
+
+        @Test
+        @DisplayName("getEntityClassName handles deeply nested class names")
+        void getEntityClassName_deeplyNestedClass_returnsFullName() {
+            assertThat(DescriptorParser.getEntityClassName("(Lio/quarkiverse/qubit/model/Person;)Z"))
+                    .isEqualTo("io.quarkiverse.qubit.model.Person");
+        }
+
+        @Test
+        @DisplayName("getEntityClassName returns primitive name for primitive param")
+        void getEntityClassName_primitiveParam_returnsPrimitiveName() {
+            assertThat(DescriptorParser.getEntityClassName("(I)V"))
+                    .isEqualTo("int");
+        }
+    }
+
+    // ========== Parameter Type Name Tests ==========
+
+    @Nested
+    @DisplayName("Parameter Type Name Extraction")
+    class GetParameterTypeNameTests {
+
+        @Test
+        @DisplayName("getParameterTypeName returns class name for object param")
+        void getParameterTypeName_objectParam_returnsClassName() {
+            assertThat(DescriptorParser.getParameterTypeName("(Ljava/lang/String;I)V", 0))
+                    .isEqualTo("java.lang.String");
+        }
+
+        @Test
+        @DisplayName("getParameterTypeName returns primitive name for primitive param")
+        void getParameterTypeName_primitiveParam_returnsPrimitiveName() {
+            assertThat(DescriptorParser.getParameterTypeName("(Ljava/lang/String;I)V", 1))
+                    .isEqualTo("int");
+        }
+
+        @Test
+        @DisplayName("getParameterTypeName returns Object for out-of-bounds index")
+        void getParameterTypeName_outOfBoundsIndex_returnsObject() {
+            assertThat(DescriptorParser.getParameterTypeName("(I)V", 99))
+                    .isEqualTo("java.lang.Object");
+        }
+
+        @Test
+        @DisplayName("getParameterTypeName returns Object for array param")
+        void getParameterTypeName_arrayParam_returnsArrayType() {
+            // Arrays have typeChar '[' which delegates to primitiveCharToClass returning Object
+            assertThat(DescriptorParser.getParameterTypeName("([I)V", 0))
+                    .isEqualTo("java.lang.Object");
+        }
+
+        @Test
+        @DisplayName("getParameterTypeName handles all primitive types")
+        void getParameterTypeName_allPrimitives_returnsCorrectNames() {
+            String descriptor = "(ZBCSIJFD)V";
+            assertThat(DescriptorParser.getParameterTypeName(descriptor, 0)).isEqualTo("boolean");
+            assertThat(DescriptorParser.getParameterTypeName(descriptor, 1)).isEqualTo("byte");
+            assertThat(DescriptorParser.getParameterTypeName(descriptor, 2)).isEqualTo("char");
+            assertThat(DescriptorParser.getParameterTypeName(descriptor, 3)).isEqualTo("short");
+            assertThat(DescriptorParser.getParameterTypeName(descriptor, 4)).isEqualTo("int");
+            assertThat(DescriptorParser.getParameterTypeName(descriptor, 5)).isEqualTo("long");
+            assertThat(DescriptorParser.getParameterTypeName(descriptor, 6)).isEqualTo("float");
+            assertThat(DescriptorParser.getParameterTypeName(descriptor, 7)).isEqualTo("double");
+        }
+    }
+
+    // ========== Get Entity Class Tests ==========
+
+    @Nested
+    @DisplayName("Get Entity Class Resolution")
+    class GetEntityClassTests {
+
+        @Test
+        @DisplayName("getEntityClass returns Object for empty params")
+        void getEntityClass_emptyParams_returnsObject() {
+            assertThat(DescriptorParser.getEntityClass("()V")).isEqualTo(Object.class);
+        }
+
+        @Test
+        @DisplayName("getEntityClass returns resolved class for known type")
+        void getEntityClass_knownType_returnsResolvedClass() {
+            assertThat(DescriptorParser.getEntityClass("(Ljava/lang/String;)V"))
+                    .isEqualTo(String.class);
+        }
+
+        @Test
+        @DisplayName("getEntityClass returns primitive class for primitive param")
+        void getEntityClass_primitiveParam_returnsPrimitiveClass() {
+            assertThat(DescriptorParser.getEntityClass("(I)V")).isEqualTo(int.class);
+        }
+
+        @Test
+        @DisplayName("getEntityClass returns Object for unknown class")
+        void getEntityClass_unknownClass_returnsObject() {
+            assertThat(DescriptorParser.getEntityClass("(Lcom/unknown/NonExistent;)V"))
+                    .isEqualTo(Object.class);
+        }
+    }
+
     // ========== Null and Malformed Descriptor Tests ==========
 
     @Nested

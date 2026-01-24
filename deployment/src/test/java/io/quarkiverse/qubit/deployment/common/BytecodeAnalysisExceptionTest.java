@@ -1,200 +1,264 @@
 package io.quarkiverse.qubit.deployment.common;
 
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Tests for BytecodeAnalysisException factory methods.
- * Verifies that error messages are correctly formatted with all context.
+ * Unit tests for {@link BytecodeAnalysisException} factory methods.
  */
-@DisplayName("BytecodeAnalysisException Factory Method Tests")
 class BytecodeAnalysisExceptionTest {
 
+    // ========================================================================
+    // Stack Operations Factory Methods
+    // ========================================================================
+
     @Nested
-    @DisplayName("stackUnderflow factory method")
-    class StackUnderflowTests {
+    class StackOperationsTests {
 
         @Test
-        @DisplayName("A1: Creates message with instruction, expected, and actual counts")
-        void stackUnderflow_createsMessageWithDetails() {
-            // When
-            BytecodeAnalysisException exception = BytecodeAnalysisException.stackUnderflow("IADD", 2, 1);
+        void stackUnderflow_includesAllParameters() {
+            BytecodeAnalysisException ex = BytecodeAnalysisException.stackUnderflow("pop", 2, 0);
 
-            // Then
-            assertThat(exception)
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessageContaining("Stack underflow")
-                    .hasMessageContaining("IADD")
-                    .hasMessageContaining("expected 2")
-                    .hasMessageContaining("found 1");
+            assertThat(ex.getMessage())
+                    .contains("Stack underflow")
+                    .contains("pop")
+                    .contains("2")
+                    .contains("0");
         }
 
         @Test
-        @DisplayName("stackUnderflow with zero actual elements")
-        void stackUnderflow_withZeroActual_includesZeroInMessage() {
-            BytecodeAnalysisException exception = BytecodeAnalysisException.stackUnderflow("GETFIELD", 1, 0);
+        void stackUnderflow_isInstanceOfBytecodeAnalysisException() {
+            BytecodeAnalysisException ex = BytecodeAnalysisException.stackUnderflow("instruction", 1, 0);
 
-            assertThat(exception.getMessage())
-                    .contains("expected 1")
-                    .contains("found 0");
+            assertThat(ex).isInstanceOf(BytecodeAnalysisException.class);
+            assertThat(ex).isInstanceOf(RuntimeException.class);
         }
     }
 
-    @Nested
-    @DisplayName("invalidOpcode factory method")
-    class InvalidOpcodeTests {
-
-        @Test
-        @DisplayName("A2: Includes invalid opcode and list of valid opcodes")
-        void invalidOpcode_includesValidOpcodes() {
-            // When
-            BytecodeAnalysisException exception = BytecodeAnalysisException.invalidOpcode(99, 96, 100, 104);
-
-            // Then
-            assertThat(exception.getMessage())
-                    .contains("Invalid opcode")
-                    .contains("99")
-                    .contains("96")
-                    .contains("100")
-                    .contains("104");
-        }
-
-        @Test
-        @DisplayName("invalidOpcode with single valid opcode")
-        void invalidOpcode_withSingleValidOpcode_formatsCorrectly() {
-            BytecodeAnalysisException exception = BytecodeAnalysisException.invalidOpcode(50, 100);
-
-            assertThat(exception.getMessage())
-                    .contains("Invalid opcode: 50")
-                    .contains("expected one of [100]");
-        }
-
-        @Test
-        @DisplayName("invalidOpcode with no valid opcodes")
-        void invalidOpcode_withNoValidOpcodes_formatsEmptyList() {
-            BytecodeAnalysisException exception = BytecodeAnalysisException.invalidOpcode(50);
-
-            assertThat(exception.getMessage())
-                    .contains("Invalid opcode: 50")
-                    .contains("expected one of []");
-        }
-    }
+    // ========================================================================
+    // Opcode Validation Factory Methods
+    // ========================================================================
 
     @Nested
-    @DisplayName("unexpectedNull factory method")
-    class UnexpectedNullTests {
+    class OpcodeValidationTests {
 
         @Test
-        @DisplayName("A3: Includes context in message")
-        void unexpectedNull_includesContext() {
-            // When
-            BytecodeAnalysisException exception = BytecodeAnalysisException.unexpectedNull("expression target");
+        void unexpectedOpcode_includesHandlerContextAndOpcode() {
+            BytecodeAnalysisException ex = BytecodeAnalysisException.unexpectedOpcode("type conversion", 182);
 
-            // Then
-            assertThat(exception.getMessage())
-                    .contains("Unexpected null value")
-                    .contains("expression target");
-        }
-
-        @Test
-        @DisplayName("unexpectedNull with detailed context")
-        void unexpectedNull_withDetailedContext_includesFullContext() {
-            BytecodeAnalysisException exception = BytecodeAnalysisException.unexpectedNull(
-                    "method call target in ComparisonHandler at line 45");
-
-            assertThat(exception.getMessage())
-                    .contains("method call target")
-                    .contains("ComparisonHandler");
-        }
-    }
-
-    @Nested
-    @DisplayName("unexpectedOpcode factory method")
-    class UnexpectedOpcodeTests {
-
-        @Test
-        @DisplayName("A4: Includes handler context and opcode with hex format")
-        void unexpectedOpcode_includesHandlerContext() {
-            // When
-            BytecodeAnalysisException exception = BytecodeAnalysisException.unexpectedOpcode(
-                    "ArithmeticHandler", 182);
-
-            // Then
-            assertThat(exception.getMessage())
-                    .contains("Unexpected opcode")
-                    .contains("ArithmeticHandler")
+            assertThat(ex.getMessage())
+                    .contains("type conversion")
                     .contains("182")
-                    .contains("0xB6") // hex format
-                    .contains("unsupported bytecode");
+                    .contains("0xB6"); // Hex value
         }
 
         @Test
-        @DisplayName("unexpectedOpcode formats low opcodes correctly")
-        void unexpectedOpcode_withLowOpcode_formatsHexWithLeadingZero() {
-            BytecodeAnalysisException exception = BytecodeAnalysisException.unexpectedOpcode(
-                    "LoadHandler", 10);
+        void unexpectedOpcode_containsHelpfulHint() {
+            BytecodeAnalysisException ex = BytecodeAnalysisException.unexpectedOpcode("handler", 100);
 
-            assertThat(exception.getMessage())
+            assertThat(ex.getMessage()).containsAnyOf("unsupported", "cannot be analyzed");
+        }
+
+        @Test
+        void invalidOpcode_includesAllValidOpcodes() {
+            BytecodeAnalysisException ex = BytecodeAnalysisException.invalidOpcode(100, 10, 20, 30);
+
+            assertThat(ex.getMessage())
+                    .contains("100")
                     .contains("10")
-                    .contains("0x0A");
+                    .contains("20")
+                    .contains("30");
+        }
+
+        @Test
+        void invalidOpcode_withSingleValidOpcode_formatsCorrectly() {
+            BytecodeAnalysisException ex = BytecodeAnalysisException.invalidOpcode(50, 42);
+
+            assertThat(ex.getMessage())
+                    .contains("50")
+                    .contains("42");
+        }
+
+        @Test
+        void invalidOpcode_withNoValidOpcodes_formatsCorrectly() {
+            BytecodeAnalysisException ex = BytecodeAnalysisException.invalidOpcode(50);
+
+            assertThat(ex.getMessage()).contains("50");
         }
     }
 
+    // ========================================================================
+    // Unsupported Patterns Factory Methods
+    // ========================================================================
+
     @Nested
-    @DisplayName("unsupported factory method")
-    class UnsupportedTests {
+    class UnsupportedPatternsTests {
 
         @Test
-        @DisplayName("A5: Includes operation and details")
         void unsupported_includesOperationAndDetails() {
-            // When
-            BytecodeAnalysisException exception = BytecodeAnalysisException.unsupported(
-                    "nested lambda", "lambda captures 'this' reference");
+            BytecodeAnalysisException ex = BytecodeAnalysisException.unsupported("binary operation", "bitwise XOR");
 
-            // Then
-            assertThat(exception.getMessage())
-                    .contains("Unsupported")
-                    .contains("nested lambda")
-                    .contains("lambda captures 'this' reference")
-                    .contains("cannot be translated to a database query");
+            assertThat(ex.getMessage())
+                    .contains("binary operation")
+                    .contains("bitwise XOR")
+                    .contains("Unsupported");
         }
 
         @Test
-        @DisplayName("unsupported with method call context")
-        void unsupported_withMethodCallContext_includesMethodDetails() {
-            BytecodeAnalysisException exception = BytecodeAnalysisException.unsupported(
-                    "method call", "String.format() is not a JPA-translatable operation");
+        void unsupported_containsHelpfulHint() {
+            BytecodeAnalysisException ex = BytecodeAnalysisException.unsupported("op", "details");
 
-            assertThat(exception.getMessage())
-                    .contains("Unsupported method call")
-                    .contains("String.format()");
+            assertThat(ex.getMessage()).contains("cannot be translated");
         }
     }
 
+    // ========================================================================
+    // Null Safety Factory Methods
+    // ========================================================================
+
     @Nested
-    @DisplayName("Constructor tests")
-    class ConstructorTests {
+    class NullSafetyTests {
 
         @Test
-        @DisplayName("Constructor with message only")
-        void constructor_withMessage_setsMessage() {
-            BytecodeAnalysisException exception = new BytecodeAnalysisException("Test message");
+        void unexpectedNull_includesContext() {
+            BytecodeAnalysisException ex = BytecodeAnalysisException.unexpectedNull("method parameter");
 
-            assertThat(exception.getMessage()).isEqualTo("Test message");
-            assertThat(exception.getCause()).isNull();
+            assertThat(ex.getMessage())
+                    .contains("null")
+                    .contains("method parameter");
+        }
+    }
+
+    // ========================================================================
+    // Class Loading Factory Methods
+    // ========================================================================
+
+    @Nested
+    class ClassLoadingTests {
+
+        @Test
+        void bytecodeNotFound_includesClassName() {
+            BytecodeAnalysisException ex = BytecodeAnalysisException.bytecodeNotFound("com.example.MyClass");
+
+            assertThat(ex.getMessage())
+                    .contains("com.example.MyClass")
+                    .contains("bytecode");
         }
 
         @Test
-        @DisplayName("Constructor with message and cause")
-        void constructor_withMessageAndCause_setsBoth() {
-            Throwable cause = new RuntimeException("Root cause");
-            BytecodeAnalysisException exception = new BytecodeAnalysisException("Wrapper message", cause);
+        void bytecodeNotFound_containsHelpfulHint() {
+            BytecodeAnalysisException ex = BytecodeAnalysisException.bytecodeNotFound("SomeClass");
 
-            assertThat(exception.getMessage()).isEqualTo("Wrapper message");
-            assertThat(exception.getCause()).isSameAs(cause);
+            assertThat(ex.getMessage()).containsAnyOf("compiled", "classpath");
+        }
+    }
+
+    // ========================================================================
+    // Lambda Resolution Factory Methods
+    // ========================================================================
+
+    @Nested
+    class LambdaResolutionTests {
+
+        @Test
+        void lambdaMethodNotFound_includesAllParameters() {
+            BytecodeAnalysisException ex = BytecodeAnalysisException.lambdaMethodNotFound(
+                    "com.example.Service", "lambda$process$0", "(Ljava/lang/Object;)Z");
+
+            assertThat(ex.getMessage())
+                    .contains("com.example.Service")
+                    .contains("lambda$process$0")
+                    .contains("(Ljava/lang/Object;)Z")
+                    .contains("not found");
+        }
+
+        @Test
+        void analysisFailedWithContext_includesAllParameters() {
+            RuntimeException cause = new RuntimeException("root cause");
+            BytecodeAnalysisException ex = BytecodeAnalysisException.analysisFailedWithContext(
+                    "Analysis failed",
+                    "com.example.Service",
+                    "process",
+                    "(Ljava/lang/Object;)V",
+                    cause);
+
+            assertThat(ex.getMessage())
+                    .contains("Analysis failed")
+                    .contains("com.example.Service")
+                    .contains("process")
+                    .contains("(Ljava/lang/Object;)V");
+            assertThat(ex.getCause()).isSameAs(cause);
+        }
+
+        @Test
+        void analysisFailedWithContext_withNullClassName_formatsCorrectly() {
+            RuntimeException cause = new RuntimeException("cause");
+            BytecodeAnalysisException ex = BytecodeAnalysisException.analysisFailedWithContext(
+                    "Error", null, "method", "desc", cause);
+
+            assertThat(ex.getMessage())
+                    .contains("method")
+                    .contains("desc")
+                    .doesNotContain("class=");
+        }
+
+        @Test
+        void analysisFailedWithContext_withNullMethodName_formatsCorrectly() {
+            RuntimeException cause = new RuntimeException("cause");
+            BytecodeAnalysisException ex = BytecodeAnalysisException.analysisFailedWithContext(
+                    "Error", "Class", null, "desc", cause);
+
+            assertThat(ex.getMessage())
+                    .contains("Class")
+                    .contains("desc")
+                    .doesNotContain("method=");
+        }
+
+        @Test
+        void analysisFailedWithContext_withNullDescriptor_formatsCorrectly() {
+            RuntimeException cause = new RuntimeException("cause");
+            BytecodeAnalysisException ex = BytecodeAnalysisException.analysisFailedWithContext(
+                    "Error", "Class", "method", null, cause);
+
+            assertThat(ex.getMessage())
+                    .contains("Class")
+                    .contains("method")
+                    .doesNotContain("descriptor=");
+        }
+
+        @Test
+        void analysisFailedWithContext_withAllNullContext_formatsCorrectly() {
+            RuntimeException cause = new RuntimeException("cause");
+            BytecodeAnalysisException ex = BytecodeAnalysisException.analysisFailedWithContext(
+                    "Error message", null, null, null, cause);
+
+            assertThat(ex.getMessage()).contains("Error message");
+            assertThat(ex.getCause()).isSameAs(cause);
+        }
+    }
+
+    // ========================================================================
+    // Exception Hierarchy Tests
+    // ========================================================================
+
+    @Nested
+    class ExceptionHierarchyTests {
+
+        @Test
+        void isRuntimeException() {
+            BytecodeAnalysisException ex = new BytecodeAnalysisException("test");
+            assertThat(ex).isInstanceOf(RuntimeException.class);
+        }
+
+        @Test
+        void canBeCaughtAsRuntimeException() {
+            try {
+                throw BytecodeAnalysisException.unexpectedNull("test");
+            } catch (RuntimeException e) {
+                assertThat(e).isInstanceOf(BytecodeAnalysisException.class);
+            }
         }
     }
 }

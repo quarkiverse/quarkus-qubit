@@ -30,6 +30,11 @@
 
         <!-- Skip formatter plugin from quarkiverse-parent (not needed for this project) -->
         <format.skip>true</format.skip>
+
+        <!-- JaCoCo version for code coverage -->
+        <jacoco.version>0.8.13</jacoco.version>
+        <!-- Skip coverage check by default; enable with -Djacoco.check.skip=false -->
+        <jacoco.check.skip>true</jacoco.check.skip>
     </properties>
 
     <modules>
@@ -49,6 +54,14 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-jacoco</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 
     <build>
         <!-- Override quarkiverse-parent plugins that are not needed -->
@@ -73,6 +86,11 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- JaCoCo for code coverage reporting -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+            </plugin>
         </plugins>
         <pluginManagement>
             <plugins>
@@ -81,13 +99,187 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${surefire-plugin.version}</version>
                     <configuration>
+                        <!-- Use late property evaluation for JaCoCo agent -->
+                        <argLine>@{argLine}</argLine>
                         <systemPropertyVariables>
                             <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
                             <maven.home>${maven.home}</maven.home>
+                            <quarkus.jacoco.data-file>${maven.multiModuleProjectDirectory}/target/jacoco.exec</quarkus.jacoco.data-file>
+                            <quarkus.jacoco.reuse-data-file>true</quarkus.jacoco.reuse-data-file>
+                            <quarkus.jacoco.report-location>
+                                ${maven.multiModuleProjectDirectory}/target/coverage</quarkus.jacoco.report-location>
                         </systemPropertyVariables>
                     </configuration>
                 </plugin>
-                <!-- TEST-006: Mutation Testing with Pitest -->
+                <!-- JaCoCo Code Coverage Plugin -->
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>${jacoco.version}</version>
+                    <executions>
+                        <!-- Prepare agent for unit tests (non-QuarkusTest) -->
+                        <execution>
+                            <id>default-prepare-agent</id>
+                            <goals>
+                                <goal>prepare-agent</goal>
+                            </goals>
+                            <configuration>
+                                <destFile>${maven.multiModuleProjectDirectory}/target/jacoco.exec</destFile>
+                                <append>true</append>
+                                <propertyName>argLine</propertyName>
+                            </configuration>
+                        </execution>
+                        <!-- Prepare agent for integration tests -->
+                        <execution>
+                            <id>default-prepare-agent-integration</id>
+                            <goals>
+                                <goal>prepare-agent-integration</goal>
+                            </goals>
+                            <configuration>
+                                <destFile>${maven.multiModuleProjectDirectory}/target/jacoco.exec</destFile>
+                                <append>true</append>
+                            </configuration>
+                        </execution>
+                        <!-- Generate report after tests -->
+                        <execution>
+                            <id>report</id>
+                            <phase>verify</phase>
+                            <goals>
+                                <goal>report</goal>
+                            </goals>
+                            <configuration>
+                                <dataFile>${maven.multiModuleProjectDirectory}/target/jacoco.exec</dataFile>
+                                <outputDirectory>${maven.multiModuleProjectDirectory}/target/coverage</outputDirectory>
+                                <!-- Exclude IT-covered and bytecode generation classes from report -->
+                                <excludes>
+                                    <exclude>io/quarkiverse/qubit/deployment/generation/QueryExecutorClassGenerator*</exclude>
+                                    <exclude>io/quarkiverse/qubit/deployment/generation/QubitBytecodeGenerator*</exclude>
+                                    <exclude>io/quarkiverse/qubit/deployment/Qubit*Processor*</exclude>
+                                    <exclude>io/quarkiverse/qubit/deployment/Qubit*Enhancer*</exclude>
+                                    <exclude>io/quarkiverse/qubit/deployment/Qubit*Visitor*</exclude>
+                                    <exclude>io/quarkiverse/qubit/deployment/*BuildItem*</exclude>
+                                    <exclude>io/quarkiverse/qubit/deployment/analysis/handler/*</exclude>
+                                    <exclude>io/quarkiverse/qubit/deployment/generation/join/*</exclude>
+                                    <exclude>io/quarkiverse/qubit/deployment/generation/methodcall/*</exclude>
+                                    <exclude>io/quarkiverse/qubit/deployment/generation/expression/*</exclude>
+                                    <exclude>io/quarkiverse/qubit/deployment/analysis/StreamPipelineAnalyzer*</exclude>
+                                    <exclude>io/quarkiverse/qubit/deployment/generation/UnsupportedExpressionException*</exclude>
+                                    <exclude>io/quarkiverse/qubit/deployment/QubitNativeImageProcessor*</exclude>
+                                    <exclude>**/package-info*</exclude>
+                                    <exclude>io/quarkiverse/qubit/runtime/QubitConstants*</exclude>
+                                    <exclude>io/quarkiverse/qubit/deployment/*Constants*</exclude>
+                                    <exclude>io/quarkiverse/qubit/deployment/common/ExceptionMessages*</exclude>
+                                    <exclude>io/quarkiverse/qubit/QubitEntity*</exclude>
+                                    <exclude>io/quarkiverse/qubit/QubitRepository*</exclude>
+                                    <exclude>io/quarkiverse/qubit/Subqueries*</exclude>
+                                    <exclude>io/quarkiverse/qubit/SubqueryBuilder*</exclude>
+                                    <exclude>io/quarkiverse/qubit/runtime/internal/QubitStreamImpl*</exclude>
+                                    <exclude>io/quarkiverse/qubit/runtime/internal/JoinStreamImpl*</exclude>
+                                    <exclude>io/quarkiverse/qubit/runtime/internal/GroupStreamImpl*</exclude>
+                                    <exclude>io/quarkiverse/qubit/runtime/internal/QueryExecutorRecorder*</exclude>
+                                    <exclude>io/quarkiverse/qubit/runtime/internal/QueryExecutorRegistry*</exclude>
+                                    <exclude>io/quarkiverse/qubit/runtime/internal/QubitConstants*</exclude>
+                                </excludes>
+                            </configuration>
+                        </execution>
+                        <!-- Coverage threshold check -->
+                        <execution>
+                            <id>check</id>
+                            <phase>verify</phase>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                            <configuration>
+                                <dataFile>${maven.multiModuleProjectDirectory}/target/jacoco.exec</dataFile>
+                                <!-- Skip check by default; enable with -Djacoco.check.skip=false -->
+                                <skip>${jacoco.check.skip}</skip>
+                                <rules>
+                                    <rule>
+                                        <element>BUNDLE</element>
+                                        <limits>
+                                            <limit>
+                                                <counter>INSTRUCTION</counter>
+                                                <value>COVEREDRATIO</value>
+                                                <minimum>0.50</minimum>
+                                            </limit>
+                                            <limit>
+                                                <counter>BRANCH</counter>
+                                                <value>COVEREDRATIO</value>
+                                                <minimum>0.50</minimum>
+                                            </limit>
+                                        </limits>
+                                    </rule>
+                                    <rule>
+                                        <element>CLASS</element>
+                                        <excludes>
+                                            <!-- Exclude bytecode generators (Gizmo-generated) -->
+                                            <exclude>io.quarkiverse.qubit.deployment.generation.QueryExecutorClassGenerator*</exclude>
+                                            <exclude>io.quarkiverse.qubit.deployment.generation.QubitBytecodeGenerator*</exclude>
+                                            <!-- Exclude Quarkus processor and enhancer classes (tested via integration tests) -->
+                                            <exclude>io.quarkiverse.qubit.deployment.Qubit*Processor*</exclude>
+                                            <exclude>io.quarkiverse.qubit.deployment.Qubit*Enhancer*</exclude>
+                                            <exclude>io.quarkiverse.qubit.deployment.Qubit*Visitor*</exclude>
+                                            <!-- Exclude build items (data classes) -->
+                                            <exclude>io.quarkiverse.qubit.deployment.*BuildItem*</exclude>
+                                            <!-- Exclude handler classes (tested indirectly) -->
+                                            <exclude>io.quarkiverse.qubit.deployment.analysis.handler.*</exclude>
+                                            <!-- Exclude join generation classes (complex Gizmo bytecode) -->
+                                            <exclude>io.quarkiverse.qubit.deployment.generation.join.*</exclude>
+                                            <!-- Exclude method call handlers (IT-covered, thin wrappers) -->
+                                            <exclude>io.quarkiverse.qubit.deployment.generation.methodcall.*</exclude>
+                                            <!-- Exclude expression builders (Gizmo bytecode generation) -->
+                                            <exclude>io.quarkiverse.qubit.deployment.generation.expression.*</exclude>
+                                            <!-- Exclude bytecode analyzers (IT-covered) -->
+                                            <exclude>io.quarkiverse.qubit.deployment.analysis.StreamPipelineAnalyzer*</exclude>
+                                            <!-- Exclude exceptions (factory methods, IT-verified) -->
+                                            <exclude>io.quarkiverse.qubit.deployment.generation.UnsupportedExpressionException</exclude>
+                                            <!-- Exclude native image processor -->
+                                            <exclude>io.quarkiverse.qubit.deployment.QubitNativeImageProcessor</exclude>
+                                            <!-- Exclude package-info classes -->
+                                            <exclude>**/package-info</exclude>
+                                            <!-- Exclude constants classes (no behavior to test) -->
+                                            <exclude>io.quarkiverse.qubit.runtime.QubitConstants</exclude>
+                                            <exclude>io.quarkiverse.qubit.deployment.*Constants*</exclude>
+                                            <!-- Exclude exception messages (string constants only) -->
+                                            <exclude>io.quarkiverse.qubit.deployment.common.ExceptionMessages</exclude>
+                                            <!-- Runtime module exclusions (IT-covered or marker interfaces) -->
+                                            <exclude>io.quarkiverse.qubit.QubitEntity</exclude>
+                                            <exclude>io.quarkiverse.qubit.QubitRepository</exclude>
+                                            <exclude>io.quarkiverse.qubit.Subqueries</exclude>
+                                            <exclude>io.quarkiverse.qubit.SubqueryBuilder</exclude>
+                                            <exclude>io.quarkiverse.qubit.runtime.internal.QubitStreamImpl</exclude>
+                                            <exclude>io.quarkiverse.qubit.runtime.internal.JoinStreamImpl</exclude>
+                                            <exclude>io.quarkiverse.qubit.runtime.internal.GroupStreamImpl</exclude>
+                                            <exclude>io.quarkiverse.qubit.runtime.internal.QueryExecutorRecorder</exclude>
+                                            <exclude>io.quarkiverse.qubit.runtime.internal.QueryExecutorRegistry</exclude>
+                                            <exclude>io.quarkiverse.qubit.runtime.internal.QubitConstants</exclude>
+                                            <!--
+                                              Java-generated code paths excluded from coverage:
+                                              - Record accessor methods, equals(), hashCode(), toString()
+                                              - Enum values(), valueOf(), and constant fields
+                                              - Static singleton instance() methods returning final fields
+                                              These are Java language guarantees, not application behavior.
+                                              Inner types affected:
+                                                - InvokeDynamicScanner$JoinType, $QueryContext, $LambdaPair, $SortLambda
+                                                - StringExpressionBuilder$StringOperationType
+                                                - AnalysisOutcome$UnsupportedPattern$PatternType
+                                                - ExpressionBuilderRegistry (record accessors)
+                                            -->
+                                        </excludes>
+                                        <limits>
+                                            <limit>
+                                                <counter>LINE</counter>
+                                                <value>COVEREDRATIO</value>
+                                                <minimum>0.40</minimum>
+                                            </limit>
+                                        </limits>
+                                    </rule>
+                                </rules>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+                <!-- Mutation Testing with Pitest -->
                 <plugin>
                     <groupId>org.pitest</groupId>
                     <artifactId>pitest-maven</artifactId>
@@ -99,10 +291,37 @@
                         <targetTests>
                             <param>io.quarkiverse.qubit.deployment.*Test</param>
                         </targetTests>
+                        <excludedTestClasses>
+                            <!-- Exclude Quarkus DevUI tests (start server, not suitable for mutation) -->
+                            <param>io.quarkiverse.qubit.deployment.devui.QubitDevUIBuildTimeDataTest</param>
+                        </excludedTestClasses>
                         <excludedClasses>
                             <!-- Exclude Gizmo-generated bytecode classes -->
                             <param>io.quarkiverse.qubit.deployment.generation.QueryExecutorClassGenerator</param>
                             <param>io.quarkiverse.qubit.deployment.generation.QubitBytecodeGenerator</param>
+                            <!-- Exclude handler classes (tested indirectly via registry) -->
+                            <param>io.quarkiverse.qubit.deployment.analysis.handler.*</param>
+                            <!-- Exclude exception messages (string constants only) -->
+                            <param>io.quarkiverse.qubit.deployment.common.ExceptionMessages</param>
+                            <!-- Exclude inner enums/records with Java-generated methods -->
+                            <param>io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner$JoinType</param>
+                            <param>io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner$QueryContext</param>
+                            <param>io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner$LambdaPair</param>
+                            <param>io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner$SortLambda</param>
+                            <param>io.quarkiverse.qubit.deployment.generation.expression.StringExpressionBuilder$StringOperationType</param>
+                            <param>io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome$UnsupportedPattern$PatternType</param>
+                            <!-- Exclude Quarkus processors (covered by integration tests) -->
+                            <param>io.quarkiverse.qubit.deployment.QubitProcessor</param>
+                            <param>io.quarkiverse.qubit.deployment.QubitProcessor$*</param>
+                            <param>io.quarkiverse.qubit.deployment.QubitNativeImageProcessor</param>
+                            <!-- Exclude Quarkus enhancers (covered by integration tests) -->
+                            <param>io.quarkiverse.qubit.deployment.QubitRepositoryEnhancer</param>
+                            <param>io.quarkiverse.qubit.deployment.QubitRepositoryEnhancer$*</param>
+                            <!-- Exclude DevUI classes (covered by DevUI integration tests) -->
+                            <param>io.quarkiverse.qubit.deployment.devui.QubitDevUIProcessor</param>
+                            <param>io.quarkiverse.qubit.deployment.devui.QubitDevUIProcessor$*</param>
+                            <!-- Exclude CallSiteProcessor (internal processor, covered via QubitProcessor IT) -->
+                            <param>io.quarkiverse.qubit.deployment.analysis.CallSiteProcessor</param>
                         </excludedClasses>
                         <mutators>
                             <mutator>DEFAULTS</mutator>
@@ -120,6 +339,11 @@
                         <timestampedReports>false</timestampedReports>
                         <threads>16</threads>
                         <timeoutConstant>10000</timeoutConstant>
+                        <!-- Disable surefire config parsing to avoid JaCoCo @{argLine} issues -->
+                        <parseSurefireConfig>false</parseSurefireConfig>
+                        <jvmArgs>
+                            <jvmArg>-Xmx1024m</jvmArg>
+                        </jvmArgs>
                     </configuration>
                     <dependencies>
                         <dependency>
@@ -132,4 +356,51 @@
             </plugins>
         </pluginManagement>
     </build>
+
+    <profiles>
+        <!--
+            Coverage enforcement profile.
+            Enables JaCoCo coverage check during verify phase.
+
+            Usage:
+              mvn verify -Pcoverage
+        -->
+        <profile>
+            <id>coverage</id>
+            <properties>
+                <jacoco.check.skip>false</jacoco.check.skip>
+            </properties>
+        </profile>
+
+        <!--
+            Mutation testing profile.
+            Runs Pitest mutation testing on deployment module.
+
+            Usage:
+              mvn test -Pmutation -pl deployment
+
+            View report:
+              open deployment/target/pit-reports/index.html
+        -->
+        <profile>
+            <id>mutation</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-maven</artifactId>
+                        <executions>
+                            <execution>
+                                <id>mutation-testing</id>
+                                <phase>test</phase>
+                                <goals>
+                                    <goal>mutationCoverage</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

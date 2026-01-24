@@ -153,41 +153,4 @@ class QueryCharacteristicsTest {
         assertThat(result.isGroupQuery()).isTrue();
     }
 
-    // ========================================================================
-    // Record Equality Tests
-    // ========================================================================
-
-    @Test
-    void equalCharacteristics_areEqual() {
-        QueryCharacteristics qc1 = QueryCharacteristics.forCount();
-        QueryCharacteristics qc2 = QueryCharacteristics.forCount();
-
-        assertThat(qc1).isEqualTo(qc2);
-        assertThat(qc1.hashCode()).isEqualTo(qc2.hashCode());
-    }
-
-    @Test
-    void differentCharacteristics_areNotEqual() {
-        QueryCharacteristics count = QueryCharacteristics.forCount();
-        QueryCharacteristics list = QueryCharacteristics.forList();
-
-        assertThat(count).isNotEqualTo(list);
-    }
-
-    // ========================================================================
-    // toString() Test
-    // ========================================================================
-
-    @Test
-    void toString_containsAllFieldNames() {
-        QueryCharacteristics result = QueryCharacteristics.forJoinCount();
-        String str = result.toString();
-
-        assertThat(str).contains("isCountQuery");
-        assertThat(str).contains("isAggregationQuery");
-        assertThat(str).contains("isJoinQuery");
-        assertThat(str).contains("isSelectJoined");
-        assertThat(str).contains("isJoinProjection");
-        assertThat(str).contains("isGroupQuery");
-    }
 }

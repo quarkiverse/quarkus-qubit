@@ -168,12 +168,21 @@ public enum MethodInvocationHandler implements InstructionHandler {
         }
 
         // Handle temporal factory methods (LocalDate.of, LocalDateTime.of, LocalTime.of)
+        // LocalDate: year, month, day (3 args)
         handleTemporalFactoryMethod(ctx, staticInsn, LocalDate.class, 3,
                 args -> LocalDate.of(args[0], args[1], args[2]));
+        // LocalDateTime: year, month, day, hour, minute (5 args)
         handleTemporalFactoryMethod(ctx, staticInsn, LocalDateTime.class, 5,
                 args -> LocalDateTime.of(args[0], args[1], args[2], args[3], args[4]));
+        // LocalDateTime: year, month, day, hour, minute, second (6 args)
+        handleTemporalFactoryMethod(ctx, staticInsn, LocalDateTime.class, 6,
+                args -> LocalDateTime.of(args[0], args[1], args[2], args[3], args[4], args[5]));
+        // LocalTime: hour, minute (2 args)
         handleTemporalFactoryMethod(ctx, staticInsn, LocalTime.class, 2,
                 args -> LocalTime.of(args[0], args[1]));
+        // LocalTime: hour, minute, second (3 args)
+        handleTemporalFactoryMethod(ctx, staticInsn, LocalTime.class, 3,
+                args -> LocalTime.of(args[0], args[1], args[2]));
     }
 
     /** Handles INVOKESPECIAL: constructor calls with BigDecimal constant folding. */

@@ -222,12 +222,45 @@ String query = """
 
 ## Project-Specific Guidelines
 
+### Testing Standards
+
+See [docs/testing/](docs/testing/README.md) for complete testing guidelines.
+
+**Quick Reference:**
+- Coverage requirements: 85% line, 80% branch, 90% mutation
+- Run tests: `mvn test` | `mvn verify -Pcoverage` | `mvn test -Pmutation -pl deployment`
+
+**Key Documents:**
+- [Exclusion Patterns](docs/testing/exclusion-patterns.md) - What not to test
+- [Coverage Baseline](docs/testing/coverage-baseline.md) - Current metrics and improvement plan
+- [Test Fixtures](docs/testing/test-fixtures.md) - Fluent builders for test setup
+- [Mutation Testing](docs/testing/mutation-testing.md) - Pitest mutation testing guide
+
 ### Testing Philosophy
 - **Tests must have real verification** - not just "check if it runs"
 - Use proper assertion frameworks (AssertJ, JUnit)
 - Test both positive and negative cases
 - Each test should verify specific behavior
 - Don't write tests that always pass regardless of implementation
+- **Never test constants or Java language guarantees:**
+  - Don't test that `Constants.VALUE` equals a specific literal (tautological - if constant changes, test must change)
+  - Don't test `enum.valueOf()` or `enum.name()` - these are Java guarantees
+  - Don't test `enum.ordinal()` values - these are implementation details
+  - Constants classes are excluded from JaCoCo coverage metrics
+  - Focus tests on **behavior**: methods that compute, transform, or have side effects
+- **Never test input=output patterns (trivial getters/constructors):**
+  - Don't test that `new Foo(x).getX()` equals `x` - this tests Java field storage, not behavior
+  - Don't test record component accessors (e.g., `record.field()` returning constructor arg)
+  - Don't test `equals()`/`hashCode()` for records - Java guarantees correct implementation
+  - Don't test that exception constructors store message/cause - this is Java Exception behavior
+  - Only test getters if they compute/transform values (not simple field returns)
+- **Never test enum singleton existence patterns:**
+  - Don't test that `EnumType.INSTANCE` is not null - Java guarantees enum constants exist
+  - Don't test that `INSTANCE.isSameAs(INSTANCE)` - identity is a Java guarantee
+  - Don't test that enum implements its interface - this is a compile-time guarantee
+  - Don't test `instanceof Enum` checks - enums are always Enum instances
+  - Don't test `values().length` or array contents - these are Java enum guarantees
+  - Only test enums if they have **behavior methods** (calculations, mappings, transformations)
 
 ### Bytecode and ASM Work
 - Understand bytecode patterns before making assumptions
@@ -2117,3 +2150,272 @@ The extension follows Quarkiverse best practices:
 - ✅ **Antora documentation** - Full docs structure
 - ✅ **Dev UI** - Lambda query visualization
 - ✅ **Build-time processing** - All analysis at build time, no runtime reflection
+
+---
+
+## Code Coverage with JaCoCo
+
+### Overview
+
+The project uses JaCoCo for comprehensive code coverage reporting across all modules. Coverage data is aggregated into a single report at the project root level.
+
+**Key Configuration:**
+- JaCoCo version: 0.8.13
+- Coverage data file: `target/jacoco.exec` (aggregated)
+- Coverage report: `target/coverage/index.html`
+- Coverage check: Disabled by default, enable with `-Djacoco.check.skip=false`
+
+### Running Coverage Analysis
+
+**Basic Commands:**
+
+```bash
+# Run tests and generate coverage report
+mvn clean verify
+
+# Run only deployment module tests with coverage
+mvn -pl deployment test
+
+# Generate report after tests (if skipped during test phase)
+mvn -pl deployment verify -DskipTests
+
+# Run with coverage threshold checks enabled
+mvn clean verify -Djacoco.check.skip=false
+```
+
+**View Coverage Report:**
+
+```bash
+# Linux
+xdg-open target/coverage/index.html
+
+# macOS
+open target/coverage/index.html
+
+# Windows
+start target/coverage/index.html
+```
+
+### Coverage Report Analysis Script
+
+Use this Python script to analyze coverage CSV and generate a summary:
+
+```bash
+python3 << 'EOF'
+import csv
+import os
+
+csv_file = 'target/coverage/jacoco.csv'
+if not os.path.exists(csv_file):
+    print("Coverage CSV not found. Run: mvn clean verify")
+    exit(1)
+
+total = {'classes': 0, 'instr_m': 0, 'instr_c': 0, 'branch_m': 0, 'branch_c': 0, 'line_m': 0, 'line_c': 0}
+packages = {}
+
+with open(csv_file, 'r') as f:
+    reader = csv.DictReader(f)
+    for row in reader:
+        total['classes'] += 1
+        total['instr_m'] += int(row['INSTRUCTION_MISSED'])
+        total['instr_c'] += int(row['INSTRUCTION_COVERED'])
+        total['branch_m'] += int(row['BRANCH_MISSED'])
+        total['branch_c'] += int(row['BRANCH_COVERED'])
+        total['line_m'] += int(row['LINE_MISSED'])
+        total['line_c'] += int(row['LINE_COVERED'])
+
+        pkg = row['PACKAGE']
+        if pkg not in packages:
+            packages[pkg] = {'classes': 0, 'line_m': 0, 'line_c': 0}
+        packages[pkg]['classes'] += 1
+        packages[pkg]['line_m'] += int(row['LINE_MISSED'])
+        packages[pkg]['line_c'] += int(row['LINE_COVERED'])
+
+print("=" * 70)
+print("QUARKUS-QUBIT CODE COVERAGE SUMMARY")
+print("=" * 70)
+print(f"Total Classes: {total['classes']}")
+print(f"Instructions: {total['instr_c']:,} / {total['instr_m'] + total['instr_c']:,} ({total['instr_c']/(total['instr_m']+total['instr_c'])*100:.1f}%)")
+print(f"Branches: {total['branch_c']:,} / {total['branch_m'] + total['branch_c']:,} ({total['branch_c']/(total['branch_m']+total['branch_c'])*100:.1f}%)")
+print(f"Lines: {total['line_c']:,} / {total['line_m'] + total['line_c']:,} ({total['line_c']/(total['line_m']+total['line_c'])*100:.1f}%)")
+print("\nCOVERAGE BY PACKAGE:")
+print("-" * 70)
+for pkg, data in sorted(packages.items(), key=lambda x: x[1]['line_c']/(x[1]['line_m']+x[1]['line_c']) if (x[1]['line_m']+x[1]['line_c']) > 0 else 0, reverse=True):
+    total_line = data['line_m'] + data['line_c']
+    pct = (data['line_c'] / total_line * 100) if total_line > 0 else 0
+    short_pkg = pkg.replace('io.quarkiverse.qubit.deployment.', '...')
+    status = "✓" if pct >= 80 else ("◎" if pct >= 50 else "✗")
+    print(f"{short_pkg:<50} {pct:>6.1f}% {status}")
+EOF
+```
+
+### Coverage Configuration Details
+
+**Parent POM Configuration (pom.xml):**
+
+```xml
+<!-- Properties -->
+<jacoco.version>0.8.13</jacoco.version>
+<jacoco.check.skip>true</jacoco.check.skip>  <!-- Enable with -Djacoco.check.skip=false -->
+
+<!-- Plugin Management -->
+<plugin>
+    <groupId>org.jacoco</groupId>
+    <artifactId>jacoco-maven-plugin</artifactId>
+    <version>${jacoco.version}</version>
+    <executions>
+        <!-- Prepare agent for unit tests -->
+        <execution>
+            <id>default-prepare-agent</id>
+            <goals><goal>prepare-agent</goal></goals>
+            <configuration>
+                <destFile>${maven.multiModuleProjectDirectory}/target/jacoco.exec</destFile>
+                <append>true</append>
+                <propertyName>argLine</propertyName>
+            </configuration>
+        </execution>
+        <!-- Prepare agent for integration tests -->
+        <execution>
+            <id>default-prepare-agent-integration</id>
+            <goals><goal>prepare-agent-integration</goal></goals>
+            <configuration>
+                <destFile>${maven.multiModuleProjectDirectory}/target/jacoco.exec</destFile>
+                <append>true</append>
+            </configuration>
+        </execution>
+        <!-- Generate report -->
+        <execution>
+            <id>report</id>
+            <phase>verify</phase>
+            <goals><goal>report</goal></goals>
+            <configuration>
+                <dataFile>${maven.multiModuleProjectDirectory}/target/jacoco.exec</dataFile>
+                <outputDirectory>${maven.multiModuleProjectDirectory}/target/coverage</outputDirectory>
+            </configuration>
+        </execution>
+    </executions>
+</plugin>
+```
+
+**Multi-Module Aggregation:**
+
+The configuration uses `${maven.multiModuleProjectDirectory}/target/jacoco.exec` to aggregate coverage data from all modules into a single file. This enables:
+- Combined coverage from deployment, runtime, and integration-tests modules
+- Single HTML report showing all coverage data
+- Unified threshold checking across the entire codebase
+
+**Surefire Plugin Integration:**
+
+```xml
+<plugin>
+    <artifactId>maven-surefire-plugin</artifactId>
+    <configuration>
+        <!-- Late property evaluation for JaCoCo agent -->
+        <argLine>@{argLine}</argLine>
+        <systemPropertyVariables>
+            <quarkus.jacoco.data-file>${maven.multiModuleProjectDirectory}/target/jacoco.exec</quarkus.jacoco.data-file>
+            <quarkus.jacoco.reuse-data-file>true</quarkus.jacoco.reuse-data-file>
+            <quarkus.jacoco.report-location>${maven.multiModuleProjectDirectory}/target/coverage</quarkus.jacoco.report-location>
+        </systemPropertyVariables>
+    </configuration>
+</plugin>
+```
+
+### Coverage Threshold Rules
+
+**Bundle-Level Thresholds (when enabled):**
+- Instruction coverage: ≥50%
+- Branch coverage: ≥50%
+
+**Class-Level Thresholds:**
+- Line coverage: ≥40% (with exclusions)
+
+**Excluded from Threshold Checks:**
+- Bytecode generators: `QueryExecutorClassGenerator*`, `QubitBytecodeGenerator*`
+- Quarkus processors: `Qubit*Processor*`, `Qubit*Enhancer*`, `Qubit*Visitor*`
+- Build items: `*BuildItem*`
+- Handler framework: `analysis.handler.*`
+- Join generation: `generation.join.*`
+- Native image processor: `QubitNativeImageProcessor`
+- Package info: `**/package-info`
+
+### Coverage Metrics Reference
+
+**Current Coverage State (as of January 2025):**
+
+| Metric | Covered | Total | Coverage |
+|--------|---------|-------|----------|
+| Instructions | ~17,700 | ~33,800 | ~52% |
+| Branches | ~2,000 | ~3,450 | ~58% |
+| Lines | ~3,600 | ~6,750 | ~53% |
+
+**Package Coverage:**
+
+| Package | Coverage | Status |
+|---------|----------|--------|
+| `ast` | ~100% | Excellent |
+| `analysis.branch` | ~95% | Excellent |
+| `util` | ~89% | Excellent |
+| `common` | ~86% | Excellent |
+| `analysis.instruction` | ~85% | Excellent |
+| `generation.methodcall` | ~67% | Good |
+| `analysis` | ~56% | Fair |
+| `generation` | ~40% | Needs work |
+| `analysis.handler` | ~0% | Critical |
+
+### Coverage Improvement Priorities
+
+**Priority 1 - Integration Test Coverage (Quarkus Processors):**
+- `QubitProcessor`, `QubitEntityEnhancer`, `QubitRepositoryEnhancer`
+- These require `@QuarkusTest` integration tests
+- Currently ~23% coverage, tested indirectly via integration tests
+
+**Priority 2 - Query Handler Framework:**
+- `analysis.handler.*` package has 0% coverage
+- Consider adding unit tests or marking as integration-tested
+- Handlers are tested indirectly through full query execution
+
+**Priority 3 - Bytecode Generators:**
+- Gizmo-based code generation is complex to unit test
+- Coverage is validated through integration tests that verify generated queries work
+- Consider excluding from metrics or accepting lower coverage
+
+### CI Integration
+
+**GitHub Actions Example:**
+
+```yaml
+- name: Run tests with coverage
+  run: mvn clean verify
+
+- name: Upload coverage report
+  uses: actions/upload-artifact@v3
+  with:
+    name: coverage-report
+    path: target/coverage/
+
+- name: Check coverage thresholds
+  run: mvn jacoco:check -Djacoco.check.skip=false
+  continue-on-error: true  # Or fail build on coverage drop
+```
+
+### Troubleshooting
+
+**No coverage data generated:**
+- Ensure JaCoCo plugin is listed in `<plugins>` section (not just `<pluginManagement>`)
+- Check that `@{argLine}` is used in surefire configuration
+- Verify `target/jacoco.exec` file exists after running tests
+
+**Coverage report shows wrong module:**
+- Each module generates its own report; the last module overwrites previous
+- Use the deployment module's verify phase for the most comprehensive report
+- Check `target/coverage/jacoco.csv` for the data source
+
+**Integration tests not contributing to coverage:**
+- Ensure `quarkus.test.arg-line=${argLine}` is set in failsafe configuration
+- Verify `quarkus-jacoco` dependency is present with `test` scope
+
+**"Classes do not match execution data" warning:**
+- Classes were recompiled between test runs
+- Run `mvn clean` before coverage generation
+- Ensure consistent compilation between modules

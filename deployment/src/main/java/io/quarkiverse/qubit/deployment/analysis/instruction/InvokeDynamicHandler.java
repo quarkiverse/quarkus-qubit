@@ -28,6 +28,38 @@ public enum InvokeDynamicHandler implements InstructionHandler {
     /** Marker for dynamic argument in StringConcatFactory recipe. */
     private static final char RECIPE_DYNAMIC_ARG = '\u0001';
 
+    /** INVOKEDYNAMIC categories, checked in priority order. */
+    public enum IndyCategory {
+        STRING_CONCAT,
+        QUERY_SPEC_LAMBDA,
+        UNHANDLED;
+
+        /** Categorizes an INVOKEDYNAMIC instruction for dispatch. */
+        public static IndyCategory categorize(InvokeDynamicInsnNode indy) {
+            if (indy.bsm == null) {
+                return UNHANDLED;
+            }
+
+            String bsmOwner = indy.bsm.getOwner();
+
+            // Priority 1: StringConcatFactory (Java 9+ string concatenation)
+            if (JVM_JAVA_LANG_INVOKE_STRING_CONCAT_FACTORY.equals(bsmOwner)) {
+                return STRING_CONCAT;
+            }
+
+            // Priority 2: LambdaMetafactory with QuerySpec return type
+            if (JVM_JAVA_LANG_INVOKE_LAMBDA_METAFACTORY.equals(bsmOwner) && isQuerySpecLambda(indy)) {
+                return QUERY_SPEC_LAMBDA;
+            }
+
+            return UNHANDLED;
+        }
+
+        private static boolean isQuerySpecLambda(InvokeDynamicInsnNode indy) {
+            return returnsType(indy.desc, QUERY_SPEC_INTERNAL_NAME);
+        }
+    }
+
     @Override
     public boolean canHandle(AbstractInsnNode insn) {
         return insn.getOpcode() == INVOKEDYNAMIC;
@@ -37,21 +69,15 @@ public enum InvokeDynamicHandler implements InstructionHandler {
     public boolean handle(AbstractInsnNode insn, AnalysisContext ctx) {
         InvokeDynamicInsnNode indy = (InvokeDynamicInsnNode) insn;
 
-        // Handle StringConcatFactory (Java 9+ string concatenation)
-        if (isStringConcatFactory(indy)) {
-            return handleStringConcatenation(indy, ctx);
-        }
-
-        // Handle nested lambda creation for group aggregations and subqueries
-        // When analyzing g.avg(p -> p.salary) or subquery(Person.class).avg(q -> q.salary),
-        // we need to analyze nested QuerySpec lambdas inline
-        if (isLambdaMetafactory(indy) && isQuerySpecLambda(indy)) {
-            return handleNestedLambda(indy, ctx);
-        }
-
-        Log.tracef("INVOKEDYNAMIC not handled: %s (bsm=%s)", indy.name,
-                   indy.bsm != null ? indy.bsm.getOwner() : "null");
-        return false;
+        return switch (IndyCategory.categorize(indy)) {
+            case STRING_CONCAT -> handleStringConcatenation(indy, ctx);
+            case QUERY_SPEC_LAMBDA -> handleNestedLambda(indy, ctx);
+            case UNHANDLED -> {
+                Log.tracef("INVOKEDYNAMIC not handled: %s (bsm=%s)", indy.name,
+                           indy.bsm != null ? indy.bsm.getOwner() : "null");
+                yield false;
+            }
+        };
     }
 
     private boolean handleStringConcatenation(InvokeDynamicInsnNode indy, AnalysisContext ctx) {
@@ -121,26 +147,12 @@ public enum InvokeDynamicHandler implements InstructionHandler {
         return false; // Continue processing
     }
 
-    private boolean isLambdaMetafactory(InvokeDynamicInsnNode indy) {
-        return indy.bsm != null &&
-               indy.bsm.getOwner().equals(JVM_JAVA_LANG_INVOKE_LAMBDA_METAFACTORY);
-    }
-
-    private boolean isQuerySpecLambda(InvokeDynamicInsnNode indy) {
-        return returnsType(indy.desc, QUERY_SPEC_INTERNAL_NAME);
-    }
-
     /** Extracts impl method handle from bsmArgs[1]. */
     private Handle extractImplMethodHandle(InvokeDynamicInsnNode indy) {
         if (indy.bsmArgs == null || indy.bsmArgs.length < 2) {
             return null;
         }
         return indy.bsmArgs[1] instanceof Handle handle ? handle : null;
-    }
-
-    private boolean isStringConcatFactory(InvokeDynamicInsnNode indy) {
-        return indy.bsm != null &&
-               indy.bsm.getOwner().equals(JVM_JAVA_LANG_INVOKE_STRING_CONCAT_FACTORY);
     }
 
     /** Extracts recipe string from bsmArgs[0]. */

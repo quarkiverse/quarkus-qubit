@@ -10,7 +10,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.List;
@@ -111,38 +110,6 @@ class StringExpressionBuilderTest {
                     .isEqualTo(StringOperationType.UTILITY);
             assertThat(builder.getOperationType(createMethodCall("unknownMethod")))
                     .isNull();
-        }
-    }
-
-    @Nested
-    @DisplayName("StringOperationType enum")
-    class StringOperationTypeTests {
-
-        @Test
-        @DisplayName("should have exactly 4 values")
-        void shouldHaveExactlyFourValues() {
-            assertThat(StringOperationType.values())
-                    .as("StringOperationType should have 4 values")
-                    .hasSize(4)
-                    .containsExactly(
-                            StringOperationType.TRANSFORMATION,
-                            StringOperationType.PATTERN,
-                            StringOperationType.SUBSTRING,
-                            StringOperationType.UTILITY
-                    );
-        }
-
-        @ParameterizedTest(name = "valueOf(\"{0}\") should return {0}")
-        @CsvSource({
-            "TRANSFORMATION",
-            "PATTERN",
-            "SUBSTRING",
-            "UTILITY"
-        })
-        void shouldResolveValueOfCorrectly(String name) {
-            assertThat(StringOperationType.valueOf(name))
-                    .as("StringOperationType.valueOf(\"%s\")", name)
-                    .isNotNull();
         }
     }
 

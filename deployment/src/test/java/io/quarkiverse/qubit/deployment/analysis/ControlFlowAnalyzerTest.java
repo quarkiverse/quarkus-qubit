@@ -647,5 +647,113 @@ class ControlFlowAnalyzerTest {
                     .as("Conditional target should be FALSE_SINK")
                     .isFalse();
         }
+
+        // ==================== Boundary condition tests for mutation killing ====================
+
+        @Test
+        void classifyLabels_atLookaheadLimit_returnsNullClassification() {
+            // Test classifyLabel lookahead limit (LABEL_CLASSIFICATION_LOOKAHEAD_LIMIT = 5)
+            // Label at end of instructions with not enough following instructions
+            InsnList instructions = new InsnList();
+            LabelNode label = new LabelNode();
+
+            // Add some instructions before the label
+            instructions.add(new InsnNode(NOP));
+            instructions.add(new InsnNode(NOP));
+            instructions.add(label);
+            // Only add labels (opcode -1) after, no real opcodes within lookahead
+            instructions.add(new LabelNode());
+            instructions.add(new LabelNode());
+            instructions.add(new LabelNode());
+            instructions.add(new LabelNode());
+            instructions.add(new LabelNode());
+            // No ICONST_0 or ICONST_1 within limit
+
+            Map<LabelNode, LabelClassification> result = analyzer.classifyLabels(instructions);
+
+            assertThat(result.get(label))
+                    .as("Label with only labels (opcode -1) within lookahead should not be classified")
+                    .isNull();
+        }
+
+        @Test
+        void traceLabelDestinations_withLabelNotInMap_returnsNull() {
+            // Test traceLabelDestination when labelToIndex.get(label) returns null
+            InsnList instructions = new InsnList();
+            LabelNode realLabel = new LabelNode();
+            LabelNode phantomLabel = new LabelNode(); // Never added to instructions
+
+            instructions.add(realLabel);
+            instructions.add(new InsnNode(ICONST_1));
+            instructions.add(new InsnNode(IRETURN));
+
+            Map<LabelNode, LabelClassification> classifications = analyzer.classifyLabels(instructions);
+            // Manually add the phantom label as INTERMEDIATE to test null handling
+            classifications.put(phantomLabel, INTERMEDIATE);
+
+            Map<LabelNode, Boolean> destinations = analyzer.traceLabelDestinations(instructions, classifications);
+
+            // Phantom label is INTERMEDIATE but not in instructions, should not resolve
+            assertThat(destinations.get(phantomLabel))
+                    .as("Label not in instruction list should not have a destination")
+                    .isNull();
+        }
+
+        @Test
+        void traceLabelDestinations_withDepthLimitExceeded_returnsNull() {
+            // Test traceFromIndex depth limit (LABEL_TRACE_DEPTH_LIMIT)
+            // Create a long chain that exceeds depth limit without reaching sink
+            InsnList instructions = new InsnList();
+            LabelNode startLabel = new LabelNode();
+
+            instructions.add(startLabel);
+            // Add many non-opcode instructions followed by non-sink opcodes
+            for (int i = 0; i < 50; i++) {
+                instructions.add(new LabelNode()); // opcode -1, skipped but counts
+            }
+            // End with a non-sink opcode that doesn't resolve
+            instructions.add(new InsnNode(POP));
+            instructions.add(new InsnNode(POP));
+
+            Map<LabelNode, LabelClassification> classifications = analyzer.classifyLabels(instructions);
+            Map<LabelNode, Boolean> destinations = analyzer.traceLabelDestinations(instructions, classifications);
+
+            // Should hit depth limit and return null
+            assertThat(destinations.get(startLabel))
+                    .as("Label exceeding trace depth limit should return null")
+                    .isNull();
+        }
+
+        @Test
+        void findSubsequentGotoTarget_atLookaheadLimit_returnsNull() {
+            // Test findSubsequentGotoTarget lookahead limit (CONDITIONAL_JUMP_LOOKAHEAD_LIMIT = 3)
+            InsnList instructions = new InsnList();
+            LabelNode startLabel = new LabelNode();
+            LabelNode condTarget = new LabelNode();
+            LabelNode distantGoto = new LabelNode();
+
+            instructions.add(startLabel);
+            instructions.add(new JumpInsnNode(IFEQ, condTarget));
+            // Add labels to push GOTO past lookahead limit
+            instructions.add(new LabelNode());
+            instructions.add(new LabelNode());
+            instructions.add(new LabelNode());
+            instructions.add(new LabelNode()); // Past limit of 3
+            instructions.add(new JumpInsnNode(GOTO, distantGoto)); // Too far
+            instructions.add(condTarget);
+            instructions.add(new InsnNode(ICONST_0));
+            instructions.add(new InsnNode(IRETURN));
+            instructions.add(distantGoto);
+            instructions.add(new InsnNode(ICONST_1));
+            instructions.add(new InsnNode(IRETURN));
+
+            Map<LabelNode, LabelClassification> classifications = analyzer.classifyLabels(instructions);
+            Map<LabelNode, Boolean> destinations = analyzer.traceLabelDestinations(instructions, classifications);
+
+            // GOTO is past lookahead, should use conditional target (FALSE_SINK)
+            assertThat(destinations.get(startLabel))
+                    .as("Intermediate label should use conditional target when GOTO is past lookahead")
+                    .isFalse();
+        }
     }
 }

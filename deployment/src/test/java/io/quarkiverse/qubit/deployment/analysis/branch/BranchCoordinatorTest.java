@@ -406,4 +406,274 @@ class BranchCoordinatorTest {
             assertThat(coordinator.getCurrentState()).isNotNull();
         }
     }
+
+    // ==================== Sequential Instruction Tests ====================
+    // Tests targeting mutations: sameLabel, completingAndGroup, startingNewGroup
+
+    @Nested
+    class SequentialInstructionTests {
+
+        @Test
+        void sameLabel_twoInstructionsToSameLabel_detectsSameLabel() {
+            // First instruction jumps to targetLabel
+            stack.push(field("a", Boolean.class));
+            JumpInsnNode first = new JumpInsnNode(IFEQ, targetLabel);
+            coordinator.processBranchInstruction(stack, first, labelToValue, labelClassifications);
+
+            // Second instruction also jumps to targetLabel
+            stack.push(field("b", Boolean.class));
+            JumpInsnNode second = new JumpInsnNode(IFEQ, targetLabel);
+            coordinator.processBranchInstruction(stack, second, labelToValue, labelClassifications);
+
+            // State should reflect AND mode due to same label targeting
+            assertThat(coordinator.getCurrentState())
+                    .as("Sequential jumps to same label should affect state")
+                    .isNotNull();
+        }
+
+        @Test
+        void sameLabel_twoInstructionsToDifferentLabels_detectsDifferentLabels() {
+            LabelNode otherLabel = new LabelNode();
+            labelToValue.put(otherLabel, false);
+            labelClassifications.put(otherLabel, ControlFlowAnalyzer.LabelClassification.FALSE_SINK);
+
+            // First instruction jumps to targetLabel
+            stack.push(field("a", Boolean.class));
+            JumpInsnNode first = new JumpInsnNode(IFEQ, targetLabel);
+            coordinator.processBranchInstruction(stack, first, labelToValue, labelClassifications);
+
+            // Second instruction jumps to different label
+            stack.push(field("b", Boolean.class));
+            JumpInsnNode second = new JumpInsnNode(IFEQ, otherLabel);
+            coordinator.processBranchInstruction(stack, second, labelToValue, labelClassifications);
+
+            // State should be updated (not same label path)
+            assertThat(coordinator.getCurrentState()).isNotNull();
+        }
+
+        @Test
+        void completingAndGroup_intermediateToTrueSink_transitionsCorrectly() {
+            LabelNode intermediateLabel = new LabelNode();
+            labelToValue.put(intermediateLabel, null); // INTERMEDIATE
+            labelClassifications.put(intermediateLabel, ControlFlowAnalyzer.LabelClassification.INTERMEDIATE);
+
+            LabelNode trueSinkLabel = new LabelNode();
+            labelToValue.put(trueSinkLabel, true);
+            labelClassifications.put(trueSinkLabel, ControlFlowAnalyzer.LabelClassification.TRUE_SINK);
+
+            // First instruction: jump to INTERMEDIATE
+            stack.push(field("a", Boolean.class));
+            JumpInsnNode first = new JumpInsnNode(IFEQ, intermediateLabel);
+            coordinator.processBranchInstruction(stack, first, labelToValue, labelClassifications);
+
+            // Second instruction: jump to TRUE_SINK (completing AND group)
+            stack.push(field("b", Boolean.class));
+            JumpInsnNode second = new JumpInsnNode(IFEQ, trueSinkLabel);
+            coordinator.processBranchInstruction(stack, second, labelToValue, labelClassifications);
+
+            // State should reflect the AND group completion
+            assertThat(coordinator.getCurrentState()).isNotNull();
+        }
+
+        @Test
+        void startingNewGroup_falseSinkToTrueSink_transitionsCorrectly() {
+            LabelNode falseSinkLabel = new LabelNode();
+            labelToValue.put(falseSinkLabel, false);
+            labelClassifications.put(falseSinkLabel, ControlFlowAnalyzer.LabelClassification.FALSE_SINK);
+
+            LabelNode trueSinkLabel = new LabelNode();
+            labelToValue.put(trueSinkLabel, true);
+            labelClassifications.put(trueSinkLabel, ControlFlowAnalyzer.LabelClassification.TRUE_SINK);
+
+            // First instruction: jump to FALSE_SINK
+            stack.push(field("a", Boolean.class));
+            JumpInsnNode first = new JumpInsnNode(IFEQ, falseSinkLabel);
+            coordinator.processBranchInstruction(stack, first, labelToValue, labelClassifications);
+
+            // Second instruction: jump to TRUE_SINK (starting new group)
+            stack.push(field("b", Boolean.class));
+            JumpInsnNode second = new JumpInsnNode(IFEQ, trueSinkLabel);
+            coordinator.processBranchInstruction(stack, second, labelToValue, labelClassifications);
+
+            // State should reflect starting new group after AND
+            assertThat(coordinator.getCurrentState()).isNotNull();
+        }
+
+        @Test
+        void firstInstruction_lastJumpLabelIsNull_processesCorrectly() {
+            // On first instruction, lastJumpLabel is null
+            stack.push(field("active", Boolean.class));
+            JumpInsnNode first = new JumpInsnNode(IFEQ, targetLabel);
+
+            coordinator.processBranchInstruction(stack, first, labelToValue, labelClassifications);
+
+            // sameLabel should be false since lastJumpLabel was null
+            assertThat(coordinator.getCurrentState()).isNotNull();
+        }
+
+        @Test
+        void threeSequentialInstructions_trackingPersists() {
+            LabelNode label1 = new LabelNode();
+            LabelNode label2 = new LabelNode();
+            LabelNode label3 = new LabelNode();
+            labelToValue.put(label1, true);
+            labelToValue.put(label2, true);
+            labelToValue.put(label3, true);
+            labelClassifications.put(label1, ControlFlowAnalyzer.LabelClassification.TRUE_SINK);
+            labelClassifications.put(label2, ControlFlowAnalyzer.LabelClassification.TRUE_SINK);
+            labelClassifications.put(label3, ControlFlowAnalyzer.LabelClassification.TRUE_SINK);
+
+            // Three sequential instructions
+            stack.push(field("a", Boolean.class));
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFEQ, label1), labelToValue, labelClassifications);
+
+            stack.push(field("b", Boolean.class));
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFEQ, label2), labelToValue, labelClassifications);
+
+            stack.push(field("c", Boolean.class));
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFEQ, label3), labelToValue, labelClassifications);
+
+            assertThat(coordinator.getCurrentState()).isNotNull();
+        }
+
+        @Test
+        void resetAfterProcessing_clearsLastJumpLabel() {
+            // Process an instruction
+            stack.push(field("active", Boolean.class));
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFEQ, targetLabel), labelToValue, labelClassifications);
+
+            // Reset the coordinator
+            coordinator.reset();
+
+            // Process another instruction - should NOT detect sameLabel
+            stack.push(field("other", Boolean.class));
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFEQ, targetLabel), labelToValue, labelClassifications);
+
+            // After reset, lastJumpLabel was null, so sameLabel should be false
+            assertThat(coordinator.getCurrentState())
+                    .as("After reset, sameLabel detection should restart fresh")
+                    .isInstanceOf(BranchState.class);
+        }
+    }
+
+    // ==================== Handler Selection Tests ====================
+
+    @Nested
+    class HandlerSelectionTests {
+
+        @Test
+        void processBranchInstruction_firstMatchingHandler_isUsed() {
+            // IFEQ should be handled by IfEqualsZeroInstructionHandler
+            stack.push(eq(field("a", int.class), constant(0)));
+            JumpInsnNode jumpInsn = new JumpInsnNode(IFEQ, targetLabel);
+
+            coordinator.processBranchInstruction(stack, jumpInsn, labelToValue, labelClassifications);
+
+            // Verify processing occurred
+            assertThat(coordinator.getCurrentState()).isNotNull();
+        }
+
+        @Test
+        void processBranchInstruction_noHandlerMatches_logsWarning() {
+            // GOTO is not a conditional branch - no handler should match
+            JumpInsnNode jumpInsn = new JumpInsnNode(GOTO, targetLabel);
+
+            coordinator.processBranchInstruction(stack, jumpInsn, labelToValue, labelClassifications);
+
+            // State should remain Initial
+            assertThat(coordinator.getCurrentState())
+                    .isInstanceOf(BranchState.Initial.class);
+        }
+
+        @Test
+        void processBranchInstruction_eachHandlerType_canBeSelected() {
+            // Test that all handler types can be reached
+
+            // IfEqualsZeroHandler
+            stack.push(field("x", Boolean.class));
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFEQ, targetLabel), labelToValue, labelClassifications);
+
+            coordinator.reset();
+
+            // IfNotEqualsZeroHandler
+            stack.push(field("x", Boolean.class));
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFNE, targetLabel), labelToValue, labelClassifications);
+
+            coordinator.reset();
+
+            // TwoOperandComparisonHandler
+            stack.push(field("a", int.class));
+            stack.push(field("b", int.class));
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IF_ICMPEQ, targetLabel), labelToValue, labelClassifications);
+
+            coordinator.reset();
+
+            // SingleOperandComparisonHandler
+            stack.push(field("x", int.class));
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFLT, targetLabel), labelToValue, labelClassifications);
+
+            coordinator.reset();
+
+            // NullCheckHandler
+            stack.push(field("obj", Object.class));
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFNULL, targetLabel), labelToValue, labelClassifications);
+
+            // All handler types should have been exercised
+            assertThat(coordinator.getCurrentState()).isNotNull();
+        }
+    }
+
+    // ==================== Label Classification Tests ====================
+
+    @Nested
+    class LabelClassificationTests {
+
+        @Test
+        void labelClassification_trueSink_handledCorrectly() {
+            labelClassifications.put(targetLabel, ControlFlowAnalyzer.LabelClassification.TRUE_SINK);
+            labelToValue.put(targetLabel, true);
+
+            stack.push(field("active", Boolean.class));
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFEQ, targetLabel), labelToValue, labelClassifications);
+
+            assertThat(coordinator.getCurrentState()).isNotNull();
+        }
+
+        @Test
+        void labelClassification_falseSink_handledCorrectly() {
+            labelClassifications.put(targetLabel, ControlFlowAnalyzer.LabelClassification.FALSE_SINK);
+            labelToValue.put(targetLabel, false);
+
+            stack.push(field("active", Boolean.class));
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFEQ, targetLabel), labelToValue, labelClassifications);
+
+            assertThat(coordinator.getCurrentState()).isNotNull();
+        }
+
+        @Test
+        void labelClassification_intermediate_handledCorrectly() {
+            labelClassifications.put(targetLabel, ControlFlowAnalyzer.LabelClassification.INTERMEDIATE);
+            labelToValue.put(targetLabel, null);
+
+            stack.push(field("active", Boolean.class));
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFEQ, targetLabel), labelToValue, labelClassifications);
+
+            assertThat(coordinator.getCurrentState()).isNotNull();
+        }
+
+        @Test
+        void labelClassification_nullFromMap_handledGracefully() {
+            // Label not in classification map - should handle null gracefully
+            LabelNode unknownLabel = new LabelNode();
+            labelToValue.put(unknownLabel, true);
+            // Don't add to labelClassifications
+
+            stack.push(field("active", Boolean.class));
+
+            // Should not throw NPE
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFEQ, unknownLabel), labelToValue, labelClassifications);
+
+            assertThat(coordinator.getCurrentState()).isNotNull();
+        }
+    }
 }

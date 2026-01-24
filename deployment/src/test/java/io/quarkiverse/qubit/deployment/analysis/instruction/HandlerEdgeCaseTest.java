@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
+import org.objectweb.asm.tree.InvokeDynamicInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.VarInsnNode;
@@ -276,6 +277,241 @@ class HandlerEdgeCaseTest {
             // This is a known limitation - GETFIELD without a target object is invalid bytecode
             assertThatThrownBy(() -> handler.handle(fieldInsn, context))
                     .isInstanceOf(NullPointerException.class);
+        }
+
+        // ==================== Group Context Mode Tests (kill mutation line 58) ====================
+
+        @Test
+        void handle_aload_inGroupContextMode_pushesGroupParameter() {
+            // Create context with group context mode enabled (via constructor)
+            MethodNode groupMethod = new MethodNode();
+            groupMethod.name = "groupLambda";
+            groupMethod.desc = "(Ljava/lang/Object;)Ljava/lang/Object;";
+            groupMethod.instructions = new InsnList();
+
+            // Use constructor that enables groupContextMode
+            AnalysisContext.NestedLambdaSupport nestedSupport =
+                    new AnalysisContext.NestedLambdaSupport(
+                            java.util.List.of(),
+                            (method, index) -> null);
+            AnalysisContext groupContext = new AnalysisContext(groupMethod, 0, nestedSupport);
+
+            handler.handle(new VarInsnNode(ALOAD, 0), groupContext);
+
+            assertThat(groupContext.getStackSize()).isEqualTo(1);
+            assertThat(groupContext.peek())
+                    .as("ALOAD in group context mode should push GroupParameter")
+                    .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupParameter.class);
+        }
+
+        // ==================== Bi-Entity Mode Tests (kill mutations line 61) ====================
+
+        @Test
+        void handle_aload_biEntityMode_firstPosition_pushesEntityParamName() {
+            // Create bi-entity context with slot 0 = FIRST, slot 1 = SECOND
+            MethodNode biEntityMethod = new MethodNode();
+            biEntityMethod.name = "biEntityLambda";
+            biEntityMethod.desc = "(Ljava/lang/Object;Ljava/lang/Object;)Z";
+            biEntityMethod.instructions = new InsnList();
+
+            AnalysisContext biContext = new AnalysisContext(biEntityMethod, 0, 1);
+
+            handler.handle(new VarInsnNode(ALOAD, 0), biContext);
+
+            assertThat(biContext.getStackSize()).isEqualTo(1);
+            assertThat(biContext.peek())
+                    .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityParameter.class);
+
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityParameter biParam =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityParameter) biContext.peek();
+            assertThat(biParam.name())
+                    .as("First entity position should have 'entity' param name")
+                    .isEqualTo("entity");
+            assertThat(biParam.position())
+                    .isEqualTo(io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition.FIRST);
+        }
+
+        @Test
+        void handle_aload_biEntityMode_secondPosition_pushesJoinedEntityParamName() {
+            // Create bi-entity context with slot 0 = FIRST, slot 1 = SECOND
+            MethodNode biEntityMethod = new MethodNode();
+            biEntityMethod.name = "biEntityLambda";
+            biEntityMethod.desc = "(Ljava/lang/Object;Ljava/lang/Object;)Z";
+            biEntityMethod.instructions = new InsnList();
+
+            AnalysisContext biContext = new AnalysisContext(biEntityMethod, 0, 1);
+
+            // Load the SECOND entity (slot 1)
+            handler.handle(new VarInsnNode(ALOAD, 1), biContext);
+
+            assertThat(biContext.getStackSize()).isEqualTo(1);
+            assertThat(biContext.peek())
+                    .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityParameter.class);
+
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityParameter biParam =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityParameter) biContext.peek();
+            assertThat(biParam.name())
+                    .as("Second entity position should have 'joinedEntity' param name")
+                    .isEqualTo("joinedEntity");
+            assertThat(biParam.position())
+                    .isEqualTo(io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition.SECOND);
+        }
+
+        // ==================== Primitive Load Invalid Slot Tests (kill mutation line 98) ====================
+
+        @Test
+        void handle_iload_withInvalidSlot_throwsException() {
+            // Method with only object parameter - ILOAD on slot 99 is invalid
+            assertThatThrownBy(() -> handler.handle(new VarInsnNode(ILOAD, 99), context))
+                    .isInstanceOf(BytecodeAnalysisException.class)
+                    .hasMessageContaining("Primitive load")
+                    .hasMessageContaining("does not correspond to a method parameter");
+        }
+
+        @Test
+        void handle_lload_withInvalidSlot_throwsException() {
+            assertThatThrownBy(() -> handler.handle(new VarInsnNode(LLOAD, 99), context))
+                    .isInstanceOf(BytecodeAnalysisException.class)
+                    .hasMessageContaining("Primitive load")
+                    .hasMessageContaining("does not correspond to a method parameter");
+        }
+
+        @Test
+        void handle_fload_withInvalidSlot_throwsException() {
+            assertThatThrownBy(() -> handler.handle(new VarInsnNode(FLOAD, 99), context))
+                    .isInstanceOf(BytecodeAnalysisException.class)
+                    .hasMessageContaining("Primitive load")
+                    .hasMessageContaining("does not correspond to a method parameter");
+        }
+
+        @Test
+        void handle_dload_withInvalidSlot_throwsException() {
+            assertThatThrownBy(() -> handler.handle(new VarInsnNode(DLOAD, 99), context))
+                    .isInstanceOf(BytecodeAnalysisException.class)
+                    .hasMessageContaining("Primitive load")
+                    .hasMessageContaining("does not correspond to a method parameter");
+        }
+
+        // ==================== Non-int Primitive Type Tests (kill mutations line 106) ====================
+
+        @Test
+        void handle_lload_withValidSlot_usesLongType() {
+            // Method with long parameter at slot 1: (Ljava/lang/Object;J)Z
+            // slot 0 = Object, slot 1 = long (takes 2 slots)
+            MethodNode methodWithLong = new MethodNode();
+            methodWithLong.name = "testLambda";
+            methodWithLong.desc = "(Ljava/lang/Object;J)Z";
+            methodWithLong.instructions = new InsnList();
+            AnalysisContext longContext = new AnalysisContext(methodWithLong, 0);
+
+            handler.handle(new VarInsnNode(LLOAD, 1), longContext);
+
+            assertThat(longContext.getStackSize()).isEqualTo(1);
+            assertThat(longContext.peek())
+                    .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable.class);
+
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable captured =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable) longContext.peek();
+            assertThat(captured.type())
+                    .as("LLOAD should produce long.class type without descriptor lookup")
+                    .isEqualTo(long.class);
+        }
+
+        @Test
+        void handle_dload_withValidSlot_usesDoubleType() {
+            // Method with double parameter at slot 1: (Ljava/lang/Object;D)Z
+            MethodNode methodWithDouble = new MethodNode();
+            methodWithDouble.name = "testLambda";
+            methodWithDouble.desc = "(Ljava/lang/Object;D)Z";
+            methodWithDouble.instructions = new InsnList();
+            AnalysisContext doubleContext = new AnalysisContext(methodWithDouble, 0);
+
+            handler.handle(new VarInsnNode(DLOAD, 1), doubleContext);
+
+            assertThat(doubleContext.getStackSize()).isEqualTo(1);
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable captured =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable) doubleContext.peek();
+            assertThat(captured.type())
+                    .as("DLOAD should produce double.class type without descriptor lookup")
+                    .isEqualTo(double.class);
+        }
+
+        @Test
+        void handle_fload_withValidSlot_usesFloatType() {
+            // Method with float parameter at slot 1: (Ljava/lang/Object;F)Z
+            MethodNode methodWithFloat = new MethodNode();
+            methodWithFloat.name = "testLambda";
+            methodWithFloat.desc = "(Ljava/lang/Object;F)Z";
+            methodWithFloat.instructions = new InsnList();
+            AnalysisContext floatContext = new AnalysisContext(methodWithFloat, 0);
+
+            handler.handle(new VarInsnNode(FLOAD, 1), floatContext);
+
+            assertThat(floatContext.getStackSize()).isEqualTo(1);
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable captured =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable) floatContext.peek();
+            assertThat(captured.type())
+                    .as("FLOAD should produce float.class type without descriptor lookup")
+                    .isEqualTo(float.class);
+        }
+
+        @Test
+        void handle_iload_withValidSlot_looksUpActualType() {
+            // Method with int parameter at slot 1: (Ljava/lang/Object;I)Z
+            // For ILOAD, the actual type must be looked up from descriptor (could be byte, char, short, boolean, int)
+            MethodNode methodWithInt = new MethodNode();
+            methodWithInt.name = "testLambda";
+            methodWithInt.desc = "(Ljava/lang/Object;I)Z";
+            methodWithInt.instructions = new InsnList();
+            AnalysisContext intContext = new AnalysisContext(methodWithInt, 0);
+
+            handler.handle(new VarInsnNode(ILOAD, 1), intContext);
+
+            assertThat(intContext.getStackSize()).isEqualTo(1);
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable captured =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable) intContext.peek();
+            assertThat(captured.type())
+                    .as("ILOAD should look up actual type from descriptor")
+                    .isEqualTo(int.class);
+        }
+
+        @Test
+        void handle_iload_withBooleanParam_looksUpBooleanType() {
+            // Method with boolean parameter at slot 1: (Ljava/lang/Object;Z)Z
+            // Z (boolean) uses ILOAD opcode but actual type is boolean
+            MethodNode methodWithBoolean = new MethodNode();
+            methodWithBoolean.name = "testLambda";
+            methodWithBoolean.desc = "(Ljava/lang/Object;Z)Z";
+            methodWithBoolean.instructions = new InsnList();
+            AnalysisContext boolContext = new AnalysisContext(methodWithBoolean, 0);
+
+            handler.handle(new VarInsnNode(ILOAD, 1), boolContext);
+
+            assertThat(boolContext.getStackSize()).isEqualTo(1);
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable captured =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable) boolContext.peek();
+            assertThat(captured.type())
+                    .as("ILOAD with boolean param should look up boolean.class from descriptor")
+                    .isEqualTo(boolean.class);
+        }
+
+        @Test
+        void handle_iload_withByteParam_looksUpByteType() {
+            // Method with byte parameter at slot 1: (Ljava/lang/Object;B)Z
+            MethodNode methodWithByte = new MethodNode();
+            methodWithByte.name = "testLambda";
+            methodWithByte.desc = "(Ljava/lang/Object;B)Z";
+            methodWithByte.instructions = new InsnList();
+            AnalysisContext byteContext = new AnalysisContext(methodWithByte, 0);
+
+            handler.handle(new VarInsnNode(ILOAD, 1), byteContext);
+
+            assertThat(byteContext.getStackSize()).isEqualTo(1);
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable captured =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable) byteContext.peek();
+            assertThat(captured.type())
+                    .as("ILOAD with byte param should look up byte.class from descriptor")
+                    .isEqualTo(byte.class);
         }
     }
 
@@ -1205,6 +1441,246 @@ class HandlerEdgeCaseTest {
 
             assertThat(terminated).isFalse();
             assertThat(context.isStackEmpty()).isTrue();
+        }
+
+        // ==================== Constant Folding Tests (kill mutations lines 37, 48-51) ====================
+
+        @Test
+        void handle_I2L_withIntConstant_foldsToLong() {
+            // Push int constant, convert to long
+            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(42, int.class));
+
+            handler.handle(new InsnNode(I2L), context);
+
+            assertThat(context.getStackSize()).isEqualTo(1);
+            assertThat(context.peek())
+                    .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant.class);
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
+            assertThat(result.type())
+                    .as("I2L should convert to long.class")
+                    .isEqualTo(long.class);
+            assertThat(result.value())
+                    .as("I2L should convert value to long")
+                    .isEqualTo(42L);
+        }
+
+        @Test
+        void handle_I2F_withIntConstant_foldsToFloat() {
+            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(42, int.class));
+
+            handler.handle(new InsnNode(I2F), context);
+
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
+            assertThat(result.type())
+                    .as("I2F should convert to float.class")
+                    .isEqualTo(float.class);
+            assertThat(result.value())
+                    .as("I2F should convert value to float")
+                    .isEqualTo(42.0f);
+        }
+
+        @Test
+        void handle_I2D_withIntConstant_foldsToDouble() {
+            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(42, int.class));
+
+            handler.handle(new InsnNode(I2D), context);
+
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
+            assertThat(result.type())
+                    .as("I2D should convert to double.class")
+                    .isEqualTo(double.class);
+            assertThat(result.value())
+                    .as("I2D should convert value to double")
+                    .isEqualTo(42.0);
+        }
+
+        @Test
+        void handle_L2I_withLongConstant_foldsToInt() {
+            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(100L, long.class));
+
+            handler.handle(new InsnNode(L2I), context);
+
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
+            assertThat(result.type())
+                    .as("L2I should convert to int.class")
+                    .isEqualTo(int.class);
+            assertThat(result.value())
+                    .as("L2I should convert value to int")
+                    .isEqualTo(100);
+        }
+
+        @Test
+        void handle_L2F_withLongConstant_foldsToFloat() {
+            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(100L, long.class));
+
+            handler.handle(new InsnNode(L2F), context);
+
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
+            assertThat(result.type()).isEqualTo(float.class);
+            assertThat(result.value()).isEqualTo(100.0f);
+        }
+
+        @Test
+        void handle_L2D_withLongConstant_foldsToDouble() {
+            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(100L, long.class));
+
+            handler.handle(new InsnNode(L2D), context);
+
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
+            assertThat(result.type()).isEqualTo(double.class);
+            assertThat(result.value()).isEqualTo(100.0);
+        }
+
+        @Test
+        void handle_F2I_withFloatConstant_foldsToInt() {
+            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(3.14f, float.class));
+
+            handler.handle(new InsnNode(F2I), context);
+
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
+            assertThat(result.type()).isEqualTo(int.class);
+            assertThat(result.value()).isEqualTo(3); // truncated
+        }
+
+        @Test
+        void handle_F2L_withFloatConstant_foldsToLong() {
+            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(3.14f, float.class));
+
+            handler.handle(new InsnNode(F2L), context);
+
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
+            assertThat(result.type()).isEqualTo(long.class);
+            assertThat(result.value()).isEqualTo(3L); // truncated
+        }
+
+        @Test
+        void handle_F2D_withFloatConstant_foldsToDouble() {
+            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(3.14f, float.class));
+
+            handler.handle(new InsnNode(F2D), context);
+
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
+            assertThat(result.type()).isEqualTo(double.class);
+            // Float to double conversion preserves precision
+            assertThat((Double) result.value()).isCloseTo(3.14, org.assertj.core.data.Offset.offset(0.01));
+        }
+
+        @Test
+        void handle_D2I_withDoubleConstant_foldsToInt() {
+            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(9.99, double.class));
+
+            handler.handle(new InsnNode(D2I), context);
+
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
+            assertThat(result.type()).isEqualTo(int.class);
+            assertThat(result.value()).isEqualTo(9); // truncated
+        }
+
+        @Test
+        void handle_D2L_withDoubleConstant_foldsToLong() {
+            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(9.99, double.class));
+
+            handler.handle(new InsnNode(D2L), context);
+
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
+            assertThat(result.type()).isEqualTo(long.class);
+            assertThat(result.value()).isEqualTo(9L); // truncated
+        }
+
+        @Test
+        void handle_D2F_withDoubleConstant_foldsToFloat() {
+            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(9.99, double.class));
+
+            handler.handle(new InsnNode(D2F), context);
+
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
+            assertThat(result.type()).isEqualTo(float.class);
+            assertThat((Float) result.value()).isCloseTo(9.99f, org.assertj.core.data.Offset.offset(0.01f));
+        }
+
+        // ==================== Kill mutation line 37: type mismatch should not fold ====================
+
+        @Test
+        void handle_I2L_withWrongSourceType_doesNotFold() {
+            // Push long constant but use I2L (expects int) - should not fold
+            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(42L, long.class));
+
+            handler.handle(new InsnNode(I2L), context);
+
+            // Stack should remain unchanged because type doesn't match
+            assertThat(context.getStackSize()).isEqualTo(1);
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
+            assertThat(result.type())
+                    .as("Type mismatch should not fold - original long should remain")
+                    .isEqualTo(long.class);
+        }
+
+        @Test
+        void handle_L2I_withWrongSourceType_doesNotFold() {
+            // Push int constant but use L2I (expects long) - should not fold
+            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(42, int.class));
+
+            handler.handle(new InsnNode(L2I), context);
+
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
+            assertThat(result.type())
+                    .as("Type mismatch should not fold - original int should remain")
+                    .isEqualTo(int.class);
+        }
+
+        @Test
+        void handle_F2I_withWrongSourceType_doesNotFold() {
+            // Push double constant but use F2I (expects float) - should not fold
+            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(3.14, double.class));
+
+            handler.handle(new InsnNode(F2I), context);
+
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
+            assertThat(result.type())
+                    .as("Type mismatch should not fold - original double should remain")
+                    .isEqualTo(double.class);
+        }
+
+        @Test
+        void handle_D2I_withWrongSourceType_doesNotFold() {
+            // Push float constant but use D2I (expects double) - should not fold
+            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(3.14f, float.class));
+
+            handler.handle(new InsnNode(D2I), context);
+
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
+            assertThat(result.type())
+                    .as("Type mismatch should not fold - original float should remain")
+                    .isEqualTo(float.class);
+        }
+
+        @Test
+        void handle_conversion_withNonConstant_doesNotFold() {
+            // Push FieldAccess instead of Constant - should not modify stack
+            context.push(field("value", int.class));
+
+            handler.handle(new InsnNode(I2L), context);
+
+            assertThat(context.getStackSize()).isEqualTo(1);
+            assertThat(context.peek())
+                    .as("Non-constant should not be folded")
+                    .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.FieldAccess.class);
         }
     }
 
@@ -2296,6 +2772,834 @@ class HandlerEdgeCaseTest {
             assertThat(context.peek())
                     .as("Non-string constant should create ConstructorCall")
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.ConstructorCall.class);
+        }
+
+        // ==================== handleStringMethods - kill method name mutations ====================
+
+        @Test
+        void handle_stringStartsWith_createsMethodCall() {
+            context.push(field("name", String.class));
+            context.push(constant("test"));
+            MethodInsnNode startsWithInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "startsWith", "(Ljava/lang/String;)Z", false);
+
+            handler.handle(startsWithInsn, context);
+
+            assertThat(context.getStackSize()).isEqualTo(1);
+            assertThat(context.peek())
+                    .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall.class);
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
+            assertThat(call.methodName()).isEqualTo("startsWith");
+        }
+
+        @Test
+        void handle_stringEndsWith_createsMethodCall() {
+            context.push(field("name", String.class));
+            context.push(constant("test"));
+            MethodInsnNode endsWithInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "endsWith", "(Ljava/lang/String;)Z", false);
+
+            handler.handle(endsWithInsn, context);
+
+            assertThat(context.getStackSize()).isEqualTo(1);
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
+            assertThat(call.methodName()).isEqualTo("endsWith");
+        }
+
+        @Test
+        void handle_stringContains_createsMethodCall() {
+            context.push(field("name", String.class));
+            context.push(constant("test"));
+            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "contains", "(Ljava/lang/CharSequence;)Z", false);
+
+            handler.handle(containsInsn, context);
+
+            assertThat(context.getStackSize()).isEqualTo(1);
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
+            assertThat(call.methodName()).isEqualTo("contains");
+        }
+
+        @Test
+        void handle_stringLength_createsMethodCall() {
+            context.push(field("name", String.class));
+            MethodInsnNode lengthInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "length", "()I", false);
+
+            handler.handle(lengthInsn, context);
+
+            assertThat(context.getStackSize()).isEqualTo(1);
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
+            assertThat(call.methodName()).isEqualTo("length");
+            assertThat(call.returnType()).isEqualTo(int.class);
+        }
+
+        @Test
+        void handle_stringIsEmpty_createsMethodCall() {
+            context.push(field("name", String.class));
+            MethodInsnNode isEmptyInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "isEmpty", "()Z", false);
+
+            handler.handle(isEmptyInsn, context);
+
+            assertThat(context.getStackSize()).isEqualTo(1);
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
+            assertThat(call.methodName()).isEqualTo("isEmpty");
+            assertThat(call.returnType()).isEqualTo(boolean.class);
+        }
+
+        @Test
+        void handle_stringToLowerCase_createsMethodCall() {
+            context.push(field("name", String.class));
+            MethodInsnNode toLowerInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "toLowerCase", "()Ljava/lang/String;", false);
+
+            handler.handle(toLowerInsn, context);
+
+            assertThat(context.getStackSize()).isEqualTo(1);
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
+            assertThat(call.methodName()).isEqualTo("toLowerCase");
+            assertThat(call.returnType()).isEqualTo(String.class);
+        }
+
+        @Test
+        void handle_stringToUpperCase_createsMethodCall() {
+            context.push(field("name", String.class));
+            MethodInsnNode toUpperInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "toUpperCase", "()Ljava/lang/String;", false);
+
+            handler.handle(toUpperInsn, context);
+
+            assertThat(context.getStackSize()).isEqualTo(1);
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
+            assertThat(call.methodName()).isEqualTo("toUpperCase");
+        }
+
+        @Test
+        void handle_stringTrim_createsMethodCall() {
+            context.push(field("name", String.class));
+            MethodInsnNode trimInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "trim", "()Ljava/lang/String;", false);
+
+            handler.handle(trimInsn, context);
+
+            assertThat(context.getStackSize()).isEqualTo(1);
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
+            assertThat(call.methodName()).isEqualTo("trim");
+        }
+
+        @Test
+        void handle_stringUnknownMethod_leavesStackUnchanged() {
+            // Unrecognized String method should do nothing
+            context.push(field("name", String.class));
+            MethodInsnNode unknownInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "hashCode", "()I", false);
+
+            handler.handle(unknownInsn, context);
+
+            // hashCode is not handled, stack unchanged
+            assertThat(context.getStackSize()).isEqualTo(1);
+            assertThat(context.peek())
+                    .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.FieldAccess.class);
+        }
+
+        // ==================== handleEqualsMethod - empty stack mutation ====================
+
+        @Test
+        void handle_equalsMethod_emptyStack_throwsException() {
+            // Empty stack - popPair throws
+            MethodInsnNode equalsInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/Object", "equals", "(Ljava/lang/Object;)Z", false);
+
+            assertThatThrownBy(() -> handler.handle(equalsInsn, context))
+                    .isInstanceOf(BytecodeAnalysisException.class)
+                    .hasMessageContaining("Stack underflow");
+        }
+
+        @Test
+        void handle_equalsMethod_oneElement_throwsException() {
+            context.push(field("name", String.class));
+            MethodInsnNode equalsInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/Object", "equals", "(Ljava/lang/Object;)Z", false);
+
+            // popPair needs 2 elements
+            assertThatThrownBy(() -> handler.handle(equalsInsn, context))
+                    .isInstanceOf(BytecodeAnalysisException.class)
+                    .hasMessageContaining("Stack underflow");
+        }
+
+        // ==================== handleSingleArgumentMethodCall - empty stack mutation ====================
+
+        @Test
+        void handle_compareTo_emptyStack_throwsException() {
+            MethodInsnNode compareToInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/Integer", "compareTo", "(Ljava/lang/Integer;)I", false);
+
+            assertThatThrownBy(() -> handler.handle(compareToInsn, context))
+                    .isInstanceOf(BytecodeAnalysisException.class)
+                    .hasMessageContaining("Stack underflow");
+        }
+
+        @Test
+        void handle_compareTo_oneElement_throwsException() {
+            context.push(field("value", Integer.class));
+            MethodInsnNode compareToInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/Integer", "compareTo", "(Ljava/lang/Integer;)I", false);
+
+            // popPair needs 2 elements
+            assertThatThrownBy(() -> handler.handle(compareToInsn, context))
+                    .isInstanceOf(BytecodeAnalysisException.class)
+                    .hasMessageContaining("Stack underflow");
+        }
+
+        // ==================== handleNoArgumentStringMethod - descriptor mismatch ====================
+
+        @Test
+        void handle_stringLength_wrongDescriptor_doesNothing() {
+            context.push(field("name", String.class));
+            // Wrong descriptor - expects (I)I instead of ()I
+            MethodInsnNode wrongLengthInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "length", "(I)I", false);
+
+            handler.handle(wrongLengthInsn, context);
+
+            // Should leave stack unchanged due to descriptor mismatch
+            assertThat(context.getStackSize()).isEqualTo(1);
+            assertThat(context.peek())
+                    .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.FieldAccess.class);
+        }
+
+        @Test
+        void handle_stringIsEmpty_wrongDescriptor_doesNothing() {
+            context.push(field("name", String.class));
+            // Wrong descriptor
+            MethodInsnNode wrongEmptyInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "isEmpty", "(I)Z", false);
+
+            handler.handle(wrongEmptyInsn, context);
+
+            assertThat(context.getStackSize()).isEqualTo(1);
+        }
+
+        // ==================== handleTemporalMethods - temporal accessor mutations ====================
+
+        @Test
+        void handle_localDateGetYear_createsMethodCall() {
+            context.push(field("birthDate", java.time.LocalDate.class));
+            MethodInsnNode getYearInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/time/LocalDate", "getYear", "()I", false);
+
+            handler.handle(getYearInsn, context);
+
+            assertThat(context.getStackSize()).isEqualTo(1);
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
+            assertThat(call.methodName()).isEqualTo("getYear");
+            assertThat(call.returnType()).isEqualTo(int.class);
+        }
+
+        @Test
+        void handle_localDateGetMonth_createsMethodCall() {
+            context.push(field("birthDate", java.time.LocalDate.class));
+            MethodInsnNode getMonthInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/time/LocalDate", "getMonthValue", "()I", false);
+
+            handler.handle(getMonthInsn, context);
+
+            assertThat(context.getStackSize()).isEqualTo(1);
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
+            assertThat(call.methodName()).isEqualTo("getMonthValue");
+        }
+
+        @Test
+        void handle_localDateGetDayOfMonth_createsMethodCall() {
+            context.push(field("birthDate", java.time.LocalDate.class));
+            MethodInsnNode getDayInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/time/LocalDate", "getDayOfMonth", "()I", false);
+
+            handler.handle(getDayInsn, context);
+
+            assertThat(context.getStackSize()).isEqualTo(1);
+        }
+
+        @Test
+        void handle_localTimeGetHour_createsMethodCall() {
+            context.push(field("startTime", java.time.LocalTime.class));
+            MethodInsnNode getHourInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/time/LocalTime", "getHour", "()I", false);
+
+            handler.handle(getHourInsn, context);
+
+            assertThat(context.getStackSize()).isEqualTo(1);
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
+            assertThat(call.methodName()).isEqualTo("getHour");
+        }
+
+        @Test
+        void handle_localTimeGetMinute_createsMethodCall() {
+            context.push(field("startTime", java.time.LocalTime.class));
+            MethodInsnNode getMinuteInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/time/LocalTime", "getMinute", "()I", false);
+
+            handler.handle(getMinuteInsn, context);
+
+            assertThat(context.getStackSize()).isEqualTo(1);
+        }
+
+        @Test
+        void handle_localDateTimeGetYear_createsMethodCall() {
+            context.push(field("createdAt", java.time.LocalDateTime.class));
+            MethodInsnNode getYearInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/time/LocalDateTime", "getYear", "()I", false);
+
+            handler.handle(getYearInsn, context);
+
+            assertThat(context.getStackSize()).isEqualTo(1);
+        }
+
+        @Test
+        void handle_temporalAccessor_emptyStack_doesNothing() {
+            // Empty stack should not throw
+            MethodInsnNode getYearInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/time/LocalDate", "getYear", "()I", false);
+
+            handler.handle(getYearInsn, context);
+
+            assertThat(context.isStackEmpty()).isTrue();
+        }
+
+        @Test
+        void handle_temporalComparison_isBefore_createsMethodCall() {
+            context.push(field("startDate", java.time.LocalDate.class));
+            context.push(constant(java.time.LocalDate.of(2024, 1, 1)));
+            MethodInsnNode isBeforeInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/time/LocalDate", "isBefore", "(Ljava/time/chrono/ChronoLocalDate;)Z", false);
+
+            handler.handle(isBeforeInsn, context);
+
+            assertThat(context.getStackSize()).isEqualTo(1);
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
+            assertThat(call.methodName()).isEqualTo("isBefore");
+            assertThat(call.returnType()).isEqualTo(boolean.class);
+        }
+
+        @Test
+        void handle_temporalComparison_isAfter_createsMethodCall() {
+            context.push(field("endDate", java.time.LocalDate.class));
+            context.push(constant(java.time.LocalDate.of(2024, 12, 31)));
+            MethodInsnNode isAfterInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/time/LocalDate", "isAfter", "(Ljava/time/chrono/ChronoLocalDate;)Z", false);
+
+            handler.handle(isAfterInsn, context);
+
+            assertThat(context.getStackSize()).isEqualTo(1);
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
+            assertThat(call.methodName()).isEqualTo("isAfter");
+        }
+
+        @Test
+        void handle_temporalComparison_isEqual_createsMethodCall() {
+            context.push(field("date", java.time.LocalDate.class));
+            context.push(constant(java.time.LocalDate.of(2024, 6, 15)));
+            MethodInsnNode isEqualInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/time/LocalDate", "isEqual", "(Ljava/time/chrono/ChronoLocalDate;)Z", false);
+
+            handler.handle(isEqualInsn, context);
+
+            assertThat(context.getStackSize()).isEqualTo(1);
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
+            assertThat(call.methodName()).isEqualTo("isEqual");
+        }
+
+        // ==================== handleBigDecimalMethods - method name mutations ====================
+
+        @Test
+        void handle_bigDecimalRemainder_notHandled() {
+            context.push(field("amount", java.math.BigDecimal.class));
+            context.push(constant(new java.math.BigDecimal("2")));
+            // remainder is not in the handled list (add, subtract, multiply, divide)
+            MethodInsnNode remainderInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/math/BigDecimal", "remainder", "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;", false);
+
+            handler.handle(remainderInsn, context);
+
+            // Should leave stack unchanged
+            assertThat(context.getStackSize()).isEqualTo(2);
+        }
+
+        @Test
+        void handle_bigDecimalAbs_notHandled() {
+            context.push(field("amount", java.math.BigDecimal.class));
+            // abs() takes no args - unhandled
+            MethodInsnNode absInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/math/BigDecimal", "abs", "()Ljava/math/BigDecimal;", false);
+
+            handler.handle(absInsn, context);
+
+            assertThat(context.getStackSize()).isEqualTo(1);
+        }
+
+        // ==================== handleInvokeSpecial non-constructor ====================
+
+        @Test
+        void handle_invokeSpecial_superMethodCall_ignored() {
+            context.push(field("obj", Object.class));
+            // Super method call (not <init>)
+            MethodInsnNode superHashCode = new MethodInsnNode(INVOKESPECIAL, "java/lang/Object", "hashCode", "()I", false);
+
+            handler.handle(superHashCode, context);
+
+            // Non-constructor INVOKESPECIAL is ignored
+            assertThat(context.getStackSize()).isEqualTo(1);
+        }
+
+        // ==================== isMemberOfPattern - more edge cases ====================
+
+        @Test
+        void handle_collectionContains_pathExpressionWithFieldAccess_createsMemberOf() {
+            // PathExpression target with FieldAccess value (rare but valid)
+            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathExpression(
+                    java.util.List.of(
+                            new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment("user", Object.class, io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType.FIELD),
+                            new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment("permissions", java.util.Set.class, io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType.FIELD)),
+                    java.util.Set.class));
+            context.push(captured(0, String.class));  // CapturedVariable
+            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z", true);
+
+            handler.handle(containsInsn, context);
+
+            assertThat(context.peek())
+                    .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.MemberOfExpression.class);
+        }
+
+        @Test
+        void handle_collectionContains_constantTargetAndFieldArg_fallsBackToMethodCall() {
+            // Neither IN nor MEMBER OF: constant target (not CapturedVariable), field arg
+            context.push(constant(java.util.List.of("a", "b")));  // Constant, not CapturedVariable
+            context.push(field("status", String.class));  // FieldAccess - this is entity field
+            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z", true);
+
+            handler.handle(containsInsn, context);
+
+            // Constant is not CapturedVariable for IN clause, not FieldAccess for MEMBER OF
+            // Should fall back to MethodCall
+            assertThat(context.peek())
+                    .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall.class);
+        }
+    }
+
+    // ==================== InvokeDynamicHandler Tests ====================
+
+    @Nested
+    class InvokeDynamicHandlerTests {
+
+        private final InvokeDynamicHandler handler = InvokeDynamicHandler.INSTANCE;
+
+        // ==================== canHandle Tests ====================
+
+        @Test
+        void canHandle_withINVOKEDYNAMIC_returnsTrue() {
+            InvokeDynamicInsnNode indyInsn = new InvokeDynamicInsnNode(
+                    "makeConcatWithConstants",
+                    "(Ljava/lang/String;)Ljava/lang/String;",
+                    new org.objectweb.asm.Handle(
+                            org.objectweb.asm.Opcodes.H_INVOKESTATIC,
+                            "java/lang/invoke/StringConcatFactory",
+                            "makeConcatWithConstants",
+                            "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;",
+                            false),
+                    "prefix-\u0001");
+
+            assertThat(handler.canHandle(indyInsn))
+                    .as("Should handle INVOKEDYNAMIC")
+                    .isTrue();
+        }
+
+        @Test
+        void canHandle_withNonINVOKEDYNAMIC_returnsFalse() {
+            InsnNode notIndy = new InsnNode(IADD);
+            assertThat(handler.canHandle(notIndy))
+                    .as("Should not handle non-INVOKEDYNAMIC")
+                    .isFalse();
+        }
+
+        // ==================== escapeRecipe Tests (kill 12 mutations) ====================
+
+        @Test
+        void escapeRecipe_withNull_returnsNullString() {
+            // Use reflection to test private method
+            String result = invokeEscapeRecipe(null);
+
+            assertThat(result)
+                    .as("Null recipe should return 'null' string")
+                    .isEqualTo("null");
+        }
+
+        @Test
+        void escapeRecipe_withDynamicArgMarker_escapesAsUnicode() {
+            // Recipe with \u0001 marker should be escaped
+            String result = invokeEscapeRecipe("\u0001");
+
+            assertThat(result)
+                    .as("Dynamic arg marker should be escaped as \\u0001")
+                    .isEqualTo("\\u0001");
+        }
+
+        @Test
+        void escapeRecipe_withMultipleDynamicArgs_escapesAll() {
+            String result = invokeEscapeRecipe("\u0001-\u0001");
+
+            assertThat(result)
+                    .as("Multiple dynamic arg markers should all be escaped")
+                    .isEqualTo("\\u0001-\\u0001");
+        }
+
+        @Test
+        void escapeRecipe_withControlCharacter_escapesAsUnicode() {
+            // Character < 32 (control character, e.g., tab = 9)
+            String result = invokeEscapeRecipe("\t");
+
+            assertThat(result)
+                    .as("Control character (tab) should be escaped as unicode")
+                    .isEqualTo("\\u0009");
+        }
+
+        @Test
+        void escapeRecipe_withHighUnicodeCharacter_escapesAsUnicode() {
+            // Character > 126 (non-ASCII)
+            String result = invokeEscapeRecipe("\u00FF");
+
+            assertThat(result)
+                    .as("High unicode character should be escaped")
+                    .isEqualTo("\\u00ff");
+        }
+
+        @Test
+        void escapeRecipe_withNormalAscii_returnsAsIs() {
+            // Normal ASCII (32-126)
+            String result = invokeEscapeRecipe("Hello World!");
+
+            assertThat(result)
+                    .as("Normal ASCII should be returned as-is")
+                    .isEqualTo("Hello World!");
+        }
+
+        @Test
+        void escapeRecipe_withBoundaryChar32_returnsAsIs() {
+            // Space (char 32) is the lower boundary of printable ASCII
+            String result = invokeEscapeRecipe(" ");
+
+            assertThat(result)
+                    .as("Space (char 32) should be returned as-is")
+                    .isEqualTo(" ");
+        }
+
+        @Test
+        void escapeRecipe_withBoundaryChar126_returnsAsIs() {
+            // Tilde (char 126) is the upper boundary of printable ASCII
+            String result = invokeEscapeRecipe("~");
+
+            assertThat(result)
+                    .as("Tilde (char 126) should be returned as-is")
+                    .isEqualTo("~");
+        }
+
+        @Test
+        void escapeRecipe_withChar127_escapesAsUnicode() {
+            // DEL character (127) is outside printable range
+            String result = invokeEscapeRecipe("\u007F");
+
+            assertThat(result)
+                    .as("DEL (char 127) should be escaped")
+                    .isEqualTo("\\u007f");
+        }
+
+        @Test
+        void escapeRecipe_withChar31_escapesAsUnicode() {
+            // Character 31 (unit separator) is outside printable range
+            String result = invokeEscapeRecipe("\u001F");
+
+            assertThat(result)
+                    .as("Unit separator (char 31) should be escaped")
+                    .isEqualTo("\\u001f");
+        }
+
+        @Test
+        void escapeRecipe_withMixedContent_handlesCorrectly() {
+            // Mix of normal chars, dynamic args, and control chars
+            String result = invokeEscapeRecipe("Hello\u0001World\t!");
+
+            assertThat(result)
+                    .as("Mixed content should be handled correctly")
+                    .isEqualTo("Hello\\u0001World\\u0009!");
+        }
+
+        @Test
+        void escapeRecipe_withEmptyString_returnsEmpty() {
+            String result = invokeEscapeRecipe("");
+
+            assertThat(result)
+                    .as("Empty string should return empty string")
+                    .isEmpty();
+        }
+
+        // ==================== StringConcatFactory handle Tests ====================
+
+        @Test
+        void handle_stringConcatFactory_withRecipe_buildsExpression() {
+            // Create StringConcatFactory INVOKEDYNAMIC
+            InvokeDynamicInsnNode indyInsn = new InvokeDynamicInsnNode(
+                    "makeConcatWithConstants",
+                    "(Ljava/lang/String;)Ljava/lang/String;",
+                    new org.objectweb.asm.Handle(
+                            org.objectweb.asm.Opcodes.H_INVOKESTATIC,
+                            "java/lang/invoke/StringConcatFactory",
+                            "makeConcatWithConstants",
+                            "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;",
+                            false),
+                    "prefix-\u0001-suffix");
+
+            // Push one operand for the dynamic arg
+            context.push(field("name", String.class));
+
+            boolean terminated = handler.handle(indyInsn, context);
+
+            assertThat(terminated)
+                    .as("StringConcatFactory should not terminate")
+                    .isFalse();
+            assertThat(context.getStackSize())
+                    .as("Should have concatenation result on stack")
+                    .isEqualTo(1);
+        }
+
+        @Test
+        void handle_stringConcatFactory_withNullBsmArgs_returnsFalse() {
+            // Create INVOKEDYNAMIC with null bsmArgs
+            InvokeDynamicInsnNode indyInsn = new InvokeDynamicInsnNode(
+                    "makeConcatWithConstants",
+                    "(Ljava/lang/String;)Ljava/lang/String;",
+                    new org.objectweb.asm.Handle(
+                            org.objectweb.asm.Opcodes.H_INVOKESTATIC,
+                            "java/lang/invoke/StringConcatFactory",
+                            "makeConcatWithConstants",
+                            "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;",
+                            false));
+            // No bsmArgs set - defaults to empty array
+
+            boolean terminated = handler.handle(indyInsn, context);
+
+            assertThat(terminated)
+                    .as("Missing recipe should return false")
+                    .isFalse();
+        }
+
+        @Test
+        void handle_stringConcatFactory_withEmptyStack_returnsFalseAndLogsWarning() {
+            // StringConcatFactory with dynamic args but empty stack
+            InvokeDynamicInsnNode indyInsn = new InvokeDynamicInsnNode(
+                    "makeConcatWithConstants",
+                    "(Ljava/lang/String;)Ljava/lang/String;",
+                    new org.objectweb.asm.Handle(
+                            org.objectweb.asm.Opcodes.H_INVOKESTATIC,
+                            "java/lang/invoke/StringConcatFactory",
+                            "makeConcatWithConstants",
+                            "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;",
+                            false),
+                    "\u0001");  // One dynamic arg but empty stack
+
+            boolean terminated = handler.handle(indyInsn, context);
+
+            assertThat(terminated)
+                    .as("Stack underflow should return false")
+                    .isFalse();
+        }
+
+        @Test
+        void handle_stringConcatFactory_onlyConstantRecipe_buildsConstant() {
+            // Recipe with no dynamic args - just constant text
+            InvokeDynamicInsnNode indyInsn = new InvokeDynamicInsnNode(
+                    "makeConcatWithConstants",
+                    "()Ljava/lang/String;",
+                    new org.objectweb.asm.Handle(
+                            org.objectweb.asm.Opcodes.H_INVOKESTATIC,
+                            "java/lang/invoke/StringConcatFactory",
+                            "makeConcatWithConstants",
+                            "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;",
+                            false),
+                    "constant text only");
+
+            boolean terminated = handler.handle(indyInsn, context);
+
+            assertThat(terminated).isFalse();
+            assertThat(context.getStackSize()).isEqualTo(1);
+            assertThat(context.peek())
+                    .as("Constant-only recipe should produce Constant")
+                    .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant.class);
+        }
+
+        @Test
+        void handle_stringConcatFactory_multipleDynamicArgs_buildsTree() {
+            // Recipe with two dynamic args
+            InvokeDynamicInsnNode indyInsn = new InvokeDynamicInsnNode(
+                    "makeConcatWithConstants",
+                    "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
+                    new org.objectweb.asm.Handle(
+                            org.objectweb.asm.Opcodes.H_INVOKESTATIC,
+                            "java/lang/invoke/StringConcatFactory",
+                            "makeConcatWithConstants",
+                            "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;",
+                            false),
+                    "\u0001-\u0001");  // Two dynamic args
+
+            // Push two operands (in reverse order)
+            context.push(field("first", String.class));
+            context.push(field("second", String.class));
+
+            boolean terminated = handler.handle(indyInsn, context);
+
+            assertThat(terminated).isFalse();
+            assertThat(context.getStackSize()).isEqualTo(1);
+            assertThat(context.peek())
+                    .as("Multiple dynamic args should produce BinaryOp (ADD)")
+                    .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.class);
+        }
+
+        // ==================== LambdaMetafactory Tests ====================
+
+        @Test
+        void handle_lambdaMetafactory_nonQuerySpec_returnsFalse() {
+            // LambdaMetafactory but NOT QuerySpec - should not handle
+            InvokeDynamicInsnNode indyInsn = new InvokeDynamicInsnNode(
+                    "apply",
+                    "()Ljava/util/function/Function;",
+                    new org.objectweb.asm.Handle(
+                            org.objectweb.asm.Opcodes.H_INVOKESTATIC,
+                            "java/lang/invoke/LambdaMetafactory",
+                            "metafactory",
+                            "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;",
+                            false),
+                    org.objectweb.asm.Type.getType("(Ljava/lang/Object;)Ljava/lang/Object;"),
+                    new org.objectweb.asm.Handle(
+                            org.objectweb.asm.Opcodes.H_INVOKESTATIC,
+                            "test/Lambda",
+                            "lambda$test$0",
+                            "(Ljava/lang/Object;)Ljava/lang/Object;",
+                            false),
+                    org.objectweb.asm.Type.getType("(Ljava/lang/Object;)Ljava/lang/Object;"));
+
+            boolean terminated = handler.handle(indyInsn, context);
+
+            assertThat(terminated)
+                    .as("Non-QuerySpec lambda should return false")
+                    .isFalse();
+        }
+
+        @Test
+        void handle_nonStringConcatNonLambdaMetafactory_returnsFalse() {
+            // INVOKEDYNAMIC that is neither StringConcatFactory nor LambdaMetafactory
+            InvokeDynamicInsnNode indyInsn = new InvokeDynamicInsnNode(
+                    "someMethod",
+                    "()V",
+                    new org.objectweb.asm.Handle(
+                            org.objectweb.asm.Opcodes.H_INVOKESTATIC,
+                            "some/Other/Factory",
+                            "bootstrap",
+                            "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;",
+                            false));
+
+            boolean terminated = handler.handle(indyInsn, context);
+
+            assertThat(terminated)
+                    .as("Unknown INVOKEDYNAMIC should return false")
+                    .isFalse();
+        }
+
+        @Test
+        void handle_withNullBsm_returnsFalse() {
+            // Create INVOKEDYNAMIC with null bootstrap method
+            InvokeDynamicInsnNode indyInsn = new InvokeDynamicInsnNode(
+                    "test",
+                    "()V",
+                    null);
+
+            boolean terminated = handler.handle(indyInsn, context);
+
+            assertThat(terminated)
+                    .as("Null bootstrap method should return false")
+                    .isFalse();
+        }
+
+        // ==================== extractRecipe Tests (kill mutations lines 148, 151) ====================
+
+        @Test
+        void handle_stringConcatFactory_withNonStringBsmArg_returnsFalse() {
+            // bsmArgs[0] is not a String
+            InvokeDynamicInsnNode indyInsn = new InvokeDynamicInsnNode(
+                    "makeConcatWithConstants",
+                    "()Ljava/lang/String;",
+                    new org.objectweb.asm.Handle(
+                            org.objectweb.asm.Opcodes.H_INVOKESTATIC,
+                            "java/lang/invoke/StringConcatFactory",
+                            "makeConcatWithConstants",
+                            "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;",
+                            false),
+                    Integer.valueOf(42));  // Not a String
+
+            boolean terminated = handler.handle(indyInsn, context);
+
+            assertThat(terminated)
+                    .as("Non-string recipe should return false")
+                    .isFalse();
+            assertThat(context.isStackEmpty())
+                    .as("Stack should remain empty")
+                    .isTrue();
+        }
+
+        // ==================== parseRecipe boundary tests (kill mutations lines 192) ====================
+
+        @Test
+        void handle_stringConcatFactory_withFewerOperandsThanMarkers_handlesGracefully() {
+            // Recipe has 3 dynamic arg markers but only 2 operands
+            InvokeDynamicInsnNode indyInsn = new InvokeDynamicInsnNode(
+                    "makeConcatWithConstants",
+                    "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
+                    new org.objectweb.asm.Handle(
+                            org.objectweb.asm.Opcodes.H_INVOKESTATIC,
+                            "java/lang/invoke/StringConcatFactory",
+                            "makeConcatWithConstants",
+                            "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;",
+                            false),
+                    "\u0001-\u0001");  // Two markers
+
+            // Push only one operand
+            context.push(field("first", String.class));
+
+            boolean terminated = handler.handle(indyInsn, context);
+
+            // Stack underflow during buildConcatenationFromRecipe
+            assertThat(terminated).isFalse();
+        }
+
+        @Test
+        void handle_stringConcatFactory_operandIndexBoundary_exactMatch() {
+            // Exact match: 2 markers, 2 operands - tests operandIndex < operands.size() boundary
+            InvokeDynamicInsnNode indyInsn = new InvokeDynamicInsnNode(
+                    "makeConcatWithConstants",
+                    "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
+                    new org.objectweb.asm.Handle(
+                            org.objectweb.asm.Opcodes.H_INVOKESTATIC,
+                            "java/lang/invoke/StringConcatFactory",
+                            "makeConcatWithConstants",
+                            "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;",
+                            false),
+                    "\u0001\u0001");  // Two markers, no separator
+
+            context.push(field("first", String.class));
+            context.push(field("second", String.class));
+
+            boolean terminated = handler.handle(indyInsn, context);
+
+            assertThat(terminated).isFalse();
+            assertThat(context.getStackSize()).isEqualTo(1);
+        }
+
+        // ==================== Helper method to access private escapeRecipe ====================
+
+        private String invokeEscapeRecipe(String recipe) {
+            try {
+                java.lang.reflect.Method method = InvokeDynamicHandler.class
+                        .getDeclaredMethod("escapeRecipe", String.class);
+                method.setAccessible(true);
+                return (String) method.invoke(handler, recipe);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to invoke escapeRecipe", e);
+            }
         }
     }
 }

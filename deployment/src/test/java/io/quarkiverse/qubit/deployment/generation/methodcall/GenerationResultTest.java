@@ -1,0 +1,158 @@
+package io.quarkiverse.qubit.deployment.generation.methodcall;
+
+import io.quarkus.gizmo.ResultHandle;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+
+/**
+ * Unit tests for {@link GenerationResult} sealed interface and its implementations.
+ */
+class GenerationResultTest {
+
+    // ========================================================================
+    // Success Tests
+    // ========================================================================
+
+    @Nested
+    class SuccessTests {
+
+        @Test
+        void success_isSuccessReturnsTrue() {
+            ResultHandle handle = mock(ResultHandle.class);
+            GenerationResult result = new GenerationResult.Success(handle);
+
+            assertThat(result.isSuccess()).isTrue();
+        }
+
+        @Test
+        void success_withNullHandle_throwsNullPointerException() {
+            assertThatThrownBy(() -> new GenerationResult.Success(null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("cannot be null");
+        }
+
+        @Test
+        void success_getOrThrow_returnsValue() {
+            ResultHandle handle = mock(ResultHandle.class);
+            GenerationResult result = new GenerationResult.Success(handle);
+
+            ResultHandle returned = result.getOrThrow();
+
+            assertThat(returned).isSameAs(handle);
+        }
+
+        @Test
+        void success_orElse_returnsValue() {
+            ResultHandle handle = mock(ResultHandle.class);
+            ResultHandle fallback = mock(ResultHandle.class);
+            GenerationResult result = new GenerationResult.Success(handle);
+
+            ResultHandle returned = result.orElse(fallback);
+
+            assertThat(returned).isSameAs(handle);
+        }
+
+        @Test
+        void success_map_appliesMapper() {
+            ResultHandle original = mock(ResultHandle.class);
+            ResultHandle mapped = mock(ResultHandle.class);
+            GenerationResult result = new GenerationResult.Success(original);
+
+            GenerationResult mappedResult = result.map(rh -> mapped);
+
+            assertThat(mappedResult).isInstanceOf(GenerationResult.Success.class);
+            assertThat(((GenerationResult.Success) mappedResult).value()).isSameAs(mapped);
+        }
+
+        @Test
+        void success_factoryMethod_createsSuccess() {
+            ResultHandle handle = mock(ResultHandle.class);
+
+            GenerationResult result = GenerationResult.success(handle);
+
+            assertThat(result).isInstanceOf(GenerationResult.Success.class);
+            assertThat(((GenerationResult.Success) result).value()).isSameAs(handle);
+        }
+    }
+
+    // ========================================================================
+    // Unsupported Tests
+    // ========================================================================
+
+    @Nested
+    class UnsupportedTests {
+
+        @Test
+        void unsupported_isSuccessReturnsFalse() {
+            GenerationResult result = new GenerationResult.Unsupported("method", "reason");
+
+            assertThat(result.isSuccess()).isFalse();
+        }
+
+        @Test
+        void unsupported_withNullMethodName_throwsNullPointerException() {
+            assertThatThrownBy(() -> new GenerationResult.Unsupported(null, "reason"))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("methodName cannot be null");
+        }
+
+        @Test
+        void unsupported_withNullReason_throwsNullPointerException() {
+            assertThatThrownBy(() -> new GenerationResult.Unsupported("method", null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("reason cannot be null");
+        }
+
+        @Test
+        void unsupported_getOrThrow_throwsIllegalStateException() {
+            GenerationResult result = new GenerationResult.Unsupported("getValue", "Not supported");
+
+            assertThatThrownBy(result::getOrThrow)
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("Cannot get value from Unsupported");
+        }
+
+        @Test
+        void unsupported_orElse_returnsFallback() {
+            ResultHandle fallback = mock(ResultHandle.class);
+            GenerationResult result = new GenerationResult.Unsupported("method", "reason");
+
+            ResultHandle returned = result.orElse(fallback);
+
+            assertThat(returned).isSameAs(fallback);
+        }
+
+        @Test
+        void unsupported_map_returnsSameUnsupported() {
+            GenerationResult.Unsupported original = new GenerationResult.Unsupported("method", "reason");
+
+            GenerationResult mappedResult = original.map(rh -> mock(ResultHandle.class));
+
+            assertThat(mappedResult).isSameAs(original);
+        }
+
+        @Test
+        void unsupported_noHandlerFound_createsWithStandardReason() {
+            GenerationResult.Unsupported unsupported = GenerationResult.Unsupported.noHandlerFound("customMethod");
+
+            assertThat(unsupported.methodName()).isEqualTo("customMethod");
+            assertThat(unsupported.reason()).contains("No handler found");
+            assertThat(unsupported.reason()).contains("customMethod");
+        }
+
+        @Test
+        void unsupported_factoryMethod_createsUnsupported() {
+            GenerationResult result = GenerationResult.unsupported("method", "reason");
+
+            assertThat(result).isInstanceOf(GenerationResult.Unsupported.class);
+            GenerationResult.Unsupported unsupported = (GenerationResult.Unsupported) result;
+            assertThat(unsupported.methodName()).isEqualTo("method");
+            assertThat(unsupported.reason()).isEqualTo("reason");
+        }
+    }
+
+}

@@ -182,6 +182,52 @@ public final class BranchExpressionCombiner {
         return false;
     }
 
+    /** Returns true if OR combination should be deferred (building (A && B) || (C && D) patterns). */
+    public static boolean shouldDeferOrCombination(
+            BranchState state,
+            @Nullable Operator combineOp,
+            @Nullable Boolean jumpTarget,
+            boolean sameLabel,
+            @Nullable LambdaExpression stackTop) {
+        if (!(state instanceof BranchState.OrMode)) {
+            return false;
+        }
+        if (combineOp != OR) {
+            return false;
+        }
+        if (!FALSE.equals(jumpTarget)) {
+            return false;
+        }
+        if (sameLabel) {
+            return false;
+        }
+        return stackTop instanceof LambdaExpression.BinaryOp binOp && binOp.operator() == AND;
+    }
+
+    /**
+     * Returns true if two AND groups should be merged with OR ((A && B) || (C && D) pattern completion).
+     */
+    public static boolean shouldMergeAndGroups(
+            boolean sameLabel,
+            Operator combineOp,
+            BranchState state,
+            int stackSize,
+            boolean hasPredicateOnStack) {
+        if (!sameLabel) {
+            return false;
+        }
+        if (combineOp != AND) {
+            return false;
+        }
+        if (!(state instanceof BranchState.OrMode)) {
+            return false;
+        }
+        if (stackSize < 2) {
+            return false;
+        }
+        return hasPredicateOnStack;
+    }
+
     /**
      * Processes branch instruction and combines expression with stack.
      *
@@ -250,9 +296,7 @@ public final class BranchExpressionCombiner {
                 ctx.completingAndGroup(), ctx.startingNewOrGroup(), hasPredicateOnStack);
 
         // OrMode deferral: (A && B) || (C && D) - wait for AND group to complete
-        if (state instanceof BranchState.OrMode && combineOp == OR
-                && FALSE.equals(jumpTarget) && !sameLabel
-                && stackTop instanceof LambdaExpression.BinaryOp binOp && binOp.operator() == AND) {
+        if (shouldDeferOrCombination(state, combineOp, jumpTarget, sameLabel, stackTop)) {
             Log.debugf("%s: Starting new AND group in OrMode, deferring OR combination", instructionName);
             combineOp = null;  // Don't combine yet
         }
@@ -267,8 +311,7 @@ public final class BranchExpressionCombiner {
             Log.debugf("%s: Combined with %s: %s", instructionName, combineOp, combined);
 
             // Post-AND-group merge: (A && B) || (C && D) - combine AND groups with OR
-            if (sameLabel && combineOp == AND && state instanceof BranchState.OrMode
-                    && stack.size() >= 2 && isPredicateExpression(stack.peek())) {
+            if (shouldMergeAndGroups(sameLabel, combineOp, state, stack.size(), isPredicateExpression(stack.peek()))) {
                 LambdaExpression rightAndGroup = BytecodeValidator.popSafe(stack, instructionName + "-OrCombine-right");
                 if (!stack.isEmpty() && isPredicateExpression(stack.peek())) {
                     LambdaExpression leftAndGroup = BytecodeValidator.popSafe(stack, instructionName + "-OrCombine-left");

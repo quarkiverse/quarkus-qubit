@@ -354,5 +354,134 @@ class TypeConverterTest {
         void descriptorToClass_unknown_returnsObjectClass() {
             assertThat(TypeConverter.descriptorToClass("Lcom/unknown/Type;")).isEqualTo(Object.class);
         }
+
+        // ==================== Mutation killing: verify non-Object return types ====================
+        // These tests kill mutations that replace equality checks with false
+        // by verifying the result is NOT Object.class
+
+        @Test
+        void descriptorToClass_String_isNotObject() {
+            Class<?> result = TypeConverter.descriptorToClass("Ljava/lang/String;");
+            assertThat(result)
+                    .as("String descriptor should not return Object.class")
+                    .isNotEqualTo(Object.class)
+                    .isEqualTo(String.class);
+        }
+
+        @Test
+        void descriptorToClass_Integer_isNotObject() {
+            Class<?> result = TypeConverter.descriptorToClass("Ljava/lang/Integer;");
+            assertThat(result)
+                    .isNotEqualTo(Object.class)
+                    .isEqualTo(Integer.class);
+        }
+
+        @Test
+        void descriptorToClass_Long_isNotObject() {
+            Class<?> result = TypeConverter.descriptorToClass("Ljava/lang/Long;");
+            assertThat(result)
+                    .isNotEqualTo(Object.class)
+                    .isEqualTo(Long.class);
+        }
+
+        @Test
+        void descriptorToClass_Boolean_isNotObject() {
+            Class<?> result = TypeConverter.descriptorToClass("Ljava/lang/Boolean;");
+            assertThat(result)
+                    .isNotEqualTo(Object.class)
+                    .isEqualTo(Boolean.class);
+        }
+
+        @Test
+        void descriptorToClass_Double_isNotObject() {
+            Class<?> result = TypeConverter.descriptorToClass("Ljava/lang/Double;");
+            assertThat(result)
+                    .isNotEqualTo(Object.class)
+                    .isEqualTo(Double.class);
+        }
+
+        @Test
+        void descriptorToClass_Float_isNotObject() {
+            Class<?> result = TypeConverter.descriptorToClass("Ljava/lang/Float;");
+            assertThat(result)
+                    .isNotEqualTo(Object.class)
+                    .isEqualTo(Float.class);
+        }
+
+        @Test
+        void descriptorToClass_BigDecimal_isNotObject() {
+            Class<?> result = TypeConverter.descriptorToClass("Ljava/math/BigDecimal;");
+            assertThat(result)
+                    .isNotEqualTo(Object.class)
+                    .isEqualTo(java.math.BigDecimal.class);
+        }
+
+        @Test
+        void descriptorToClass_LocalDate_isNotObject() {
+            Class<?> result = TypeConverter.descriptorToClass("Ljava/time/LocalDate;");
+            assertThat(result)
+                    .isNotEqualTo(Object.class)
+                    .isEqualTo(java.time.LocalDate.class);
+        }
+
+        @Test
+        void descriptorToClass_LocalDateTime_isNotObject() {
+            Class<?> result = TypeConverter.descriptorToClass("Ljava/time/LocalDateTime;");
+            assertThat(result)
+                    .isNotEqualTo(Object.class)
+                    .isEqualTo(java.time.LocalDateTime.class);
+        }
+
+        @Test
+        void descriptorToClass_LocalTime_isNotObject() {
+            Class<?> result = TypeConverter.descriptorToClass("Ljava/time/LocalTime;");
+            assertThat(result)
+                    .isNotEqualTo(Object.class)
+                    .isEqualTo(java.time.LocalTime.class);
+        }
+    }
+
+    // ==================== isNumericType Mutation Killing Tests ====================
+    // These tests specifically target mutations that replace equality with true
+
+    @Nested
+    @DisplayName("isNumericType - mutation killing")
+    class IsNumericTypeMutationKillingTests {
+
+        // Tests to kill "replaced with true" mutations - non-numeric types MUST return false
+        @Test
+        void isNumericType_Object_returnsFalse() {
+            assertThat(TypeConverter.isNumericType(Object.class))
+                    .as("Object is not a numeric type")
+                    .isFalse();
+        }
+
+        @Test
+        void isNumericType_Boolean_returnsFalse() {
+            assertThat(TypeConverter.isNumericType(Boolean.class))
+                    .as("Boolean is not a numeric type")
+                    .isFalse();
+        }
+
+        @Test
+        void isNumericType_Character_returnsFalse() {
+            assertThat(TypeConverter.isNumericType(Character.class))
+                    .as("Character is not a numeric type")
+                    .isFalse();
+        }
+
+        @Test
+        void isNumericType_Void_returnsFalse() {
+            assertThat(TypeConverter.isNumericType(void.class))
+                    .as("void is not a numeric type")
+                    .isFalse();
+        }
+
+        @Test
+        void isNumericType_LocalDate_returnsFalse() {
+            assertThat(TypeConverter.isNumericType(java.time.LocalDate.class))
+                    .as("LocalDate is not a numeric type")
+                    .isFalse();
+        }
     }
 }

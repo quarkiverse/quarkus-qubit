@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.MethodNode;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
@@ -275,7 +276,7 @@ class AnalysisContextEdgeCaseTest {
 
         @Test
         void nestedLambdaSupport_defensivelyCopiesMethodList() {
-            var methods = new java.util.ArrayList<MethodNode>();
+            var methods = new ArrayList<MethodNode>();
             methods.add(testMethod);
 
             var support = new AnalysisContext.NestedLambdaSupport(methods, (m, i) -> null);

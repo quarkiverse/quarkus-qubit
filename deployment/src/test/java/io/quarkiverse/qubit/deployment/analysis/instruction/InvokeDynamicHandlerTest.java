@@ -5,12 +5,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.Handle;
-import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.InvokeDynamicInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
+import static io.quarkiverse.qubit.deployment.analysis.instruction.InvokeDynamicHandler.IndyCategory;
+import static io.quarkiverse.qubit.deployment.analysis.instruction.InvokeDynamicHandler.IndyCategory.*;
 import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
+import static io.quarkiverse.qubit.deployment.testutil.fixtures.AsmFixtures.testMethod;
+import static io.quarkiverse.qubit.deployment.testutil.fixtures.AnalysisContextFixtures.contextFor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.objectweb.asm.Opcodes.*;
 
@@ -23,6 +26,9 @@ class InvokeDynamicHandlerTest {
 
     private static final String STRING_CONCAT_FACTORY = "java/lang/invoke/StringConcatFactory";
     private static final String LAMBDA_METAFACTORY = "java/lang/invoke/LambdaMetafactory";
+    private static final String QUERY_SPEC_RETURN = "()Lio/quarkiverse/qubit/QuerySpec;";
+    private static final String FUNCTION_RETURN = "()Ljava/util/function/Function;";
+    private static final String PREDICATE_RETURN = "()Ljava/util/function/Predicate;";
 
     private InvokeDynamicHandler handler;
     private MethodNode testMethod;
@@ -31,11 +37,8 @@ class InvokeDynamicHandlerTest {
     @BeforeEach
     void setUp() {
         handler = InvokeDynamicHandler.INSTANCE;
-        testMethod = new MethodNode();
-        testMethod.name = "testLambda";
-        testMethod.desc = "(Ljava/lang/Object;)Z";
-        testMethod.instructions = new InsnList();
-        context = new AnalysisContext(testMethod, 0);
+        testMethod = testMethod().build();
+        context = contextFor(testMethod, 0);
     }
 
     // ==================== canHandle Tests ====================
@@ -708,6 +711,177 @@ class InvokeDynamicHandlerTest {
 
             assertThat(context.getStackSize()).isEqualTo(1);
             // All 3 operands should be consumed and combined
+        }
+    }
+
+    // ==================== IndyCategory Categorization Tests ====================
+
+    @Nested
+    class IndyCategoryTests {
+
+        @Test
+        void categorize_stringConcatFactory_returnsStringConcat() {
+            InvokeDynamicInsnNode indy = createStringConcatIndy("test");
+
+            IndyCategory result = IndyCategory.categorize(indy);
+
+            assertThat(result)
+                    .as("StringConcatFactory should be categorized as STRING_CONCAT")
+                    .isEqualTo(STRING_CONCAT);
+        }
+
+        @Test
+        void categorize_lambdaMetafactoryWithQuerySpecReturn_returnsQuerySpecLambda() {
+            Handle bsm = new Handle(H_INVOKESTATIC, LAMBDA_METAFACTORY, "metafactory",
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
+            InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("apply",
+                    QUERY_SPEC_RETURN, bsm);
+
+            IndyCategory result = IndyCategory.categorize(indy);
+
+            assertThat(result)
+                    .as("LambdaMetafactory with QuerySpec return should be QUERY_SPEC_LAMBDA")
+                    .isEqualTo(QUERY_SPEC_LAMBDA);
+        }
+
+        @Test
+        void categorize_lambdaMetafactoryWithFunctionReturn_returnsUnhandled() {
+            Handle bsm = new Handle(H_INVOKESTATIC, LAMBDA_METAFACTORY, "metafactory",
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
+            InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("apply",
+                    FUNCTION_RETURN, bsm);
+
+            IndyCategory result = IndyCategory.categorize(indy);
+
+            assertThat(result)
+                    .as("LambdaMetafactory with non-QuerySpec return should be UNHANDLED")
+                    .isEqualTo(UNHANDLED);
+        }
+
+        @Test
+        void categorize_lambdaMetafactoryWithPredicateReturn_returnsUnhandled() {
+            Handle bsm = new Handle(H_INVOKESTATIC, LAMBDA_METAFACTORY, "metafactory",
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
+            InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("test",
+                    PREDICATE_RETURN, bsm);
+
+            IndyCategory result = IndyCategory.categorize(indy);
+
+            assertThat(result)
+                    .as("LambdaMetafactory with Predicate return should be UNHANDLED")
+                    .isEqualTo(UNHANDLED);
+        }
+
+        @Test
+        void categorize_nullBsm_returnsUnhandled() {
+            InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("test",
+                    "()Ljava/lang/Object;", null);
+
+            IndyCategory result = IndyCategory.categorize(indy);
+
+            assertThat(result)
+                    .as("Null bsm should be categorized as UNHANDLED")
+                    .isEqualTo(UNHANDLED);
+        }
+
+        @Test
+        void categorize_unknownBootstrapMethod_returnsUnhandled() {
+            Handle bsm = new Handle(H_INVOKESTATIC, "com/example/CustomFactory", "bootstrap",
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
+            InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("customCall",
+                    "()Ljava/lang/Object;", bsm);
+
+            IndyCategory result = IndyCategory.categorize(indy);
+
+            assertThat(result)
+                    .as("Unknown bootstrap method should be UNHANDLED")
+                    .isEqualTo(UNHANDLED);
+        }
+
+        @Test
+        void categorize_stringConcatFactoryPriority_overLambdaMetafactory() {
+            // StringConcatFactory should be checked before LambdaMetafactory
+            // This tests the priority order in categorize()
+            InvokeDynamicInsnNode stringConcat = createStringConcatIndy("\u0001");
+
+            IndyCategory result = IndyCategory.categorize(stringConcat);
+
+            assertThat(result)
+                    .as("StringConcatFactory has higher priority")
+                    .isEqualTo(STRING_CONCAT);
+        }
+
+        @Test
+        void categorize_lambdaMetafactoryWithCapturedVars_stillQuerySpecLambda() {
+            // Lambda with captured variables: (LPerson;)QuerySpec
+            Handle bsm = new Handle(H_INVOKESTATIC, LAMBDA_METAFACTORY, "metafactory",
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
+            InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("apply",
+                    "(LPerson;)Lio/quarkiverse/qubit/QuerySpec;", bsm);
+
+            IndyCategory result = IndyCategory.categorize(indy);
+
+            assertThat(result)
+                    .as("LambdaMetafactory with captured vars but QuerySpec return should be QUERY_SPEC_LAMBDA")
+                    .isEqualTo(QUERY_SPEC_LAMBDA);
+        }
+
+        @Test
+        void categorize_lambdaMetafactoryWithSubquerySpec_returnsQuerySpecLambda() {
+            // SubquerySpec also implements QuerySpec - test the return type check
+            Handle bsm = new Handle(H_INVOKESTATIC, LAMBDA_METAFACTORY, "metafactory",
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
+            // Uses QuerySpec in the return type
+            InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("apply",
+                    "()Lio/quarkiverse/qubit/QuerySpec;", bsm);
+
+            IndyCategory result = IndyCategory.categorize(indy);
+
+            assertThat(result).isEqualTo(QUERY_SPEC_LAMBDA);
+        }
+
+        @Test
+        void categorize_bsmOwnerEquality_usesEquals() {
+            // Test that we use equals() for String comparison, not reference equality
+            // This kills mutations that change equals() to ==
+            Handle bsm = new Handle(H_INVOKESTATIC,
+                    new String("java/lang/invoke/StringConcatFactory"), // new String to avoid interning
+                    "makeConcatWithConstants",
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;", false);
+            InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("makeConcatWithConstants",
+                    "(Ljava/lang/String;)Ljava/lang/String;", bsm, "test");
+
+            IndyCategory result = IndyCategory.categorize(indy);
+
+            assertThat(result)
+                    .as("Should use equals() for owner comparison")
+                    .isEqualTo(STRING_CONCAT);
+        }
+
+        @Test
+        void categorize_lambdaMetafactoryOwnerEquality_usesEquals() {
+            // Test equals() for LambdaMetafactory owner comparison
+            Handle bsm = new Handle(H_INVOKESTATIC,
+                    new String("java/lang/invoke/LambdaMetafactory"), // new String to avoid interning
+                    "metafactory",
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
+            InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("apply",
+                    QUERY_SPEC_RETURN, bsm);
+
+            IndyCategory result = IndyCategory.categorize(indy);
+
+            assertThat(result)
+                    .as("Should use equals() for LambdaMetafactory owner comparison")
+                    .isEqualTo(QUERY_SPEC_LAMBDA);
+        }
+
+        @Test
+        void categorize_allEnumValues_areTestedOrReturned() {
+            // Verify all enum values can be returned by categorize
+            assertThat(IndyCategory.values())
+                    .as("IndyCategory should have exactly 3 values")
+                    .hasSize(3)
+                    .containsExactly(STRING_CONCAT, QUERY_SPEC_LAMBDA, UNHANDLED);
         }
     }
 

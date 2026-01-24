@@ -13,74 +13,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class EntityClassInfoTest {
 
-    // ==================== Constructor Tests ====================
-
-    @Nested
-    class ConstructorTests {
-
-        @Test
-        void constructor_withClassAndNullClassName_createsInfo() {
-            EntityClassInfo info = new EntityClassInfo(String.class, null);
-
-            assertThat(info.clazz())
-                    .as("Class should be preserved")
-                    .isEqualTo(String.class);
-            assertThat(info.className())
-                    .as("className should be null")
-                    .isNull();
-        }
-
-        @Test
-        void constructor_withObjectClassAndClassName_createsPlaceholder() {
-            EntityClassInfo info = new EntityClassInfo(Object.class, "com.example.Entity");
-
-            assertThat(info.clazz())
-                    .as("Placeholder class should be Object.class")
-                    .isEqualTo(Object.class);
-            assertThat(info.className())
-                    .as("className should be set")
-                    .isEqualTo("com.example.Entity");
-        }
-    }
-
-    // ==================== Factory Method: of Tests ====================
-
-    @Nested
-    class OfFactoryMethodTests {
-
-        @Test
-        void of_withClass_createsInfoWithNullClassName() {
-            EntityClassInfo info = EntityClassInfo.of(String.class);
-
-            assertThat(info.clazz())
-                    .as("Class should be String.class")
-                    .isEqualTo(String.class);
-            assertThat(info.className())
-                    .as("className should be null")
-                    .isNull();
-        }
-
-        @Test
-        void of_withIntegerClass_createsInfo() {
-            EntityClassInfo info = EntityClassInfo.of(Integer.class);
-
-            assertThat(info.clazz())
-                    .as("Class should be Integer.class")
-                    .isEqualTo(Integer.class);
-            assertThat(info.className()).isNull();
-        }
-
-        @Test
-        void of_withCustomClass_createsInfo() {
-            EntityClassInfo info = EntityClassInfo.of(EntityClassInfo.class);
-
-            assertThat(info.clazz())
-                    .as("Class should be EntityClassInfo.class")
-                    .isEqualTo(EntityClassInfo.class);
-            assertThat(info.className()).isNull();
-        }
-    }
-
     // ==================== Factory Method: placeholder Tests ====================
 
     @Nested
@@ -198,52 +130,6 @@ class EntityClassInfoTest {
             assertThat(info.getEffectiveClassName())
                     .as("Should return fully qualified project class name")
                     .isEqualTo("io.quarkiverse.qubit.deployment.common.EntityClassInfo");
-        }
-    }
-
-    // ==================== Record Equality Tests ====================
-
-    @Nested
-    class RecordEqualityTests {
-
-        @Test
-        void equals_withSameValues_returnsTrue() {
-            EntityClassInfo info1 = EntityClassInfo.of(String.class);
-            EntityClassInfo info2 = EntityClassInfo.of(String.class);
-
-            assertThat(info1)
-                    .as("Same values should be equal")
-                    .isEqualTo(info2);
-        }
-
-        @Test
-        void equals_withDifferentClass_returnsFalse() {
-            EntityClassInfo info1 = EntityClassInfo.of(String.class);
-            EntityClassInfo info2 = EntityClassInfo.of(Integer.class);
-
-            assertThat(info1)
-                    .as("Different classes should not be equal")
-                    .isNotEqualTo(info2);
-        }
-
-        @Test
-        void equals_withDifferentClassName_returnsFalse() {
-            EntityClassInfo info1 = EntityClassInfo.placeholder("com.example.A");
-            EntityClassInfo info2 = EntityClassInfo.placeholder("com.example.B");
-
-            assertThat(info1)
-                    .as("Different classNames should not be equal")
-                    .isNotEqualTo(info2);
-        }
-
-        @Test
-        void hashCode_withSameValues_returnsSameHash() {
-            EntityClassInfo info1 = EntityClassInfo.of(String.class);
-            EntityClassInfo info2 = EntityClassInfo.of(String.class);
-
-            assertThat(info1.hashCode())
-                    .as("Same values should have same hashCode")
-                    .isEqualTo(info2.hashCode());
         }
     }
 }
