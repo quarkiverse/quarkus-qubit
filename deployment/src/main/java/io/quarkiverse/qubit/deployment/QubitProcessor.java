@@ -3,7 +3,6 @@ package io.quarkiverse.qubit.deployment;
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.CHARACTERISTICS_REQUIRED;
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.GENERATED_CLASS_NAME_REQUIRED;
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.QUERY_ID_REQUIRED;
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_CAPABILITY;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_ENTITY_CLASS_NAME;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_REPOSITORY_CLASS_NAME;
 import java.util.ArrayList;
@@ -29,7 +28,6 @@ import io.quarkus.deployment.builditem.AdditionalIndexedClassesBuildItem;
 import io.quarkus.deployment.builditem.ApplicationArchivesBuildItem;
 import io.quarkus.deployment.builditem.BytecodeTransformerBuildItem;
 import io.quarkus.deployment.builditem.CombinedIndexBuildItem;
-import io.quarkus.deployment.builditem.CapabilityBuildItem;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
 import io.quarkus.deployment.builditem.GeneratedClassBuildItem;
 import io.quarkus.hibernate.orm.deployment.spi.AdditionalJpaModelBuildItem;
@@ -58,13 +56,10 @@ public class QubitProcessor {
     private final LambdaBytecodeAnalyzer bytecodeAnalyzer = new LambdaBytecodeAnalyzer();
     private final LambdaDeduplicator deduplicator = new LambdaDeduplicator();
 
-    /** Registers Qubit feature and capability for extension interoperability. */
+    /** Registers Qubit feature. Capability declared in runtime pom.xml extension-descriptor. */
     @BuildStep
-    void featureAndCapability(
-            BuildProducer<FeatureBuildItem> feature,
-            BuildProducer<CapabilityBuildItem> capability) {
-        feature.produce(new FeatureBuildItem(FEATURE));
-        capability.produce(new CapabilityBuildItem(QUBIT_CAPABILITY, FEATURE));
+    FeatureBuildItem feature() {
+        return new FeatureBuildItem(FEATURE);
     }
 
     /** Registers QueryExecutorRegistry as unremovable bean. */

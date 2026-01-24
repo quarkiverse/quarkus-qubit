@@ -79,6 +79,9 @@
                         </goals>
                         <configuration>
                             <deployment>${project.groupId}:${project.artifactId}-deployment:${project.version}</deployment>
+                            <capabilities>
+                                <provides>io.quarkiverse.qubit</provides>
+                            </capabilities>
                         </configuration>
                     </execution>
                 </executions>
