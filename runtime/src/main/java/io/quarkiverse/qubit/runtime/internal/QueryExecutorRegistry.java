@@ -567,4 +567,12 @@ public class QueryExecutorRegistry {
             EXECUTOR_LOCK.readLock().unlock();
         }
     }
+
+    /**
+     * Returns total count of registered executors for performance metrics.
+     * Alias for getTotalExecutorCount() for clarity in metrics context.
+     */
+    public static int getRegisteredExecutorCount() {
+        return getTotalExecutorCount();
+    }
 }

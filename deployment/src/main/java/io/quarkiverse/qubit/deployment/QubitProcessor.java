@@ -5,6 +5,7 @@ import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.GENERATED
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.QUERY_ID_REQUIRED;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_ENTITY_CLASS_NAME;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_REPOSITORY_CLASS_NAME;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -13,6 +14,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
 
 import org.jboss.jandex.ClassInfo;
 import org.jboss.jandex.DotName;
@@ -164,6 +167,11 @@ public class QubitProcessor {
             BuildProducer<GeneratedClassBuildItem> generatedClass,
             BuildProducer<QueryTransformationBuildItem> queryTransformations) {
 
+        // Initialize metrics collector if enabled
+        BuildMetricsCollector metricsCollector = config.metrics().enabled()
+                ? new BuildMetricsCollector()
+                : null;
+
         Log.debugf("Qubit: Scanning for lambda call sites using invokedynamic analysis");
 
         IndexView index = combinedIndex.getIndex();
@@ -172,6 +180,11 @@ public class QubitProcessor {
         Collection<ClassInfo> allClasses = index.getKnownClasses();
 
         Log.debugf("Qubit: Scanning %d classes for lambda call sites", allClasses.size());
+
+        // Phase: Lambda Discovery
+        if (metricsCollector != null) {
+            metricsCollector.startPhase("lambda_discovery");
+        }
 
         List<ClassInfo> filteredClasses = allClasses.stream()
                 .filter(classInfo -> isNotExcludedClass(classInfo, config.scanning()))
@@ -198,6 +211,10 @@ public class QubitProcessor {
                 .peek(c -> Log.tracef("Qubit: Found callSite %s", c.getCallSiteId()))
                 .toList();
 
+        if (metricsCollector != null) {
+            metricsCollector.endPhase("lambda_discovery");
+        }
+
         Log.debugf("Qubit: Found %d total lambda call site(s)", allCallSites.size());
 
         validateUniqueCallSiteIds(allCallSites);
@@ -205,16 +222,41 @@ public class QubitProcessor {
         AtomicInteger generatedCount = new AtomicInteger(0);
         AtomicInteger deduplicatedCount = new AtomicInteger(0);
 
+        // Phase: Bytecode Analysis and Code Generation
+        if (metricsCollector != null) {
+            metricsCollector.startPhase("bytecode_analysis");
+        }
+
         allCallSites.stream()
-                .forEach(callSite -> configuredProcessor.processCallSiteWithHandlers(
-                        callSite, applicationArchives,
-                        generatedCount, deduplicatedCount,
-                        generatedClass, queryTransformations,
-                        config.logging(),
-                        true));
+                .forEach(callSite -> {
+                    configuredProcessor.processCallSiteWithHandlers(
+                            callSite, applicationArchives,
+                            generatedCount, deduplicatedCount,
+                            generatedClass, queryTransformations,
+                            config.logging(),
+                            true);
+                    if (metricsCollector != null) {
+                        metricsCollector.incrementQueryCount();
+                    }
+                });
+
+        if (metricsCollector != null) {
+            metricsCollector.endPhase("bytecode_analysis");
+        }
 
         Log.infof("Qubit extension initialized - Call sites: %d | Query executors: %d generated, %d deduplicated",
                 allCallSites.size(), generatedCount.get(), deduplicatedCount.get());
+
+        // Write metrics report if enabled
+        if (metricsCollector != null) {
+            try {
+                Path outputPath = Path.of(config.metrics().outputPath());
+                metricsCollector.writeReport(outputPath);
+                Log.infof("Qubit: Build metrics written to %s", outputPath);
+            } catch (Exception e) {
+                Log.warnf(e, "Qubit: Failed to write build metrics");
+            }
+        }
     }
 
     /** Determines if a class should be included in lambda scanning. */

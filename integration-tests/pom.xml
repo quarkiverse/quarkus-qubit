@@ -399,5 +399,18 @@
                 <playwright.skip-install>false</playwright.skip-install>
             </properties>
         </profile>
+
+        <!--
+            ==========================================
+            PERFORMANCE METRICS PROFILE
+            ==========================================
+            Usage: mvn verify -Pperformance -Dtest=PerformanceBaselineTest
+        -->
+        <profile>
+            <id>performance</id>
+            <properties>
+                <quarkus.qubit.metrics.enabled>true</quarkus.qubit.metrics.enabled>
+            </properties>
+        </profile>
     </profiles>
 </project>

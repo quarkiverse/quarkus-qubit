@@ -88,7 +88,10 @@ public class BuildMetricsCollector {
         json.append("  \"query_count\": ").append(queryCount).append("\n");
         json.append("}\n");
 
-        Files.createDirectories(outputPath.getParent());
+        Path parent = outputPath.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
         Files.writeString(outputPath, json.toString());
     }
 }

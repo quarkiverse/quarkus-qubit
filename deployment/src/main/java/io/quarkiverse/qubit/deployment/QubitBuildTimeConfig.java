@@ -1,5 +1,6 @@
 package io.quarkiverse.qubit.deployment;
 
+import io.quarkiverse.qubit.deployment.metrics.BuildMetricsConfig;
 import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 import io.quarkus.runtime.annotations.ConfigPhase;
@@ -21,6 +22,9 @@ public interface QubitBuildTimeConfig {
 
     /** Logging configuration for build-time processing. */
     LoggingConfig logging();
+
+    /** Performance metrics configuration. */
+    MetricsConfig metrics();
 
     /** Package scanning configuration. */
     interface ScanningConfig {
@@ -111,5 +115,12 @@ public interface QubitBuildTimeConfig {
          */
         @WithDefault("false")
         boolean logBytecodeAnalysis();
+    }
+
+    /**
+     * Performance metrics collection configuration.
+     */
+    interface MetricsConfig extends BuildMetricsConfig {
+        // Inherits enabled() and outputPath() from BuildMetricsConfig
     }
 }
