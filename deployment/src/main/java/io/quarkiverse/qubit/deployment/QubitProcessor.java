@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
 
@@ -172,6 +173,10 @@ public class QubitProcessor {
                 ? new BuildMetricsCollector()
                 : null;
 
+        // Clear caches for fresh metrics collection (also essential for dev mode hot reload)
+        BytecodeLoader.clearCache();
+        LambdaBytecodeAnalyzer.clearCache();
+
         Log.debugf("Qubit: Scanning for lambda call sites using invokedynamic analysis");
 
         IndexView index = combinedIndex.getIndex();
@@ -204,10 +209,10 @@ public class QubitProcessor {
         }
 
         CallSiteProcessor configuredProcessor = new CallSiteProcessor(
-                bytecodeAnalyzer, deduplicator, classGenerator, config.generation());
+                bytecodeAnalyzer, deduplicator, classGenerator, config.generation(), metricsCollector);
 
         List<InvokeDynamicScanner.LambdaCallSite> allCallSites = filteredClasses.stream()
-                .flatMap(classInfo -> scanClassForCallSites(classInfo, scanner, applicationArchives, config.logging()).stream())
+                .flatMap(classInfo -> scanClassForCallSites(classInfo, scanner, applicationArchives, config.logging(), metricsCollector).stream())
                 .peek(c -> Log.tracef("Qubit: Found callSite %s", c.getCallSiteId()))
                 .toList();
 
@@ -227,7 +232,15 @@ public class QubitProcessor {
             metricsCollector.startPhase("bytecode_analysis");
         }
 
-        allCallSites.stream()
+        // Group call sites by owner class for cache locality - improves bytecode and ClassNode cache hit rates
+        // by processing all lambdas from the same class together before moving to the next class
+        Map<String, List<InvokeDynamicScanner.LambdaCallSite>> callSitesByClass = allCallSites.stream()
+                .collect(Collectors.groupingBy(InvokeDynamicScanner.LambdaCallSite::ownerClassName));
+
+        // Process each class's call sites together in parallel across classes
+        // All caches use ConcurrentHashMap and all counters use AtomicInteger/AtomicLong for thread safety
+        callSitesByClass.values().parallelStream()
+                .flatMap(List::stream)  // Keep call sites from same class together in processing order
                 .forEach(callSite -> {
                     configuredProcessor.processCallSiteWithHandlers(
                             callSite, applicationArchives,
@@ -306,7 +319,8 @@ public class QubitProcessor {
             ClassInfo classInfo,
             InvokeDynamicScanner scanner,
             ApplicationArchivesBuildItem applicationArchives,
-            QubitBuildTimeConfig.LoggingConfig loggingConfig) {
+            QubitBuildTimeConfig.LoggingConfig loggingConfig,
+            BuildMetricsCollector metricsCollector) {
         try {
             String className = classInfo.name().toString();
 
@@ -314,7 +328,7 @@ public class QubitProcessor {
                 Log.debugf("Qubit: Scanning class: %s", className);
             }
 
-            byte[] classBytes = BytecodeLoader.loadClassBytecode(className, applicationArchives);
+            byte[] classBytes = BytecodeLoader.loadClassBytecode(className, applicationArchives, metricsCollector);
 
             List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(classBytes, className);
 
