@@ -84,7 +84,7 @@ public enum InvokeDynamicHandler implements InstructionHandler {
         // Parse the recipe string from bootstrap method arguments
         String recipe = extractRecipe(indy);
         if (recipe == null) {
-            Log.warnf("Could not extract recipe from StringConcatFactory: %s", indy.name);
+            Log.debugf("Could not extract recipe from StringConcatFactory: %s", indy.name);
             return false;
         }
 
@@ -128,7 +128,7 @@ public enum InvokeDynamicHandler implements InstructionHandler {
         // Find the nested lambda method in the current class
         MethodNode nestedMethod = ctx.findMethod(nestedLambdaMethodName, nestedLambdaDescriptor);
         if (nestedMethod == null) {
-            Log.warnf("Could not find nested lambda method %s%s", nestedLambdaMethodName, nestedLambdaDescriptor);
+            Log.debugf("Could not find nested lambda method %s%s", nestedLambdaMethodName, nestedLambdaDescriptor);
             return false;
         }
 
@@ -141,7 +141,7 @@ public enum InvokeDynamicHandler implements InstructionHandler {
             ctx.push(nestedExpression);
             Log.debugf("Nested lambda analyzed: %s", nestedExpression);
         } else {
-            Log.warnf("Failed to analyze nested lambda %s", nestedLambdaMethodName);
+            Log.debugf("Failed to analyze nested lambda %s", nestedLambdaMethodName);
         }
 
         return false; // Continue processing
@@ -172,7 +172,7 @@ public enum InvokeDynamicHandler implements InstructionHandler {
         List<LambdaExpression> operands = new ArrayList<>();
         for (int i = 0; i < dynamicArgCount; i++) {
             if (ctx.isStackEmpty()) {
-                Log.warnf("Stack underflow while parsing StringConcatFactory recipe: '%s'", escapeRecipe(recipe));
+                Log.debugf("Stack underflow while parsing StringConcatFactory recipe: '%s'", escapeRecipe(recipe));
                 return null;
             }
             operands.add(0, ctx.pop()); // Insert at beginning to reverse order

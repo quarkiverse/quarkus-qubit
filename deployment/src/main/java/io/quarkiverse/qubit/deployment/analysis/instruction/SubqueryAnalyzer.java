@@ -33,7 +33,7 @@ public class SubqueryAnalyzer {
     /** Creates SubqueryBuilderReference for subsequent builder method calls. */
     public void handleSubqueriesFactoryMethod(AnalysisContext ctx, MethodInsnNode methodInsn) {
         if (!METHOD_SUBQUERY.equals(methodInsn.name)) {
-            Log.warnf("Unexpected Subqueries method: %s", methodInsn.name);
+            Log.debugf("Unexpected Subqueries method: %s", methodInsn.name);
             return;
         }
 
@@ -60,13 +60,13 @@ public class SubqueryAnalyzer {
 
         // Pop the SubqueryBuilderReference (the target of the method call)
         if (ctx.isStackEmpty()) {
-            Log.warnf("Stack empty when expecting SubqueryBuilderReference for %s", methodName);
+            Log.debugf("Stack empty when expecting SubqueryBuilderReference for %s", methodName);
             return;
         }
 
         LambdaExpression builderRef = ctx.pop();
         if (!(builderRef instanceof SubqueryBuilderReference subqueryBuilder)) {
-            Log.warnf("Expected SubqueryBuilderReference but got %s for %s",
+            Log.debugf("Expected SubqueryBuilderReference but got %s for %s",
                       builderRef.getClass().getSimpleName(), methodName);
             // Push everything back and return
             ctx.push(builderRef);
@@ -98,7 +98,7 @@ public class SubqueryAnalyzer {
 
     private void handleBuilderWhere(AnalysisContext ctx, SubqueryBuilderReference currentBuilder, List<LambdaExpression> args) {
         if (args.size() != 1) {
-            Log.warnf("Expected 1 argument for SubqueryBuilder.where, got %d", args.size());
+            Log.debugf("Expected 1 argument for SubqueryBuilder.where, got %d", args.size());
             return;
         }
 
@@ -111,7 +111,7 @@ public class SubqueryAnalyzer {
                                                LambdaExpression predicate, List<LambdaExpression> args,
                                                SubqueryAggregationType aggregationType, Class<?> defaultResultType) {
         if (args.size() != 1) {
-            Log.warnf("Expected 1 argument for SubqueryBuilder.%s, got %d", aggregationType, args.size());
+            Log.debugf("Expected 1 argument for SubqueryBuilder.%s, got %d", aggregationType, args.size());
             return;
         }
 
@@ -135,7 +135,7 @@ public class SubqueryAnalyzer {
     private void handleBuilderExistsSubquery(AnalysisContext ctx, Class<?> entityClass, String entityClassName,
                                                List<LambdaExpression> args, boolean negated) {
         if (args.size() != 1) {
-            Log.warnf("Expected 1 argument for SubqueryBuilder.%s, got %d", negated ? "notExists" : "exists", args.size());
+            Log.debugf("Expected 1 argument for SubqueryBuilder.%s, got %d", negated ? "notExists" : "exists", args.size());
             return;
         }
 
@@ -147,7 +147,7 @@ public class SubqueryAnalyzer {
     private void handleBuilderInSubquery(AnalysisContext ctx, Class<?> entityClass, String entityClassName,
                                           LambdaExpression builderPredicate, List<LambdaExpression> args, boolean negated) {
         if (args.size() < 2 || args.size() > 3) {
-            Log.warnf("Expected 2-3 arguments for SubqueryBuilder.%s, got %d", negated ? "notIn" : "in", args.size());
+            Log.debugf("Expected 2-3 arguments for SubqueryBuilder.%s, got %d", negated ? "notIn" : "in", args.size());
             return;
         }
 

@@ -18,9 +18,9 @@ public sealed interface AnalysisOutcome {
         return this instanceof Success;
     }
 
-    /** Returns true if processing can continue (Success or UnsupportedPattern). */
+    /** Returns true if processing can continue (Success, EarlyDeduplicated, or UnsupportedPattern). */
     default boolean canContinue() {
-        return this instanceof Success || this instanceof UnsupportedPattern;
+        return this instanceof Success || this instanceof EarlyDeduplicated || this instanceof UnsupportedPattern;
     }
 
     /** Executes the given action if this is a Success; returns this for chaining. */
@@ -37,6 +37,10 @@ public sealed interface AnalysisOutcome {
             Function<UnsupportedPattern, T> onUnsupported,
             Function<AnalysisError, T> onError) {
         return switch (this) {
+            case EarlyDeduplicated ed -> onSuccess.apply(
+                    // Convert EarlyDeduplicated to Success for backward compatibility
+                    // Use a minimal SimpleQueryResult since we don't have the full analysis
+                    new Success(LambdaAnalysisResult.SimpleQueryResult.empty(), ed.callSiteId(), ed.lambdaHash()));
             case Success s -> onSuccess.apply(s);
             case UnsupportedPattern u -> onUnsupported.apply(u);
             case AnalysisError e -> onError.apply(e);
@@ -44,6 +48,28 @@ public sealed interface AnalysisOutcome {
     }
 
     // ========== Outcome Types ==========
+
+    /**
+     * Early deduplication hit: analysis was skipped because an identical lambda
+     * was already processed and a cached executor exists.
+     */
+    record EarlyDeduplicated(
+            String callSiteId,
+            String lambdaHash,
+            String executorClassName
+    ) implements AnalysisOutcome {
+
+        public EarlyDeduplicated {
+            Objects.requireNonNull(callSiteId, "Call site ID cannot be null");
+            Objects.requireNonNull(lambdaHash, "Lambda hash cannot be null");
+            Objects.requireNonNull(executorClassName, "Executor class name cannot be null");
+        }
+
+        @Override
+        public boolean isSuccess() {
+            return true;  // Early deduplication is a successful outcome
+        }
+    }
 
     /** Successful analysis with a valid result. */
     record Success(
@@ -166,5 +192,10 @@ public sealed interface AnalysisOutcome {
     /** Creates an error outcome. */
     static AnalysisError error(Exception cause, String callSiteId) {
         return AnalysisError.of(cause, callSiteId);
+    }
+
+    /** Creates an early deduplicated outcome. */
+    static EarlyDeduplicated earlyDeduplicated(String callSiteId, String lambdaHash, String executorClassName) {
+        return new EarlyDeduplicated(callSiteId, lambdaHash, executorClassName);
     }
 }

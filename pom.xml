@@ -179,6 +179,9 @@
                                     <exclude>io/quarkiverse/qubit/runtime/internal/QueryExecutorRecorder*</exclude>
                                     <exclude>io/quarkiverse/qubit/runtime/internal/QueryExecutorRegistry*</exclude>
                                     <exclude>io/quarkiverse/qubit/runtime/internal/QubitConstants*</exclude>
+                                    <!-- Integration test entities (Panache-enhanced at build time) -->
+                                    <exclude>io/quarkiverse/qubit/it/*</exclude>
+                                    <exclude>io/quarkiverse/qubit/it/rest/*</exclude>
                                 </excludes>
                             </configuration>
                         </execution>

@@ -112,7 +112,7 @@ public class StreamPipelineAnalyzer {
         }
 
         if (operations.isEmpty()) {
-            Log.warnf("No operations found in pipeline for %s.%s line %d",
+            Log.debugf("No operations found in pipeline for %s.%s line %d",
                     classNode.name, method.name, lineNumber);
             return null;
         }

@@ -106,23 +106,13 @@
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
             </plugin>
-            <!-- Surefire plugin for unit tests -->
+            <!-- Surefire plugin for unit tests - skip for integration test module -->
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${surefire-plugin.version}</version>
                 <configuration>
-                    <!-- Use late property evaluation for JaCoCo agent -->
-                    <argLine>@{argLine}</argLine>
-                    <systemPropertyVariables>
-                        <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
-                        <!-- Pass database kind to tests for conditional logic -->
-                        <db.kind>${db.kind}</db.kind>
-                    </systemPropertyVariables>
-                    <!-- Exclude Playwright tests from default run (they use QuarkusDevModeTest
-                         which is incompatible with QuarkusTestExtension-based tests) -->
-                    <excludes>
-                        <exclude>**/*PlaywrightTest.java</exclude>
-                    </excludes>
+                    <!-- Skip surefire - this module only has integration tests run by failsafe -->
+                    <skip>true</skip>
                 </configuration>
             </plugin>
             <!-- Failsafe plugin for integration tests (IT) -->

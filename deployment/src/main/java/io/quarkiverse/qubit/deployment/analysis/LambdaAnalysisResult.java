@@ -32,7 +32,13 @@ public sealed interface LambdaAnalysisResult {
             LambdaExpression projectionExpression,
             List<SortExpression> sortExpressions,
             int totalCapturedVarCount
-    ) implements LambdaAnalysisResult {}
+    ) implements LambdaAnalysisResult {
+
+        /** Creates an empty SimpleQueryResult (for early deduplication where analysis is skipped). */
+        public static SimpleQueryResult empty() {
+            return new SimpleQueryResult(null, null, List.of(), 0);
+        }
+    }
 
     /**
      * Aggregation queries: min, max, avg, sum*.

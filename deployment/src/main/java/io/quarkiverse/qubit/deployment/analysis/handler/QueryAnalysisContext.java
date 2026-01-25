@@ -3,6 +3,8 @@ package io.quarkiverse.qubit.deployment.analysis.handler;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaCallSite;
 import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
 import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator;
+import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 
@@ -15,7 +17,8 @@ public record QueryAnalysisContext(
         LambdaCallSite callSite,
         String callSiteId,
         LambdaBytecodeAnalyzer bytecodeAnalyzer,
-        LambdaDeduplicator deduplicator
+        LambdaDeduplicator deduplicator,
+        @Nullable BuildMetricsCollector metricsCollector
 ) {
 
     public QueryAnalysisContext {
@@ -24,6 +27,7 @@ public record QueryAnalysisContext(
         Objects.requireNonNull(callSiteId, "Call site ID cannot be null");
         Objects.requireNonNull(bytecodeAnalyzer, "Bytecode analyzer cannot be null");
         Objects.requireNonNull(deduplicator, "Deduplicator cannot be null");
+        // metricsCollector can be null
     }
 
     /** Creates context from components, deriving callSiteId from callSite. */
@@ -37,6 +41,23 @@ public record QueryAnalysisContext(
                 callSite,
                 callSite.getCallSiteId(),
                 bytecodeAnalyzer,
-                deduplicator);
+                deduplicator,
+                null);
+    }
+
+    /** Creates context from components with metrics collector. */
+    public static QueryAnalysisContext of(
+            byte[] classBytes,
+            LambdaCallSite callSite,
+            LambdaBytecodeAnalyzer bytecodeAnalyzer,
+            LambdaDeduplicator deduplicator,
+            @Nullable BuildMetricsCollector metricsCollector) {
+        return new QueryAnalysisContext(
+                classBytes,
+                callSite,
+                callSite.getCallSiteId(),
+                bytecodeAnalyzer,
+                deduplicator,
+                metricsCollector);
     }
 }

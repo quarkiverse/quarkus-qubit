@@ -1,6 +1,7 @@
 package io.quarkiverse.qubit.deployment.util;
 
 import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
+import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
 import io.quarkus.deployment.builditem.ApplicationArchivesBuildItem;
 import io.quarkus.logging.Log;
 
@@ -10,15 +11,50 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 /** Loads class bytecode from application archives (user classes) or classloader (library classes). */
 public final class BytecodeLoader {
 
+    /** Cache to avoid repeatedly loading the same class bytecode from disk. */
+    private static final ConcurrentHashMap<String, byte[]> BYTECODE_CACHE = new ConcurrentHashMap<>();
+
     private BytecodeLoader() {
+    }
+
+    /** Clears the bytecode cache. Used for dev mode hot reload support. */
+    public static void clearCache() {
+        BYTECODE_CACHE.clear();
+        Log.debug("Bytecode cache cleared");
     }
 
     /** Loads class bytecode from application archives or classloader; throws AnalysisException if not found. */
     public static byte[] loadClassBytecode(String className, ApplicationArchivesBuildItem applicationArchives) {
+        return loadClassBytecode(className, applicationArchives, null);
+    }
+
+    /** Loads class bytecode with optional metrics collection, using cache to avoid repeated disk reads. */
+    public static byte[] loadClassBytecode(String className, ApplicationArchivesBuildItem applicationArchives,
+                                           BuildMetricsCollector metricsCollector) {
+        if (metricsCollector != null) {
+            metricsCollector.incrementTotalBytecodeLoads();
+        }
+
+        return BYTECODE_CACHE.computeIfAbsent(className, key -> {
+            long startTime = System.nanoTime();
+            try {
+                return loadClassBytecodeInternal(key, applicationArchives);
+            } finally {
+                if (metricsCollector != null) {
+                    metricsCollector.addBytecodeLoadTime(System.nanoTime() - startTime);
+                    metricsCollector.incrementUniqueClassesLoaded();
+                }
+            }
+        });
+    }
+
+    /** Internal method that performs the actual bytecode loading. */
+    private static byte[] loadClassBytecodeInternal(String className, ApplicationArchivesBuildItem applicationArchives) {
         String classPath = className.replace('.', '/') + ".class";
         List<String> searchedLocations = new ArrayList<>();
         List<String> ioErrors = new ArrayList<>();

@@ -1,9 +1,12 @@
 package io.quarkiverse.qubit.deployment.util;
 
 import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
+import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
 import io.quarkus.deployment.ApplicationArchive;
 import io.quarkus.deployment.builditem.ApplicationArchivesBuildItem;
 import io.quarkus.paths.PathList;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -24,6 +27,18 @@ import static org.mockito.Mockito.when;
  * <p>Tests bytecode loading from classloader fallback path.
  */
 class BytecodeLoaderTest {
+
+    @BeforeEach
+    void setUp() {
+        // Clear cache before each test to ensure test isolation
+        BytecodeLoader.clearCache();
+    }
+
+    @AfterEach
+    void tearDown() {
+        // Clear cache after each test to avoid pollution
+        BytecodeLoader.clearCache();
+    }
 
     // ==================== loadClassBytecode from Classloader Tests ====================
 
@@ -249,6 +264,108 @@ class BytecodeLoaderTest {
             assertThat(result)
                     .as("Should find class in second archive")
                     .isEqualTo(classContent);
+        }
+    }
+
+    // ==================== Cache Behavior Tests ====================
+
+    @Nested
+    class CacheBehaviorTests {
+
+        @Test
+        void loadClassBytecode_returnsSameBytesOnSecondCall() {
+            ApplicationArchivesBuildItem emptyArchives = mock(ApplicationArchivesBuildItem.class);
+            when(emptyArchives.getAllApplicationArchives()).thenReturn(Set.of());
+
+            // First call loads from disk
+            byte[] first = BytecodeLoader.loadClassBytecode("java.lang.Object", emptyArchives);
+            // Second call should return cached bytes
+            byte[] second = BytecodeLoader.loadClassBytecode("java.lang.Object", emptyArchives);
+
+            assertThat(first)
+                    .as("Both calls should return the same byte array instance from cache")
+                    .isSameAs(second);
+        }
+
+        @Test
+        void clearCache_removesAllCachedEntries() {
+            ApplicationArchivesBuildItem emptyArchives = mock(ApplicationArchivesBuildItem.class);
+            when(emptyArchives.getAllApplicationArchives()).thenReturn(Set.of());
+
+            // Load a class to populate cache
+            byte[] first = BytecodeLoader.loadClassBytecode("java.lang.Integer", emptyArchives);
+
+            // Clear the cache
+            BytecodeLoader.clearCache();
+
+            // Load again - should be a fresh load (different array instance possible)
+            byte[] second = BytecodeLoader.loadClassBytecode("java.lang.Integer", emptyArchives);
+
+            // Both should have the same content
+            assertThat(second)
+                    .as("Content should be the same after cache clear")
+                    .isEqualTo(first);
+            // But since cache was cleared, a new load happened
+            // (we can't definitively test this without metrics, but content equality is verified)
+        }
+
+        @Test
+        void loadClassBytecode_withMetrics_tracksCacheHits() {
+            ApplicationArchivesBuildItem emptyArchives = mock(ApplicationArchivesBuildItem.class);
+            when(emptyArchives.getAllApplicationArchives()).thenReturn(Set.of());
+
+            BuildMetricsCollector metrics = new BuildMetricsCollector();
+
+            // First call - cache miss, loads from disk
+            BytecodeLoader.loadClassBytecode("java.lang.Long", emptyArchives, metrics);
+            // Second call - cache hit
+            BytecodeLoader.loadClassBytecode("java.lang.Long", emptyArchives, metrics);
+            // Third call - cache hit
+            BytecodeLoader.loadClassBytecode("java.lang.Long", emptyArchives, metrics);
+
+            // Verify metrics
+            assertThat(metrics.getTotalBytecodeLoads())
+                    .as("Total loads should count all 3 calls")
+                    .isEqualTo(3);
+            assertThat(metrics.getUniqueClassesLoaded())
+                    .as("Unique classes should count only the cache miss")
+                    .isEqualTo(1);
+        }
+
+        @Test
+        void loadClassBytecode_multipleClasses_tracksEachUniquely() {
+            ApplicationArchivesBuildItem emptyArchives = mock(ApplicationArchivesBuildItem.class);
+            when(emptyArchives.getAllApplicationArchives()).thenReturn(Set.of());
+
+            BuildMetricsCollector metrics = new BuildMetricsCollector();
+
+            // Load 3 different classes
+            BytecodeLoader.loadClassBytecode("java.lang.String", emptyArchives, metrics);
+            BytecodeLoader.loadClassBytecode("java.lang.Integer", emptyArchives, metrics);
+            BytecodeLoader.loadClassBytecode("java.lang.Boolean", emptyArchives, metrics);
+            // Re-load one from cache
+            BytecodeLoader.loadClassBytecode("java.lang.String", emptyArchives, metrics);
+
+            assertThat(metrics.getTotalBytecodeLoads())
+                    .as("Total loads should count all 4 calls")
+                    .isEqualTo(4);
+            assertThat(metrics.getUniqueClassesLoaded())
+                    .as("Unique classes should be 3 (one was cached)")
+                    .isEqualTo(3);
+        }
+
+        @Test
+        void loadClassBytecode_withNullMetrics_stillCachesCorrectly() {
+            ApplicationArchivesBuildItem emptyArchives = mock(ApplicationArchivesBuildItem.class);
+            when(emptyArchives.getAllApplicationArchives()).thenReturn(Set.of());
+
+            // Load with null metrics (uses backward-compatible method)
+            byte[] first = BytecodeLoader.loadClassBytecode("java.lang.Short", emptyArchives);
+            byte[] second = BytecodeLoader.loadClassBytecode("java.lang.Short", emptyArchives);
+
+            assertThat(first)
+                    .as("Cache should work even without metrics collector")
+                    .isSameAs(second);
         }
     }
 }

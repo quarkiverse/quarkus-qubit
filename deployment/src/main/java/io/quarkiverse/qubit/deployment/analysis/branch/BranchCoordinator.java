@@ -92,7 +92,7 @@ public class BranchCoordinator {
             }
         }
 
-        Log.warnf("No handler found for branch instruction opcode: %d (%s)",
+        Log.debugf("No handler found for branch instruction opcode: %d (%s)",
                 jumpInsn.getOpcode(), OpcodeNames.get(jumpInsn.getOpcode()));
     }
 

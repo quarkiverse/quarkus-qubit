@@ -59,7 +59,7 @@ public final class ClassLoaderHelper {
                 return new EntityClassInfo(clazz, null);
             }
         }
-        Log.warnf("Expected Class constant for entity class, got: %s", expr);
+        Log.debugf("Expected Class constant for entity class, got: %s", expr);
         return new EntityClassInfo(Object.class, null);
     }
 

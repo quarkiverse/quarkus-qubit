@@ -18,10 +18,161 @@ import static java.util.Objects.requireNonNull;
  * Deduplicates lambda expressions to reuse executors and reduce bytecode size.
  * <p>
  * Uses {@link HashBuilder} to construct query hashes in a consistent, fluent manner.
+ * <p>
+ * Supports two deduplication strategies:
+ * <ul>
+ *   <li><b>Early deduplication</b>: Uses bytecode signature (method name + descriptor + query type)
+ *       to detect duplicates BEFORE expensive bytecode analysis. This is a fast check that
+ *       avoids redundant analysis work.</li>
+ *   <li><b>Late deduplication</b>: Uses analyzed expression hash to detect semantic duplicates
+ *       AFTER analysis. This catches duplicates that have identical semantics but different
+ *       bytecode signatures.</li>
+ * </ul>
  */
 public class LambdaDeduplicator {
 
     private final Map<String, String> lambdaHashToExecutor = new ConcurrentHashMap<>();
+
+    /**
+     * Maps bytecode signature to lambda hash for early deduplication.
+     * Key: bytecode signature (computed before analysis)
+     * Value: lambda hash (computed after analysis)
+     */
+    private final Map<String, String> bytecodeSignatureToLambdaHash = new ConcurrentHashMap<>();
+
+    /**
+     * Cached analysis results for early deduplication hits.
+     * Key: bytecode signature
+     * Value: cached AnalysisOutcome.Success
+     */
+    private final Map<String, CachedAnalysisResult> cachedAnalysisResults = new ConcurrentHashMap<>();
+
+    /**
+     * Cached analysis result for early deduplication.
+     */
+    public record CachedAnalysisResult(
+            String lambdaHash,
+            String executorClassName) {
+
+        public CachedAnalysisResult {
+            requireNonNull(lambdaHash, "lambdaHash must not be null");
+            requireNonNull(executorClassName, "executorClassName must not be null");
+        }
+    }
+
+    /**
+     * Computes bytecode signature for early deduplication.
+     * This hash is computed BEFORE bytecode analysis using structural elements only.
+     *
+     * @param callSite the lambda call site
+     * @return bytecode signature hash
+     */
+    public String computeBytecodeSignature(InvokeDynamicScanner.LambdaCallSite callSite) {
+        StringBuilder sb = new StringBuilder();
+
+        // Include owner class and method for uniqueness
+        sb.append(callSite.ownerClassName()).append("|");
+        sb.append(callSite.methodName()).append("|");
+
+        // Include all lambda components
+        appendLambdaPairs(sb, "W", callSite.predicateLambdas());
+        appendSingleLambda(sb, "S", callSite.projectionLambdaMethodName(),
+                callSite.projectionLambdaMethodDescriptor());
+        appendSortLambdas(sb, "O", callSite.sortLambdas());
+        appendSingleLambda(sb, "A", callSite.aggregationLambdaMethodName(),
+                callSite.aggregationLambdaMethodDescriptor());
+        appendSingleLambda(sb, "J", callSite.joinRelationshipLambdaMethodName(),
+                callSite.joinRelationshipLambdaDescriptor());
+        appendLambdaPairs(sb, "BW", callSite.biEntityPredicateLambdas());
+        appendSingleLambda(sb, "BS", callSite.biEntityProjectionLambdaMethodName(),
+                callSite.biEntityProjectionLambdaDescriptor());
+        appendSingleLambda(sb, "G", callSite.groupByLambdaMethodName(),
+                callSite.groupByLambdaDescriptor());
+        appendLambdaPairs(sb, "H", callSite.havingLambdas());
+        appendLambdaPairs(sb, "GS", callSite.groupSelectLambdas());
+        appendSortLambdas(sb, "GO", callSite.groupSortLambdas());
+
+        // Include query modifiers
+        appendQueryModifiers(sb, callSite);
+
+        return HashBuilder.create().queryType(sb.toString()).buildHash();
+    }
+
+    /** Appends lambda pairs to signature builder. */
+    private void appendLambdaPairs(StringBuilder sb, String prefix,
+            List<InvokeDynamicScanner.LambdaPair> pairs) {
+        if (pairs == null) {
+            return;
+        }
+        for (InvokeDynamicScanner.LambdaPair pair : pairs) {
+            sb.append(prefix).append(":").append(pair.methodName())
+              .append(":").append(pair.descriptor()).append("|");
+        }
+    }
+
+    /** Appends sort lambdas to signature builder. */
+    private void appendSortLambdas(StringBuilder sb, String prefix,
+            List<InvokeDynamicScanner.SortLambda> sortLambdas) {
+        if (sortLambdas == null) {
+            return;
+        }
+        for (InvokeDynamicScanner.SortLambda sl : sortLambdas) {
+            sb.append(prefix).append(":").append(sl.methodName())
+              .append(":").append(sl.descriptor())
+              .append(":").append(sl.direction()).append("|");
+        }
+    }
+
+    /** Appends single lambda to signature builder. */
+    private void appendSingleLambda(StringBuilder sb, String prefix,
+            String methodName, String descriptor) {
+        if (methodName == null) {
+            return;
+        }
+        sb.append(prefix).append(":").append(methodName)
+          .append(":").append(descriptor).append("|");
+    }
+
+    /** Appends query modifiers to signature builder. */
+    private void appendQueryModifiers(StringBuilder sb, InvokeDynamicScanner.LambdaCallSite callSite) {
+        sb.append("count=").append(callSite.isCountQuery()).append("|");
+        sb.append("distinct=").append(callSite.hasDistinct()).append("|");
+        if (callSite.joinType() != null) {
+            sb.append("joinType=").append(callSite.joinType()).append("|");
+        }
+        sb.append("selectJoined=").append(callSite.isSelectJoined()).append("|");
+        sb.append("selectKey=").append(callSite.isGroupSelectKey()).append("|");
+    }
+
+    /**
+     * Checks if a bytecode signature has already been analyzed.
+     *
+     * @param bytecodeSignature the bytecode signature
+     * @return cached result if found, null otherwise
+     */
+    public CachedAnalysisResult getCachedResult(String bytecodeSignature) {
+        return cachedAnalysisResults.get(bytecodeSignature);
+    }
+
+    /**
+     * Registers a bytecode signature with its analysis result for early deduplication.
+     *
+     * @param bytecodeSignature the bytecode signature
+     * @param lambdaHash the lambda hash (computed after analysis)
+     * @param executorClassName the generated executor class name
+     */
+    public void registerBytecodeSignature(String bytecodeSignature, String lambdaHash, String executorClassName) {
+        bytecodeSignatureToLambdaHash.putIfAbsent(bytecodeSignature, lambdaHash);
+        cachedAnalysisResults.putIfAbsent(bytecodeSignature,
+                new CachedAnalysisResult(lambdaHash, executorClassName));
+    }
+
+    /**
+     * Returns the number of early deduplication cache entries.
+     */
+    public int getEarlyDeduplicationCacheSize() {
+        return cachedAnalysisResults.size();
+    }
 
     /** Computes MD5 hash for lambda expression and query type. */
     public String computeLambdaHash(LambdaExpression expression, boolean isCountQuery, boolean isProjectionQuery) {

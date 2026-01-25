@@ -47,7 +47,7 @@ public class GroupMethodAnalyzer {
             // Placeholder; actual key expression resolved at code generation time
             ctx.push(new GroupKeyReference(null, Object.class));
         } else {
-            Log.warnf("Unexpected target for g.key(): %s", target);
+            Log.debugf("Unexpected target for g.key(): %s", target);
         }
     }
 
@@ -60,7 +60,7 @@ public class GroupMethodAnalyzer {
         if (target instanceof GroupParameter) {
             ctx.push(GroupAggregation.count());
         } else {
-            Log.warnf("Unexpected target for g.count(): %s", target);
+            Log.debugf("Unexpected target for g.count(): %s", target);
         }
     }
 
@@ -76,7 +76,7 @@ public class GroupMethodAnalyzer {
         if (target instanceof GroupParameter) {
             ctx.push(GroupAggregation.countDistinct(fieldArg));
         } else {
-            Log.warnf("Unexpected target for g.countDistinct(): %s", target);
+            Log.debugf("Unexpected target for g.countDistinct(): %s", target);
         }
     }
 
@@ -94,7 +94,7 @@ public class GroupMethodAnalyzer {
         if (target instanceof GroupParameter) {
             ctx.push(aggregationFactory.apply(fieldArg));
         } else {
-            Log.warnf("Unexpected target for group aggregation: %s", target);
+            Log.debugf("Unexpected target for group aggregation: %s", target);
         }
     }
 
@@ -117,7 +117,7 @@ public class GroupMethodAnalyzer {
                 ctx.push(GroupAggregation.max(fieldArg, resultType));
             }
         } else {
-            Log.warnf("Unexpected target for g.%s(): %s", isMin ? "min" : "max", target);
+            Log.debugf("Unexpected target for g.%s(): %s", isMin ? "min" : "max", target);
         }
     }
 }

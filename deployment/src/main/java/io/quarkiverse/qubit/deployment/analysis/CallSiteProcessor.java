@@ -20,6 +20,7 @@ import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator.Deduplication
 import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator.DeduplicationRequest;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
+import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
 import io.quarkiverse.qubit.deployment.QubitBuildTimeConfig;
 import io.quarkiverse.qubit.deployment.QubitProcessor;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
@@ -45,6 +46,7 @@ public class CallSiteProcessor {
     private final QueryExecutorClassGenerator classGenerator;
     private final String classNamePrefix;
     private final String targetPackage;
+    private final BuildMetricsCollector metricsCollector;
 
     /**
      * Creates a CallSiteProcessor with default configuration.
@@ -54,7 +56,7 @@ public class CallSiteProcessor {
             LambdaBytecodeAnalyzer bytecodeAnalyzer,
             LambdaDeduplicator deduplicator,
             QueryExecutorClassGenerator classGenerator) {
-        this(bytecodeAnalyzer, deduplicator, classGenerator, "QueryExecutor_", DEFAULT_GENERATED_PACKAGE);
+        this(bytecodeAnalyzer, deduplicator, classGenerator, "QueryExecutor_", DEFAULT_GENERATED_PACKAGE, null);
     }
 
     /**
@@ -67,7 +69,23 @@ public class CallSiteProcessor {
             QubitBuildTimeConfig.GenerationConfig generationConfig) {
         this(bytecodeAnalyzer, deduplicator, classGenerator,
                 generationConfig.classNamePrefix(),
-                generationConfig.targetPackage().orElse(DEFAULT_GENERATED_PACKAGE));
+                generationConfig.targetPackage().orElse(DEFAULT_GENERATED_PACKAGE),
+                null);
+    }
+
+    /**
+     * Creates a CallSiteProcessor with generation configuration and metrics collector.
+     */
+    public CallSiteProcessor(
+            LambdaBytecodeAnalyzer bytecodeAnalyzer,
+            LambdaDeduplicator deduplicator,
+            QueryExecutorClassGenerator classGenerator,
+            QubitBuildTimeConfig.GenerationConfig generationConfig,
+            BuildMetricsCollector metricsCollector) {
+        this(bytecodeAnalyzer, deduplicator, classGenerator,
+                generationConfig.classNamePrefix(),
+                generationConfig.targetPackage().orElse(DEFAULT_GENERATED_PACKAGE),
+                metricsCollector);
     }
 
     /**
@@ -79,11 +97,25 @@ public class CallSiteProcessor {
             QueryExecutorClassGenerator classGenerator,
             String classNamePrefix,
             String targetPackage) {
+        this(bytecodeAnalyzer, deduplicator, classGenerator, classNamePrefix, targetPackage, null);
+    }
+
+    /**
+     * Creates a CallSiteProcessor with explicit class naming parameters and metrics collector.
+     */
+    public CallSiteProcessor(
+            LambdaBytecodeAnalyzer bytecodeAnalyzer,
+            LambdaDeduplicator deduplicator,
+            QueryExecutorClassGenerator classGenerator,
+            String classNamePrefix,
+            String targetPackage,
+            BuildMetricsCollector metricsCollector) {
         this.bytecodeAnalyzer = bytecodeAnalyzer;
         this.deduplicator = deduplicator;
         this.classGenerator = classGenerator;
         this.classNamePrefix = classNamePrefix;
         this.targetPackage = targetPackage;
+        this.metricsCollector = metricsCollector;
     }
 
     /**
@@ -103,7 +135,7 @@ public class CallSiteProcessor {
         // Load bytecode
         byte[] classBytes;
         try {
-            classBytes = BytecodeLoader.loadClassBytecode(callSite.ownerClassName(), applicationArchives);
+            classBytes = BytecodeLoader.loadClassBytecode(callSite.ownerClassName(), applicationArchives, metricsCollector);
         } catch (BytecodeAnalysisException e) {
             Log.warnf("Could not load bytecode for class: %s - %s", callSite.ownerClassName(), e.getMessage());
             return AnalysisOutcome.unsupported(e.getMessage(), callSite.getCallSiteId());
@@ -123,8 +155,41 @@ public class CallSiteProcessor {
             Log.debugf("Using %s handler for call site: %s", handler.queryTypeName(), callSiteId);
         }
 
-        // Create analysis context with shared deduplicator
-        QueryAnalysisContext context = QueryAnalysisContext.of(classBytes, callSite, bytecodeAnalyzer, deduplicator);
+        // Create analysis context with shared deduplicator and metrics collector
+        QueryAnalysisContext context = QueryAnalysisContext.of(classBytes, callSite, bytecodeAnalyzer, deduplicator, metricsCollector);
+
+        // Early deduplication check: skip expensive analysis if we've seen this bytecode signature before
+        long earlyDeduplicationStartTime = System.nanoTime();
+        String bytecodeSignature = deduplicator.computeBytecodeSignature(callSite);
+        LambdaDeduplicator.CachedAnalysisResult cachedResult = deduplicator.getCachedResult(bytecodeSignature);
+
+        if (metricsCollector != null) {
+            metricsCollector.addEarlyDeduplicationCheckTime(System.nanoTime() - earlyDeduplicationStartTime);
+        }
+
+        if (cachedResult != null) {
+            // Early deduplication hit: skip analysis and reuse existing executor
+            if (loggingConfig.logDeduplication()) {
+                Log.debugf("Early deduplication hit for call site %s (reusing %s)",
+                        callSiteId, cachedResult.executorClassName());
+            }
+
+            if (metricsCollector != null) {
+                metricsCollector.incrementEarlyDeduplicationHits();
+                metricsCollector.incrementDuplicateCount();
+            }
+
+            deduplicatedCount.incrementAndGet();
+
+            // Register the query transformation for this call site
+            registerEarlyDeduplicatedQuery(callSite, cachedResult.executorClassName(),
+                    queryTransformations, loggingConfig);
+
+            // Return a success outcome with the cached hash
+            // Note: We don't have the full LambdaAnalysisResult, but that's OK for deduplication
+            return AnalysisOutcome.earlyDeduplicated(callSiteId, cachedResult.lambdaHash(),
+                    cachedResult.executorClassName());
+        }
 
         // Analyze using the handler
         AnalysisOutcome outcome = handler.analyze(context);
@@ -136,7 +201,20 @@ public class CallSiteProcessor {
                 LambdaAnalysis analysis = new LambdaAnalysis(
                         success.result(), success.callSiteId(), success.lambdaHash());
 
-                if (checkAndHandleDuplicate(analysis, callSite, deduplicatedCount, queryTransformations, loggingConfig)) {
+                long deduplicationStartTime = System.nanoTime();
+                boolean isDuplicate;
+                try {
+                    isDuplicate = checkAndHandleDuplicate(analysis, callSite, deduplicatedCount, queryTransformations, loggingConfig);
+                } finally {
+                    if (metricsCollector != null) {
+                        metricsCollector.addDeduplicationCheckTime(System.nanoTime() - deduplicationStartTime);
+                    }
+                }
+
+                if (isDuplicate) {
+                    if (metricsCollector != null) {
+                        metricsCollector.incrementDuplicateCount();
+                    }
                     yield success;  // Deduplicated, no generation needed
                 }
 
@@ -174,6 +252,13 @@ public class CallSiteProcessor {
                 Log.errorf(error.cause(), "Analysis error at %s: %s",
                         error.callSiteId(), error.context());
                 yield error;
+            }
+
+            case AnalysisOutcome.EarlyDeduplicated earlyDedup -> {
+                // This case shouldn't occur here since early deduplication is checked before analysis
+                // But we need to handle it for exhaustiveness
+                Log.warnf("Unexpected EarlyDeduplicated outcome from handler at %s", earlyDedup.callSiteId());
+                yield earlyDedup;
             }
         };
     }
@@ -241,6 +326,40 @@ public class CallSiteProcessor {
                         simple.projectionExpression(), simple.sortExpressions(),
                         null, null, false, ctx);
             }
+        }
+    }
+
+    /**
+     * Registers a query transformation for an early-deduplicated call site.
+     * Uses minimal QueryCharacteristics since we don't have the full analysis result.
+     */
+    private void registerEarlyDeduplicatedQuery(
+            InvokeDynamicScanner.LambdaCallSite callSite,
+            String executorClassName,
+            BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations,
+            QubitBuildTimeConfig.LoggingConfig loggingConfig) {
+
+        String callSiteId = callSite.getCallSiteId();
+
+        // Extract entity class name from call site
+        String entityClassName = DescriptorParser.getEntityClassName(getEntityDescriptor(callSite));
+
+        // Build characteristics from call site flags
+        QueryCharacteristics characteristics = QueryCharacteristics.fromCallSite(callSite, false);
+
+        // Produce the build item for registry registration
+        queryTransformations.produce(
+                QubitProcessor.QueryTransformationBuildItem.builder()
+                        .queryId(callSiteId)
+                        .generatedClassName(executorClassName)
+                        .entityClassName(entityClassName)
+                        .characteristics(characteristics)
+                        .capturedVarCount(0) // Unknown for early deduplication
+                        .terminalMethodName(callSite.targetMethodName())
+                        .build());
+
+        if (loggingConfig.logDeduplication()) {
+            Log.debugf("Registered early-deduplicated query: %s -> %s", callSiteId, executorClassName);
         }
     }
 

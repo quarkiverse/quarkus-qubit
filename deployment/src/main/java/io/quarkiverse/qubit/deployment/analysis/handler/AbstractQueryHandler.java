@@ -32,7 +32,8 @@ public abstract sealed class AbstractQueryHandler implements QueryTypeHandler
         return context.bytecodeAnalyzer().analyze(
                 context.classBytes(),
                 methodName,
-                descriptor);
+                descriptor,
+                context.metricsCollector());
     }
 
     /** Analyzes a bi-entity lambda (for join queries with two parameters). */
@@ -48,7 +49,8 @@ public abstract sealed class AbstractQueryHandler implements QueryTypeHandler
         return context.bytecodeAnalyzer().analyzeBiEntity(
                 context.classBytes(),
                 methodName,
-                descriptor);
+                descriptor,
+                context.metricsCollector());
     }
 
     /** Analyzes multiple predicates and combines with AND, renumbering captured variables. */
