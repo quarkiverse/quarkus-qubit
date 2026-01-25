@@ -231,7 +231,8 @@ public class InvokeDynamicScanner {
         try {
             ClassReader reader = new ClassReader(classBytes);
             ClassNode classNode = new ClassNode();
-            reader.accept(classNode, 0);
+            // Skip frames (not needed for scanning), but keep debug info for line numbers
+            reader.accept(classNode, ClassReader.SKIP_FRAMES);
 
             for (MethodNode method : classNode.methods) {
                 scanMethod(classNode, method, callSites);

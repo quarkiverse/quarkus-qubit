@@ -3,6 +3,7 @@ package io.quarkiverse.qubit.deployment.analysis;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.analysis.instruction.*;
 import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
+import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
 import io.quarkiverse.qubit.deployment.util.DescriptorParser;
 import io.quarkus.logging.Log;
 import org.objectweb.asm.ClassReader;
@@ -16,6 +17,7 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.and;
@@ -44,6 +46,43 @@ import static org.objectweb.asm.Opcodes.*;
  */
 public class LambdaBytecodeAnalyzer {
 
+    /** Cache to avoid repeatedly parsing the same class bytecode into ClassNode. */
+    private static final ConcurrentHashMap<String, ClassNode> CLASS_NODE_CACHE = new ConcurrentHashMap<>();
+
+    /** Clears the ClassNode cache. Used for dev mode hot reload support. */
+    public static void clearCache() {
+        CLASS_NODE_CACHE.clear();
+        Log.debug("LambdaBytecodeAnalyzer ClassNode cache cleared");
+    }
+
+    /**
+     * Gets or parses a ClassNode from bytecode, using cache to avoid repeated parsing.
+     *
+     * @param classBytes the class bytecode
+     * @param metricsCollector optional metrics collector (may be null)
+     * @return the parsed ClassNode (from cache or freshly parsed)
+     */
+    private static ClassNode getOrParseClassNode(byte[] classBytes, BuildMetricsCollector metricsCollector) {
+        // Get class name without full parsing (ClassReader reads constant pool header only)
+        ClassReader reader = new ClassReader(classBytes);
+        String className = reader.getClassName();
+
+        return CLASS_NODE_CACHE.computeIfAbsent(className, key -> {
+            long asmStartTime = System.nanoTime();
+            try {
+                ClassNode classNode = new ClassNode();
+                // Skip debug info (local vars, line numbers) and frames - not needed for lambda analysis
+                reader.accept(classNode, ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
+                return classNode;
+            } finally {
+                if (metricsCollector != null) {
+                    metricsCollector.addAsmParsingTime(System.nanoTime() - asmStartTime);
+                    metricsCollector.incrementUniqueClassesLoaded();
+                }
+            }
+        });
+    }
+
     /**
      * Registry holding all instruction handlers for dependency injection.
      */
@@ -65,7 +104,16 @@ public class LambdaBytecodeAnalyzer {
      * @throws BytecodeAnalysisException if bytecode cannot be read or lambda method not found
      */
     public LambdaExpression analyze(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor) {
-        return analyze(classBytes, lambdaMethodName, lambdaDescriptor, false);
+        return analyze(classBytes, lambdaMethodName, lambdaDescriptor, null);
+    }
+
+    /**
+     * Analyzes synthetic lambda bytecode with optional metrics collection.
+     * @throws BytecodeAnalysisException if bytecode cannot be read or lambda method not found
+     */
+    public LambdaExpression analyze(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor,
+                                    BuildMetricsCollector metricsCollector) {
+        return analyze(classBytes, lambdaMethodName, lambdaDescriptor, false, metricsCollector);
     }
 
     /**
@@ -73,7 +121,16 @@ public class LambdaBytecodeAnalyzer {
      * @throws BytecodeAnalysisException if bytecode cannot be read or lambda method not found
      */
     public LambdaExpression analyzeBiEntity(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor) {
-        return analyze(classBytes, lambdaMethodName, lambdaDescriptor, true);
+        return analyzeBiEntity(classBytes, lambdaMethodName, lambdaDescriptor, null);
+    }
+
+    /**
+     * Analyzes bi-entity lambda with optional metrics collection.
+     * @throws BytecodeAnalysisException if bytecode cannot be read or lambda method not found
+     */
+    public LambdaExpression analyzeBiEntity(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor,
+                                            BuildMetricsCollector metricsCollector) {
+        return analyze(classBytes, lambdaMethodName, lambdaDescriptor, true, metricsCollector);
     }
 
     /**
@@ -81,16 +138,24 @@ public class LambdaBytecodeAnalyzer {
      * @throws BytecodeAnalysisException if bytecode cannot be read or lambda method not found
      */
     public LambdaExpression analyzeGroupQuerySpec(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor) {
-        return analyzeGroupContext(classBytes, lambdaMethodName, lambdaDescriptor);
+        return analyzeGroupQuerySpec(classBytes, lambdaMethodName, lambdaDescriptor, null);
+    }
+
+    /**
+     * Analyzes group lambda with optional metrics collection.
+     * @throws BytecodeAnalysisException if bytecode cannot be read or lambda method not found
+     */
+    public LambdaExpression analyzeGroupQuerySpec(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor,
+                                                  BuildMetricsCollector metricsCollector) {
+        return analyzeGroupContext(classBytes, lambdaMethodName, lambdaDescriptor, metricsCollector);
     }
 
     /** Internal: analyzes group context lambda (fail-fast on error). */
-    private LambdaExpression analyzeGroupContext(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor) {
+    private LambdaExpression analyzeGroupContext(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor,
+                                                 BuildMetricsCollector metricsCollector) {
         ClassNode classNode;
         try {
-            ClassReader reader = new ClassReader(classBytes);
-            classNode = new ClassNode();
-            reader.accept(classNode, 0);
+            classNode = getOrParseClassNode(classBytes, metricsCollector);
         } catch (Exception e) {
             throw BytecodeAnalysisException.analysisFailedWithContext(
                     "Failed to read class bytecode for group lambda analysis",
@@ -120,7 +185,14 @@ public class LambdaBytecodeAnalyzer {
             AnalysisContext.NestedLambdaSupport nestedLambdaSupport = createNestedLambdaSupport(classNode.methods);
             AnalysisContext ctx = new AnalysisContext(lambdaMethod, groupParameterIndex, nestedLambdaSupport);
 
-            return processInstructions(ctx);
+            long instructionStartTime = System.nanoTime();
+            try {
+                return processInstructions(ctx);
+            } finally {
+                if (metricsCollector != null) {
+                    metricsCollector.addInstructionAnalysisTime(System.nanoTime() - instructionStartTime);
+                }
+            }
         } catch (BytecodeAnalysisException e) {
             throw e; // Re-throw our own exceptions
         } catch (Exception e) {
@@ -133,12 +205,11 @@ public class LambdaBytecodeAnalyzer {
 
     /** Internal: analyzes single or bi-entity lambda (fail-fast on error). */
     private LambdaExpression analyze(byte[] classBytes, String lambdaMethodName,
-                                      String lambdaDescriptor, boolean biEntityMode) {
+                                      String lambdaDescriptor, boolean biEntityMode,
+                                      BuildMetricsCollector metricsCollector) {
         ClassNode classNode;
         try {
-            ClassReader reader = new ClassReader(classBytes);
-            classNode = new ClassNode();
-            reader.accept(classNode, 0);
+            classNode = getOrParseClassNode(classBytes, metricsCollector);
         } catch (Exception e) {
             throw new BytecodeAnalysisException(
                     "Failed to read class bytecode for lambda analysis: " + e.getMessage(), e);
@@ -162,16 +233,23 @@ public class LambdaBytecodeAnalyzer {
         }
 
         try {
-            if (biEntityMode) {
-                int[] biEntitySlots = DescriptorParser.calculateBiEntityParameterSlotIndices(lambdaDescriptor);
-                if (biEntitySlots == null) {
-                    throw new BytecodeAnalysisException(
-                            "Bi-entity mode requires at least 2 parameters in descriptor: " + lambdaDescriptor);
+            long instructionStartTime = System.nanoTime();
+            try {
+                if (biEntityMode) {
+                    int[] biEntitySlots = DescriptorParser.calculateBiEntityParameterSlotIndices(lambdaDescriptor);
+                    if (biEntitySlots == null) {
+                        throw new BytecodeAnalysisException(
+                                "Bi-entity mode requires at least 2 parameters in descriptor: " + lambdaDescriptor);
+                    }
+                    return analyzeMethodInstructions(lambdaMethod, biEntitySlots[0], biEntitySlots[1], classNode.methods);
+                } else {
+                    int entityParameterIndex = DescriptorParser.calculateEntityParameterSlotIndex(lambdaDescriptor);
+                    return analyzeMethodInstructions(lambdaMethod, entityParameterIndex, classNode.methods);
                 }
-                return analyzeMethodInstructions(lambdaMethod, biEntitySlots[0], biEntitySlots[1], classNode.methods);
-            } else {
-                int entityParameterIndex = DescriptorParser.calculateEntityParameterSlotIndex(lambdaDescriptor);
-                return analyzeMethodInstructions(lambdaMethod, entityParameterIndex, classNode.methods);
+            } finally {
+                if (metricsCollector != null) {
+                    metricsCollector.addInstructionAnalysisTime(System.nanoTime() - instructionStartTime);
+                }
             }
         } catch (BytecodeAnalysisException e) {
             throw e; // Re-throw our own exceptions

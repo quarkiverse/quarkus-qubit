@@ -1,6 +1,8 @@
 package io.quarkiverse.qubit.deployment.testutil;
 
+import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import org.junit.jupiter.api.BeforeEach;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Handle;
 import org.objectweb.asm.tree.ClassNode;
@@ -31,6 +33,14 @@ public abstract class AbstractLambdaAnalyzer {
 
     // Cache of loaded class nodes, keyed by class name
     private static final Map<String, ClassNode> classNodeCache = new HashMap<>();
+
+    /**
+     * Clears the LambdaBytecodeAnalyzer cache before each test for isolation.
+     */
+    @BeforeEach
+    void clearAnalyzerCache() {
+        LambdaBytecodeAnalyzer.clearCache();
+    }
 
     /**
      * Returns the fully-qualified name of the class containing lambda test sources.
@@ -66,7 +76,8 @@ public abstract class AbstractLambdaAnalyzer {
                 }
                 ClassReader reader = new ClassReader(is);
                 ClassNode classNode = new ClassNode();
-                reader.accept(classNode, 0);
+                // Skip debug info and frames - not needed for lambda analysis
+                reader.accept(classNode, ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
                 return classNode;
             }
         } catch (Exception e) {

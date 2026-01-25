@@ -35,7 +35,8 @@ public class BytecodeInspector {
         try {
             ClassReader reader = new ClassReader(bytecode);
             ClassNode classNode = new ClassNode();
-            reader.accept(classNode, 0);
+            // Skip debug info and frames - not needed for bytecode inspection
+            reader.accept(classNode, ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
 
             // Analyze all methods in the class
             for (MethodNode method : classNode.methods) {
