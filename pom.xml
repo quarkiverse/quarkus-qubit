@@ -33,6 +33,8 @@
 
         <!-- JaCoCo version for code coverage -->
         <jacoco.version>0.8.13</jacoco.version>
+        <!-- Skip JaCoCo instrumentation by default for faster tests; enable with -Pcoverage -->
+        <jacoco.skip>true</jacoco.skip>
         <!-- Skip coverage check by default; enable with -Djacoco.check.skip=false -->
         <jacoco.check.skip>true</jacoco.check.skip>
     </properties>
@@ -112,10 +114,14 @@
                     </configuration>
                 </plugin>
                 <!-- JaCoCo Code Coverage Plugin -->
+                <!-- Disabled by default for faster tests; enable with -Pcoverage -->
                 <plugin>
                     <groupId>org.jacoco</groupId>
                     <artifactId>jacoco-maven-plugin</artifactId>
                     <version>${jacoco.version}</version>
+                    <configuration>
+                        <skip>${jacoco.skip}</skip>
+                    </configuration>
                     <executions>
                         <!-- Prepare agent for unit tests (non-QuarkusTest) -->
                         <execution>
@@ -124,6 +130,7 @@
                                 <goal>prepare-agent</goal>
                             </goals>
                             <configuration>
+                                <skip>${jacoco.skip}</skip>
                                 <destFile>${maven.multiModuleProjectDirectory}/target/jacoco.exec</destFile>
                                 <append>true</append>
                                 <propertyName>argLine</propertyName>
@@ -136,6 +143,7 @@
                                 <goal>prepare-agent-integration</goal>
                             </goals>
                             <configuration>
+                                <skip>${jacoco.skip}</skip>
                                 <destFile>${maven.multiModuleProjectDirectory}/target/jacoco.exec</destFile>
                                 <append>true</append>
                             </configuration>
@@ -362,15 +370,17 @@
 
     <profiles>
         <!--
-            Coverage enforcement profile.
-            Enables JaCoCo coverage check during verify phase.
+            Coverage profile.
+            Enables JaCoCo instrumentation and coverage check during verify phase.
 
             Usage:
-              mvn verify -Pcoverage
+              mvn test -Pcoverage      # Run tests with coverage instrumentation
+              mvn verify -Pcoverage    # Run tests + generate report + check thresholds
         -->
         <profile>
             <id>coverage</id>
             <properties>
+                <jacoco.skip>false</jacoco.skip>
                 <jacoco.check.skip>false</jacoco.check.skip>
             </properties>
         </profile>
