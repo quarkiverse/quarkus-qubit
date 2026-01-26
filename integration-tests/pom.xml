@@ -23,7 +23,7 @@
         <db2.image>icr.io/db2_community/db2:11.5.9.0</db2.image>
 
         <!-- Default database kind (overridden by profiles) -->
-        <db.kind>postgresql</db.kind>
+        <db.kind>h2</db.kind>
     </properties>
 
     <dependencies>
@@ -203,12 +203,9 @@
             3. Activates the corresponding Quarkus configuration profile
         -->
 
-        <!-- PostgreSQL (default) -->
+        <!-- PostgreSQL -->
         <profile>
             <id>postgresql</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
             <properties>
                 <db.kind>postgresql</db.kind>
             </properties>
@@ -291,8 +288,13 @@
         </profile>
 
         <!-- H2 (in-memory, JVM only - no native support) -->
+        <!-- Default profile: fastest for local development, no container needed -->
+        <!-- For PostgreSQL: mvn verify -Ppostgresql -->
         <profile>
             <id>h2</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
             <properties>
                 <db.kind>h2</db.kind>
             </properties>
@@ -302,6 +304,21 @@
                     <artifactId>quarkus-jdbc-h2</artifactId>
                 </dependency>
             </dependencies>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>io.quarkus</groupId>
+                        <artifactId>quarkus-maven-plugin</artifactId>
+                        <configuration>
+                            <systemProperties>
+                                <quarkus.datasource.db-kind>h2</quarkus.datasource.db-kind>
+                                <quarkus.datasource.devservices.enabled>false</quarkus.datasource.devservices.enabled>
+                                <quarkus.datasource.jdbc.url>jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;MODE=PostgreSQL</quarkus.datasource.jdbc.url>
+                            </systemProperties>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
 
         <!--
