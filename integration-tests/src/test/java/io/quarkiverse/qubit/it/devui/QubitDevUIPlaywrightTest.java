@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 
+import org.jboss.shrinkwrap.api.asset.StringAsset;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,11 +21,14 @@ import io.quarkus.test.QuarkusDevModeTest;
  * <p>
  * <strong>Running these tests:</strong>
  * <pre>
- * # Run with browser installation (recommended for local development)
+ * # Run with Chromium (default, faster)
  * mvn test -Pplaywright -pl integration-tests
  *
- * # Use Chromium instead of Firefox
- * mvn test -Pplaywright -Dplaywright.browser=chromium -pl integration-tests
+ * # Run with Firefox
+ * mvn test -Pplaywright -Dplaywright.browser=firefox -pl integration-tests
+ *
+ * # Run with timing logs
+ * mvn test -Pplaywright -Dplaywright.timing.enabled=true -pl integration-tests
  * </pre>
  * <p>
  * The test verifies:
@@ -41,11 +45,27 @@ import io.quarkus.test.QuarkusDevModeTest;
  */
 public class QubitDevUIPlaywrightTest {
 
+    // H2 configuration for dev mode testing
+    private static final String DEV_MODE_PROPERTIES = """
+            # H2 in-memory database for DevUI tests
+            quarkus.datasource.db-kind=h2
+            quarkus.datasource.devservices.enabled=false
+            quarkus.datasource.jdbc.url=jdbc:h2:mem:devui;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+            quarkus.hibernate-orm.schema-management.strategy=drop-and-create
+            # Disable continuous testing - conflicts with QuarkusDevModeTest
+            quarkus.test.continuous-testing=disabled
+            # Reduce logging for faster tests
+            quarkus.log.level=WARN
+            """;
+
     @RegisterExtension
     static final QuarkusDevModeTest devMode = new QuarkusDevModeTest()
             .withApplicationRoot((jar) -> jar
-                    // Use main source classes from integration-tests module
-                    .addPackages(true, "io.quarkiverse.qubit.it"));
+                    // Include entity classes and repositories for DevUI to detect lambda queries
+                    .addPackages(true, "io.quarkiverse.qubit.it")
+                    // Include application configuration with H2 datasource
+                    .addAsResource(new StringAsset(DEV_MODE_PROPERTIES), "application.properties")
+                    .addAsResource("import.sql"));
 
     private DevUIBrowser browser;
 

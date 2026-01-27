@@ -17,6 +17,10 @@ import com.microsoft.playwright.options.WaitForSelectorState;
  * the Quarkus DevUI extension pages. It provides methods for navigating
  * to DevUI pages and interacting with Vaadin web components.
  * <p>
+ * The Playwright and Browser instances are cached at the class level for
+ * performance - browser startup is expensive (~2-3s). Only the Page is
+ * created fresh for each test to ensure isolation.
+ * <p>
  * Usage pattern follows the quarkus-axonframework-extension approach
  * where raw Playwright API is used with QuarkusDevModeTest since
  * the @WithPlaywright annotation is incompatible with QuarkusDevModeTest.
@@ -31,9 +35,12 @@ public class DevUIBrowser implements AutoCloseable {
      */
     private static final int DEFAULT_DEV_MODE_PORT = 8080;
 
+    // Cached instances for performance - browser startup is expensive
+    private static Playwright cachedPlaywright;
+    private static Browser cachedBrowser;
+    private static String cachedBrowserType;
+
     private final String devUiBaseUrl;
-    private final Playwright playwright;
-    private final Browser browser;
     private Page page;
 
     /**
@@ -50,10 +57,69 @@ public class DevUIBrowser implements AutoCloseable {
      */
     public DevUIBrowser(int port) {
         this.devUiBaseUrl = "http://localhost:" + port + "/q/dev-ui";
-        playwright = Playwright.create();
-        // Use Firefox for better compatibility with Vaadin components
-        browser = playwright.firefox().launch();
-        page = browser.newPage();
+        page = getOrCreateBrowser().newPage();
+    }
+
+    /**
+     * Get or create the cached browser instance.
+     * Browser type is determined by the playwright.browser system property.
+     *
+     * @return the cached or newly created browser
+     */
+    private static synchronized Browser getOrCreateBrowser() {
+        String browserType = System.getProperty("playwright.browser", "chromium").toLowerCase();
+
+        // If browser type changed or not initialized, create new instances
+        if (cachedBrowser == null || !browserType.equals(cachedBrowserType)) {
+            closeStaticResources();
+            cachedPlaywright = Playwright.create();
+            cachedBrowser = launchBrowser(cachedPlaywright, browserType);
+            cachedBrowserType = browserType;
+
+            // Register shutdown hook to clean up on JVM exit
+            Runtime.getRuntime().addShutdownHook(new Thread(DevUIBrowser::closeStaticResources));
+        }
+
+        return cachedBrowser;
+    }
+
+    /**
+     * Launch the browser based on the specified type.
+     *
+     * @param playwright the Playwright instance
+     * @param browserType the browser type (chromium, firefox, webkit)
+     * @return the launched browser instance
+     */
+    private static Browser launchBrowser(Playwright playwright, String browserType) {
+        return switch (browserType) {
+            case "firefox" -> playwright.firefox().launch();
+            case "webkit" -> playwright.webkit().launch();
+            default -> playwright.chromium().launch();
+        };
+    }
+
+    /**
+     * Close static resources (browser and playwright).
+     * Called by shutdown hook or when browser type changes.
+     */
+    private static synchronized void closeStaticResources() {
+        if (cachedBrowser != null) {
+            try {
+                cachedBrowser.close();
+            } catch (Exception ignored) {
+                // Ignore errors during cleanup
+            }
+            cachedBrowser = null;
+        }
+        if (cachedPlaywright != null) {
+            try {
+                cachedPlaywright.close();
+            } catch (Exception ignored) {
+                // Ignore errors during cleanup
+            }
+            cachedPlaywright = null;
+        }
+        cachedBrowserType = null;
     }
 
     /**
@@ -327,14 +393,11 @@ public class DevUIBrowser implements AutoCloseable {
 
     @Override
     public void close() {
+        // Only close the page, keep browser cached for reuse
         if (page != null) {
             page.close();
+            page = null;
         }
-        if (browser != null) {
-            browser.close();
-        }
-        if (playwright != null) {
-            playwright.close();
-        }
+        // Note: Browser and Playwright are cached and cleaned up by shutdown hook
     }
 }

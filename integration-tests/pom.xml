@@ -53,12 +53,6 @@
             <artifactId>quarkus-junit5</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- Required for QuarkusDevModeTest (DevUI testing) -->
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-junit5-internal</artifactId>
-            <scope>test</scope>
-        </dependency>
         <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>rest-assured</artifactId>
@@ -77,7 +71,13 @@
             <version>1.9.2</version>
             <scope>test</scope>
         </dependency>
-        <!-- Playwright for DevUI browser testing -->
+        <!-- Required for QuarkusDevModeTest (DevUI Playwright tests) -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-junit5-internal</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Playwright for browser automation (DevUI tests) -->
         <dependency>
             <groupId>com.microsoft.playwright</groupId>
             <artifactId>playwright</artifactId>
@@ -351,15 +351,43 @@
 
         <!--
             ==========================================
+            PERFORMANCE METRICS PROFILE
+            ==========================================
+            Usage: mvn verify -Pperformance -Dtest=PerformanceBaselineTest
+        -->
+        <profile>
+            <id>performance</id>
+            <properties>
+                <quarkus.qubit.metrics.enabled>true</quarkus.qubit.metrics.enabled>
+            </properties>
+        </profile>
+
+        <!--
+            ==========================================
             PLAYWRIGHT DEVUI TESTING PROFILE
             ==========================================
             Usage:
-              mvn test -Pplaywright                    # Install browser and run tests
-              mvn test -Pplaywright -Dplaywright.browser=chromium  # Use Chromium
-              mvn test -Pplaywright -Dplaywright.skip-install=true  # Skip browser install (CI)
+              mvn test -Pplaywright                              # Run with Chromium (default)
+              mvn test -Pplaywright -Dplaywright.browser=firefox # Run with Firefox
+              mvn test -Pplaywright -Dplaywright.timing.enabled=true  # Enable timing logs
+
+            Note: This profile runs Playwright tests using Surefire (not Failsafe) because
+            QuarkusDevModeTest works differently from standard integration tests.
         -->
         <profile>
             <id>playwright</id>
+            <properties>
+                <playwright.browser>chromium</playwright.browser>
+                <playwright.skip-install>false</playwright.skip-install>
+                <playwright.timing.enabled>false</playwright.timing.enabled>
+            </properties>
+            <!-- H2 driver required for QuarkusDevModeTest -->
+            <dependencies>
+                <dependency>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>quarkus-jdbc-h2</artifactId>
+                </dependency>
+            </dependencies>
             <build>
                 <plugins>
                     <!-- Install Playwright browsers before tests (unless skip-install is set) -->
@@ -386,38 +414,31 @@
                             </execution>
                         </executions>
                     </plugin>
-                    <!-- Enable Playwright tests (excluded by default) -->
+                    <!-- Enable Playwright tests via surefire (not failsafe) -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
+                            <skip>false</skip>
                             <includes>
                                 <include>**/*PlaywrightTest.java</include>
                             </includes>
                             <systemPropertyVariables>
                                 <playwright.browser>${playwright.browser}</playwright.browser>
+                                <playwright.timing.enabled>${playwright.timing.enabled}</playwright.timing.enabled>
                             </systemPropertyVariables>
+                        </configuration>
+                    </plugin>
+                    <!-- Skip failsafe when running playwright profile (run separately) -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <skip>true</skip>
                         </configuration>
                     </plugin>
                 </plugins>
             </build>
-            <properties>
-                <playwright.browser>firefox</playwright.browser>
-                <playwright.skip-install>false</playwright.skip-install>
-            </properties>
-        </profile>
-
-        <!--
-            ==========================================
-            PERFORMANCE METRICS PROFILE
-            ==========================================
-            Usage: mvn verify -Pperformance -Dtest=PerformanceBaselineTest
-        -->
-        <profile>
-            <id>performance</id>
-            <properties>
-                <quarkus.qubit.metrics.enabled>true</quarkus.qubit.metrics.enabled>
-            </properties>
         </profile>
     </profiles>
 </project>
