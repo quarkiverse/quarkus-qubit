@@ -2,73 +2,72 @@ package io.quarkiverse.qubit.deployment.bytecode;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.util.stream.Stream;
 
 /**
  * Bytecode analysis tests for equality operations (==, equals(), isEqual()).
  * Tests lambda bytecode parsing without executing queries.
+ *
+ * <p>This class uses JUnit 5 parameterized tests to consolidate repetitive
+ * test patterns, reducing code duplication while maintaining full coverage.
  */
 class EqualityOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
 
-    // ==================== STRING EQUALITY ====================
+    // ==================== PARAMETERIZED TEST DATA ====================
 
-    @Test
-    void stringEquality() {
-        LambdaExpression expr = analyzeLambda("stringEquality");
-
-        // Analyzer transforms: p.firstName.equals("John") -> p.firstName == "John"
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.EQ);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "firstName");
-        assertConstant(binOp.right(), "John");
+    /**
+     * Test data for simple binary equality operations.
+     * Each entry: lambdaMethodName, expectedFieldName, expectedConstant
+     */
+    static Stream<Arguments> simpleEqualities() {
+        return Stream.of(
+                Arguments.of("stringEquality", "firstName", "John"),
+                Arguments.of("integerEquality", "age", 30),
+                Arguments.of("longEquality", "employeeId", 1000001L),
+                Arguments.of("floatEquality", "height", 1.75f),
+                Arguments.of("doubleEquality", "salary", 75000.0)
+        );
     }
 
-    // ==================== PRIMITIVE EQUALITY ====================
-
-    @Test
-    void integerEquality() {
-        LambdaExpression expr = analyzeLambda("integerEquality");
-
-        // p.age == 30
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.EQ);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "age");
-        assertConstant(binOp.right(), 30);
+    /**
+     * Test data for temporal equality operations using isEqual() method.
+     * Each entry: lambdaMethodName, expectedFieldName
+     */
+    static Stream<Arguments> temporalEqualities() {
+        return Stream.of(
+                Arguments.of("localDateEquality", "birthDate"),
+                Arguments.of("localDateTimeEquality", "createdAt")
+        );
     }
 
-    @Test
-    void longEquality() {
-        LambdaExpression expr = analyzeLambda("longEquality");
+    // ==================== PARAMETERIZED TESTS ====================
 
-        // p.employeeId == 1000001L
+    @ParameterizedTest(name = "{0}: {1} == {2}")
+    @MethodSource("simpleEqualities")
+    void simpleEquality(String lambdaMethodName, String expectedFieldName, Object expectedConstant) {
+        LambdaExpression expr = analyzeLambda(lambdaMethodName);
+
         assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.EQ);
         LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "employeeId");
-        assertConstant(binOp.right(), 1000001L);
+        assertFieldAccess(binOp.left(), expectedFieldName);
+        assertConstant(binOp.right(), expectedConstant);
     }
 
-    @Test
-    void floatEquality() {
-        LambdaExpression expr = analyzeLambda("floatEquality");
+    @ParameterizedTest(name = "{0}: {1}.isEqual()")
+    @MethodSource("temporalEqualities")
+    void temporalEquality(String lambdaMethodName, String expectedFieldName) {
+        LambdaExpression expr = analyzeLambda(lambdaMethodName);
 
-        // p.height == 1.75f
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.EQ);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "height");
-        assertConstant(binOp.right(), 1.75f);
+        assertMethodCall(expr, "isEqual");
+        LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) expr;
+        assertFieldAccess(methodCall.target(), expectedFieldName);
     }
 
-    @Test
-    void doubleEquality() {
-        LambdaExpression expr = analyzeLambda("doubleEquality");
-
-        // p.salary == 75000.0
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.EQ);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "salary");
-        assertConstant(binOp.right(), 75000.0);
-    }
-
-    // ==================== BOOLEAN EQUALITY ====================
+    // ==================== SPECIAL CASE TESTS ====================
 
     @Test
     void booleanEqualityTrue() {
@@ -77,14 +76,12 @@ class EqualityOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         // Compiler may either:
         // 1. Optimize p.active == true to just p.active (FieldAccess)
         // 2. Generate comparison bytecode: active IF_ICMPNE 1 (BinaryOp[active EQ true])
-        // Both are semantically equivalent
         if (expr instanceof LambdaExpression.FieldAccess) {
             assertFieldAccess(expr, "active");
         } else {
             assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.EQ);
             LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
             assertFieldAccess(binOp.left(), "active");
-            // Right side is a constant (value 1 or true depending on bytecode pattern)
         }
     }
 
@@ -106,29 +103,6 @@ class EqualityOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         assertFieldAccess(expr, "active");
     }
 
-    // ==================== TEMPORAL EQUALITY ====================
-
-    @Test
-    void localDateEquality() {
-        LambdaExpression expr = analyzeLambda("localDateEquality");
-
-        // p.birthDate.isEqual(LocalDate.of(1993, 5, 15))
-        assertMethodCall(expr, "isEqual");
-        LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) expr;
-        assertFieldAccess(methodCall.target(), "birthDate");
-        // The argument is a LocalDate constant from LocalDate.of()
-    }
-
-    @Test
-    void localDateTimeEquality() {
-        LambdaExpression expr = analyzeLambda("localDateTimeEquality");
-
-        // p.createdAt.isEqual(LocalDateTime.of(2024, 1, 15, 9, 30))
-        assertMethodCall(expr, "isEqual");
-        LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) expr;
-        assertFieldAccess(methodCall.target(), "createdAt");
-    }
-
     @Test
     void localTimeEquality() {
         LambdaExpression expr = analyzeLambda("localTimeEquality");
@@ -137,10 +111,7 @@ class EqualityOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.EQ);
         LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
         assertFieldAccess(binOp.left(), "startTime");
-        // Right side is a LocalTime constant
     }
-
-    // ==================== BIGDECIMAL EQUALITY ====================
 
     @Test
     void bigDecimalEquality() {

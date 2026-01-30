@@ -24,7 +24,6 @@ import io.quarkiverse.qubit.deployment.generation.UnsupportedExpressionException
 import io.quarkiverse.qubit.deployment.generation.methodcall.BiEntityMethodCallContext;
 import io.quarkiverse.qubit.deployment.generation.methodcall.GenerationResult;
 import io.quarkiverse.qubit.deployment.generation.methodcall.MethodCallHandlerChain;
-import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.ResultHandle;
 
 /** Builds JPA Criteria expressions for bi-entity (join) queries. */
@@ -33,13 +32,7 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
 
     /** Generates JPA Predicate from bi-entity lambda AST. */
     public @Nullable ResultHandle generateBiEntityPredicate(
-            MethodCreator method,
-            @Nullable LambdaExpression expression,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle join,
-            ResultHandle capturedValues,
-            ExpressionGeneratorHelper helper) {
+            BiEntityContext ctx, @Nullable LambdaExpression expression) {
 
         if (expression == null) {
             return null;
@@ -47,35 +40,35 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
 
         return switch (expression) {
             case LambdaExpression.BinaryOp binOp ->
-                generateBiEntityBinaryOperation(method, binOp, cb, root, join, capturedValues, helper);
+                generateBiEntityBinaryOperation(ctx, binOp);
 
             case LambdaExpression.UnaryOp unOp ->
-                generateBiEntityUnaryOperation(method, unOp, cb, root, join, capturedValues, helper);
+                generateBiEntityUnaryOperation(ctx, unOp);
 
             case BiEntityFieldAccess biField -> {
-                ResultHandle path = generateBiEntityFieldPath(method, biField, root, join, helper);
-                yield helper.wrapBooleanAsPredicateIfNeeded(method, cb, path, biField.fieldType());
+                ResultHandle path = generateBiEntityFieldPath(ctx, biField);
+                yield ctx.helper().wrapBooleanAsPredicateIfNeeded(ctx.method(), ctx.cb(), path, biField.fieldType());
             }
 
             case BiEntityPathExpression biPath -> {
-                ResultHandle path = generateBiEntityPathPath(method, biPath, root, join, helper);
-                yield helper.wrapBooleanAsPredicateIfNeeded(method, cb, path, biPath.resultType());
+                ResultHandle path = generateBiEntityPathPath(ctx, biPath);
+                yield ctx.helper().wrapBooleanAsPredicateIfNeeded(ctx.method(), ctx.cb(), path, biPath.resultType());
             }
 
             case LambdaExpression.FieldAccess field -> {
                 // Single-entity field in bi-entity context (from root)
-                ResultHandle path = helper.generateFieldAccess(method, field, root);
-                yield helper.wrapBooleanAsPredicateIfNeeded(method, cb, path, field.fieldType());
+                ResultHandle path = ctx.helper().generateFieldAccess(ctx.method(), field, ctx.root());
+                yield ctx.helper().wrapBooleanAsPredicateIfNeeded(ctx.method(), ctx.cb(), path, field.fieldType());
             }
 
             case PathExpression pathExpr -> {
                 // Single-entity path in bi-entity context (from root)
-                ResultHandle path = helper.generatePathExpression(method, pathExpr, root);
-                yield helper.wrapBooleanAsPredicateIfNeeded(method, cb, path, pathExpr.resultType());
+                ResultHandle path = ctx.helper().generatePathExpression(ctx.method(), pathExpr, ctx.root());
+                yield ctx.helper().wrapBooleanAsPredicateIfNeeded(ctx.method(), ctx.cb(), path, pathExpr.resultType());
             }
 
             case LambdaExpression.MethodCall methodCall ->
-                generateBiEntityMethodCall(method, methodCall, cb, root, join, capturedValues, helper);
+                generateBiEntityMethodCall(ctx, methodCall);
 
             default -> null;
         };
@@ -83,14 +76,7 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
 
     /** Generates JPA Predicate from bi-entity lambda AST with subquery support. */
     public @Nullable ResultHandle generateBiEntityPredicateWithSubqueries(
-            MethodCreator method,
-            @Nullable LambdaExpression expression,
-            ResultHandle cb,
-            ResultHandle query,
-            ResultHandle root,
-            ResultHandle join,
-            ResultHandle capturedValues,
-            ExpressionGeneratorHelper helper) {
+            BiEntitySubqueryContext ctx, @Nullable LambdaExpression expression) {
 
         if (expression == null) {
             return null;
@@ -98,33 +84,26 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
 
         return switch (expression) {
             case ExistsSubquery existsSubquery ->
-                SubqueryExpressionBuilder.INSTANCE.buildExistsSubquery(method, existsSubquery, cb, query, root, capturedValues);
+                SubqueryExpressionBuilder.INSTANCE.buildExistsSubquery(
+                        ctx.method(), existsSubquery, ctx.cb(), ctx.query(), ctx.root(), ctx.capturedValues());
 
             case InSubquery inSubquery ->
-                SubqueryExpressionBuilder.INSTANCE.buildInSubquery(method, inSubquery, cb, query, root, capturedValues);
+                SubqueryExpressionBuilder.INSTANCE.buildInSubquery(
+                        ctx.method(), inSubquery, ctx.cb(), ctx.query(), ctx.root(), ctx.capturedValues());
 
-            // Handle binary operations that may contain subqueries
             case LambdaExpression.BinaryOp binOp ->
-                generateBiEntityBinaryOperationWithSubqueries(method, binOp, cb, query, root, join, capturedValues, helper);
+                generateBiEntityBinaryOperationWithSubqueries(ctx, binOp);
 
             case LambdaExpression.UnaryOp unOp ->
-                generateBiEntityUnaryOperationWithSubqueries(method, unOp, cb, query, root, join, capturedValues, helper);
+                generateBiEntityUnaryOperationWithSubqueries(ctx, unOp);
 
-            // For non-subquery expressions, delegate to the original method
-            default -> generateBiEntityPredicate(method, expression, cb, root, join, capturedValues, helper);
+            default -> generateBiEntityPredicate(ctx, expression);
         };
     }
 
     /** Generates JPA Expression from bi-entity lambda AST with subquery support. */
     public @Nullable ResultHandle generateBiEntityExpressionWithSubqueries(
-            MethodCreator method,
-            @Nullable LambdaExpression expression,
-            ResultHandle cb,
-            ResultHandle query,
-            ResultHandle root,
-            ResultHandle join,
-            ResultHandle capturedValues,
-            ExpressionGeneratorHelper helper) {
+            BiEntitySubqueryContext ctx, @Nullable LambdaExpression expression) {
 
         if (expression == null) {
             return null;
@@ -132,22 +111,16 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
 
         return switch (expression) {
             case ScalarSubquery scalarSubquery ->
-                SubqueryExpressionBuilder.INSTANCE.buildScalarSubquery(method, scalarSubquery, cb, query, root, capturedValues);
+                SubqueryExpressionBuilder.INSTANCE.buildScalarSubquery(
+                        ctx.method(), scalarSubquery, ctx.cb(), ctx.query(), ctx.root(), ctx.capturedValues());
 
-            // For non-subquery expressions, delegate to the original method
-            default -> generateBiEntityExpressionAsJpaExpression(method, expression, cb, root, join, capturedValues, helper);
+            default -> generateBiEntityExpressionAsJpaExpression(ctx, expression);
         };
     }
 
     /** Generates JPA Expression from bi-entity lambda AST. */
     public @Nullable ResultHandle generateBiEntityExpressionAsJpaExpression(
-            MethodCreator method,
-            @Nullable LambdaExpression expression,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle join,
-            ResultHandle capturedValues,
-            ExpressionGeneratorHelper helper) {
+            BiEntityContext ctx, @Nullable LambdaExpression expression) {
 
         if (expression == null) {
             return null;
@@ -155,35 +128,35 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
 
         return switch (expression) {
             case BiEntityFieldAccess biField ->
-                generateBiEntityFieldPath(method, biField, root, join, helper);
+                generateBiEntityFieldPath(ctx, biField);
 
             case BiEntityPathExpression biPath ->
-                generateBiEntityPathPath(method, biPath, root, join, helper);
+                generateBiEntityPathPath(ctx, biPath);
 
             case LambdaExpression.FieldAccess field ->
                 // Single-entity field defaults to root
-                helper.generateFieldAccess(method, field, root);
+                ctx.helper().generateFieldAccess(ctx.method(), field, ctx.root());
 
             case PathExpression pathExpr ->
                 // Single-entity path defaults to root
-                helper.generatePathExpression(method, pathExpr, root);
+                ctx.helper().generatePathExpression(ctx.method(), pathExpr, ctx.root());
 
             case LambdaExpression.Constant constant -> {
-                ResultHandle constantValue = helper.generateConstant(method, constant);
-                yield helper.wrapAsLiteral(method, cb, constantValue);
+                ResultHandle constantValue = ctx.helper().generateConstant(ctx.method(), constant);
+                yield ctx.helper().wrapAsLiteral(ctx.method(), ctx.cb(), constantValue);
             }
 
             case LambdaExpression.CapturedVariable capturedVar ->
-                helper.loadAndWrapCapturedValue(method, cb, capturedVar, capturedValues);
+                ctx.helper().loadAndWrapCapturedValue(ctx.method(), ctx.cb(), capturedVar, ctx.capturedValues());
 
             case LambdaExpression.MethodCall methodCall ->
-                generateBiEntityMethodCall(method, methodCall, cb, root, join, capturedValues, helper);
+                generateBiEntityMethodCall(ctx, methodCall);
 
             case LambdaExpression.BinaryOp binOp ->
-                generateBiEntityBinaryOperation(method, binOp, cb, root, join, capturedValues, helper);
+                generateBiEntityBinaryOperation(ctx, binOp);
 
             case LambdaExpression.CorrelatedVariable correlated ->
-                helper.generateCorrelatedFieldExpression(method, correlated, root);
+                ctx.helper().generateCorrelatedFieldExpression(ctx.method(), correlated, ctx.root());
 
             default -> null;
         };
@@ -191,13 +164,7 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
 
     /** Generates JPA Selection from bi-entity projection expression AST. */
     public @Nullable ResultHandle generateBiEntityProjection(
-            MethodCreator method,
-            @Nullable LambdaExpression expression,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle join,
-            ResultHandle capturedValues,
-            ExpressionGeneratorHelper helper) {
+            BiEntityContext ctx, @Nullable LambdaExpression expression) {
 
         if (expression == null) {
             return null;
@@ -205,34 +172,28 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
 
         return switch (expression) {
             case LambdaExpression.ConstructorCall constructorCall ->
-                generateBiEntityConstructorCall(method, constructorCall, cb, root, join, capturedValues, helper);
+                generateBiEntityConstructorCall(ctx, constructorCall);
 
             case BiEntityFieldAccess biField ->
-                generateBiEntityFieldPath(method, biField, root, join, helper);
+                generateBiEntityFieldPath(ctx, biField);
 
             case BiEntityPathExpression biPath ->
-                generateBiEntityPathPath(method, biPath, root, join, helper);
+                generateBiEntityPathPath(ctx, biPath);
 
             case LambdaExpression.FieldAccess field ->
-                helper.generateFieldAccess(method, field, root);
+                ctx.helper().generateFieldAccess(ctx.method(), field, ctx.root());
 
             case PathExpression pathExpr ->
-                helper.generatePathExpression(method, pathExpr, root);
+                ctx.helper().generatePathExpression(ctx.method(), pathExpr, ctx.root());
 
             // For other expression types, delegate to generateBiEntityExpressionAsJpaExpression
-            default -> generateBiEntityExpressionAsJpaExpression(method, expression, cb, root, join, capturedValues, helper);
+            default -> generateBiEntityExpressionAsJpaExpression(ctx, expression);
         };
     }
 
     /** Generates raw value from bi-entity expression (for method arguments). */
     public @Nullable ResultHandle generateBiEntityExpression(
-            MethodCreator method,
-            @Nullable LambdaExpression expression,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle join,
-            ResultHandle capturedValues,
-            ExpressionGeneratorHelper helper) {
+            BiEntityContext ctx, @Nullable LambdaExpression expression) {
 
         if (expression == null) {
             return null;
@@ -240,25 +201,25 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
 
         return switch (expression) {
             case BiEntityFieldAccess biField ->
-                generateBiEntityFieldPath(method, biField, root, join, helper);
+                generateBiEntityFieldPath(ctx, biField);
 
             case BiEntityPathExpression biPath ->
-                generateBiEntityPathPath(method, biPath, root, join, helper);
+                generateBiEntityPathPath(ctx, biPath);
 
             case LambdaExpression.FieldAccess field ->
-                helper.generateFieldAccess(method, field, root);
+                ctx.helper().generateFieldAccess(ctx.method(), field, ctx.root());
 
             case PathExpression pathExpr ->
-                helper.generatePathExpression(method, pathExpr, root);
+                ctx.helper().generatePathExpression(ctx.method(), pathExpr, ctx.root());
 
             case LambdaExpression.Constant constant ->
-                helper.generateConstant(method, constant);
+                ctx.helper().generateConstant(ctx.method(), constant);
 
             case LambdaExpression.CapturedVariable capturedVar ->
-                helper.loadCapturedValue(method, capturedVar, capturedValues);
+                ctx.helper().loadCapturedValue(ctx.method(), capturedVar, ctx.capturedValues());
 
             case LambdaExpression.CorrelatedVariable correlated ->
-                helper.generateCorrelatedFieldExpression(method, correlated, root);
+                ctx.helper().generateCorrelatedFieldExpression(ctx.method(), correlated, ctx.root());
 
             default -> null;
         };
@@ -270,190 +231,133 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
         return position == EntityPosition.FIRST ? root : join;
     }
 
-    private ResultHandle generateBiEntityFieldPath(
-            MethodCreator method,
-            BiEntityFieldAccess biField,
-            ResultHandle root,
-            ResultHandle join,
-            ExpressionGeneratorHelper helper) {
-        ResultHandle base = getBaseForEntityPosition(biField.entityPosition(), root, join);
-        return helper.generateFieldAccess(method,
+    private ResultHandle generateBiEntityFieldPath(BiEntityContext ctx, BiEntityFieldAccess biField) {
+        ResultHandle base = getBaseForEntityPosition(biField.entityPosition(), ctx.root(), ctx.join());
+        return ctx.helper().generateFieldAccess(ctx.method(),
                 new LambdaExpression.FieldAccess(biField.fieldName(), biField.fieldType()), base);
     }
 
-    private ResultHandle generateBiEntityPathPath(
-            MethodCreator method,
-            BiEntityPathExpression biPath,
-            ResultHandle root,
-            ResultHandle join,
-            ExpressionGeneratorHelper helper) {
-        ResultHandle base = getBaseForEntityPosition(biPath.entityPosition(), root, join);
-        return helper.generatePathExpression(method,
+    private ResultHandle generateBiEntityPathPath(BiEntityContext ctx, BiEntityPathExpression biPath) {
+        ResultHandle base = getBaseForEntityPosition(biPath.entityPosition(), ctx.root(), ctx.join());
+        return ctx.helper().generatePathExpression(ctx.method(),
                 new PathExpression(biPath.segments(), biPath.resultType()), base);
     }
 
-    private ResultHandle generateBiEntityBinaryOperation(
-            MethodCreator method,
-            LambdaExpression.BinaryOp binOp,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle join,
-            ResultHandle capturedValues,
-            ExpressionGeneratorHelper helper) {
-
+    private ResultHandle generateBiEntityBinaryOperation(BiEntityContext ctx, LambdaExpression.BinaryOp binOp) {
         // Check for string concatenation
-        if (helper.isStringConcatenation(binOp)) {
-            ResultHandle left = generateBiEntityExpressionAsJpaExpression(method, binOp.left(), cb, root, join, capturedValues, helper);
-            ResultHandle right = generateBiEntityExpressionAsJpaExpression(method, binOp.right(), cb, root, join, capturedValues, helper);
-            return helper.generateStringConcatenation(method, cb, left, right);
+        if (ctx.helper().isStringConcatenation(binOp)) {
+            ResultHandle left = generateBiEntityExpressionAsJpaExpression(ctx, binOp.left());
+            ResultHandle right = generateBiEntityExpressionAsJpaExpression(ctx, binOp.right());
+            return ctx.helper().generateStringConcatenation(ctx.method(), ctx.cb(), left, right);
         }
 
         // Check for arithmetic
         if (PatternDetector.isArithmeticExpression(binOp)) {
-            ResultHandle left = generateBiEntityExpressionAsJpaExpression(method, binOp.left(), cb, root, join, capturedValues, helper);
-            ResultHandle right = generateBiEntityExpressionAsJpaExpression(method, binOp.right(), cb, root, join, capturedValues, helper);
-            return ArithmeticExpressionBuilder.INSTANCE.buildArithmeticOperation(method, binOp.operator(), cb, left, right);
+            ResultHandle left = generateBiEntityExpressionAsJpaExpression(ctx, binOp.left());
+            ResultHandle right = generateBiEntityExpressionAsJpaExpression(ctx, binOp.right());
+            return ArithmeticExpressionBuilder.INSTANCE.buildArithmeticOperation(
+                    ctx.method(), binOp.operator(), ctx.cb(), left, right);
         }
 
         // Logical operations
         if (isLogicalOperation(binOp)) {
-            ResultHandle left = generateBiEntityPredicate(method, binOp.left(), cb, root, join, capturedValues, helper);
-            ResultHandle right = generateBiEntityPredicate(method, binOp.right(), cb, root, join, capturedValues, helper);
-            return helper.combinePredicates(method, cb, left, right, binOp.operator());
+            ResultHandle left = generateBiEntityPredicate(ctx, binOp.left());
+            ResultHandle right = generateBiEntityPredicate(ctx, binOp.right());
+            return ctx.helper().combinePredicates(ctx.method(), ctx.cb(), left, right, binOp.operator());
         }
 
         // Null check
         if (isNullCheckPattern(binOp)) {
-            return generateBiEntityNullCheckPredicate(method, binOp, cb, root, join, capturedValues, helper);
+            return generateBiEntityNullCheckPredicate(ctx, binOp);
         }
 
         // Default: comparison operation
-        ResultHandle left = generateBiEntityExpressionAsJpaExpression(method, binOp.left(), cb, root, join, capturedValues, helper);
-        ResultHandle right = generateBiEntityExpressionAsJpaExpression(method, binOp.right(), cb, root, join, capturedValues, helper);
-        return ComparisonExpressionBuilder.INSTANCE.buildComparisonOperation(method, binOp.operator(), cb, left, right);
+        ResultHandle left = generateBiEntityExpressionAsJpaExpression(ctx, binOp.left());
+        ResultHandle right = generateBiEntityExpressionAsJpaExpression(ctx, binOp.right());
+        return ComparisonExpressionBuilder.INSTANCE.buildComparisonOperation(
+                ctx.method(), binOp.operator(), ctx.cb(), left, right);
     }
 
-    private ResultHandle generateBiEntityNullCheckPredicate(
-            MethodCreator method,
-            LambdaExpression.BinaryOp binOp,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle join,
-            ResultHandle capturedValues,
-            ExpressionGeneratorHelper helper) {
-
-        LambdaExpression nonNullExpr = helper.extractNonNullExpression(binOp);
-        ResultHandle expression = generateBiEntityExpressionAsJpaExpression(method, nonNullExpr, cb, root, join, capturedValues, helper);
-        return helper.generateNullCheckPredicate(method, cb, expression, binOp.operator());
+    private ResultHandle generateBiEntityNullCheckPredicate(BiEntityContext ctx, LambdaExpression.BinaryOp binOp) {
+        LambdaExpression nonNullExpr = ctx.helper().extractNonNullExpression(binOp);
+        ResultHandle expression = generateBiEntityExpressionAsJpaExpression(ctx, nonNullExpr);
+        return ctx.helper().generateNullCheckPredicate(ctx.method(), ctx.cb(), expression, binOp.operator());
     }
 
-    private ResultHandle generateBiEntityUnaryOperation(
-            MethodCreator method,
-            LambdaExpression.UnaryOp unOp,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle join,
-            ResultHandle capturedValues,
-            ExpressionGeneratorHelper helper) {
-
-        ResultHandle operand = generateBiEntityPredicate(method, unOp.operand(), cb, root, join, capturedValues, helper);
-        return helper.applyUnaryOperator(method, cb, operand, unOp.operator());
+    private ResultHandle generateBiEntityUnaryOperation(BiEntityContext ctx, LambdaExpression.UnaryOp unOp) {
+        ResultHandle operand = generateBiEntityPredicate(ctx, unOp.operand());
+        return ctx.helper().applyUnaryOperator(ctx.method(), ctx.cb(), operand, unOp.operator());
     }
 
     private ResultHandle generateBiEntityBinaryOperationWithSubqueries(
-            MethodCreator method,
-            LambdaExpression.BinaryOp binOp,
-            ResultHandle cb,
-            ResultHandle query,
-            ResultHandle root,
-            ResultHandle join,
-            ResultHandle capturedValues,
-            ExpressionGeneratorHelper helper) {
+            BiEntitySubqueryContext ctx, LambdaExpression.BinaryOp binOp) {
 
         // Check for logical operations (AND, OR) - need to recurse with subquery support
         if (isLogicalOperation(binOp)) {
-            ResultHandle left = generateBiEntityPredicateWithSubqueries(method, binOp.left(), cb, query, root, join, capturedValues, helper);
-            ResultHandle right = generateBiEntityPredicateWithSubqueries(method, binOp.right(), cb, query, root, join, capturedValues, helper);
-            return helper.combinePredicates(method, cb, left, right, binOp.operator());
+            ResultHandle left = generateBiEntityPredicateWithSubqueries(ctx, binOp.left());
+            ResultHandle right = generateBiEntityPredicateWithSubqueries(ctx, binOp.right());
+            return ctx.helper().combinePredicates(ctx.method(), ctx.cb(), left, right, binOp.operator());
         }
 
         // Only scalar subqueries can be used in comparisons. EXISTS/IN are predicates, not expressions.
-        boolean leftHasScalarSubquery = containsScalarSubquery(binOp.left());
-        boolean rightHasScalarSubquery = containsScalarSubquery(binOp.right());
-
-        if (leftHasScalarSubquery || rightHasScalarSubquery) {
-            // Generate expressions with subquery support
-            ResultHandle left = generateBiEntityExpressionWithSubqueries(method, binOp.left(), cb, query, root, join, capturedValues, helper);
-            ResultHandle right = generateBiEntityExpressionWithSubqueries(method, binOp.right(), cb, query, root, join, capturedValues, helper);
-            return ComparisonExpressionBuilder.INSTANCE.buildComparisonOperation(method, binOp.operator(), cb, left, right);
+        if (containsScalarSubquery(binOp.left()) || containsScalarSubquery(binOp.right())) {
+            ResultHandle left = generateBiEntityExpressionWithSubqueries(ctx, binOp.left());
+            ResultHandle right = generateBiEntityExpressionWithSubqueries(ctx, binOp.right());
+            return ComparisonExpressionBuilder.INSTANCE.buildComparisonOperation(
+                    ctx.method(), binOp.operator(), ctx.cb(), left, right);
         }
 
         // This handles bytecode patterns where boolean short-circuit creates comparison to constant.
-        boolean leftHasSubquery = containsSubquery(binOp.left());
-        boolean rightHasSubquery = containsSubquery(binOp.right());
-
-        if (leftHasSubquery || rightHasSubquery) {
-            // If comparing a subquery predicate to a boolean constant, simplify
-            if (isSubqueryBooleanComparison(binOp)) {
-                // Return just the subquery predicate (EXISTS == true → EXISTS)
-                LambdaExpression subqueryExpr = leftHasSubquery ? binOp.left() : binOp.right();
-                LambdaExpression constantExpr = leftHasSubquery ? binOp.right() : binOp.left();
-                ResultHandle predicate = generateBiEntityPredicateWithSubqueries(
-                        method, subqueryExpr, cb, query, root, join, capturedValues, helper);
-
-                // If comparing to false or using NE with true, negate the result
-                if (isNegatedSubqueryComparison(binOp.operator(), constantExpr)) {
-                    return method.invokeInterfaceMethod(CB_NOT, cb, predicate);
-                }
-                return predicate;
-            }
-
-            // For other patterns with subqueries, recursively process with subquery support
-            ResultHandle left = generateBiEntityPredicateWithSubqueries(
-                    method, binOp.left(), cb, query, root, join, capturedValues, helper);
-            ResultHandle right = generateBiEntityPredicateWithSubqueries(
-                    method, binOp.right(), cb, query, root, join, capturedValues, helper);
-            return ComparisonExpressionBuilder.INSTANCE.buildComparisonOperation(method, binOp.operator(), cb, left, right);
+        if (containsSubquery(binOp.left()) || containsSubquery(binOp.right())) {
+            return handleSubqueryPredicate(ctx, binOp);
         }
 
         // No subqueries - delegate to standard bi-entity binary operation
-        return generateBiEntityBinaryOperation(method, binOp, cb, root, join, capturedValues, helper);
+        return generateBiEntityBinaryOperation(ctx, binOp);
+    }
+
+    /** Handles subquery predicate comparison patterns (EXISTS == true, etc.). */
+    private ResultHandle handleSubqueryPredicate(BiEntitySubqueryContext ctx, LambdaExpression.BinaryOp binOp) {
+
+        // If comparing a subquery predicate to a boolean constant, simplify
+        if (isSubqueryBooleanComparison(binOp)) {
+            boolean leftHasSubquery = containsSubquery(binOp.left());
+            LambdaExpression subqueryExpr = leftHasSubquery ? binOp.left() : binOp.right();
+            LambdaExpression constantExpr = leftHasSubquery ? binOp.right() : binOp.left();
+            ResultHandle predicate = generateBiEntityPredicateWithSubqueries(ctx, subqueryExpr);
+
+            // If comparing to false or using NE with true, negate the result
+            return isNegatedSubqueryComparison(binOp.operator(), constantExpr)
+                    ? ctx.method().invokeInterfaceMethod(CB_NOT, ctx.cb(), predicate)
+                    : predicate;
+        }
+
+        // For other patterns with subqueries, recursively process with subquery support
+        ResultHandle left = generateBiEntityPredicateWithSubqueries(ctx, binOp.left());
+        ResultHandle right = generateBiEntityPredicateWithSubqueries(ctx, binOp.right());
+        return ComparisonExpressionBuilder.INSTANCE.buildComparisonOperation(
+                ctx.method(), binOp.operator(), ctx.cb(), left, right);
     }
 
     private ResultHandle generateBiEntityUnaryOperationWithSubqueries(
-            MethodCreator method,
-            LambdaExpression.UnaryOp unOp,
-            ResultHandle cb,
-            ResultHandle query,
-            ResultHandle root,
-            ResultHandle join,
-            ResultHandle capturedValues,
-            ExpressionGeneratorHelper helper) {
+            BiEntitySubqueryContext ctx, LambdaExpression.UnaryOp unOp) {
 
-        ResultHandle operand = generateBiEntityPredicateWithSubqueries(method, unOp.operand(), cb, query, root, join, capturedValues, helper);
-        return helper.applyUnaryOperator(method, cb, operand, unOp.operator());
+        ResultHandle operand = generateBiEntityPredicateWithSubqueries(ctx, unOp.operand());
+        return ctx.helper().applyUnaryOperator(ctx.method(), ctx.cb(), operand, unOp.operator());
     }
 
     /** Generates bi-entity method call via MethodCallHandlerChain. */
-    private ResultHandle generateBiEntityMethodCall(
-            MethodCreator method,
-            LambdaExpression.MethodCall methodCall,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle join,
-            ResultHandle capturedValues,
-            ExpressionGeneratorHelper helper) {
-
+    private ResultHandle generateBiEntityMethodCall(BiEntityContext ctx, LambdaExpression.MethodCall methodCall) {
         // Create bi-entity context for polymorphic dispatch
         BiEntityMethodCallContext context = new BiEntityMethodCallContext(
-                method,
+                ctx.method(),
                 methodCall,
-                cb,
-                root,
-                join,
-                capturedValues,
+                ctx.cb(),
+                ctx.root(),
+                ctx.join(),
+                ctx.capturedValues(),
                 ExpressionBuilderRegistry.createDefault(),
-                helper);
+                ctx.helper());
 
         // Delegate to unified handler chain
         GenerationResult result = MethodCallHandlerChain.defaultInstance().handleMethodCall(context);
@@ -466,17 +370,11 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
     }
 
     private ResultHandle generateBiEntityConstructorCall(
-            MethodCreator method,
-            LambdaExpression.ConstructorCall constructorCall,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle join,
-            ResultHandle capturedValues,
-            ExpressionGeneratorHelper helper) {
+            BiEntityContext ctx, LambdaExpression.ConstructorCall constructorCall) {
 
-        ResultHandle resultClassHandle = helper.loadDtoClass(method, constructorCall.className());
+        ResultHandle resultClassHandle = ctx.helper().loadDtoClass(ctx.method(), constructorCall.className());
 
-        return buildConstructorExpression(method, cb, resultClassHandle, constructorCall.arguments(),
-                arg -> generateBiEntityExpressionAsJpaExpression(method, arg, cb, root, join, capturedValues, helper));
+        return buildConstructorExpression(ctx.method(), ctx.cb(), resultClassHandle, constructorCall.arguments(),
+                arg -> generateBiEntityExpressionAsJpaExpression(ctx, arg));
     }
 }

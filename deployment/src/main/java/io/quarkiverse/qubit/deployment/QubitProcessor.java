@@ -239,15 +239,13 @@ public class QubitProcessor {
 
         // Process each class's call sites together in parallel across classes
         // All caches use ConcurrentHashMap and all counters use AtomicInteger/AtomicLong for thread safety
+        var processingContext = new CallSiteProcessor.CallSiteProcessingContext(
+                applicationArchives, generatedCount, deduplicatedCount,
+                generatedClass, queryTransformations, config.logging(), true);
         callSitesByClass.values().parallelStream()
                 .flatMap(List::stream)  // Keep call sites from same class together in processing order
                 .forEach(callSite -> {
-                    configuredProcessor.processCallSiteWithHandlers(
-                            callSite, applicationArchives,
-                            generatedCount, deduplicatedCount,
-                            generatedClass, queryTransformations,
-                            config.logging(),
-                            true);
+                    configuredProcessor.processCallSiteWithHandlers(callSite, processingContext);
                     if (metricsCollector != null) {
                         metricsCollector.incrementQueryCount();
                     }

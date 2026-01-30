@@ -31,6 +31,38 @@ public final class JpqlGenerator {
 
     private static final String ENTITY_ALIAS = "e";
 
+    // JPQL clause keywords
+    private static final String JPQL_SELECT = "SELECT ";
+    private static final String JPQL_FROM = " FROM ";
+    private static final String JPQL_WHERE = " WHERE ";
+
+    // JPQL function prefixes
+    private static final String JPQL_COUNT = "COUNT(";
+    private static final String JPQL_UPPER = "UPPER(";
+    private static final String JPQL_LOWER = "LOWER(";
+    private static final String JPQL_LENGTH = "LENGTH(";
+    private static final String JPQL_TRIM = "TRIM(";
+    private static final String JPQL_SUBSTRING = "SUBSTRING(";
+
+    // Date/Time function prefixes
+    private static final String JPQL_YEAR = "YEAR(";
+    private static final String JPQL_MONTH = "MONTH(";
+    private static final String JPQL_DAY = "DAY(";
+    private static final String JPQL_HOUR = "HOUR(";
+    private static final String JPQL_MINUTE = "MINUTE(";
+    private static final String JPQL_SECOND = "SECOND(";
+
+    // JPQL LIKE pattern fragments
+    private static final String LIKE_CONCAT_PREFIX = " LIKE CONCAT('%', ";
+    private static final String LIKE_SUFFIX_PERCENT = ", '%')";
+
+    // Aggregation function prefixes
+    private static final String JPQL_AVG = "AVG(";
+    private static final String JPQL_SUM = "SUM(";
+    private static final String JPQL_MIN = "MIN(";
+    private static final String JPQL_MAX = "MAX(";
+    private static final String JPQL_CONCAT = "CONCAT(";
+
     private JpqlGenerator() {
         // Utility class
     }
@@ -46,20 +78,20 @@ public final class JpqlGenerator {
 
         // SELECT clause
         if (isCountQuery) {
-            jpql.append("SELECT COUNT(").append(ENTITY_ALIAS).append(")");
+            jpql.append(JPQL_SELECT).append(JPQL_COUNT).append(ENTITY_ALIAS).append(")");
         } else if (projectionExpression != null) {
-            jpql.append("SELECT ").append(expressionToJpql(projectionExpression));
+            jpql.append(JPQL_SELECT).append(expressionToJpql(projectionExpression));
         } else {
-            jpql.append("SELECT ").append(ENTITY_ALIAS);
+            jpql.append(JPQL_SELECT).append(ENTITY_ALIAS);
         }
 
         // FROM clause - extract simple name from fully qualified class name
         String entityName = ClassNameUtils.extractSimpleName(entityClassName);
-        jpql.append(" FROM ").append(entityName).append(" ").append(ENTITY_ALIAS);
+        jpql.append(JPQL_FROM).append(entityName).append(" ").append(ENTITY_ALIAS);
 
         // WHERE clause
         if (predicateExpression != null) {
-            jpql.append(" WHERE ").append(expressionToJpql(predicateExpression));
+            jpql.append(JPQL_WHERE).append(expressionToJpql(predicateExpression));
         }
 
         return jpql.toString();
@@ -79,16 +111,16 @@ public final class JpqlGenerator {
 
         // SELECT clause
         if (isCountQuery) {
-            jpql.append("SELECT COUNT(").append(ENTITY_ALIAS).append(")");
+            jpql.append(JPQL_SELECT).append(JPQL_COUNT).append(ENTITY_ALIAS).append(")");
         } else if (projectionExpression != null) {
-            jpql.append("SELECT ").append(expressionToJpqlBiEntity(projectionExpression, joinAlias));
+            jpql.append(JPQL_SELECT).append(expressionToJpqlBiEntity(projectionExpression, joinAlias));
         } else {
-            jpql.append("SELECT ").append(ENTITY_ALIAS);
+            jpql.append(JPQL_SELECT).append(ENTITY_ALIAS);
         }
 
         // FROM clause
         String entityName = ClassNameUtils.extractSimpleName(entityClassName);
-        jpql.append(" FROM ").append(entityName).append(" ").append(ENTITY_ALIAS);
+        jpql.append(JPQL_FROM).append(entityName).append(" ").append(ENTITY_ALIAS);
 
         // JOIN clause
         String joinType = isLeftJoin ? "LEFT JOIN" : "JOIN";
@@ -98,7 +130,7 @@ public final class JpqlGenerator {
 
         // WHERE clause
         if (predicateExpression != null) {
-            jpql.append(" WHERE ").append(expressionToJpqlBiEntity(predicateExpression, joinAlias));
+            jpql.append(JPQL_WHERE).append(expressionToJpqlBiEntity(predicateExpression, joinAlias));
         }
 
         return jpql.toString();
@@ -156,22 +188,22 @@ public final class JpqlGenerator {
 
         return switch (methodName) {
             case METHOD_EQUALS -> target + " = " + firstArg;
-            case METHOD_EQUALS_IGNORE_CASE -> "UPPER(" + target + ") = UPPER(" + firstArg + ")";
-            case METHOD_STARTS_WITH -> target + " LIKE CONCAT(" + firstArg + ", '%')";
-            case METHOD_ENDS_WITH -> target + " LIKE CONCAT('%', " + firstArg + ")";
-            case METHOD_CONTAINS -> target + " LIKE CONCAT('%', " + firstArg + ", '%')";
-            case METHOD_IS_EMPTY -> "LENGTH(" + target + ") = 0";
-            case METHOD_TO_LOWER_CASE -> "LOWER(" + target + ")";
-            case METHOD_TO_UPPER_CASE -> "UPPER(" + target + ")";
-            case METHOD_TRIM -> "TRIM(" + target + ")";
-            case METHOD_LENGTH -> "LENGTH(" + target + ")";
+            case METHOD_EQUALS_IGNORE_CASE -> JPQL_UPPER + target + ") = " + JPQL_UPPER + firstArg + ")";
+            case METHOD_STARTS_WITH -> target + " LIKE CONCAT(" + firstArg + LIKE_SUFFIX_PERCENT;
+            case METHOD_ENDS_WITH -> target + LIKE_CONCAT_PREFIX + firstArg + ")";
+            case METHOD_CONTAINS -> target + LIKE_CONCAT_PREFIX + firstArg + LIKE_SUFFIX_PERCENT;
+            case METHOD_IS_EMPTY -> JPQL_LENGTH + target + ") = 0";
+            case METHOD_TO_LOWER_CASE -> JPQL_LOWER + target + ")";
+            case METHOD_TO_UPPER_CASE -> JPQL_UPPER + target + ")";
+            case METHOD_TRIM -> JPQL_TRIM + target + ")";
+            case METHOD_LENGTH -> JPQL_LENGTH + target + ")";
             // Date/Time methods
-            case METHOD_GET_YEAR -> "YEAR(" + target + ")";
-            case METHOD_GET_MONTH_VALUE -> "MONTH(" + target + ")";
-            case METHOD_GET_DAY_OF_MONTH -> "DAY(" + target + ")";
-            case METHOD_GET_HOUR -> "HOUR(" + target + ")";
-            case METHOD_GET_MINUTE -> "MINUTE(" + target + ")";
-            case METHOD_GET_SECOND -> "SECOND(" + target + ")";
+            case METHOD_GET_YEAR -> JPQL_YEAR + target + ")";
+            case METHOD_GET_MONTH_VALUE -> JPQL_MONTH + target + ")";
+            case METHOD_GET_DAY_OF_MONTH -> JPQL_DAY + target + ")";
+            case METHOD_GET_HOUR -> JPQL_HOUR + target + ")";
+            case METHOD_GET_MINUTE -> JPQL_MINUTE + target + ")";
+            case METHOD_GET_SECOND -> JPQL_SECOND + target + ")";
             // Default: show as function call with target
             default -> methodName.toUpperCase() + "(" + target + ")";
         };
@@ -307,40 +339,40 @@ public final class JpqlGenerator {
             }
             case METHOD_EQUALS_IGNORE_CASE -> {
                 String arg = firstArgOrPlaceholder(methodCall);
-                yield "UPPER(" + target + ") = UPPER(" + arg + ")";
+                yield JPQL_UPPER + target + ") = " + JPQL_UPPER + arg + ")";
             }
             case METHOD_STARTS_WITH -> {
                 String arg = firstArgOrPlaceholder(methodCall);
-                yield target + " LIKE CONCAT(" + arg + ", '%')";
+                yield target + " LIKE CONCAT(" + arg + LIKE_SUFFIX_PERCENT;
             }
             case METHOD_ENDS_WITH -> {
                 String arg = firstArgOrPlaceholder(methodCall);
-                yield target + " LIKE CONCAT('%', " + arg + ")";
+                yield target + LIKE_CONCAT_PREFIX + arg + ")";
             }
             case METHOD_CONTAINS -> {
                 String arg = firstArgOrPlaceholder(methodCall);
-                yield target + " LIKE CONCAT('%', " + arg + ", '%')";
+                yield target + LIKE_CONCAT_PREFIX + arg + LIKE_SUFFIX_PERCENT;
             }
-            case METHOD_IS_EMPTY -> "LENGTH(" + target + ") = 0";
-            case "isBlank" -> "TRIM(" + target + ") = ''";
-            case METHOD_TO_LOWER_CASE -> "LOWER(" + target + ")";
-            case METHOD_TO_UPPER_CASE -> "UPPER(" + target + ")";
-            case METHOD_TRIM -> "TRIM(" + target + ")";
-            case METHOD_LENGTH -> "LENGTH(" + target + ")";
+            case METHOD_IS_EMPTY -> JPQL_LENGTH + target + ") = 0";
+            case "isBlank" -> JPQL_TRIM + target + ") = ''";
+            case METHOD_TO_LOWER_CASE -> JPQL_LOWER + target + ")";
+            case METHOD_TO_UPPER_CASE -> JPQL_UPPER + target + ")";
+            case METHOD_TRIM -> JPQL_TRIM + target + ")";
+            case METHOD_LENGTH -> JPQL_LENGTH + target + ")";
             case METHOD_SUBSTRING -> {
                 if (methodCall.arguments().size() >= 2) {
                     String start = expressionToJpql(methodCall.arguments().get(0));
                     String len = expressionToJpql(methodCall.arguments().get(1));
-                    yield "SUBSTRING(" + target + ", " + start + ", " + len + ")";
+                    yield JPQL_SUBSTRING + target + ", " + start + ", " + len + ")";
                 } else if (methodCall.arguments().size() == 1) {
                     String start = expressionToJpql(methodCall.arguments().get(0));
-                    yield "SUBSTRING(" + target + ", " + start + ")";
+                    yield JPQL_SUBSTRING + target + ", " + start + ")";
                 }
-                yield "SUBSTRING(" + target + ")";
+                yield JPQL_SUBSTRING + target + ")";
             }
             case STRING_CONCAT -> {
                 String arg = firstArgOrPlaceholder(methodCall);
-                yield "CONCAT(" + target + ", " + arg + ")";
+                yield JPQL_CONCAT + target + ", " + arg + ")";
             }
             // Math methods
             case "abs" -> "ABS(" + target + ")";
@@ -350,12 +382,12 @@ public final class JpqlGenerator {
                 yield "MOD(" + target + ", " + arg + ")";
             }
             // Date/Time methods
-            case METHOD_GET_YEAR, "year" -> "YEAR(" + target + ")";
-            case "getMonth", METHOD_GET_MONTH_VALUE, "month" -> "MONTH(" + target + ")";
-            case METHOD_GET_DAY_OF_MONTH, "day" -> "DAY(" + target + ")";
-            case METHOD_GET_HOUR, "hour" -> "HOUR(" + target + ")";
-            case METHOD_GET_MINUTE, "minute" -> "MINUTE(" + target + ")";
-            case METHOD_GET_SECOND, "second" -> "SECOND(" + target + ")";
+            case METHOD_GET_YEAR, "year" -> JPQL_YEAR + target + ")";
+            case "getMonth", METHOD_GET_MONTH_VALUE, "month" -> JPQL_MONTH + target + ")";
+            case METHOD_GET_DAY_OF_MONTH, "day" -> JPQL_DAY + target + ")";
+            case METHOD_GET_HOUR, "hour" -> JPQL_HOUR + target + ")";
+            case METHOD_GET_MINUTE, "minute" -> JPQL_MINUTE + target + ")";
+            case METHOD_GET_SECOND, "second" -> JPQL_SECOND + target + ")";
             // Collection size
             case "size" -> "SIZE(" + target + ")";
             // Default: show as function call
@@ -425,12 +457,12 @@ public final class JpqlGenerator {
                 expressionToJpql(groupAgg.fieldExpression()) : ENTITY_ALIAS;
 
         return switch (groupAgg.aggregationType()) {
-            case COUNT -> "COUNT(" + field + ")";
+            case COUNT -> JPQL_COUNT + field + ")";
             case COUNT_DISTINCT -> "COUNT(DISTINCT " + field + ")";
-            case AVG -> "AVG(" + field + ")";
-            case SUM_INTEGER, SUM_LONG, SUM_DOUBLE -> "SUM(" + field + ")";
-            case MIN -> "MIN(" + field + ")";
-            case MAX -> "MAX(" + field + ")";
+            case AVG -> JPQL_AVG + field + ")";
+            case SUM_INTEGER, SUM_LONG, SUM_DOUBLE -> JPQL_SUM + field + ")";
+            case MIN -> JPQL_MIN + field + ")";
+            case MAX -> JPQL_MAX + field + ")";
         };
     }
 
@@ -448,10 +480,10 @@ public final class JpqlGenerator {
         };
 
         StringBuilder sb = new StringBuilder();
-        sb.append("(SELECT ").append(aggFunc).append("(").append(field).append(")");
-        sb.append(" FROM ").append(entityName).append(" s");
+        sb.append("(").append(JPQL_SELECT).append(aggFunc).append("(").append(field).append(")");
+        sb.append(JPQL_FROM).append(entityName).append(" s");
         if (scalarSub.predicate() != null) {
-            sb.append(" WHERE ").append(expressionToJpql(scalarSub.predicate()));
+            sb.append(JPQL_WHERE).append(expressionToJpql(scalarSub.predicate()));
         }
         sb.append(")");
         return sb.toString();
@@ -462,8 +494,8 @@ public final class JpqlGenerator {
         String op = existsSub.negated() ? "NOT EXISTS" : "EXISTS";
 
         StringBuilder sb = new StringBuilder();
-        sb.append(op).append(" (SELECT s FROM ").append(entityName).append(" s");
-        sb.append(" WHERE ").append(expressionToJpql(existsSub.predicate()));
+        sb.append(op).append(" (").append(JPQL_SELECT).append("s").append(JPQL_FROM).append(entityName).append(" s");
+        sb.append(JPQL_WHERE).append(expressionToJpql(existsSub.predicate()));
         sb.append(")");
         return sb.toString();
     }
@@ -475,10 +507,10 @@ public final class JpqlGenerator {
         String op = inSub.negated() ? "NOT IN" : "IN";
 
         StringBuilder sb = new StringBuilder();
-        sb.append(field).append(" ").append(op).append(" (SELECT ").append(selectExpr);
-        sb.append(" FROM ").append(entityName).append(" s");
+        sb.append(field).append(" ").append(op).append(" (").append(JPQL_SELECT).append(selectExpr);
+        sb.append(JPQL_FROM).append(entityName).append(" s");
         if (inSub.predicate() != null) {
-            sb.append(" WHERE ").append(expressionToJpql(inSub.predicate()));
+            sb.append(JPQL_WHERE).append(expressionToJpql(inSub.predicate()));
         }
         sb.append(")");
         return sb.toString();

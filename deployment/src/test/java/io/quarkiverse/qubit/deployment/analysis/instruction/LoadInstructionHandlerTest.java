@@ -16,10 +16,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.VarInsnNode;
+
+import java.util.stream.Stream;
 
 import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
 import static io.quarkiverse.qubit.deployment.testutil.fixtures.AsmFixtures.testMethod;
@@ -52,33 +57,10 @@ class LoadInstructionHandlerTest {
     @DisplayName("canHandle")
     class CanHandleTests {
 
-        @Test
-        void aload_canHandle() {
-            var insn = new VarInsnNode(ALOAD, 0);
-            assertThat(handler.canHandle(insn)).isTrue();
-        }
-
-        @Test
-        void iload_canHandle() {
-            var insn = new VarInsnNode(ILOAD, 0);
-            assertThat(handler.canHandle(insn)).isTrue();
-        }
-
-        @Test
-        void lload_canHandle() {
-            var insn = new VarInsnNode(LLOAD, 0);
-            assertThat(handler.canHandle(insn)).isTrue();
-        }
-
-        @Test
-        void fload_canHandle() {
-            var insn = new VarInsnNode(FLOAD, 0);
-            assertThat(handler.canHandle(insn)).isTrue();
-        }
-
-        @Test
-        void dload_canHandle() {
-            var insn = new VarInsnNode(DLOAD, 0);
+        @ParameterizedTest(name = "{0} → true")
+        @MethodSource("io.quarkiverse.qubit.deployment.analysis.instruction.LoadInstructionHandlerTest#handledOpcodes")
+        void canHandle_handledOpcodes_returnsTrue(String name, int opcode) {
+            var insn = new VarInsnNode(opcode, 0);
             assertThat(handler.canHandle(insn)).isTrue();
         }
 
@@ -88,15 +70,10 @@ class LoadInstructionHandlerTest {
             assertThat(handler.canHandle(insn)).isTrue();
         }
 
-        @Test
-        void astore_cannotHandle() {
-            var insn = new VarInsnNode(ASTORE, 0);
-            assertThat(handler.canHandle(insn)).isFalse();
-        }
-
-        @Test
-        void istore_cannotHandle() {
-            var insn = new VarInsnNode(ISTORE, 0);
+        @ParameterizedTest(name = "{0} → false")
+        @MethodSource("io.quarkiverse.qubit.deployment.analysis.instruction.LoadInstructionHandlerTest#unhandledOpcodes")
+        void canHandle_unhandledOpcodes_returnsFalse(String name, int opcode) {
+            var insn = new VarInsnNode(opcode, 0);
             assertThat(handler.canHandle(insn)).isFalse();
         }
 
@@ -188,64 +165,21 @@ class LoadInstructionHandlerTest {
     @DisplayName("handle - Primitive Loads")
     class HandlePrimitiveLoadTests {
 
-        @Test
-        void iload_capturedInt_pushesCapturedVariable() {
-            testMethod.desc = "(Ljava/lang/Object;I)Z";
+        @ParameterizedTest(name = "{0}: captured {2}")
+        @MethodSource("io.quarkiverse.qubit.deployment.analysis.instruction.LoadInstructionHandlerTest#primitiveLoadCases")
+        void primitiveLoad_capturedVariable_pushesCapturedVariable(
+                String name, int opcode, String descriptor, Class<?> expectedType) {
+            testMethod.desc = "(Ljava/lang/Object;" + descriptor + ")Z";
             context = new AnalysisContext(testMethod, 0);
 
-            var insn = new VarInsnNode(ILOAD, 1);
+            var insn = new VarInsnNode(opcode, 1);
             handler.handle(insn, context);
 
             assertThat(context.getStackSize()).isEqualTo(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(CapturedVariable.class);
             var captured = (CapturedVariable) result;
-            assertThat(captured.type()).isEqualTo(int.class);
-        }
-
-        @Test
-        void lload_capturedLong_pushesCapturedVariable() {
-            testMethod.desc = "(Ljava/lang/Object;J)Z";
-            context = new AnalysisContext(testMethod, 0);
-
-            var insn = new VarInsnNode(LLOAD, 1);
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            var result = context.pop();
-            assertThat(result).isInstanceOf(CapturedVariable.class);
-            var captured = (CapturedVariable) result;
-            assertThat(captured.type()).isEqualTo(long.class);
-        }
-
-        @Test
-        void fload_capturedFloat_pushesCapturedVariable() {
-            testMethod.desc = "(Ljava/lang/Object;F)Z";
-            context = new AnalysisContext(testMethod, 0);
-
-            var insn = new VarInsnNode(FLOAD, 1);
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            var result = context.pop();
-            assertThat(result).isInstanceOf(CapturedVariable.class);
-            var captured = (CapturedVariable) result;
-            assertThat(captured.type()).isEqualTo(float.class);
-        }
-
-        @Test
-        void dload_capturedDouble_pushesCapturedVariable() {
-            testMethod.desc = "(Ljava/lang/Object;D)Z";
-            context = new AnalysisContext(testMethod, 0);
-
-            var insn = new VarInsnNode(DLOAD, 1);
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            var result = context.pop();
-            assertThat(result).isInstanceOf(CapturedVariable.class);
-            var captured = (CapturedVariable) result;
-            assertThat(captured.type()).isEqualTo(double.class);
+            assertThat(captured.type()).isEqualTo(expectedType);
         }
 
         @Test
@@ -486,5 +420,36 @@ class LoadInstructionHandlerTest {
             assertThat(result).isInstanceOf(CorrelatedVariable.class);
             // Should wrap in PathExpression via default case
         }
+    }
+
+    // ==================== Test Data Providers ====================
+
+    /** Opcodes that the handler can handle. */
+    static Stream<Arguments> handledOpcodes() {
+        return Stream.of(
+                Arguments.of("ALOAD", ALOAD),
+                Arguments.of("ILOAD", ILOAD),
+                Arguments.of("LLOAD", LLOAD),
+                Arguments.of("FLOAD", FLOAD),
+                Arguments.of("DLOAD", DLOAD)
+        );
+    }
+
+    /** Opcodes that the handler cannot handle. */
+    static Stream<Arguments> unhandledOpcodes() {
+        return Stream.of(
+                Arguments.of("ASTORE", ASTORE),
+                Arguments.of("ISTORE", ISTORE)
+        );
+    }
+
+    /** Primitive load test cases: name, opcode, descriptor suffix, expected type. */
+    static Stream<Arguments> primitiveLoadCases() {
+        return Stream.of(
+                Arguments.of("ILOAD", ILOAD, "I", int.class),
+                Arguments.of("LLOAD", LLOAD, "J", long.class),
+                Arguments.of("FLOAD", FLOAD, "F", float.class),
+                Arguments.of("DLOAD", DLOAD, "D", double.class)
+        );
     }
 }

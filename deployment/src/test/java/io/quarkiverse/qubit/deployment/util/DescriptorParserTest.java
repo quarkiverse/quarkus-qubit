@@ -3,9 +3,15 @@ package io.quarkiverse.qubit.deployment.util;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -30,93 +36,329 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 class DescriptorParserTest {
 
-    // ========== Wide Type Tests (long/double take 2 slots) ==========
+    // ==================== PARAMETERIZED TEST DATA ====================
 
-    @Nested
-    @DisplayName("Wide Type Handling (long/double take 2 slots)")
-    class WideTypeTests {
+    /** Test data for calculateEntityParameterSlotIndex tests. */
+    static Stream<Arguments> entitySlotIndexTestData() {
+        return Stream.of(
+                // Wide type tests
+                Arguments.of("(JLjava/lang/String;)V", 2, "Long parameter occupies 2 slots"),
+                Arguments.of("(DLjava/lang/String;)V", 2, "Double parameter occupies 2 slots"),
+                Arguments.of("(JDLPerson;)V", 4, "Multiple wide types accumulate correctly"),
+                Arguments.of("(IJ)V", 1, "Wide type at end occupies 2 slots"),
+                // Primitive type tests
+                Arguments.of("(IFZLPerson;)V", 3, "All primitives occupy 1 slot (except long/double)"),
+                Arguments.of("(BCSIFZLPerson;)V", 6, "All single-slot primitives"),
+                Arguments.of("(IJFDZLPerson;)V", 7, "Mixed primitives and wide types"),
+                // Array type tests
+                Arguments.of("([ILPerson;)V", 1, "Primitive array occupies 1 slot"),
+                Arguments.of("([Ljava/lang/String;LPerson;)V", 1, "Object array occupies 1 slot"),
+                Arguments.of("([[ILPerson;)V", 1, "Multi-dimensional array occupies 1 slot"),
+                Arguments.of("([[[ILPerson;)V", 1, "3D array occupies 1 slot"),
+                Arguments.of("([JLPerson;)V", 1, "Long array occupies 1 slot (not 2 like long primitive)"),
+                Arguments.of("([DLPerson;)V", 1, "Double array occupies 1 slot (not 2 like double primitive)"),
+                Arguments.of("([[Ljava/lang/String;LPerson;)V", 1, "Multi-dimensional object array occupies 1 slot"),
+                Arguments.of("([I[Ljava/lang/String;LPerson;)V", 2, "Multiple arrays before entity"),
+                Arguments.of("([IJ[DLPerson;)V", 4, "Array mixed with wide types"),
+                // Edge case tests
+                Arguments.of("(Ljava/lang/String;Lio/quarkiverse/qubit/runtime/Person;)V", 1, "Fully qualified class names"),
+                Arguments.of("(LOuterClass$InnerClass;LPerson;)V", 1, "Inner class references"),
+                Arguments.of("(LPerson;)V", 0, "Single parameter returns slot 0"),
+                Arguments.of("(Ljava/lang/String;IJLio/quarkiverse/qubit/model/Person;)Z", 4, "Complex real-world descriptor")
+        );
+    }
 
-        @Test
-        @DisplayName("Long parameter occupies 2 slots")
-        void calculateEntityParameterSlotIndex_withWideLongParameter_returnsCorrectSlot() {
-            // Test: (long id, String name) -> descriptor: "(JLjava/lang/String;)V"
-            // long takes 2 slots (0-1), String at slot 2
-            String descriptor = "(JLjava/lang/String;)V";
-            int slot = DescriptorParser.calculateEntityParameterSlotIndex(descriptor);
-            assertThat(slot).isEqualTo(2); // String is at slot 2, not slot 1
-        }
+    /** Test data for countMethodArguments tests. */
+    static Stream<Arguments> countMethodArgumentsTestData() {
+        return Stream.of(
+                Arguments.of("(LPerson;)Z", 1),
+                Arguments.of("(LPerson;LPhone;)Z", 2),
+                Arguments.of("(IJDLPerson;)Z", 4),
+                Arguments.of("()V", 0),
+                Arguments.of("(JD)V", 2),
+                Arguments.of("(JJDD)V", 4),
+                Arguments.of("([ILjava/lang/String;)V", 2),
+                Arguments.of("([[I)V", 1),
+                Arguments.of("([I[Ljava/lang/String;[[D)V", 3),
+                Arguments.of("(I[IJ[Ljava/lang/String;)V", 4)
+        );
+    }
 
-        @Test
-        @DisplayName("Double parameter occupies 2 slots")
-        void calculateEntityParameterSlotIndex_withWideDoubleParameter_returnsCorrectSlot() {
-            // Test: (double score, String name) -> descriptor: "(DLjava/lang/String;)V"
-            String descriptor = "(DLjava/lang/String;)V";
-            int slot = DescriptorParser.calculateEntityParameterSlotIndex(descriptor);
-            assertThat(slot).isEqualTo(2);
-        }
+    /** Test data for slotIndexToParameterIndex tests. */
+    static Stream<Arguments> slotToParamIndexTestData() {
+        return Stream.of(
+                // Basic tests
+                Arguments.of("(IJLPerson;)V", 0, 0),
+                Arguments.of("(IJLPerson;)V", 1, 1),
+                Arguments.of("(IJLPerson;)V", 3, 2),
+                Arguments.of("(I)V", 99, -1),
+                // Edge cases
+                Arguments.of("(I)V", 0, 0),
+                Arguments.of("(J)V", 0, 0),
+                Arguments.of("(J)V", 1, -1),
+                Arguments.of("(D)V", 0, 0),
+                Arguments.of("(JI)V", 2, 1),
+                Arguments.of("([ILjava/lang/String;)V", 0, 0),
+                Arguments.of("([ILjava/lang/String;)V", 1, 1),
+                Arguments.of("([[ILjava/lang/String;)V", 0, 0),
+                Arguments.of("([[ILjava/lang/String;)V", 1, 1),
+                Arguments.of("(J[ILjava/lang/String;)V", 0, 0),
+                Arguments.of("(J[ILjava/lang/String;)V", 2, 1),
+                Arguments.of("(J[ILjava/lang/String;)V", 3, 2),
+                Arguments.of("(I)V", 1000, -1),
+                Arguments.of("(IJ)V", 5, -1),
+                Arguments.of("()V", 0, -1)
+        );
+    }
 
-        @Test
-        @DisplayName("Multiple wide types accumulate correctly")
-        void calculateEntityParameterSlotIndex_withMultipleWideTypes_returnsCorrectSlot() {
-            // Test: (long id, double score, Person p) -> descriptor: "(JDLPerson;)V"
-            // long: slots 0-1 (2 slots), double: slots 2-3 (2 slots), Person: slot 4
-            String descriptor = "(JDLPerson;)V";
-            int slot = DescriptorParser.calculateEntityParameterSlotIndex(descriptor);
-            assertThat(slot).isEqualTo(4);
-        }
+    /** Test data for getParameterType primitive tests. */
+    static Stream<Arguments> parameterTypePrimitiveTestData() {
+        return Stream.of(
+                Arguments.of("(IJDFZBCS)V", 0, int.class),
+                Arguments.of("(IJDFZBCS)V", 1, long.class),
+                Arguments.of("(IJDFZBCS)V", 2, double.class),
+                Arguments.of("(IJDFZBCS)V", 3, float.class),
+                Arguments.of("(IJDFZBCS)V", 4, boolean.class),
+                Arguments.of("(IJDFZBCS)V", 5, byte.class),
+                Arguments.of("(IJDFZBCS)V", 6, char.class),
+                Arguments.of("(IJDFZBCS)V", 7, short.class),
+                Arguments.of("(Ljava/lang/String;)V", 0, String.class),
+                Arguments.of("(Lcom/unknown/NonExistentClass;)V", 0, Object.class),
+                Arguments.of("(I)V", 99, Object.class),
+                Arguments.of("([ILjava/lang/String;)V", 1, String.class),
+                Arguments.of("([I)V", 0, Object.class),
+                Arguments.of("([[IJLjava/lang/String;)V", 0, Object.class),
+                Arguments.of("([[IJLjava/lang/String;)V", 1, long.class),
+                Arguments.of("([[IJLjava/lang/String;)V", 2, String.class)
+        );
+    }
 
-        @Test
-        @DisplayName("Wide type at end occupies 2 slots")
-        void calculateEntityParameterSlotIndex_withWideTypeAtEnd_returnsCorrectSlot() {
-            // Test: (int a, long result) -> descriptor: "(IJ)V"
-            // int: slot 0, long: slots 1-2
-            String descriptor = "(IJ)V";
-            int slot = DescriptorParser.calculateEntityParameterSlotIndex(descriptor);
-            assertThat(slot).isEqualTo(1); // long starts at slot 1
+    /** Test data for calculateBiEntityParameterSlotIndices tests. */
+    static Stream<Arguments> biEntitySlotIndicesTestData() {
+        return Stream.of(
+                Arguments.of("(JDLPerson;LPhone;)V", new int[]{4, 5}, "Mixed wide types before bi-entity"),
+                Arguments.of("(LPerson;LPhone;)Z", new int[]{0, 1}, "Simple bi-entity without captured variables"),
+                Arguments.of("(ILPerson;LPhone;)Z", new int[]{1, 2}, "Bi-entity with primitive captured variable"),
+                Arguments.of("(LPerson;)Z", null, "Single parameter returns null"),
+                Arguments.of("([ILPerson;LPhone;)Z", new int[]{1, 2}, "Bi-entity with array captured variable"),
+                Arguments.of("([[ILPerson;LPhone;)Z", new int[]{1, 2}, "Bi-entity with multi-dim array captured"),
+                Arguments.of("([I[Ljava/lang/String;LPerson;LPhone;)Z", new int[]{2, 3}, "Bi-entity with multiple arrays captured")
+        );
+    }
+
+    /** Test data for getReturnTypeDescriptor tests. */
+    static Stream<Arguments> returnTypeDescriptorTestData() {
+        return Stream.of(
+                Arguments.of("(I)V", "V"),
+                Arguments.of("(I)I", "I"),
+                Arguments.of("(I)J", "J"),
+                Arguments.of("(I)D", "D"),
+                Arguments.of("(I)Z", "Z"),
+                Arguments.of("(I)Ljava/lang/String;", "Ljava/lang/String;"),
+                Arguments.of("()Z", "Z"),
+                Arguments.of(null, ""),
+                Arguments.of("(I", ""),
+                Arguments.of("(I)", "")
+        );
+    }
+
+    /** Test data for returnsBooleanType tests. */
+    static Stream<Arguments> returnsBooleanTypeTestData() {
+        return Stream.of(
+                Arguments.of("(I)Z", true),
+                Arguments.of("(I)Ljava/lang/Boolean;", true),
+                Arguments.of("(I)I", false),
+                Arguments.of("(I)Ljava/lang/String;", false),
+                Arguments.of("(I)V", false)
+        );
+    }
+
+    /** Test data for returnsIntType tests. */
+    static Stream<Arguments> returnsIntTypeTestData() {
+        return Stream.of(
+                Arguments.of("(Ljava/lang/String;)I", true),
+                Arguments.of("(Ljava/lang/String;)J", false),
+                Arguments.of("(I)Ljava/lang/Integer;", false),
+                Arguments.of("(I)V", false)
+        );
+    }
+
+    /** Test data for returnsType tests. */
+    static Stream<Arguments> returnsTypeTestData() {
+        return Stream.of(
+                Arguments.of("(I)Ljava/lang/String;", "java/lang/String", true),
+                Arguments.of("(I)Ljava/lang/String;", "java/lang/Integer", false),
+                Arguments.of("(I)I", "java/lang/Integer", false),
+                Arguments.of("(I)Lio/quarkiverse/qubit/Person;", "io/quarkiverse/qubit/Person", true)
+        );
+    }
+
+    /** Test data for returnTypeContains tests. */
+    static Stream<Arguments> returnTypeContainsTestData() {
+        return Stream.of(
+                Arguments.of("(I)Ljava/lang/String;", "String", true),
+                Arguments.of("(I)Ljava/lang/String;", "java/lang", true),
+                Arguments.of("(I)Ljava/lang/String;", "Integer", false),
+                Arguments.of("(I)I", "Integer", false)
+        );
+    }
+
+    /** Test data for getEntityClassName tests. */
+    static Stream<Arguments> entityClassNameTestData() {
+        return Stream.of(
+                Arguments.of("(Ljava/lang/String;)V", "java.lang.String"),
+                Arguments.of("(ILjava/lang/Person;)Z", "java.lang.Person"),
+                Arguments.of("()V", "java.lang.Object"),
+                Arguments.of("(Lio/quarkiverse/qubit/model/Person;)Z", "io.quarkiverse.qubit.model.Person"),
+                Arguments.of("(I)V", "int")
+        );
+    }
+
+    /** Test data for getParameterTypeName tests. */
+    static Stream<Arguments> parameterTypeNameTestData() {
+        return Stream.of(
+                Arguments.of("(Ljava/lang/String;I)V", 0, "java.lang.String"),
+                Arguments.of("(Ljava/lang/String;I)V", 1, "int"),
+                Arguments.of("(I)V", 99, "java.lang.Object"),
+                Arguments.of("([I)V", 0, "java.lang.Object")
+        );
+    }
+
+    /** Test data for getParameterTypeName all primitives. */
+    static Stream<Arguments> parameterTypeNamePrimitivesTestData() {
+        return Stream.of(
+                Arguments.of("(ZBCSIJFD)V", 0, "boolean"),
+                Arguments.of("(ZBCSIJFD)V", 1, "byte"),
+                Arguments.of("(ZBCSIJFD)V", 2, "char"),
+                Arguments.of("(ZBCSIJFD)V", 3, "short"),
+                Arguments.of("(ZBCSIJFD)V", 4, "int"),
+                Arguments.of("(ZBCSIJFD)V", 5, "long"),
+                Arguments.of("(ZBCSIJFD)V", 6, "float"),
+                Arguments.of("(ZBCSIJFD)V", 7, "double")
+        );
+    }
+
+    /** Test data for getEntityClass tests. */
+    static Stream<Arguments> entityClassTestData() {
+        return Stream.of(
+                Arguments.of("()V", Object.class),
+                Arguments.of("(Ljava/lang/String;)V", String.class),
+                Arguments.of("(I)V", int.class),
+                Arguments.of("(Lcom/unknown/NonExistent;)V", Object.class)
+        );
+    }
+
+    // ==================== PARAMETERIZED TESTS ====================
+
+    @ParameterizedTest(name = "{2}: {0} → slot {1}")
+    @MethodSource("io.quarkiverse.qubit.deployment.util.DescriptorParserTest#entitySlotIndexTestData")
+    @DisplayName("calculateEntityParameterSlotIndex returns correct slot")
+    void calculateEntityParameterSlotIndex_returnsCorrectSlot(String descriptor, int expectedSlot, String description) {
+        int slot = DescriptorParser.calculateEntityParameterSlotIndex(descriptor);
+        assertThat(slot).isEqualTo(expectedSlot);
+    }
+
+    @ParameterizedTest(name = "{0} → {1} arguments")
+    @MethodSource("io.quarkiverse.qubit.deployment.util.DescriptorParserTest#countMethodArgumentsTestData")
+    @DisplayName("countMethodArguments returns correct count")
+    void countMethodArguments_returnsCorrectCount(String descriptor, int expectedCount) {
+        assertThat(DescriptorParser.countMethodArguments(descriptor)).isEqualTo(expectedCount);
+    }
+
+    @ParameterizedTest(name = "{0}, slot {1} → param {2}")
+    @MethodSource("io.quarkiverse.qubit.deployment.util.DescriptorParserTest#slotToParamIndexTestData")
+    @DisplayName("slotIndexToParameterIndex returns correct index")
+    void slotIndexToParameterIndex_returnsCorrectIndex(String descriptor, int slot, int expectedIndex) {
+        assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, slot)).isEqualTo(expectedIndex);
+    }
+
+    @ParameterizedTest(name = "{0}, param {1} → {2}")
+    @MethodSource("io.quarkiverse.qubit.deployment.util.DescriptorParserTest#parameterTypePrimitiveTestData")
+    @DisplayName("getParameterType returns correct class")
+    void getParameterType_returnsCorrectClass(String descriptor, int paramIndex, Class<?> expectedClass) {
+        assertThat(DescriptorParser.getParameterType(descriptor, paramIndex)).isEqualTo(expectedClass);
+    }
+
+    @ParameterizedTest(name = "{2}: {0} → {1}")
+    @MethodSource("io.quarkiverse.qubit.deployment.util.DescriptorParserTest#biEntitySlotIndicesTestData")
+    @DisplayName("calculateBiEntityParameterSlotIndices returns correct slots")
+    void calculateBiEntityParameterSlotIndices_returnsCorrectSlots(String descriptor, int[] expectedSlots, String description) {
+        int[] slots = DescriptorParser.calculateBiEntityParameterSlotIndices(descriptor);
+        if (expectedSlots == null) {
+            assertThat(slots).isNull();
+        } else {
+            assertThat(slots).containsExactly(expectedSlots);
         }
     }
 
-    // ========== Bi-Entity Parameter Tests ==========
+    @ParameterizedTest(name = "{0} → \"{1}\"")
+    @MethodSource("io.quarkiverse.qubit.deployment.util.DescriptorParserTest#returnTypeDescriptorTestData")
+    @DisplayName("getReturnTypeDescriptor extracts return type")
+    void getReturnTypeDescriptor_extractsReturnType(String descriptor, String expected) {
+        assertThat(DescriptorParser.getReturnTypeDescriptor(descriptor)).isEqualTo(expected);
+    }
+
+    @ParameterizedTest(name = "{0} → {1}")
+    @MethodSource("io.quarkiverse.qubit.deployment.util.DescriptorParserTest#returnsBooleanTypeTestData")
+    @DisplayName("returnsBooleanType returns correct result")
+    void returnsBooleanType_returnsCorrectResult(String descriptor, boolean expected) {
+        assertThat(DescriptorParser.returnsBooleanType(descriptor)).isEqualTo(expected);
+    }
+
+    @ParameterizedTest(name = "{0} → {1}")
+    @MethodSource("io.quarkiverse.qubit.deployment.util.DescriptorParserTest#returnsIntTypeTestData")
+    @DisplayName("returnsIntType returns correct result")
+    void returnsIntType_returnsCorrectResult(String descriptor, boolean expected) {
+        assertThat(DescriptorParser.returnsIntType(descriptor)).isEqualTo(expected);
+    }
+
+    @ParameterizedTest(name = "{0} contains \"{1}\" → {2}")
+    @MethodSource("io.quarkiverse.qubit.deployment.util.DescriptorParserTest#returnsTypeTestData")
+    @DisplayName("returnsType returns correct result")
+    void returnsType_returnsCorrectResult(String descriptor, String className, boolean expected) {
+        assertThat(DescriptorParser.returnsType(descriptor, className)).isEqualTo(expected);
+    }
+
+    @ParameterizedTest(name = "{0} contains \"{1}\" → {2}")
+    @MethodSource("io.quarkiverse.qubit.deployment.util.DescriptorParserTest#returnTypeContainsTestData")
+    @DisplayName("returnTypeContains returns correct result")
+    void returnTypeContains_returnsCorrectResult(String descriptor, String substring, boolean expected) {
+        assertThat(DescriptorParser.returnTypeContains(descriptor, substring)).isEqualTo(expected);
+    }
+
+    @ParameterizedTest(name = "{0} → \"{1}\"")
+    @MethodSource("io.quarkiverse.qubit.deployment.util.DescriptorParserTest#entityClassNameTestData")
+    @DisplayName("getEntityClassName returns correct name")
+    void getEntityClassName_returnsCorrectName(String descriptor, String expectedName) {
+        assertThat(DescriptorParser.getEntityClassName(descriptor)).isEqualTo(expectedName);
+    }
+
+    @ParameterizedTest(name = "{0}, param {1} → \"{2}\"")
+    @MethodSource("io.quarkiverse.qubit.deployment.util.DescriptorParserTest#parameterTypeNameTestData")
+    @DisplayName("getParameterTypeName returns correct name")
+    void getParameterTypeName_returnsCorrectName(String descriptor, int paramIndex, String expectedName) {
+        assertThat(DescriptorParser.getParameterTypeName(descriptor, paramIndex)).isEqualTo(expectedName);
+    }
+
+    @ParameterizedTest(name = "{0}, param {1} → \"{2}\"")
+    @MethodSource("io.quarkiverse.qubit.deployment.util.DescriptorParserTest#parameterTypeNamePrimitivesTestData")
+    @DisplayName("getParameterTypeName handles all primitives")
+    void getParameterTypeName_allPrimitives_returnsCorrectNames(String descriptor, int paramIndex, String expectedName) {
+        assertThat(DescriptorParser.getParameterTypeName(descriptor, paramIndex)).isEqualTo(expectedName);
+    }
+
+    @ParameterizedTest(name = "{0} → {1}")
+    @MethodSource("io.quarkiverse.qubit.deployment.util.DescriptorParserTest#entityClassTestData")
+    @DisplayName("getEntityClass returns correct class")
+    void getEntityClass_returnsCorrectClass(String descriptor, Class<?> expectedClass) {
+        assertThat(DescriptorParser.getEntityClass(descriptor)).isEqualTo(expectedClass);
+    }
+
+    // ==================== BI-ENTITY SPECIFIC TESTS ====================
 
     @Nested
-    @DisplayName("Bi-Entity Parameter Slot Calculation")
-    class BiEntityTests {
-
-        @Test
-        @DisplayName("Mixed wide types before bi-entity parameters")
-        void calculateBiEntityParameterSlotIndices_withMixedWideTypes_returnsCorrectSlots() {
-            // Test: (long id, double score, Person p, Phone ph) -> descriptor: "(JDLPerson;LPhone;)V"
-            // long: slots 0-1, double: slots 2-3, Person: slot 4, Phone: slot 5
-            String descriptor = "(JDLPerson;LPhone;)V";
-            int[] slots = DescriptorParser.calculateBiEntityParameterSlotIndices(descriptor);
-            assertThat(slots).containsExactly(4, 5); // Person at slot 4, Phone at slot 5
-        }
-
-        @Test
-        @DisplayName("Simple bi-entity without captured variables")
-        void calculateBiEntityParameterSlotIndices_simpleCase_returnsCorrectSlots() {
-            // Test: (Person p, Phone ph) -> descriptor: "(LPerson;LPhone;)Z"
-            String descriptor = "(LPerson;LPhone;)Z";
-            int[] slots = DescriptorParser.calculateBiEntityParameterSlotIndices(descriptor);
-            assertThat(slots).containsExactly(0, 1);
-        }
-
-        @Test
-        @DisplayName("Bi-entity with primitive captured variable")
-        void calculateBiEntityParameterSlotIndices_withCapturedInt_returnsCorrectSlots() {
-            // Test: (int minAge, Person p, Phone ph) -> descriptor: "(ILPerson;LPhone;)Z"
-            String descriptor = "(ILPerson;LPhone;)Z";
-            int[] slots = DescriptorParser.calculateBiEntityParameterSlotIndices(descriptor);
-            assertThat(slots).containsExactly(1, 2); // Person at slot 1, Phone at slot 2
-        }
-
-        @Test
-        @DisplayName("Single parameter returns null")
-        void calculateBiEntityParameterSlotIndices_singleParam_returnsNull() {
-            String descriptor = "(LPerson;)Z";
-            int[] slots = DescriptorParser.calculateBiEntityParameterSlotIndices(descriptor);
-            assertThat(slots).isNull();
-        }
+    @DisplayName("Bi-Entity Specific Slot Calculations")
+    class BiEntitySpecificTests {
 
         @Test
         @DisplayName("First entity slot index calculation")
@@ -130,50 +372,33 @@ class DescriptorParserTest {
         @Test
         @DisplayName("Second entity slot index calculation")
         void calculateSecondEntityParameterSlotIndex_withCapturedVariables_returnsCorrectSlot() {
-            // (int a, long b, Person p, Phone ph) -> int:0, long:1-2, Person:3, Phone:4
             String descriptor = "(IJLPerson;LPhone;)Z";
             int slot = DescriptorParser.calculateSecondEntityParameterSlotIndex(descriptor);
             assertThat(slot).isEqualTo(4);
         }
-    }
 
-    // ========== Primitive Type Tests ==========
-
-    @Nested
-    @DisplayName("Primitive Type Handling")
-    class PrimitiveTypeTests {
-
-        @Test
-        @DisplayName("All primitives occupy 1 slot (except long/double)")
-        void calculateEntityParameterSlotIndex_withOnlyPrimitives_returnsCorrectSlot() {
-            // Test: (int a, float b, boolean c, Person p) -> descriptor: "(IFZLPerson;)V"
-            String descriptor = "(IFZLPerson;)V";
-            int slot = DescriptorParser.calculateEntityParameterSlotIndex(descriptor);
-            assertThat(slot).isEqualTo(3); // Each primitive takes 1 slot
+        @ParameterizedTest
+        @CsvSource({
+                "(LPerson;)Z, -1",
+                "()Z, -1"
+        })
+        @DisplayName("calculateFirstEntityParameterSlotIndex returns -1 for insufficient params")
+        void calculateFirstEntityParameterSlotIndex_insufficientParams_returnsNegativeOne(String descriptor, int expected) {
+            assertThat(DescriptorParser.calculateFirstEntityParameterSlotIndex(descriptor)).isEqualTo(expected);
         }
 
-        @Test
-        @DisplayName("All single-slot primitives")
-        void calculateEntityParameterSlotIndex_allSingleSlotPrimitives_returnsCorrectSlot() {
-            // (byte, char, short, int, float, boolean, Person)
-            // B=byte, C=char, S=short, I=int, F=float, Z=boolean
-            String descriptor = "(BCSIFZLPerson;)V";
-            int slot = DescriptorParser.calculateEntityParameterSlotIndex(descriptor);
-            assertThat(slot).isEqualTo(6); // 6 single-slot primitives
-        }
-
-        @Test
-        @DisplayName("Mixed primitives and wide types")
-        void calculateEntityParameterSlotIndex_mixedPrimitivesAndWideTypes_returnsCorrectSlot() {
-            // (int, long, float, double, boolean, Person) -> I, J, F, D, Z, L
-            // int:0, long:1-2, float:3, double:4-5, boolean:6, Person:7
-            String descriptor = "(IJFDZLPerson;)V";
-            int slot = DescriptorParser.calculateEntityParameterSlotIndex(descriptor);
-            assertThat(slot).isEqualTo(7);
+        @ParameterizedTest
+        @CsvSource({
+                "(LPerson;)Z, -1",
+                "()Z, -1"
+        })
+        @DisplayName("calculateSecondEntityParameterSlotIndex returns -1 for insufficient params")
+        void calculateSecondEntityParameterSlotIndex_insufficientParams_returnsNegativeOne(String descriptor, int expected) {
+            assertThat(DescriptorParser.calculateSecondEntityParameterSlotIndex(descriptor)).isEqualTo(expected);
         }
     }
 
-    // ========== Parameter Iterator Tests ==========
+    // ==================== PARAMETER ITERATOR TESTS ====================
 
     @Nested
     @DisplayName("ParameterIterator Functionality")
@@ -182,10 +407,7 @@ class DescriptorParserTest {
         @Test
         @DisplayName("Iterates captured variables before entity")
         void parameterIterator_handlesCapturedVariablesBeforeEntity() {
-            // Lambda with captured variables before entity parameter
-            // Descriptor: "(Ljava/lang/String;ILPerson;)V" - captured String, captured int, entity Person
             String descriptor = "(Ljava/lang/String;ILPerson;)V";
-
             DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
             List<Integer> slots = new ArrayList<>();
 
@@ -194,18 +416,15 @@ class DescriptorParserTest {
                 slots.add(iter.getCurrentParamSlotStart());
             }
 
-            assertThat(slots).containsExactly(0, 1, 2); // String:0, int:1, Person:2
+            assertThat(slots).containsExactly(0, 1, 2);
         }
 
         @Test
         @DisplayName("Handles Group query descriptor")
         void parameterIterator_handlesGroupQueryDescriptor() {
-            // GroupQuerySpec descriptor: (Group<Person, String>)
-            // Descriptor: "(LGroup;)J" - Group parameter returns long
             String descriptor = "(LGroup;)J";
-
             int slot = DescriptorParser.calculateEntityParameterSlotIndex(descriptor);
-            assertThat(slot).isEqualTo(0);
+            assertThat(slot).isZero();
         }
 
         @Test
@@ -259,329 +478,63 @@ class DescriptorParserTest {
             String descriptor = "(I)V";
             DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
 
-            iter.next(); // consume the only parameter
+            iter.next();
 
             assertThatThrownBy(iter::next)
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("No more parameters");
         }
 
-        @Test
-        @DisplayName("getSlotIndex returns non-zero after advancing past regular type")
-        void parameterIterator_getSlotIndex_afterRegularType_returnsNonZero() {
-            String descriptor = "(IJ)V"; // int takes slot 0, long takes slots 1-2
+        @ParameterizedTest
+        @CsvSource({
+                "(IJ)V, 1",
+                "(JI)V, 2",
+                "(ID)V, 1"
+        })
+        @DisplayName("getSlotIndex returns correct value after processing")
+        void parameterIterator_getSlotIndex_returnsCorrectValue(String descriptor, int expectedAfterFirst) {
             DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
-
-            iter.next(); // move to first param (int)
-            assertThat(iter.getSlotIndex())
-                    .as("After int parameter, slotIndex should be 1 (not 0)")
-                    .isEqualTo(1);
+            iter.next();
+            assertThat(iter.getSlotIndex()).isEqualTo(expectedAfterFirst);
         }
 
-        @Test
-        @DisplayName("getSlotIndex returns correct value after wide type")
-        void parameterIterator_getSlotIndex_afterWideType_returnsNonZero() {
-            String descriptor = "(JI)V"; // long takes slots 0-1, int takes slot 2
+        @ParameterizedTest
+        @CsvSource({
+                "(IJ)V, 1",
+                "(ID)V, 1",
+                "(JI)V, 2"
+        })
+        @DisplayName("getCurrentParamSlotStart returns correct slot")
+        void parameterIterator_getCurrentParamSlotStart_returnsCorrectSlot(String descriptor, int expectedSecondParamSlot) {
             DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
-
-            iter.next(); // move to first param (long)
-            assertThat(iter.getSlotIndex())
-                    .as("After long parameter, slotIndex should be 2")
-                    .isEqualTo(2);
-        }
-
-        @Test
-        @DisplayName("getCurrentParamSlotStart returns correct slot for long parameter")
-        void parameterIterator_getCurrentParamSlotStart_longParam_returnsCorrectSlot() {
-            String descriptor = "(IJ)V"; // int:0, long:1-2
-            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
-
-            iter.next(); // int
-            iter.next(); // long
-            assertThat(iter.getCurrentParamSlotStart())
-                    .as("Long parameter starting at slot 1 should return 1")
-                    .isEqualTo(1);
-        }
-
-        @Test
-        @DisplayName("getCurrentParamSlotStart returns correct slot for double parameter")
-        void parameterIterator_getCurrentParamSlotStart_doubleParam_returnsCorrectSlot() {
-            String descriptor = "(ID)V"; // int:0, double:1-2
-            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
-
-            iter.next(); // int
-            iter.next(); // double
-            assertThat(iter.getCurrentParamSlotStart())
-                    .as("Double parameter starting at slot 1 should return 1")
-                    .isEqualTo(1);
-        }
-
-        @Test
-        @DisplayName("getCurrentParamSlotStart returns slotIndex-1 for regular types")
-        void parameterIterator_getCurrentParamSlotStart_regularType_returnsSlotMinusOne() {
-            String descriptor = "(JI)V"; // long:0-1, int:2
-            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
-
-            iter.next(); // long
-            iter.next(); // int (regular type)
-            assertThat(iter.getCurrentParamSlotStart())
-                    .as("Int parameter after long should start at slot 2")
-                    .isEqualTo(2);
+            iter.next();
+            iter.next();
+            assertThat(iter.getCurrentParamSlotStart()).isEqualTo(expectedSecondParamSlot);
         }
     }
 
-    // ========== Array Type Tests ==========
+    // ==================== ARRAY TYPE ITERATOR TESTS ====================
 
     @Nested
-    @DisplayName("Array Type Handling")
-    class ArrayTypeTests {
+    @DisplayName("ParameterIterator Array Handling")
+    class ArrayTypeIteratorTests {
 
-        // --- calculateEntityParameterSlotIndex with arrays ---
-
-        @Test
-        @DisplayName("Primitive array occupies 1 slot")
-        void calculateEntityParameterSlotIndex_withPrimitiveArray_returnsCorrectSlot() {
-            // (int[], Person) -> "[I" for int array
-            String descriptor = "([ILPerson;)V";
-            int slot = DescriptorParser.calculateEntityParameterSlotIndex(descriptor);
-            assertThat(slot).isEqualTo(1);
-        }
-
-        @Test
-        @DisplayName("Object array occupies 1 slot")
-        void calculateEntityParameterSlotIndex_withObjectArray_returnsCorrectSlot() {
-            // (String[], Person) -> "[Ljava/lang/String;"
-            String descriptor = "([Ljava/lang/String;LPerson;)V";
-            int slot = DescriptorParser.calculateEntityParameterSlotIndex(descriptor);
-            assertThat(slot).isEqualTo(1);
-        }
-
-        @Test
-        @DisplayName("Multi-dimensional array occupies 1 slot")
-        void calculateEntityParameterSlotIndex_withMultiDimArray_returnsCorrectSlot() {
-            // (int[][], Person) -> "[[I"
-            String descriptor = "([[ILPerson;)V";
-            int slot = DescriptorParser.calculateEntityParameterSlotIndex(descriptor);
-            assertThat(slot).isEqualTo(1);
-        }
-
-        @Test
-        @DisplayName("3D array occupies 1 slot")
-        void calculateEntityParameterSlotIndex_with3DArray_returnsCorrectSlot() {
-            // (int[][][], Person) -> "[[[I"
-            String descriptor = "([[[ILPerson;)V";
-            int slot = DescriptorParser.calculateEntityParameterSlotIndex(descriptor);
-            assertThat(slot).isEqualTo(1);
-        }
-
-        @Test
-        @DisplayName("Long array occupies 1 slot (not 2 like long primitive)")
-        void calculateEntityParameterSlotIndex_withLongArray_returnsCorrectSlot() {
-            // (long[], Person) -> "[J"
-            String descriptor = "([JLPerson;)V";
-            int slot = DescriptorParser.calculateEntityParameterSlotIndex(descriptor);
-            assertThat(slot).isEqualTo(1); // Array of long is still 1 slot, not 2
-        }
-
-        @Test
-        @DisplayName("Double array occupies 1 slot (not 2 like double primitive)")
-        void calculateEntityParameterSlotIndex_withDoubleArray_returnsCorrectSlot() {
-            // (double[], Person) -> "[D"
-            String descriptor = "([DLPerson;)V";
-            int slot = DescriptorParser.calculateEntityParameterSlotIndex(descriptor);
-            assertThat(slot).isEqualTo(1); // Array of double is still 1 slot, not 2
-        }
-
-        @Test
-        @DisplayName("Multi-dimensional object array occupies 1 slot")
-        void calculateEntityParameterSlotIndex_with2DObjectArray_returnsCorrectSlot() {
-            // (String[][], Person) -> "[[Ljava/lang/String;"
-            String descriptor = "([[Ljava/lang/String;LPerson;)V";
-            int slot = DescriptorParser.calculateEntityParameterSlotIndex(descriptor);
-            assertThat(slot).isEqualTo(1);
-        }
-
-        @Test
-        @DisplayName("Multiple arrays before entity")
-        void calculateEntityParameterSlotIndex_withMultipleArrays_returnsCorrectSlot() {
-            // (int[], String[], Person) -> "[I", "[Ljava/lang/String;", "LPerson;"
-            String descriptor = "([I[Ljava/lang/String;LPerson;)V";
-            int slot = DescriptorParser.calculateEntityParameterSlotIndex(descriptor);
-            assertThat(slot).isEqualTo(2); // int[]:0, String[]:1, Person:2
-        }
-
-        @Test
-        @DisplayName("Array mixed with wide types")
-        void calculateEntityParameterSlotIndex_withArrayAndWideTypes_returnsCorrectSlot() {
-            // (int[], long, double[], Person) -> "[I", "J", "[D", "LPerson;"
-            // int[]:0, long:1-2, double[]:3, Person:4
-            String descriptor = "([IJ[DLPerson;)V";
-            int slot = DescriptorParser.calculateEntityParameterSlotIndex(descriptor);
-            assertThat(slot).isEqualTo(4);
-        }
-
-        // --- countMethodArguments with arrays ---
-
-        @Test
-        @DisplayName("Counts primitive array as 1 parameter")
-        void countMethodArguments_withPrimitiveArray_countsAsOne() {
-            // (int[], String) -> 2 parameters
-            assertThat(DescriptorParser.countMethodArguments("([ILjava/lang/String;)V")).isEqualTo(2);
-        }
-
-        @Test
-        @DisplayName("Counts multi-dimensional array as 1 parameter")
-        void countMethodArguments_withMultiDimArray_countsAsOne() {
-            // (int[][]) -> 1 parameter
-            assertThat(DescriptorParser.countMethodArguments("([[I)V")).isEqualTo(1);
-        }
-
-        @Test
-        @DisplayName("Counts multiple arrays correctly")
-        void countMethodArguments_withMultipleArrays_countsCorrectly() {
-            // (int[], String[], double[][]) -> 3 parameters
-            assertThat(DescriptorParser.countMethodArguments("([I[Ljava/lang/String;[[D)V")).isEqualTo(3);
-        }
-
-        @Test
-        @DisplayName("Counts arrays mixed with primitives correctly")
-        void countMethodArguments_withArraysAndPrimitives_countsCorrectly() {
-            // (int, int[], long, String[]) -> 4 parameters
-            assertThat(DescriptorParser.countMethodArguments("(I[IJ[Ljava/lang/String;)V")).isEqualTo(4);
-        }
-
-        // --- slotIndexToParameterIndex with arrays ---
-
-        @Test
-        @DisplayName("Slot to param index with primitive array")
-        void slotIndexToParameterIndex_withPrimitiveArray_returnsCorrectIndex() {
-            // (int[], String) -> int[]:slot0, String:slot1
-            String descriptor = "([ILjava/lang/String;)V";
-            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 0)).isEqualTo(0);
-            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 1)).isEqualTo(1);
-        }
-
-        @Test
-        @DisplayName("Slot to param index with multi-dim array")
-        void slotIndexToParameterIndex_withMultiDimArray_returnsCorrectIndex() {
-            // (int[][], String) -> int[][]:slot0, String:slot1
-            String descriptor = "([[ILjava/lang/String;)V";
-            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 0)).isEqualTo(0);
-            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 1)).isEqualTo(1);
-        }
-
-        @Test
-        @DisplayName("Slot to param index with array after wide type")
-        void slotIndexToParameterIndex_withArrayAfterWide_returnsCorrectIndex() {
-            // (long, int[], String) -> long:slots0-1, int[]:slot2, String:slot3
-            String descriptor = "(J[ILjava/lang/String;)V";
-            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 0)).isEqualTo(0);
-            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 2)).isEqualTo(1);
-            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 3)).isEqualTo(2);
-        }
-
-        // --- getParameterType with arrays ---
-
-        @Test
-        @DisplayName("Get parameter type after primitive array")
-        void getParameterType_afterPrimitiveArray_returnsCorrectType() {
-            // (int[], String) -> String is param index 1
-            String descriptor = "([ILjava/lang/String;)V";
-            assertThat(DescriptorParser.getParameterType(descriptor, 1)).isEqualTo(String.class);
-        }
-
-        @Test
-        @DisplayName("Get parameter type for array returns Object")
-        void getParameterType_forArray_returnsObject() {
-            // (int[]) -> array is param index 0, returns Object.class
-            String descriptor = "([I)V";
-            assertThat(DescriptorParser.getParameterType(descriptor, 0)).isEqualTo(Object.class);
-        }
-
-        @Test
-        @DisplayName("Get parameter type after multi-dim array")
-        void getParameterType_afterMultiDimArray_returnsCorrectType() {
-            // (int[][], long, String) -> String is param index 2
-            String descriptor = "([[IJLjava/lang/String;)V";
-            assertThat(DescriptorParser.getParameterType(descriptor, 0)).isEqualTo(Object.class); // array
-            assertThat(DescriptorParser.getParameterType(descriptor, 1)).isEqualTo(long.class);
-            assertThat(DescriptorParser.getParameterType(descriptor, 2)).isEqualTo(String.class);
-        }
-
-        // --- calculateBiEntityParameterSlotIndices with arrays ---
-
-        @Test
-        @DisplayName("Bi-entity with array captured variable")
-        void calculateBiEntityParameterSlotIndices_withArrayCaptured_returnsCorrectSlots() {
-            // (int[], Person, Phone) -> int[]:0, Person:1, Phone:2
-            String descriptor = "([ILPerson;LPhone;)Z";
-            int[] slots = DescriptorParser.calculateBiEntityParameterSlotIndices(descriptor);
-            assertThat(slots).containsExactly(1, 2);
-        }
-
-        @Test
-        @DisplayName("Bi-entity with multi-dim array captured variable")
-        void calculateBiEntityParameterSlotIndices_withMultiDimArrayCaptured_returnsCorrectSlots() {
-            // (int[][], Person, Phone) -> int[][]:0, Person:1, Phone:2
-            String descriptor = "([[ILPerson;LPhone;)Z";
-            int[] slots = DescriptorParser.calculateBiEntityParameterSlotIndices(descriptor);
-            assertThat(slots).containsExactly(1, 2);
-        }
-
-        @Test
-        @DisplayName("Bi-entity with multiple array captured variables")
-        void calculateBiEntityParameterSlotIndices_withMultipleArraysCaptured_returnsCorrectSlots() {
-            // (int[], String[], Person, Phone) -> int[]:0, String[]:1, Person:2, Phone:3
-            String descriptor = "([I[Ljava/lang/String;LPerson;LPhone;)Z";
-            int[] slots = DescriptorParser.calculateBiEntityParameterSlotIndices(descriptor);
-            assertThat(slots).containsExactly(2, 3);
-        }
-
-        // --- ParameterIterator with arrays ---
-
-        @Test
-        @DisplayName("Iterator returns correct type descriptor for primitive array")
-        void parameterIterator_withPrimitiveArray_returnsCorrectTypeDescriptor() {
-            String descriptor = "([ILPerson;)V";
+        @ParameterizedTest
+        @CsvSource({
+                "([ILPerson;)V, '[I', 'LPerson;'",
+                "([[DLPerson;)V, '[[D', 'LPerson;'",
+                "([Ljava/lang/String;LPerson;)V, '[Ljava/lang/String;', 'LPerson;'"
+        })
+        @DisplayName("Iterator returns correct type descriptors for arrays")
+        void parameterIterator_withArrays_returnsCorrectTypeDescriptors(String descriptor,
+                                                                        String expectedFirst, String expectedSecond) {
             DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
-
             List<String> typeDescriptors = new ArrayList<>();
             while (iter.hasNext()) {
                 iter.next();
                 typeDescriptors.add(iter.getTypeDescriptor());
             }
-
-            assertThat(typeDescriptors).containsExactly("[I", "LPerson;");
-        }
-
-        @Test
-        @DisplayName("Iterator returns correct type descriptor for multi-dim array")
-        void parameterIterator_withMultiDimArray_returnsCorrectTypeDescriptor() {
-            String descriptor = "([[DLPerson;)V";
-            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
-
-            List<String> typeDescriptors = new ArrayList<>();
-            while (iter.hasNext()) {
-                iter.next();
-                typeDescriptors.add(iter.getTypeDescriptor());
-            }
-
-            assertThat(typeDescriptors).containsExactly("[[D", "LPerson;");
-        }
-
-        @Test
-        @DisplayName("Iterator returns correct type descriptor for object array")
-        void parameterIterator_withObjectArray_returnsCorrectTypeDescriptor() {
-            String descriptor = "([Ljava/lang/String;LPerson;)V";
-            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
-
-            List<String> typeDescriptors = new ArrayList<>();
-            while (iter.hasNext()) {
-                iter.next();
-                typeDescriptors.add(iter.getTypeDescriptor());
-            }
-
-            assertThat(typeDescriptors).containsExactly("[Ljava/lang/String;", "LPerson;");
+            assertThat(typeDescriptors).containsExactly(expectedFirst, expectedSecond);
         }
 
         @Test
@@ -602,7 +555,6 @@ class DescriptorParserTest {
         @Test
         @DisplayName("Iterator tracks correct slots with arrays")
         void parameterIterator_withArrays_tracksCorrectSlots() {
-            // (int[], long, double[][], String) -> int[]:0, long:1-2, double[][]:3, String:4
             String descriptor = "([IJ[[DLjava/lang/String;)V";
             DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
 
@@ -618,7 +570,6 @@ class DescriptorParserTest {
         @Test
         @DisplayName("Iterator tracks correct param indices with arrays")
         void parameterIterator_withArrays_tracksCorrectParamIndices() {
-            // (int[], long, double[][], String) -> 4 params, indices 0,1,2,3
             String descriptor = "([IJ[[DLjava/lang/String;)V";
             DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
 
@@ -632,752 +583,57 @@ class DescriptorParserTest {
         }
     }
 
-    // ========== Method Argument Count Tests ==========
-
-    @Nested
-    @DisplayName("Method Argument Counting")
-    class CountMethodArgumentsTests {
-
-        @Test
-        @DisplayName("Counts simple parameters")
-        void countMethodArguments_simpleParams_returnsCorrectCount() {
-            assertThat(DescriptorParser.countMethodArguments("(LPerson;)Z")).isEqualTo(1);
-            assertThat(DescriptorParser.countMethodArguments("(LPerson;LPhone;)Z")).isEqualTo(2);
-            assertThat(DescriptorParser.countMethodArguments("(IJDLPerson;)Z")).isEqualTo(4);
-        }
-
-        @Test
-        @DisplayName("Counts zero parameters")
-        void countMethodArguments_noParams_returnsZero() {
-            assertThat(DescriptorParser.countMethodArguments("()V")).isZero();
-        }
-
-        @Test
-        @DisplayName("Wide types count as single parameters")
-        void countMethodArguments_wideTypes_countsAsOneEach() {
-            // long and double are 2 slots but 1 parameter each
-            assertThat(DescriptorParser.countMethodArguments("(JD)V")).isEqualTo(2);
-            assertThat(DescriptorParser.countMethodArguments("(JJDD)V")).isEqualTo(4);
-        }
-    }
-
-    // ========== Slot-to-Parameter Index Conversion Tests ==========
-
-    @Nested
-    @DisplayName("Slot to Parameter Index Conversion")
-    class SlotToParameterIndexTests {
-
-        @Test
-        @DisplayName("Converts slot index with wide types")
-        void slotIndexToParameterIndex_withWideTypes_returnsCorrectIndex() {
-            // (int, long, Person) -> int:slot0, long:slots1-2, Person:slot3
-            String descriptor = "(IJLPerson;)V";
-
-            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 0)).isEqualTo(0);
-            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 1)).isEqualTo(1);
-            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 3)).isEqualTo(2);
-        }
-
-        @Test
-        @DisplayName("Returns -1 for invalid slot")
-        void slotIndexToParameterIndex_invalidSlot_returnsNegativeOne() {
-            String descriptor = "(I)V";
-            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 99)).isEqualTo(-1);
-        }
-    }
-
-    // ========== Slot Index Edge Cases ==========
-
-    @Nested
-    @DisplayName("slotIndexToParameterIndex Edge Cases")
-    class SlotIndexToParameterIndexEdgeCases {
-
-        @Test
-        @DisplayName("Returns -1 for slot 0 when parameters exist")
-        void slotIndexToParameterIndex_slot0WithParams_returnsNegativeOneOrCorrect() {
-            // (int) -> slot 0 should be param 0
-            String descriptor = "(I)V";
-            // getSlotIndex() before next() is 0, but getSlotIndex matches slotIndex
-            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 0))
-                    .isEqualTo(0);  // or 1 depending on logic
-        }
-
-        @Test
-        @DisplayName("Returns param index for first slot of long parameter")
-        void slotIndexToParameterIndex_longFirstSlot_returnsCorrectIndex() {
-            // (long) -> slot 0 is first slot of long (which takes 0-1)
-            String descriptor = "(J)V";
-            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 0))
-                    .isEqualTo(0);
-        }
-
-        @Test
-        @DisplayName("Returns -1 for second slot of long parameter")
-        void slotIndexToParameterIndex_longSecondSlot_returnsNegativeOne() {
-            // (long) -> slot 1 is second slot of long
-            String descriptor = "(J)V";
-            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 1))
-                    .isEqualTo(-1);  // slot 1 doesn't start a param
-        }
-
-        @Test
-        @DisplayName("Returns param index for first slot of double parameter")
-        void slotIndexToParameterIndex_doubleFirstSlot_returnsCorrectIndex() {
-            String descriptor = "(D)V";
-            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 0))
-                    .isEqualTo(0);
-        }
-
-        @Test
-        @DisplayName("Returns correct index for slot after wide type")
-        void slotIndexToParameterIndex_slotAfterWide_returnsCorrectIndex() {
-            // (long, int) -> long:0-1, int:2
-            String descriptor = "(JI)V";
-            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 2))
-                    .isEqualTo(1);
-        }
-
-        @Test
-        @DisplayName("Returns correct index for array parameter")
-        void slotIndexToParameterIndex_arrayParam_returnsCorrectIndex() {
-            // (int[], String) -> int[]:0, String:1
-            String descriptor = "([ILjava/lang/String;)V";
-            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 0))
-                    .isEqualTo(0);
-        }
-
-        @Test
-        @DisplayName("Returns -1 for very large slot index")
-        void slotIndexToParameterIndex_veryLargeSlot_returnsNegativeOne() {
-            String descriptor = "(I)V";
-            assertThat(DescriptorParser.slotIndexToParameterIndex(descriptor, 1000))
-                    .isEqualTo(-1);
-        }
-    }
-
-    // ========== Edge Cases ==========
-
-    @Nested
-    @DisplayName("Edge Cases")
-    class EdgeCaseTests {
-
-        @Test
-        @DisplayName("Handles fully qualified class names")
-        void calculateEntityParameterSlotIndex_fullyQualifiedClassName_returnsCorrectSlot() {
-            String descriptor = "(Ljava/lang/String;Lio/quarkiverse/qubit/runtime/Person;)V";
-            int slot = DescriptorParser.calculateEntityParameterSlotIndex(descriptor);
-            assertThat(slot).isEqualTo(1);
-        }
-
-        @Test
-        @DisplayName("Handles inner class references")
-        void calculateEntityParameterSlotIndex_innerClass_returnsCorrectSlot() {
-            // Inner class uses $ in descriptor
-            String descriptor = "(LOuterClass$InnerClass;LPerson;)V";
-            int slot = DescriptorParser.calculateEntityParameterSlotIndex(descriptor);
-            assertThat(slot).isEqualTo(1);
-        }
-
-        @Test
-        @DisplayName("Single parameter returns slot 0")
-        void calculateEntityParameterSlotIndex_singleParam_returnsZero() {
-            String descriptor = "(LPerson;)V";
-            int slot = DescriptorParser.calculateEntityParameterSlotIndex(descriptor);
-            assertThat(slot).isZero();
-        }
-
-        @Test
-        @DisplayName("Handles complex real-world descriptor")
-        void calculateEntityParameterSlotIndex_realWorldComplexDescriptor_returnsCorrectSlot() {
-            // Simulating: (String captured1, int captured2, long captured3, Person entity)
-            String descriptor = "(Ljava/lang/String;IJLio/quarkiverse/qubit/model/Person;)Z";
-            // String:0, int:1, long:2-3, Person:4
-            int slot = DescriptorParser.calculateEntityParameterSlotIndex(descriptor);
-            assertThat(slot).isEqualTo(4);
-        }
-    }
-
-    // ========== Parameter Type Resolution Tests ==========
-
-    @Nested
-    @DisplayName("Parameter Type Resolution")
-    class ParameterTypeTests {
-
-        @Test
-        @DisplayName("Resolves primitive types")
-        void getParameterType_primitives_returnsCorrectClass() {
-            String descriptor = "(IJDFZBCS)V";
-
-            assertThat(DescriptorParser.getParameterType(descriptor, 0)).isEqualTo(int.class);
-            assertThat(DescriptorParser.getParameterType(descriptor, 1)).isEqualTo(long.class);
-            assertThat(DescriptorParser.getParameterType(descriptor, 2)).isEqualTo(double.class);
-            assertThat(DescriptorParser.getParameterType(descriptor, 3)).isEqualTo(float.class);
-            assertThat(DescriptorParser.getParameterType(descriptor, 4)).isEqualTo(boolean.class);
-            assertThat(DescriptorParser.getParameterType(descriptor, 5)).isEqualTo(byte.class);
-            assertThat(DescriptorParser.getParameterType(descriptor, 6)).isEqualTo(char.class);
-            assertThat(DescriptorParser.getParameterType(descriptor, 7)).isEqualTo(short.class);
-        }
-
-        @Test
-        @DisplayName("Resolves known class types")
-        void getParameterType_knownClass_returnsCorrectClass() {
-            String descriptor = "(Ljava/lang/String;)V";
-            assertThat(DescriptorParser.getParameterType(descriptor, 0)).isEqualTo(String.class);
-        }
-
-        @Test
-        @DisplayName("Returns Object for unknown class")
-        void getParameterType_unknownClass_returnsObject() {
-            String descriptor = "(Lcom/unknown/NonExistentClass;)V";
-            assertThat(DescriptorParser.getParameterType(descriptor, 0)).isEqualTo(Object.class);
-        }
-
-        @Test
-        @DisplayName("Returns Object for invalid parameter index")
-        void getParameterType_invalidIndex_returnsObject() {
-            String descriptor = "(I)V";
-            assertThat(DescriptorParser.getParameterType(descriptor, 99)).isEqualTo(Object.class);
-        }
-    }
-
-    // ========== Boundary Condition Tests ==========
+    // ==================== BOUNDARY CONDITION TESTS ====================
 
     @Nested
     @DisplayName("Boundary Condition Tests (Mutation Killing)")
     class BoundaryConditionTests {
 
+        @ParameterizedTest(name = "{0} → {1}")
+        @CsvSource({
+                "([Ljava/lang/String;)V, '[Ljava/lang/String;'",
+                "(Ljava/lang/String;)V, 'Ljava/lang/String;'",
+                "([[[I)V, '[[[I'",
+                "([[Ljava/util/List;)V, '[[Ljava/util/List;'",
+                "([Z)V, '[Z'"
+        })
+        @DisplayName("Single-parameter descriptor boundary handling")
+        void parameterIterator_singleParam_handlesCorrectly(String descriptor, String expectedType) {
+            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
+            iter.next();
+            assertThat(iter.getTypeDescriptor()).isEqualTo(expectedType);
+            assertThat(iter.hasNext()).isFalse();
+        }
+
         @Test
         @DisplayName("hasNext returns false at exact boundary")
         void parameterIterator_hasNext_atExactBoundary_returnsFalse() {
-            // After consuming all params, position should be at ')' and hasNext() = false
             String descriptor = "(I)V";
             DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
-
-            iter.next(); // consume int
-            assertThat(iter.hasNext())
-                    .as("hasNext should be false when position is at ')'")
-                    .isFalse();
+            iter.next();
+            assertThat(iter.hasNext()).isFalse();
         }
 
         @Test
         @DisplayName("hasNext with empty parameters")
         void parameterIterator_hasNext_emptyParams_returnsFalse() {
-            String descriptor = "()V";
-            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
-
-            assertThat(iter.hasNext())
-                    .as("hasNext should be false for empty parameters")
-                    .isFalse();
-        }
-
-        @Test
-        @DisplayName("next handles object array at descriptor boundary")
-        void parameterIterator_next_objectArrayAtBoundary_handlesCorrectly() {
-            // Object array as last parameter - tests position < length boundary
-            String descriptor = "([Ljava/lang/String;)V";
-            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
-
-            iter.next();
-            assertThat(iter.getTypeDescriptor())
-                    .as("Should correctly parse object array at boundary")
-                    .isEqualTo("[Ljava/lang/String;");
+            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator("()V");
             assertThat(iter.hasNext()).isFalse();
         }
 
         @Test
-        @DisplayName("next handles class reference at descriptor end")
-        void parameterIterator_next_classAtEnd_handlesCorrectly() {
-            String descriptor = "(Ljava/lang/String;)V";
-            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
-
-            iter.next();
-            assertThat(iter.getTypeDescriptor()).isEqualTo("Ljava/lang/String;");
-            assertThat(iter.hasNext()).isFalse();
-        }
-
-        @Test
-        @DisplayName("slotIndexToParameterIndex matches slot before next() call")
-        void slotIndexToParameterIndex_matchesSlotBeforeNext() {
-            String descriptor = "(I)V";
-            int result = DescriptorParser.slotIndexToParameterIndex(descriptor, 0);
-            assertThat(result)
-                    .as("Slot 0 should map to parameter 0")
-                    .isEqualTo(0);
-        }
-
-        @Test
-        @DisplayName("slotIndexToParameterIndex matches slot after processing wide type")
-        void slotIndexToParameterIndex_matchesAfterWideType() {
-            String descriptor = "(JI)V";
-            int result = DescriptorParser.slotIndexToParameterIndex(descriptor, 1);
-            assertThat(result)
-                    .as("Slot 1 (middle of long) should return -1")
-                    .isEqualTo(-1);
-        }
-
-        @Test
-        @DisplayName("getParameterType correctly matches paramIndex")
-        void getParameterType_matchesParamIndex() {
-            String descriptor = "(IJD)V"; // int, long, double
-
-            assertThat(DescriptorParser.getParameterType(descriptor, 0))
-                    .as("Param 0 should be int.class")
-                    .isEqualTo(int.class);
-            assertThat(DescriptorParser.getParameterType(descriptor, 1))
-                    .as("Param 1 should be long.class")
-                    .isEqualTo(long.class);
-            assertThat(DescriptorParser.getParameterType(descriptor, 2))
-                    .as("Param 2 should be double.class")
-                    .isEqualTo(double.class);
-        }
-
-        @Test
-        @DisplayName("Multi-dimensional array bracket processing boundary")
-        void parameterIterator_multiDimArray_bracketBoundary() {
-            String descriptor = "([[[I)V"; // 3D int array
-            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
-
-            iter.next();
-            assertThat(iter.getTypeDescriptor())
-                    .as("Should correctly skip all array brackets")
-                    .isEqualTo("[[[I");
-            assertThat(iter.hasNext()).isFalse();
-        }
-
-        @Test
-        @DisplayName("Multi-dimensional object array at end")
-        void parameterIterator_multiDimObjectArray_atEnd() {
-            String descriptor = "([[Ljava/util/List;)V"; // 2D List array
-            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
-
-            iter.next();
-            assertThat(iter.getTypeDescriptor())
-                    .as("Should correctly parse 2D object array")
-                    .isEqualTo("[[Ljava/util/List;");
-            assertThat(iter.hasNext()).isFalse();
-        }
-
-        @Test
-        @DisplayName("Single primitive at boundary")
+        @DisplayName("Single primitive at boundary verifies typeChar")
         void parameterIterator_singlePrimitive_boundary() {
-            String descriptor = "(Z)V"; // boolean only
+            String descriptor = "(Z)V";
             DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
-
             assertThat(iter.hasNext()).isTrue();
             iter.next();
             assertThat(iter.getTypeChar()).isEqualTo('Z');
             assertThat(iter.hasNext()).isFalse();
         }
-
-        @Test
-        @DisplayName("Primitive array element at boundary")
-        void parameterIterator_primitiveArrayElement_boundary() {
-            String descriptor = "([Z)V"; // boolean array
-            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
-
-            iter.next();
-            assertThat(iter.getTypeDescriptor()).isEqualTo("[Z");
-            assertThat(iter.hasNext()).isFalse();
-        }
-
-        @Test
-        @DisplayName("slotIndexToParameterIndex returns -1 for non-existent slot")
-        void slotIndexToParameterIndex_nonExistentSlot_returnsNegativeOne() {
-            String descriptor = "(IJ)V"; // int:0, long:1-2
-            // Slot 5 doesn't exist - after iterating all params, should return -1
-            int result = DescriptorParser.slotIndexToParameterIndex(descriptor, 5);
-            assertThat(result)
-                    .as("Non-existent slot should return -1")
-                    .isEqualTo(-1);
-        }
-
-        @Test
-        @DisplayName("slotIndexToParameterIndex returns -1 for empty descriptor")
-        void slotIndexToParameterIndex_emptyDescriptor_returnsNegativeOne() {
-            String descriptor = "()V";
-            int result = DescriptorParser.slotIndexToParameterIndex(descriptor, 0);
-            assertThat(result)
-                    .as("Empty params should return -1 for any slot")
-                    .isEqualTo(-1);
-        }
-
-        @Test
-        @DisplayName("getParameterType specific paramIndex match")
-        void getParameterType_specificParamIndex_matchesCorrectly() {
-            String descriptor = "(Ljava/lang/String;I)V"; // String:0, int:1
-
-            // Must return different types for different indices
-            Class<?> type0 = DescriptorParser.getParameterType(descriptor, 0);
-            Class<?> type1 = DescriptorParser.getParameterType(descriptor, 1);
-
-            assertThat(type0)
-                    .as("Param 0 must be String")
-                    .isEqualTo(String.class);
-            assertThat(type1)
-                    .as("Param 1 must be int")
-                    .isEqualTo(int.class);
-            assertThat(type0).isNotEqualTo(type1);
-        }
-
-        @Test
-        @DisplayName("calculateFirstEntityParameterSlotIndex returns -1 for single param")
-        void calculateFirstEntityParameterSlotIndex_singleParam_returnsNegativeOne() {
-            String descriptor = "(LPerson;)Z";
-            int slot = DescriptorParser.calculateFirstEntityParameterSlotIndex(descriptor);
-            assertThat(slot)
-                    .as("Single param should return -1")
-                    .isEqualTo(-1);
-        }
-
-        @Test
-        @DisplayName("calculateSecondEntityParameterSlotIndex returns -1 for single param")
-        void calculateSecondEntityParameterSlotIndex_singleParam_returnsNegativeOne() {
-            String descriptor = "(LPerson;)Z";
-            int slot = DescriptorParser.calculateSecondEntityParameterSlotIndex(descriptor);
-            assertThat(slot)
-                    .as("Single param should return -1")
-                    .isEqualTo(-1);
-        }
-
-        @Test
-        @DisplayName("calculateFirstEntityParameterSlotIndex returns -1 for empty params")
-        void calculateFirstEntityParameterSlotIndex_emptyParams_returnsNegativeOne() {
-            String descriptor = "()Z";
-            int slot = DescriptorParser.calculateFirstEntityParameterSlotIndex(descriptor);
-            assertThat(slot)
-                    .as("Empty params should return -1")
-                    .isEqualTo(-1);
-        }
-
-        @Test
-        @DisplayName("calculateSecondEntityParameterSlotIndex returns -1 for empty params")
-        void calculateSecondEntityParameterSlotIndex_emptyParams_returnsNegativeOne() {
-            String descriptor = "()Z";
-            int slot = DescriptorParser.calculateSecondEntityParameterSlotIndex(descriptor);
-            assertThat(slot)
-                    .as("Empty params should return -1")
-                    .isEqualTo(-1);
-        }
     }
 
-    // ========== Return Type Descriptor Tests ==========
-
-    @Nested
-    @DisplayName("Return Type Descriptor Extraction")
-    class ReturnTypeDescriptorTests {
-
-        @Test
-        @DisplayName("getReturnTypeDescriptor extracts void return type")
-        void getReturnTypeDescriptor_voidReturn_returnsV() {
-            assertThat(DescriptorParser.getReturnTypeDescriptor("(I)V")).isEqualTo("V");
-        }
-
-        @Test
-        @DisplayName("getReturnTypeDescriptor extracts primitive return type")
-        void getReturnTypeDescriptor_primitiveReturn_returnsCorrectDescriptor() {
-            assertThat(DescriptorParser.getReturnTypeDescriptor("(I)I")).isEqualTo("I");
-            assertThat(DescriptorParser.getReturnTypeDescriptor("(I)J")).isEqualTo("J");
-            assertThat(DescriptorParser.getReturnTypeDescriptor("(I)D")).isEqualTo("D");
-            assertThat(DescriptorParser.getReturnTypeDescriptor("(I)Z")).isEqualTo("Z");
-        }
-
-        @Test
-        @DisplayName("getReturnTypeDescriptor extracts object return type")
-        void getReturnTypeDescriptor_objectReturn_returnsFullDescriptor() {
-            assertThat(DescriptorParser.getReturnTypeDescriptor("(I)Ljava/lang/String;"))
-                    .isEqualTo("Ljava/lang/String;");
-        }
-
-        @Test
-        @DisplayName("getReturnTypeDescriptor handles empty parameters")
-        void getReturnTypeDescriptor_emptyParams_extractsReturnType() {
-            assertThat(DescriptorParser.getReturnTypeDescriptor("()Z")).isEqualTo("Z");
-        }
-
-        @Test
-        @DisplayName("getReturnTypeDescriptor returns empty for null descriptor")
-        void getReturnTypeDescriptor_nullDescriptor_returnsEmpty() {
-            assertThat(DescriptorParser.getReturnTypeDescriptor(null)).isEmpty();
-        }
-
-        @Test
-        @DisplayName("getReturnTypeDescriptor returns empty for malformed descriptor without closing paren")
-        void getReturnTypeDescriptor_noClosingParen_returnsEmpty() {
-            assertThat(DescriptorParser.getReturnTypeDescriptor("(I")).isEmpty();
-        }
-
-        @Test
-        @DisplayName("getReturnTypeDescriptor returns empty when paren is at end")
-        void getReturnTypeDescriptor_parenAtEnd_returnsEmpty() {
-            assertThat(DescriptorParser.getReturnTypeDescriptor("(I)")).isEmpty();
-        }
-    }
-
-    // ========== Boolean Return Type Tests ==========
-
-    @Nested
-    @DisplayName("Boolean Return Type Detection")
-    class ReturnsBooleanTypeTests {
-
-        @Test
-        @DisplayName("returnsBooleanType returns true for primitive boolean")
-        void returnsBooleanType_primitiveBoolean_returnsTrue() {
-            assertThat(DescriptorParser.returnsBooleanType("(I)Z")).isTrue();
-        }
-
-        @Test
-        @DisplayName("returnsBooleanType returns true for boxed Boolean")
-        void returnsBooleanType_boxedBoolean_returnsTrue() {
-            assertThat(DescriptorParser.returnsBooleanType("(I)Ljava/lang/Boolean;")).isTrue();
-        }
-
-        @Test
-        @DisplayName("returnsBooleanType returns false for int return")
-        void returnsBooleanType_intReturn_returnsFalse() {
-            assertThat(DescriptorParser.returnsBooleanType("(I)I")).isFalse();
-        }
-
-        @Test
-        @DisplayName("returnsBooleanType returns false for object return")
-        void returnsBooleanType_objectReturn_returnsFalse() {
-            assertThat(DescriptorParser.returnsBooleanType("(I)Ljava/lang/String;")).isFalse();
-        }
-
-        @Test
-        @DisplayName("returnsBooleanType returns false for void return")
-        void returnsBooleanType_voidReturn_returnsFalse() {
-            assertThat(DescriptorParser.returnsBooleanType("(I)V")).isFalse();
-        }
-    }
-
-    // ========== Int Return Type Tests ==========
-
-    @Nested
-    @DisplayName("Int Return Type Detection")
-    class ReturnsIntTypeTests {
-
-        @Test
-        @DisplayName("returnsIntType returns true for int return")
-        void returnsIntType_intReturn_returnsTrue() {
-            assertThat(DescriptorParser.returnsIntType("(Ljava/lang/String;)I")).isTrue();
-        }
-
-        @Test
-        @DisplayName("returnsIntType returns false for long return")
-        void returnsIntType_longReturn_returnsFalse() {
-            assertThat(DescriptorParser.returnsIntType("(Ljava/lang/String;)J")).isFalse();
-        }
-
-        @Test
-        @DisplayName("returnsIntType returns false for Integer wrapper return")
-        void returnsIntType_IntegerWrapperReturn_returnsFalse() {
-            assertThat(DescriptorParser.returnsIntType("(I)Ljava/lang/Integer;")).isFalse();
-        }
-
-        @Test
-        @DisplayName("returnsIntType returns false for void return")
-        void returnsIntType_voidReturn_returnsFalse() {
-            assertThat(DescriptorParser.returnsIntType("(I)V")).isFalse();
-        }
-    }
-
-    // ========== Returns Specific Type Tests ==========
-
-    @Nested
-    @DisplayName("Returns Specific Type Detection")
-    class ReturnsTypeTests {
-
-        @Test
-        @DisplayName("returnsType returns true for matching class")
-        void returnsType_matchingClass_returnsTrue() {
-            assertThat(DescriptorParser.returnsType("(I)Ljava/lang/String;", "java/lang/String"))
-                    .isTrue();
-        }
-
-        @Test
-        @DisplayName("returnsType returns false for non-matching class")
-        void returnsType_nonMatchingClass_returnsFalse() {
-            assertThat(DescriptorParser.returnsType("(I)Ljava/lang/String;", "java/lang/Integer"))
-                    .isFalse();
-        }
-
-        @Test
-        @DisplayName("returnsType returns false for primitive return")
-        void returnsType_primitiveReturn_returnsFalse() {
-            assertThat(DescriptorParser.returnsType("(I)I", "java/lang/Integer"))
-                    .isFalse();
-        }
-
-        @Test
-        @DisplayName("returnsType handles fully qualified names")
-        void returnsType_fullyQualifiedName_returnsTrue() {
-            assertThat(DescriptorParser.returnsType(
-                    "(I)Lio/quarkiverse/qubit/Person;",
-                    "io/quarkiverse/qubit/Person")).isTrue();
-        }
-    }
-
-    // ========== Return Type Contains Tests ==========
-
-    @Nested
-    @DisplayName("Return Type Contains Detection")
-    class ReturnTypeContainsTests {
-
-        @Test
-        @DisplayName("returnTypeContains returns true when type contains class name")
-        void returnTypeContains_containsClassName_returnsTrue() {
-            assertThat(DescriptorParser.returnTypeContains("(I)Ljava/lang/String;", "String"))
-                    .isTrue();
-        }
-
-        @Test
-        @DisplayName("returnTypeContains returns true for partial package match")
-        void returnTypeContains_partialPackageMatch_returnsTrue() {
-            assertThat(DescriptorParser.returnTypeContains("(I)Ljava/lang/String;", "java/lang"))
-                    .isTrue();
-        }
-
-        @Test
-        @DisplayName("returnTypeContains returns false when type does not contain class name")
-        void returnTypeContains_noMatch_returnsFalse() {
-            assertThat(DescriptorParser.returnTypeContains("(I)Ljava/lang/String;", "Integer"))
-                    .isFalse();
-        }
-
-        @Test
-        @DisplayName("returnTypeContains returns false for primitive type")
-        void returnTypeContains_primitiveType_returnsFalse() {
-            assertThat(DescriptorParser.returnTypeContains("(I)I", "Integer"))
-                    .isFalse();
-        }
-    }
-
-    // ========== Entity Class Name Tests ==========
-
-    @Nested
-    @DisplayName("Entity Class Name Extraction")
-    class GetEntityClassNameTests {
-
-        @Test
-        @DisplayName("getEntityClassName returns class name from last parameter")
-        void getEntityClassName_simpleDescriptor_returnsClassName() {
-            assertThat(DescriptorParser.getEntityClassName("(Ljava/lang/String;)V"))
-                    .isEqualTo("java.lang.String");
-        }
-
-        @Test
-        @DisplayName("getEntityClassName returns last param class with multiple params")
-        void getEntityClassName_multipleParams_returnsLastClassName() {
-            assertThat(DescriptorParser.getEntityClassName("(ILjava/lang/Person;)Z"))
-                    .isEqualTo("java.lang.Person");
-        }
-
-        @Test
-        @DisplayName("getEntityClassName returns Object for empty params")
-        void getEntityClassName_emptyParams_returnsObject() {
-            assertThat(DescriptorParser.getEntityClassName("()V"))
-                    .isEqualTo("java.lang.Object");
-        }
-
-        @Test
-        @DisplayName("getEntityClassName handles deeply nested class names")
-        void getEntityClassName_deeplyNestedClass_returnsFullName() {
-            assertThat(DescriptorParser.getEntityClassName("(Lio/quarkiverse/qubit/model/Person;)Z"))
-                    .isEqualTo("io.quarkiverse.qubit.model.Person");
-        }
-
-        @Test
-        @DisplayName("getEntityClassName returns primitive name for primitive param")
-        void getEntityClassName_primitiveParam_returnsPrimitiveName() {
-            assertThat(DescriptorParser.getEntityClassName("(I)V"))
-                    .isEqualTo("int");
-        }
-    }
-
-    // ========== Parameter Type Name Tests ==========
-
-    @Nested
-    @DisplayName("Parameter Type Name Extraction")
-    class GetParameterTypeNameTests {
-
-        @Test
-        @DisplayName("getParameterTypeName returns class name for object param")
-        void getParameterTypeName_objectParam_returnsClassName() {
-            assertThat(DescriptorParser.getParameterTypeName("(Ljava/lang/String;I)V", 0))
-                    .isEqualTo("java.lang.String");
-        }
-
-        @Test
-        @DisplayName("getParameterTypeName returns primitive name for primitive param")
-        void getParameterTypeName_primitiveParam_returnsPrimitiveName() {
-            assertThat(DescriptorParser.getParameterTypeName("(Ljava/lang/String;I)V", 1))
-                    .isEqualTo("int");
-        }
-
-        @Test
-        @DisplayName("getParameterTypeName returns Object for out-of-bounds index")
-        void getParameterTypeName_outOfBoundsIndex_returnsObject() {
-            assertThat(DescriptorParser.getParameterTypeName("(I)V", 99))
-                    .isEqualTo("java.lang.Object");
-        }
-
-        @Test
-        @DisplayName("getParameterTypeName returns Object for array param")
-        void getParameterTypeName_arrayParam_returnsArrayType() {
-            // Arrays have typeChar '[' which delegates to primitiveCharToClass returning Object
-            assertThat(DescriptorParser.getParameterTypeName("([I)V", 0))
-                    .isEqualTo("java.lang.Object");
-        }
-
-        @Test
-        @DisplayName("getParameterTypeName handles all primitive types")
-        void getParameterTypeName_allPrimitives_returnsCorrectNames() {
-            String descriptor = "(ZBCSIJFD)V";
-            assertThat(DescriptorParser.getParameterTypeName(descriptor, 0)).isEqualTo("boolean");
-            assertThat(DescriptorParser.getParameterTypeName(descriptor, 1)).isEqualTo("byte");
-            assertThat(DescriptorParser.getParameterTypeName(descriptor, 2)).isEqualTo("char");
-            assertThat(DescriptorParser.getParameterTypeName(descriptor, 3)).isEqualTo("short");
-            assertThat(DescriptorParser.getParameterTypeName(descriptor, 4)).isEqualTo("int");
-            assertThat(DescriptorParser.getParameterTypeName(descriptor, 5)).isEqualTo("long");
-            assertThat(DescriptorParser.getParameterTypeName(descriptor, 6)).isEqualTo("float");
-            assertThat(DescriptorParser.getParameterTypeName(descriptor, 7)).isEqualTo("double");
-        }
-    }
-
-    // ========== Get Entity Class Tests ==========
-
-    @Nested
-    @DisplayName("Get Entity Class Resolution")
-    class GetEntityClassTests {
-
-        @Test
-        @DisplayName("getEntityClass returns Object for empty params")
-        void getEntityClass_emptyParams_returnsObject() {
-            assertThat(DescriptorParser.getEntityClass("()V")).isEqualTo(Object.class);
-        }
-
-        @Test
-        @DisplayName("getEntityClass returns resolved class for known type")
-        void getEntityClass_knownType_returnsResolvedClass() {
-            assertThat(DescriptorParser.getEntityClass("(Ljava/lang/String;)V"))
-                    .isEqualTo(String.class);
-        }
-
-        @Test
-        @DisplayName("getEntityClass returns primitive class for primitive param")
-        void getEntityClass_primitiveParam_returnsPrimitiveClass() {
-            assertThat(DescriptorParser.getEntityClass("(I)V")).isEqualTo(int.class);
-        }
-
-        @Test
-        @DisplayName("getEntityClass returns Object for unknown class")
-        void getEntityClass_unknownClass_returnsObject() {
-            assertThat(DescriptorParser.getEntityClass("(Lcom/unknown/NonExistent;)V"))
-                    .isEqualTo(Object.class);
-        }
-    }
-
-    // ========== Null and Malformed Descriptor Tests ==========
+    // ==================== NULL AND MALFORMED DESCRIPTOR TESTS ====================
 
     @Nested
     @DisplayName("Null and Malformed Descriptor Handling")
@@ -1387,94 +643,65 @@ class DescriptorParserTest {
         @DisplayName("hasNext returns false for null descriptor")
         void parameterIterator_hasNext_nullDescriptor_returnsFalse() {
             DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(null);
-            assertThat(iter.hasNext())
-                    .as("hasNext should return false for null descriptor")
-                    .isFalse();
+            assertThat(iter.hasNext()).isFalse();
         }
 
         @Test
         @DisplayName("countMethodArguments returns 0 for null descriptor")
         void countMethodArguments_nullDescriptor_returnsZero() {
-            int count = DescriptorParser.countMethodArguments(null);
-            assertThat(count)
-                    .as("Null descriptor should have 0 parameters")
-                    .isZero();
+            assertThat(DescriptorParser.countMethodArguments(null)).isZero();
         }
 
         @Test
         @DisplayName("calculateEntityParameterSlotIndex returns 0 for null descriptor")
         void calculateEntityParameterSlotIndex_nullDescriptor_returnsZero() {
-            int slot = DescriptorParser.calculateEntityParameterSlotIndex(null);
-            assertThat(slot)
-                    .as("Null descriptor should return slot 0")
-                    .isZero();
+            assertThat(DescriptorParser.calculateEntityParameterSlotIndex(null)).isZero();
         }
 
         @Test
         @DisplayName("slotIndexToParameterIndex returns -1 for null descriptor")
         void slotIndexToParameterIndex_nullDescriptor_returnsNegativeOne() {
-            int result = DescriptorParser.slotIndexToParameterIndex(null, 0);
-            assertThat(result)
-                    .as("Null descriptor should return -1")
-                    .isEqualTo(-1);
+            assertThat(DescriptorParser.slotIndexToParameterIndex(null, 0)).isEqualTo(-1);
         }
 
         @Test
         @DisplayName("getParameterType returns Object for null descriptor")
         void getParameterType_nullDescriptor_returnsObject() {
-            Class<?> type = DescriptorParser.getParameterType(null, 0);
-            assertThat(type)
-                    .as("Null descriptor should return Object.class")
-                    .isEqualTo(Object.class);
+            assertThat(DescriptorParser.getParameterType(null, 0)).isEqualTo(Object.class);
         }
 
         @Test
         @DisplayName("calculateBiEntityParameterSlotIndices returns null for null descriptor")
         void calculateBiEntityParameterSlotIndices_nullDescriptor_returnsNull() {
-            int[] slots = DescriptorParser.calculateBiEntityParameterSlotIndices(null);
-            assertThat(slots)
-                    .as("Null descriptor should return null")
-                    .isNull();
+            assertThat(DescriptorParser.calculateBiEntityParameterSlotIndices(null)).isNull();
         }
 
         @Test
         @DisplayName("Iterator with descriptor not starting with parenthesis")
         void parameterIterator_noParenthesis_startsAtPositionZero() {
             DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator("IJ)V");
-            assertThat(iter.hasNext())
-                    .as("Should have parameters even without leading parenthesis")
-                    .isTrue();
+            assertThat(iter.hasNext()).isTrue();
             iter.next();
-            assertThat(iter.getTypeChar())
-                    .as("First type should be I (int)")
-                    .isEqualTo('I');
+            assertThat(iter.getTypeChar()).isEqualTo('I');
         }
 
-        @Test
-        @DisplayName("Iterator with empty string descriptor")
-        void parameterIterator_emptyString_hasNextFalse() {
-            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator("");
-            assertThat(iter.hasNext())
-                    .as("Empty string should have no parameters")
-                    .isFalse();
+        @ParameterizedTest
+        @NullAndEmptySource
+        @DisplayName("Iterator with null or empty string has no parameters")
+        void parameterIterator_nullOrEmpty_hasNextFalse(String descriptor) {
+            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
+            assertThat(iter.hasNext()).isFalse();
         }
 
-        @Test
-        @DisplayName("Iterator with single parenthesis only")
-        void parameterIterator_singleParenthesis_hasNextFalse() {
-            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator("(");
-            assertThat(iter.hasNext())
-                    .as("Single '(' should have no parameters (position >= length)")
-                    .isFalse();
-        }
-
-        @Test
-        @DisplayName("Iterator at exact position boundary - length equals position")
-        void parameterIterator_positionEqualsLength_hasNextFalse() {
-            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator("()");
-            assertThat(iter.hasNext())
-                    .as("Empty params should have hasNext false")
-                    .isFalse();
+        @ParameterizedTest
+        @CsvSource({
+                "(, false",
+                "(), false"
+        })
+        @DisplayName("Iterator with malformed descriptors")
+        void parameterIterator_malformed_hasNextFalse(String descriptor, boolean expected) {
+            DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
+            assertThat(iter.hasNext()).isEqualTo(expected);
         }
     }
 }

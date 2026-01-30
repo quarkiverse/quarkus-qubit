@@ -38,8 +38,7 @@ public final class ClassLoaderHelper {
 
     /** Extracts entity class info; preserves className for runtime resolution if loading fails. */
     public static EntityClassInfo extractEntityClassInfo(LambdaExpression expr) {
-        if (expr instanceof LambdaExpression.Constant constant) {
-            Object value = constant.value();
+        if (expr instanceof LambdaExpression.Constant(var value, var type)) {
             if (value instanceof Type asmType) {
                 // Extract className FIRST (before attempting class loading)
                 String className = asmType.getClassName();

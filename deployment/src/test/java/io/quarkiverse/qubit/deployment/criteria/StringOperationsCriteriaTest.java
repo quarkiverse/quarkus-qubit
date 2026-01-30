@@ -2,27 +2,57 @@ package io.quarkiverse.qubit.deployment.criteria;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Criteria query generation tests for String operations.
+ *
+ * <p>This class uses JUnit 5 parameterized tests to consolidate repetitive
+ * test patterns, reducing code duplication while maintaining full coverage.
  */
 class StringOperationsCriteriaTest extends CriteriaQueryTestBase {
+
+    // ==================== PARAMETERIZED TESTS ====================
+
+    /**
+     * Tests for simple string transformation methods.
+     */
+    @ParameterizedTest(name = "{0} → cb.{1}()")
+    @CsvSource({
+            "stringToUpperCase, upper",
+            "stringTrim, trim",
+            "stringIsEmpty, equal",
+            "stringSubstring, substring"
+    })
+    void stringTransformation(String lambdaMethodName, String expectedMethod) {
+        LambdaExpression expr = analyzeLambda(lambdaMethodName);
+        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
+        assertCriteriaGenerationSucceeds(expr);
+        assertCriteriaMethodCalled(structure, expectedMethod);
+    }
+
+    /**
+     * Tests that verify criteria generation succeeds without additional assertions.
+     */
+    @ParameterizedTest(name = "{0} → success")
+    @ValueSource(strings = {"stringMethodChaining", "stringComplexConditions"})
+    void complexStringOperation(String lambdaMethodName) {
+        LambdaExpression expr = analyzeLambda(lambdaMethodName);
+        assertCriteriaGenerationSucceeds(expr);
+    }
+
+    // ==================== PATTERN-BASED STRING OPERATIONS ====================
 
     @Test
     void stringStartsWith() {
         LambdaExpression expr = analyzeLambda("stringStartsWith");
         CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-
-        // Verify generation succeeded
         assertCriteriaGenerationSucceeds(expr);
-
-        // Verify the correct Criteria API method was called
         assertCriteriaMethodCalled(structure, "like");
-
-        // Verify the field was accessed
         assertFieldAccessed(structure, "firstName");
-
-        // Verify the pattern constants (startsWith("J") generates "J" + "%")
+        // startsWith("J") generates "J" + "%"
         assertConstantUsed(structure, "J");
         assertConstantUsed(structure, "%");
     }
@@ -54,14 +84,8 @@ class StringOperationsCriteriaTest extends CriteriaQueryTestBase {
     void stringLength() {
         LambdaExpression expr = analyzeLambda("stringLength");
         CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-
-        // Verify generation succeeded
         assertCriteriaGenerationSucceeds(expr);
-
-        // Verify the correct Criteria API method was called
         assertCriteriaMethodCalled(structure, "length");
-
-        // Verify the field was accessed
         assertFieldAccessed(structure, "firstName");
     }
 
@@ -69,61 +93,9 @@ class StringOperationsCriteriaTest extends CriteriaQueryTestBase {
     void stringToLowerCase() {
         LambdaExpression expr = analyzeLambda("stringToLowerCase");
         CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-
-        // Verify generation succeeded
         assertCriteriaGenerationSucceeds(expr);
-
-        // Verify the correct Criteria API method was called
         assertCriteriaMethodCalled(structure, "lower");
-
-        // Verify the field was accessed
         assertFieldAccessed(structure, "firstName");
-
-        // Verify the comparison constant was used (equals("john"))
         assertConstantUsed(structure, "john");
-    }
-
-    @Test
-    void stringToUpperCase() {
-        LambdaExpression expr = analyzeLambda("stringToUpperCase");
-        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-        assertCriteriaGenerationSucceeds(expr);
-        assertCriteriaMethodCalled(structure, "upper");
-    }
-
-    @Test
-    void stringTrim() {
-        LambdaExpression expr = analyzeLambda("stringTrim");
-        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-        assertCriteriaGenerationSucceeds(expr);
-        assertCriteriaMethodCalled(structure, "trim");
-    }
-
-    @Test
-    void stringIsEmpty() {
-        LambdaExpression expr = analyzeLambda("stringIsEmpty");
-        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-        assertCriteriaGenerationSucceeds(expr);
-        assertCriteriaMethodCalled(structure, "equal");
-    }
-
-    @Test
-    void stringSubstring() {
-        LambdaExpression expr = analyzeLambda("stringSubstring");
-        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-        assertCriteriaGenerationSucceeds(expr);
-        assertCriteriaMethodCalled(structure, "substring");
-    }
-
-    @Test
-    void stringMethodChaining() {
-        LambdaExpression expr = analyzeLambda("stringMethodChaining");
-        assertCriteriaGenerationSucceeds(expr);
-    }
-
-    @Test
-    void stringComplexConditions() {
-        LambdaExpression expr = analyzeLambda("stringComplexConditions");
-        assertCriteriaGenerationSucceeds(expr);
     }
 }

@@ -293,16 +293,16 @@ class RelationshipMetadataExtractorTest {
 
             assertThat(extractor.getCacheSize())
                     .as("Cache should be empty after clear")
-                    .isEqualTo(0);
+                    .isZero();
         }
 
         @Test
         void getCacheSizeReturnsCorrectCount() {
             extractor.clearCache();
-            assertThat(extractor.getCacheSize()).isEqualTo(0);
+            assertThat(extractor.getCacheSize()).isZero();
 
             extractor.getEntityRelationships(TEST_ORDER_CLASS);
-            assertThat(extractor.getCacheSize()).isEqualTo(1);
+            assertThat(extractor.getCacheSize()).isOne();
 
             extractor.getEntityRelationships(TEST_CUSTOMER_CLASS);
             assertThat(extractor.getCacheSize()).isEqualTo(2);

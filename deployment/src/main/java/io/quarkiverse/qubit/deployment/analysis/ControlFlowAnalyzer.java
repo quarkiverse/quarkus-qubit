@@ -147,16 +147,27 @@ public final class ControlFlowAnalyzer {
         LabelClassification destination = traceLabelDestination(
             label, instructions, labelToIndex, classifications, new HashSet<>());
 
-        if (destination == TRUE_SINK) {
-            labelToValue.put(label, true);
-            Log.debugf("Traced intermediate label %s -> %s",
-                      formatLabelForLogging(label), TRUE_SINK.getDisplayName());
-        } else if (destination == FALSE_SINK) {
-            labelToValue.put(label, false);
-            Log.debugf("Traced intermediate label %s -> %s",
-                      formatLabelForLogging(label), FALSE_SINK.getDisplayName());
-        } else {
+        // Handle null destination separately (cannot be traced)
+        if (destination == null) {
             Log.debugf("Could not trace label %s to %s/%s",
+                      formatLabelForLogging(label),
+                      TRUE_SINK.getDisplayName(), FALSE_SINK.getDisplayName());
+            return;
+        }
+
+        // Handle non-null destination with switch expression
+        switch (destination) {
+            case TRUE_SINK -> {
+                labelToValue.put(label, true);
+                Log.debugf("Traced intermediate label %s -> %s",
+                          formatLabelForLogging(label), TRUE_SINK.getDisplayName());
+            }
+            case FALSE_SINK -> {
+                labelToValue.put(label, false);
+                Log.debugf("Traced intermediate label %s -> %s",
+                          formatLabelForLogging(label), FALSE_SINK.getDisplayName());
+            }
+            case INTERMEDIATE -> Log.debugf("Could not trace label %s to %s/%s",
                       formatLabelForLogging(label),
                       TRUE_SINK.getDisplayName(), FALSE_SINK.getDisplayName());
         }

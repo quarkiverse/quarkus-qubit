@@ -1,5 +1,14 @@
 package io.quarkiverse.qubit.deployment.ast;
 
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.AGGREGATION_TYPE_NULL;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.ENTITY_CLASS_NULL;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.ENTITY_POSITION_NULL;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.ENTITY_TYPE_NULL;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.FIELD_NAME_NULL;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.FIELD_TYPE_NULL;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.PARAMETER_NAME_NULL;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.PARAMETER_TYPE_NULL;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.RESULT_TYPE_NULL;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JVM_JAVA_LANG_OBJECT;
 
 import java.util.List;
@@ -139,8 +148,8 @@ public sealed interface LambdaExpression {
     /** Field access expression (e.g., p.name, p.age). */
     record FieldAccess(String fieldName, Class<?> fieldType) implements LambdaExpression {
         public FieldAccess {
-            Objects.requireNonNull(fieldName, "Field name cannot be null");
-            Objects.requireNonNull(fieldType, "Field type cannot be null");
+            Objects.requireNonNull(fieldName, FIELD_NAME_NULL);
+            Objects.requireNonNull(fieldType, FIELD_TYPE_NULL);
         }
 
         @Override
@@ -178,8 +187,8 @@ public sealed interface LambdaExpression {
     /** Lambda parameter reference. */
     record Parameter(String name, Class<?> type, int index) implements LambdaExpression {
         public Parameter {
-            Objects.requireNonNull(name, "Parameter name cannot be null");
-            Objects.requireNonNull(type, "Parameter type cannot be null");
+            Objects.requireNonNull(name, PARAMETER_NAME_NULL);
+            Objects.requireNonNull(type, PARAMETER_TYPE_NULL);
         }
     }
 
@@ -254,7 +263,7 @@ public sealed interface LambdaExpression {
         public ConstructorCall {
             Objects.requireNonNull(className, "Class name cannot be null");
             arguments = List.copyOf(arguments);
-            Objects.requireNonNull(resultType, "Result type cannot be null");
+            Objects.requireNonNull(resultType, RESULT_TYPE_NULL);
         }
     }
 
@@ -270,7 +279,7 @@ public sealed interface LambdaExpression {
         public ArrayCreation {
             Objects.requireNonNull(elementType, "Element type cannot be null");
             elements = List.copyOf(elements);
-            Objects.requireNonNull(resultType, "Result type cannot be null");
+            Objects.requireNonNull(resultType, RESULT_TYPE_NULL);
         }
 
         public boolean isObjectArray() {
@@ -292,11 +301,11 @@ public sealed interface LambdaExpression {
             RelationType relationType) {
 
         public PathSegment {
-            Objects.requireNonNull(fieldName, "Field name cannot be null");
+            Objects.requireNonNull(fieldName, FIELD_NAME_NULL);
             if (fieldName.isBlank()) {
                 throw new IllegalArgumentException("Field name cannot be empty or blank");
             }
-            Objects.requireNonNull(fieldType, "Field type cannot be null");
+            Objects.requireNonNull(fieldType, FIELD_TYPE_NULL);
             Objects.requireNonNull(relationType, "Relation type cannot be null");
         }
 
@@ -411,7 +420,7 @@ public sealed interface LambdaExpression {
 
         public PathExpression {
             segments = SegmentBasedPath.validateSegments(segments);
-            Objects.requireNonNull(resultType, "Result type cannot be null");
+            Objects.requireNonNull(resultType, RESULT_TYPE_NULL);
         }
 
         /**
@@ -614,9 +623,9 @@ public sealed interface LambdaExpression {
             EntityPosition position) implements LambdaExpression {
 
         public BiEntityParameter {
-            Objects.requireNonNull(name, "Parameter name cannot be null");
-            Objects.requireNonNull(type, "Parameter type cannot be null");
-            Objects.requireNonNull(position, "Entity position cannot be null");
+            Objects.requireNonNull(name, PARAMETER_NAME_NULL);
+            Objects.requireNonNull(type, PARAMETER_TYPE_NULL);
+            Objects.requireNonNull(position, ENTITY_POSITION_NULL);
         }
 
         /**
@@ -660,9 +669,9 @@ public sealed interface LambdaExpression {
             EntityPosition entityPosition) implements LambdaExpression {
 
         public BiEntityFieldAccess {
-            Objects.requireNonNull(fieldName, "Field name cannot be null");
-            Objects.requireNonNull(fieldType, "Field type cannot be null");
-            Objects.requireNonNull(entityPosition, "Entity position cannot be null");
+            Objects.requireNonNull(fieldName, FIELD_NAME_NULL);
+            Objects.requireNonNull(fieldType, FIELD_TYPE_NULL);
+            Objects.requireNonNull(entityPosition, ENTITY_POSITION_NULL);
         }
 
         /**
@@ -730,8 +739,8 @@ public sealed interface LambdaExpression {
 
         public BiEntityPathExpression {
             segments = SegmentBasedPath.validateSegments(segments);
-            Objects.requireNonNull(resultType, "Result type cannot be null");
-            Objects.requireNonNull(entityPosition, "Entity position cannot be null");
+            Objects.requireNonNull(resultType, RESULT_TYPE_NULL);
+            Objects.requireNonNull(entityPosition, ENTITY_POSITION_NULL);
         }
 
         /**
@@ -800,7 +809,7 @@ public sealed interface LambdaExpression {
         public GroupKeyReference {
             // keyExpression can be null - it gets resolved at code generation time
             // from the groupBy() lambda's key expression
-            Objects.requireNonNull(resultType, "Result type cannot be null");
+            Objects.requireNonNull(resultType, RESULT_TYPE_NULL);
         }
     }
 
@@ -855,8 +864,8 @@ public sealed interface LambdaExpression {
             Class<?> resultType) implements LambdaExpression {
 
         public GroupAggregation {
-            Objects.requireNonNull(aggregationType, "Aggregation type cannot be null");
-            Objects.requireNonNull(resultType, "Result type cannot be null");
+            Objects.requireNonNull(aggregationType, AGGREGATION_TYPE_NULL);
+            Objects.requireNonNull(resultType, RESULT_TYPE_NULL);
             // fieldExpression can be null for count()
         }
 
@@ -951,9 +960,9 @@ public sealed interface LambdaExpression {
             Class<?> keyType) implements LambdaExpression {
 
         public GroupParameter {
-            Objects.requireNonNull(name, "Parameter name cannot be null");
-            Objects.requireNonNull(type, "Parameter type cannot be null");
-            Objects.requireNonNull(entityType, "Entity type cannot be null");
+            Objects.requireNonNull(name, PARAMETER_NAME_NULL);
+            Objects.requireNonNull(type, PARAMETER_TYPE_NULL);
+            Objects.requireNonNull(entityType, ENTITY_TYPE_NULL);
             Objects.requireNonNull(keyType, "Key type cannot be null");
         }
     }
@@ -993,7 +1002,7 @@ public sealed interface LambdaExpression {
             LambdaExpression predicate) implements LambdaExpression {
 
         public SubqueryBuilderReference {
-            Objects.requireNonNull(entityClass, "Entity class cannot be null");
+            Objects.requireNonNull(entityClass, ENTITY_CLASS_NULL);
             // entityClassName can be null (only set when class not loadable at build-time)
             // predicate can be null (no WHERE clause)
         }
@@ -1081,9 +1090,9 @@ public sealed interface LambdaExpression {
             Class<?> resultType) implements LambdaExpression {
 
         public ScalarSubquery {
-            Objects.requireNonNull(aggregationType, "Aggregation type cannot be null");
-            Objects.requireNonNull(entityClass, "Entity class cannot be null");
-            Objects.requireNonNull(resultType, "Result type cannot be null");
+            Objects.requireNonNull(aggregationType, AGGREGATION_TYPE_NULL);
+            Objects.requireNonNull(entityClass, ENTITY_CLASS_NULL);
+            Objects.requireNonNull(resultType, RESULT_TYPE_NULL);
             // entityClassName can be null (only set when class not loadable at build-time)
             // fieldExpression can be null for COUNT
             // predicate can be null (no WHERE clause in subquery)
@@ -1170,7 +1179,7 @@ public sealed interface LambdaExpression {
             boolean negated) implements LambdaExpression {
 
         public ExistsSubquery {
-            Objects.requireNonNull(entityClass, "Entity class cannot be null");
+            Objects.requireNonNull(entityClass, ENTITY_CLASS_NULL);
             Objects.requireNonNull(predicate, "Predicate cannot be null");
             // entityClassName can be null (only set when class not loadable at build-time)
         }
@@ -1226,7 +1235,7 @@ public sealed interface LambdaExpression {
 
         public InSubquery {
             Objects.requireNonNull(field, "Field cannot be null");
-            Objects.requireNonNull(entityClass, "Entity class cannot be null");
+            Objects.requireNonNull(entityClass, ENTITY_CLASS_NULL);
             Objects.requireNonNull(selectExpression, "Select expression cannot be null");
             // entityClassName can be null (only set when class not loadable at build-time)
             // predicate can be null (no WHERE clause in subquery)

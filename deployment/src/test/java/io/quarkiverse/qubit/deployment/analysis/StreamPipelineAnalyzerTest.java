@@ -67,10 +67,6 @@ class StreamPipelineAnalyzerTest {
 
         @Test
         void streamPipeline_isCountQuery_returnsFalseForOtherTerminals() {
-            List<StreamPipelineAnalyzer.PipelineOperation> ops = List.of(
-                    new StreamPipelineAnalyzer.PipelineOperation("where", "l1", "()Z", 1)
-            );
-
             assertThat(createPipeline("toList").isCountQuery()).isFalse();
             assertThat(createPipeline("exists").isCountQuery()).isFalse();
             assertThat(createPipeline("getSingleResult").isCountQuery()).isFalse();

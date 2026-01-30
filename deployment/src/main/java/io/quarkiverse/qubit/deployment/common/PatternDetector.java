@@ -161,17 +161,17 @@ public final class PatternDetector {
     }
 
     public static boolean isCompareToPattern(LambdaExpression expr) {
-        return expr instanceof LambdaExpression.MethodCall methodCall &&
-               methodCall.returnType() == int.class;
+        return expr instanceof LambdaExpression.MethodCall(var target, var methodName, var args, var returnType) &&
+               returnType == int.class;
     }
 
     public static boolean isArithmeticExpression(LambdaExpression expr) {
-        return expr instanceof LambdaExpression.BinaryOp binOp &&
-               (binOp.operator() == ADD ||
-                binOp.operator() == SUB ||
-                binOp.operator() == MUL ||
-                binOp.operator() == DIV ||
-                binOp.operator() == MOD);
+        return expr instanceof LambdaExpression.BinaryOp(var left, var operator, var right) &&
+               (operator == ADD ||
+                operator == SUB ||
+                operator == MUL ||
+                operator == DIV ||
+                operator == MOD);
     }
 
     public static boolean isArithmeticComparisonPattern(Deque<LambdaExpression> stack) {
@@ -206,20 +206,20 @@ public final class PatternDetector {
             return false;
         }
 
-        if (!(binOp.left() instanceof LambdaExpression.FieldAccess fieldAccess)) {
+        if (!(binOp.left() instanceof LambdaExpression.FieldAccess(var fieldName, var fieldType))) {
             return false;
         }
 
-        if (!TypeConverter.isBooleanType(fieldAccess.fieldType())) {
+        if (!TypeConverter.isBooleanType(fieldType)) {
             return false;
         }
 
-        if (!(binOp.right() instanceof LambdaExpression.Constant constant)) {
+        if (!(binOp.right() instanceof LambdaExpression.Constant(var value, var type))) {
             return false;
         }
 
-        return constant.type() == int.class &&
-               (constant.value().equals(0) || constant.value().equals(1));
+        return type == int.class &&
+               (value.equals(0) || value.equals(1));
     }
 
     public static boolean isBooleanFieldCapturedVariableComparison(LambdaExpression.BinaryOp binOp) {
@@ -227,19 +227,19 @@ public final class PatternDetector {
             return false;
         }
 
-        if (!(binOp.left() instanceof LambdaExpression.FieldAccess fieldAccess)) {
+        if (!(binOp.left() instanceof LambdaExpression.FieldAccess(var fieldName, var fieldType))) {
             return false;
         }
 
-        if (!TypeConverter.isBooleanType(fieldAccess.fieldType())) {
+        if (!TypeConverter.isBooleanType(fieldType)) {
             return false;
         }
 
-        if (!(binOp.right() instanceof LambdaExpression.CapturedVariable capturedVar)) {
+        if (!(binOp.right() instanceof LambdaExpression.CapturedVariable(var index, var capturedType, var name))) {
             return false;
         }
 
-        return TypeConverter.isBooleanType(capturedVar.type());
+        return TypeConverter.isBooleanType(capturedType);
     }
 
     public static boolean isCompareToEqualityPattern(LambdaExpression.BinaryOp binOp) {
@@ -247,11 +247,11 @@ public final class PatternDetector {
             return false;
         }
 
-        if (!(binOp.left() instanceof LambdaExpression.MethodCall methodCall)) {
+        if (!(binOp.left() instanceof LambdaExpression.MethodCall(var target, var methodName, var args, var returnType))) {
             return false;
         }
 
-        if (!methodCall.methodName().equals(METHOD_COMPARE_TO)) {
+        if (!methodName.equals(METHOD_COMPARE_TO)) {
             return false;
         }
 
@@ -294,33 +294,26 @@ public final class PatternDetector {
         boolean leftIsSubquery = containsSubquery(binOp.left());
         boolean rightIsSubquery = containsSubquery(binOp.right());
 
-        if (leftIsSubquery && isBooleanConstant(binOp.right())) {
-            return true;
-        }
-        if (rightIsSubquery && isBooleanConstant(binOp.left())) {
-            return true;
-        }
-        return false;
+        return (leftIsSubquery && isBooleanConstant(binOp.right())) ||
+               (rightIsSubquery && isBooleanConstant(binOp.left()));
     }
 
     /** Checks if expression is a boolean constant (true/false or 0/1). */
     public static boolean isBooleanConstant(LambdaExpression expr) {
-        if (!(expr instanceof LambdaExpression.Constant constant)) {
+        if (!(expr instanceof LambdaExpression.Constant(var value, var type))) {
             return false;
         }
-        Object value = constant.value();
         return value instanceof Boolean ||
-               (value instanceof Integer && ((Integer) value == 0 || (Integer) value == 1));
+               (value instanceof Integer intValue && (intValue == 0 || intValue == 1));
     }
 
     /** Returns true if comparison should negate subquery (e.g., subquery == false). */
     public static boolean isNegatedSubqueryComparison(
             LambdaExpression.BinaryOp.Operator operator,
             LambdaExpression constantExpr) {
-        if (!(constantExpr instanceof LambdaExpression.Constant constant)) {
+        if (!(constantExpr instanceof LambdaExpression.Constant(var value, var type))) {
             return false;
         }
-        Object value = constant.value();
 
         if (operator == LambdaExpression.BinaryOp.Operator.EQ) {
             return Boolean.FALSE.equals(value) || Integer.valueOf(0).equals(value);

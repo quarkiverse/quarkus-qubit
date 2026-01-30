@@ -7,11 +7,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
 import static io.quarkiverse.qubit.deployment.testutil.fixtures.AsmFixtures.testMethod;
@@ -44,104 +49,27 @@ class MethodInvocationHandlerTest {
     @DisplayName("VirtualMethodCategory.categorize")
     class VirtualMethodCategoryTests {
 
-        @Test
-        void equals_onAnyObject_returnsEquals() {
-            var methodInsn = createMethodInsn(INVOKEVIRTUAL, "java/lang/Object", "equals", "(Ljava/lang/Object;)Z");
+        @ParameterizedTest(name = "{0}.{1} → {3}")
+        @CsvSource({
+                "java/lang/Object, equals, (Ljava/lang/Object;)Z, EQUALS",
+                "java/lang/String, equals, (Ljava/lang/Object;)Z, EQUALS",
+                "java/lang/String, length, ()I, STRING_METHOD",
+                "java/lang/Integer, compareTo, (Ljava/lang/Integer;)I, COMPARE_TO",
+                "java/math/BigDecimal, add, (Ljava/math/BigDecimal;)Ljava/math/BigDecimal;, BIG_DECIMAL_ARITHMETIC",
+                "java/time/LocalDate, getYear, ()I, TEMPORAL_METHOD",
+                "java/time/LocalDateTime, getHour, ()I, TEMPORAL_METHOD",
+                "java/time/LocalTime, getMinute, ()I, TEMPORAL_METHOD",
+                "com/example/Entity, getName, ()Ljava/lang/String;, GETTER",
+                "com/example/Entity, isActive, ()Z, GETTER",
+                "com/example/Entity, doSomething, (I)V, UNHANDLED"
+        })
+        void categorize_returnsExpectedCategory(String owner, String methodName, String descriptor,
+                                                 VirtualMethodCategory expected) {
+            var methodInsn = createMethodInsn(INVOKEVIRTUAL, owner, methodName, descriptor);
 
             var category = VirtualMethodCategory.categorize(methodInsn, handler);
 
-            assertThat(category).isEqualTo(VirtualMethodCategory.EQUALS);
-        }
-
-        @Test
-        void equals_onString_returnsEquals() {
-            var methodInsn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "equals", "(Ljava/lang/Object;)Z");
-
-            var category = VirtualMethodCategory.categorize(methodInsn, handler);
-
-            assertThat(category).isEqualTo(VirtualMethodCategory.EQUALS);
-        }
-
-        @Test
-        void string_methodOnString_returnsStringMethod() {
-            var methodInsn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "length", "()I");
-
-            var category = VirtualMethodCategory.categorize(methodInsn, handler);
-
-            assertThat(category).isEqualTo(VirtualMethodCategory.STRING_METHOD);
-        }
-
-        @Test
-        void compareTo_onComparable_returnsCompareTo() {
-            var methodInsn = createMethodInsn(INVOKEVIRTUAL, "java/lang/Integer", "compareTo", "(Ljava/lang/Integer;)I");
-
-            var category = VirtualMethodCategory.categorize(methodInsn, handler);
-
-            assertThat(category).isEqualTo(VirtualMethodCategory.COMPARE_TO);
-        }
-
-        @Test
-        void bigDecimalAdd_returnsBigDecimalArithmetic() {
-            var methodInsn = createMethodInsn(INVOKEVIRTUAL, "java/math/BigDecimal", "add",
-                    "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;");
-
-            var category = VirtualMethodCategory.categorize(methodInsn, handler);
-
-            assertThat(category).isEqualTo(VirtualMethodCategory.BIG_DECIMAL_ARITHMETIC);
-        }
-
-        @Test
-        void localDate_method_returnsTemporalMethod() {
-            var methodInsn = createMethodInsn(INVOKEVIRTUAL, "java/time/LocalDate", "getYear", "()I");
-
-            var category = VirtualMethodCategory.categorize(methodInsn, handler);
-
-            assertThat(category).isEqualTo(VirtualMethodCategory.TEMPORAL_METHOD);
-        }
-
-        @Test
-        void localDateTime_method_returnsTemporalMethod() {
-            var methodInsn = createMethodInsn(INVOKEVIRTUAL, "java/time/LocalDateTime", "getHour", "()I");
-
-            var category = VirtualMethodCategory.categorize(methodInsn, handler);
-
-            assertThat(category).isEqualTo(VirtualMethodCategory.TEMPORAL_METHOD);
-        }
-
-        @Test
-        void localTime_method_returnsTemporalMethod() {
-            var methodInsn = createMethodInsn(INVOKEVIRTUAL, "java/time/LocalTime", "getMinute", "()I");
-
-            var category = VirtualMethodCategory.categorize(methodInsn, handler);
-
-            assertThat(category).isEqualTo(VirtualMethodCategory.TEMPORAL_METHOD);
-        }
-
-        @Test
-        void getter_methodStartingWithGet_returnsGetter() {
-            var methodInsn = createMethodInsn(INVOKEVIRTUAL, "com/example/Entity", "getName", "()Ljava/lang/String;");
-
-            var category = VirtualMethodCategory.categorize(methodInsn, handler);
-
-            assertThat(category).isEqualTo(VirtualMethodCategory.GETTER);
-        }
-
-        @Test
-        void getter_methodStartingWithIs_returnsGetter() {
-            var methodInsn = createMethodInsn(INVOKEVIRTUAL, "com/example/Entity", "isActive", "()Z");
-
-            var category = VirtualMethodCategory.categorize(methodInsn, handler);
-
-            assertThat(category).isEqualTo(VirtualMethodCategory.GETTER);
-        }
-
-        @Test
-        void unknownMethod_returnsUnhandled() {
-            var methodInsn = createMethodInsn(INVOKEVIRTUAL, "com/example/Entity", "doSomething", "(I)V");
-
-            var category = VirtualMethodCategory.categorize(methodInsn, handler);
-
-            assertThat(category).isEqualTo(VirtualMethodCategory.UNHANDLED);
+            assertThat(category).isEqualTo(expected);
         }
     }
 
@@ -311,49 +239,23 @@ class MethodInvocationHandlerTest {
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
         }
 
-        @Test
-        void stringToLowerCase_createsMethodCall() {
+        @ParameterizedTest(name = "String.{0}() creates MethodCall")
+        @CsvSource({
+                "toLowerCase, ()Ljava/lang/String;",
+                "toUpperCase, ()Ljava/lang/String;",
+                "trim, ()Ljava/lang/String;"
+        })
+        void stringNoArgTransformationMethod_createsMethodCall(String methodName, String descriptor) {
             context.push(field("name", String.class));
 
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "toLowerCase",
-                    "()Ljava/lang/String;");
+            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", methodName, descriptor);
             handler.handle(insn, context);
 
             assertThat(context.getStackSize()).isEqualTo(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
-            assertThat(methodCall.methodName()).isEqualTo("toLowerCase");
-        }
-
-        @Test
-        void stringToUpperCase_createsMethodCall() {
-            context.push(field("name", String.class));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "toUpperCase",
-                    "()Ljava/lang/String;");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            var result = context.pop();
-            assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
-            var methodCall = (LambdaExpression.MethodCall) result;
-            assertThat(methodCall.methodName()).isEqualTo("toUpperCase");
-        }
-
-        @Test
-        void stringTrim_createsMethodCall() {
-            context.push(field("name", String.class));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "trim",
-                    "()Ljava/lang/String;");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            var result = context.pop();
-            assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
-            var methodCall = (LambdaExpression.MethodCall) result;
-            assertThat(methodCall.methodName()).isEqualTo("trim");
+            assertThat(methodCall.methodName()).isEqualTo(methodName);
         }
 
         @Test
@@ -390,12 +292,18 @@ class MethodInvocationHandlerTest {
             assertThat(methodCall.arguments()).hasSize(2);
         }
 
-        @Test
-        void bigDecimalAdd_createsMethodCall() {
+        @ParameterizedTest(name = "BigDecimal.{0}() creates MethodCall")
+        @CsvSource({
+                "add",
+                "subtract",
+                "multiply",
+                "divide"
+        })
+        void bigDecimalArithmetic_createsMethodCall(String methodName) {
             context.push(field("price", BigDecimal.class));
             context.push(constant(new BigDecimal("10")));
 
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/math/BigDecimal", "add",
+            var insn = createMethodInsn(INVOKEVIRTUAL, "java/math/BigDecimal", methodName,
                     "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;");
             handler.handle(insn, context);
 
@@ -403,55 +311,7 @@ class MethodInvocationHandlerTest {
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
-            assertThat(methodCall.methodName()).isEqualTo("add");
-        }
-
-        @Test
-        void bigDecimalSubtract_createsMethodCall() {
-            context.push(field("price", BigDecimal.class));
-            context.push(constant(new BigDecimal("10")));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/math/BigDecimal", "subtract",
-                    "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            var result = context.pop();
-            assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
-            var methodCall = (LambdaExpression.MethodCall) result;
-            assertThat(methodCall.methodName()).isEqualTo("subtract");
-        }
-
-        @Test
-        void bigDecimalMultiply_createsMethodCall() {
-            context.push(field("price", BigDecimal.class));
-            context.push(constant(new BigDecimal("10")));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/math/BigDecimal", "multiply",
-                    "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            var result = context.pop();
-            assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
-            var methodCall = (LambdaExpression.MethodCall) result;
-            assertThat(methodCall.methodName()).isEqualTo("multiply");
-        }
-
-        @Test
-        void bigDecimalDivide_createsMethodCall() {
-            context.push(field("price", BigDecimal.class));
-            context.push(constant(new BigDecimal("10")));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/math/BigDecimal", "divide",
-                    "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            var result = context.pop();
-            assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
-            var methodCall = (LambdaExpression.MethodCall) result;
-            assertThat(methodCall.methodName()).isEqualTo("divide");
+            assertThat(methodCall.methodName()).isEqualTo(methodName);
         }
 
         @Test
@@ -774,98 +634,35 @@ class MethodInvocationHandlerTest {
             assertThat(context.getStackSize()).isEqualTo(initialSize);
         }
 
-        @Test
-        void startsWithWrongDescriptor_doesNotHandle() {
-            context.push(field("name", String.class));
-            context.push(constant("prefix"));
-
-            // Wrong descriptor (should be String -> boolean, not int -> boolean)
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "startsWith", "(I)Z");
-            handler.handle(insn, context);
-
-            // Stack should still have 2 elements (not processed)
-            assertThat(context.getStackSize()).isEqualTo(2);
-        }
-
-        @Test
-        void endsWithWrongDescriptor_doesNotHandle() {
-            context.push(field("name", String.class));
-            context.push(constant("suffix"));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "endsWith", "(I)Z");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(2);
-        }
-
-        @Test
-        void containsWrongDescriptor_doesNotHandle() {
-            context.push(field("name", String.class));
-            context.push(constant("text"));
-
-            // Wrong descriptor (should be CharSequence -> boolean)
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "contains", "(Ljava/lang/String;)Z");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(2);
-        }
-
-        @Test
-        void lengthWrongDescriptor_doesNotHandle() {
+        @ParameterizedTest(name = "{0} with wrong descriptor does not handle (single-stack)")
+        @CsvSource({
+                "length, ()V",
+                "isEmpty, ()I",
+                "toLowerCase, (I)Ljava/lang/String;",
+                "toUpperCase, (I)Ljava/lang/String;",
+                "trim, (I)Ljava/lang/String;"
+        })
+        void noArgMethodWrongDescriptor_doesNotHandle(String methodName, String wrongDescriptor) {
             context.push(field("name", String.class));
 
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "length", "()V");
+            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", methodName, wrongDescriptor);
             handler.handle(insn, context);
 
             assertThat(context.getStackSize()).isEqualTo(1);
         }
 
-        @Test
-        void isEmptyWrongDescriptor_doesNotHandle() {
+        @ParameterizedTest(name = "{0} with wrong descriptor does not handle (two-stack)")
+        @CsvSource({
+                "startsWith, (I)Z",
+                "endsWith, (I)Z",
+                "contains, (Ljava/lang/String;)Z",
+                "substring, (Z)Ljava/lang/String;"
+        })
+        void oneArgMethodWrongDescriptor_doesNotHandle(String methodName, String wrongDescriptor) {
             context.push(field("name", String.class));
+            context.push(constant("arg"));
 
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "isEmpty", "()I");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-        }
-
-        @Test
-        void toLowerCaseWrongDescriptor_doesNotHandle() {
-            context.push(field("name", String.class));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "toLowerCase", "(I)Ljava/lang/String;");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-        }
-
-        @Test
-        void toUpperCaseWrongDescriptor_doesNotHandle() {
-            context.push(field("name", String.class));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "toUpperCase", "(I)Ljava/lang/String;");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-        }
-
-        @Test
-        void trimWrongDescriptor_doesNotHandle() {
-            context.push(field("name", String.class));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "trim", "(I)Ljava/lang/String;");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-        }
-
-        @Test
-        void substringWrongDescriptor_doesNotHandle() {
-            context.push(field("name", String.class));
-            context.push(constant(5));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "substring", "(Z)Ljava/lang/String;");
+            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", methodName, wrongDescriptor);
             handler.handle(insn, context);
 
             assertThat(context.getStackSize()).isEqualTo(2);
@@ -936,27 +733,18 @@ class MethodInvocationHandlerTest {
             assertThat(result).isInstanceOf(LambdaExpression.ConstructorCall.class);
         }
 
-        @Test
-        void bigDecimalArithmetic_wrongOwner_notHandled() {
+        @ParameterizedTest(name = "{0}.add{1} is not handled as BigDecimal arithmetic")
+        @CsvSource({
+                "java/lang/Integer, (Ljava/math/BigDecimal;)Ljava/math/BigDecimal;",
+                "java/math/BigDecimal, (I)Ljava/math/BigDecimal;"
+        })
+        void bigDecimalArithmetic_wrongParameter_notHandled(String owner, String descriptor) {
             context.push(field("price", BigDecimal.class));
             context.push(constant(new BigDecimal("10")));
 
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/Integer", "add", "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;");
+            var insn = createMethodInsn(INVOKEVIRTUAL, owner, "add", descriptor);
             handler.handle(insn, context);
 
-            // Should not be handled as BigDecimal arithmetic
-            assertThat(context.getStackSize()).isEqualTo(2);
-        }
-
-        @Test
-        void bigDecimalArithmetic_wrongDescriptor_notHandled() {
-            context.push(field("price", BigDecimal.class));
-            context.push(constant(new BigDecimal("10")));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/math/BigDecimal", "add", "(I)Ljava/math/BigDecimal;");
-            handler.handle(insn, context);
-
-            // Should not be handled as BigDecimal arithmetic
             assertThat(context.getStackSize()).isEqualTo(2);
         }
     }
@@ -967,48 +755,31 @@ class MethodInvocationHandlerTest {
     @DisplayName("Temporal method boundary conditions")
     class TemporalMethodBoundaryTests {
 
-        @Test
-        void temporalAccessor_unknownMethod_notHandled() {
+        @ParameterizedTest(name = "{0}.{1}() is not handled as temporal accessor")
+        @CsvSource({
+                "java/time/LocalDate, unknownMethod",
+                "java/util/Calendar, getYear"
+        })
+        void temporalAccessor_wrongParameter_notHandled(String owner, String methodName) {
             context.push(field("date", java.time.LocalDate.class));
 
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/time/LocalDate", "unknownMethod", "()I");
-            handler.handle(insn, context);
-
-            // Unknown temporal method should not be handled
-            assertThat(context.getStackSize()).isEqualTo(1);
-        }
-
-        @Test
-        void temporalAccessor_wrongOwner_notHandled() {
-            context.push(field("date", java.time.LocalDate.class));
-
-            // getYear on wrong owner (not a temporal type)
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/util/Calendar", "getYear", "()I");
+            var insn = createMethodInsn(INVOKEVIRTUAL, owner, methodName, "()I");
             handler.handle(insn, context);
 
             assertThat(context.getStackSize()).isEqualTo(1);
         }
 
-        @Test
-        void temporalFactory_wrongOwner_notHandled() {
+        @ParameterizedTest(name = "{0}.{1}() with 3 args is not handled")
+        @CsvSource({
+                "java/util/Date, of, (III)Ljava/util/Date;",
+                "java/time/LocalDate, create, (III)Ljava/time/LocalDate;"
+        })
+        void temporalFactory_wrongParameter_notHandled(String owner, String methodName, String descriptor) {
             context.push(constant(2024));
             context.push(constant(6));
             context.push(constant(15));
 
-            var insn = createMethodInsn(INVOKESTATIC, "java/util/Date", "of", "(III)Ljava/util/Date;");
-            handler.handle(insn, context);
-
-            // Stack should still have the 3 constants
-            assertThat(context.getStackSize()).isEqualTo(3);
-        }
-
-        @Test
-        void temporalFactory_wrongMethodName_notHandled() {
-            context.push(constant(2024));
-            context.push(constant(6));
-            context.push(constant(15));
-
-            var insn = createMethodInsn(INVOKESTATIC, "java/time/LocalDate", "create", "(III)Ljava/time/LocalDate;");
+            var insn = createMethodInsn(INVOKESTATIC, owner, methodName, descriptor);
             handler.handle(insn, context);
 
             assertThat(context.getStackSize()).isEqualTo(3);
@@ -1027,32 +798,24 @@ class MethodInvocationHandlerTest {
             assertThat(context.getStackSize()).isEqualTo(2);
         }
 
-        @Test
-        void localDateTimeAccessor_getHour_createsMethodCall() {
-            context.push(field("dateTime", java.time.LocalDateTime.class));
+        @ParameterizedTest(name = "{0}.{2}() creates MethodCall")
+        @CsvSource({
+                "java/time/LocalDateTime, dateTime, getHour, java.time.LocalDateTime",
+                "java/time/LocalTime, time, getMinute, java.time.LocalTime"
+        })
+        void temporalAccessor_validMethod_createsMethodCall(String owner, String fieldName, String methodName,
+                                                             String fieldTypeStr) throws ClassNotFoundException {
+            Class<?> fieldType = Class.forName(fieldTypeStr);
+            context.push(field(fieldName, fieldType));
 
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/time/LocalDateTime", "getHour", "()I");
+            var insn = createMethodInsn(INVOKEVIRTUAL, owner, methodName, "()I");
             handler.handle(insn, context);
 
             assertThat(context.getStackSize()).isEqualTo(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
-            assertThat(methodCall.methodName()).isEqualTo("getHour");
-        }
-
-        @Test
-        void localTimeAccessor_getMinute_createsMethodCall() {
-            context.push(field("time", java.time.LocalTime.class));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/time/LocalTime", "getMinute", "()I");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            var result = context.pop();
-            assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
-            var methodCall = (LambdaExpression.MethodCall) result;
-            assertThat(methodCall.methodName()).isEqualTo("getMinute");
+            assertThat(methodCall.methodName()).isEqualTo(methodName);
         }
     }
 
@@ -1062,36 +825,17 @@ class MethodInvocationHandlerTest {
     @DisplayName("InvokeStatic boundary conditions")
     class InvokeStaticBoundaryTests {
 
-        @Test
-        void booleanValueOf_wrongOwner_notSkipped() {
+        @ParameterizedTest(name = "booleanValueOf with {0}.{1}{2} is not skipped")
+        @CsvSource({
+                "java/lang/Integer, valueOf, (Z)Ljava/lang/Boolean;",
+                "java/lang/Boolean, parseBoolean, (Z)Ljava/lang/Boolean;",
+                "java/lang/Boolean, valueOf, (Ljava/lang/String;)Ljava/lang/Boolean;"
+        })
+        void booleanValueOf_wrongParameter_notSkipped(String owner, String methodName, String descriptor) {
             var boolExpr = eq(field("active", boolean.class), constant(true));
             context.push(boolExpr);
 
-            // Same method name but wrong owner
-            var insn = createMethodInsn(INVOKESTATIC, "java/lang/Integer", "valueOf", "(Z)Ljava/lang/Boolean;");
-            handler.handle(insn, context);
-
-            // Should not be skipped
-            assertThat(context.getStackSize()).isEqualTo(1);
-        }
-
-        @Test
-        void booleanValueOf_wrongMethodName_notSkipped() {
-            var boolExpr = eq(field("active", boolean.class), constant(true));
-            context.push(boolExpr);
-
-            var insn = createMethodInsn(INVOKESTATIC, "java/lang/Boolean", "parseBoolean", "(Z)Ljava/lang/Boolean;");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-        }
-
-        @Test
-        void booleanValueOf_wrongDescriptor_notSkipped() {
-            var boolExpr = eq(field("active", boolean.class), constant(true));
-            context.push(boolExpr);
-
-            var insn = createMethodInsn(INVOKESTATIC, "java/lang/Boolean", "valueOf", "(Ljava/lang/String;)Ljava/lang/Boolean;");
+            var insn = createMethodInsn(INVOKESTATIC, owner, methodName, descriptor);
             handler.handle(insn, context);
 
             assertThat(context.getStackSize()).isEqualTo(1);
@@ -1118,35 +862,17 @@ class MethodInvocationHandlerTest {
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
         }
 
-        @Test
-        void collectionContains_wrongOwner_notHandled() {
+        @ParameterizedTest(name = "collectionContains with {0}.{1}{2} is not handled")
+        @CsvSource({
+                "java/util/Map, contains, (Ljava/lang/Object;)Z",
+                "java/util/Collection, contains, (I)Z",
+                "java/util/Collection, containsAll, (Ljava/lang/Object;)Z"
+        })
+        void collectionContains_wrongParameter_notHandled(String owner, String methodName, String descriptor) {
             context.push(captured(0, List.class));
             context.push(field("city", String.class));
 
-            var insn = createMethodInsn(INVOKEINTERFACE, "java/util/Map", "contains", "(Ljava/lang/Object;)Z");
-            handler.handle(insn, context);
-
-            // Map.contains is not recognized as Collection.contains
-            assertThat(context.getStackSize()).isEqualTo(2);
-        }
-
-        @Test
-        void collectionContains_wrongDescriptor_notHandled() {
-            context.push(captured(0, List.class));
-            context.push(field("city", String.class));
-
-            var insn = createMethodInsn(INVOKEINTERFACE, "java/util/Collection", "contains", "(I)Z");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(2);
-        }
-
-        @Test
-        void collectionContains_wrongMethodName_notHandled() {
-            context.push(captured(0, List.class));
-            context.push(field("city", String.class));
-
-            var insn = createMethodInsn(INVOKEINTERFACE, "java/util/Collection", "containsAll", "(Ljava/lang/Object;)Z");
+            var insn = createMethodInsn(INVOKEINTERFACE, owner, methodName, descriptor);
             handler.handle(insn, context);
 
             assertThat(context.getStackSize()).isEqualTo(2);
@@ -1159,46 +885,31 @@ class MethodInvocationHandlerTest {
     @DisplayName("Equals and compareTo boundary conditions")
     class EqualsCompareTosBoundaryTests {
 
-        @Test
-        void equals_wrongDescriptor_notHandled() {
+        @ParameterizedTest(name = "equals with {0}{1} is not handled")
+        @CsvSource({
+                "equals, (I)Z",
+                "equal, (Ljava/lang/Object;)Z"
+        })
+        void equals_wrongParameter_notHandled(String methodName, String descriptor) {
             context.push(field("name", String.class));
             context.push(constant("John"));
 
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/Object", "equals", "(I)Z");
+            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/Object", methodName, descriptor);
             handler.handle(insn, context);
 
             assertThat(context.getStackSize()).isEqualTo(2);
         }
 
-        @Test
-        void equals_wrongMethodName_notHandled() {
-            context.push(field("name", String.class));
-            context.push(constant("John"));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/Object", "equal", "(Ljava/lang/Object;)Z");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(2);
-        }
-
-        @Test
-        void compareTo_wrongDescriptor_notHandled() {
+        @ParameterizedTest(name = "compareTo with {0}{1} is not handled")
+        @CsvSource({
+                "compareTo, (Ljava/lang/Integer;)V",
+                "compare, (Ljava/lang/Integer;)I"
+        })
+        void compareTo_wrongParameter_notHandled(String methodName, String descriptor) {
             context.push(field("value", Integer.class));
             context.push(constant(10));
 
-            // Returns void instead of int
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/Integer", "compareTo", "(Ljava/lang/Integer;)V");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(2);
-        }
-
-        @Test
-        void compareTo_wrongMethodName_notHandled() {
-            context.push(field("value", Integer.class));
-            context.push(constant(10));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/Integer", "compare", "(Ljava/lang/Integer;)I");
+            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/Integer", methodName, descriptor);
             handler.handle(insn, context);
 
             assertThat(context.getStackSize()).isEqualTo(2);
@@ -1249,12 +960,13 @@ class MethodInvocationHandlerTest {
     @DisplayName("Mutation killing: handleStringMethods switch branches")
     class HandleStringMethodsMutationKillingTests {
 
-        @Test
-        void startsWith_producesStartsWithMethodCall_notAnotherMethod() {
+        @ParameterizedTest(name = "String.{0}() produces '{0}' method call (no-arg)")
+        @MethodSource("noArgStringMutationKillingTestCases")
+        void noArgStringMethod_producesCorrectMethodCall(String methodName, String descriptor,
+                                                          String returnTypeStr, String[] excludedMethods) {
             context.push(field("name", String.class));
-            context.push(constant("prefix"));
 
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "startsWith", "(Ljava/lang/String;)Z");
+            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", methodName, descriptor);
             handler.handle(insn, context);
 
             assertThat(context.getStackSize()).isEqualTo(1);
@@ -1262,142 +974,54 @@ class MethodInvocationHandlerTest {
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
             assertThat(methodCall.methodName())
-                    .as("startsWith should produce 'startsWith' method call, not any other")
-                    .isEqualTo("startsWith")
-                    .isNotEqualTo("endsWith")
-                    .isNotEqualTo("contains");
+                    .as("%s should produce '%s' method call", methodName, methodName)
+                    .isEqualTo(methodName);
+            for (String excluded : excludedMethods) {
+                assertThat(methodCall.methodName()).isNotEqualTo(excluded);
+            }
+            Class<?> returnType = resolveReturnType(returnTypeStr);
+            assertThat(methodCall.returnType()).isEqualTo(returnType);
+        }
+
+        static Stream<Arguments> noArgStringMutationKillingTestCases() {
+            return Stream.of(
+                    Arguments.of("length", "()I", "int", new String[]{"isEmpty"}),
+                    Arguments.of("isEmpty", "()Z", "boolean", new String[]{"length"}),
+                    Arguments.of("toLowerCase", "()Ljava/lang/String;", "String", new String[]{"toUpperCase", "trim"}),
+                    Arguments.of("toUpperCase", "()Ljava/lang/String;", "String", new String[]{"toLowerCase", "trim"}),
+                    Arguments.of("trim", "()Ljava/lang/String;", "String", new String[]{"toLowerCase", "toUpperCase"})
+            );
+        }
+
+        @ParameterizedTest(name = "String.{0}() produces '{0}' method call (one-arg)")
+        @MethodSource("oneArgStringMutationKillingTestCases")
+        void oneArgStringMethod_producesCorrectMethodCall(String methodName, String descriptor,
+                                                           String[] excludedMethods) {
+            context.push(field("name", String.class));
+            context.push(constant("arg"));
+
+            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", methodName, descriptor);
+            handler.handle(insn, context);
+
+            assertThat(context.getStackSize()).isEqualTo(1);
+            var result = context.pop();
+            assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
+            var methodCall = (LambdaExpression.MethodCall) result;
+            assertThat(methodCall.methodName())
+                    .as("%s should produce '%s' method call", methodName, methodName)
+                    .isEqualTo(methodName);
+            for (String excluded : excludedMethods) {
+                assertThat(methodCall.methodName()).isNotEqualTo(excluded);
+            }
             assertThat(methodCall.returnType()).isEqualTo(boolean.class);
         }
 
-        @Test
-        void endsWith_producesEndsWithMethodCall_notAnotherMethod() {
-            context.push(field("name", String.class));
-            context.push(constant("suffix"));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "endsWith", "(Ljava/lang/String;)Z");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            var result = context.pop();
-            assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
-            var methodCall = (LambdaExpression.MethodCall) result;
-            assertThat(methodCall.methodName())
-                    .as("endsWith should produce 'endsWith' method call, not any other")
-                    .isEqualTo("endsWith")
-                    .isNotEqualTo("startsWith")
-                    .isNotEqualTo("contains");
-            assertThat(methodCall.returnType()).isEqualTo(boolean.class);
-        }
-
-        @Test
-        void contains_producesContainsMethodCall_notAnotherMethod() {
-            context.push(field("name", String.class));
-            context.push(constant("sub"));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "contains", "(Ljava/lang/CharSequence;)Z");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            var result = context.pop();
-            assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
-            var methodCall = (LambdaExpression.MethodCall) result;
-            assertThat(methodCall.methodName())
-                    .as("contains should produce 'contains' method call")
-                    .isEqualTo("contains");
-            assertThat(methodCall.returnType()).isEqualTo(boolean.class);
-        }
-
-        @Test
-        void length_producesLengthMethodCall_notAnotherMethod() {
-            context.push(field("name", String.class));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "length", "()I");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            var result = context.pop();
-            assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
-            var methodCall = (LambdaExpression.MethodCall) result;
-            assertThat(methodCall.methodName())
-                    .as("length should produce 'length' method call")
-                    .isEqualTo("length")
-                    .isNotEqualTo("isEmpty");
-            assertThat(methodCall.returnType()).isEqualTo(int.class);
-        }
-
-        @Test
-        void isEmpty_producesIsEmptyMethodCall_notAnotherMethod() {
-            context.push(field("name", String.class));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "isEmpty", "()Z");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            var result = context.pop();
-            assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
-            var methodCall = (LambdaExpression.MethodCall) result;
-            assertThat(methodCall.methodName())
-                    .as("isEmpty should produce 'isEmpty' method call")
-                    .isEqualTo("isEmpty")
-                    .isNotEqualTo("length");
-            assertThat(methodCall.returnType()).isEqualTo(boolean.class);
-        }
-
-        @Test
-        void toLowerCase_producesToLowerCaseMethodCall_notAnotherMethod() {
-            context.push(field("name", String.class));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "toLowerCase", "()Ljava/lang/String;");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            var result = context.pop();
-            assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
-            var methodCall = (LambdaExpression.MethodCall) result;
-            assertThat(methodCall.methodName())
-                    .as("toLowerCase should produce 'toLowerCase' method call")
-                    .isEqualTo("toLowerCase")
-                    .isNotEqualTo("toUpperCase")
-                    .isNotEqualTo("trim");
-            assertThat(methodCall.returnType()).isEqualTo(String.class);
-        }
-
-        @Test
-        void toUpperCase_producesToUpperCaseMethodCall_notAnotherMethod() {
-            context.push(field("name", String.class));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "toUpperCase", "()Ljava/lang/String;");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            var result = context.pop();
-            assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
-            var methodCall = (LambdaExpression.MethodCall) result;
-            assertThat(methodCall.methodName())
-                    .as("toUpperCase should produce 'toUpperCase' method call")
-                    .isEqualTo("toUpperCase")
-                    .isNotEqualTo("toLowerCase")
-                    .isNotEqualTo("trim");
-            assertThat(methodCall.returnType()).isEqualTo(String.class);
-        }
-
-        @Test
-        void trim_producesTrimMethodCall_notAnotherMethod() {
-            context.push(field("name", String.class));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "trim", "()Ljava/lang/String;");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            var result = context.pop();
-            assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
-            var methodCall = (LambdaExpression.MethodCall) result;
-            assertThat(methodCall.methodName())
-                    .as("trim should produce 'trim' method call")
-                    .isEqualTo("trim")
-                    .isNotEqualTo("toLowerCase")
-                    .isNotEqualTo("toUpperCase");
-            assertThat(methodCall.returnType()).isEqualTo(String.class);
+        static Stream<Arguments> oneArgStringMutationKillingTestCases() {
+            return Stream.of(
+                    Arguments.of("startsWith", "(Ljava/lang/String;)Z", new String[]{"endsWith", "contains"}),
+                    Arguments.of("endsWith", "(Ljava/lang/String;)Z", new String[]{"startsWith", "contains"}),
+                    Arguments.of("contains", "(Ljava/lang/CharSequence;)Z", new String[]{})
+            );
         }
 
         @Test
@@ -1417,6 +1041,15 @@ class MethodInvocationHandlerTest {
                     .isEqualTo("substring");
             assertThat(methodCall.returnType()).isEqualTo(String.class);
         }
+
+        private static Class<?> resolveReturnType(String typeStr) {
+            return switch (typeStr) {
+                case "int" -> int.class;
+                case "boolean" -> boolean.class;
+                case "String" -> String.class;
+                default -> throw new IllegalArgumentException("Unknown type: " + typeStr);
+            };
+        }
     }
 
     // ==================== Mutation Killing Tests: handleBigDecimalMethods switch branches ====================
@@ -1425,12 +1058,13 @@ class MethodInvocationHandlerTest {
     @DisplayName("Mutation killing: handleBigDecimalMethods switch branches")
     class HandleBigDecimalMethodsMutationKillingTests {
 
-        @Test
-        void add_producesAddMethodCall_notAnotherOperation() {
+        @ParameterizedTest(name = "BigDecimal.{0}() produces '{0}' method call, not {1}")
+        @MethodSource("bigDecimalMutationKillingTestCases")
+        void bigDecimalMethod_producesCorrectMethodCall_notOthers(String methodName, String[] excludedMethods) {
             context.push(field("price", BigDecimal.class));
             context.push(constant(new BigDecimal("10")));
 
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/math/BigDecimal", "add",
+            var insn = createMethodInsn(INVOKEVIRTUAL, "java/math/BigDecimal", methodName,
                     "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;");
             handler.handle(insn, context);
 
@@ -1439,78 +1073,21 @@ class MethodInvocationHandlerTest {
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
             assertThat(methodCall.methodName())
-                    .as("add should produce 'add' method call, not subtract/multiply/divide")
-                    .isEqualTo("add")
-                    .isNotEqualTo("subtract")
-                    .isNotEqualTo("multiply")
-                    .isNotEqualTo("divide");
+                    .as("%s should produce '%s' method call", methodName, methodName)
+                    .isEqualTo(methodName);
+            for (String excluded : excludedMethods) {
+                assertThat(methodCall.methodName()).isNotEqualTo(excluded);
+            }
             assertThat(methodCall.returnType()).isEqualTo(BigDecimal.class);
         }
 
-        @Test
-        void subtract_producesSubtractMethodCall_notAnotherOperation() {
-            context.push(field("price", BigDecimal.class));
-            context.push(constant(new BigDecimal("10")));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/math/BigDecimal", "subtract",
-                    "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            var result = context.pop();
-            assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
-            var methodCall = (LambdaExpression.MethodCall) result;
-            assertThat(methodCall.methodName())
-                    .as("subtract should produce 'subtract' method call, not add/multiply/divide")
-                    .isEqualTo("subtract")
-                    .isNotEqualTo("add")
-                    .isNotEqualTo("multiply")
-                    .isNotEqualTo("divide");
-            assertThat(methodCall.returnType()).isEqualTo(BigDecimal.class);
-        }
-
-        @Test
-        void multiply_producesMultiplyMethodCall_notAnotherOperation() {
-            context.push(field("price", BigDecimal.class));
-            context.push(constant(new BigDecimal("10")));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/math/BigDecimal", "multiply",
-                    "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            var result = context.pop();
-            assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
-            var methodCall = (LambdaExpression.MethodCall) result;
-            assertThat(methodCall.methodName())
-                    .as("multiply should produce 'multiply' method call, not add/subtract/divide")
-                    .isEqualTo("multiply")
-                    .isNotEqualTo("add")
-                    .isNotEqualTo("subtract")
-                    .isNotEqualTo("divide");
-            assertThat(methodCall.returnType()).isEqualTo(BigDecimal.class);
-        }
-
-        @Test
-        void divide_producesDivideMethodCall_notAnotherOperation() {
-            context.push(field("price", BigDecimal.class));
-            context.push(constant(new BigDecimal("10")));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/math/BigDecimal", "divide",
-                    "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            var result = context.pop();
-            assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
-            var methodCall = (LambdaExpression.MethodCall) result;
-            assertThat(methodCall.methodName())
-                    .as("divide should produce 'divide' method call, not add/subtract/multiply")
-                    .isEqualTo("divide")
-                    .isNotEqualTo("add")
-                    .isNotEqualTo("subtract")
-                    .isNotEqualTo("multiply");
-            assertThat(methodCall.returnType()).isEqualTo(BigDecimal.class);
+        static Stream<Arguments> bigDecimalMutationKillingTestCases() {
+            return Stream.of(
+                    Arguments.of("add", new String[]{"subtract", "multiply", "divide"}),
+                    Arguments.of("subtract", new String[]{"add", "multiply", "divide"}),
+                    Arguments.of("multiply", new String[]{"add", "subtract", "divide"}),
+                    Arguments.of("divide", new String[]{"add", "subtract", "multiply"})
+            );
         }
 
         @Test
@@ -1549,42 +1126,25 @@ class MethodInvocationHandlerTest {
             assertThat(context.pop()).isSameAs(boolExpr);
         }
 
-        @Test
-        void booleanValueOf_wrongOwner_mustNotMatch() {
-            context.push(constant(true));
+        @ParameterizedTest(name = "booleanValueOf with {1}.{2}{3} must not match")
+        @MethodSource("booleanValueOfWrongParameterTestCases")
+        void booleanValueOf_wrongParameter_mustNotMatch(Object pushedValue, String owner,
+                                                         String methodName, String descriptor) {
+            context.push(constant(pushedValue));
             int initialSize = context.getStackSize();
 
-            // Wrong owner (Integer instead of Boolean)
-            var insn = createMethodInsn(INVOKESTATIC, "java/lang/Integer", "valueOf", "(Z)Ljava/lang/Boolean;");
-            handler.handle(insn, context);
-
-            // Should NOT be skipped, but we don't have handler for Integer.valueOf
-            // so stack remains unchanged
-            assertThat(context.getStackSize()).isEqualTo(initialSize);
-        }
-
-        @Test
-        void booleanValueOf_wrongMethodName_mustNotMatch() {
-            context.push(constant(true));
-            int initialSize = context.getStackSize();
-
-            // Wrong method name (parseBoolean instead of valueOf)
-            var insn = createMethodInsn(INVOKESTATIC, "java/lang/Boolean", "parseBoolean", "(Z)Ljava/lang/Boolean;");
+            var insn = createMethodInsn(INVOKESTATIC, owner, methodName, descriptor);
             handler.handle(insn, context);
 
             assertThat(context.getStackSize()).isEqualTo(initialSize);
         }
 
-        @Test
-        void booleanValueOf_wrongDescriptor_mustNotMatch() {
-            context.push(constant("true"));
-            int initialSize = context.getStackSize();
-
-            // Wrong descriptor (String -> Boolean instead of boolean -> Boolean)
-            var insn = createMethodInsn(INVOKESTATIC, "java/lang/Boolean", "valueOf", "(Ljava/lang/String;)Ljava/lang/Boolean;");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(initialSize);
+        static Stream<Arguments> booleanValueOfWrongParameterTestCases() {
+            return Stream.of(
+                    Arguments.of(true, "java/lang/Integer", "valueOf", "(Z)Ljava/lang/Boolean;"),
+                    Arguments.of(true, "java/lang/Boolean", "parseBoolean", "(Z)Ljava/lang/Boolean;"),
+                    Arguments.of("true", "java/lang/Boolean", "valueOf", "(Ljava/lang/String;)Ljava/lang/Boolean;")
+            );
         }
     }
 
@@ -1594,70 +1154,27 @@ class MethodInvocationHandlerTest {
     @DisplayName("Mutation killing: handleTemporalMethods accessor method checks")
     class HandleTemporalMethodsMutationKillingTests {
 
-        @Test
-        void localDate_getYear_isValidAccessor() {
-            context.push(field("date", java.time.LocalDate.class));
+        @ParameterizedTest(name = "{0}.{1}() is valid accessor")
+        @CsvSource({
+                "java/time/LocalDate, getYear, date, java.time.LocalDate",
+                "java/time/LocalDate, getMonthValue, date, java.time.LocalDate",
+                "java/time/LocalDate, getDayOfMonth, date, java.time.LocalDate",
+                "java/time/LocalDateTime, getHour, dateTime, java.time.LocalDateTime",
+                "java/time/LocalTime, getSecond, time, java.time.LocalTime"
+        })
+        void temporalAccessor_isValidAccessor(String owner, String methodName, String fieldName,
+                                               String fieldTypeStr) throws ClassNotFoundException {
+            Class<?> fieldType = Class.forName(fieldTypeStr);
+            context.push(field(fieldName, fieldType));
 
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/time/LocalDate", "getYear", "()I");
+            var insn = createMethodInsn(INVOKEVIRTUAL, owner, methodName, "()I");
             handler.handle(insn, context);
 
             assertThat(context.getStackSize()).isEqualTo(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
-            assertThat(methodCall.methodName()).isEqualTo("getYear");
-        }
-
-        @Test
-        void localDate_getMonthValue_isValidAccessor() {
-            context.push(field("date", java.time.LocalDate.class));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/time/LocalDate", "getMonthValue", "()I");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            var result = context.pop();
-            assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
-            var methodCall = (LambdaExpression.MethodCall) result;
-            assertThat(methodCall.methodName()).isEqualTo("getMonthValue");
-        }
-
-        @Test
-        void localDate_getDayOfMonth_isValidAccessor() {
-            context.push(field("date", java.time.LocalDate.class));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/time/LocalDate", "getDayOfMonth", "()I");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            var result = context.pop();
-            assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
-            var methodCall = (LambdaExpression.MethodCall) result;
-            assertThat(methodCall.methodName()).isEqualTo("getDayOfMonth");
-        }
-
-        @Test
-        void localDateTime_getHour_isValidAccessor() {
-            context.push(field("dateTime", java.time.LocalDateTime.class));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/time/LocalDateTime", "getHour", "()I");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            var result = context.pop();
-            assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
-        }
-
-        @Test
-        void localTime_getSecond_isValidAccessor() {
-            context.push(field("time", java.time.LocalTime.class));
-
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/time/LocalTime", "getSecond", "()I");
-            handler.handle(insn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            var result = context.pop();
-            assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
+            assertThat(methodCall.methodName()).isEqualTo(methodName);
         }
 
         @Test
@@ -2223,109 +1740,57 @@ class MethodInvocationHandlerTest {
     @DisplayName("Mutation killing: VirtualMethodCategory switch branches")
     class VirtualMethodCategorySwitchTests {
 
-        @Test
-        void categorize_equalsMethod_returnsEqualsNotOther() {
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/Object", "equals", "(Ljava/lang/Object;)Z");
+        @ParameterizedTest(name = "{0}.{1} → {3} (not {4})")
+        @MethodSource("categoryMutationTestCases")
+        void categorize_returnsExpectedAndNotOthers(String owner, String methodName, String descriptor,
+                                                     VirtualMethodCategory expected,
+                                                     VirtualMethodCategory[] unexpected) {
+            var insn = createMethodInsn(INVOKEVIRTUAL, owner, methodName, descriptor);
 
             var category = VirtualMethodCategory.categorize(insn, handler);
 
             assertThat(category)
-                    .as("equals method must categorize as EQUALS, not STRING_METHOD or GETTER")
-                    .isEqualTo(VirtualMethodCategory.EQUALS)
-                    .isNotEqualTo(VirtualMethodCategory.STRING_METHOD)
-                    .isNotEqualTo(VirtualMethodCategory.GETTER)
-                    .isNotEqualTo(VirtualMethodCategory.COMPARE_TO);
+                    .as("%s.%s must categorize as %s", owner, methodName, expected)
+                    .isEqualTo(expected);
+            for (VirtualMethodCategory notExpected : unexpected) {
+                assertThat(category).isNotEqualTo(notExpected);
+            }
         }
 
-        @Test
-        void categorize_compareToMethod_returnsCompareToNotOther() {
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/Integer", "compareTo", "(Ljava/lang/Integer;)I");
-
-            var category = VirtualMethodCategory.categorize(insn, handler);
-
-            assertThat(category)
-                    .as("compareTo method must categorize as COMPARE_TO, not EQUALS")
-                    .isEqualTo(VirtualMethodCategory.COMPARE_TO)
-                    .isNotEqualTo(VirtualMethodCategory.EQUALS)
-                    .isNotEqualTo(VirtualMethodCategory.BIG_DECIMAL_ARITHMETIC);
-        }
-
-        @Test
-        void categorize_bigDecimalAdd_returnsBigDecimalArithmeticNotOther() {
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/math/BigDecimal", "add",
-                    "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;");
-
-            var category = VirtualMethodCategory.categorize(insn, handler);
-
-            assertThat(category)
-                    .as("BigDecimal.add must categorize as BIG_DECIMAL_ARITHMETIC")
-                    .isEqualTo(VirtualMethodCategory.BIG_DECIMAL_ARITHMETIC)
-                    .isNotEqualTo(VirtualMethodCategory.COMPARE_TO)
-                    .isNotEqualTo(VirtualMethodCategory.STRING_METHOD);
-        }
-
-        @Test
-        void categorize_localDateMethod_returnsTemporalMethodNotOther() {
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/time/LocalDate", "getYear", "()I");
-
-            var category = VirtualMethodCategory.categorize(insn, handler);
-
-            assertThat(category)
-                    .as("LocalDate.getYear must categorize as TEMPORAL_METHOD")
-                    .isEqualTo(VirtualMethodCategory.TEMPORAL_METHOD)
-                    .isNotEqualTo(VirtualMethodCategory.GETTER)
-                    .isNotEqualTo(VirtualMethodCategory.STRING_METHOD);
-        }
-
-        @Test
-        void categorize_getterMethod_returnsGetterNotOther() {
-            var insn = createMethodInsn(INVOKEVIRTUAL, "com/example/Entity", "getName", "()Ljava/lang/String;");
-
-            var category = VirtualMethodCategory.categorize(insn, handler);
-
-            assertThat(category)
-                    .as("getName() must categorize as GETTER")
-                    .isEqualTo(VirtualMethodCategory.GETTER)
-                    .isNotEqualTo(VirtualMethodCategory.STRING_METHOD)
-                    .isNotEqualTo(VirtualMethodCategory.TEMPORAL_METHOD);
-        }
-
-        @Test
-        void categorize_isBooleanGetter_returnsGetterNotOther() {
-            var insn = createMethodInsn(INVOKEVIRTUAL, "com/example/Entity", "isActive", "()Z");
-
-            var category = VirtualMethodCategory.categorize(insn, handler);
-
-            assertThat(category)
-                    .as("isActive() must categorize as GETTER")
-                    .isEqualTo(VirtualMethodCategory.GETTER)
-                    .isNotEqualTo(VirtualMethodCategory.UNHANDLED);
-        }
-
-        @Test
-        void categorize_stringLength_returnsStringMethodNotOther() {
-            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "length", "()I");
-
-            var category = VirtualMethodCategory.categorize(insn, handler);
-
-            assertThat(category)
-                    .as("String.length() must categorize as STRING_METHOD")
-                    .isEqualTo(VirtualMethodCategory.STRING_METHOD)
-                    .isNotEqualTo(VirtualMethodCategory.GETTER)
-                    .isNotEqualTo(VirtualMethodCategory.TEMPORAL_METHOD);
-        }
-
-        @Test
-        void categorize_unknownMethod_returnsUnhandledNotOther() {
-            var insn = createMethodInsn(INVOKEVIRTUAL, "com/example/Custom", "doSomething", "(I)V");
-
-            var category = VirtualMethodCategory.categorize(insn, handler);
-
-            assertThat(category)
-                    .as("Unknown method must categorize as UNHANDLED")
-                    .isEqualTo(VirtualMethodCategory.UNHANDLED)
-                    .isNotEqualTo(VirtualMethodCategory.GETTER)
-                    .isNotEqualTo(VirtualMethodCategory.STRING_METHOD);
+        static Stream<Arguments> categoryMutationTestCases() {
+            return Stream.of(
+                    Arguments.of("java/lang/Object", "equals", "(Ljava/lang/Object;)Z",
+                            VirtualMethodCategory.EQUALS,
+                            new VirtualMethodCategory[]{VirtualMethodCategory.STRING_METHOD,
+                                    VirtualMethodCategory.GETTER, VirtualMethodCategory.COMPARE_TO}),
+                    Arguments.of("java/lang/Integer", "compareTo", "(Ljava/lang/Integer;)I",
+                            VirtualMethodCategory.COMPARE_TO,
+                            new VirtualMethodCategory[]{VirtualMethodCategory.EQUALS,
+                                    VirtualMethodCategory.BIG_DECIMAL_ARITHMETIC}),
+                    Arguments.of("java/math/BigDecimal", "add", "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;",
+                            VirtualMethodCategory.BIG_DECIMAL_ARITHMETIC,
+                            new VirtualMethodCategory[]{VirtualMethodCategory.COMPARE_TO,
+                                    VirtualMethodCategory.STRING_METHOD}),
+                    Arguments.of("java/time/LocalDate", "getYear", "()I",
+                            VirtualMethodCategory.TEMPORAL_METHOD,
+                            new VirtualMethodCategory[]{VirtualMethodCategory.GETTER,
+                                    VirtualMethodCategory.STRING_METHOD}),
+                    Arguments.of("com/example/Entity", "getName", "()Ljava/lang/String;",
+                            VirtualMethodCategory.GETTER,
+                            new VirtualMethodCategory[]{VirtualMethodCategory.STRING_METHOD,
+                                    VirtualMethodCategory.TEMPORAL_METHOD}),
+                    Arguments.of("com/example/Entity", "isActive", "()Z",
+                            VirtualMethodCategory.GETTER,
+                            new VirtualMethodCategory[]{VirtualMethodCategory.UNHANDLED}),
+                    Arguments.of("java/lang/String", "length", "()I",
+                            VirtualMethodCategory.STRING_METHOD,
+                            new VirtualMethodCategory[]{VirtualMethodCategory.GETTER,
+                                    VirtualMethodCategory.TEMPORAL_METHOD}),
+                    Arguments.of("com/example/Custom", "doSomething", "(I)V",
+                            VirtualMethodCategory.UNHANDLED,
+                            new VirtualMethodCategory[]{VirtualMethodCategory.GETTER,
+                                    VirtualMethodCategory.STRING_METHOD})
+            );
         }
     }
 

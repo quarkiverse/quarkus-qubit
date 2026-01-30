@@ -5,7 +5,7 @@ import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.cannotGet
 import io.quarkus.gizmo.ResultHandle;
 
 import java.util.Objects;
-import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 /**
  * Sealed result type for method call expression generation.
@@ -52,7 +52,7 @@ public sealed interface GenerationResult permits
     }
 
     /** Maps the Success value, passing through Unsupported unchanged. */
-    default GenerationResult map(Function<ResultHandle, ResultHandle> mapper) {
+    default GenerationResult map(UnaryOperator<ResultHandle> mapper) {
         return switch (this) {
             case Success(var value) -> new Success(mapper.apply(value));
             case Unsupported u -> u;

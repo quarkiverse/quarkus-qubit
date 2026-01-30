@@ -522,7 +522,7 @@ class BranchExpressionCombinerTest {
             BranchExpressionCombiner.performCombination(stack, expression, ctx);
 
             // Should have merged: (A && B) OR (C && D) combined with E
-            assertThat(stack.size()).isGreaterThanOrEqualTo(1);
+            assertThat(stack).hasSizeGreaterThanOrEqualTo(1);
         }
 
         @Test

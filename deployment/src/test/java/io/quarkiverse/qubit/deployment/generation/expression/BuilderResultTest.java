@@ -108,8 +108,9 @@ class BuilderResultTest {
         void notApplicableFactory() {
             BuilderResult result = BuilderResult.notApplicable();
 
-            assertThat(result).isSameAs(BuilderResult.NOT_APPLICABLE);
-            assertThat(result).isInstanceOf(BuilderResult.NotApplicable.class);
+            assertThat(result)
+                    .isSameAs(BuilderResult.NOT_APPLICABLE)
+                    .isInstanceOf(BuilderResult.NotApplicable.class);
         }
 
         @Test

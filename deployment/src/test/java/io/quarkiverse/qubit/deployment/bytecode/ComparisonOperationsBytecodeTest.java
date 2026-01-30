@@ -2,8 +2,12 @@ package io.quarkiverse.qubit.deployment.bytecode;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.math.BigDecimal;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -16,271 +20,133 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>Uses pre-compiled lambda sources from {@link LambdaTestSources} for
  * reliable bytecode generation and analysis.
+ *
+ * <p>This class uses JUnit 5 parameterized tests to consolidate repetitive
+ * test patterns, reducing code duplication while maintaining full coverage.
  */
 class ComparisonOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
 
-    // ==================== INTEGER COMPARISONS ====================
+    // ==================== PARAMETERIZED TEST DATA ====================
 
-    @Test
-    void integerGreaterThan() {
-        LambdaExpression expr = analyzeLambda("integerGreaterThan");
+    /**
+     * Test data for simple binary comparison operations.
+     * Each entry: methodName, expectedOperator, expectedFieldName, expectedConstant
+     */
+    static Stream<Arguments> simpleBinaryComparisons() {
+        return Stream.of(
+                // Integer comparisons
+                Arguments.of("integerGreaterThan", LambdaExpression.BinaryOp.Operator.GT, "age", 30),
+                Arguments.of("integerGreaterThanOrEqual", LambdaExpression.BinaryOp.Operator.GE, "age", 30),
+                Arguments.of("integerLessThan", LambdaExpression.BinaryOp.Operator.LT, "age", 30),
+                Arguments.of("integerLessThanOrEqual", LambdaExpression.BinaryOp.Operator.LE, "age", 30),
+                Arguments.of("integerNotEquals", LambdaExpression.BinaryOp.Operator.NE, "age", 30),
 
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.GT);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "age");
-        assertConstant(binOp.right(), 30);
+                // Long comparisons
+                Arguments.of("longGreaterThan", LambdaExpression.BinaryOp.Operator.GT, "employeeId", 1000003L),
+                Arguments.of("longGreaterThanOrEqual", LambdaExpression.BinaryOp.Operator.GE, "employeeId", 1000002L),
+                Arguments.of("longLessThan", LambdaExpression.BinaryOp.Operator.LT, "employeeId", 1000003L),
+                Arguments.of("longLessThanOrEqual", LambdaExpression.BinaryOp.Operator.LE, "employeeId", 1000003L),
+                Arguments.of("longNotEquals", LambdaExpression.BinaryOp.Operator.NE, "employeeId", 1000001L),
+
+                // Float comparisons
+                Arguments.of("floatGreaterThan", LambdaExpression.BinaryOp.Operator.GT, "height", 1.70f),
+                Arguments.of("floatGreaterThanOrEqual", LambdaExpression.BinaryOp.Operator.GE, "height", 1.70f),
+                Arguments.of("floatLessThan", LambdaExpression.BinaryOp.Operator.LT, "height", 1.70f),
+                Arguments.of("floatLessThanOrEqual", LambdaExpression.BinaryOp.Operator.LE, "height", 1.75f),
+                Arguments.of("floatNotEquals", LambdaExpression.BinaryOp.Operator.NE, "height", 1.75f),
+
+                // Double comparisons
+                Arguments.of("doubleGreaterThan", LambdaExpression.BinaryOp.Operator.GT, "salary", 70000.0),
+                Arguments.of("doubleGreaterThanOrEqual", LambdaExpression.BinaryOp.Operator.GE, "salary", 75000.0),
+                Arguments.of("doubleLessThan", LambdaExpression.BinaryOp.Operator.LT, "salary", 80000.0),
+                Arguments.of("doubleLessThanOrEqual", LambdaExpression.BinaryOp.Operator.LE, "salary", 75000.0),
+                Arguments.of("doubleNotEquals", LambdaExpression.BinaryOp.Operator.NE, "salary", 75000.0)
+        );
     }
 
-    @Test
-    void integerGreaterThanOrEqual() {
-        LambdaExpression expr = analyzeLambda("integerGreaterThanOrEqual");
-
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.GE);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "age");
-        assertConstant(binOp.right(), 30);
+    /**
+     * Test data for BigDecimal comparisons (excluding notEquals which has special handling).
+     * Each entry: methodName, expectedOperator, expectedFieldName, expectedConstant
+     */
+    static Stream<Arguments> bigDecimalComparisons() {
+        return Stream.of(
+                Arguments.of("bigDecimalGreaterThan", LambdaExpression.BinaryOp.Operator.GT, "price", new BigDecimal("500")),
+                Arguments.of("bigDecimalGreaterThanOrEqual", LambdaExpression.BinaryOp.Operator.GE, "price", new BigDecimal("500")),
+                Arguments.of("bigDecimalLessThan", LambdaExpression.BinaryOp.Operator.LT, "price", new BigDecimal("1000")),
+                Arguments.of("bigDecimalLessThanOrEqual", LambdaExpression.BinaryOp.Operator.LE, "price", new BigDecimal("300"))
+        );
     }
 
-    @Test
-    void integerLessThan() {
-        LambdaExpression expr = analyzeLambda("integerLessThan");
-
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.LT);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "age");
-        assertConstant(binOp.right(), 30);
+    /**
+     * Test data for temporal comparisons (isAfter/isBefore).
+     * Each entry: methodName, expectedMethodName, expectedFieldName
+     */
+    static Stream<Arguments> temporalComparisons() {
+        return Stream.of(
+                Arguments.of("localDateAfter", "isAfter", "birthDate"),
+                Arguments.of("localDateBefore", "isBefore", "birthDate"),
+                Arguments.of("localDateTimeAfter", "isAfter", "createdAt"),
+                Arguments.of("localDateTimeBefore", "isBefore", "createdAt"),
+                Arguments.of("localTimeAfter", "isAfter", "startTime"),
+                Arguments.of("localTimeBefore", "isBefore", "startTime")
+        );
     }
 
-    @Test
-    void integerLessThanOrEqual() {
-        LambdaExpression expr = analyzeLambda("integerLessThanOrEqual");
-
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.LE);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "age");
-        assertConstant(binOp.right(), 30);
+    /**
+     * Test data for range queries (compound AND expressions).
+     * Each entry: methodName, leftOperator, rightOperator
+     */
+    static Stream<Arguments> rangeQueries() {
+        return Stream.of(
+                Arguments.of("integerRangeQuery", LambdaExpression.BinaryOp.Operator.GE, LambdaExpression.BinaryOp.Operator.LE),
+                Arguments.of("longRangeQuery", LambdaExpression.BinaryOp.Operator.GE, LambdaExpression.BinaryOp.Operator.LE),
+                Arguments.of("floatRangeQuery", LambdaExpression.BinaryOp.Operator.GE, LambdaExpression.BinaryOp.Operator.LE),
+                Arguments.of("bigDecimalRangeQuery", LambdaExpression.BinaryOp.Operator.GE, LambdaExpression.BinaryOp.Operator.LE)
+        );
     }
 
-    @Test
-    void integerNotEquals() {
-        LambdaExpression expr = analyzeLambda("integerNotEquals");
+    // ==================== PARAMETERIZED TESTS ====================
 
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.NE);
+    @ParameterizedTest(name = "{0}: field {2} {1} {3}")
+    @MethodSource("simpleBinaryComparisons")
+    void simpleBinaryComparison(
+            String methodName,
+            LambdaExpression.BinaryOp.Operator expectedOperator,
+            String expectedFieldName,
+            Object expectedConstant) {
+
+        LambdaExpression expr = analyzeLambda(methodName);
+
+        assertBinaryOp(expr, expectedOperator);
         LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "age");
-        assertConstant(binOp.right(), 30);
+        assertFieldAccess(binOp.left(), expectedFieldName);
+        assertConstant(binOp.right(), expectedConstant);
     }
 
-    // ==================== LONG COMPARISONS ====================
+    @ParameterizedTest(name = "{0}: field {2} {1} {3}")
+    @MethodSource("bigDecimalComparisons")
+    void bigDecimalComparison(
+            String methodName,
+            LambdaExpression.BinaryOp.Operator expectedOperator,
+            String expectedFieldName,
+            BigDecimal expectedConstant) {
 
-    @Test
-    void longGreaterThan() {
-        LambdaExpression expr = analyzeLambda("longGreaterThan");
-
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.GT);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "employeeId");
-        assertConstant(binOp.right(), 1000003L);
-    }
-
-    @Test
-    void longGreaterThanOrEqual() {
-        LambdaExpression expr = analyzeLambda("longGreaterThanOrEqual");
-
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.GE);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "employeeId");
-        assertConstant(binOp.right(), 1000002L);
-    }
-
-    @Test
-    void longLessThan() {
-        LambdaExpression expr = analyzeLambda("longLessThan");
-
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.LT);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "employeeId");
-        assertConstant(binOp.right(), 1000003L);
-    }
-
-    @Test
-    void longLessThanOrEqual() {
-        LambdaExpression expr = analyzeLambda("longLessThanOrEqual");
-
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.LE);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "employeeId");
-        assertConstant(binOp.right(), 1000003L);
-    }
-
-    @Test
-    void longNotEquals() {
-        LambdaExpression expr = analyzeLambda("longNotEquals");
-
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.NE);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "employeeId");
-        assertConstant(binOp.right(), 1000001L);
-    }
-
-    // ==================== FLOAT COMPARISONS ====================
-
-    @Test
-    void floatGreaterThan() {
-        LambdaExpression expr = analyzeLambda("floatGreaterThan");
-
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.GT);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "height");
-        assertConstant(binOp.right(), 1.70f);
-    }
-
-    @Test
-    void floatGreaterThanOrEqual() {
-        LambdaExpression expr = analyzeLambda("floatGreaterThanOrEqual");
-
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.GE);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "height");
-        assertConstant(binOp.right(), 1.70f);
-    }
-
-    @Test
-    void floatLessThan() {
-        LambdaExpression expr = analyzeLambda("floatLessThan");
-
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.LT);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "height");
-        assertConstant(binOp.right(), 1.70f);
-    }
-
-    @Test
-    void floatLessThanOrEqual() {
-        LambdaExpression expr = analyzeLambda("floatLessThanOrEqual");
-
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.LE);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "height");
-        assertConstant(binOp.right(), 1.75f);
-    }
-
-    @Test
-    void floatNotEquals() {
-        LambdaExpression expr = analyzeLambda("floatNotEquals");
-
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.NE);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "height");
-        assertConstant(binOp.right(), 1.75f);
-    }
-
-    // ==================== DOUBLE COMPARISONS ====================
-
-    @Test
-    void doubleGreaterThan() {
-        LambdaExpression expr = analyzeLambda("doubleGreaterThan");
-
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.GT);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "salary");
-        assertConstant(binOp.right(), 70000.0);
-    }
-
-    @Test
-    void doubleGreaterThanOrEqual() {
-        LambdaExpression expr = analyzeLambda("doubleGreaterThanOrEqual");
-
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.GE);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "salary");
-        assertConstant(binOp.right(), 75000.0);
-    }
-
-    @Test
-    void doubleLessThan() {
-        LambdaExpression expr = analyzeLambda("doubleLessThan");
-
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.LT);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "salary");
-        assertConstant(binOp.right(), 80000.0);
-    }
-
-    @Test
-    void doubleLessThanOrEqual() {
-        LambdaExpression expr = analyzeLambda("doubleLessThanOrEqual");
-
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.LE);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "salary");
-        assertConstant(binOp.right(), 75000.0);
-    }
-
-    @Test
-    void doubleNotEquals() {
-        LambdaExpression expr = analyzeLambda("doubleNotEquals");
-
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.NE);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "salary");
-        assertConstant(binOp.right(), 75000.0);
-    }
-
-    // ==================== BIGDECIMAL COMPARISONS ====================
-
-    @Test
-    void bigDecimalGreaterThan() {
-        LambdaExpression expr = analyzeLambda("bigDecimalGreaterThan");
+        LambdaExpression expr = analyzeLambda(methodName);
 
         // The analyzer transforms: p.price.compareTo(new BigDecimal("500")) > 0
         // Into the optimized form: p.price > new BigDecimal("500")
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.GT);
+        assertBinaryOp(expr, expectedOperator);
         LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-
-        assertFieldAccess(binOp.left(), "price");
-        assertConstant(binOp.right(), new BigDecimal("500"));
-    }
-
-    @Test
-    void bigDecimalGreaterThanOrEqual() {
-        LambdaExpression expr = analyzeLambda("bigDecimalGreaterThanOrEqual");
-
-        // Transformed: p.price >= new BigDecimal("500")
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.GE);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "price");
-        assertConstant(binOp.right(), new BigDecimal("500"));
-    }
-
-    @Test
-    void bigDecimalLessThan() {
-        LambdaExpression expr = analyzeLambda("bigDecimalLessThan");
-
-        // Transformed: p.price < new BigDecimal("1000")
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.LT);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "price");
-        assertConstant(binOp.right(), new BigDecimal("1000"));
-    }
-
-    @Test
-    void bigDecimalLessThanOrEqual() {
-        LambdaExpression expr = analyzeLambda("bigDecimalLessThanOrEqual");
-
-        // Transformed: p.price <= new BigDecimal("300")
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.LE);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "price");
-        assertConstant(binOp.right(), new BigDecimal("300"));
+        assertFieldAccess(binOp.left(), expectedFieldName);
+        assertConstant(binOp.right(), expectedConstant);
     }
 
     @Test
     void bigDecimalNotEquals() {
+        // Special case: compareTo() != 0 is represented as compareTo(...) == true
+        // This is how the bytecode analyzer represents "non-zero result"
         LambdaExpression expr = analyzeLambda("bigDecimalNotEquals");
 
-        // Note: compareTo() != 0 is represented as compareTo(...) == true
-        // This is how the bytecode analyzer represents "non-zero result"
         assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.EQ);
         LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
 
@@ -293,112 +159,38 @@ class ComparisonOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         assertConstant(binOp.right(), true);
     }
 
-    // ==================== TEMPORAL COMPARISONS ====================
+    @ParameterizedTest(name = "{0}: {2}.{1}()")
+    @MethodSource("temporalComparisons")
+    void temporalComparison(
+            String methodName,
+            String expectedMethodName,
+            String expectedFieldName) {
 
-    @Test
-    void localDateAfter() {
-        LambdaExpression expr = analyzeLambda("localDateAfter");
+        LambdaExpression expr = analyzeLambda(methodName);
 
-        assertMethodCall(expr, "isAfter");
+        assertMethodCall(expr, expectedMethodName);
         LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) expr;
-        assertFieldAccess(methodCall.target(), "birthDate");
+        assertFieldAccess(methodCall.target(), expectedFieldName);
         assertThat(methodCall.arguments()).hasSize(1);
     }
 
-    @Test
-    void localDateBefore() {
-        LambdaExpression expr = analyzeLambda("localDateBefore");
+    @ParameterizedTest(name = "{0}: left {1}, right {2}")
+    @MethodSource("rangeQueries")
+    void rangeQuery(
+            String methodName,
+            LambdaExpression.BinaryOp.Operator expectedLeftOperator,
+            LambdaExpression.BinaryOp.Operator expectedRightOperator) {
 
-        assertMethodCall(expr, "isBefore");
-        LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) expr;
-        assertFieldAccess(methodCall.target(), "birthDate");
-        assertThat(methodCall.arguments()).hasSize(1);
-    }
-
-    @Test
-    void localDateTimeAfter() {
-        LambdaExpression expr = analyzeLambda("localDateTimeAfter");
-
-        assertMethodCall(expr, "isAfter");
-        LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) expr;
-        assertFieldAccess(methodCall.target(), "createdAt");
-        assertThat(methodCall.arguments()).hasSize(1);
-    }
-
-    @Test
-    void localDateTimeBefore() {
-        LambdaExpression expr = analyzeLambda("localDateTimeBefore");
-
-        assertMethodCall(expr, "isBefore");
-        LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) expr;
-        assertFieldAccess(methodCall.target(), "createdAt");
-        assertThat(methodCall.arguments()).hasSize(1);
-    }
-
-    @Test
-    void localTimeAfter() {
-        LambdaExpression expr = analyzeLambda("localTimeAfter");
-
-        assertMethodCall(expr, "isAfter");
-        LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) expr;
-        assertFieldAccess(methodCall.target(), "startTime");
-        assertThat(methodCall.arguments()).hasSize(1);
-    }
-
-    @Test
-    void localTimeBefore() {
-        LambdaExpression expr = analyzeLambda("localTimeBefore");
-
-        assertMethodCall(expr, "isBefore");
-        LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) expr;
-        assertFieldAccess(methodCall.target(), "startTime");
-        assertThat(methodCall.arguments()).hasSize(1);
-    }
-
-    // ==================== RANGE QUERIES ====================
-
-    @Test
-    void integerRangeQuery() {
-        LambdaExpression expr = analyzeLambda("integerRangeQuery");
+        LambdaExpression expr = analyzeLambda(methodName);
 
         // Top level should be AND
         assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.AND);
         LambdaExpression.BinaryOp andOp = (LambdaExpression.BinaryOp) expr;
 
-        // Left: age >= 25
-        assertBinaryOp(andOp.left(), LambdaExpression.BinaryOp.Operator.GE);
+        // Left: first comparison (e.g., age >= 25)
+        assertBinaryOp(andOp.left(), expectedLeftOperator);
 
-        // Right: age <= 35
-        assertBinaryOp(andOp.right(), LambdaExpression.BinaryOp.Operator.LE);
-    }
-
-    @Test
-    void longRangeQuery() {
-        LambdaExpression expr = analyzeLambda("longRangeQuery");
-
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.AND);
-        LambdaExpression.BinaryOp andOp = (LambdaExpression.BinaryOp) expr;
-        assertBinaryOp(andOp.left(), LambdaExpression.BinaryOp.Operator.GE);
-        assertBinaryOp(andOp.right(), LambdaExpression.BinaryOp.Operator.LE);
-    }
-
-    @Test
-    void floatRangeQuery() {
-        LambdaExpression expr = analyzeLambda("floatRangeQuery");
-
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.AND);
-        LambdaExpression.BinaryOp andOp = (LambdaExpression.BinaryOp) expr;
-        assertBinaryOp(andOp.left(), LambdaExpression.BinaryOp.Operator.GE);
-        assertBinaryOp(andOp.right(), LambdaExpression.BinaryOp.Operator.LE);
-    }
-
-    @Test
-    void bigDecimalRangeQuery() {
-        LambdaExpression expr = analyzeLambda("bigDecimalRangeQuery");
-
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.AND);
-        LambdaExpression.BinaryOp andOp = (LambdaExpression.BinaryOp) expr;
-        assertBinaryOp(andOp.left(), LambdaExpression.BinaryOp.Operator.GE);
-        assertBinaryOp(andOp.right(), LambdaExpression.BinaryOp.Operator.LE);
+        // Right: second comparison (e.g., age <= 35)
+        assertBinaryOp(andOp.right(), expectedRightOperator);
     }
 }

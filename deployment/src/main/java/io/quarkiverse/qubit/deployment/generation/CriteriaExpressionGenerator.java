@@ -40,6 +40,8 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.MemberOfExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.ScalarSubquery;
+import io.quarkiverse.qubit.deployment.generation.expression.BiEntityBaseContext;
+import io.quarkiverse.qubit.deployment.generation.expression.BiEntitySubqueryContext;
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionBuilderRegistry;
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionGeneratorHelper;
 import io.quarkiverse.qubit.deployment.generation.methodcall.GenerationResult;
@@ -832,7 +834,8 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle join,
             ResultHandle capturedValues) {
 
-        return builderRegistry.biEntityBuilder().generateBiEntityPredicate(method, expression, cb, root, join, capturedValues, this);
+        var ctx = new BiEntityBaseContext(method, cb, root, join, capturedValues, this);
+        return builderRegistry.biEntityBuilder().generateBiEntityPredicate(ctx, expression);
     }
 
     /** Generates bi-entity JPA Predicate with subquery support. */
@@ -845,7 +848,8 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle join,
             ResultHandle capturedValues) {
 
-        return builderRegistry.biEntityBuilder().generateBiEntityPredicateWithSubqueries(method, expression, cb, query, root, join, capturedValues, this);
+        var ctx = new BiEntitySubqueryContext(method, cb, query, root, join, capturedValues, this);
+        return builderRegistry.biEntityBuilder().generateBiEntityPredicateWithSubqueries(ctx, expression);
     }
 
     /** Generates JPA Expression from bi-entity lambda. */
@@ -857,7 +861,8 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle join,
             ResultHandle capturedValues) {
 
-        return builderRegistry.biEntityBuilder().generateBiEntityExpressionAsJpaExpression(method, expression, cb, root, join, capturedValues, this);
+        var ctx = new BiEntityBaseContext(method, cb, root, join, capturedValues, this);
+        return builderRegistry.biEntityBuilder().generateBiEntityExpressionAsJpaExpression(ctx, expression);
     }
 
     // ========== Bi-Entity Projections ==========
@@ -871,7 +876,8 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             ResultHandle join,
             ResultHandle capturedValues) {
 
-        return builderRegistry.biEntityBuilder().generateBiEntityProjection(method, expression, cb, root, join, capturedValues, this);
+        var ctx = new BiEntityBaseContext(method, cb, root, join, capturedValues, this);
+        return builderRegistry.biEntityBuilder().generateBiEntityProjection(ctx, expression);
     }
 
     // ========== Group Expressions (GROUP BY) ==========

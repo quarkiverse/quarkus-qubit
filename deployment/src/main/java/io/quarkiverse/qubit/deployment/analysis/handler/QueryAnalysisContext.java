@@ -6,7 +6,10 @@ import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator;
 import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Arrays;
 import java.util.Objects;
+
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.CALL_SITE_ID_NULL;
 
 /**
  * Context for query-level lambda bytecode analysis.
@@ -24,7 +27,7 @@ public record QueryAnalysisContext(
     public QueryAnalysisContext {
         Objects.requireNonNull(classBytes, "Class bytes cannot be null");
         Objects.requireNonNull(callSite, "Call site cannot be null");
-        Objects.requireNonNull(callSiteId, "Call site ID cannot be null");
+        Objects.requireNonNull(callSiteId, CALL_SITE_ID_NULL);
         Objects.requireNonNull(bytecodeAnalyzer, "Bytecode analyzer cannot be null");
         Objects.requireNonNull(deduplicator, "Deduplicator cannot be null");
         // metricsCollector can be null
@@ -59,5 +62,41 @@ public record QueryAnalysisContext(
                 bytecodeAnalyzer,
                 deduplicator,
                 metricsCollector);
+    }
+
+    // Override equals/hashCode/toString to handle byte[] array content properly
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof QueryAnalysisContext(
+                var thatClassBytes, var thatCallSite, var thatCallSiteId,
+                var thatBytecodeAnalyzer, var thatDeduplicator, var thatMetricsCollector))) {
+            return false;
+        }
+        return Arrays.equals(classBytes, thatClassBytes) &&
+               Objects.equals(callSite, thatCallSite) &&
+               Objects.equals(callSiteId, thatCallSiteId) &&
+               Objects.equals(bytecodeAnalyzer, thatBytecodeAnalyzer) &&
+               Objects.equals(deduplicator, thatDeduplicator) &&
+               Objects.equals(metricsCollector, thatMetricsCollector);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hash(callSite, callSiteId, bytecodeAnalyzer, deduplicator, metricsCollector);
+        result = 31 * result + Arrays.hashCode(classBytes);
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return "QueryAnalysisContext[" +
+               "classBytes=" + classBytes.length + " bytes, " +
+               "callSite=" + callSite + ", " +
+               "callSiteId=" + callSiteId + ", " +
+               "bytecodeAnalyzer=" + bytecodeAnalyzer + ", " +
+               "deduplicator=" + deduplicator + ", " +
+               "metricsCollector=" + metricsCollector + ']';
     }
 }

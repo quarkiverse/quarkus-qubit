@@ -150,6 +150,11 @@ public final class QubitConstants {
     public static final String BI_QUERY_SPEC_DESCRIPTOR = "Lio/quarkiverse/qubit/BiQuerySpec;";
     public static final String GROUP_QUERY_SPEC_DESCRIPTOR = "Lio/quarkiverse/qubit/GroupQuerySpec;";
 
+    // Fluent API method descriptors (QuerySpec -> Stream)
+    public static final String DESC_QUERY_SPEC_TO_STREAM = "(Lio/quarkiverse/qubit/QuerySpec;)Lio/quarkiverse/qubit/QubitStream;";
+    public static final String DESC_QUERY_SPEC_TO_JOIN_STREAM = "(Lio/quarkiverse/qubit/QuerySpec;)Lio/quarkiverse/qubit/JoinStream;";
+    public static final String DESC_QUERY_SPEC_TO_GROUP_STREAM = "(Lio/quarkiverse/qubit/QuerySpec;)Lio/quarkiverse/qubit/GroupStream;";
+
     // Standard Java method names for lambda expression analysis
     public static final String METHOD_DOUBLE_VALUE = "doubleValue";
     public static final String METHOD_INT_VALUE = "intValue";

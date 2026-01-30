@@ -93,66 +93,62 @@ public final class CapturedVariableHelper {
         }
 
         return switch (expression) {
-            case LambdaExpression.CapturedVariable capturedVar ->
-                new LambdaExpression.CapturedVariable(capturedVar.index() + offset, capturedVar.type());
+            case LambdaExpression.CapturedVariable(var index, var type, var name) ->
+                new LambdaExpression.CapturedVariable(index + offset, type, name);
 
-            case LambdaExpression.BinaryOp binOp ->
+            case LambdaExpression.BinaryOp(var left, var operator, var right) ->
                 new LambdaExpression.BinaryOp(
-                        renumberCapturedVariables(binOp.left(), offset),
-                        binOp.operator(),
-                        renumberCapturedVariables(binOp.right(), offset));
+                        renumberCapturedVariables(left, offset),
+                        operator,
+                        renumberCapturedVariables(right, offset));
 
-            case LambdaExpression.UnaryOp unaryOp ->
+            case LambdaExpression.UnaryOp(var operator, var operand) ->
                 new LambdaExpression.UnaryOp(
-                        unaryOp.operator(),
-                        renumberCapturedVariables(unaryOp.operand(), offset));
+                        operator,
+                        renumberCapturedVariables(operand, offset));
 
-            case LambdaExpression.MethodCall methodCall -> {
-                LambdaExpression newTarget = renumberCapturedVariables(methodCall.target(), offset);
+            case LambdaExpression.MethodCall(var target, var methodName, var arguments, var returnType) -> {
+                LambdaExpression newTarget = renumberCapturedVariables(target, offset);
                 List<LambdaExpression> newArgs = new ArrayList<>();
-                for (LambdaExpression arg : methodCall.arguments()) {
+                for (LambdaExpression arg : arguments) {
                     newArgs.add(renumberCapturedVariables(arg, offset));
                 }
-                yield new LambdaExpression.MethodCall(newTarget, methodCall.methodName(), newArgs, methodCall.returnType());
+                yield new LambdaExpression.MethodCall(newTarget, methodName, newArgs, returnType);
             }
 
-            case LambdaExpression.ConstructorCall constructorCall -> {
+            case LambdaExpression.ConstructorCall(var className, var arguments, var resultType) -> {
                 List<LambdaExpression> newArgs = new ArrayList<>();
-                for (LambdaExpression arg : constructorCall.arguments()) {
+                for (LambdaExpression arg : arguments) {
                     newArgs.add(renumberCapturedVariables(arg, offset));
                 }
-                yield new LambdaExpression.ConstructorCall(constructorCall.className(), newArgs, constructorCall.resultType());
+                yield new LambdaExpression.ConstructorCall(className, newArgs, resultType);
             }
 
-            case LambdaExpression.Cast cast ->
-                new LambdaExpression.Cast(renumberCapturedVariables(cast.expression(), offset), cast.targetType());
+            case LambdaExpression.Cast(var innerExpr, var targetType) ->
+                new LambdaExpression.Cast(renumberCapturedVariables(innerExpr, offset), targetType);
 
-            case LambdaExpression.InstanceOf instanceOf ->
-                new LambdaExpression.InstanceOf(renumberCapturedVariables(instanceOf.expression(), offset), instanceOf.targetType());
+            case LambdaExpression.InstanceOf(var innerExpr, var targetType) ->
+                new LambdaExpression.InstanceOf(renumberCapturedVariables(innerExpr, offset), targetType);
 
-            case LambdaExpression.Conditional conditional ->
+            case LambdaExpression.Conditional(var condition, var trueValue, var falseValue) ->
                 new LambdaExpression.Conditional(
-                        renumberCapturedVariables(conditional.condition(), offset),
-                        renumberCapturedVariables(conditional.trueValue(), offset),
-                        renumberCapturedVariables(conditional.falseValue(), offset));
+                        renumberCapturedVariables(condition, offset),
+                        renumberCapturedVariables(trueValue, offset),
+                        renumberCapturedVariables(falseValue, offset));
 
-            case LambdaExpression.InExpression inExpr ->
+            case LambdaExpression.InExpression(var field, var collection, var negated) ->
                 new LambdaExpression.InExpression(
-                        renumberCapturedVariables(inExpr.field(), offset),
-                        renumberCapturedVariables(inExpr.collection(), offset),
-                        inExpr.negated());
+                        renumberCapturedVariables(field, offset),
+                        renumberCapturedVariables(collection, offset),
+                        negated);
 
-            case LambdaExpression.MemberOfExpression memberOfExpr ->
+            case LambdaExpression.MemberOfExpression(var value, var collectionField, var negated) ->
                 new LambdaExpression.MemberOfExpression(
-                        renumberCapturedVariables(memberOfExpr.value(), offset),
-                        renumberCapturedVariables(memberOfExpr.collectionField(), offset),
-                        memberOfExpr.negated());
+                        renumberCapturedVariables(value, offset),
+                        renumberCapturedVariables(collectionField, offset),
+                        negated);
 
-            // No captured variables - return as-is (multi-pattern `_` requires Java 21 preview)
-            case LambdaExpression.PathExpression ignored1 -> expression;
-            case LambdaExpression.BiEntityFieldAccess ignored2 -> expression;
-            case LambdaExpression.BiEntityPathExpression ignored3 -> expression;
-            case LambdaExpression.BiEntityParameter ignored4 -> expression;
+            // No captured variables - return as-is
             default -> expression;
         };
     }

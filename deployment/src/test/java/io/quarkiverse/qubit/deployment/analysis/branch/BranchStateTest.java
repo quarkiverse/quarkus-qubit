@@ -1,9 +1,15 @@
 package io.quarkiverse.qubit.deployment.analysis.branch;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.AND;
@@ -17,832 +23,404 @@ import static org.assertj.core.api.Assertions.assertThat;
  * during branch instruction analysis.
  *
  * <p>Note: This test class uses the package-private {@link BranchStateTestingAPI} interface
- * to test the state machine logic in isolation. The {@code transition()} and
- * {@code determineCombineOperator()} methods are not part of the public {@link BranchState}
- * API and are accessible only for testing purposes within the same package.
+ * to test the state machine logic in isolation.
  */
+@DisplayName("BranchState")
 class BranchStateTest {
+
+    // ==================== Test Fixtures ====================
+
+    private static final LambdaExpression.Constant TRUE_CONST =
+            new LambdaExpression.Constant(true, boolean.class);
+    private static final LambdaExpression.Constant FALSE_CONST =
+            new LambdaExpression.Constant(false, boolean.class);
+    private static final LambdaExpression.Constant INT_CONST =
+            new LambdaExpression.Constant(1, int.class);
+
+    private static final LambdaExpression.BinaryOp OR_EXPR =
+            LambdaExpression.BinaryOp.or(TRUE_CONST, FALSE_CONST);
+    private static final LambdaExpression.BinaryOp AND_EXPR =
+            LambdaExpression.BinaryOp.and(TRUE_CONST, FALSE_CONST);
+    private static final LambdaExpression.BinaryOp EQ_EXPR =
+            LambdaExpression.BinaryOp.eq(INT_CONST, INT_CONST);
 
     // ==================== Initial State Tests ====================
 
-    @Test
-    void initialState_isInitialReturnsTrue() {
-        BranchState state = new BranchState.Initial();
-        assertThat(state.isInitial()).isTrue();
+    @Nested
+    @DisplayName("Initial State")
+    class InitialStateTests {
+
+        @Test
+        @DisplayName("isInitial returns true")
+        void isInitialReturnsTrue() {
+            assertThat(new BranchState.Initial().isInitial()).isTrue();
+        }
+
+        @Test
+        @DisplayName("determineCombineOperator returns null")
+        void determineCombineOperatorReturnsNull() {
+            assertThat(new BranchState.Initial().determineCombineOperator(true, null)).isNull();
+        }
+
+        @ParameterizedTest(name = "transition({0}) → {1}")
+        @MethodSource("io.quarkiverse.qubit.deployment.analysis.branch.BranchStateTest#initialTransitions")
+        @DisplayName("transitions correctly")
+        void transitionsCorrectly(boolean jumpTarget, Class<? extends BranchState> expectedType) {
+            BranchState next = new BranchState.Initial().transition(jumpTarget, false);
+            assertThat(next).isInstanceOf(expectedType);
+            assertThat(next.isInitial()).isFalse();
+        }
+
+        @Test
+        @DisplayName("afterCombination returns self")
+        void afterCombinationReturnsSelf() {
+            BranchState.Initial initial = new BranchState.Initial();
+            assertThat(initial.afterCombination(true, Optional.empty(), null)).isSameAs(initial);
+        }
     }
 
-    @Test
-    void initialState_determineCombineOperatorReturnsNull() {
-        BranchState.Initial state = new BranchState.Initial();
-
-        Operator combineOp = state.determineCombineOperator(true, null);
-
-        assertThat(combineOp).isNull();
-    }
-
-    @Test
-    void initialState_transitionToTrue_entersOrMode() {
-        BranchState.Initial initial = new BranchState.Initial();
-
-        BranchState next = initial.transition(true, false);
-
-        assertThat(next).isInstanceOf(BranchState.OrMode.class);
-        assertThat(next.isInitial()).isFalse();
-    }
-
-    @Test
-    void initialState_transitionToFalse_entersAndMode() {
-        BranchState.Initial initial = new BranchState.Initial();
-
-        BranchState next = initial.transition(false, false);
-
-        assertThat(next).isInstanceOf(BranchState.AndMode.class);
-        assertThat(next.isInitial()).isFalse();
+    static Stream<Arguments> initialTransitions() {
+        return Stream.of(
+                Arguments.of(true, BranchState.OrMode.class),
+                Arguments.of(false, BranchState.AndMode.class)
+        );
     }
 
     // ==================== AND Mode Tests ====================
 
-    @Test
-    void andMode_noHistory_determineCombineOperatorReturnsAnd() {
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.empty(), false);
+    @Nested
+    @DisplayName("AndMode")
+    class AndModeTests {
 
-        Operator combineOp = andMode.determineCombineOperator(false, null);
+        @ParameterizedTest(name = "history={0}, jumpTarget={1} → {2}")
+        @MethodSource("io.quarkiverse.qubit.deployment.analysis.branch.BranchStateTest#andModeDetermineOperator")
+        @DisplayName("determineCombineOperator without stack")
+        void determineCombineOperator(Optional<Boolean> history, boolean jumpTarget, Operator expected) {
+            BranchState.AndMode andMode = new BranchState.AndMode(history, false);
+            assertThat(andMode.determineCombineOperator(jumpTarget, null)).isEqualTo(expected);
+        }
 
-        assertThat(combineOp).isEqualTo(AND);
+        @ParameterizedTest(name = "history={0}, jumpTarget={1} → {2}")
+        @MethodSource("io.quarkiverse.qubit.deployment.analysis.branch.BranchStateTest#andModeTransitions")
+        @DisplayName("transitions correctly")
+        void transitionsCorrectly(Optional<Boolean> history, boolean jumpTarget,
+                                  Class<? extends BranchState> expectedType) {
+            BranchState next = new BranchState.AndMode(history, false).transition(jumpTarget, false);
+            assertThat(next).isInstanceOf(expectedType);
+        }
+
+        @Test
+        @DisplayName("transition does not mutate original")
+        void transitionDoesNotMutate() {
+            BranchState.AndMode original = new BranchState.AndMode(Optional.empty(), false);
+            BranchState next = original.transition(false, false);
+            assertThat(original.lastJumpTarget()).isEmpty();
+            assertThat(next).isNotSameAs(original);
+        }
+
+        @ParameterizedTest(name = "stackTop={0} → {1}")
+        @MethodSource("io.quarkiverse.qubit.deployment.analysis.branch.BranchStateTest#andModeCompletingWithStack")
+        @DisplayName("completing AND group with stack context")
+        void completingAndGroupWithStack(String stackDesc, LambdaExpression stackTop, Operator expected) {
+            BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
+            assertThat(andMode.determineCombineOperator(true, stackTop)).isEqualTo(expected);
+        }
+
+        @Test
+        @DisplayName("completing AND group with prevBooleanCheck returns null")
+        void completingWithPrevBooleanCheckReturnsNull() {
+            BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), true);
+            assertThat(andMode.determineCombineOperator(true, null)).isNull();
+        }
+
+        @ParameterizedTest(name = "nested OR in {0} subtree → AND")
+        @MethodSource("io.quarkiverse.qubit.deployment.analysis.branch.BranchStateTest#nestedOrExpressions")
+        @DisplayName("detects nested OR expressions")
+        void detectsNestedOr(String position, LambdaExpression.BinaryOp expr) {
+            BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
+            assertThat(andMode.determineCombineOperator(true, expr)).isEqualTo(AND);
+        }
     }
 
-    @Test
-    void andMode_bothFalse_combinedWithAnd() {
-        // Simulates: (a > 5) && (b > 10)
-        // Both jump to FALSE (fall-through continues)
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
-
-        Operator combineOp = andMode.determineCombineOperator(false, null);
-
-        assertThat(combineOp).isEqualTo(AND);
+    static Stream<Arguments> andModeDetermineOperator() {
+        return Stream.of(
+                // (history, jumpTarget, expectedOperator)
+                Arguments.of(Optional.empty(), false, AND),        // noHistory
+                Arguments.of(Optional.of(false), false, AND),      // bothFalse
+                Arguments.of(Optional.of(false), true, AND),       // previousFalseCurrentTrue
+                Arguments.of(Optional.of(true), true, OR),         // bothTrue
+                Arguments.of(Optional.of(true), false, AND),       // previousTrueCurrentFalse
+                Arguments.of(Optional.empty(), true, AND)          // emptyHistoryCurrentTrue
+        );
     }
 
-    @Test
-    void andMode_previousFalseCurrentTrue_completesAndGroup() {
-        // Completing nested AND group
-        // Previous: jump to FALSE (first condition in AND)
-        // Current: jump to TRUE (last condition in AND)
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
-
-        Operator combineOp = andMode.determineCombineOperator(true, null);
-
-        assertThat(combineOp).isEqualTo(AND);
+    static Stream<Arguments> andModeTransitions() {
+        return Stream.of(
+                Arguments.of(Optional.of(false), true, BranchState.OrMode.class),
+                Arguments.of(Optional.of(false), false, BranchState.AndMode.class),
+                Arguments.of(Optional.of(true), false, BranchState.AndMode.class)
+        );
     }
 
-    @Test
-    void andMode_bothTrue_combinedWithOr() {
-        // Alternative branches (OR)
-        // Previous: jump to TRUE
-        // Current: jump to TRUE
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(true), false);
-
-        Operator combineOp = andMode.determineCombineOperator(true, null);
-
-        assertThat(combineOp).isEqualTo(OR);
+    static Stream<Arguments> andModeCompletingWithStack() {
+        return Stream.of(
+                Arguments.of("null", null, AND),
+                Arguments.of("OR expression", OR_EXPR, AND),
+                Arguments.of("AND expression", AND_EXPR, OR),
+                Arguments.of("EQ expression", EQ_EXPR, AND),
+                Arguments.of("constant", TRUE_CONST, AND),
+                Arguments.of("field access", new LambdaExpression.FieldAccess("name", String.class), AND)
+        );
     }
 
-    @Test
-    void andMode_previousFalseCurrentTrue_transitionsToOrMode() {
-        // After completing AND group, enter OR mode for alternatives
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
-
-        BranchState next = andMode.transition(true, false);
-
-        assertThat(next).isInstanceOf(BranchState.OrMode.class);
-    }
-
-    @Test
-    void andMode_bothFalse_staysInAndMode() {
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
-
-        BranchState next = andMode.transition(false, false);
-
-        assertThat(next).isInstanceOf(BranchState.AndMode.class);
-    }
-
-    @Test
-    void andMode_previousTrueCurrentFalse_staysInAndMode() {
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(true), false);
-
-        BranchState next = andMode.transition(false, false);
-
-        assertThat(next).isInstanceOf(BranchState.AndMode.class);
+    static Stream<Arguments> nestedOrExpressions() {
+        LambdaExpression.BinaryOp nestedOr = LambdaExpression.BinaryOp.or(INT_CONST, INT_CONST);
+        return Stream.of(
+                Arguments.of("left", LambdaExpression.BinaryOp.and(nestedOr, INT_CONST)),
+                Arguments.of("right", LambdaExpression.BinaryOp.and(INT_CONST, nestedOr)),
+                Arguments.of("deep left", LambdaExpression.BinaryOp.and(
+                        LambdaExpression.BinaryOp.and(nestedOr, INT_CONST), INT_CONST))
+        );
     }
 
     // ==================== OR Mode Tests ====================
 
-    @Test
-    void orMode_noHistory_determineCombineOperatorReturnsOr() {
-        BranchState.OrMode orMode = new BranchState.OrMode(Optional.empty(), false);
+    @Nested
+    @DisplayName("OrMode")
+    class OrModeTests {
 
-        Operator combineOp = orMode.determineCombineOperator(true, null);
+        @ParameterizedTest(name = "history={0}, jumpTarget={1} → {2}")
+        @MethodSource("io.quarkiverse.qubit.deployment.analysis.branch.BranchStateTest#orModeDetermineOperator")
+        @DisplayName("determineCombineOperator without stack")
+        void determineCombineOperator(Optional<Boolean> history, boolean jumpTarget, Operator expected) {
+            BranchState.OrMode orMode = new BranchState.OrMode(history, false);
+            assertThat(orMode.determineCombineOperator(jumpTarget, null)).isEqualTo(expected);
+        }
 
-        assertThat(combineOp).isEqualTo(OR);
+        @ParameterizedTest(name = "history={0}, jumpTarget={1} → {2}")
+        @MethodSource("io.quarkiverse.qubit.deployment.analysis.branch.BranchStateTest#orModeTransitions")
+        @DisplayName("transitions correctly")
+        void transitionsCorrectly(Optional<Boolean> history, boolean jumpTarget,
+                                  Class<? extends BranchState> expectedType) {
+            BranchState next = new BranchState.OrMode(history, false).transition(jumpTarget, false);
+            assertThat(next).isInstanceOf(expectedType);
+        }
+
+        @Test
+        @DisplayName("transition does not mutate original")
+        void transitionDoesNotMutate() {
+            BranchState.OrMode original = new BranchState.OrMode(Optional.empty(), false);
+            BranchState next = original.transition(true, false);
+            assertThat(original.lastJumpTarget()).isEmpty();
+            assertThat(next).isNotSameAs(original);
+        }
+
+        @ParameterizedTest(name = "jumpTarget={0}, stackTop={1} → {2}")
+        @MethodSource("io.quarkiverse.qubit.deployment.analysis.branch.BranchStateTest#orModeWithStack")
+        @DisplayName("determineCombineOperator with stack context")
+        void determineCombineOperatorWithStack(boolean jumpTarget, String stackDesc,
+                                               LambdaExpression stackTop, Operator expected) {
+            BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(true), false);
+            assertThat(orMode.determineCombineOperator(jumpTarget, stackTop)).isEqualTo(expected);
+        }
+
+        @Test
+        @DisplayName("afterCombination returns self")
+        void afterCombinationReturnsSelf() {
+            BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(true), false);
+            assertThat(orMode.afterCombination(true, Optional.of(true), OR)).isSameAs(orMode);
+        }
     }
 
-    @Test
-    void orMode_bothTrue_combinedWithOr() {
-        // Alternative conditions (OR chain)
-        BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(true), false);
-
-        Operator combineOp = orMode.determineCombineOperator(true, null);
-
-        assertThat(combineOp).isEqualTo(OR);
+    static Stream<Arguments> orModeDetermineOperator() {
+        return Stream.of(
+                Arguments.of(Optional.empty(), true, OR),          // noHistory
+                Arguments.of(Optional.of(true), true, OR),         // bothTrue
+                Arguments.of(Optional.of(false), false, OR),       // bothFalse
+                Arguments.of(Optional.of(true), false, OR),        // previousTrueCurrentFalse
+                Arguments.of(Optional.of(false), true, OR)         // previousFalseCurrentTrue
+        );
     }
 
-    @Test
-    void orMode_bothFalse_combinedWithOr() {
-        // Transitioning to nested AND group, but still combine with OR first
-        BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(false), false);
-
-        Operator combineOp = orMode.determineCombineOperator(false, null);
-
-        assertThat(combineOp).isEqualTo(OR);
+    static Stream<Arguments> orModeTransitions() {
+        return Stream.of(
+                Arguments.of(Optional.of(false), false, BranchState.AndMode.class),
+                Arguments.of(Optional.of(true), false, BranchState.OrMode.class),
+                Arguments.of(Optional.of(true), true, BranchState.OrMode.class)
+        );
     }
 
-    @Test
-    void orMode_bothFalse_transitionsToAndMode() {
-        // Two FALSE jumps in a row → nested AND group
-        BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(false), false);
-
-        BranchState next = orMode.transition(false, false);
-
-        assertThat(next).isInstanceOf(BranchState.AndMode.class);
+    static Stream<Arguments> orModeWithStack() {
+        return Stream.of(
+                Arguments.of(true, "OR expression", OR_EXPR, AND),
+                Arguments.of(true, "AND expression", AND_EXPR, OR),
+                Arguments.of(true, "null", null, OR),
+                Arguments.of(true, "constant", TRUE_CONST, OR),
+                Arguments.of(false, "OR expression", OR_EXPR, OR)
+        );
     }
 
-    @Test
-    void orMode_previousTrueCurrentFalse_staysInOrMode() {
-        BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(true), false);
+    // ==================== getLastJumpTarget Tests ====================
 
-        BranchState next = orMode.transition(false, false);
+    @Nested
+    @DisplayName("getLastJumpTarget")
+    class GetLastJumpTargetTests {
 
-        assertThat(next).isInstanceOf(BranchState.OrMode.class);
+        @ParameterizedTest(name = "{0} → {1}")
+        @MethodSource("io.quarkiverse.qubit.deployment.analysis.branch.BranchStateTest#lastJumpTargetCases")
+        @DisplayName("returns correct value")
+        void returnsCorrectValue(String stateDesc, BranchState state, Optional<Boolean> expected) {
+            assertThat(state.getLastJumpTarget()).isEqualTo(expected);
+        }
     }
 
-    @Test
-    void orMode_bothTrue_staysInOrMode() {
-        BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(true), false);
+    static Stream<Arguments> lastJumpTargetCases() {
+        return Stream.of(
+                Arguments.of("Initial", new BranchState.Initial(), Optional.empty()),
+                Arguments.of("AndMode(empty)", new BranchState.AndMode(Optional.empty(), false), Optional.empty()),
+                Arguments.of("AndMode(true)", new BranchState.AndMode(Optional.of(true), false), Optional.of(true)),
+                Arguments.of("AndMode(false)", new BranchState.AndMode(Optional.of(false), false), Optional.of(false)),
+                Arguments.of("OrMode(empty)", new BranchState.OrMode(Optional.empty(), false), Optional.empty()),
+                Arguments.of("OrMode(true)", new BranchState.OrMode(Optional.of(true), false), Optional.of(true)),
+                Arguments.of("OrMode(false)", new BranchState.OrMode(Optional.of(false), false), Optional.of(false))
+        );
+    }
 
-        BranchState next = orMode.transition(true, false);
+    // ==================== afterCombination Tests ====================
 
-        assertThat(next).isInstanceOf(BranchState.OrMode.class);
+    @Nested
+    @DisplayName("AndMode.afterCombination")
+    class AndModeAfterCombinationTests {
+
+        @ParameterizedTest(name = "current={0}, prev={1}, op={2} → {3}")
+        @MethodSource("io.quarkiverse.qubit.deployment.analysis.branch.BranchStateTest#andModeAfterCombinationCases")
+        @DisplayName("transitions correctly")
+        void transitionsCorrectly(boolean currentJump, Optional<Boolean> prevJump,
+                                  Operator usedOp, boolean shouldTransition) {
+            BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
+            BranchState result = andMode.afterCombination(currentJump, prevJump, usedOp);
+
+            if (shouldTransition) {
+                assertThat(result).isInstanceOf(BranchState.OrMode.class);
+            } else {
+                assertThat(result).isSameAs(andMode);
+            }
+        }
+
+        @Test
+        @DisplayName("with null operator returns self")
+        void withNullOperatorReturnsSelf() {
+            BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
+            assertThat(andMode.afterCombination(true, Optional.of(false), null)).isSameAs(andMode);
+        }
+    }
+
+    static Stream<Arguments> andModeAfterCombinationCases() {
+        return Stream.of(
+                // (currentJump, prevJump, usedOp, shouldTransition)
+                Arguments.of(true, Optional.of(false), AND, true),    // completing AND group
+                Arguments.of(false, Optional.of(false), AND, false),  // not completing
+                Arguments.of(true, Optional.of(true), AND, false),    // prev was true
+                Arguments.of(true, Optional.empty(), AND, false),     // no prev
+                Arguments.of(true, Optional.of(false), OR, false)     // used OR, not AND
+        );
     }
 
     // ==================== Complex Scenario Tests ====================
 
-    @Test
-    void scenario_simpleAndChain() {
-        // Expression: (a > 5) && (b > 10)
-        // Both conditions jump to FALSE (fall-through continues)
-
-        // Start: Initial
-        BranchState.Initial initialState = new BranchState.Initial();
-
-        // First comparison (a > 5) jumps to FALSE
-        Operator op1 = initialState.determineCombineOperator(false, null);
-        assertThat(op1).isNull(); // Don't combine, this is first condition (still in Initial)
-
-        BranchState state = initialState.transition(false, false);
-        assertThat(state).isInstanceOf(BranchState.AndMode.class);
-
-        // Second comparison (b > 10) jumps to FALSE
-        BranchState.AndMode andState = (BranchState.AndMode) state;
-        Operator op2 = andState.determineCombineOperator(false, null);
-        assertThat(op2).isEqualTo(AND); // Combine with AND
-
-        state = andState.transition(false, false);
-        assertThat(state).isInstanceOf(BranchState.AndMode.class);
-    }
-
-    @Test
-    void scenario_simpleOrChain() {
-        // Expression: (a > 5) || (b > 10)
-        // Both conditions jump to TRUE (short-circuit success)
-
-        // Start: Initial
-        BranchState.Initial initialState = new BranchState.Initial();
-
-        // First comparison (a > 5) jumps to TRUE
-        Operator op1 = initialState.determineCombineOperator(true, null);
-        assertThat(op1).isNull(); // Don't combine, this is first condition (still in Initial)
-
-        BranchState state = initialState.transition(true, false);
-        assertThat(state).isInstanceOf(BranchState.OrMode.class);
-
-        // Second comparison (b > 10) jumps to TRUE
-        BranchState.OrMode orState = (BranchState.OrMode) state;
-        Operator op2 = orState.determineCombineOperator(true, null);
-        assertThat(op2).isEqualTo(OR); // Combine with OR
-
-        state = orState.transition(true, false);
-        assertThat(state).isInstanceOf(BranchState.OrMode.class);
-    }
-
-    @Test
-    void scenario_complexExpression_andThenOr() {
-        // Expression: (a > 5 && b > 10) || (c > 20)
-        // Pattern: FALSE, FALSE, TRUE, TRUE
-
-        BranchState.Initial initialState = new BranchState.Initial();
-
-        // First: a > 5 (jump FALSE)
-        BranchState state = initialState.transition(false, false);
-        assertThat(state).isInstanceOf(BranchState.AndMode.class);
-
-        // Second: b > 10 (jump FALSE) - completes first AND group
-        BranchState.AndMode andState1 = (BranchState.AndMode) state;
-        Operator op1 = andState1.determineCombineOperator(false, null);
-        assertThat(op1).isEqualTo(AND);
-        state = andState1.transition(false, false);
-
-        // Third: transition to TRUE (end of first AND group)
-        // This should transition to OR mode
-        BranchState.AndMode andState2 = (BranchState.AndMode) state;
-        state = andState2.transition(true, false);
-        assertThat(state).isInstanceOf(BranchState.OrMode.class);
-
-        // Fourth: c > 20 (jump TRUE) - OR alternative
-        BranchState.OrMode orState = (BranchState.OrMode) state;
-        Operator op2 = orState.determineCombineOperator(true, null);
-        assertThat(op2).isEqualTo(OR);
-    }
-
-    @Test
-    void scenario_complexExpression_orThenAnd() {
-        // Expression: (a > 5 || b > 10) && (c > 20)
-        // Pattern: TRUE, TRUE, FALSE, FALSE
-
-        BranchState.Initial initialState = new BranchState.Initial();
-
-        // First: a > 5 (jump TRUE) - enters OR mode
-        BranchState state = initialState.transition(true, false);
-        assertThat(state).isInstanceOf(BranchState.OrMode.class);
-
-        // Second: b > 10 (jump TRUE) - continues OR chain
-        BranchState.OrMode orState1 = (BranchState.OrMode) state;
-        Operator op1 = orState1.determineCombineOperator(true, null);
-        assertThat(op1).isEqualTo(OR);
-        state = orState1.transition(true, false);
-        assertThat(state).isInstanceOf(BranchState.OrMode.class);
-
-        // Third: transition to FALSE (start of AND group)
-        BranchState.OrMode orState2 = (BranchState.OrMode) state;
-        state = orState2.transition(false, false);
-        // Should still be in OR mode or transition
-
-        // Fourth: c > 20 (jump FALSE) - nested AND group
-        BranchState.OrMode orState3 = (BranchState.OrMode) state;
-        state = orState3.transition(false, false);
-        assertThat(state).isInstanceOf(BranchState.AndMode.class);
-    }
-
-    @Test
-    void scenario_threeConditionAnd() {
-        // Expression: (a > 5) && (b > 10) && (c > 20)
-        // All jump to FALSE
-
-        BranchState.Initial initialState = new BranchState.Initial();
-
-        // First condition
-        BranchState state = initialState.transition(false, false);
-        assertThat(state).isInstanceOf(BranchState.AndMode.class);
-
-        // Second condition
-        BranchState.AndMode andState1 = (BranchState.AndMode) state;
-        Operator op1 = andState1.determineCombineOperator(false, null);
-        assertThat(op1).isEqualTo(AND);
-        state = andState1.transition(false, false);
-
-        // Third condition
-        BranchState.AndMode andState2 = (BranchState.AndMode) state;
-        Operator op2 = andState2.determineCombineOperator(false, null);
-        assertThat(op2).isEqualTo(AND);
-    }
-
-    @Test
-    void scenario_threeConditionOr() {
-        // Expression: (a > 5) || (b > 10) || (c > 20)
-        // All jump to TRUE
-
-        BranchState.Initial initialState = new BranchState.Initial();
-
-        // First condition
-        BranchState state = initialState.transition(true, false);
-        assertThat(state).isInstanceOf(BranchState.OrMode.class);
-
-        // Second condition
-        BranchState.OrMode orState1 = (BranchState.OrMode) state;
-        Operator op1 = orState1.determineCombineOperator(true, null);
-        assertThat(op1).isEqualTo(OR);
-        state = orState1.transition(true, false);
-
-        // Third condition
-        BranchState.OrMode orState2 = (BranchState.OrMode) state;
-        Operator op2 = orState2.determineCombineOperator(true, null);
-        assertThat(op2).isEqualTo(OR);
-    }
-
-    // ==================== Immutability Tests ====================
-
-    @Test
-    void andMode_transitionDoesNotMutateOriginal() {
-        BranchState.AndMode original = new BranchState.AndMode(Optional.empty(), false);
-
-        BranchState next = original.transition(false, false);
-
-        // Original should be unchanged
-        assertThat(original.lastJumpTarget()).isEmpty();
-        // Next should have history
-        assertThat(next).isNotSameAs(original);
-    }
-
-    @Test
-    void orMode_transitionDoesNotMutateOriginal() {
-        BranchState.OrMode original = new BranchState.OrMode(Optional.empty(), false);
-
-        BranchState next = original.transition(true, false);
-
-        // Original should be unchanged
-        assertThat(original.lastJumpTarget()).isEmpty();
-        // Next should have history
-        assertThat(next).isNotSameAs(original);
-    }
-
-    // ==================== getLastJumpTarget Tests (kill instanceof mutations) ====================
-
-    @Test
-    void getLastJumpTarget_initial_returnsEmpty() {
-        BranchState state = new BranchState.Initial();
-
-        Optional<Boolean> result = state.getLastJumpTarget();
-
-        assertThat(result).isEmpty();
-    }
-
-    @Test
-    void getLastJumpTarget_andMode_withEmptyHistory_returnsEmpty() {
-        BranchState state = new BranchState.AndMode(Optional.empty(), false);
-
-        Optional<Boolean> result = state.getLastJumpTarget();
-
-        assertThat(result).isEmpty();
-    }
-
-    @Test
-    void getLastJumpTarget_andMode_withTrueHistory_returnsTrue() {
-        BranchState state = new BranchState.AndMode(Optional.of(true), false);
-
-        Optional<Boolean> result = state.getLastJumpTarget();
-
-        assertThat(result).isPresent();
-        assertThat(result.get()).isTrue();
-    }
-
-    @Test
-    void getLastJumpTarget_andMode_withFalseHistory_returnsFalse() {
-        BranchState state = new BranchState.AndMode(Optional.of(false), false);
-
-        Optional<Boolean> result = state.getLastJumpTarget();
-
-        assertThat(result).isPresent();
-        assertThat(result.get()).isFalse();
-    }
-
-    @Test
-    void getLastJumpTarget_orMode_withEmptyHistory_returnsEmpty() {
-        BranchState state = new BranchState.OrMode(Optional.empty(), false);
-
-        Optional<Boolean> result = state.getLastJumpTarget();
-
-        assertThat(result).isEmpty();
-    }
-
-    @Test
-    void getLastJumpTarget_orMode_withTrueHistory_returnsTrue() {
-        BranchState state = new BranchState.OrMode(Optional.of(true), false);
-
-        Optional<Boolean> result = state.getLastJumpTarget();
-
-        assertThat(result).isPresent();
-        assertThat(result.get()).isTrue();
-    }
-
-    @Test
-    void getLastJumpTarget_orMode_withFalseHistory_returnsFalse() {
-        BranchState state = new BranchState.OrMode(Optional.of(false), false);
-
-        Optional<Boolean> result = state.getLastJumpTarget();
-
-        assertThat(result).isPresent();
-        assertThat(result.get()).isFalse();
-    }
-
-    // ==================== OrMode.determineCombineOperator Edge Cases ====================
-
-    @Test
-    void orMode_determineCombineOperator_currentFalsePreviousFalse_returnsOr() {
-        // Tests line 276: both FALSE case in OR mode
-        BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(false), false);
-
-        Operator combineOp = orMode.determineCombineOperator(false, null);
-
-        assertThat(combineOp).isEqualTo(OR);
-    }
-
-    @Test
-    void orMode_determineCombineOperator_currentFalsePreviousTrue_returnsOr() {
-        BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(true), false);
-
-        Operator combineOp = orMode.determineCombineOperator(false, null);
-
-        assertThat(combineOp).isEqualTo(OR);
-    }
-
-    @Test
-    void orMode_determineCombineOperator_currentTruePreviousFalse_returnsOr() {
-        BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(false), false);
-
-        Operator combineOp = orMode.determineCombineOperator(true, null);
-
-        assertThat(combineOp).isEqualTo(OR);
-    }
-
-    // ==================== AfterCombination Tests ====================
-
-    @Test
-    void initial_afterCombination_returnsSelf() {
-        BranchState.Initial initial = new BranchState.Initial();
-
-        BranchState result = initial.afterCombination(true, Optional.empty(), null);
-
-        assertThat(result).isSameAs(initial);
-    }
-
-    @Test
-    void andMode_afterCombination_withNullOperator_returnsSelf() {
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
-
-        BranchState result = andMode.afterCombination(true, Optional.of(false), null);
-
-        assertThat(result).isSameAs(andMode);
-    }
-
-    @Test
-    void andMode_afterCombination_completingAndGroup_transitionsToOrMode() {
-        // Tests lines 142-152: transition to OR mode when completing AND group
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
-
-        BranchState result = andMode.afterCombination(true, Optional.of(false), AND);
-
-        assertThat(result).isInstanceOf(BranchState.OrMode.class);
-    }
-
-    @Test
-    void andMode_afterCombination_notCompletingGroup_returnsSelf() {
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
-
-        BranchState result = andMode.afterCombination(false, Optional.of(false), AND);
-
-        assertThat(result).isSameAs(andMode);
-    }
-
-    @Test
-    void andMode_afterCombination_currentFalsePreviousTrue_returnsSelf() {
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(true), false);
-
-        BranchState result = andMode.afterCombination(false, Optional.of(true), AND);
-
-        assertThat(result).isSameAs(andMode);
-    }
-
-    @Test
-    void andMode_afterCombination_usedOrOperator_returnsSelf() {
-        // When we used OR to combine (not AND), we should NOT transition
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
-
-        BranchState result = andMode.afterCombination(true, Optional.of(false), OR);
-
-        assertThat(result).isSameAs(andMode);
-    }
-
-    @Test
-    void orMode_afterCombination_returnsSelf() {
-        BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(true), false);
-
-        BranchState result = orMode.afterCombination(true, Optional.of(true), OR);
-
-        assertThat(result).isSameAs(orMode);
-    }
-
-    // ==================== OrMode.determineCombineOperator Edge Cases ====================
-
-    @Test
-    void orMode_determineCombineOperator_emptyHistory_returnsOr() {
-        // Test line 262: lastJumpTarget.isEmpty() returns OR
-        BranchState.OrMode orMode = new BranchState.OrMode(Optional.empty(), false);
-
-        Operator result = orMode.determineCombineOperator(true, null);
-
-        assertThat(result).isEqualTo(OR);
-    }
-
-    @Test
-    void orMode_determineCombineOperator_jumpTrueWithOrStackTop_returnsAnd() {
-        // Test line 270: jumpTarget && stackTop is BinaryOp with OR -> returns AND
-        BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(true), false);
-        LambdaExpression.BinaryOp orExpression = LambdaExpression.BinaryOp.or(
-                new LambdaExpression.Constant(true, boolean.class),
-                new LambdaExpression.Constant(false, boolean.class)
-        );
-
-        Operator result = orMode.determineCombineOperator(true, orExpression);
-
-        assertThat(result).isEqualTo(AND);
-    }
-
-    @Test
-    void orMode_determineCombineOperator_jumpTrueWithAndStackTop_returnsOr() {
-        // Test line 270 false branch: stackTop is AND, not OR
-        BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(true), false);
-        LambdaExpression.BinaryOp andExpression = LambdaExpression.BinaryOp.and(
-                new LambdaExpression.Constant(true, boolean.class),
-                new LambdaExpression.Constant(false, boolean.class)
-        );
-
-        Operator result = orMode.determineCombineOperator(true, andExpression);
-
-        assertThat(result).isEqualTo(OR);
-    }
-
-    @Test
-    void orMode_determineCombineOperator_jumpFalseWithOrStackTop_returnsOr() {
-        // Test line 270 false branch: jumpTarget is false
-        BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(true), false);
-        LambdaExpression.BinaryOp orExpression = LambdaExpression.BinaryOp.or(
-                new LambdaExpression.Constant(true, boolean.class),
-                new LambdaExpression.Constant(false, boolean.class)
-        );
-
-        Operator result = orMode.determineCombineOperator(false, orExpression);
-
-        assertThat(result).isEqualTo(OR);
-    }
-
-    @Test
-    void orMode_determineCombineOperator_jumpTrueWithNullStackTop_returnsOr() {
-        // Test line 270 false branch: stackTop is null
-        BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(true), false);
-
-        Operator result = orMode.determineCombineOperator(true, null);
-
-        assertThat(result).isEqualTo(OR);
-    }
-
-    @Test
-    void orMode_determineCombineOperator_jumpTrueWithConstantStackTop_returnsOr() {
-        // Test line 270 false branch: stackTop is not BinaryOp
-        BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(true), false);
-        LambdaExpression constant = new LambdaExpression.Constant(true, boolean.class);
-
-        Operator result = orMode.determineCombineOperator(true, constant);
-
-        assertThat(result).isEqualTo(OR);
-    }
-
-    @Test
-    void orMode_determineCombineOperator_bothFalse_returnsOr() {
-        // Test line 276: !jumpTarget && !lastJumpTarget.get()
-        BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(false), false);
-
-        Operator result = orMode.determineCombineOperator(false, null);
-
-        assertThat(result).isEqualTo(OR);
-    }
-
-    @Test
-    void orMode_determineCombineOperator_jumpFalsePreviousTrue_returnsOr() {
-        // Test line 276 false branch: previous was TRUE
-        BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(true), false);
-
-        Operator result = orMode.determineCombineOperator(false, null);
-
-        assertThat(result).isEqualTo(OR);
-    }
-
-    @Test
-    void orMode_determineCombineOperator_jumpTruePreviousFalse_returnsOr() {
-        // Test line 276 false branch: current jump is TRUE
-        BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(false), false);
-
-        Operator result = orMode.determineCombineOperator(true, null);
-
-        assertThat(result).isEqualTo(OR);
-    }
-
-    // ==================== AndMode.determineOperatorForCompletingAndGroup Tests ====================
-    // (Lines 200-217: stackHasOr, prevWasBooleanCheck, stackHasAnd branches)
-
-    @Test
-    void andMode_determineCombineOperator_completingAndGroupWithOrStack_returnsAnd() {
-        // Test line 204: stackHasOr is true - should return AND
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
-        LambdaExpression.BinaryOp orExpression = LambdaExpression.BinaryOp.or(
-                new LambdaExpression.Constant(true, boolean.class),
-                new LambdaExpression.Constant(false, boolean.class)
-        );
-
-        // jumpTarget=true triggers determineOperatorForCompletingAndGroup
-        Operator result = andMode.determineCombineOperator(true, orExpression);
-
-        assertThat(result).isEqualTo(AND);
-    }
-
-    @Test
-    void andMode_determineCombineOperator_completingAndGroupWithNestedOrInLeft_returnsAnd() {
-        // Test containsOrOperator recursive case: OR nested in left subtree
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
-        LambdaExpression.BinaryOp nestedOr = LambdaExpression.BinaryOp.or(
-                new LambdaExpression.Constant(1, int.class),
-                new LambdaExpression.Constant(2, int.class)
-        );
-        LambdaExpression.BinaryOp andWithNestedOr = LambdaExpression.BinaryOp.and(
-                nestedOr, // OR in left subtree
-                new LambdaExpression.Constant(3, int.class)
-        );
-
-        Operator result = andMode.determineCombineOperator(true, andWithNestedOr);
-
-        assertThat(result).isEqualTo(AND);
-    }
-
-    @Test
-    void andMode_determineCombineOperator_completingAndGroupWithNestedOrInRight_returnsAnd() {
-        // Test containsOrOperator recursive case: OR nested in right subtree
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
-        LambdaExpression.BinaryOp nestedOr = LambdaExpression.BinaryOp.or(
-                new LambdaExpression.Constant(1, int.class),
-                new LambdaExpression.Constant(2, int.class)
-        );
-        LambdaExpression.BinaryOp andWithNestedOr = LambdaExpression.BinaryOp.and(
-                new LambdaExpression.Constant(3, int.class),
-                nestedOr // OR in right subtree
-        );
-
-        Operator result = andMode.determineCombineOperator(true, andWithNestedOr);
-
-        assertThat(result).isEqualTo(AND);
-    }
-
-    @Test
-    void andMode_determineCombineOperator_completingAndGroupWithPrevBooleanCheck_returnsNull() {
-        // Test line 209: prevWasBooleanCheck is true - should return null
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), true); // prevWasBooleanCheck=true
-
-        Operator result = andMode.determineCombineOperator(true, null);
-
-        assertThat(result).isNull();
-    }
-
-    @Test
-    void andMode_determineCombineOperator_completingAndGroupWithAndStack_returnsOr() {
-        // Test line 214-216: stackHasAnd is true (no OR, no boolean check) - should return OR
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
-        LambdaExpression.BinaryOp andExpression = LambdaExpression.BinaryOp.and(
-                new LambdaExpression.Constant(true, boolean.class),
-                new LambdaExpression.Constant(false, boolean.class)
-        );
-
-        Operator result = andMode.determineCombineOperator(true, andExpression);
-
-        assertThat(result).isEqualTo(OR);
-    }
-
-    @Test
-    void andMode_determineCombineOperator_completingAndGroupWithNullStack_returnsAnd() {
-        // Test line 214-216: stackTop is null (not BinaryOp with AND) - should return AND
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
-
-        Operator result = andMode.determineCombineOperator(true, null);
-
-        assertThat(result).isEqualTo(AND);
-    }
-
-    @Test
-    void andMode_determineCombineOperator_completingAndGroupWithConstantStack_returnsAnd() {
-        // Test line 214-216: stackTop is not BinaryOp - should return AND
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
-        LambdaExpression constant = new LambdaExpression.Constant(true, boolean.class);
-
-        Operator result = andMode.determineCombineOperator(true, constant);
-
-        assertThat(result).isEqualTo(AND);
-    }
-
-    @Test
-    void andMode_determineCombineOperator_completingAndGroupWithComparisonStack_returnsAnd() {
-        // Test line 214-216: stackTop is BinaryOp with comparison operator (not AND/OR)
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
-        LambdaExpression.BinaryOp eqExpression = LambdaExpression.BinaryOp.eq(
-                new LambdaExpression.Constant(1, int.class),
-                new LambdaExpression.Constant(2, int.class)
-        );
-
-        Operator result = andMode.determineCombineOperator(true, eqExpression);
-
-        assertThat(result).isEqualTo(AND);
-    }
-
-    // ==================== AndMode.afterCombination Edge Cases ====================
-
-    @Test
-    void andMode_afterCombination_emptyPreviousJumpTarget_returnsSelf() {
-        // Test line 142: previousJumpTarget.isEmpty() - should stay in same mode
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
-
-        BranchState result = andMode.afterCombination(true, Optional.empty(), AND);
-
-        assertThat(result).isSameAs(andMode);
-    }
-
-    @Test
-    void andMode_afterCombination_previousJumpTargetTrue_returnsSelf() {
-        // Test line 142: previousJumpTarget.get() is true (not false) - should stay in same mode
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
-
-        BranchState result = andMode.afterCombination(true, Optional.of(true), AND);
-
-        assertThat(result).isSameAs(andMode);
-    }
-
-    @Test
-    void andMode_afterCombination_currentJumpFalse_returnsSelf() {
-        // Test line 149: currentJumpTarget is false - should stay in same mode
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
-
-        BranchState result = andMode.afterCombination(false, Optional.of(false), AND);
-
-        assertThat(result).isSameAs(andMode);
-    }
-
-    // ==================== containsOrOperator Edge Cases ====================
-
-    @Test
-    void andMode_determineCombineOperator_deeplyNestedOr_returnsAnd() {
-        // Test containsOrOperator with deeply nested OR (3 levels)
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
-        LambdaExpression.BinaryOp deepOr = LambdaExpression.BinaryOp.or(
-                new LambdaExpression.Constant(1, int.class),
-                new LambdaExpression.Constant(2, int.class)
-        );
-        LambdaExpression.BinaryOp level2 = LambdaExpression.BinaryOp.and(
-                deepOr,
-                new LambdaExpression.Constant(3, int.class)
-        );
-        LambdaExpression.BinaryOp level1 = LambdaExpression.BinaryOp.and(
-                level2,
-                new LambdaExpression.Constant(4, int.class)
-        );
-
-        Operator result = andMode.determineCombineOperator(true, level1);
-
-        assertThat(result).isEqualTo(AND);
-    }
-
-    @Test
-    void andMode_determineCombineOperator_noOrAnywhere_withNoAndStack_returnsAnd() {
-        // Test containsOrOperator returning false with non-BinaryOp (FieldAccess)
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
-        LambdaExpression fieldAccess = new LambdaExpression.FieldAccess("name", String.class);
-
-        Operator result = andMode.determineCombineOperator(true, fieldAccess);
-
-        assertThat(result).isEqualTo(AND);
-    }
-
-    // ==================== AndMode.determineCombineOperator Additional Edge Cases ====================
-
-    @Test
-    void andMode_determineCombineOperator_previousTrueCurrentFalse_returnsAnd() {
-        // Test line 189: previous TRUE, current FALSE -> AND
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(true), false);
-
-        Operator result = andMode.determineCombineOperator(false, null);
-
-        assertThat(result).isEqualTo(AND);
-    }
-
-    @Test
-    void andMode_determineCombineOperator_bothTrueWithEmptyHistory_returnsAnd() {
-        // Edge case: empty history should return AND (second comparison)
-        BranchState.AndMode andMode = new BranchState.AndMode(Optional.empty(), false);
-
-        Operator result = andMode.determineCombineOperator(true, null);
-
-        assertThat(result).isEqualTo(AND);
+    @Nested
+    @DisplayName("Complex Scenarios")
+    class ComplexScenarioTests {
+
+        @Test
+        @DisplayName("simple AND chain: (a > 5) && (b > 10)")
+        void simpleAndChain() {
+            BranchState.Initial initial = new BranchState.Initial();
+            assertThat(initial.determineCombineOperator(false, null)).isNull();
+
+            BranchState state = initial.transition(false, false);
+            assertThat(state).isInstanceOf(BranchState.AndMode.class);
+
+            BranchState.AndMode andState = (BranchState.AndMode) state;
+            assertThat(andState.determineCombineOperator(false, null)).isEqualTo(AND);
+            assertThat(andState.transition(false, false)).isInstanceOf(BranchState.AndMode.class);
+        }
+
+        @Test
+        @DisplayName("simple OR chain: (a > 5) || (b > 10)")
+        void simpleOrChain() {
+            BranchState.Initial initial = new BranchState.Initial();
+            assertThat(initial.determineCombineOperator(true, null)).isNull();
+
+            BranchState state = initial.transition(true, false);
+            assertThat(state).isInstanceOf(BranchState.OrMode.class);
+
+            BranchState.OrMode orState = (BranchState.OrMode) state;
+            assertThat(orState.determineCombineOperator(true, null)).isEqualTo(OR);
+            assertThat(orState.transition(true, false)).isInstanceOf(BranchState.OrMode.class);
+        }
+
+        @Test
+        @DisplayName("AND then OR: (a > 5 && b > 10) || (c > 20)")
+        void andThenOr() {
+            BranchState state = new BranchState.Initial().transition(false, false);
+            assertThat(state).isInstanceOf(BranchState.AndMode.class);
+
+            BranchState.AndMode andState1 = (BranchState.AndMode) state;
+            assertThat(andState1.determineCombineOperator(false, null)).isEqualTo(AND);
+            state = andState1.transition(false, false);
+
+            BranchState.AndMode andState2 = (BranchState.AndMode) state;
+            state = andState2.transition(true, false);
+            assertThat(state).isInstanceOf(BranchState.OrMode.class);
+
+            BranchState.OrMode orState = (BranchState.OrMode) state;
+            assertThat(orState.determineCombineOperator(true, null)).isEqualTo(OR);
+        }
+
+        @Test
+        @DisplayName("OR then AND: (a > 5 || b > 10) && (c > 20)")
+        void orThenAnd() {
+            BranchState state = new BranchState.Initial().transition(true, false);
+            assertThat(state).isInstanceOf(BranchState.OrMode.class);
+
+            BranchState.OrMode orState1 = (BranchState.OrMode) state;
+            assertThat(orState1.determineCombineOperator(true, null)).isEqualTo(OR);
+            state = orState1.transition(true, false);
+            assertThat(state).isInstanceOf(BranchState.OrMode.class);
+
+            BranchState.OrMode orState2 = (BranchState.OrMode) state;
+            state = orState2.transition(false, false);
+
+            BranchState.OrMode orState3 = (BranchState.OrMode) state;
+            state = orState3.transition(false, false);
+            assertThat(state).isInstanceOf(BranchState.AndMode.class);
+        }
+
+        @Test
+        @DisplayName("three condition AND: (a > 5) && (b > 10) && (c > 20)")
+        void threeConditionAnd() {
+            BranchState state = new BranchState.Initial().transition(false, false);
+
+            BranchState.AndMode andState1 = (BranchState.AndMode) state;
+            assertThat(andState1.determineCombineOperator(false, null)).isEqualTo(AND);
+            state = andState1.transition(false, false);
+
+            BranchState.AndMode andState2 = (BranchState.AndMode) state;
+            assertThat(andState2.determineCombineOperator(false, null)).isEqualTo(AND);
+        }
+
+        @Test
+        @DisplayName("three condition OR: (a > 5) || (b > 10) || (c > 20)")
+        void threeConditionOr() {
+            BranchState state = new BranchState.Initial().transition(true, false);
+
+            BranchState.OrMode orState1 = (BranchState.OrMode) state;
+            assertThat(orState1.determineCombineOperator(true, null)).isEqualTo(OR);
+            state = orState1.transition(true, false);
+
+            BranchState.OrMode orState2 = (BranchState.OrMode) state;
+            assertThat(orState2.determineCombineOperator(true, null)).isEqualTo(OR);
+        }
     }
 }

@@ -85,17 +85,25 @@ public class RelationshipMetadataExtractor {
             return new EntityRelationshipInfo(entityClassName, relationships);
         }
 
-        // Check all fields for relationship annotations
-        for (FieldInfo field : classInfo.fields()) {
-            FieldRelationship relationship = extractFieldRelationship(field);
-            if (relationship != null) {
-                relationships.put(field.name(), relationship);
-                Log.tracef("Found %s relationship: %s.%s -> %s",
-                        relationship.relationType(), entityClassName, field.name(), relationship.targetEntity());
-            }
-        }
+        // Extract from class and superclasses
+        processClassFields(classInfo, relationships, entityClassName);
+        processSuperclassFields(classInfo, relationships, entityClassName);
 
-        // Also check superclasses for inherited relationships
+        Log.debugf("Extracted %d relationships from entity %s", relationships.size(), entityClassName);
+        return new EntityRelationshipInfo(entityClassName, relationships);
+    }
+
+    /** Extracts relationship metadata from a class's own fields. */
+    private void processClassFields(ClassInfo classInfo, Map<String, FieldRelationship> relationships,
+            String entityClassName) {
+        for (FieldInfo field : classInfo.fields()) {
+            addRelationshipIfPresent(field, relationships, entityClassName, false);
+        }
+    }
+
+    /** Extracts relationship metadata from superclass hierarchy. */
+    private void processSuperclassFields(ClassInfo classInfo, Map<String, FieldRelationship> relationships,
+            String entityClassName) {
         DotName superName = classInfo.superName();
         while (superName != null && !superName.toString().equals("java.lang.Object")) {
             ClassInfo superClass = index.getClassByName(superName);
@@ -105,20 +113,26 @@ public class RelationshipMetadataExtractor {
 
             for (FieldInfo field : superClass.fields()) {
                 if (!relationships.containsKey(field.name())) {
-                    FieldRelationship relationship = extractFieldRelationship(field);
-                    if (relationship != null) {
-                        relationships.put(field.name(), relationship);
-                        Log.tracef("Found inherited %s relationship: %s.%s -> %s",
-                                relationship.relationType(), entityClassName, field.name(), relationship.targetEntity());
-                    }
+                    addRelationshipIfPresent(field, relationships, entityClassName, true);
                 }
             }
 
             superName = superClass.superName();
         }
+    }
 
-        Log.debugf("Extracted %d relationships from entity %s", relationships.size(), entityClassName);
-        return new EntityRelationshipInfo(entityClassName, relationships);
+    /** Adds relationship to map if field has a JPA relationship annotation. */
+    private void addRelationshipIfPresent(FieldInfo field, Map<String, FieldRelationship> relationships,
+            String entityClassName, boolean inherited) {
+        FieldRelationship relationship = extractFieldRelationship(field);
+        if (relationship != null) {
+            relationships.put(field.name(), relationship);
+            String logFormat = inherited
+                    ? "Found inherited %s relationship: %s.%s -> %s"
+                    : "Found %s relationship: %s.%s -> %s";
+            Log.tracef(logFormat, relationship.relationType(), entityClassName,
+                    field.name(), relationship.targetEntity());
+        }
     }
 
     private FieldRelationship extractFieldRelationship(FieldInfo field) {

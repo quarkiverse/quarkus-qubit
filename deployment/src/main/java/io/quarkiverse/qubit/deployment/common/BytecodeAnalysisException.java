@@ -86,6 +86,11 @@ public class BytecodeAnalysisException extends RuntimeException {
         return new BytecodeAnalysisException(formatted, cause);
     }
 
+    /** Build-time analysis failure - use when failOnAnalysisError config is true. */
+    public static BytecodeAnalysisException analysisError(String formattedMessage, Throwable cause) {
+        return new BytecodeAnalysisException(formattedMessage, cause);
+    }
+
     private static String formatContext(String message, String className, String methodName, String descriptor) {
         StringBuilder sb = new StringBuilder(message);
         sb.append(" [");

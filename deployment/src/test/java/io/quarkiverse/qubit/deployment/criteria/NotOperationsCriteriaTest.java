@@ -1,64 +1,44 @@
 package io.quarkiverse.qubit.deployment.criteria;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Criteria query generation tests for NOT logical operations (!).
+ *
+ * <p>This class uses JUnit 5 parameterized tests to consolidate repetitive
+ * test patterns, reducing code duplication while maintaining full coverage.
  */
 class NotOperationsCriteriaTest extends CriteriaQueryTestBase {
 
-    @Test
-    void simpleNot() {
-        LambdaExpression expr = analyzeLambda("simpleNot");
+    /**
+     * Tests for NOT operations that just verify generation succeeds.
+     * Complex NOT expressions may compile to inverted conditions, not not().
+     */
+    @ParameterizedTest(name = "{0} → success")
+    @ValueSource(strings = {"notWithComplexOrAnd", "stringNotEquals", "doubleNegation"})
+    void notOperationSucceeds(String lambdaMethodName) {
+        LambdaExpression expr = analyzeLambda(lambdaMethodName);
+        assertCriteriaGenerationSucceeds(expr);
+    }
+
+    /**
+     * Tests for NOT operations with specific method assertions.
+     * De Morgan's law transforms: !(a && b) => !a || !b, !(a || b) => !a && !b
+     */
+    @ParameterizedTest(name = "{0} → cb.{1}()")
+    @CsvSource({
+            "simpleNot, not",
+            "notWithAnd, and",
+            "notWithComplexAnd, or",
+            "notWithOr, and"
+    })
+    void notOperationWithMethod(String lambdaMethodName, String expectedMethod) {
+        LambdaExpression expr = analyzeLambda(lambdaMethodName);
         CriteriaQueryStructure structure = generateCriteriaQuery(expr);
         assertCriteriaGenerationSucceeds(expr);
-        assertCriteriaMethodCalled(structure, "not");
-    }
-
-    @Test
-    void notWithAnd() {
-        LambdaExpression expr = analyzeLambda("notWithAnd");
-        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-        assertCriteriaGenerationSucceeds(expr);
-        assertCriteriaMethodCalled(structure, "not");
-        assertCriteriaMethodCalled(structure, "and");
-    }
-
-    @Test
-    void notWithComplexOrAnd() {
-        LambdaExpression expr = analyzeLambda("notWithComplexOrAnd");
-        assertCriteriaGenerationSucceeds(expr);
-        // Complex NOT expressions may compile to inverted conditions, not not()
-    }
-
-    @Test
-    void stringNotEquals() {
-        LambdaExpression expr = analyzeLambda("stringNotEquals");
-        assertCriteriaGenerationSucceeds(expr);
-        // Negated method calls may compile to inverted conditions, not notEqual()
-    }
-
-    @Test
-    void notWithComplexAnd() {
-        LambdaExpression expr = analyzeLambda("notWithComplexAnd");
-        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-        assertCriteriaGenerationSucceeds(expr);
-        assertCriteriaMethodCalled(structure, "or");
-    }
-
-    @Test
-    void doubleNegation() {
-        LambdaExpression expr = analyzeLambda("doubleNegation");
-        assertCriteriaGenerationSucceeds(expr);
-        // Double negation compiles to simple equality check
-    }
-
-    @Test
-    void notWithOr() {
-        LambdaExpression expr = analyzeLambda("notWithOr");
-        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-        assertCriteriaGenerationSucceeds(expr);
-        assertCriteriaMethodCalled(structure, "and");
+        assertCriteriaMethodCalled(structure, expectedMethod);
     }
 }

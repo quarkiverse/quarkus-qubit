@@ -2,37 +2,71 @@ package io.quarkiverse.qubit.deployment.criteria;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Criteria query generation tests for equality operations (==, equals(), isEqual()).
+ *
+ * <p>This class uses JUnit 5 parameterized tests to consolidate repetitive
+ * test patterns, reducing code duplication while maintaining full coverage.
  */
 class EqualityOperationsCriteriaTest extends CriteriaQueryTestBase {
+
+    // ==================== PARAMETERIZED TESTS ====================
+
+    /**
+     * Tests for simple equality operations that use cb.equal().
+     */
+    @ParameterizedTest(name = "{0} → cb.equal()")
+    @ValueSource(strings = {
+            "integerEquality",
+            "floatEquality",
+            "doubleEquality",
+            "localDateEquality",
+            "localDateTimeEquality",
+            "localTimeEquality"
+    })
+    void simpleEquality(String lambdaMethodName) {
+        LambdaExpression expr = analyzeLambda(lambdaMethodName);
+        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
+        assertCriteriaGenerationSucceeds(expr);
+        assertCriteriaMethodCalled(structure, "equal");
+    }
+
+    // ==================== STRING EQUALITY WITH DETAILED ASSERTIONS ====================
 
     @Test
     void stringEquality() {
         LambdaExpression expr = analyzeLambda("stringEquality");
         CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-
-        // Verify generation succeeded
         assertCriteriaGenerationSucceeds(expr);
-
-        // Verify the correct Criteria API method was called
         assertCriteriaMethodCalled(structure, "equal");
-
-        // Verify the field was accessed
         assertFieldAccessed(structure, "firstName");
-
-        // Verify the constant value was used (equals("John"))
         assertConstantUsed(structure, "John");
     }
 
     @Test
-    void integerEquality() {
-        LambdaExpression expr = analyzeLambda("integerEquality");
+    void longEquality() {
+        LambdaExpression expr = analyzeLambda("longEquality");
         CriteriaQueryStructure structure = generateCriteriaQuery(expr);
         assertCriteriaGenerationSucceeds(expr);
         assertCriteriaMethodCalled(structure, "equal");
+        assertFieldAccessed(structure, "employeeId");
+        assertConstantUsed(structure, 1000001L);
     }
+
+    @Test
+    void bigDecimalEquality() {
+        LambdaExpression expr = analyzeLambda("bigDecimalEquality");
+        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
+        assertCriteriaGenerationSucceeds(expr);
+        assertCriteriaMethodCalled(structure, "equal");
+        assertFieldAccessed(structure, "price");
+        assertConstantUsed(structure, "899.99");
+    }
+
+    // ==================== BOOLEAN EQUALITY TESTS ====================
 
     @Test
     void booleanEqualityTrue() {
@@ -85,81 +119,5 @@ class EqualityOperationsCriteriaTest extends CriteriaQueryTestBase {
         // which falls through to general equality and generates cb.equal()
         assertCriteriaMethodCalled(structure, "equal");
         assertFieldAccessed(structure, "active");
-    }
-
-    @Test
-    void longEquality() {
-        LambdaExpression expr = analyzeLambda("longEquality");
-        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-
-        // Verify generation succeeded
-        assertCriteriaGenerationSucceeds(expr);
-
-        // Verify the correct Criteria API method was called
-        assertCriteriaMethodCalled(structure, "equal");
-
-        // Verify the field was accessed
-        assertFieldAccessed(structure, "employeeId");
-
-        // Verify the constant value was used (== 1000001L)
-        assertConstantUsed(structure, 1000001L);
-    }
-
-    @Test
-    void floatEquality() {
-        LambdaExpression expr = analyzeLambda("floatEquality");
-        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-        assertCriteriaGenerationSucceeds(expr);
-        assertCriteriaMethodCalled(structure, "equal");
-    }
-
-    @Test
-    void doubleEquality() {
-        LambdaExpression expr = analyzeLambda("doubleEquality");
-        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-        assertCriteriaGenerationSucceeds(expr);
-        assertCriteriaMethodCalled(structure, "equal");
-    }
-
-    @Test
-    void localDateEquality() {
-        LambdaExpression expr = analyzeLambda("localDateEquality");
-        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-        assertCriteriaGenerationSucceeds(expr);
-        assertCriteriaMethodCalled(structure, "equal");
-    }
-
-    @Test
-    void localDateTimeEquality() {
-        LambdaExpression expr = analyzeLambda("localDateTimeEquality");
-        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-        assertCriteriaGenerationSucceeds(expr);
-        assertCriteriaMethodCalled(structure, "equal");
-    }
-
-    @Test
-    void localTimeEquality() {
-        LambdaExpression expr = analyzeLambda("localTimeEquality");
-        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-        assertCriteriaGenerationSucceeds(expr);
-        assertCriteriaMethodCalled(structure, "equal");
-    }
-
-    @Test
-    void bigDecimalEquality() {
-        LambdaExpression expr = analyzeLambda("bigDecimalEquality");
-        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-
-        // Verify generation succeeded
-        assertCriteriaGenerationSucceeds(expr);
-
-        // Verify the correct Criteria API method was called
-        assertCriteriaMethodCalled(structure, "equal");
-
-        // Verify the field was accessed
-        assertFieldAccessed(structure, "price");
-
-        // Verify the constant value was used (new BigDecimal("899.99"))
-        assertConstantUsed(structure, "899.99");
     }
 }

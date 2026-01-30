@@ -7,9 +7,12 @@ import io.quarkus.deployment.builditem.ApplicationArchivesBuildItem;
 import io.quarkus.paths.PathList;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -45,91 +48,39 @@ class BytecodeLoaderTest {
     @Nested
     class LoadFromClassloaderTests {
 
-        @Test
-        void loadClassBytecode_withExistingClass_returnsBytecode() {
+        @ParameterizedTest(name = "{1}: {0}")
+        @DisplayName("loadClassBytecode returns bytecode for various class types")
+        @CsvSource({
+                "java.lang.String, JDK class",
+                "io.quarkiverse.qubit.deployment.util.BytecodeLoader, project class",
+                "java.util.Map$Entry, nested class",
+                "java.util.List, interface",
+                "java.lang.Thread$State, enum"
+        })
+        void loadClassBytecode_withVariousClassTypes_returnsBytecode(String className, String classType) {
             ApplicationArchivesBuildItem emptyArchives = mock(ApplicationArchivesBuildItem.class);
             when(emptyArchives.getAllApplicationArchives()).thenReturn(Set.of());
 
-            byte[] result = BytecodeLoader.loadClassBytecode(
-                    "java.lang.String", emptyArchives);
+            byte[] result = BytecodeLoader.loadClassBytecode(className, emptyArchives);
 
             assertThat(result)
-                    .as("Should load bytecode for java.lang.String")
+                    .as("Should load bytecode for %s", classType)
                     .isNotEmpty();
         }
 
-        @Test
-        void loadClassBytecode_withProjectClass_returnsBytecode() {
+        @ParameterizedTest(name = "{1}")
+        @DisplayName("loadClassBytecode throws for invalid classes")
+        @CsvSource({
+                "com.nonexistent.NonExistentClass, non-existent class",
+                "not.a.valid.class!, invalid class name"
+        })
+        void loadClassBytecode_withInvalidClass_throwsAnalysisException(String className, String description) {
             ApplicationArchivesBuildItem emptyArchives = mock(ApplicationArchivesBuildItem.class);
             when(emptyArchives.getAllApplicationArchives()).thenReturn(Set.of());
 
-            byte[] result = BytecodeLoader.loadClassBytecode(
-                    "io.quarkiverse.qubit.deployment.util.BytecodeLoader", emptyArchives);
-
-            assertThat(result)
-                    .as("Should load bytecode for project class")
-                    .isNotEmpty();
-        }
-
-        @Test
-        void loadClassBytecode_withNonExistentClass_throwsAnalysisException() {
-            ApplicationArchivesBuildItem emptyArchives = mock(ApplicationArchivesBuildItem.class);
-            when(emptyArchives.getAllApplicationArchives()).thenReturn(Set.of());
-
-            assertThatThrownBy(() -> BytecodeLoader.loadClassBytecode(
-                    "com.nonexistent.NonExistentClass", emptyArchives))
+            assertThatThrownBy(() -> BytecodeLoader.loadClassBytecode(className, emptyArchives))
                     .isInstanceOf(BytecodeAnalysisException.class)
-                    .hasMessageContaining("com.nonexistent.NonExistentClass");
-        }
-
-        @Test
-        void loadClassBytecode_withInvalidClassName_throwsAnalysisException() {
-            ApplicationArchivesBuildItem emptyArchives = mock(ApplicationArchivesBuildItem.class);
-            when(emptyArchives.getAllApplicationArchives()).thenReturn(Set.of());
-
-            assertThatThrownBy(() -> BytecodeLoader.loadClassBytecode(
-                    "not.a.valid.class!", emptyArchives))
-                    .isInstanceOf(BytecodeAnalysisException.class)
-                    .hasMessageContaining("not.a.valid.class!");
-        }
-
-        @Test
-        void loadClassBytecode_withNestedClass_returnsBytecode() {
-            ApplicationArchivesBuildItem emptyArchives = mock(ApplicationArchivesBuildItem.class);
-            when(emptyArchives.getAllApplicationArchives()).thenReturn(Set.of());
-
-            byte[] result = BytecodeLoader.loadClassBytecode(
-                    "java.util.Map$Entry", emptyArchives);
-
-            assertThat(result)
-                    .as("Should load bytecode for nested class")
-                    .isNotEmpty();
-        }
-
-        @Test
-        void loadClassBytecode_withInterfaceClass_returnsBytecode() {
-            ApplicationArchivesBuildItem emptyArchives = mock(ApplicationArchivesBuildItem.class);
-            when(emptyArchives.getAllApplicationArchives()).thenReturn(Set.of());
-
-            byte[] result = BytecodeLoader.loadClassBytecode(
-                    "java.util.List", emptyArchives);
-
-            assertThat(result)
-                    .as("Should load bytecode for interface")
-                    .isNotEmpty();
-        }
-
-        @Test
-        void loadClassBytecode_withEnumClass_returnsBytecode() {
-            ApplicationArchivesBuildItem emptyArchives = mock(ApplicationArchivesBuildItem.class);
-            when(emptyArchives.getAllApplicationArchives()).thenReturn(Set.of());
-
-            byte[] result = BytecodeLoader.loadClassBytecode(
-                    "java.lang.Thread$State", emptyArchives);
-
-            assertThat(result)
-                    .as("Should load bytecode for enum")
-                    .isNotEmpty();
+                    .hasMessageContaining(className);
         }
 
         @Test
@@ -143,11 +94,8 @@ class BytecodeLoaderTest {
             // Java class file magic number is 0xCAFEBABE
             assertThat(result)
                     .as("Bytecode should start with Java magic number")
-                    .hasSizeGreaterThan(4);
-            assertThat(result[0]).isEqualTo((byte) 0xCA);
-            assertThat(result[1]).isEqualTo((byte) 0xFE);
-            assertThat(result[2]).isEqualTo((byte) 0xBA);
-            assertThat(result[3]).isEqualTo((byte) 0xBE);
+                    .hasSizeGreaterThan(4)
+                    .startsWith((byte) 0xCA, (byte) 0xFE, (byte) 0xBA, (byte) 0xBE);
         }
     }
 
@@ -188,7 +136,7 @@ class BytecodeLoaderTest {
         }
 
         @Test
-        void loadClassBytecode_fromArchive_classNotInArchive_fallsBackToClassloader() throws IOException {
+        void loadClassBytecode_fromArchive_classNotInArchive_fallsBackToClassloader() {
             // Create mock archive with empty directory
             ApplicationArchive archive = mock(ApplicationArchive.class);
             when(archive.getRootDirectories()).thenReturn(PathList.of(tempDir));
@@ -201,9 +149,8 @@ class BytecodeLoaderTest {
 
             assertThat(result)
                     .as("Should fall back to classloader when not in archive")
-                    .isNotEmpty();
-            // Verify it's a valid class file
-            assertThat(result[0]).isEqualTo((byte) 0xCA);
+                    .isNotEmpty()
+                    .startsWith((byte) 0xCA); // Verify it's a valid class file
         }
 
         @Test
@@ -329,7 +276,7 @@ class BytecodeLoaderTest {
                     .isEqualTo(3);
             assertThat(metrics.getUniqueClassesLoaded())
                     .as("Unique classes should count only the cache miss")
-                    .isEqualTo(1);
+                    .isOne();
         }
 
         @Test

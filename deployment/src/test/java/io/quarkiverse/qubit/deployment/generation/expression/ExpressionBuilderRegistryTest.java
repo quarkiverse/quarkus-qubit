@@ -6,9 +6,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Unit tests for {@link ExpressionBuilderRegistry}.
+ *
+ * <p>This class uses JUnit 5 parameterized tests to consolidate repetitive
+ * test patterns, reducing code duplication while maintaining full coverage.
  */
 @DisplayName("ExpressionBuilderRegistry")
 class ExpressionBuilderRegistryTest {
@@ -30,132 +35,40 @@ class ExpressionBuilderRegistryTest {
     @DisplayName("Constructor validation")
     class ConstructorValidationTests {
 
-        @Test
-        @DisplayName("throws NullPointerException for null arithmeticBuilder")
-        void throwsForNullArithmetic() {
-            assertThatThrownBy(() -> new ExpressionBuilderRegistry(
-                    null,
-                    ComparisonExpressionBuilder.INSTANCE,
-                    StringExpressionBuilder.INSTANCE,
-                    TemporalExpressionBuilder.INSTANCE,
-                    BigDecimalExpressionBuilder.INSTANCE,
-                    SubqueryExpressionBuilder.INSTANCE,
-                    BiEntityExpressionBuilder.INSTANCE,
-                    GroupExpressionBuilder.INSTANCE))
+        /**
+         * Tests that constructor throws NullPointerException for each null parameter.
+         * Each parameter is tested by setting it to null while others use default instances.
+         */
+        @ParameterizedTest(name = "throws NullPointerException for null {0}")
+        @ValueSource(strings = {
+                "arithmeticBuilder",
+                "comparisonBuilder",
+                "stringBuilder",
+                "temporalBuilder",
+                "bigDecimalBuilder",
+                "subqueryBuilder",
+                "biEntityBuilder",
+                "groupBuilder"
+        })
+        void throwsForNullParameter(String parameterName) {
+            assertThatThrownBy(() -> createRegistryWithNull(parameterName))
                     .isInstanceOf(NullPointerException.class)
-                    .hasMessageContaining("arithmeticBuilder");
+                    .hasMessageContaining(parameterName);
         }
 
-        @Test
-        @DisplayName("throws NullPointerException for null comparisonBuilder")
-        void throwsForNullComparison() {
-            assertThatThrownBy(() -> new ExpressionBuilderRegistry(
-                    ArithmeticExpressionBuilder.INSTANCE,
-                    null,
-                    StringExpressionBuilder.INSTANCE,
-                    TemporalExpressionBuilder.INSTANCE,
-                    BigDecimalExpressionBuilder.INSTANCE,
-                    SubqueryExpressionBuilder.INSTANCE,
-                    BiEntityExpressionBuilder.INSTANCE,
-                    GroupExpressionBuilder.INSTANCE))
-                    .isInstanceOf(NullPointerException.class)
-                    .hasMessageContaining("comparisonBuilder");
-        }
-
-        @Test
-        @DisplayName("throws NullPointerException for null stringBuilder")
-        void throwsForNullString() {
-            assertThatThrownBy(() -> new ExpressionBuilderRegistry(
-                    ArithmeticExpressionBuilder.INSTANCE,
-                    ComparisonExpressionBuilder.INSTANCE,
-                    null,
-                    TemporalExpressionBuilder.INSTANCE,
-                    BigDecimalExpressionBuilder.INSTANCE,
-                    SubqueryExpressionBuilder.INSTANCE,
-                    BiEntityExpressionBuilder.INSTANCE,
-                    GroupExpressionBuilder.INSTANCE))
-                    .isInstanceOf(NullPointerException.class)
-                    .hasMessageContaining("stringBuilder");
-        }
-
-        @Test
-        @DisplayName("throws NullPointerException for null temporalBuilder")
-        void throwsForNullTemporal() {
-            assertThatThrownBy(() -> new ExpressionBuilderRegistry(
-                    ArithmeticExpressionBuilder.INSTANCE,
-                    ComparisonExpressionBuilder.INSTANCE,
-                    StringExpressionBuilder.INSTANCE,
-                    null,
-                    BigDecimalExpressionBuilder.INSTANCE,
-                    SubqueryExpressionBuilder.INSTANCE,
-                    BiEntityExpressionBuilder.INSTANCE,
-                    GroupExpressionBuilder.INSTANCE))
-                    .isInstanceOf(NullPointerException.class)
-                    .hasMessageContaining("temporalBuilder");
-        }
-
-        @Test
-        @DisplayName("throws NullPointerException for null bigDecimalBuilder")
-        void throwsForNullBigDecimal() {
-            assertThatThrownBy(() -> new ExpressionBuilderRegistry(
-                    ArithmeticExpressionBuilder.INSTANCE,
-                    ComparisonExpressionBuilder.INSTANCE,
-                    StringExpressionBuilder.INSTANCE,
-                    TemporalExpressionBuilder.INSTANCE,
-                    null,
-                    SubqueryExpressionBuilder.INSTANCE,
-                    BiEntityExpressionBuilder.INSTANCE,
-                    GroupExpressionBuilder.INSTANCE))
-                    .isInstanceOf(NullPointerException.class)
-                    .hasMessageContaining("bigDecimalBuilder");
-        }
-
-        @Test
-        @DisplayName("throws NullPointerException for null subqueryBuilder")
-        void throwsForNullSubquery() {
-            assertThatThrownBy(() -> new ExpressionBuilderRegistry(
-                    ArithmeticExpressionBuilder.INSTANCE,
-                    ComparisonExpressionBuilder.INSTANCE,
-                    StringExpressionBuilder.INSTANCE,
-                    TemporalExpressionBuilder.INSTANCE,
-                    BigDecimalExpressionBuilder.INSTANCE,
-                    null,
-                    BiEntityExpressionBuilder.INSTANCE,
-                    GroupExpressionBuilder.INSTANCE))
-                    .isInstanceOf(NullPointerException.class)
-                    .hasMessageContaining("subqueryBuilder");
-        }
-
-        @Test
-        @DisplayName("throws NullPointerException for null biEntityBuilder")
-        void throwsForNullBiEntity() {
-            assertThatThrownBy(() -> new ExpressionBuilderRegistry(
-                    ArithmeticExpressionBuilder.INSTANCE,
-                    ComparisonExpressionBuilder.INSTANCE,
-                    StringExpressionBuilder.INSTANCE,
-                    TemporalExpressionBuilder.INSTANCE,
-                    BigDecimalExpressionBuilder.INSTANCE,
-                    SubqueryExpressionBuilder.INSTANCE,
-                    null,
-                    GroupExpressionBuilder.INSTANCE))
-                    .isInstanceOf(NullPointerException.class)
-                    .hasMessageContaining("biEntityBuilder");
-        }
-
-        @Test
-        @DisplayName("throws NullPointerException for null groupBuilder")
-        void throwsForNullGroup() {
-            assertThatThrownBy(() -> new ExpressionBuilderRegistry(
-                    ArithmeticExpressionBuilder.INSTANCE,
-                    ComparisonExpressionBuilder.INSTANCE,
-                    StringExpressionBuilder.INSTANCE,
-                    TemporalExpressionBuilder.INSTANCE,
-                    BigDecimalExpressionBuilder.INSTANCE,
-                    SubqueryExpressionBuilder.INSTANCE,
-                    BiEntityExpressionBuilder.INSTANCE,
-                    null))
-                    .isInstanceOf(NullPointerException.class)
-                    .hasMessageContaining("groupBuilder");
+        /**
+         * Creates an ExpressionBuilderRegistry with the specified parameter set to null.
+         */
+        private ExpressionBuilderRegistry createRegistryWithNull(String nullParameter) {
+            return new ExpressionBuilderRegistry(
+                    "arithmeticBuilder".equals(nullParameter) ? null : ArithmeticExpressionBuilder.INSTANCE,
+                    "comparisonBuilder".equals(nullParameter) ? null : ComparisonExpressionBuilder.INSTANCE,
+                    "stringBuilder".equals(nullParameter) ? null : StringExpressionBuilder.INSTANCE,
+                    "temporalBuilder".equals(nullParameter) ? null : TemporalExpressionBuilder.INSTANCE,
+                    "bigDecimalBuilder".equals(nullParameter) ? null : BigDecimalExpressionBuilder.INSTANCE,
+                    "subqueryBuilder".equals(nullParameter) ? null : SubqueryExpressionBuilder.INSTANCE,
+                    "biEntityBuilder".equals(nullParameter) ? null : BiEntityExpressionBuilder.INSTANCE,
+                    "groupBuilder".equals(nullParameter) ? null : GroupExpressionBuilder.INSTANCE);
         }
     }
 }

@@ -46,9 +46,10 @@ class BuildMetricsCollectorTest {
 
         assertThat(outputPath).exists();
         String content = Files.readString(outputPath);
-        assertThat(content).contains("\"total_ms\"");
-        assertThat(content).contains("\"phases\"");
-        assertThat(content).contains("\"test_phase\"");
-        assertThat(content).contains("\"query_count\"");
+        assertThat(content)
+                .contains("\"total_ms\"")
+                .contains("\"phases\"")
+                .contains("\"test_phase\"")
+                .contains("\"query_count\"");
     }
 }

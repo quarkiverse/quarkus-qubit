@@ -2,6 +2,8 @@ package io.quarkiverse.qubit.deployment.criteria;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 /**
  * Criteria query generation tests for lambda expressions with captured variables.
@@ -17,75 +19,40 @@ import org.junit.jupiter.api.Test;
  * }</pre>
  *
  * <p>In the generated Criteria query, {@code searchName} should become a parameter.
+ *
+ * <p>This class uses JUnit 5 parameterized tests to consolidate repetitive
+ * test patterns, reducing code duplication while maintaining full coverage.
  */
 class CapturedVariablesCriteriaTest extends CriteriaQueryTestBase {
 
-    @Test
-    void capturedStringVariable() {
-        LambdaExpression expr = analyzeLambda("capturedStringVariable");
+    // ==================== PARAMETERIZED TESTS ====================
+
+    /**
+     * Tests for simple captured variable patterns (field access + comparison method).
+     */
+    @ParameterizedTest(name = "{0}: {1} → cb.{2}()")
+    @CsvSource({
+            "capturedStringVariable, firstName, equal",
+            "capturedIntVariable, age, greaterThan",
+            "capturedDoubleVariable, salary, greaterThanOrEqualTo",
+            "capturedStringStartsWith, firstName, like",
+            "capturedBooleanVariable, active, equal",
+            "capturedLongVariable, employeeId, equal"
+    })
+    void simpleCapturedVariable(String lambdaMethodName, String fieldName, String expectedMethod) {
+        LambdaExpression expr = analyzeLambda(lambdaMethodName);
         CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-
-        // Verify generation succeeded
         assertCriteriaGenerationSucceeds(expr);
-
-        // Verify field access
-        assertFieldAccessed(structure, "firstName");
-
-        // Verify equal comparison (String.equals() -> cb.equal())
-        assertCriteriaMethodCalled(structure, "equal");
+        assertFieldAccessed(structure, fieldName);
+        assertCriteriaMethodCalled(structure, expectedMethod);
     }
 
-    @Test
-    void capturedIntVariable() {
-        LambdaExpression expr = analyzeLambda("capturedIntVariable");
-        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-
-        // Verify generation succeeded
-        assertCriteriaGenerationSucceeds(expr);
-
-        // Verify field access
-        assertFieldAccessed(structure, "age");
-
-        // Verify greater than comparison
-        assertCriteriaMethodCalled(structure, "greaterThan");
-    }
-
-    @Test
-    void capturedDoubleVariable() {
-        LambdaExpression expr = analyzeLambda("capturedDoubleVariable");
-        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-
-        // Verify generation succeeded
-        assertCriteriaGenerationSucceeds(expr);
-
-        // Verify field access
-        assertFieldAccessed(structure, "salary");
-
-        // Verify greater than or equal comparison
-        assertCriteriaMethodCalled(structure, "greaterThanOrEqualTo");
-    }
-
-    @Test
-    void capturedStringStartsWith() {
-        LambdaExpression expr = analyzeLambda("capturedStringStartsWith");
-        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-
-        // Verify generation succeeded
-        assertCriteriaGenerationSucceeds(expr);
-
-        // Verify field access
-        assertFieldAccessed(structure, "firstName");
-
-        // Verify LIKE pattern for startsWith
-        assertCriteriaMethodCalled(structure, "like");
-    }
+    // ==================== COMPLEX CAPTURED VARIABLE TESTS ====================
 
     @Test
     void multipleCapturedVariables() {
         LambdaExpression expr = analyzeLambda("multipleCapturedVariables");
         CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-
-        // Verify generation succeeded
         assertCriteriaGenerationSucceeds(expr);
 
         // Verify AND operation
@@ -104,8 +71,6 @@ class CapturedVariablesCriteriaTest extends CriteriaQueryTestBase {
     void capturedVariableInComplexExpression() {
         LambdaExpression expr = analyzeLambda("capturedVariableInComplexExpression");
         CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-
-        // Verify generation succeeded
         assertCriteriaGenerationSucceeds(expr);
 
         // Verify OR operation at top level
@@ -121,36 +86,6 @@ class CapturedVariablesCriteriaTest extends CriteriaQueryTestBase {
 
         // Verify comparison operations
         assertCriteriaMethodCalled(structure, "greaterThan");
-        assertCriteriaMethodCalled(structure, "equal");
-    }
-
-    @Test
-    void capturedBooleanVariable() {
-        LambdaExpression expr = analyzeLambda("capturedBooleanVariable");
-        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-
-        // Verify generation succeeded
-        assertCriteriaGenerationSucceeds(expr);
-
-        // Verify field access
-        assertFieldAccessed(structure, "active");
-
-        // Verify equal comparison for boolean field with captured variable
-        assertCriteriaMethodCalled(structure, "equal");
-    }
-
-    @Test
-    void capturedLongVariable() {
-        LambdaExpression expr = analyzeLambda("capturedLongVariable");
-        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
-
-        // Verify generation succeeded
-        assertCriteriaGenerationSucceeds(expr);
-
-        // Verify field access
-        assertFieldAccessed(structure, "employeeId");
-
-        // Verify equal comparison
         assertCriteriaMethodCalled(structure, "equal");
     }
 }

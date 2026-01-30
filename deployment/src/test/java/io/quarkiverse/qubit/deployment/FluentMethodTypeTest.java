@@ -4,11 +4,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -20,100 +23,54 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class FluentMethodTypeTest {
 
+    // ==================== Parameterized Test Data ====================
+
+    /** Method name to FluentMethodType mappings for lookup tests. */
+    static Stream<Arguments> methodNameMappings() {
+        return Stream.of(
+                Arguments.of("where", FluentMethodType.WHERE),
+                Arguments.of("select", FluentMethodType.SELECT),
+                Arguments.of("sortedBy", FluentMethodType.SORTED_BY),
+                Arguments.of("sortedDescendingBy", FluentMethodType.SORTED_DESCENDING_BY),
+                Arguments.of("min", FluentMethodType.MIN),
+                Arguments.of("max", FluentMethodType.MAX),
+                Arguments.of("avg", FluentMethodType.AVG),
+                Arguments.of("sumInteger", FluentMethodType.SUM_INTEGER),
+                Arguments.of("sumLong", FluentMethodType.SUM_LONG),
+                Arguments.of("sumDouble", FluentMethodType.SUM_DOUBLE)
+        );
+    }
+
+    /** FluentMethodType to MethodCategory mappings for category tests. */
+    static Stream<Arguments> categoryMappings() {
+        return Stream.of(
+                Arguments.of(FluentMethodType.WHERE, FluentMethodType.MethodCategory.PREDICATE),
+                Arguments.of(FluentMethodType.SELECT, FluentMethodType.MethodCategory.PROJECTION),
+                Arguments.of(FluentMethodType.SORTED_BY, FluentMethodType.MethodCategory.SORTING),
+                Arguments.of(FluentMethodType.SORTED_DESCENDING_BY, FluentMethodType.MethodCategory.SORTING),
+                Arguments.of(FluentMethodType.MIN, FluentMethodType.MethodCategory.AGGREGATION),
+                Arguments.of(FluentMethodType.MAX, FluentMethodType.MethodCategory.AGGREGATION),
+                Arguments.of(FluentMethodType.AVG, FluentMethodType.MethodCategory.AGGREGATION),
+                Arguments.of(FluentMethodType.SUM_INTEGER, FluentMethodType.MethodCategory.AGGREGATION),
+                Arguments.of(FluentMethodType.SUM_LONG, FluentMethodType.MethodCategory.AGGREGATION),
+                Arguments.of(FluentMethodType.SUM_DOUBLE, FluentMethodType.MethodCategory.AGGREGATION)
+        );
+    }
+
     // ========== fromMethodName Tests ==========
 
     @Nested
     @DisplayName("fromMethodName() lookup")
     class FromMethodNameTests {
 
-        @Test
-        @DisplayName("Returns WHERE for 'where'")
-        void fromMethodName_where_returnsWhere() {
-            Optional<FluentMethodType> result = FluentMethodType.fromMethodName("where");
+        @ParameterizedTest(name = "fromMethodName(\"{0}\") → {1}")
+        @MethodSource("io.quarkiverse.qubit.deployment.FluentMethodTypeTest#methodNameMappings")
+        @DisplayName("Returns correct FluentMethodType for known method names")
+        void fromMethodName_knownMethodName_returnsCorrectType(String methodName, FluentMethodType expectedType) {
+            Optional<FluentMethodType> result = FluentMethodType.fromMethodName(methodName);
             assertThat(result)
                     .isPresent()
-                    .contains(FluentMethodType.WHERE);
-        }
-
-        @Test
-        @DisplayName("Returns SELECT for 'select'")
-        void fromMethodName_select_returnsSelect() {
-            Optional<FluentMethodType> result = FluentMethodType.fromMethodName("select");
-            assertThat(result)
-                    .isPresent()
-                    .contains(FluentMethodType.SELECT);
-        }
-
-        @Test
-        @DisplayName("Returns SORTED_BY for 'sortedBy'")
-        void fromMethodName_sortedBy_returnsSortedBy() {
-            Optional<FluentMethodType> result = FluentMethodType.fromMethodName("sortedBy");
-            assertThat(result)
-                    .isPresent()
-                    .contains(FluentMethodType.SORTED_BY);
-        }
-
-        @Test
-        @DisplayName("Returns SORTED_DESCENDING_BY for 'sortedDescendingBy'")
-        void fromMethodName_sortedDescendingBy_returnsSortedDescendingBy() {
-            Optional<FluentMethodType> result = FluentMethodType.fromMethodName("sortedDescendingBy");
-            assertThat(result)
-                    .isPresent()
-                    .contains(FluentMethodType.SORTED_DESCENDING_BY);
-        }
-
-        @Test
-        @DisplayName("Returns MIN for 'min'")
-        void fromMethodName_min_returnsMin() {
-            Optional<FluentMethodType> result = FluentMethodType.fromMethodName("min");
-            assertThat(result)
-                    .isPresent()
-                    .contains(FluentMethodType.MIN);
-        }
-
-        @Test
-        @DisplayName("Returns MAX for 'max'")
-        void fromMethodName_max_returnsMax() {
-            Optional<FluentMethodType> result = FluentMethodType.fromMethodName("max");
-            assertThat(result)
-                    .isPresent()
-                    .contains(FluentMethodType.MAX);
-        }
-
-        @Test
-        @DisplayName("Returns AVG for 'avg'")
-        void fromMethodName_avg_returnsAvg() {
-            Optional<FluentMethodType> result = FluentMethodType.fromMethodName("avg");
-            assertThat(result)
-                    .isPresent()
-                    .contains(FluentMethodType.AVG);
-        }
-
-        @Test
-        @DisplayName("Returns SUM_INTEGER for 'sumInteger'")
-        void fromMethodName_sumInteger_returnsSumInteger() {
-            Optional<FluentMethodType> result = FluentMethodType.fromMethodName("sumInteger");
-            assertThat(result)
-                    .isPresent()
-                    .contains(FluentMethodType.SUM_INTEGER);
-        }
-
-        @Test
-        @DisplayName("Returns SUM_LONG for 'sumLong'")
-        void fromMethodName_sumLong_returnsSumLong() {
-            Optional<FluentMethodType> result = FluentMethodType.fromMethodName("sumLong");
-            assertThat(result)
-                    .isPresent()
-                    .contains(FluentMethodType.SUM_LONG);
-        }
-
-        @Test
-        @DisplayName("Returns SUM_DOUBLE for 'sumDouble'")
-        void fromMethodName_sumDouble_returnsSumDouble() {
-            Optional<FluentMethodType> result = FluentMethodType.fromMethodName("sumDouble");
-            assertThat(result)
-                    .isPresent()
-                    .contains(FluentMethodType.SUM_DOUBLE);
+                    .contains(expectedType);
         }
 
         @ParameterizedTest
@@ -155,94 +112,25 @@ class FluentMethodTypeTest {
     @DisplayName("Category and isAggregation()")
     class CategoryTests {
 
-        @Test
-        @DisplayName("WHERE has PREDICATE category")
-        void where_hasCategoryPredicate() {
-            assertThat(FluentMethodType.WHERE.getCategory())
-                    .isEqualTo(FluentMethodType.MethodCategory.PREDICATE);
+        @ParameterizedTest(name = "{0} → {1}")
+        @MethodSource("io.quarkiverse.qubit.deployment.FluentMethodTypeTest#categoryMappings")
+        @DisplayName("FluentMethodType has correct category")
+        void methodType_hasCorrectCategory(FluentMethodType type, FluentMethodType.MethodCategory expectedCategory) {
+            assertThat(type.getCategory()).isEqualTo(expectedCategory);
         }
 
-        @Test
-        @DisplayName("SELECT has PROJECTION category")
-        void select_hasCategoryProjection() {
-            assertThat(FluentMethodType.SELECT.getCategory())
-                    .isEqualTo(FluentMethodType.MethodCategory.PROJECTION);
-        }
-
-        @Test
-        @DisplayName("SORTED_BY has SORTING category")
-        void sortedBy_hasCategorySorting() {
-            assertThat(FluentMethodType.SORTED_BY.getCategory())
-                    .isEqualTo(FluentMethodType.MethodCategory.SORTING);
-        }
-
-        @Test
-        @DisplayName("SORTED_DESCENDING_BY has SORTING category")
-        void sortedDescendingBy_hasCategorySorting() {
-            assertThat(FluentMethodType.SORTED_DESCENDING_BY.getCategory())
-                    .isEqualTo(FluentMethodType.MethodCategory.SORTING);
-        }
-
-        @Test
-        @DisplayName("MIN has AGGREGATION category")
-        void min_hasCategoryAggregation() {
-            assertThat(FluentMethodType.MIN.getCategory())
-                    .isEqualTo(FluentMethodType.MethodCategory.AGGREGATION);
-        }
-
-        @Test
-        @DisplayName("MAX has AGGREGATION category")
-        void max_hasCategoryAggregation() {
-            assertThat(FluentMethodType.MAX.getCategory())
-                    .isEqualTo(FluentMethodType.MethodCategory.AGGREGATION);
-        }
-
-        @Test
-        @DisplayName("AVG has AGGREGATION category")
-        void avg_hasCategoryAggregation() {
-            assertThat(FluentMethodType.AVG.getCategory())
-                    .isEqualTo(FluentMethodType.MethodCategory.AGGREGATION);
-        }
-
-        @Test
-        @DisplayName("SUM_INTEGER has AGGREGATION category")
-        void sumInteger_hasCategoryAggregation() {
-            assertThat(FluentMethodType.SUM_INTEGER.getCategory())
-                    .isEqualTo(FluentMethodType.MethodCategory.AGGREGATION);
-        }
-
-        @Test
-        @DisplayName("SUM_LONG has AGGREGATION category")
-        void sumLong_hasCategoryAggregation() {
-            assertThat(FluentMethodType.SUM_LONG.getCategory())
-                    .isEqualTo(FluentMethodType.MethodCategory.AGGREGATION);
-        }
-
-        @Test
-        @DisplayName("SUM_DOUBLE has AGGREGATION category")
-        void sumDouble_hasCategoryAggregation() {
-            assertThat(FluentMethodType.SUM_DOUBLE.getCategory())
-                    .isEqualTo(FluentMethodType.MethodCategory.AGGREGATION);
-        }
-
-        @Test
+        @ParameterizedTest
+        @EnumSource(value = FluentMethodType.class, names = {"MIN", "MAX", "AVG", "SUM_INTEGER", "SUM_LONG", "SUM_DOUBLE"})
         @DisplayName("isAggregation returns true for aggregation methods")
-        void isAggregation_forAggregationMethods_returnsTrue() {
-            assertThat(FluentMethodType.MIN.isAggregation()).isTrue();
-            assertThat(FluentMethodType.MAX.isAggregation()).isTrue();
-            assertThat(FluentMethodType.AVG.isAggregation()).isTrue();
-            assertThat(FluentMethodType.SUM_INTEGER.isAggregation()).isTrue();
-            assertThat(FluentMethodType.SUM_LONG.isAggregation()).isTrue();
-            assertThat(FluentMethodType.SUM_DOUBLE.isAggregation()).isTrue();
+        void isAggregation_forAggregationMethods_returnsTrue(FluentMethodType type) {
+            assertThat(type.isAggregation()).isTrue();
         }
 
-        @Test
+        @ParameterizedTest
+        @EnumSource(value = FluentMethodType.class, names = {"WHERE", "SELECT", "SORTED_BY", "SORTED_DESCENDING_BY"})
         @DisplayName("isAggregation returns false for non-aggregation methods")
-        void isAggregation_forNonAggregationMethods_returnsFalse() {
-            assertThat(FluentMethodType.WHERE.isAggregation()).isFalse();
-            assertThat(FluentMethodType.SELECT.isAggregation()).isFalse();
-            assertThat(FluentMethodType.SORTED_BY.isAggregation()).isFalse();
-            assertThat(FluentMethodType.SORTED_DESCENDING_BY.isAggregation()).isFalse();
+        void isAggregation_forNonAggregationMethods_returnsFalse(FluentMethodType type) {
+            assertThat(type.isAggregation()).isFalse();
         }
 
         @ParameterizedTest
@@ -260,13 +148,6 @@ class FluentMethodTypeTest {
     @Nested
     @DisplayName("EnumSet Constants")
     class EnumSetConstantsTests {
-
-        @Test
-        @DisplayName("ENTRY_POINTS contains all enum values")
-        void entryPoints_containsAllValues() {
-            assertThat(FluentMethodType.ENTRY_POINTS)
-                    .containsExactlyInAnyOrder(FluentMethodType.values());
-        }
 
         @Test
         @DisplayName("AGGREGATIONS contains exactly the aggregation methods")

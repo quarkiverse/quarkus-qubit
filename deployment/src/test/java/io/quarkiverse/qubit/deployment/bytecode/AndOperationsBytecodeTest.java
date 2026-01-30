@@ -2,6 +2,8 @@ package io.quarkiverse.qubit.deployment.bytecode;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -32,59 +34,20 @@ class AndOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         assertConstant(rightComp.right(), true);
     }
 
-    @Test
-    void threeConditionAnd() {
-        LambdaExpression expr = analyzeLambda("threeConditionAnd");
+    @ParameterizedTest(name = "{0} → AND chain")
+    @ValueSource(strings = {
+            "threeConditionAnd",
+            "fourConditionAnd",
+            "fiveConditionAnd",
+            "longAndChain"
+    })
+    void andChain(String lambdaMethodName) {
+        LambdaExpression expr = analyzeLambda(lambdaMethodName);
 
-        // p.age >= 35 && p.active && p.salary != null
-        // Should be structured as: (p.age >= 35 && p.active) && (p.salary != null)
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.AND);
-        LambdaExpression.BinaryOp outerAnd = (LambdaExpression.BinaryOp) expr;
-
-        // Can be left-associative: ((age >= 35) && active) && (salary != null)
-        // Or right-associative: (age >= 35) && (active && (salary != null))
-        // Let's check the actual structure
-        assertThat(outerAnd.left()).isNotNull();
-        assertThat(outerAnd.right()).isNotNull();
-    }
-
-    @Test
-    void fourConditionAnd() {
-        LambdaExpression expr = analyzeLambda("fourConditionAnd");
-
-        // p.age >= 35 && p.active && p.salary != null && p.salary > 85000.0
         assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.AND);
         LambdaExpression.BinaryOp andOp = (LambdaExpression.BinaryOp) expr;
 
-        // Verify it's an AND chain
-        assertThat(andOp.left()).isNotNull();
-        assertThat(andOp.right()).isNotNull();
-    }
-
-    @Test
-    void fiveConditionAnd() {
-        LambdaExpression expr = analyzeLambda("fiveConditionAnd");
-
-        // p.age >= 30 && p.active && p.salary != null && p.salary > 70000.0 && p.email.contains("@")
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.AND);
-        LambdaExpression.BinaryOp andOp = (LambdaExpression.BinaryOp) expr;
-
-        // Verify it's an AND chain
-        assertThat(andOp.left()).isNotNull();
-        assertThat(andOp.right()).isNotNull();
-    }
-
-    @Test
-    void longAndChain() {
-        LambdaExpression expr = analyzeLambda("longAndChain");
-
-        // p.age >= 25 && p.age <= 45 && p.active && p.salary != null &&
-        // p.salary > 60000.0 && p.email.contains("@") &&
-        // p.height != null && p.height > 1.6f
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.AND);
-        LambdaExpression.BinaryOp andOp = (LambdaExpression.BinaryOp) expr;
-
-        // Verify it's an AND chain (8 conditions total)
+        // Verify it's an AND chain with non-null operands
         assertThat(andOp.left()).isNotNull();
         assertThat(andOp.right()).isNotNull();
     }

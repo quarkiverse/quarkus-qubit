@@ -124,18 +124,13 @@ public class CallSiteProcessor {
      */
     public AnalysisOutcome processCallSiteWithHandlers(
             InvokeDynamicScanner.LambdaCallSite callSite,
-            ApplicationArchivesBuildItem applicationArchives,
-            AtomicInteger generatedCount,
-            AtomicInteger deduplicatedCount,
-            BuildProducer<GeneratedClassBuildItem> generatedClass,
-            BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations,
-            QubitBuildTimeConfig.LoggingConfig loggingConfig,
-            boolean failOnAnalysisError) {
+            CallSiteProcessingContext processingContext) {
 
         // Load bytecode
         byte[] classBytes;
         try {
-            classBytes = BytecodeLoader.loadClassBytecode(callSite.ownerClassName(), applicationArchives, metricsCollector);
+            classBytes = BytecodeLoader.loadClassBytecode(callSite.ownerClassName(),
+                    processingContext.applicationArchives(), metricsCollector);
         } catch (BytecodeAnalysisException e) {
             Log.warnf("Could not load bytecode for class: %s - %s", callSite.ownerClassName(), e.getMessage());
             return AnalysisOutcome.unsupported(e.getMessage(), callSite.getCallSiteId());
@@ -143,7 +138,7 @@ public class CallSiteProcessor {
 
         String callSiteId = callSite.getCallSiteId();
 
-        if (loggingConfig.logBytecodeAnalysis()) {
+        if (processingContext.loggingConfig().logBytecodeAnalysis()) {
             Log.debugf("Qubit: Analyzing bytecode for call site: %s", callSiteId);
         }
 
@@ -151,14 +146,32 @@ public class CallSiteProcessor {
         QueryTypeHandlerRegistry registry = QueryTypeHandlerRegistry.getDefault();
         QueryTypeHandler handler = registry.handlerFor(callSite);
 
-        if (loggingConfig.logBytecodeAnalysis()) {
+        if (processingContext.loggingConfig().logBytecodeAnalysis()) {
             Log.debugf("Using %s handler for call site: %s", handler.queryTypeName(), callSiteId);
         }
 
         // Create analysis context with shared deduplicator and metrics collector
         QueryAnalysisContext context = QueryAnalysisContext.of(classBytes, callSite, bytecodeAnalyzer, deduplicator, metricsCollector);
 
-        // Early deduplication check: skip expensive analysis if we've seen this bytecode signature before
+        // Check for early deduplication hit
+        AnalysisOutcome earlyDedup = checkEarlyDeduplication(callSite, callSiteId, processingContext);
+        if (earlyDedup != null) {
+            return earlyDedup;
+        }
+
+        // Analyze using the handler
+        AnalysisOutcome outcome = handler.analyze(context);
+
+        // Handle the outcome
+        return handleAnalysisOutcome(outcome, callSite, callSiteId, processingContext);
+    }
+
+    /** Checks for early deduplication hit. Returns outcome if hit, null otherwise. */
+    private AnalysisOutcome checkEarlyDeduplication(
+            InvokeDynamicScanner.LambdaCallSite callSite,
+            String callSiteId,
+            CallSiteProcessingContext ctx) {
+
         long earlyDeduplicationStartTime = System.nanoTime();
         String bytecodeSignature = deduplicator.computeBytecodeSignature(callSite);
         LambdaDeduplicator.CachedAnalysisResult cachedResult = deduplicator.getCachedResult(bytecodeSignature);
@@ -167,77 +180,42 @@ public class CallSiteProcessor {
             metricsCollector.addEarlyDeduplicationCheckTime(System.nanoTime() - earlyDeduplicationStartTime);
         }
 
-        if (cachedResult != null) {
-            // Early deduplication hit: skip analysis and reuse existing executor
-            if (loggingConfig.logDeduplication()) {
-                Log.debugf("Early deduplication hit for call site %s (reusing %s)",
-                        callSiteId, cachedResult.executorClassName());
-            }
-
-            if (metricsCollector != null) {
-                metricsCollector.incrementEarlyDeduplicationHits();
-                metricsCollector.incrementDuplicateCount();
-            }
-
-            deduplicatedCount.incrementAndGet();
-
-            // Register the query transformation for this call site
-            registerEarlyDeduplicatedQuery(callSite, cachedResult.executorClassName(),
-                    queryTransformations, loggingConfig);
-
-            // Return a success outcome with the cached hash
-            // Note: We don't have the full LambdaAnalysisResult, but that's OK for deduplication
-            return AnalysisOutcome.earlyDeduplicated(callSiteId, cachedResult.lambdaHash(),
-                    cachedResult.executorClassName());
+        if (cachedResult == null) {
+            return null;
         }
 
-        // Analyze using the handler
-        AnalysisOutcome outcome = handler.analyze(context);
+        // Early deduplication hit: skip analysis and reuse existing executor
+        if (ctx.loggingConfig().logDeduplication()) {
+            Log.debugf("Early deduplication hit for call site %s (reusing %s)",
+                    callSiteId, cachedResult.executorClassName());
+        }
 
-        // Handle the outcome
+        if (metricsCollector != null) {
+            metricsCollector.incrementEarlyDeduplicationHits();
+            metricsCollector.incrementDuplicateCount();
+        }
+
+        ctx.deduplicatedCount().incrementAndGet();
+
+        // Register the query transformation for this call site
+        registerEarlyDeduplicatedQuery(callSite, cachedResult.executorClassName(),
+                ctx.queryTransformations(), ctx.loggingConfig());
+
+        // Return a success outcome with the cached hash
+        return AnalysisOutcome.earlyDeduplicated(callSiteId, cachedResult.lambdaHash(),
+                cachedResult.executorClassName());
+    }
+
+    /** Handles analysis outcome after handler execution. */
+    private AnalysisOutcome handleAnalysisOutcome(
+            AnalysisOutcome outcome,
+            InvokeDynamicScanner.LambdaCallSite callSite,
+            String callSiteId,
+            CallSiteProcessingContext ctx) {
+
         return switch (outcome) {
-            case AnalysisOutcome.Success success -> {
-                // Check for deduplication first
-                LambdaAnalysis analysis = new LambdaAnalysis(
-                        success.result(), success.callSiteId(), success.lambdaHash());
-
-                long deduplicationStartTime = System.nanoTime();
-                boolean isDuplicate;
-                try {
-                    isDuplicate = checkAndHandleDuplicate(analysis, callSite, deduplicatedCount, queryTransformations, loggingConfig);
-                } finally {
-                    if (metricsCollector != null) {
-                        metricsCollector.addDeduplicationCheckTime(System.nanoTime() - deduplicationStartTime);
-                    }
-                }
-
-                if (isDuplicate) {
-                    if (metricsCollector != null) {
-                        metricsCollector.incrementDuplicateCount();
-                    }
-                    yield success;  // Deduplicated, no generation needed
-                }
-
-                // Generate executor (delegate to existing generation logic)
-                try {
-                    generateExecutorFromResult(success.result(), success.lambdaHash(), callSite,
-                            generatedClass, queryTransformations, loggingConfig);
-
-                    deduplicator.registerExecutor(success.lambdaHash(),
-                            targetPackage + "." + classNamePrefix + success.lambdaHash().substring(0, HASH_CHARS_FOR_CLASS_NAME));
-                    generatedCount.incrementAndGet();
-
-                    if (loggingConfig.logGeneratedClasses()) {
-                        Log.debugf("Generated executor for call site %s (hash: %s)",
-                                success.callSiteId(), success.lambdaHash().substring(0, HASH_CHARS_FOR_LOG));
-                    }
-                } catch (Exception e) {
-                    Log.errorf(e, "Failed to generate executor for call site: %s", callSiteId);
-                    yield AnalysisOutcome.error(e, callSiteId);
-                }
-
-                yield success;
-            }
+            case AnalysisOutcome.Success success ->
+                    handleSuccessOutcome(success, callSite, callSiteId, ctx);
 
             case AnalysisOutcome.UnsupportedPattern unsupported -> {
                 Log.debugf("Skipping unsupported pattern at %s: %s",
@@ -246,8 +224,8 @@ public class CallSiteProcessor {
             }
 
             case AnalysisOutcome.AnalysisError error -> {
-                if (failOnAnalysisError) {
-                    throw new RuntimeException(error.formattedMessage(), error.cause());
+                if (ctx.failOnAnalysisError()) {
+                    throw BytecodeAnalysisException.analysisError(error.formattedMessage(), error.cause());
                 }
                 Log.errorf(error.cause(), "Analysis error at %s: %s",
                         error.callSiteId(), error.context());
@@ -261,6 +239,56 @@ public class CallSiteProcessor {
                 yield earlyDedup;
             }
         };
+    }
+
+    /** Handles successful analysis: checks deduplication and generates executor. */
+    private AnalysisOutcome handleSuccessOutcome(
+            AnalysisOutcome.Success success,
+            InvokeDynamicScanner.LambdaCallSite callSite,
+            String callSiteId,
+            CallSiteProcessingContext ctx) {
+
+        // Check for deduplication first
+        LambdaAnalysis analysis = new LambdaAnalysis(
+                success.result(), success.callSiteId(), success.lambdaHash());
+
+        long deduplicationStartTime = System.nanoTime();
+        boolean isDuplicate;
+        try {
+            isDuplicate = checkAndHandleDuplicate(analysis, callSite, ctx.deduplicatedCount(),
+                    ctx.queryTransformations(), ctx.loggingConfig());
+        } finally {
+            if (metricsCollector != null) {
+                metricsCollector.addDeduplicationCheckTime(System.nanoTime() - deduplicationStartTime);
+            }
+        }
+
+        if (isDuplicate) {
+            if (metricsCollector != null) {
+                metricsCollector.incrementDuplicateCount();
+            }
+            return success;  // Deduplicated, no generation needed
+        }
+
+        // Generate executor (delegate to existing generation logic)
+        try {
+            generateExecutorFromResult(success.result(), success.lambdaHash(), callSite,
+                    ctx.generatedClass(), ctx.queryTransformations(), ctx.loggingConfig());
+
+            deduplicator.registerExecutor(success.lambdaHash(),
+                    targetPackage + "." + classNamePrefix + success.lambdaHash().substring(0, HASH_CHARS_FOR_CLASS_NAME));
+            ctx.generatedCount().incrementAndGet();
+
+            if (ctx.loggingConfig().logGeneratedClasses()) {
+                Log.debugf("Generated executor for call site %s (hash: %s)",
+                        success.callSiteId(), success.lambdaHash().substring(0, HASH_CHARS_FOR_LOG));
+            }
+        } catch (Exception e) {
+            Log.errorf(e, "Failed to generate executor for call site: %s", callSiteId);
+            return AnalysisOutcome.error(e, callSiteId);
+        }
+
+        return success;
     }
 
     /**
@@ -775,6 +803,17 @@ public class CallSiteProcessor {
         String generateClassName(String targetPackage, String classNamePrefix) {
             return targetPackage + "." + classNamePrefix + lambdaHash.substring(0, HASH_CHARS_FOR_CLASS_NAME);
         }
+    }
+
+    /** Consolidates call site processing parameters into a single context object. */
+    public record CallSiteProcessingContext(
+            ApplicationArchivesBuildItem applicationArchives,
+            AtomicInteger generatedCount,
+            AtomicInteger deduplicatedCount,
+            BuildProducer<GeneratedClassBuildItem> generatedClass,
+            BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations,
+            QubitBuildTimeConfig.LoggingConfig loggingConfig,
+            boolean failOnAnalysisError) {
     }
 
 }

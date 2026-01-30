@@ -186,7 +186,7 @@ public final class HashBuilder {
     // ========== Private Helpers ==========
 
     private void appendSeparatorIfNeeded() {
-        if (builder.length() > 0) {
+        if (!builder.isEmpty()) {
             builder.append(SEPARATOR);
         }
     }

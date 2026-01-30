@@ -87,14 +87,15 @@ public final class JoinQueryHandler extends AbstractQueryHandler {
 
         // Compute hash for deduplication using shared deduplicator
         String lambdaHash = context.deduplicator().computeJoinHash(
-                joinRelationshipExpr,
-                biEntityPredicateExpr,
-                biEntityProjectionExpr,
-                sortExpressions,
-                callSite.joinType().name(),
-                callSite.isCountQuery(),
-                callSite.isSelectJoinedQuery(),
-                callSite.isJoinProjectionQuery());
+                new LambdaDeduplicator.JoinHashRequest(
+                        joinRelationshipExpr,
+                        biEntityPredicateExpr,
+                        biEntityProjectionExpr,
+                        sortExpressions,
+                        callSite.joinType().name(),
+                        callSite.isCountQuery(),
+                        callSite.isSelectJoinedQuery(),
+                        callSite.isJoinProjectionQuery()));
 
         return AnalysisOutcome.success(result, context.callSiteId(), lambdaHash);
     }
@@ -107,13 +108,14 @@ public final class JoinQueryHandler extends AbstractQueryHandler {
 
         JoinQueryResult join = castResult(result, JoinQueryResult.class);
         return deduplicator.computeJoinHash(
-                join.joinRelationshipExpression(),
-                join.biEntityPredicateExpression(),
-                join.biEntityProjectionExpression(),
-                join.sortExpressions(),
-                join.joinType().name(),
-                callSite.isCountQuery(),
-                callSite.isSelectJoinedQuery(),
-                callSite.isJoinProjectionQuery());
+                new LambdaDeduplicator.JoinHashRequest(
+                        join.joinRelationshipExpression(),
+                        join.biEntityPredicateExpression(),
+                        join.biEntityProjectionExpression(),
+                        join.sortExpressions(),
+                        join.joinType().name(),
+                        callSite.isCountQuery(),
+                        callSite.isSelectJoinedQuery(),
+                        callSite.isJoinProjectionQuery()));
     }
 }

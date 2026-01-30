@@ -2,6 +2,8 @@ package io.quarkiverse.qubit.deployment.bytecode;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -40,34 +42,19 @@ class OrOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.OR);
         LambdaExpression.BinaryOp orOp = (LambdaExpression.BinaryOp) expr;
 
-        // Left: p.firstName.startsWith("A") - returned as-is (MethodCall is a predicate)
-        // Predicates (MethodCall returning boolean) are NOT wrapped with == true
+        // Left: p.firstName.startsWith("A") - MethodCall is a predicate
         assertMethodCall(orOp.left(), "startsWith");
 
         // Right: p.age > 40
         assertBinaryOp(orOp.right(), LambdaExpression.BinaryOp.Operator.GT);
     }
 
-    @Test
-    void threeWayOr() {
-        LambdaExpression expr = analyzeLambda("threeWayOr");
+    @ParameterizedTest(name = "{0} → OR chain")
+    @ValueSource(strings = {"threeWayOr", "fourWayOr"})
+    void orChain(String lambdaMethodName) {
+        LambdaExpression expr = analyzeLambda(lambdaMethodName);
 
-        // p.age < 26 || p.age > 44 || p.firstName.equals("John")
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.OR);
-        LambdaExpression.BinaryOp orOp = (LambdaExpression.BinaryOp) expr;
-
-        // Verify it's an OR chain
-        assertThat(orOp.left()).isNotNull();
-        assertThat(orOp.right()).isNotNull();
-    }
-
-    @Test
-    void fourWayOr() {
-        LambdaExpression expr = analyzeLambda("fourWayOr");
-
-        // p.age < 27 || p.age > 43 || p.firstName.equals("Alice") || p.email.contains("@example.com")
-        // Compiler optimizes this into a complex AND/OR structure
-        // Just verify it's a binary op
+        // Verify it's a binary operation (OR chain structure varies by compiler)
         assertThat(expr).isInstanceOf(LambdaExpression.BinaryOp.class);
     }
 }

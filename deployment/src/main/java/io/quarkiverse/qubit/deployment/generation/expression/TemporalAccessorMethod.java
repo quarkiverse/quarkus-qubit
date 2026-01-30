@@ -1,6 +1,5 @@
 package io.quarkiverse.qubit.deployment.generation.expression;
 
-import java.util.EnumSet;
 import java.util.Optional;
 
 import io.quarkiverse.qubit.deployment.generation.MethodDescriptors;
@@ -50,11 +49,4 @@ public enum TemporalAccessorMethod {
     public static boolean isTemporalAccessor(String methodName) {
         return fromJavaMethod(methodName).isPresent();
     }
-
-    // ========== EnumSets for Type-Specific Methods ==========
-    public static final EnumSet<TemporalAccessorMethod> DATE_METHODS = EnumSet.of(
-            GET_YEAR, GET_MONTH_VALUE, GET_DAY_OF_MONTH);
-    public static final EnumSet<TemporalAccessorMethod> TIME_METHODS = EnumSet.of(
-            GET_HOUR, GET_MINUTE, GET_SECOND);
-    public static final EnumSet<TemporalAccessorMethod> ALL = EnumSet.allOf(TemporalAccessorMethod.class);
 }

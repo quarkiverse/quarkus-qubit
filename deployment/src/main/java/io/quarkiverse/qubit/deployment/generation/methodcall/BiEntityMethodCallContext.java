@@ -4,6 +4,7 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityFieldAccess;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityPathExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition;
+import io.quarkiverse.qubit.deployment.generation.expression.BiEntityBaseContext;
 import io.quarkiverse.qubit.deployment.generation.expression.BiEntityExpressionBuilder;
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionBuilderRegistry;
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionGeneratorHelper;
@@ -39,26 +40,26 @@ public record BiEntityMethodCallContext(
 
     @Override
     public ResultHandle generateTargetAsJpaExpression() {
-        return BiEntityExpressionBuilder.INSTANCE.generateBiEntityExpressionAsJpaExpression(
-                method, methodCall.target(), cb, root, join, capturedValues, helper);
+        var ctx = new BiEntityBaseContext(method, cb, root, join, capturedValues, helper);
+        return BiEntityExpressionBuilder.INSTANCE.generateBiEntityExpressionAsJpaExpression(ctx, methodCall.target());
     }
 
     @Override
     public ResultHandle generateTarget() {
-        return BiEntityExpressionBuilder.INSTANCE.generateBiEntityExpression(
-                method, methodCall.target(), cb, root, join, capturedValues, helper);
+        var ctx = new BiEntityBaseContext(method, cb, root, join, capturedValues, helper);
+        return BiEntityExpressionBuilder.INSTANCE.generateBiEntityExpression(ctx, methodCall.target());
     }
 
     @Override
     public ResultHandle generateArgumentAsJpaExpression(LambdaExpression expression) {
-        return BiEntityExpressionBuilder.INSTANCE.generateBiEntityExpressionAsJpaExpression(
-                method, expression, cb, root, join, capturedValues, helper);
+        var ctx = new BiEntityBaseContext(method, cb, root, join, capturedValues, helper);
+        return BiEntityExpressionBuilder.INSTANCE.generateBiEntityExpressionAsJpaExpression(ctx, expression);
     }
 
     @Override
     public ResultHandle generateArgument(LambdaExpression expression) {
-        return BiEntityExpressionBuilder.INSTANCE.generateBiEntityExpression(
-                method, expression, cb, root, join, capturedValues, helper);
+        var ctx = new BiEntityBaseContext(method, cb, root, join, capturedValues, helper);
+        return BiEntityExpressionBuilder.INSTANCE.generateBiEntityExpression(ctx, expression);
     }
 
     @Override

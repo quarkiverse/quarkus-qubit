@@ -20,6 +20,8 @@ import java.util.Optional;
  */
 public final class ImmutableResultStream<T> implements QubitStream<T> {
 
+    private static final String OP_AGGREGATE = "aggregate";
+
     private final List<T> results;
     private final String operationContext;
 
@@ -58,32 +60,32 @@ public final class ImmutableResultStream<T> implements QubitStream<T> {
 
     @Override
     public <K extends Comparable<K>> QubitStream<K> min(QuerySpec<T, K> mapper) {
-        throw unsupported("aggregate");
+        throw unsupported(OP_AGGREGATE);
     }
 
     @Override
     public <K extends Comparable<K>> QubitStream<K> max(QuerySpec<T, K> mapper) {
-        throw unsupported("aggregate");
+        throw unsupported(OP_AGGREGATE);
     }
 
     @Override
     public QubitStream<Long> sumInteger(QuerySpec<T, Integer> mapper) {
-        throw unsupported("aggregate");
+        throw unsupported(OP_AGGREGATE);
     }
 
     @Override
     public QubitStream<Long> sumLong(QuerySpec<T, Long> mapper) {
-        throw unsupported("aggregate");
+        throw unsupported(OP_AGGREGATE);
     }
 
     @Override
     public QubitStream<Double> sumDouble(QuerySpec<T, Double> mapper) {
-        throw unsupported("aggregate");
+        throw unsupported(OP_AGGREGATE);
     }
 
     @Override
     public QubitStream<Double> avg(QuerySpec<T, ? extends Number> mapper) {
-        throw unsupported("aggregate");
+        throw unsupported(OP_AGGREGATE);
     }
 
     @Override

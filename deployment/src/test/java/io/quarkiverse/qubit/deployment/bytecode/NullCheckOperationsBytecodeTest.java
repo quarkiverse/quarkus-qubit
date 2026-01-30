@@ -2,27 +2,45 @@ package io.quarkiverse.qubit.deployment.bytecode;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Bytecode analysis tests for null check operations (== null, != null).
  * Tests lambda bytecode parsing without executing queries.
+ *
+ * <p>This class uses JUnit 5 parameterized tests to consolidate repetitive
+ * test patterns, reducing code duplication while maintaining full coverage.
  */
 class NullCheckOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
 
-    // ==================== STRING NULL CHECKS ====================
+    // ==================== PARAMETERIZED TESTS ====================
 
-    @Test
-    void stringNullCheck() {
-        LambdaExpression expr = analyzeLambda("stringNullCheck");
+    /**
+     * Tests for field == null patterns across String, wrapper types, and temporal types.
+     */
+    @ParameterizedTest(name = "{0}: {1} == null")
+    @CsvSource({
+            "stringNullCheck, email",
+            "doubleNullCheck, salary",
+            "longNullCheck, employeeId",
+            "floatNullCheck, height",
+            "localDateNullCheck, birthDate",
+            "localDateTimeNullCheck, createdAt",
+            "localTimeNullCheck, startTime"
+    })
+    void nullCheck(String lambdaMethodName, String expectedFieldName) {
+        LambdaExpression expr = analyzeLambda(lambdaMethodName);
 
-        // p.email == null
         assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.EQ);
         LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "email");
+        assertFieldAccess(binOp.left(), expectedFieldName);
         assertNullLiteral(binOp.right());
     }
+
+    // ==================== SPECIAL CASE TESTS ====================
 
     @Test
     void stringNotNullCheck() {
@@ -34,78 +52,6 @@ class NullCheckOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         assertFieldAccess(binOp.left(), "email");
         assertNullLiteral(binOp.right());
     }
-
-    // ==================== WRAPPER TYPE NULL CHECKS ====================
-
-    @Test
-    void doubleNullCheck() {
-        LambdaExpression expr = analyzeLambda("doubleNullCheck");
-
-        // p.salary == null (using TestPersonNullable with Double wrapper)
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.EQ);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "salary");
-        assertNullLiteral(binOp.right());
-    }
-
-    @Test
-    void longNullCheck() {
-        LambdaExpression expr = analyzeLambda("longNullCheck");
-
-        // p.employeeId == null (using TestPersonNullable with Long wrapper)
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.EQ);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "employeeId");
-        assertNullLiteral(binOp.right());
-    }
-
-    @Test
-    void floatNullCheck() {
-        LambdaExpression expr = analyzeLambda("floatNullCheck");
-
-        // p.height == null (using TestPersonNullable with Float wrapper)
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.EQ);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "height");
-        assertNullLiteral(binOp.right());
-    }
-
-    // ==================== TEMPORAL TYPE NULL CHECKS ====================
-
-    @Test
-    void localDateNullCheck() {
-        LambdaExpression expr = analyzeLambda("localDateNullCheck");
-
-        // p.birthDate == null
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.EQ);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "birthDate");
-        assertNullLiteral(binOp.right());
-    }
-
-    @Test
-    void localDateTimeNullCheck() {
-        LambdaExpression expr = analyzeLambda("localDateTimeNullCheck");
-
-        // p.createdAt == null
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.EQ);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "createdAt");
-        assertNullLiteral(binOp.right());
-    }
-
-    @Test
-    void localTimeNullCheck() {
-        LambdaExpression expr = analyzeLambda("localTimeNullCheck");
-
-        // p.startTime == null
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.EQ);
-        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
-        assertFieldAccess(binOp.left(), "startTime");
-        assertNullLiteral(binOp.right());
-    }
-
-    // ==================== CHAINED NULL CHECKS ====================
 
     @Test
     void nullCheckWithAnd() {

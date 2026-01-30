@@ -77,8 +77,9 @@ class HashBuilderTest {
                     .where(expr)
                     .buildString();
 
-            assertThat(result).startsWith("WHERE=");
-            assertThat(result).contains("age");
+            assertThat(result)
+                    .startsWith("WHERE=")
+                    .contains("age");
         }
 
         @Test
@@ -98,8 +99,9 @@ class HashBuilderTest {
                     .select(expr)
                     .buildString();
 
-            assertThat(result).startsWith("SELECT=");
-            assertThat(result).contains("email");
+            assertThat(result)
+                    .startsWith("SELECT=")
+                    .contains("email");
         }
 
         @Test
@@ -119,8 +121,9 @@ class HashBuilderTest {
                     .aggregation(expr)
                     .buildString();
 
-            assertThat(result).startsWith("AGG=");
-            assertThat(result).contains("salary");
+            assertThat(result)
+                    .startsWith("AGG=")
+                    .contains("salary");
         }
 
         @Test
@@ -167,8 +170,9 @@ class HashBuilderTest {
                     .sort(List.of(sortExpr))
                     .buildString();
 
-            assertThat(result).startsWith("SORT=");
-            assertThat(result).contains(":ASC");
+            assertThat(result)
+                    .startsWith("SORT=")
+                    .contains(":ASC");
         }
 
         @Test
@@ -182,9 +186,10 @@ class HashBuilderTest {
                     .sort(List.of(sort1, sort2))
                     .buildString();
 
-            assertThat(result).contains(",");
-            assertThat(result).contains(":ASC");
-            assertThat(result).contains(":DESC");
+            assertThat(result)
+                    .contains(",")
+                    .contains(":ASC")
+                    .contains(":DESC");
         }
 
         @Test
@@ -221,8 +226,9 @@ class HashBuilderTest {
                     .join(expr)
                     .buildString();
 
-            assertThat(result).startsWith("JOIN=");
-            assertThat(result).contains("department");
+            assertThat(result)
+                    .startsWith("JOIN=")
+                    .contains("department");
         }
 
         @Test
@@ -243,8 +249,9 @@ class HashBuilderTest {
                     .biWhere(expr)
                     .buildString();
 
-            assertThat(result).startsWith("BI_WHERE=");
-            assertThat(result).contains("status");
+            assertThat(result)
+                    .startsWith("BI_WHERE=")
+                    .contains("status");
         }
 
         @Test
@@ -264,8 +271,9 @@ class HashBuilderTest {
                     .biSelect(expr)
                     .buildString();
 
-            assertThat(result).startsWith("BI_SELECT=");
-            assertThat(result).contains("result");
+            assertThat(result)
+                    .startsWith("BI_SELECT=")
+                    .contains("result");
         }
 
         @Test
@@ -347,8 +355,9 @@ class HashBuilderTest {
                     .groupBy(expr)
                     .buildString();
 
-            assertThat(result).startsWith("GROUP_BY=");
-            assertThat(result).contains("category");
+            assertThat(result)
+                    .startsWith("GROUP_BY=")
+                    .contains("category");
         }
 
         @Test
@@ -369,8 +378,9 @@ class HashBuilderTest {
                     .having(expr)
                     .buildString();
 
-            assertThat(result).startsWith("HAVING=");
-            assertThat(result).contains("count");
+            assertThat(result)
+                    .startsWith("HAVING=")
+                    .contains("count");
         }
 
         @Test
@@ -390,8 +400,9 @@ class HashBuilderTest {
                     .groupSelect(expr)
                     .buildString();
 
-            assertThat(result).startsWith("GROUP_SELECT=");
-            assertThat(result).contains("total");
+            assertThat(result)
+                    .startsWith("GROUP_SELECT=")
+                    .contains("total");
         }
 
         @Test
@@ -525,8 +536,9 @@ class HashBuilderTest {
                     .buildString();
 
             // Should not have consecutive separators
-            assertThat(result).doesNotContain("||");
-            assertThat(result).doesNotStartWith("|");
+            assertThat(result)
+                    .doesNotContain("||")
+                    .doesNotStartWith("|");
         }
     }
 
@@ -553,8 +565,9 @@ class HashBuilderTest {
                     .buildHash();
 
             // MD5 hash is 32 hex characters
-            assertThat(hash).hasSize(32);
-            assertThat(hash).matches("[0-9a-f]{32}");
+            assertThat(hash)
+                    .hasSize(32)
+                    .matches("[0-9a-f]{32}");
         }
 
         @Test
@@ -588,8 +601,9 @@ class HashBuilderTest {
             String hash = HashBuilder.create().buildHash();
 
             // MD5 of empty string
-            assertThat(hash).hasSize(32);
-            assertThat(hash).matches("[0-9a-f]{32}");
+            assertThat(hash)
+                    .hasSize(32)
+                    .matches("[0-9a-f]{32}");
         }
 
         @Test

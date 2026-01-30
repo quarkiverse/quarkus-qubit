@@ -59,6 +59,18 @@ public final class BranchExpressionCombiner {
             boolean startingNewOrGroup) {}
 
     /**
+     * Parameter object for {@link #processAndCombineBranch}.
+     * Groups branch-related parameters to reduce method signature complexity.
+     */
+    public record BranchProcessingContext(
+            @Nullable Boolean jumpTarget,
+            ControlFlowAnalyzer.LabelClassification jumpLabelClass,
+            boolean sameLabel,
+            boolean completingAndGroup,
+            boolean startingNewOrGroup,
+            boolean jumpToTrue) {}
+
+    /**
      * Combines expressions and restructures to fix precedence if needed.
      *
      * <p>When combining ((a OR b) AND c) OR d, restructures to (a OR b) AND (c OR d)
@@ -82,17 +94,14 @@ public final class BranchExpressionCombiner {
         // Should be: (a OR b) AND (c OR d) to maintain proper grouping
         // ONLY restructure if X is itself an OR expression
         if (combineOp == OR &&
-            previousCondition instanceof LambdaExpression.BinaryOp prevBinOp &&
-            prevBinOp.operator() == AND &&
-            prevBinOp.left() instanceof LambdaExpression.BinaryOp xBinOp &&
-            xBinOp.operator() == OR) {
+            previousCondition instanceof LambdaExpression.BinaryOp(var x, var prevOp, var y) &&
+            prevOp == AND &&
+            x instanceof LambdaExpression.BinaryOp(var xLeft, var xOp, var xRight) &&
+            xOp == OR) {
 
             // Restructure: ((a OR b) AND c) OR d → (a OR b) AND (c OR d)
-            LambdaExpression x = prevBinOp.left();  // (a OR b)
-            LambdaExpression y = prevBinOp.right(); // c
-            LambdaExpression z = newExpression;     // d
-            LambdaExpression yOrZ = or(y, z);
-            return and(x, yOrZ);
+            // x = (a OR b), y = c, newExpression = d
+            return and(x, or(y, newExpression));
         }
 
         return combined;
@@ -174,7 +183,7 @@ public final class BranchExpressionCombiner {
             int opcode,
             java.util.function.IntPredicate isSuccessOpcode) {
         if (jumpTarget != null) {
-            return TRUE.equals(jumpTarget);
+            return jumpTarget;
         }
         if (jumpLabelClass == ControlFlowAnalyzer.LabelClassification.INTERMEDIATE) {
             return isSuccessOpcode.test(opcode);
@@ -235,12 +244,7 @@ public final class BranchExpressionCombiner {
      * @param expression new expression from branch instruction
      * @param instructionName name for logging
      * @param state current branch state
-     * @param jumpTarget explicit jump target, or null
-     * @param jumpLabelClass classification of jump target label
-     * @param sameLabel true if jumping to same label as previous instruction
-     * @param completingAndGroup true if completing an AND group
-     * @param startingNewOrGroup true if starting a new OR group
-     * @param jumpToTrue true if branch jumps to true path
+     * @param branchContext branch processing context with jump target, label classification, and flags
      * @return new branch state after processing
      */
     public static BranchState processAndCombineBranch(
@@ -248,25 +252,21 @@ public final class BranchExpressionCombiner {
             LambdaExpression expression,
             String instructionName,
             BranchState state,
-            Boolean jumpTarget,
-            ControlFlowAnalyzer.LabelClassification jumpLabelClass,
-            boolean sameLabel,
-            boolean completingAndGroup,
-            boolean startingNewOrGroup,
-            boolean jumpToTrue) {
+            BranchProcessingContext branchContext) {
 
         // Get previous jump target BEFORE processing current branch (needed for afterCombination)
         Optional<Boolean> previousJumpTarget = state.getLastJumpTarget();
 
         // Process branch instruction atomically (unified operator determination + state transition)
         LambdaExpression stackTop = stack.isEmpty() ? null : stack.peek();
-        BranchState.BranchResult result = state.processBranch(jumpToTrue, false, stackTop);
+        BranchState.BranchResult result = state.processBranch(branchContext.jumpToTrue(), false, stackTop);
 
         // Delegate to shared combination logic (includes operator adjustment)
         CombinationContext ctx = new CombinationContext(
                 instructionName, state, result.newState(), result.combineOperator(),
-                jumpTarget, previousJumpTarget, sameLabel, stackTop,
-                jumpLabelClass, completingAndGroup, startingNewOrGroup);
+                branchContext.jumpTarget(), previousJumpTarget, branchContext.sameLabel(), stackTop,
+                branchContext.jumpLabelClass(), branchContext.completingAndGroup(),
+                branchContext.startingNewOrGroup());
         return performCombination(stack, expression, ctx);
     }
 

@@ -464,13 +464,9 @@ class InvokeDynamicHandlerTest {
             assertThat(result).isInstanceOf(LambdaExpression.BinaryOp.class);
             String resultStr = result.toString();
             assertThat(resultStr)
-                    .as("Should contain 'prefix' constant segment")
-                    .contains("prefix");
-            assertThat(resultStr)
-                    .as("Should contain 'middle' constant segment - buffer must be cleared")
-                    .contains("middle");
-            assertThat(resultStr)
-                    .as("Should contain 'suffix' constant segment")
+                    .as("Should contain all constant segments (prefix, middle, suffix)")
+                    .contains("prefix")
+                    .contains("middle")
                     .contains("suffix");
         }
 

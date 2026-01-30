@@ -4,6 +4,9 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.CALL_SITE_ID_NULL;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.LAMBDA_HASH_NULL;
+
 /**
  * Sealed result type for lambda analysis: Success, UnsupportedPattern, or AnalysisError.
  * Enables exhaustive switch handling and configurable build failure behavior.
@@ -60,8 +63,8 @@ public sealed interface AnalysisOutcome {
     ) implements AnalysisOutcome {
 
         public EarlyDeduplicated {
-            Objects.requireNonNull(callSiteId, "Call site ID cannot be null");
-            Objects.requireNonNull(lambdaHash, "Lambda hash cannot be null");
+            Objects.requireNonNull(callSiteId, CALL_SITE_ID_NULL);
+            Objects.requireNonNull(lambdaHash, LAMBDA_HASH_NULL);
             Objects.requireNonNull(executorClassName, "Executor class name cannot be null");
         }
 
@@ -80,8 +83,8 @@ public sealed interface AnalysisOutcome {
 
         public Success {
             Objects.requireNonNull(result, "Result cannot be null");
-            Objects.requireNonNull(callSiteId, "Call site ID cannot be null");
-            Objects.requireNonNull(lambdaHash, "Lambda hash cannot be null");
+            Objects.requireNonNull(callSiteId, CALL_SITE_ID_NULL);
+            Objects.requireNonNull(lambdaHash, LAMBDA_HASH_NULL);
         }
     }
 
@@ -113,7 +116,7 @@ public sealed interface AnalysisOutcome {
 
         public UnsupportedPattern {
             Objects.requireNonNull(reason, "Reason cannot be null");
-            Objects.requireNonNull(callSiteId, "Call site ID cannot be null");
+            Objects.requireNonNull(callSiteId, CALL_SITE_ID_NULL);
             if (patternType == null) {
                 patternType = PatternType.OTHER;
             }
@@ -153,7 +156,7 @@ public sealed interface AnalysisOutcome {
 
         public AnalysisError {
             Objects.requireNonNull(cause, "Cause cannot be null");
-            Objects.requireNonNull(callSiteId, "Call site ID cannot be null");
+            Objects.requireNonNull(callSiteId, CALL_SITE_ID_NULL);
         }
 
         /** Creates an AnalysisError without additional context. */

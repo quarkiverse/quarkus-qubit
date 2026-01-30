@@ -42,6 +42,13 @@ import java.util.Set;
 public class QubitStreamImpl<T> implements QubitStream<T> {
 
     // =============================================================================================
+    // CONSTANTS
+    // =============================================================================================
+
+    private static final String PARAM_MAPPER = "Mapper";
+    private static final String PARAM_KEY_EXTRACTOR = "Key extractor";
+
+    // =============================================================================================
     // STATE FIELDS
     // =============================================================================================
 
@@ -130,7 +137,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     @Override
     @SuppressWarnings("unchecked")
     public <R> QubitStream<R> select(QuerySpec<T, R> mapper) {
-        requireNonNullLambda(mapper, "Mapper", "select");
+        requireNonNullLambda(mapper, PARAM_MAPPER, "select");
         // For now, we'll use a simple approach - the actual type inference
         // will be done at build time by the processor
         Class<R> newResultType = (Class<R>) Object.class; // Placeholder
@@ -146,7 +153,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
 
     @Override
     public <K extends Comparable<K>> QubitStream<T> sortedBy(QuerySpec<T, K> keyExtractor) {
-        requireNonNullLambda(keyExtractor, "Key extractor", "sortedBy");
+        requireNonNullLambda(keyExtractor, PARAM_KEY_EXTRACTOR, "sortedBy");
         List<SortOrder<T>> newSortOrders = new ArrayList<>(this.sortOrders);
         // Prepend to list (last call wins - becomes primary sort)
         newSortOrders.add(0, new SortOrder<>(keyExtractor, SortDirection.ASCENDING));
@@ -155,7 +162,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
 
     @Override
     public <K extends Comparable<K>> QubitStream<T> sortedDescendingBy(QuerySpec<T, K> keyExtractor) {
-        requireNonNullLambda(keyExtractor, "Key extractor", "sortedDescendingBy");
+        requireNonNullLambda(keyExtractor, PARAM_KEY_EXTRACTOR, "sortedDescendingBy");
         List<SortOrder<T>> newSortOrders = new ArrayList<>(this.sortOrders);
         // Prepend to list (last call wins - becomes primary sort)
         newSortOrders.add(0, new SortOrder<>(keyExtractor, SortDirection.DESCENDING));
@@ -201,42 +208,42 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
 
     @Override
     public <K extends Comparable<K>> QubitStream<K> min(QuerySpec<T, K> mapper) {
-        requireNonNullLambda(mapper, "Mapper", "min");
+        requireNonNullLambda(mapper, PARAM_MAPPER, "min");
         // Store aggregation state, execution happens in getSingleResult()
         return withAggregation(AggregationType.MIN, mapper);
     }
 
     @Override
     public <K extends Comparable<K>> QubitStream<K> max(QuerySpec<T, K> mapper) {
-        requireNonNullLambda(mapper, "Mapper", "max");
+        requireNonNullLambda(mapper, PARAM_MAPPER, "max");
         // Store aggregation state, execution happens in getSingleResult()
         return withAggregation(AggregationType.MAX, mapper);
     }
 
     @Override
     public QubitStream<Long> sumInteger(QuerySpec<T, Integer> mapper) {
-        requireNonNullLambda(mapper, "Mapper", "sumInteger");
+        requireNonNullLambda(mapper, PARAM_MAPPER, "sumInteger");
         // Store aggregation state, execution happens in getSingleResult()
         return withAggregation(AggregationType.SUM_INTEGER, mapper);
     }
 
     @Override
     public QubitStream<Long> sumLong(QuerySpec<T, Long> mapper) {
-        requireNonNullLambda(mapper, "Mapper", "sumLong");
+        requireNonNullLambda(mapper, PARAM_MAPPER, "sumLong");
         // Store aggregation state, execution happens in getSingleResult()
         return withAggregation(AggregationType.SUM_LONG, mapper);
     }
 
     @Override
     public QubitStream<Double> sumDouble(QuerySpec<T, Double> mapper) {
-        requireNonNullLambda(mapper, "Mapper", "sumDouble");
+        requireNonNullLambda(mapper, PARAM_MAPPER, "sumDouble");
         // Store aggregation state, execution happens in getSingleResult()
         return withAggregation(AggregationType.SUM_DOUBLE, mapper);
     }
 
     @Override
     public QubitStream<Double> avg(QuerySpec<T, ? extends Number> mapper) {
-        requireNonNullLambda(mapper, "Mapper", "avg");
+        requireNonNullLambda(mapper, PARAM_MAPPER, "avg");
         // Store aggregation state, execution happens in getSingleResult()
         return withAggregation(AggregationType.AVG, mapper);
     }
@@ -508,7 +515,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
 
     @Override
     public <K> GroupStream<T, K> groupBy(QuerySpec<T, K> keyExtractor) {
-        requireNonNullLambda(keyExtractor, "Key extractor", "groupBy");
+        requireNonNullLambda(keyExtractor, PARAM_KEY_EXTRACTOR, "groupBy");
         // Create a new GroupStream with the accumulated predicates
         return new GroupStreamImpl<>(entityClass, keyExtractor, new ArrayList<>(predicates));
     }

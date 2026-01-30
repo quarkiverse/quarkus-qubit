@@ -6,6 +6,8 @@ import io.quarkiverse.qubit.deployment.common.PatternDetector;
 import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
 import io.quarkus.logging.Log;
 
+import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.eq;
+import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.UnaryOp.Operator.NOT;
 import static java.lang.Boolean.TRUE;
 
 import java.util.Deque;
@@ -51,6 +53,30 @@ public abstract class AbstractZeroEqualityBranchHandler implements BranchHandler
      * Creates expression for arithmetic pattern (comparison with zero).
      */
     protected abstract LambdaExpression createArithmeticExpression(LambdaExpression arithmeticExpr);
+
+    /**
+     * Shared logic for boolean evaluation expression creation.
+     * Subclasses pass the condition that triggers negation (TRUE for IFEQ, FALSE for IFNE).
+     *
+     * @param fieldAccess the boolean field or expression being evaluated
+     * @param jumpTarget the jump target from the branch context
+     * @param negateWhen the jump target value that should trigger NOT wrapping
+     * @return the appropriate boolean expression
+     */
+    protected LambdaExpression createConditionalBooleanExpression(
+            LambdaExpression fieldAccess,
+            Boolean jumpTarget,
+            Boolean negateWhen) {
+
+        if (negateWhen.equals(jumpTarget)) {
+            return new LambdaExpression.UnaryOp(NOT, fieldAccess);
+        }
+
+        // Don't wrap predicates with == true
+        return isPredicateExpression(fieldAccess) ?
+                fieldAccess :
+                eq(fieldAccess, LambdaExpression.Constant.TRUE);
+    }
 
     @Override
     public BranchState handle(BranchContext ctx) {

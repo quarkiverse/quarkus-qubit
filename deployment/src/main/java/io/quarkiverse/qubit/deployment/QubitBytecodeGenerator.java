@@ -5,6 +5,11 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 
+import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.DESC_CLASS_CONSTRUCTOR;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.CONSTRUCTOR;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.DESC_QUERY_SPEC_TO_GROUP_STREAM;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.DESC_QUERY_SPEC_TO_JOIN_STREAM;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.DESC_QUERY_SPEC_TO_STREAM;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_AVG;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_GROUP_BY;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_JOIN;
@@ -24,11 +29,8 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_STREAM_
 /**
  * Generates fluent API entry point methods for QubitEntity and QubitRepository.
  */
+@SuppressWarnings("java:S1192") // Generic signature fragments kept inline for readability
 public final class QubitBytecodeGenerator {
-
-    private static final String DESC_QUERY_SPEC_TO_STREAM = "(Lio/quarkiverse/qubit/QuerySpec;)Lio/quarkiverse/qubit/QubitStream;";
-    private static final String DESC_QUERY_SPEC_TO_JOIN_STREAM = "(Lio/quarkiverse/qubit/QuerySpec;)Lio/quarkiverse/qubit/JoinStream;";
-    private static final String DESC_QUERY_SPEC_TO_GROUP_STREAM = "(Lio/quarkiverse/qubit/QuerySpec;)Lio/quarkiverse/qubit/GroupStream;";
 
     private QubitBytecodeGenerator() {
     }
@@ -64,8 +66,8 @@ public final class QubitBytecodeGenerator {
         mv.visitMethodInsn(
                 Opcodes.INVOKESPECIAL,
                 QUBIT_STREAM_IMPL_INTERNAL_NAME,
-                "<init>",
-                "(Ljava/lang/Class;)V",
+                CONSTRUCTOR,
+                DESC_CLASS_CONSTRUCTOR,
                 false);
 
         // Load QuerySpec parameter (index 0 for static method)
@@ -121,8 +123,8 @@ public final class QubitBytecodeGenerator {
         mv.visitMethodInsn(
                 Opcodes.INVOKESPECIAL,
                 QUBIT_STREAM_IMPL_INTERNAL_NAME,
-                "<init>",
-                "(Ljava/lang/Class;)V",
+                CONSTRUCTOR,
+                DESC_CLASS_CONSTRUCTOR,
                 false);
 
         // Load QuerySpec parameter (index 0 for static method)
@@ -227,8 +229,8 @@ public final class QubitBytecodeGenerator {
         mv.visitMethodInsn(
                 Opcodes.INVOKESPECIAL,
                 QUBIT_STREAM_IMPL_INTERNAL_NAME,
-                "<init>",
-                "(Ljava/lang/Class;)V",
+                CONSTRUCTOR,
+                DESC_CLASS_CONSTRUCTOR,
                 false);
 
         // Load QuerySpec parameter (index 0 for static method)

@@ -286,9 +286,10 @@ class AnalysisOutcomeTest {
 
             String message = error.formattedMessage();
 
-            assertThat(message).contains(TEST_CALL_SITE_ID);
-            assertThat(message).contains("processing where clause");
-            assertThat(message).contains("NullPointerException");
+            assertThat(message)
+                    .contains(TEST_CALL_SITE_ID)
+                    .contains("processing where clause")
+                    .contains("NullPointerException");
         }
 
         @Test
@@ -298,9 +299,10 @@ class AnalysisOutcomeTest {
 
             String message = error.formattedMessage();
 
-            assertThat(message).contains(TEST_CALL_SITE_ID);
-            assertThat(message).contains("NullPointerException");
-            assertThat(message).doesNotContain("(null)");
+            assertThat(message)
+                    .contains(TEST_CALL_SITE_ID)
+                    .contains("NullPointerException")
+                    .doesNotContain("(null)");
         }
 
         @Test
@@ -310,8 +312,9 @@ class AnalysisOutcomeTest {
 
             String message = error.formattedMessage();
 
-            assertThat(message).contains(TEST_CALL_SITE_ID);
-            assertThat(message).doesNotContain("(   )");
+            assertThat(message)
+                    .contains(TEST_CALL_SITE_ID)
+                    .doesNotContain("(   )");
         }
 
         @Test

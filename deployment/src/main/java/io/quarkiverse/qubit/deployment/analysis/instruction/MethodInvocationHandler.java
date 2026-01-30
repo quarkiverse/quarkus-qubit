@@ -52,6 +52,38 @@ public enum MethodInvocationHandler implements InstructionHandler {
         JVM_JAVA_TIME_LOCAL_TIME, LOCAL_TIME_ACCESSOR_METHODS
     );
 
+    /**
+     * Specification for temporal factory method constant folding.
+     * Each spec defines a temporal type, expected argument count, and evaluator function.
+     */
+    private record TemporalFactorySpec(
+            Class<?> temporalClass,
+            int argCount,
+            Function<int[], Object> evaluator) {
+    }
+
+    /**
+     * Registry of temporal factory methods for constant folding optimization.
+     * Data-driven approach eliminates repetitive handleTemporalFactoryMethod calls.
+     */
+    private static final List<TemporalFactorySpec> TEMPORAL_FACTORY_SPECS = List.of(
+        // LocalDate.of(year, month, day)
+        new TemporalFactorySpec(LocalDate.class, 3,
+            args -> LocalDate.of(args[0], args[1], args[2])),
+        // LocalDateTime.of(year, month, day, hour, minute)
+        new TemporalFactorySpec(LocalDateTime.class, 5,
+            args -> LocalDateTime.of(args[0], args[1], args[2], args[3], args[4])),
+        // LocalDateTime.of(year, month, day, hour, minute, second)
+        new TemporalFactorySpec(LocalDateTime.class, 6,
+            args -> LocalDateTime.of(args[0], args[1], args[2], args[3], args[4], args[5])),
+        // LocalTime.of(hour, minute)
+        new TemporalFactorySpec(LocalTime.class, 2,
+            args -> LocalTime.of(args[0], args[1])),
+        // LocalTime.of(hour, minute, second)
+        new TemporalFactorySpec(LocalTime.class, 3,
+            args -> LocalTime.of(args[0], args[1], args[2]))
+    );
+
     /** Virtual method categories, checked in priority order. */
     public enum VirtualMethodCategory {
         EQUALS,
@@ -167,22 +199,12 @@ public enum MethodInvocationHandler implements InstructionHandler {
             return;
         }
 
-        // Handle temporal factory methods (LocalDate.of, LocalDateTime.of, LocalTime.of)
-        // LocalDate: year, month, day (3 args)
-        handleTemporalFactoryMethod(ctx, staticInsn, LocalDate.class, 3,
-                args -> LocalDate.of(args[0], args[1], args[2]));
-        // LocalDateTime: year, month, day, hour, minute (5 args)
-        handleTemporalFactoryMethod(ctx, staticInsn, LocalDateTime.class, 5,
-                args -> LocalDateTime.of(args[0], args[1], args[2], args[3], args[4]));
-        // LocalDateTime: year, month, day, hour, minute, second (6 args)
-        handleTemporalFactoryMethod(ctx, staticInsn, LocalDateTime.class, 6,
-                args -> LocalDateTime.of(args[0], args[1], args[2], args[3], args[4], args[5]));
-        // LocalTime: hour, minute (2 args)
-        handleTemporalFactoryMethod(ctx, staticInsn, LocalTime.class, 2,
-                args -> LocalTime.of(args[0], args[1]));
-        // LocalTime: hour, minute, second (3 args)
-        handleTemporalFactoryMethod(ctx, staticInsn, LocalTime.class, 3,
-                args -> LocalTime.of(args[0], args[1], args[2]));
+        // Handle temporal factory methods via data-driven registry
+        for (TemporalFactorySpec spec : TEMPORAL_FACTORY_SPECS) {
+            if (handleTemporalFactoryMethod(ctx, staticInsn, spec)) {
+                return; // First matching spec wins
+            }
+        }
     }
 
     /** Handles INVOKESPECIAL: constructor calls with BigDecimal constant folding. */
@@ -424,8 +446,8 @@ public enum MethodInvocationHandler implements InstructionHandler {
         Class<?> returnType = TypeConverter.descriptorToClass(returnTypeDesc);
 
         // Handle bi-entity parameters for join queries
-        if (target instanceof LambdaExpression.BiEntityParameter biParam) {
-            ctx.push(new LambdaExpression.BiEntityFieldAccess(fieldName, returnType, biParam.position()));
+        if (target instanceof LambdaExpression.BiEntityParameter(var name, var type, var index, var position)) {
+            ctx.push(new LambdaExpression.BiEntityFieldAccess(fieldName, returnType, position));
         } else {
             ctx.push(new LambdaExpression.FieldAccess(fieldName, returnType));
         }
@@ -455,48 +477,40 @@ public enum MethodInvocationHandler implements InstructionHandler {
         }
     }
 
-    /** Temporal factory methods with constant folding: evaluates at analysis time if all args constant. */
-    private <T> void handleTemporalFactoryMethod(
+    /**
+     * Temporal factory methods with constant folding: evaluates at analysis time if all args constant.
+     * @return true if this spec matched and was handled, false otherwise
+     */
+    private boolean handleTemporalFactoryMethod(
             AnalysisContext ctx,
             MethodInsnNode staticInsn,
-            Class<T> temporalClass,
-            int expectedArgCount,
-            Function<int[], T> evaluator) {
+            TemporalFactorySpec spec) {
 
-        String expectedOwner = "java/time/" + temporalClass.getSimpleName();
+        String expectedOwner = "java/time/" + spec.temporalClass().getSimpleName();
         if (!staticInsn.owner.equals(expectedOwner) || !staticInsn.name.equals(METHOD_OF)) {
-            return;
+            return false;
         }
 
         int argCount = DescriptorParser.countMethodArguments(staticInsn.desc);
-
-        if (argCount != expectedArgCount || ctx.getStackSize() < expectedArgCount) {
-            return;
+        if (argCount != spec.argCount() || ctx.getStackSize() < spec.argCount()) {
+            return false;
         }
 
-        LambdaExpression[] args = new LambdaExpression[expectedArgCount];
-        for (int i = expectedArgCount - 1; i >= 0; i--) {
+        LambdaExpression[] args = new LambdaExpression[spec.argCount()];
+        for (int i = spec.argCount() - 1; i >= 0; i--) {
             args[i] = ctx.pop();
         }
 
-        // Check if all arguments are constants
-        boolean allConstants = true;
-        int[] constantValues = new int[expectedArgCount];
-        for (int i = 0; i < expectedArgCount; i++) {
-            if (args[i] instanceof LambdaExpression.Constant constant) {
-                constantValues[i] = ((Number) constant.value()).intValue();
-            } else {
-                allConstants = false;
-                break;
-            }
-        }
+        // Check if all arguments are constants for constant folding
+        int[] constantValues = new int[spec.argCount()];
+        boolean allConstants = extractConstantValues(args, constantValues);
 
         // Constant folding optimization
         if (allConstants) {
             try {
-                T value = evaluator.apply(constantValues);
-                ctx.push(new LambdaExpression.Constant(value, temporalClass));
-                return;
+                Object value = spec.evaluator().apply(constantValues);
+                ctx.push(new LambdaExpression.Constant(value, spec.temporalClass()));
+                return true;
             } catch (Exception e) {
                 Log.debugf("Failed to evaluate constant temporal value, will create method call instead: %s",
                            e.getMessage());
@@ -504,7 +518,20 @@ public enum MethodInvocationHandler implements InstructionHandler {
         }
 
         // Fallback: create method call
-        ctx.push(new LambdaExpression.MethodCall(null, METHOD_OF, List.of(args), temporalClass));
+        ctx.push(new LambdaExpression.MethodCall(null, METHOD_OF, List.of(args), spec.temporalClass()));
+        return true;
+    }
+
+    /** Extracts constant int values from arguments. Returns true if all args are constants. */
+    private static boolean extractConstantValues(LambdaExpression[] args, int[] values) {
+        for (int i = 0; i < args.length; i++) {
+            if (args[i] instanceof LambdaExpression.Constant(var value, var type)) {
+                values[i] = ((Number) value).intValue();
+            } else {
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean isBigDecimalStringConstruction(MethodInsnNode specialInsn, int argCount,

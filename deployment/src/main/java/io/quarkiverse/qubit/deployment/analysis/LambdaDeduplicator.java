@@ -253,8 +253,8 @@ public class LambdaDeduplicator {
             LambdaExpression biEntityPredicateExpression,
             String joinType,
             boolean isCountQuery) {
-        return computeJoinHash(joinRelationshipExpression, biEntityPredicateExpression,
-                null, joinType, isCountQuery);
+        return computeJoinHash(new JoinHashRequest(joinRelationshipExpression, biEntityPredicateExpression,
+                null, null, joinType, isCountQuery, false, false));
     }
 
     /** Computes MD5 hash for join query with sorting. */
@@ -264,8 +264,8 @@ public class LambdaDeduplicator {
             List<SortExpression> sortExpressions,
             String joinType,
             boolean isCountQuery) {
-        return computeJoinHash(joinRelationshipExpression, biEntityPredicateExpression,
-                sortExpressions, joinType, isCountQuery, false);
+        return computeJoinHash(new JoinHashRequest(joinRelationshipExpression, biEntityPredicateExpression,
+                null, sortExpressions, joinType, isCountQuery, false, false));
     }
 
     /** Computes MD5 hash for join query with sorting and selectJoined flag. */
@@ -276,77 +276,24 @@ public class LambdaDeduplicator {
             String joinType,
             boolean isCountQuery,
             boolean isSelectJoined) {
-        return computeJoinHash(joinRelationshipExpression, biEntityPredicateExpression,
-                null, sortExpressions, joinType, isCountQuery, isSelectJoined, false);
+        return computeJoinHash(new JoinHashRequest(joinRelationshipExpression, biEntityPredicateExpression,
+                null, sortExpressions, joinType, isCountQuery, isSelectJoined, false));
     }
 
-    /** Computes MD5 hash for join query with bi-entity projection. */
-    public String computeJoinHash(
-            LambdaExpression joinRelationshipExpression,
-            LambdaExpression biEntityPredicateExpression,
-            LambdaExpression biEntityProjectionExpression,
-            List<SortExpression> sortExpressions,
-            String joinType,
-            boolean isCountQuery,
-            boolean isSelectJoined,
-            boolean isJoinProjection) {
-
+    /** Computes MD5 hash for join query using parameter object. */
+    public String computeJoinHash(JoinHashRequest request) {
         return HashBuilder.create()
-                .join(joinRelationshipExpression)
-                .biWhere(biEntityPredicateExpression)
-                .biSelect(biEntityProjectionExpression)
-                .sort(sortExpressions)
-                .joinType(joinType)
-                .selectJoined(isSelectJoined)
-                .joinProjection(isJoinProjection)
-                .queryType(isCountQuery)
+                .join(request.joinRelationshipExpression())
+                .biWhere(request.biEntityPredicateExpression())
+                .biSelect(request.biEntityProjectionExpression())
+                .sort(request.sortExpressions())
+                .joinType(request.joinType())
+                .selectJoined(request.isSelectJoined())
+                .joinProjection(request.isJoinProjection())
+                .queryType(request.isCountQuery())
                 .buildHash();
     }
 
-    /** Returns true if lambda is duplicate and reuses existing executor. */
-    public boolean handleDuplicateLambda(
-            String callSiteId,
-            String lambdaHash,
-            QueryCharacteristics characteristics,
-            int capturedVarCount,
-            String entityClassName,
-            LambdaExpression predicateExpression,
-            LambdaExpression projectionExpression,
-            LambdaExpression sortExpression,
-            String terminalMethodName,
-            boolean sortDescending,
-            AtomicInteger deduplicatedCount,
-            BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations,
-            boolean logDeduplication) {
-
-        // Use atomic get instead of containsKey+get to avoid race conditions
-        String existingExecutor = lambdaHashToExecutor.get(lambdaHash);
-        if (existingExecutor != null) {
-
-            if (logDeduplication) {
-                Log.debugf("Deduplicated lambda at %s (reusing %s)", callSiteId, existingExecutor);
-            }
-
-            deduplicatedCount.incrementAndGet();
-
-            queryTransformations.produce(
-                    QubitProcessor.QueryTransformationBuildItem.builder()
-                            .queryId(callSiteId)
-                            .generatedClassName(existingExecutor)
-                            .entityClassName(entityClassName)
-                            .characteristics(characteristics)
-                            .capturedVarCount(capturedVarCount)
-                            .predicateExpression(predicateExpression)
-                            .projectionExpression(projectionExpression)
-                            .sortExpression(sortExpression)
-                            .terminalMethodName(terminalMethodName)
-                            .sortDescending(sortDescending)
-                            .build());
-            return true;
-        }
-
-        return false;
-    }
 
     /** Computes MD5 hash for GROUP BY query with HAVING, select, and sort. */
     public String computeGroupHash(
@@ -378,6 +325,18 @@ public class LambdaDeduplicator {
     }
 
     // ========== Parameter Objects ==========
+
+    /** Bundles join hash computation parameters. */
+    public record JoinHashRequest(
+            LambdaExpression joinRelationshipExpression,
+            LambdaExpression biEntityPredicateExpression,
+            LambdaExpression biEntityProjectionExpression,
+            List<SortExpression> sortExpressions,
+            String joinType,
+            boolean isCountQuery,
+            boolean isSelectJoined,
+            boolean isJoinProjection) {
+    }
 
     /** Bundles deduplication request parameters to reduce method parameter count. */
     public record DeduplicationRequest(
@@ -414,21 +373,34 @@ public class LambdaDeduplicator {
         }
     }
 
-    /** Returns true if lambda is duplicate (overload using parameter objects). */
+    /** Returns true if lambda is duplicate and reuses existing executor. */
     public boolean handleDuplicateLambda(DeduplicationRequest request, DeduplicationContext context) {
-        return handleDuplicateLambda(
-                request.callSiteId(),
-                request.lambdaHash(),
-                request.characteristics(),
-                request.capturedVarCount(),
-                request.entityClassName(),
-                request.predicateExpression(),
-                request.projectionExpression(),
-                request.sortExpression(),
-                request.terminalMethodName(),
-                request.sortDescending(),
-                context.deduplicatedCount(),
-                context.queryTransformations(),
-                context.logDeduplication());
+        // Use atomic get instead of containsKey+get to avoid race conditions
+        String existingExecutor = lambdaHashToExecutor.get(request.lambdaHash());
+        if (existingExecutor != null) {
+
+            if (context.logDeduplication()) {
+                Log.debugf("Deduplicated lambda at %s (reusing %s)", request.callSiteId(), existingExecutor);
+            }
+
+            context.deduplicatedCount().incrementAndGet();
+
+            context.queryTransformations().produce(
+                    QubitProcessor.QueryTransformationBuildItem.builder()
+                            .queryId(request.callSiteId())
+                            .generatedClassName(existingExecutor)
+                            .entityClassName(request.entityClassName())
+                            .characteristics(request.characteristics())
+                            .capturedVarCount(request.capturedVarCount())
+                            .predicateExpression(request.predicateExpression())
+                            .projectionExpression(request.projectionExpression())
+                            .sortExpression(request.sortExpression())
+                            .terminalMethodName(request.terminalMethodName())
+                            .sortDescending(request.sortDescending())
+                            .build());
+            return true;
+        }
+
+        return false;
     }
 }

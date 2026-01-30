@@ -22,7 +22,6 @@ import org.junit.jupiter.params.provider.ValueSource;
  *   <li>{@link TemporalAccessorMethod#getMethodDescriptor()} for all enum values</li>
  *   <li>{@link TemporalAccessorMethod#fromJavaMethod(String)} with null, valid, and invalid inputs</li>
  *   <li>{@link TemporalAccessorMethod#isTemporalAccessor(String)} for both true and false paths</li>
- *   <li>EnumSet constants (DATE_METHODS, TIME_METHODS, ALL)</li>
  * </ul>
  */
 @DisplayName("TemporalAccessorMethod")
@@ -246,64 +245,4 @@ class TemporalAccessorMethodTest {
         }
     }
 
-    // =============================================================================================
-    // ENUMSET CONSTANT TESTS
-    // =============================================================================================
-
-    @Nested
-    @DisplayName("EnumSet Constants")
-    class EnumSetConstantTests {
-
-        @Test
-        @DisplayName("DATE_METHODS should contain exactly year, month, day methods")
-        void dateMethods_shouldContainCorrectMethods() {
-            assertThat(TemporalAccessorMethod.DATE_METHODS)
-                    .as("DATE_METHODS should contain date component methods")
-                    .containsExactlyInAnyOrder(
-                            TemporalAccessorMethod.GET_YEAR,
-                            TemporalAccessorMethod.GET_MONTH_VALUE,
-                            TemporalAccessorMethod.GET_DAY_OF_MONTH
-                    );
-        }
-
-        @Test
-        @DisplayName("TIME_METHODS should contain exactly hour, minute, second methods")
-        void timeMethods_shouldContainCorrectMethods() {
-            assertThat(TemporalAccessorMethod.TIME_METHODS)
-                    .as("TIME_METHODS should contain time component methods")
-                    .containsExactlyInAnyOrder(
-                            TemporalAccessorMethod.GET_HOUR,
-                            TemporalAccessorMethod.GET_MINUTE,
-                            TemporalAccessorMethod.GET_SECOND
-                    );
-        }
-
-        @Test
-        @DisplayName("ALL should contain all 6 temporal accessor methods")
-        void all_shouldContainAllMethods() {
-            assertThat(TemporalAccessorMethod.ALL)
-                    .as("ALL should contain all temporal accessor methods")
-                    .hasSize(6)
-                    .containsExactlyInAnyOrder(TemporalAccessorMethod.values());
-        }
-
-        @Test
-        @DisplayName("DATE_METHODS and TIME_METHODS should be disjoint")
-        void dateMethods_and_timeMethods_shouldBeDisjoint() {
-            assertThat(TemporalAccessorMethod.DATE_METHODS)
-                    .as("DATE_METHODS should have no overlap with TIME_METHODS")
-                    .doesNotContainAnyElementsOf(TemporalAccessorMethod.TIME_METHODS);
-        }
-
-        @Test
-        @DisplayName("DATE_METHODS combined with TIME_METHODS should equal ALL")
-        void dateAndTimeMethods_shouldEqualAll() {
-            var combined = java.util.EnumSet.copyOf(TemporalAccessorMethod.DATE_METHODS);
-            combined.addAll(TemporalAccessorMethod.TIME_METHODS);
-
-            assertThat(combined)
-                    .as("DATE_METHODS + TIME_METHODS should equal ALL")
-                    .isEqualTo(TemporalAccessorMethod.ALL);
-        }
-    }
 }

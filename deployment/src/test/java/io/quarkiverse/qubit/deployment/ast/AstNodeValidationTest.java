@@ -3,9 +3,13 @@ package io.quarkiverse.qubit.deployment.ast;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.*;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.constant;
 import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.field;
@@ -1210,97 +1214,53 @@ class AstNodeValidationTest {
 
     // ==================== BinaryOp Factory Methods ====================
 
+    /** Test data for BinaryOp factory methods. */
+    static Stream<Arguments> binaryOpFactoryMethods() {
+        LambdaExpression left = constant(5);
+        LambdaExpression right = constant(10);
+        return Stream.of(
+                Arguments.of("and", BinaryOp.and(left, right), BinaryOp.Operator.AND),
+                Arguments.of("or", BinaryOp.or(left, right), BinaryOp.Operator.OR),
+                Arguments.of("eq", BinaryOp.eq(left, right), BinaryOp.Operator.EQ),
+                Arguments.of("ne", BinaryOp.ne(left, right), BinaryOp.Operator.NE),
+                Arguments.of("lt", BinaryOp.lt(left, right), BinaryOp.Operator.LT),
+                Arguments.of("le", BinaryOp.le(left, right), BinaryOp.Operator.LE),
+                Arguments.of("gt", BinaryOp.gt(left, right), BinaryOp.Operator.GT),
+                Arguments.of("ge", BinaryOp.ge(left, right), BinaryOp.Operator.GE),
+                Arguments.of("add", BinaryOp.add(left, right), BinaryOp.Operator.ADD),
+                Arguments.of("sub", BinaryOp.sub(left, right), BinaryOp.Operator.SUB),
+                Arguments.of("mul", BinaryOp.mul(left, right), BinaryOp.Operator.MUL),
+                Arguments.of("div", BinaryOp.div(left, right), BinaryOp.Operator.DIV),
+                Arguments.of("mod", BinaryOp.mod(left, right), BinaryOp.Operator.MOD)
+        );
+    }
+
+    /** Test data for operator symbol verification. */
+    static Stream<Arguments> operatorSymbols() {
+        return Stream.of(
+                Arguments.of(BinaryOp.Operator.EQ, "=="),
+                Arguments.of(BinaryOp.Operator.NE, "!="),
+                Arguments.of(BinaryOp.Operator.AND, "&&"),
+                Arguments.of(BinaryOp.Operator.OR, "||"),
+                Arguments.of(BinaryOp.Operator.ADD, "+")
+        );
+    }
+
     @Nested
     class BinaryOpFactoryMethodTests {
 
-        private final LambdaExpression left = constant(5);
-        private final LambdaExpression right = constant(10);
-
-        @Test
-        void and_createsAndOperator() {
-            BinaryOp op = BinaryOp.and(left, right);
-            assertThat(op.operator()).isEqualTo(BinaryOp.Operator.AND);
+        @ParameterizedTest(name = "{0}() creates {2} operator")
+        @MethodSource("io.quarkiverse.qubit.deployment.ast.AstNodeValidationTest#binaryOpFactoryMethods")
+        void factoryMethod_createsCorrectOperator(String methodName, BinaryOp op, BinaryOp.Operator expected) {
+            assertThat(op.operator())
+                    .as("%s() should create %s operator", methodName, expected)
+                    .isEqualTo(expected);
         }
 
-        @Test
-        void or_createsOrOperator() {
-            BinaryOp op = BinaryOp.or(left, right);
-            assertThat(op.operator()).isEqualTo(BinaryOp.Operator.OR);
-        }
-
-        @Test
-        void eq_createsEqOperator() {
-            BinaryOp op = BinaryOp.eq(left, right);
-            assertThat(op.operator()).isEqualTo(BinaryOp.Operator.EQ);
-        }
-
-        @Test
-        void ne_createsNeOperator() {
-            BinaryOp op = BinaryOp.ne(left, right);
-            assertThat(op.operator()).isEqualTo(BinaryOp.Operator.NE);
-        }
-
-        @Test
-        void lt_createsLtOperator() {
-            BinaryOp op = BinaryOp.lt(left, right);
-            assertThat(op.operator()).isEqualTo(BinaryOp.Operator.LT);
-        }
-
-        @Test
-        void le_createsLeOperator() {
-            BinaryOp op = BinaryOp.le(left, right);
-            assertThat(op.operator()).isEqualTo(BinaryOp.Operator.LE);
-        }
-
-        @Test
-        void gt_createsGtOperator() {
-            BinaryOp op = BinaryOp.gt(left, right);
-            assertThat(op.operator()).isEqualTo(BinaryOp.Operator.GT);
-        }
-
-        @Test
-        void ge_createsGeOperator() {
-            BinaryOp op = BinaryOp.ge(left, right);
-            assertThat(op.operator()).isEqualTo(BinaryOp.Operator.GE);
-        }
-
-        @Test
-        void add_createsAddOperator() {
-            BinaryOp op = BinaryOp.add(left, right);
-            assertThat(op.operator()).isEqualTo(BinaryOp.Operator.ADD);
-        }
-
-        @Test
-        void sub_createsSubOperator() {
-            BinaryOp op = BinaryOp.sub(left, right);
-            assertThat(op.operator()).isEqualTo(BinaryOp.Operator.SUB);
-        }
-
-        @Test
-        void mul_createsMulOperator() {
-            BinaryOp op = BinaryOp.mul(left, right);
-            assertThat(op.operator()).isEqualTo(BinaryOp.Operator.MUL);
-        }
-
-        @Test
-        void div_createsDivOperator() {
-            BinaryOp op = BinaryOp.div(left, right);
-            assertThat(op.operator()).isEqualTo(BinaryOp.Operator.DIV);
-        }
-
-        @Test
-        void mod_createsModOperator() {
-            BinaryOp op = BinaryOp.mod(left, right);
-            assertThat(op.operator()).isEqualTo(BinaryOp.Operator.MOD);
-        }
-
-        @Test
-        void operatorSymbol_returnsCorrectSymbols() {
-            assertThat(BinaryOp.Operator.EQ.symbol()).isEqualTo("==");
-            assertThat(BinaryOp.Operator.NE.symbol()).isEqualTo("!=");
-            assertThat(BinaryOp.Operator.AND.symbol()).isEqualTo("&&");
-            assertThat(BinaryOp.Operator.OR.symbol()).isEqualTo("||");
-            assertThat(BinaryOp.Operator.ADD.symbol()).isEqualTo("+");
+        @ParameterizedTest(name = "{0}.symbol() = \"{1}\"")
+        @MethodSource("io.quarkiverse.qubit.deployment.ast.AstNodeValidationTest#operatorSymbols")
+        void operatorSymbol_returnsCorrectSymbol(BinaryOp.Operator operator, String expectedSymbol) {
+            assertThat(operator.symbol()).isEqualTo(expectedSymbol);
         }
     }
 

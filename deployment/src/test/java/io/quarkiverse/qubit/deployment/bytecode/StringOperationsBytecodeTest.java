@@ -2,53 +2,82 @@ package io.quarkiverse.qubit.deployment.bytecode;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Bytecode analysis tests for String operations.
  * Tests lambda bytecode parsing without executing queries.
+ *
+ * <p>This class uses JUnit 5 parameterized tests to consolidate repetitive
+ * test patterns, reducing code duplication while maintaining full coverage.
  */
 class StringOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
 
-    @Test
-    void stringStartsWith() {
-        LambdaExpression expr = analyzeLambda("stringStartsWith");
+    // ==================== PARAMETERIZED TEST DATA ====================
 
-        // p.firstName.startsWith("J")
-        // When method call is the only expression, it's NOT wrapped in == true
-        assertMethodCall(expr, "startsWith");
-        LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) expr;
-        assertFieldAccess(methodCall.target(), "firstName");
-        assertThat(methodCall.arguments()).hasSize(1);
-        assertConstant(methodCall.arguments().get(0), "J");
+    /**
+     * Test data for string predicate methods (startsWith, endsWith, contains).
+     * Each entry: lambdaMethodName, expectedMethodName, expectedFieldName, expectedArgument
+     */
+    static Stream<Arguments> stringPredicateMethods() {
+        return Stream.of(
+                Arguments.of("stringStartsWith", "startsWith", "firstName", "J"),
+                Arguments.of("stringEndsWith", "endsWith", "email", "@example.com"),
+                Arguments.of("stringContains", "contains", "email", "john")
+        );
     }
 
-    @Test
-    void stringEndsWith() {
-        LambdaExpression expr = analyzeLambda("stringEndsWith");
-
-        // p.email.endsWith("@example.com")
-        // When method call is the only expression, it's NOT wrapped in == true
-        assertMethodCall(expr, "endsWith");
-        LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) expr;
-        assertFieldAccess(methodCall.target(), "email");
-        assertThat(methodCall.arguments()).hasSize(1);
-        assertConstant(methodCall.arguments().get(0), "@example.com");
+    /**
+     * Test data for string transformation methods followed by equals().
+     * Each entry: lambdaMethodName, expectedMethodName, expectedFieldName, expectedConstant
+     */
+    static Stream<Arguments> stringTransformMethods() {
+        return Stream.of(
+                Arguments.of("stringToLowerCase", "toLowerCase", "firstName", "john"),
+                Arguments.of("stringToUpperCase", "toUpperCase", "firstName", "JANE"),
+                Arguments.of("stringTrim", "trim", "email", "david.miller@example.com")
+        );
     }
 
-    @Test
-    void stringContains() {
-        LambdaExpression expr = analyzeLambda("stringContains");
+    // ==================== PARAMETERIZED TESTS ====================
 
-        // p.email.contains("john")
-        // When method call is the only expression, it's NOT wrapped in == true
-        assertMethodCall(expr, "contains");
+    @ParameterizedTest(name = "{0}: {2}.{1}(\"{3}\")")
+    @MethodSource("stringPredicateMethods")
+    void stringPredicateMethod(String lambdaMethodName, String expectedMethodName,
+                               String expectedFieldName, String expectedArgument) {
+        LambdaExpression expr = analyzeLambda(lambdaMethodName);
+
+        assertMethodCall(expr, expectedMethodName);
         LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) expr;
-        assertFieldAccess(methodCall.target(), "email");
+        assertFieldAccess(methodCall.target(), expectedFieldName);
         assertThat(methodCall.arguments()).hasSize(1);
-        assertConstant(methodCall.arguments().get(0), "john");
+        assertConstant(methodCall.arguments().get(0), expectedArgument);
     }
+
+    @ParameterizedTest(name = "{0}: {2}.{1}().equals(\"{3}\")")
+    @MethodSource("stringTransformMethods")
+    void stringTransformMethod(String lambdaMethodName, String expectedMethodName,
+                               String expectedFieldName, String expectedConstant) {
+        LambdaExpression expr = analyzeLambda(lambdaMethodName);
+
+        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.EQ);
+        LambdaExpression.BinaryOp eqOp = (LambdaExpression.BinaryOp) expr;
+
+        assertMethodCall(eqOp.left(), expectedMethodName);
+        LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) eqOp.left();
+        assertFieldAccess(methodCall.target(), expectedFieldName);
+        assertThat(methodCall.arguments()).isEmpty();
+
+        assertConstant(eqOp.right(), expectedConstant);
+    }
+
+    // ==================== SPECIAL CASE TESTS ====================
 
     @Test
     void stringLength() {
@@ -58,71 +87,12 @@ class StringOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.GT);
         LambdaExpression.BinaryOp gtOp = (LambdaExpression.BinaryOp) expr;
 
-        // Left: length() method call
         assertMethodCall(gtOp.left(), "length");
         LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) gtOp.left();
         assertFieldAccess(methodCall.target(), "firstName");
         assertThat(methodCall.arguments()).isEmpty();
 
-        // Right: 4
         assertConstant(gtOp.right(), 4);
-    }
-
-    @Test
-    void stringToLowerCase() {
-        LambdaExpression expr = analyzeLambda("stringToLowerCase");
-
-        // p.firstName.toLowerCase().equals("john")
-        // Analyzer transforms .equals() to ==
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.EQ);
-        LambdaExpression.BinaryOp eqOp = (LambdaExpression.BinaryOp) expr;
-
-        // Left: toLowerCase() method call
-        assertMethodCall(eqOp.left(), "toLowerCase");
-        LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) eqOp.left();
-        assertFieldAccess(methodCall.target(), "firstName");
-        assertThat(methodCall.arguments()).isEmpty();
-
-        // Right: "john"
-        assertConstant(eqOp.right(), "john");
-    }
-
-    @Test
-    void stringToUpperCase() {
-        LambdaExpression expr = analyzeLambda("stringToUpperCase");
-
-        // p.firstName.toUpperCase().equals("JANE")
-        // Analyzer transforms .equals() to ==
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.EQ);
-        LambdaExpression.BinaryOp eqOp = (LambdaExpression.BinaryOp) expr;
-
-        // Left: toUpperCase() method call
-        assertMethodCall(eqOp.left(), "toUpperCase");
-        LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) eqOp.left();
-        assertFieldAccess(methodCall.target(), "firstName");
-        assertThat(methodCall.arguments()).isEmpty();
-
-        // Right: "JANE"
-        assertConstant(eqOp.right(), "JANE");
-    }
-
-    @Test
-    void stringTrim() {
-        LambdaExpression expr = analyzeLambda("stringTrim");
-
-        // p.email.trim().equals("david.miller@example.com")
-        // Analyzer transforms .equals() to ==
-        assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.EQ);
-        LambdaExpression.BinaryOp eqOp = (LambdaExpression.BinaryOp) expr;
-
-        // Left: trim() method call
-        assertMethodCall(eqOp.left(), "trim");
-        LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) eqOp.left();
-        assertFieldAccess(methodCall.target(), "email");
-        assertThat(methodCall.arguments()).isEmpty();
-
-        // Right: "david.miller@example.com"
-        assertConstant(eqOp.right(), "david.miller@example.com");
     }
 
     @Test
@@ -130,7 +100,6 @@ class StringOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         LambdaExpression expr = analyzeLambda("stringIsEmpty");
 
         // p.email.isEmpty()
-        // When method call is the only expression, it's NOT wrapped in == true
         assertMethodCall(expr, "isEmpty");
         LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) expr;
         assertFieldAccess(methodCall.target(), "email");
@@ -142,11 +111,9 @@ class StringOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         LambdaExpression expr = analyzeLambda("stringSubstring");
 
         // p.firstName.substring(0, 4).equals("John")
-        // Analyzer transforms .equals() to ==
         assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.EQ);
         LambdaExpression.BinaryOp eqOp = (LambdaExpression.BinaryOp) expr;
 
-        // Left: substring(0, 4) method call
         assertMethodCall(eqOp.left(), "substring");
         LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) eqOp.left();
         assertFieldAccess(methodCall.target(), "firstName");
@@ -154,7 +121,6 @@ class StringOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         assertConstant(methodCall.arguments().get(0), 0);
         assertConstant(methodCall.arguments().get(1), 4);
 
-        // Right: "John"
         assertConstant(eqOp.right(), "John");
     }
 
@@ -163,7 +129,6 @@ class StringOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         LambdaExpression expr = analyzeLambda("stringMethodChaining");
 
         // p.email.toLowerCase().contains("example")
-        // When method call is the only expression, it's NOT wrapped in == true
         assertMethodCall(expr, "contains");
         LambdaExpression.MethodCall containsCall = (LambdaExpression.MethodCall) expr;
         assertThat(containsCall.arguments()).hasSize(1);
@@ -183,9 +148,6 @@ class StringOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.AND);
         LambdaExpression.BinaryOp outerAnd = (LambdaExpression.BinaryOp) expr;
 
-        // Should be structured as: (p.email != null && p.email.contains("@")) && p.email.endsWith(".com")
-        // Or: p.email != null && (p.email.contains("@") && p.email.endsWith(".com"))
-        // Either way, verify it's an AND chain
         assertThat(outerAnd.left()).isNotNull();
         assertThat(outerAnd.right()).isNotNull();
     }

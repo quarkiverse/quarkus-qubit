@@ -5,6 +5,10 @@ import io.quarkiverse.qubit.deployment.common.BytecodeValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
@@ -15,10 +19,12 @@ import org.objectweb.asm.tree.VarInsnNode;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.stream.Stream;
 
 import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.objectweb.asm.Opcodes.*;
 
 /**
@@ -67,26 +73,23 @@ class HandlerEdgeCaseTest {
                     .hasMessageContaining("found 1");
         }
 
-        @Test
-        void requireStackSize_withSufficientElements_succeeds() {
-            Deque<Object> stack = new ArrayDeque<>();
-            stack.push("one");
-            stack.push("two");
-
-            // Should not throw
-            BytecodeValidator.requireStackSize(stack, 2, "BINARY_OP");
-            assertThat(stack).hasSize(2);
+        static Stream<Arguments> sufficientStackCases() {
+            return Stream.of(
+                    Arguments.of(2, 2, "exact size"),
+                    Arguments.of(3, 2, "more than required")
+            );
         }
 
-        @Test
-        void requireStackSize_withMoreThanRequired_succeeds() {
+        @ParameterizedTest(name = "requireStackSize with {2} succeeds")
+        @MethodSource("sufficientStackCases")
+        void requireStackSize_withSufficientElements_succeeds(int actualSize, int requiredSize, String description) {
             Deque<Object> stack = new ArrayDeque<>();
-            stack.push("one");
-            stack.push("two");
-            stack.push("three");
+            for (int i = 0; i < actualSize; i++) {
+                stack.push("element" + i);
+            }
 
-            BytecodeValidator.requireStackSize(stack, 2, "BINARY_OP");
-            assertThat(stack).hasSize(3);
+            BytecodeValidator.requireStackSize(stack, requiredSize, "BINARY_OP");
+            assertThat(stack).hasSize(actualSize);
         }
 
         @Test
@@ -105,8 +108,10 @@ class HandlerEdgeCaseTest {
 
         @Test
         void requireValidOpcode_withValidOpcode_succeeds() {
-            BytecodeValidator.requireValidOpcode(IADD, IADD, ISUB, IMUL);
-            // Should not throw
+            // Verify that validation succeeds by ensuring no exception is thrown
+            assertThatCode(() ->
+                    BytecodeValidator.requireValidOpcode(IADD, IADD, ISUB, IMUL))
+                    .doesNotThrowAnyException();
         }
 
         @Test
@@ -144,39 +149,33 @@ class HandlerEdgeCaseTest {
 
         private final ArithmeticInstructionHandler handler = ArithmeticInstructionHandler.INSTANCE;
 
-        @Test
-        void canHandle_withArithmeticOpcode_returnsTrue() {
-            assertThat(handler.canHandle(new InsnNode(IADD))).isTrue();
-            assertThat(handler.canHandle(new InsnNode(ISUB))).isTrue();
-            assertThat(handler.canHandle(new InsnNode(IMUL))).isTrue();
-            assertThat(handler.canHandle(new InsnNode(IDIV))).isTrue();
+        @ParameterizedTest(name = "canHandle arithmetic/logical/comparison opcode {0}")
+        @ValueSource(ints = {IADD, ISUB, IMUL, IDIV, IAND, IOR, LCMP, DCMPL, DCMPG})
+        void canHandle_withHandledOpcode_returnsTrue(int opcode) {
+            assertThat(handler.canHandle(new InsnNode(opcode))).isTrue();
         }
 
-        @Test
-        void canHandle_withLogicalOpcode_returnsTrue() {
-            assertThat(handler.canHandle(new InsnNode(IAND))).isTrue();
-            assertThat(handler.canHandle(new InsnNode(IOR))).isTrue();
+        @ParameterizedTest(name = "canHandle non-arithmetic opcode {0}")
+        @ValueSource(ints = {ALOAD, IRETURN})
+        void canHandle_withNonArithmeticOpcode_returnsFalse(int opcode) {
+            assertThat(handler.canHandle(new InsnNode(opcode))).isFalse();
         }
 
-        @Test
-        void canHandle_withComparisonOpcode_returnsTrue() {
-            assertThat(handler.canHandle(new InsnNode(LCMP))).isTrue();
-            assertThat(handler.canHandle(new InsnNode(DCMPL))).isTrue();
-            assertThat(handler.canHandle(new InsnNode(DCMPG))).isTrue();
+        static Stream<Arguments> emptyStackUnderflowCases() {
+            return Stream.of(
+                    Arguments.of(IADD, "IADD", "arithmetic"),
+                    Arguments.of(IAND, "IAND", "logical"),
+                    Arguments.of(LCMP, "LCMP", "comparison")
+            );
         }
 
-        @Test
-        void canHandle_withNonArithmeticOpcode_returnsFalse() {
-            assertThat(handler.canHandle(new InsnNode(ALOAD))).isFalse();
-            assertThat(handler.canHandle(new InsnNode(IRETURN))).isFalse();
-        }
-
-        @Test
-        void handle_arithmeticWithEmptyStack_throwsStackUnderflow() {
-            assertThatThrownBy(() -> handler.handle(new InsnNode(IADD), context))
+        @ParameterizedTest(name = "{2} opcode {1} with empty stack throws")
+        @MethodSource("emptyStackUnderflowCases")
+        void handle_withEmptyStack_throwsStackUnderflow(int opcode, String opcodeName, String category) {
+            assertThatThrownBy(() -> handler.handle(new InsnNode(opcode), context))
                     .isInstanceOf(BytecodeAnalysisException.class)
                     .hasMessageContaining("Stack underflow")
-                    .hasMessageContaining("IADD");
+                    .hasMessageContaining(opcodeName);
         }
 
         @Test
@@ -187,22 +186,6 @@ class HandlerEdgeCaseTest {
                     .isInstanceOf(BytecodeAnalysisException.class)
                     .hasMessageContaining("Stack underflow")
                     .hasMessageContaining("IMUL");
-        }
-
-        @Test
-        void handle_logicalWithEmptyStack_throwsStackUnderflow() {
-            assertThatThrownBy(() -> handler.handle(new InsnNode(IAND), context))
-                    .isInstanceOf(BytecodeAnalysisException.class)
-                    .hasMessageContaining("Stack underflow")
-                    .hasMessageContaining("IAND");
-        }
-
-        @Test
-        void handle_comparisonWithEmptyStack_throwsStackUnderflow() {
-            assertThatThrownBy(() -> handler.handle(new InsnNode(LCMP), context))
-                    .isInstanceOf(BytecodeAnalysisException.class)
-                    .hasMessageContaining("Stack underflow")
-                    .hasMessageContaining("LCMP");
         }
 
         @Test
@@ -224,13 +207,10 @@ class HandlerEdgeCaseTest {
 
         private final LoadInstructionHandler handler = LoadInstructionHandler.INSTANCE;
 
-        @Test
-        void canHandle_withLoadOpcodes_returnsTrue() {
-            assertThat(handler.canHandle(new VarInsnNode(ALOAD, 0))).isTrue();
-            assertThat(handler.canHandle(new VarInsnNode(ILOAD, 0))).isTrue();
-            assertThat(handler.canHandle(new VarInsnNode(LLOAD, 0))).isTrue();
-            assertThat(handler.canHandle(new VarInsnNode(FLOAD, 0))).isTrue();
-            assertThat(handler.canHandle(new VarInsnNode(DLOAD, 0))).isTrue();
+        @ParameterizedTest(name = "canHandle load opcode {0}")
+        @ValueSource(ints = {ALOAD, ILOAD, LLOAD, FLOAD, DLOAD})
+        void canHandle_withLoadOpcode_returnsTrue(int opcode) {
+            assertThat(handler.canHandle(new VarInsnNode(opcode, 0))).isTrue();
         }
 
         @Test
@@ -306,87 +286,43 @@ class HandlerEdgeCaseTest {
 
         // ==================== Bi-Entity Mode Tests (kill mutations line 61) ====================
 
-        @Test
-        void handle_aload_biEntityMode_firstPosition_pushesEntityParamName() {
-            // Create bi-entity context with slot 0 = FIRST, slot 1 = SECOND
-            MethodNode biEntityMethod = new MethodNode();
-            biEntityMethod.name = "biEntityLambda";
-            biEntityMethod.desc = "(Ljava/lang/Object;Ljava/lang/Object;)Z";
-            biEntityMethod.instructions = new InsnList();
-
-            AnalysisContext biContext = new AnalysisContext(biEntityMethod, 0, 1);
-
-            handler.handle(new VarInsnNode(ALOAD, 0), biContext);
-
-            assertThat(biContext.getStackSize()).isEqualTo(1);
-            assertThat(biContext.peek())
-                    .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityParameter.class);
-
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityParameter biParam =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityParameter) biContext.peek();
-            assertThat(biParam.name())
-                    .as("First entity position should have 'entity' param name")
-                    .isEqualTo("entity");
-            assertThat(biParam.position())
-                    .isEqualTo(io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition.FIRST);
+        static Stream<Arguments> biEntityModeCases() {
+            return Stream.of(
+                    Arguments.of(0, "entity", io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition.FIRST, "FIRST"),
+                    Arguments.of(1, "joinedEntity", io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition.SECOND, "SECOND")
+            );
         }
 
-        @Test
-        void handle_aload_biEntityMode_secondPosition_pushesJoinedEntityParamName() {
-            // Create bi-entity context with slot 0 = FIRST, slot 1 = SECOND
+        @ParameterizedTest(name = "bi-entity {3} position uses '{1}' param name")
+        @MethodSource("biEntityModeCases")
+        void handle_aload_biEntityMode_pushesCorrectParam(int slot, String expectedName,
+                io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition expectedPosition, String positionName) {
             MethodNode biEntityMethod = new MethodNode();
             biEntityMethod.name = "biEntityLambda";
             biEntityMethod.desc = "(Ljava/lang/Object;Ljava/lang/Object;)Z";
             biEntityMethod.instructions = new InsnList();
-
             AnalysisContext biContext = new AnalysisContext(biEntityMethod, 0, 1);
 
-            // Load the SECOND entity (slot 1)
-            handler.handle(new VarInsnNode(ALOAD, 1), biContext);
+            handler.handle(new VarInsnNode(ALOAD, slot), biContext);
 
             assertThat(biContext.getStackSize()).isEqualTo(1);
             assertThat(biContext.peek())
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityParameter.class);
-
             io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityParameter biParam =
                     (io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityParameter) biContext.peek();
             assertThat(biParam.name())
-                    .as("Second entity position should have 'joinedEntity' param name")
-                    .isEqualTo("joinedEntity");
-            assertThat(biParam.position())
-                    .isEqualTo(io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition.SECOND);
+                    .as("%s entity position should have '%s' param name", positionName, expectedName)
+                    .isEqualTo(expectedName);
+            assertThat(biParam.position()).isEqualTo(expectedPosition);
         }
 
         // ==================== Primitive Load Invalid Slot Tests (kill mutation line 98) ====================
 
-        @Test
-        void handle_iload_withInvalidSlot_throwsException() {
-            // Method with only object parameter - ILOAD on slot 99 is invalid
-            assertThatThrownBy(() -> handler.handle(new VarInsnNode(ILOAD, 99), context))
-                    .isInstanceOf(BytecodeAnalysisException.class)
-                    .hasMessageContaining("Primitive load")
-                    .hasMessageContaining("does not correspond to a method parameter");
-        }
-
-        @Test
-        void handle_lload_withInvalidSlot_throwsException() {
-            assertThatThrownBy(() -> handler.handle(new VarInsnNode(LLOAD, 99), context))
-                    .isInstanceOf(BytecodeAnalysisException.class)
-                    .hasMessageContaining("Primitive load")
-                    .hasMessageContaining("does not correspond to a method parameter");
-        }
-
-        @Test
-        void handle_fload_withInvalidSlot_throwsException() {
-            assertThatThrownBy(() -> handler.handle(new VarInsnNode(FLOAD, 99), context))
-                    .isInstanceOf(BytecodeAnalysisException.class)
-                    .hasMessageContaining("Primitive load")
-                    .hasMessageContaining("does not correspond to a method parameter");
-        }
-
-        @Test
-        void handle_dload_withInvalidSlot_throwsException() {
-            assertThatThrownBy(() -> handler.handle(new VarInsnNode(DLOAD, 99), context))
+        @ParameterizedTest(name = "primitive load opcode {0} with invalid slot throws exception")
+        @ValueSource(ints = {ILOAD, LLOAD, FLOAD, DLOAD})
+        void handle_primitiveLoad_withInvalidSlot_throwsException(int opcode) {
+            // Method with only object parameter - primitive load on slot 99 is invalid
+            assertThatThrownBy(() -> handler.handle(new VarInsnNode(opcode, 99), context))
                     .isInstanceOf(BytecodeAnalysisException.class)
                     .hasMessageContaining("Primitive load")
                     .hasMessageContaining("does not correspond to a method parameter");
@@ -394,124 +330,63 @@ class HandlerEdgeCaseTest {
 
         // ==================== Non-int Primitive Type Tests (kill mutations line 106) ====================
 
-        @Test
-        void handle_lload_withValidSlot_usesLongType() {
-            // Method with long parameter at slot 1: (Ljava/lang/Object;J)Z
-            // slot 0 = Object, slot 1 = long (takes 2 slots)
-            MethodNode methodWithLong = new MethodNode();
-            methodWithLong.name = "testLambda";
-            methodWithLong.desc = "(Ljava/lang/Object;J)Z";
-            methodWithLong.instructions = new InsnList();
-            AnalysisContext longContext = new AnalysisContext(methodWithLong, 0);
+        static Stream<Arguments> primitiveLoadCases() {
+            return Stream.of(
+                    Arguments.of(LLOAD, "J", long.class, "LLOAD/long"),
+                    Arguments.of(DLOAD, "D", double.class, "DLOAD/double"),
+                    Arguments.of(FLOAD, "F", float.class, "FLOAD/float")
+            );
+        }
 
-            handler.handle(new VarInsnNode(LLOAD, 1), longContext);
+        @ParameterizedTest(name = "{3} produces correct type")
+        @MethodSource("primitiveLoadCases")
+        void handle_primitiveLoad_withValidSlot_usesCorrectType(int opcode, String typeDescriptor,
+                Class<?> expectedType, String description) {
+            MethodNode methodNode = new MethodNode();
+            methodNode.name = "testLambda";
+            methodNode.desc = "(Ljava/lang/Object;" + typeDescriptor + ")Z";
+            methodNode.instructions = new InsnList();
+            AnalysisContext ctx = new AnalysisContext(methodNode, 0);
 
-            assertThat(longContext.getStackSize()).isEqualTo(1);
-            assertThat(longContext.peek())
+            handler.handle(new VarInsnNode(opcode, 1), ctx);
+
+            assertThat(ctx.getStackSize()).isEqualTo(1);
+            assertThat(ctx.peek())
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable.class);
-
             io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable captured =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable) longContext.peek();
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable) ctx.peek();
             assertThat(captured.type())
-                    .as("LLOAD should produce long.class type without descriptor lookup")
-                    .isEqualTo(long.class);
+                    .as("%s should produce %s type", description, expectedType.getSimpleName())
+                    .isEqualTo(expectedType);
         }
 
-        @Test
-        void handle_dload_withValidSlot_usesDoubleType() {
-            // Method with double parameter at slot 1: (Ljava/lang/Object;D)Z
-            MethodNode methodWithDouble = new MethodNode();
-            methodWithDouble.name = "testLambda";
-            methodWithDouble.desc = "(Ljava/lang/Object;D)Z";
-            methodWithDouble.instructions = new InsnList();
-            AnalysisContext doubleContext = new AnalysisContext(methodWithDouble, 0);
+        // ==================== ILOAD Type Lookup Tests ====================
 
-            handler.handle(new VarInsnNode(DLOAD, 1), doubleContext);
-
-            assertThat(doubleContext.getStackSize()).isEqualTo(1);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable captured =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable) doubleContext.peek();
-            assertThat(captured.type())
-                    .as("DLOAD should produce double.class type without descriptor lookup")
-                    .isEqualTo(double.class);
+        static Stream<Arguments> iloadTypeLookupCases() {
+            return Stream.of(
+                    Arguments.of("I", int.class, "ILOAD/int"),
+                    Arguments.of("Z", boolean.class, "ILOAD/boolean"),
+                    Arguments.of("B", byte.class, "ILOAD/byte")
+            );
         }
 
-        @Test
-        void handle_fload_withValidSlot_usesFloatType() {
-            // Method with float parameter at slot 1: (Ljava/lang/Object;F)Z
-            MethodNode methodWithFloat = new MethodNode();
-            methodWithFloat.name = "testLambda";
-            methodWithFloat.desc = "(Ljava/lang/Object;F)Z";
-            methodWithFloat.instructions = new InsnList();
-            AnalysisContext floatContext = new AnalysisContext(methodWithFloat, 0);
+        @ParameterizedTest(name = "{2} looks up correct type from descriptor")
+        @MethodSource("iloadTypeLookupCases")
+        void handle_iload_looksUpTypeFromDescriptor(String typeDescriptor, Class<?> expectedType, String description) {
+            MethodNode methodNode = new MethodNode();
+            methodNode.name = "testLambda";
+            methodNode.desc = "(Ljava/lang/Object;" + typeDescriptor + ")Z";
+            methodNode.instructions = new InsnList();
+            AnalysisContext ctx = new AnalysisContext(methodNode, 0);
 
-            handler.handle(new VarInsnNode(FLOAD, 1), floatContext);
+            handler.handle(new VarInsnNode(ILOAD, 1), ctx);
 
-            assertThat(floatContext.getStackSize()).isEqualTo(1);
+            assertThat(ctx.getStackSize()).isEqualTo(1);
             io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable captured =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable) floatContext.peek();
+                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable) ctx.peek();
             assertThat(captured.type())
-                    .as("FLOAD should produce float.class type without descriptor lookup")
-                    .isEqualTo(float.class);
-        }
-
-        @Test
-        void handle_iload_withValidSlot_looksUpActualType() {
-            // Method with int parameter at slot 1: (Ljava/lang/Object;I)Z
-            // For ILOAD, the actual type must be looked up from descriptor (could be byte, char, short, boolean, int)
-            MethodNode methodWithInt = new MethodNode();
-            methodWithInt.name = "testLambda";
-            methodWithInt.desc = "(Ljava/lang/Object;I)Z";
-            methodWithInt.instructions = new InsnList();
-            AnalysisContext intContext = new AnalysisContext(methodWithInt, 0);
-
-            handler.handle(new VarInsnNode(ILOAD, 1), intContext);
-
-            assertThat(intContext.getStackSize()).isEqualTo(1);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable captured =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable) intContext.peek();
-            assertThat(captured.type())
-                    .as("ILOAD should look up actual type from descriptor")
-                    .isEqualTo(int.class);
-        }
-
-        @Test
-        void handle_iload_withBooleanParam_looksUpBooleanType() {
-            // Method with boolean parameter at slot 1: (Ljava/lang/Object;Z)Z
-            // Z (boolean) uses ILOAD opcode but actual type is boolean
-            MethodNode methodWithBoolean = new MethodNode();
-            methodWithBoolean.name = "testLambda";
-            methodWithBoolean.desc = "(Ljava/lang/Object;Z)Z";
-            methodWithBoolean.instructions = new InsnList();
-            AnalysisContext boolContext = new AnalysisContext(methodWithBoolean, 0);
-
-            handler.handle(new VarInsnNode(ILOAD, 1), boolContext);
-
-            assertThat(boolContext.getStackSize()).isEqualTo(1);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable captured =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable) boolContext.peek();
-            assertThat(captured.type())
-                    .as("ILOAD with boolean param should look up boolean.class from descriptor")
-                    .isEqualTo(boolean.class);
-        }
-
-        @Test
-        void handle_iload_withByteParam_looksUpByteType() {
-            // Method with byte parameter at slot 1: (Ljava/lang/Object;B)Z
-            MethodNode methodWithByte = new MethodNode();
-            methodWithByte.name = "testLambda";
-            methodWithByte.desc = "(Ljava/lang/Object;B)Z";
-            methodWithByte.instructions = new InsnList();
-            AnalysisContext byteContext = new AnalysisContext(methodWithByte, 0);
-
-            handler.handle(new VarInsnNode(ILOAD, 1), byteContext);
-
-            assertThat(byteContext.getStackSize()).isEqualTo(1);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable captured =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable) byteContext.peek();
-            assertThat(captured.type())
-                    .as("ILOAD with byte param should look up byte.class from descriptor")
-                    .isEqualTo(byte.class);
+                    .as("%s should look up %s from descriptor", description, expectedType.getSimpleName())
+                    .isEqualTo(expectedType);
         }
     }
 
@@ -522,37 +397,13 @@ class HandlerEdgeCaseTest {
 
         private final ConstantInstructionHandler handler = ConstantInstructionHandler.INSTANCE;
 
-        @Test
-        void canHandle_withIconst_returnsTrue() {
-            for (int opcode = ICONST_0; opcode <= ICONST_5; opcode++) {
-                assertThat(handler.canHandle(new InsnNode(opcode)))
-                        .as("Should handle ICONST_%d", opcode - ICONST_0)
-                        .isTrue();
-            }
-        }
-
-        @Test
-        void canHandle_withLconst_returnsTrue() {
-            assertThat(handler.canHandle(new InsnNode(LCONST_0))).isTrue();
-            assertThat(handler.canHandle(new InsnNode(LCONST_1))).isTrue();
-        }
-
-        @Test
-        void canHandle_withFconst_returnsTrue() {
-            assertThat(handler.canHandle(new InsnNode(FCONST_0))).isTrue();
-            assertThat(handler.canHandle(new InsnNode(FCONST_1))).isTrue();
-            assertThat(handler.canHandle(new InsnNode(FCONST_2))).isTrue();
-        }
-
-        @Test
-        void canHandle_withDconst_returnsTrue() {
-            assertThat(handler.canHandle(new InsnNode(DCONST_0))).isTrue();
-            assertThat(handler.canHandle(new InsnNode(DCONST_1))).isTrue();
-        }
-
-        @Test
-        void canHandle_withAconstNull_returnsTrue() {
-            assertThat(handler.canHandle(new InsnNode(ACONST_NULL))).isTrue();
+        @ParameterizedTest(name = "canHandle constant opcode {0}")
+        @ValueSource(ints = {ICONST_0, ICONST_1, ICONST_2, ICONST_3, ICONST_4, ICONST_5,
+                LCONST_0, LCONST_1, FCONST_0, FCONST_1, FCONST_2, DCONST_0, DCONST_1, ACONST_NULL})
+        void canHandle_withConstantOpcode_returnsTrue(int opcode) {
+            assertThat(handler.canHandle(new InsnNode(opcode)))
+                    .as("Should handle opcode %d", opcode)
+                    .isTrue();
         }
 
         @Test
@@ -581,86 +432,28 @@ class HandlerEdgeCaseTest {
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.NullLiteral.class);
         }
 
-        // ==================== Kill mutation: line 65 return false (DCONST) ====================
+        // ==================== Kill mutations: lines 55, 60, 65 return false (DCONST, FCONST, LCONST) ====================
 
-        @Test
-        void handle_dconst0_returnsFalse_doesNotTerminate() {
-            // The handler should return false (not terminate) after handling DCONST_0
-            boolean terminated = handler.handle(new InsnNode(DCONST_0), context);
+        @ParameterizedTest(name = "const opcode {0} does not terminate")
+        @ValueSource(ints = {DCONST_0, DCONST_1, FCONST_0, LCONST_0})
+        void handle_const_returnsFalse_doesNotTerminate(int opcode) {
+            boolean terminated = handler.handle(new InsnNode(opcode), context);
 
             assertThat(terminated)
-                    .as("DCONST_0 handler should return false (not terminate)")
+                    .as("Const handler for opcode %d should return false (not terminate)", opcode)
                     .isFalse();
         }
 
-        @Test
-        void handle_dconst1_returnsFalse_doesNotTerminate() {
-            boolean terminated = handler.handle(new InsnNode(DCONST_1), context);
-
-            assertThat(terminated)
-                    .as("DCONST_1 handler should return false (not terminate)")
-                    .isFalse();
-        }
-
-        // ==================== Kill mutation: lines 55, 60 return false (FCONST, LCONST) ====================
-
-        @Test
-        void handle_fconst0_returnsFalse_doesNotTerminate() {
-            boolean terminated = handler.handle(new InsnNode(FCONST_0), context);
-
-            assertThat(terminated)
-                    .as("FCONST_0 handler should return false (not terminate)")
-                    .isFalse();
-        }
-
-        @Test
-        void handle_lconst0_returnsFalse_doesNotTerminate() {
-            boolean terminated = handler.handle(new InsnNode(LCONST_0), context);
-
-            assertThat(terminated)
-                    .as("LCONST_0 handler should return false (not terminate)")
-                    .isFalse();
-        }
-
-        @Test
-        void handle_iconst_pushesConstant() {
-            handler.handle(new InsnNode(ICONST_5), context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-        }
-
-        @Test
-        void handle_lconst_pushesConstant() {
-            handler.handle(new InsnNode(LCONST_1), context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-        }
-
-        @Test
-        void handle_fconst_pushesConstant() {
-            handler.handle(new InsnNode(FCONST_2), context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-        }
-
-        @Test
-        void handle_dconst_pushesConstant() {
-            handler.handle(new InsnNode(DCONST_1), context);
+        @ParameterizedTest(name = "const opcode {0} pushes constant")
+        @ValueSource(ints = {ICONST_5, LCONST_1, FCONST_2, DCONST_1})
+        void handle_const_pushesConstant(int opcode) {
+            handler.handle(new InsnNode(opcode), context);
 
             assertThat(context.getStackSize()).isEqualTo(1);
         }
 
         // ==================== ICONST Post-Branch Behavior Tests ====================
         // These tests exercise the ICONST handling after branch instructions have been seen
-
-        @Test
-        void handle_iconst_noBranch_pushesConstant() {
-            // Without seeing a branch, ICONST should always push constant
-            boolean terminated = handler.handle(new InsnNode(ICONST_0), context);
-
-            assertThat(terminated).isFalse();
-            assertThat(context.getStackSize()).isEqualTo(1);
-        }
 
         @Test
         void handle_iconst5_afterBranch_pushesConstant() {
@@ -674,49 +467,22 @@ class HandlerEdgeCaseTest {
             assertThat(context.getStackSize()).isEqualTo(2);
         }
 
-        @Test
-        void handle_iconst2_afterBranch_pushesConstant() {
-            // ICONST_2, ICONST_3, ICONST_4, ICONST_5 (value > 1) are not boolean markers
+        @ParameterizedTest(name = "ICONST_{0} after branch pushes constant (value > 1, not boolean marker)")
+        @ValueSource(ints = {ICONST_2, ICONST_3, ICONST_4})
+        void handle_iconst_afterBranch_pushesConstant_nonBooleanMarker(int opcode) {
             context.markBranchSeen();
 
-            boolean terminated = handler.handle(new InsnNode(ICONST_2), context);
+            boolean terminated = handler.handle(new InsnNode(opcode), context);
 
             assertThat(terminated).isFalse();
             assertThat(context.getStackSize()).isEqualTo(1);
         }
 
-        @Test
-        void handle_iconst3_afterBranch_pushesConstant() {
-            context.markBranchSeen();
-
-            boolean terminated = handler.handle(new InsnNode(ICONST_3), context);
-
-            assertThat(terminated).isFalse();
-            assertThat(context.getStackSize()).isEqualTo(1);
-        }
-
-        @Test
-        void handle_iconst4_afterBranch_pushesConstant() {
-            context.markBranchSeen();
-
-            boolean terminated = handler.handle(new InsnNode(ICONST_4), context);
-
-            assertThat(terminated).isFalse();
-            assertThat(context.getStackSize()).isEqualTo(1);
-        }
-
-        @Test
-        void handle_iconst0_noBranch_emptyInstructions_pushesConstant() {
-            // Even ICONST_0 pushes if no branch has been seen
-            boolean terminated = handler.handle(new InsnNode(ICONST_0), context);
-
-            assertThat(terminated).isFalse();
-            assertThat(context.getStackSize()).isEqualTo(1);
-        }
-
-        @Test
-        void handle_iconst1_noBranch_emptyInstructions_pushesConstant() {
-            boolean terminated = handler.handle(new InsnNode(ICONST_1), context);
+        @ParameterizedTest(name = "ICONST opcode {0} with no branch seen pushes constant")
+        @ValueSource(ints = {ICONST_0, ICONST_1})
+        void handle_iconst_noBranch_emptyInstructions_pushesConstant(int opcode) {
+            // Even ICONST_0/ICONST_1 push if no branch has been seen
+            boolean terminated = handler.handle(new InsnNode(opcode), context);
 
             assertThat(terminated).isFalse();
             assertThat(context.getStackSize()).isEqualTo(1);
@@ -725,67 +491,28 @@ class HandlerEdgeCaseTest {
         // ==================== ICONST_0/1 Post-Branch Termination Tests ====================
         // Test the isFinalResult() and handleIconst() mutation-killing scenarios
 
-        @Test
-        void handle_iconst0_afterBranch_withStackAndIRETURN_terminates() {
-            // Setup: branch seen, stack has expression, next instruction is IRETURN
-            testMethod.instructions.add(new InsnNode(ICONST_0)); // Current instruction
-            testMethod.instructions.add(new InsnNode(IRETURN));  // Next instruction
-            AnalysisContext ctx = new AnalysisContext(testMethod, 0);
-            ctx.markBranchSeen();
-            ctx.push(constant(1)); // Stack has >= 1 element
-
-            boolean terminated = handler.handle(new InsnNode(ICONST_0), ctx);
-
-            assertThat(terminated)
-                    .as("ICONST_0 after branch with stack expression and IRETURN should terminate")
-                    .isTrue();
+        static Stream<Arguments> iconstWithReturnOpcodeCases() {
+            return Stream.of(
+                    Arguments.of(ICONST_0, IRETURN, "ICONST_0 with IRETURN"),
+                    Arguments.of(ICONST_1, IRETURN, "ICONST_1 with IRETURN"),
+                    Arguments.of(ICONST_0, ARETURN, "ICONST_0 with ARETURN"),
+                    Arguments.of(ICONST_0, RETURN, "ICONST_0 with RETURN")
+            );
         }
 
-        @Test
-        void handle_iconst1_afterBranch_withStackAndIRETURN_terminates() {
-            // Same as above but with ICONST_1
-            testMethod.instructions.add(new InsnNode(ICONST_1));
-            testMethod.instructions.add(new InsnNode(IRETURN));
+        @ParameterizedTest(name = "{2} terminates")
+        @MethodSource("iconstWithReturnOpcodeCases")
+        void handle_iconst_afterBranch_withStackAndReturn_terminates(int iconstOpcode, int returnOpcode, String description) {
+            testMethod.instructions.add(new InsnNode(iconstOpcode));
+            testMethod.instructions.add(new InsnNode(returnOpcode));
             AnalysisContext ctx = new AnalysisContext(testMethod, 0);
             ctx.markBranchSeen();
             ctx.push(constant(1));
 
-            boolean terminated = handler.handle(new InsnNode(ICONST_1), ctx);
+            boolean terminated = handler.handle(new InsnNode(iconstOpcode), ctx);
 
             assertThat(terminated)
-                    .as("ICONST_1 after branch with stack expression and IRETURN should terminate")
-                    .isTrue();
-        }
-
-        @Test
-        void handle_iconst0_afterBranch_withStackAndARETURN_terminates() {
-            // Test ARETURN variant (for returning boxed Boolean)
-            testMethod.instructions.add(new InsnNode(ICONST_0));
-            testMethod.instructions.add(new InsnNode(ARETURN));
-            AnalysisContext ctx = new AnalysisContext(testMethod, 0);
-            ctx.markBranchSeen();
-            ctx.push(constant(1));
-
-            boolean terminated = handler.handle(new InsnNode(ICONST_0), ctx);
-
-            assertThat(terminated)
-                    .as("ICONST_0 after branch with ARETURN should terminate")
-                    .isTrue();
-        }
-
-        @Test
-        void handle_iconst0_afterBranch_withStackAndRETURN_terminates() {
-            // Test RETURN variant (void lambda returning boolean?)
-            testMethod.instructions.add(new InsnNode(ICONST_0));
-            testMethod.instructions.add(new InsnNode(RETURN));
-            AnalysisContext ctx = new AnalysisContext(testMethod, 0);
-            ctx.markBranchSeen();
-            ctx.push(constant(1));
-
-            boolean terminated = handler.handle(new InsnNode(ICONST_0), ctx);
-
-            assertThat(terminated)
-                    .as("ICONST_0 after branch with RETURN should terminate")
+                    .as("%s should terminate", description)
                     .isTrue();
         }
 
@@ -843,10 +570,23 @@ class HandlerEdgeCaseTest {
 
         // ==================== Kill mutations for constant values ====================
 
-        @Test
-        void handle_dconst0_pushesZeroDouble() {
-            // Kill mutation line 141: subtraction changed to addition
-            handler.handle(new InsnNode(DCONST_0), context);
+        static Stream<Arguments> constantOpcodeValues() {
+            return Stream.of(
+                    Arguments.of(DCONST_0, 0.0, "DCONST_0"),
+                    Arguments.of(DCONST_1, 1.0, "DCONST_1"),
+                    Arguments.of(FCONST_0, 0.0f, "FCONST_0"),
+                    Arguments.of(FCONST_1, 1.0f, "FCONST_1"),
+                    Arguments.of(LCONST_0, 0L, "LCONST_0"),
+                    Arguments.of(LCONST_1, 1L, "LCONST_1"),
+                    Arguments.of(ICONST_0, 0, "ICONST_0"),
+                    Arguments.of(ICONST_5, 5, "ICONST_5")
+            );
+        }
+
+        @ParameterizedTest(name = "{2} pushes {1}")
+        @MethodSource("constantOpcodeValues")
+        void handle_constOpcode_pushesExpectedValue(int opcode, Object expectedValue, String opcodeName) {
+            handler.handle(new InsnNode(opcode), context);
 
             assertThat(context.getStackSize()).isEqualTo(1);
             assertThat(context.peek())
@@ -854,87 +594,8 @@ class HandlerEdgeCaseTest {
             io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant constExpr =
                     (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
             assertThat(constExpr.value())
-                    .as("DCONST_0 should push 0.0")
-                    .isEqualTo(0.0);
-        }
-
-        @Test
-        void handle_dconst1_pushesOneDouble() {
-            // Kill mutation line 141: subtraction changed to addition
-            handler.handle(new InsnNode(DCONST_1), context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant constExpr =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
-            assertThat(constExpr.value())
-                    .as("DCONST_1 should push 1.0")
-                    .isEqualTo(1.0);
-        }
-
-        @Test
-        void handle_fconst0_pushesZeroFloat() {
-            handler.handle(new InsnNode(FCONST_0), context);
-
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant constExpr =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
-            assertThat(constExpr.value())
-                    .as("FCONST_0 should push 0.0f")
-                    .isEqualTo(0.0f);
-        }
-
-        @Test
-        void handle_fconst1_pushesOneFloat() {
-            handler.handle(new InsnNode(FCONST_1), context);
-
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant constExpr =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
-            assertThat(constExpr.value())
-                    .as("FCONST_1 should push 1.0f")
-                    .isEqualTo(1.0f);
-        }
-
-        @Test
-        void handle_lconst0_pushesZeroLong() {
-            handler.handle(new InsnNode(LCONST_0), context);
-
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant constExpr =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
-            assertThat(constExpr.value())
-                    .as("LCONST_0 should push 0L")
-                    .isEqualTo(0L);
-        }
-
-        @Test
-        void handle_lconst1_pushesOneLong() {
-            handler.handle(new InsnNode(LCONST_1), context);
-
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant constExpr =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
-            assertThat(constExpr.value())
-                    .as("LCONST_1 should push 1L")
-                    .isEqualTo(1L);
-        }
-
-        @Test
-        void handle_iconst0_pushesZeroInt() {
-            handler.handle(new InsnNode(ICONST_0), context);
-
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant constExpr =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
-            assertThat(constExpr.value())
-                    .as("ICONST_0 should push 0")
-                    .isEqualTo(0);
-        }
-
-        @Test
-        void handle_iconst5_pushesFiveInt() {
-            handler.handle(new InsnNode(ICONST_5), context);
-
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant constExpr =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
-            assertThat(constExpr.value())
-                    .as("ICONST_5 should push 5")
-                    .isEqualTo(5);
+                    .as("%s should push %s", opcodeName, expectedValue)
+                    .isEqualTo(expectedValue);
         }
 
         // ==================== Kill mutations for isIconstUsedInExpression ====================
@@ -995,11 +656,11 @@ class HandlerEdgeCaseTest {
                     .isEqualTo(2);
         }
 
-        @Test
-        void handle_iconst0_afterBranch_withIORNext_pushedForLogical() {
-            // IOR (logical or) after ICONST_0 - used in logical expression
+        @ParameterizedTest(name = "ICONST_0 after branch with {0} next pushes for logical")
+        @ValueSource(ints = {IOR, IAND, IXOR})
+        void handle_iconst0_afterBranch_withLogicalNext_pushedForLogical(int logicalOpcode) {
             testMethod.instructions.add(new InsnNode(ICONST_0));
-            testMethod.instructions.add(new InsnNode(IOR));
+            testMethod.instructions.add(new InsnNode(logicalOpcode));
             AnalysisContext ctx = new AnalysisContext(testMethod, 0);
             ctx.markBranchSeen();
             ctx.push(constant(1));
@@ -1014,56 +675,11 @@ class HandlerEdgeCaseTest {
                     .isEqualTo(2);
         }
 
-        @Test
-        void handle_iconst0_afterBranch_withIANDNext_pushedForLogical() {
-            // IAND (logical and) after ICONST_0
+        @ParameterizedTest(name = "ICONST_0 after branch with {0} next pushes for branch")
+        @ValueSource(ints = {IFNULL, IFNONNULL})
+        void handle_iconst0_afterBranch_withNullBranchNext_pushedForBranch(int branchOpcode) {
             testMethod.instructions.add(new InsnNode(ICONST_0));
-            testMethod.instructions.add(new InsnNode(IAND));
-            AnalysisContext ctx = new AnalysisContext(testMethod, 0);
-            ctx.markBranchSeen();
-            ctx.push(constant(1));
-
-            boolean terminated = handler.handle(new InsnNode(ICONST_0), ctx);
-
-            assertThat(terminated).isFalse();
-            assertThat(ctx.getStackSize()).isEqualTo(2);
-        }
-
-        @Test
-        void handle_iconst0_afterBranch_withIXORNext_pushedForLogical() {
-            // IXOR (logical xor) after ICONST_0
-            testMethod.instructions.add(new InsnNode(ICONST_0));
-            testMethod.instructions.add(new InsnNode(IXOR));
-            AnalysisContext ctx = new AnalysisContext(testMethod, 0);
-            ctx.markBranchSeen();
-            ctx.push(constant(1));
-
-            boolean terminated = handler.handle(new InsnNode(ICONST_0), ctx);
-
-            assertThat(terminated).isFalse();
-            assertThat(ctx.getStackSize()).isEqualTo(2);
-        }
-
-        @Test
-        void handle_iconst0_afterBranch_withIFNULLNext_pushedForBranch() {
-            // IFNULL branch opcode after ICONST_0
-            testMethod.instructions.add(new InsnNode(ICONST_0));
-            testMethod.instructions.add(new org.objectweb.asm.tree.JumpInsnNode(IFNULL, new org.objectweb.asm.tree.LabelNode()));
-            AnalysisContext ctx = new AnalysisContext(testMethod, 0);
-            ctx.markBranchSeen();
-            ctx.push(constant(1));
-
-            boolean terminated = handler.handle(new InsnNode(ICONST_0), ctx);
-
-            assertThat(terminated).isFalse();
-            assertThat(ctx.getStackSize()).isEqualTo(2);
-        }
-
-        @Test
-        void handle_iconst0_afterBranch_withIFNONNULLNext_pushedForBranch() {
-            // IFNONNULL branch opcode after ICONST_0
-            testMethod.instructions.add(new InsnNode(ICONST_0));
-            testMethod.instructions.add(new org.objectweb.asm.tree.JumpInsnNode(IFNONNULL, new org.objectweb.asm.tree.LabelNode()));
+            testMethod.instructions.add(new org.objectweb.asm.tree.JumpInsnNode(branchOpcode, new org.objectweb.asm.tree.LabelNode()));
             AnalysisContext ctx = new AnalysisContext(testMethod, 0);
             ctx.markBranchSeen();
             ctx.push(constant(1));
@@ -1138,129 +754,46 @@ class HandlerEdgeCaseTest {
 
         // ==================== Kill mutations for boundary conditions ====================
 
-        @Test
-        void canHandle_withNonConstantOpcode_ALOAD_returnsFalse() {
-            // ALOAD (opcode 25) is outside constant range, should not be handled
-            InsnNode insnOutside = new InsnNode(ALOAD);
-            assertThat(handler.canHandle(insnOutside))
-                    .as("ALOAD opcode should not be handled by ConstantInstructionHandler")
-                    .isFalse();
-        }
-
-        @Test
-        void canHandle_withNonConstantOpcode_ISTORE_returnsFalse() {
-            // ISTORE (opcode 54) is outside constant range, should not be handled
-            InsnNode insnOutside = new InsnNode(ISTORE);
-            assertThat(handler.canHandle(insnOutside))
-                    .as("ISTORE opcode should not be handled by ConstantInstructionHandler")
-                    .isFalse();
-        }
-
-        @Test
-        void canHandle_withNonConstantOpcode_POP_returnsFalse() {
-            // POP (opcode 87) is outside constant range, should not be handled
-            InsnNode insnOutside = new InsnNode(POP);
-            assertThat(handler.canHandle(insnOutside))
-                    .as("POP opcode should not be handled by ConstantInstructionHandler")
-                    .isFalse();
-        }
-
-        @Test
-        void canHandle_withNonConstantOpcode_NOP_returnsFalse() {
-            // NOP (opcode 0) is outside constant range, should not be handled
-            InsnNode insnOutside = new InsnNode(NOP);
-            assertThat(handler.canHandle(insnOutside))
-                    .as("NOP opcode should not be handled by ConstantInstructionHandler")
-                    .isFalse();
-        }
-
-        // Additional tests for ICONST_M1 edge case
-        @Test
-        void canHandle_withICONST_M1_returnsFalse() {
-            // ICONST_M1 (opcode 2) is NOT handled - handler only handles ICONST_0 to ICONST_5
-            InsnNode insnM1 = new InsnNode(ICONST_M1);
-            assertThat(handler.canHandle(insnM1))
-                    .as("ICONST_M1 is not in range ICONST_0 to ICONST_5")
+        @ParameterizedTest(name = "canHandle non-constant opcode {0} returns false")
+        @ValueSource(ints = {ALOAD, ISTORE, POP, NOP, ICONST_M1})
+        void canHandle_withNonConstantOpcode_returnsFalse(int opcode) {
+            // Opcodes outside constant range or ICONST_M1 should not be handled
+            assertThat(handler.canHandle(new InsnNode(opcode)))
+                    .as("Opcode %d should not be handled by ConstantInstructionHandler", opcode)
                     .isFalse();
         }
 
         // ==================== Kill mutations: lines 194, 200 - isArithmeticOrLogicalOpcode/isBranchOpcode ====================
         // These test boundary opcodes at the edges of the arithmetic and branch ranges
 
-        @Test
-        void handle_iconst0_afterBranch_withIADD_nextInstruction_pushedForArithmetic() {
-            // IADD is at the START of arithmetic range (opcode >= IADD)
+        @ParameterizedTest(name = "ICONST_0 before {1} arithmetic opcode pushes for expression")
+        @ValueSource(ints = {IADD, DREM})
+        void handle_iconst0_afterBranch_withArithmeticBoundary_pushedForArithmetic(int opcode) {
             testMethod.instructions.add(new InsnNode(ICONST_0));
-            testMethod.instructions.add(new InsnNode(IADD)); // First opcode in range
+            testMethod.instructions.add(new InsnNode(opcode));
             AnalysisContext ctx = new AnalysisContext(testMethod, 0);
             ctx.markBranchSeen();
             ctx.push(constant(1));
 
             boolean terminated = handler.handle(new InsnNode(ICONST_0), ctx);
 
-            assertThat(terminated)
-                    .as("ICONST_0 before IADD (start of range) should not terminate")
-                    .isFalse();
-            assertThat(ctx.getStackSize())
-                    .as("ICONST_0 should be pushed for IADD")
-                    .isEqualTo(2);
+            assertThat(terminated).isFalse();
+            assertThat(ctx.getStackSize()).isEqualTo(2);
         }
 
-        @Test
-        void handle_iconst0_afterBranch_withDREM_nextInstruction_pushedForArithmetic() {
-            // DREM is at the END of arithmetic range (opcode <= DREM)
+        @ParameterizedTest(name = "ICONST_0 before branch opcode {0} pushes for branch")
+        @ValueSource(ints = {IFEQ, IF_ICMPLE})
+        void handle_iconst0_afterBranch_withBranchBoundary_pushedForBranch(int opcode) {
             testMethod.instructions.add(new InsnNode(ICONST_0));
-            testMethod.instructions.add(new InsnNode(DREM)); // Last opcode in range
+            testMethod.instructions.add(new org.objectweb.asm.tree.JumpInsnNode(opcode, new org.objectweb.asm.tree.LabelNode()));
             AnalysisContext ctx = new AnalysisContext(testMethod, 0);
             ctx.markBranchSeen();
             ctx.push(constant(1));
 
             boolean terminated = handler.handle(new InsnNode(ICONST_0), ctx);
 
-            assertThat(terminated)
-                    .as("ICONST_0 before DREM (end of range) should not terminate")
-                    .isFalse();
-            assertThat(ctx.getStackSize())
-                    .as("ICONST_0 should be pushed for DREM")
-                    .isEqualTo(2);
-        }
-
-        @Test
-        void handle_iconst0_afterBranch_withIFEQ_nextInstruction_pushedForBranch() {
-            // IFEQ is at the START of branch range (opcode >= IFEQ)
-            testMethod.instructions.add(new InsnNode(ICONST_0));
-            testMethod.instructions.add(new org.objectweb.asm.tree.JumpInsnNode(IFEQ, new org.objectweb.asm.tree.LabelNode()));
-            AnalysisContext ctx = new AnalysisContext(testMethod, 0);
-            ctx.markBranchSeen();
-            ctx.push(constant(1));
-
-            boolean terminated = handler.handle(new InsnNode(ICONST_0), ctx);
-
-            assertThat(terminated)
-                    .as("ICONST_0 before IFEQ (start of branch range) should not terminate")
-                    .isFalse();
-            assertThat(ctx.getStackSize())
-                    .as("ICONST_0 should be pushed for IFEQ branch")
-                    .isEqualTo(2);
-        }
-
-        @Test
-        void handle_iconst0_afterBranch_withIF_ICMPLE_nextInstruction_pushedForBranch() {
-            // IF_ICMPLE is at the END of branch range (opcode <= IF_ICMPLE)
-            testMethod.instructions.add(new InsnNode(ICONST_0));
-            testMethod.instructions.add(new org.objectweb.asm.tree.JumpInsnNode(IF_ICMPLE, new org.objectweb.asm.tree.LabelNode()));
-            AnalysisContext ctx = new AnalysisContext(testMethod, 0);
-            ctx.markBranchSeen();
-            ctx.push(constant(1));
-
-            boolean terminated = handler.handle(new InsnNode(ICONST_0), ctx);
-
-            assertThat(terminated)
-                    .as("ICONST_0 before IF_ICMPLE (end of branch range) should not terminate")
-                    .isFalse();
-            assertThat(ctx.getStackSize())
-                    .as("ICONST_0 should be pushed for IF_ICMPLE branch")
-                    .isEqualTo(2);
+            assertThat(terminated).isFalse();
+            assertThat(ctx.getStackSize()).isEqualTo(2);
         }
 
         // ==================== Kill mutations: line 185 - isBooleanValueOfCall ====================
@@ -1358,79 +891,19 @@ class HandlerEdgeCaseTest {
 
         private final TypeConversionHandler handler = TypeConversionHandler.INSTANCE;
 
-        @Test
-        void canHandle_withPrimitiveConversions_returnsTrue() {
-            // TypeConversionHandler only handles primitive type conversions
-            assertThat(handler.canHandle(new InsnNode(I2L)))
-                    .as("Should handle I2L (int to long)")
-                    .isTrue();
-            assertThat(handler.canHandle(new InsnNode(I2F)))
-                    .as("Should handle I2F (int to float)")
-                    .isTrue();
-            assertThat(handler.canHandle(new InsnNode(I2D)))
-                    .as("Should handle I2D (int to double)")
-                    .isTrue();
-            assertThat(handler.canHandle(new InsnNode(L2I)))
-                    .as("Should handle L2I (long to int)")
-                    .isTrue();
-            assertThat(handler.canHandle(new InsnNode(L2F)))
-                    .as("Should handle L2F (long to float)")
-                    .isTrue();
-            assertThat(handler.canHandle(new InsnNode(L2D)))
-                    .as("Should handle L2D (long to double)")
-                    .isTrue();
-            assertThat(handler.canHandle(new InsnNode(F2I)))
-                    .as("Should handle F2I (float to int)")
-                    .isTrue();
-            assertThat(handler.canHandle(new InsnNode(F2L)))
-                    .as("Should handle F2L (float to long)")
-                    .isTrue();
-            assertThat(handler.canHandle(new InsnNode(F2D)))
-                    .as("Should handle F2D (float to double)")
-                    .isTrue();
-            assertThat(handler.canHandle(new InsnNode(D2I)))
-                    .as("Should handle D2I (double to int)")
-                    .isTrue();
-            assertThat(handler.canHandle(new InsnNode(D2L)))
-                    .as("Should handle D2L (double to long)")
-                    .isTrue();
-            assertThat(handler.canHandle(new InsnNode(D2F)))
-                    .as("Should handle D2F (double to float)")
+        @ParameterizedTest(name = "canHandle primitive conversion opcode {0}")
+        @ValueSource(ints = {I2L, I2F, I2D, L2I, L2F, L2D, F2I, F2L, F2D, D2I, D2L, D2F})
+        void canHandle_withPrimitiveConversions_returnsTrue(int opcode) {
+            assertThat(handler.canHandle(new InsnNode(opcode)))
+                    .as("Should handle primitive type conversion opcode %d", opcode)
                     .isTrue();
         }
 
-        @Test
-        void canHandle_withNonConversionOpcode_returnsFalse() {
-            assertThat(handler.canHandle(new InsnNode(IADD)))
-                    .as("Should not handle arithmetic opcodes")
-                    .isFalse();
-            assertThat(handler.canHandle(new InsnNode(IRETURN)))
-                    .as("Should not handle return opcodes")
-                    .isFalse();
-        }
-
-        @Test
-        void canHandle_withNarrowingConversions_returnsFalse() {
-            // Note: I2B, I2C, I2S are narrowing conversions NOT handled by TypeConversionHandler
-            assertThat(handler.canHandle(new InsnNode(I2B)))
-                    .as("TypeConversionHandler does not handle I2B")
-                    .isFalse();
-            assertThat(handler.canHandle(new InsnNode(I2C)))
-                    .as("TypeConversionHandler does not handle I2C")
-                    .isFalse();
-            assertThat(handler.canHandle(new InsnNode(I2S)))
-                    .as("TypeConversionHandler does not handle I2S")
-                    .isFalse();
-        }
-
-        @Test
-        void canHandle_withCheckcastAndInstanceof_returnsFalse() {
-            // CHECKCAST and INSTANCEOF are NOT type conversions - they're handled elsewhere
-            assertThat(handler.canHandle(new InsnNode(CHECKCAST)))
-                    .as("TypeConversionHandler does not handle CHECKCAST")
-                    .isFalse();
-            assertThat(handler.canHandle(new InsnNode(INSTANCEOF)))
-                    .as("TypeConversionHandler does not handle INSTANCEOF")
+        @ParameterizedTest(name = "canHandle opcode {0} returns false")
+        @ValueSource(ints = {I2B, I2C, I2S, CHECKCAST, INSTANCEOF, IADD, IRETURN})
+        void canHandle_withUnhandledOpcode_returnsFalse(int opcode) {
+            assertThat(handler.canHandle(new InsnNode(opcode)))
+                    .as("TypeConversionHandler should not handle opcode %d", opcode)
                     .isFalse();
         }
 
@@ -1445,12 +918,34 @@ class HandlerEdgeCaseTest {
 
         // ==================== Constant Folding Tests (kill mutations lines 37, 48-51) ====================
 
-        @Test
-        void handle_I2L_withIntConstant_foldsToLong() {
-            // Push int constant, convert to long
-            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(42, int.class));
+        static Stream<Arguments> typeConversionFoldingCases() {
+            return Stream.of(
+                    // I2* conversions (int source)
+                    Arguments.of(I2L, 42, int.class, 42L, long.class, null, "I2L"),
+                    Arguments.of(I2F, 42, int.class, 42.0f, float.class, null, "I2F"),
+                    Arguments.of(I2D, 42, int.class, 42.0, double.class, null, "I2D"),
+                    // L2* conversions (long source)
+                    Arguments.of(L2I, 100L, long.class, 100, int.class, null, "L2I"),
+                    Arguments.of(L2F, 100L, long.class, 100.0f, float.class, null, "L2F"),
+                    Arguments.of(L2D, 100L, long.class, 100.0, double.class, null, "L2D"),
+                    // F2* conversions (float source)
+                    Arguments.of(F2I, 3.14f, float.class, 3, int.class, null, "F2I"),
+                    Arguments.of(F2L, 3.14f, float.class, 3L, long.class, null, "F2L"),
+                    Arguments.of(F2D, 3.14f, float.class, 3.14, double.class, 0.01, "F2D"),
+                    // D2* conversions (double source)
+                    Arguments.of(D2I, 9.99, double.class, 9, int.class, null, "D2I"),
+                    Arguments.of(D2L, 9.99, double.class, 9L, long.class, null, "D2L"),
+                    Arguments.of(D2F, 9.99, double.class, 9.99f, float.class, 0.01, "D2F")
+            );
+        }
 
-            handler.handle(new InsnNode(I2L), context);
+        @ParameterizedTest(name = "{6} folds constant correctly")
+        @MethodSource("typeConversionFoldingCases")
+        void handle_typeConversion_foldsConstant(int opcode, Object inputValue, Class<?> inputType,
+                Object expectedValue, Class<?> expectedType, Number tolerance, String opcodeName) {
+            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(inputValue, inputType));
+
+            handler.handle(new InsnNode(opcode), context);
 
             assertThat(context.getStackSize()).isEqualTo(1);
             assertThat(context.peek())
@@ -1458,216 +953,49 @@ class HandlerEdgeCaseTest {
             io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
                     (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
             assertThat(result.type())
-                    .as("I2L should convert to long.class")
-                    .isEqualTo(long.class);
-            assertThat(result.value())
-                    .as("I2L should convert value to long")
-                    .isEqualTo(42L);
-        }
+                    .as("%s should convert to %s", opcodeName, expectedType.getSimpleName())
+                    .isEqualTo(expectedType);
 
-        @Test
-        void handle_I2F_withIntConstant_foldsToFloat() {
-            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(42, int.class));
-
-            handler.handle(new InsnNode(I2F), context);
-
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
-            assertThat(result.type())
-                    .as("I2F should convert to float.class")
-                    .isEqualTo(float.class);
-            assertThat(result.value())
-                    .as("I2F should convert value to float")
-                    .isEqualTo(42.0f);
-        }
-
-        @Test
-        void handle_I2D_withIntConstant_foldsToDouble() {
-            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(42, int.class));
-
-            handler.handle(new InsnNode(I2D), context);
-
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
-            assertThat(result.type())
-                    .as("I2D should convert to double.class")
-                    .isEqualTo(double.class);
-            assertThat(result.value())
-                    .as("I2D should convert value to double")
-                    .isEqualTo(42.0);
-        }
-
-        @Test
-        void handle_L2I_withLongConstant_foldsToInt() {
-            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(100L, long.class));
-
-            handler.handle(new InsnNode(L2I), context);
-
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
-            assertThat(result.type())
-                    .as("L2I should convert to int.class")
-                    .isEqualTo(int.class);
-            assertThat(result.value())
-                    .as("L2I should convert value to int")
-                    .isEqualTo(100);
-        }
-
-        @Test
-        void handle_L2F_withLongConstant_foldsToFloat() {
-            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(100L, long.class));
-
-            handler.handle(new InsnNode(L2F), context);
-
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
-            assertThat(result.type()).isEqualTo(float.class);
-            assertThat(result.value()).isEqualTo(100.0f);
-        }
-
-        @Test
-        void handle_L2D_withLongConstant_foldsToDouble() {
-            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(100L, long.class));
-
-            handler.handle(new InsnNode(L2D), context);
-
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
-            assertThat(result.type()).isEqualTo(double.class);
-            assertThat(result.value()).isEqualTo(100.0);
-        }
-
-        @Test
-        void handle_F2I_withFloatConstant_foldsToInt() {
-            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(3.14f, float.class));
-
-            handler.handle(new InsnNode(F2I), context);
-
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
-            assertThat(result.type()).isEqualTo(int.class);
-            assertThat(result.value()).isEqualTo(3); // truncated
-        }
-
-        @Test
-        void handle_F2L_withFloatConstant_foldsToLong() {
-            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(3.14f, float.class));
-
-            handler.handle(new InsnNode(F2L), context);
-
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
-            assertThat(result.type()).isEqualTo(long.class);
-            assertThat(result.value()).isEqualTo(3L); // truncated
-        }
-
-        @Test
-        void handle_F2D_withFloatConstant_foldsToDouble() {
-            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(3.14f, float.class));
-
-            handler.handle(new InsnNode(F2D), context);
-
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
-            assertThat(result.type()).isEqualTo(double.class);
-            // Float to double conversion preserves precision
-            assertThat((Double) result.value()).isCloseTo(3.14, org.assertj.core.data.Offset.offset(0.01));
-        }
-
-        @Test
-        void handle_D2I_withDoubleConstant_foldsToInt() {
-            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(9.99, double.class));
-
-            handler.handle(new InsnNode(D2I), context);
-
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
-            assertThat(result.type()).isEqualTo(int.class);
-            assertThat(result.value()).isEqualTo(9); // truncated
-        }
-
-        @Test
-        void handle_D2L_withDoubleConstant_foldsToLong() {
-            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(9.99, double.class));
-
-            handler.handle(new InsnNode(D2L), context);
-
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
-            assertThat(result.type()).isEqualTo(long.class);
-            assertThat(result.value()).isEqualTo(9L); // truncated
-        }
-
-        @Test
-        void handle_D2F_withDoubleConstant_foldsToFloat() {
-            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(9.99, double.class));
-
-            handler.handle(new InsnNode(D2F), context);
-
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
-            assertThat(result.type()).isEqualTo(float.class);
-            assertThat((Float) result.value()).isCloseTo(9.99f, org.assertj.core.data.Offset.offset(0.01f));
+            if (tolerance != null) {
+                // Approximate matching for float/double conversions with precision considerations
+                if (expectedType == double.class) {
+                    assertThat((Double) result.value())
+                            .isCloseTo((Double) expectedValue, org.assertj.core.data.Offset.offset(tolerance.doubleValue()));
+                } else {
+                    assertThat((Float) result.value())
+                            .isCloseTo((Float) expectedValue, org.assertj.core.data.Offset.offset(tolerance.floatValue()));
+                }
+            } else {
+                assertThat(result.value())
+                        .as("%s should convert value correctly", opcodeName)
+                        .isEqualTo(expectedValue);
+            }
         }
 
         // ==================== Kill mutation line 37: type mismatch should not fold ====================
 
-        @Test
-        void handle_I2L_withWrongSourceType_doesNotFold() {
-            // Push long constant but use I2L (expects int) - should not fold
-            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(42L, long.class));
+        static Stream<Arguments> typeMismatchConversions() {
+            return Stream.of(
+                    Arguments.of(I2L, 42L, long.class, "I2L with long"),
+                    Arguments.of(L2I, 42, int.class, "L2I with int"),
+                    Arguments.of(F2I, 3.14, double.class, "F2I with double"),
+                    Arguments.of(D2I, 3.14f, float.class, "D2I with float")
+            );
+        }
 
-            handler.handle(new InsnNode(I2L), context);
+        @ParameterizedTest(name = "{3} does not fold")
+        @MethodSource("typeMismatchConversions")
+        void handle_conversion_withWrongSourceType_doesNotFold(int opcode, Object value, Class<?> expectedType, String description) {
+            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(value, expectedType));
 
-            // Stack should remain unchanged because type doesn't match
+            handler.handle(new InsnNode(opcode), context);
+
             assertThat(context.getStackSize()).isEqualTo(1);
             io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
                     (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
             assertThat(result.type())
-                    .as("Type mismatch should not fold - original long should remain")
-                    .isEqualTo(long.class);
-        }
-
-        @Test
-        void handle_L2I_withWrongSourceType_doesNotFold() {
-            // Push int constant but use L2I (expects long) - should not fold
-            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(42, int.class));
-
-            handler.handle(new InsnNode(L2I), context);
-
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
-            assertThat(result.type())
-                    .as("Type mismatch should not fold - original int should remain")
-                    .isEqualTo(int.class);
-        }
-
-        @Test
-        void handle_F2I_withWrongSourceType_doesNotFold() {
-            // Push double constant but use F2I (expects float) - should not fold
-            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(3.14, double.class));
-
-            handler.handle(new InsnNode(F2I), context);
-
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
-            assertThat(result.type())
-                    .as("Type mismatch should not fold - original double should remain")
-                    .isEqualTo(double.class);
-        }
-
-        @Test
-        void handle_D2I_withWrongSourceType_doesNotFold() {
-            // Push float constant but use D2I (expects double) - should not fold
-            context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(3.14f, float.class));
-
-            handler.handle(new InsnNode(D2I), context);
-
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
-            assertThat(result.type())
-                    .as("Type mismatch should not fold - original float should remain")
-                    .isEqualTo(float.class);
+                    .as("Type mismatch should not fold - original %s should remain", expectedType.getSimpleName())
+                    .isEqualTo(expectedType);
         }
 
         @Test
@@ -1728,126 +1056,56 @@ class HandlerEdgeCaseTest {
 
         // ==================== canHandle Tests ====================
 
-        @Test
-        void canHandle_withINVOKEVIRTUAL_returnsTrue() {
-            MethodInsnNode methodInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "length", "()I", false);
+        @ParameterizedTest(name = "canHandle invoke opcode {0}")
+        @ValueSource(ints = {INVOKEVIRTUAL, INVOKESTATIC, INVOKESPECIAL, INVOKEINTERFACE})
+        void canHandle_withInvokeOpcode_returnsTrue(int opcode) {
+            boolean isInterface = opcode == INVOKEINTERFACE;
+            MethodInsnNode methodInsn = new MethodInsnNode(opcode, "java/lang/Object", "test", "()V", isInterface);
             assertThat(handler.canHandle(methodInsn))
-                    .as("Should handle INVOKEVIRTUAL")
-                    .isTrue();
-        }
-
-        @Test
-        void canHandle_withINVOKESTATIC_returnsTrue() {
-            MethodInsnNode methodInsn = new MethodInsnNode(INVOKESTATIC, "java/lang/Boolean", "valueOf", "(Z)Ljava/lang/Boolean;", false);
-            assertThat(handler.canHandle(methodInsn))
-                    .as("Should handle INVOKESTATIC")
-                    .isTrue();
-        }
-
-        @Test
-        void canHandle_withINVOKESPECIAL_returnsTrue() {
-            MethodInsnNode methodInsn = new MethodInsnNode(INVOKESPECIAL, "java/math/BigDecimal", "<init>", "(Ljava/lang/String;)V", false);
-            assertThat(handler.canHandle(methodInsn))
-                    .as("Should handle INVOKESPECIAL")
-                    .isTrue();
-        }
-
-        @Test
-        void canHandle_withINVOKEINTERFACE_returnsTrue() {
-            MethodInsnNode methodInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z", true);
-            assertThat(handler.canHandle(methodInsn))
-                    .as("Should handle INVOKEINTERFACE")
+                    .as("Should handle invoke opcode %d", opcode)
                     .isTrue();
         }
 
         @Test
         void canHandle_withNonInvokeOpcode_returnsFalse() {
-            InsnNode notInvoke = new InsnNode(IADD);
-            assertThat(handler.canHandle(notInvoke))
+            assertThat(handler.canHandle(new InsnNode(IADD)))
                     .as("Should not handle IADD")
                     .isFalse();
         }
 
         // ==================== VirtualMethodCategory Tests ====================
 
-        @Test
-        void categorize_equalsMethod_returnsEQUALS() {
-            MethodInsnNode equalsInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/Object", "equals", "(Ljava/lang/Object;)Z", false);
-
-            MethodInvocationHandler.VirtualMethodCategory category =
-                    MethodInvocationHandler.VirtualMethodCategory.categorize(equalsInsn, handler);
-
-            assertThat(category).isEqualTo(MethodInvocationHandler.VirtualMethodCategory.EQUALS);
+        static Stream<Arguments> methodCategoryMappings() {
+            return Stream.of(
+                    Arguments.of("java/lang/Object", "equals", "(Ljava/lang/Object;)Z",
+                            MethodInvocationHandler.VirtualMethodCategory.EQUALS),
+                    Arguments.of("java/lang/String", "startsWith", "(Ljava/lang/String;)Z",
+                            MethodInvocationHandler.VirtualMethodCategory.STRING_METHOD),
+                    Arguments.of("java/lang/Integer", "compareTo", "(Ljava/lang/Integer;)I",
+                            MethodInvocationHandler.VirtualMethodCategory.COMPARE_TO),
+                    Arguments.of("java/math/BigDecimal", "add", "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;",
+                            MethodInvocationHandler.VirtualMethodCategory.BIG_DECIMAL_ARITHMETIC),
+                    Arguments.of("java/time/LocalDate", "getYear", "()I",
+                            MethodInvocationHandler.VirtualMethodCategory.TEMPORAL_METHOD),
+                    Arguments.of("com/example/Person", "getName", "()Ljava/lang/String;",
+                            MethodInvocationHandler.VirtualMethodCategory.GETTER),
+                    Arguments.of("com/example/Person", "isActive", "()Z",
+                            MethodInvocationHandler.VirtualMethodCategory.GETTER),
+                    Arguments.of("com/example/Foo", "doSomething", "(II)V",
+                            MethodInvocationHandler.VirtualMethodCategory.UNHANDLED)
+            );
         }
 
-        @Test
-        void categorize_stringMethod_returnsSTRING_METHOD() {
-            MethodInsnNode startsWithInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "startsWith", "(Ljava/lang/String;)Z", false);
+        @ParameterizedTest(name = "{1} on {0} returns {3}")
+        @MethodSource("methodCategoryMappings")
+        void categorize_method_returnsCorrectCategory(String owner, String methodName, String descriptor,
+                                                       MethodInvocationHandler.VirtualMethodCategory expectedCategory) {
+            MethodInsnNode insn = new MethodInsnNode(INVOKEVIRTUAL, owner, methodName, descriptor, false);
 
             MethodInvocationHandler.VirtualMethodCategory category =
-                    MethodInvocationHandler.VirtualMethodCategory.categorize(startsWithInsn, handler);
+                    MethodInvocationHandler.VirtualMethodCategory.categorize(insn, handler);
 
-            assertThat(category).isEqualTo(MethodInvocationHandler.VirtualMethodCategory.STRING_METHOD);
-        }
-
-        @Test
-        void categorize_compareToMethod_returnsCOMPARE_TO() {
-            MethodInsnNode compareToInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/Integer", "compareTo", "(Ljava/lang/Integer;)I", false);
-
-            MethodInvocationHandler.VirtualMethodCategory category =
-                    MethodInvocationHandler.VirtualMethodCategory.categorize(compareToInsn, handler);
-
-            assertThat(category).isEqualTo(MethodInvocationHandler.VirtualMethodCategory.COMPARE_TO);
-        }
-
-        @Test
-        void categorize_bigDecimalArithmetic_returnsBIG_DECIMAL_ARITHMETIC() {
-            MethodInsnNode addInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/math/BigDecimal", "add", "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;", false);
-
-            MethodInvocationHandler.VirtualMethodCategory category =
-                    MethodInvocationHandler.VirtualMethodCategory.categorize(addInsn, handler);
-
-            assertThat(category).isEqualTo(MethodInvocationHandler.VirtualMethodCategory.BIG_DECIMAL_ARITHMETIC);
-        }
-
-        @Test
-        void categorize_temporalMethod_returnsTEMPORAL_METHOD() {
-            MethodInsnNode getYearInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/time/LocalDate", "getYear", "()I", false);
-
-            MethodInvocationHandler.VirtualMethodCategory category =
-                    MethodInvocationHandler.VirtualMethodCategory.categorize(getYearInsn, handler);
-
-            assertThat(category).isEqualTo(MethodInvocationHandler.VirtualMethodCategory.TEMPORAL_METHOD);
-        }
-
-        @Test
-        void categorize_getterMethod_returnsGETTER() {
-            MethodInsnNode getterInsn = new MethodInsnNode(INVOKEVIRTUAL, "com/example/Person", "getName", "()Ljava/lang/String;", false);
-
-            MethodInvocationHandler.VirtualMethodCategory category =
-                    MethodInvocationHandler.VirtualMethodCategory.categorize(getterInsn, handler);
-
-            assertThat(category).isEqualTo(MethodInvocationHandler.VirtualMethodCategory.GETTER);
-        }
-
-        @Test
-        void categorize_isGetterMethod_returnsGETTER() {
-            MethodInsnNode isGetterInsn = new MethodInsnNode(INVOKEVIRTUAL, "com/example/Person", "isActive", "()Z", false);
-
-            MethodInvocationHandler.VirtualMethodCategory category =
-                    MethodInvocationHandler.VirtualMethodCategory.categorize(isGetterInsn, handler);
-
-            assertThat(category).isEqualTo(MethodInvocationHandler.VirtualMethodCategory.GETTER);
-        }
-
-        @Test
-        void categorize_unknownMethod_returnsUNHANDLED() {
-            MethodInsnNode unknownInsn = new MethodInsnNode(INVOKEVIRTUAL, "com/example/Foo", "doSomething", "(II)V", false);
-
-            MethodInvocationHandler.VirtualMethodCategory category =
-                    MethodInvocationHandler.VirtualMethodCategory.categorize(unknownInsn, handler);
-
-            assertThat(category).isEqualTo(MethodInvocationHandler.VirtualMethodCategory.UNHANDLED);
+            assertThat(category).isEqualTo(expectedCategory);
         }
 
         // ==================== handleInvokeStatic Tests ====================
@@ -2098,55 +1356,18 @@ class HandlerEdgeCaseTest {
 
         // ==================== BigDecimal Arithmetic Tests ====================
 
-        @Test
-        void handle_bigDecimalAdd_createsMethodCall() {
-            context.push(field("price", java.math.BigDecimal.class));
-            context.push(constant(new java.math.BigDecimal("10.00")));
-            MethodInsnNode addInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/math/BigDecimal", "add", "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;", false);
-
-            handler.handle(addInsn, context);
-
-            assertThat(context.getStackSize())
-                    .as("BigDecimal.add should create MethodCall")
-                    .isEqualTo(1);
-        }
-
-        @Test
-        void handle_bigDecimalSubtract_createsMethodCall() {
-            context.push(field("price", java.math.BigDecimal.class));
-            context.push(constant(new java.math.BigDecimal("5.00")));
-            MethodInsnNode subtractInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/math/BigDecimal", "subtract", "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;", false);
-
-            handler.handle(subtractInsn, context);
-
-            assertThat(context.getStackSize())
-                    .as("BigDecimal.subtract should create MethodCall")
-                    .isEqualTo(1);
-        }
-
-        @Test
-        void handle_bigDecimalMultiply_createsMethodCall() {
+        @ParameterizedTest(name = "BigDecimal.{0} creates MethodCall")
+        @ValueSource(strings = {"add", "subtract", "multiply", "divide"})
+        void handle_bigDecimalArithmetic_createsMethodCall(String methodName) {
             context.push(field("price", java.math.BigDecimal.class));
             context.push(constant(new java.math.BigDecimal("2.00")));
-            MethodInsnNode multiplyInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/math/BigDecimal", "multiply", "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;", false);
+            MethodInsnNode insn = new MethodInsnNode(INVOKEVIRTUAL, "java/math/BigDecimal", methodName,
+                    "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;", false);
 
-            handler.handle(multiplyInsn, context);
-
-            assertThat(context.getStackSize())
-                    .as("BigDecimal.multiply should create MethodCall")
-                    .isEqualTo(1);
-        }
-
-        @Test
-        void handle_bigDecimalDivide_createsMethodCall() {
-            context.push(field("price", java.math.BigDecimal.class));
-            context.push(constant(new java.math.BigDecimal("2.00")));
-            MethodInsnNode divideInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/math/BigDecimal", "divide", "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;", false);
-
-            handler.handle(divideInsn, context);
+            handler.handle(insn, context);
 
             assertThat(context.getStackSize())
-                    .as("BigDecimal.divide should create MethodCall")
+                    .as("BigDecimal.%s should create MethodCall", methodName)
                     .isEqualTo(1);
         }
 
@@ -2179,30 +1400,24 @@ class HandlerEdgeCaseTest {
                     .isTrue();
         }
 
-        @Test
-        void handle_getter_createsFieldAccess() {
-            // Use Parameter to represent an entity on the stack
+        static Stream<Arguments> getterPatterns() {
+            return Stream.of(
+                    Arguments.of("getName", "()Ljava/lang/String;", "get-style getter"),
+                    Arguments.of("isActive", "()Z", "is-style getter")
+            );
+        }
+
+        @ParameterizedTest(name = "{2} creates FieldAccess")
+        @MethodSource("getterPatterns")
+        void handle_getter_createsFieldAccess(String methodName, String descriptor, String description) {
             context.push(param("person", Object.class, 0));
-            MethodInsnNode getterInsn = new MethodInsnNode(INVOKEVIRTUAL, "com/example/Person", "getName", "()Ljava/lang/String;", false);
+            MethodInsnNode getterInsn = new MethodInsnNode(INVOKEVIRTUAL, "com/example/Person", methodName, descriptor, false);
 
             handler.handle(getterInsn, context);
 
             assertThat(context.getStackSize()).isEqualTo(1);
             assertThat(context.peek())
-                    .as("Getter should create FieldAccess")
-                    .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.FieldAccess.class);
-        }
-
-        @Test
-        void handle_isGetter_createsFieldAccess() {
-            context.push(param("person", Object.class, 0));
-            MethodInsnNode isGetterInsn = new MethodInsnNode(INVOKEVIRTUAL, "com/example/Person", "isActive", "()Z", false);
-
-            handler.handle(isGetterInsn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            assertThat(context.peek())
-                    .as("is-getter should create FieldAccess")
+                    .as("%s should create FieldAccess", description)
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.FieldAccess.class);
         }
 
@@ -2475,94 +1690,50 @@ class HandlerEdgeCaseTest {
 
         // ==================== isCollectionContainsCall condition tests (kill mutations 335-337) ====================
 
-        @Test
-        void handle_containsCall_wrongMethodName_doesNotCreateInExpression() {
-            // Wrong method name - "add" instead of "contains"
+        static Stream<Arguments> invalidContainsCallCases() {
+            return Stream.of(
+                    Arguments.of("java/util/Collection", "add", "(Ljava/lang/Object;)Z", "wrong method name"),
+                    Arguments.of("java/util/Collection", "contains", "(II)Z", "wrong descriptor"),
+                    Arguments.of("java/util/Map", "contains", "(Ljava/lang/Object;)Z", "wrong owner")
+            );
+        }
+
+        @ParameterizedTest(name = "contains call with {3} does not create InExpression")
+        @MethodSource("invalidContainsCallCases")
+        void handle_containsCall_invalid_doesNotCreateInExpression(String owner, String method, String descriptor, String description) {
             context.push(captured(0, java.util.List.class));
             context.push(field("city", String.class));
-            MethodInsnNode addInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "add", "(Ljava/lang/Object;)Z", true);
+            MethodInsnNode insn = new MethodInsnNode(INVOKEINTERFACE, owner, method, descriptor, true);
 
-            handler.handle(addInsn, context);
+            handler.handle(insn, context);
 
-            // "add" is not Collection.contains(), so stack should remain unchanged
             assertThat(context.getStackSize())
-                    .as("Wrong method name should not be processed as contains")
+                    .as("%s should not be processed as contains", description)
                     .isEqualTo(2);
         }
 
-        @Test
-        void handle_containsCall_wrongDescriptor_doesNotCreateInExpression() {
-            // Wrong descriptor - different signature
-            context.push(captured(0, java.util.List.class));
+        @ParameterizedTest(name = "contains on {0} owner creates InExpression")
+        @ValueSource(strings = {"java/util/List", "java/util/Set", "java/util/Collection"})
+        void handle_containsCall_collectionOwner_createsExpression(String owner) {
+            context.push(captured(0, java.util.Collection.class));
             context.push(field("city", String.class));
-            MethodInsnNode wrongDescInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains", "(II)Z", true);
+            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, owner, "contains", "(Ljava/lang/Object;)Z", true);
 
-            handler.handle(wrongDescInsn, context);
-
-            assertThat(context.getStackSize())
-                    .as("Wrong descriptor should not be processed as contains")
-                    .isEqualTo(2);
-        }
-
-        @Test
-        void handle_containsCall_wrongOwner_doesNotCreateInExpression() {
-            // Wrong owner - not a Collection interface
-            context.push(captured(0, java.util.List.class));
-            context.push(field("city", String.class));
-            MethodInsnNode wrongOwnerInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Map", "contains", "(Ljava/lang/Object;)Z", true);
-
-            handler.handle(wrongOwnerInsn, context);
-
-            // java/util/Map is not in COLLECTION_INTERFACE_OWNERS
-            assertThat(context.getStackSize())
-                    .as("Wrong owner should not be processed as contains")
-                    .isEqualTo(2);
-        }
-
-        @Test
-        void handle_containsCall_listOwner_createsExpression() {
-            // java/util/List is in COLLECTION_INTERFACE_OWNERS
-            context.push(captured(0, java.util.List.class));
-            context.push(field("city", String.class));
-            MethodInsnNode listContainsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/List", "contains", "(Ljava/lang/Object;)Z", true);
-
-            handler.handle(listContainsInsn, context);
+            handler.handle(containsInsn, context);
 
             assertThat(context.peek())
-                    .as("java/util/List owner should be recognized")
-                    .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.InExpression.class);
-        }
-
-        @Test
-        void handle_containsCall_setOwner_createsExpression() {
-            // java/util/Set is in COLLECTION_INTERFACE_OWNERS
-            context.push(captured(0, java.util.Set.class));
-            context.push(field("city", String.class));
-            MethodInsnNode setContainsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Set", "contains", "(Ljava/lang/Object;)Z", true);
-
-            handler.handle(setContainsInsn, context);
-
-            assertThat(context.peek())
-                    .as("java/util/Set owner should be recognized")
+                    .as("%s owner should be recognized", owner)
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.InExpression.class);
         }
 
         // ==================== handleCollectionContains empty stack test (kill mutation 354) ====================
 
-        @Test
-        void handle_collectionContains_emptyStack_throwsException() {
-            // Empty stack should throw BytecodeAnalysisException
-            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z", true);
-
-            assertThatThrownBy(() -> handler.handle(containsInsn, context))
-                    .isInstanceOf(BytecodeAnalysisException.class)
-                    .hasMessageContaining("Stack underflow");
-        }
-
-        @Test
-        void handle_collectionContains_oneElementStack_throwsException() {
-            // Only one element - popPair() needs 2
-            context.push(captured(0, java.util.List.class));
+        @ParameterizedTest(name = "collection contains with {0} stack elements throws underflow")
+        @ValueSource(ints = {0, 1})
+        void handle_collectionContains_insufficientStack_throwsException(int stackElements) {
+            for (int i = 0; i < stackElements; i++) {
+                context.push(captured(i, java.util.List.class));
+            }
             MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z", true);
 
             assertThatThrownBy(() -> handler.handle(containsInsn, context))
@@ -2605,30 +1776,28 @@ class HandlerEdgeCaseTest {
                     .isEqualTo(3);
         }
 
-        @Test
-        void handle_localTimeOf_withNonConstantArgs_createsMethodCall() {
-            // Non-constant arguments should fall back to method call
-            context.push(field("hour", int.class));  // Non-constant
-            context.push(constant(30));
-            MethodInsnNode localTimeOf = new MethodInsnNode(INVOKESTATIC, "java/time/LocalTime", "of", "(II)Ljava/time/LocalTime;", false);
-
-            handler.handle(localTimeOf, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            assertThat(context.peek())
-                    .as("Non-constant args should create MethodCall")
-                    .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall.class);
+        static Stream<Arguments> temporalFactoryNonConstantCases() {
+            return Stream.of(
+                    Arguments.of("java/time/LocalTime", "(II)Ljava/time/LocalTime;", new Object[]{null, 30}, "LocalTime"),
+                    Arguments.of("java/time/LocalDate", "(III)Ljava/time/LocalDate;", new Object[]{null, 1, 15}, "LocalDate")
+            );
         }
 
-        @Test
-        void handle_localDateOf_withNonConstantArgs_createsMethodCall() {
-            // Non-constant year argument
-            context.push(field("year", int.class));
-            context.push(constant(1));
-            context.push(constant(15));
-            MethodInsnNode localDateOf = new MethodInsnNode(INVOKESTATIC, "java/time/LocalDate", "of", "(III)Ljava/time/LocalDate;", false);
+        @ParameterizedTest(name = "{3}.of with non-constant args creates MethodCall")
+        @MethodSource("temporalFactoryNonConstantCases")
+        void handle_temporalFactory_withNonConstantArgs_createsMethodCall(
+                String owner, String descriptor, Object[] args, String typeName) {
+            // Push arguments: null means non-constant field, otherwise constant
+            for (Object arg : args) {
+                if (arg == null) {
+                    context.push(field("value", int.class));
+                } else {
+                    context.push(constant(arg));
+                }
+            }
+            MethodInsnNode factoryCall = new MethodInsnNode(INVOKESTATIC, owner, "of", descriptor, false);
 
-            handler.handle(localDateOf, context);
+            handler.handle(factoryCall, context);
 
             assertThat(context.getStackSize()).isEqualTo(1);
             assertThat(context.peek())
@@ -2637,31 +1806,6 @@ class HandlerEdgeCaseTest {
         }
 
         // ==================== Substring edge cases (kill mutations 528, 531) ====================
-
-        @Test
-        void handle_substringOneArg_exactStackSize_succeeds() {
-            // Exactly 2 elements for substring(I) - target + 1 arg
-            context.push(field("name", String.class));
-            context.push(constant(5));
-            MethodInsnNode substringInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "substring", "(I)Ljava/lang/String;", false);
-
-            handler.handle(substringInsn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-        }
-
-        @Test
-        void handle_substringTwoArgs_exactStackSize_succeeds() {
-            // Exactly 3 elements for substring(II) - target + 2 args
-            context.push(field("name", String.class));
-            context.push(constant(0));
-            context.push(constant(5));
-            MethodInsnNode substringInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "substring", "(II)Ljava/lang/String;", false);
-
-            handler.handle(substringInsn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-        }
 
         @Test
         void handle_substringTwoArgs_insufficientStack_leavesUnchanged() {
@@ -2679,34 +1823,27 @@ class HandlerEdgeCaseTest {
 
         // ==================== INVOKEINTERFACE for equals and compareTo (kill mutations 306, 312-313) ====================
 
-        @Test
-        void handle_invokeInterface_equalsMethod_handlesCorrectly() {
-            // Interface equals() call
-            context.push(field("name", String.class));
-            context.push(constant("test"));
-            MethodInsnNode equalsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/lang/Comparable", "equals", "(Ljava/lang/Object;)Z", true);
-
-            handler.handle(equalsInsn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            assertThat(context.peek())
-                    .as("Interface equals() should create BinaryOp EQ")
-                    .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.class);
+        static Stream<Arguments> invokeInterfaceMethodCases() {
+            return Stream.of(
+                    Arguments.of("equals", "(Ljava/lang/Object;)Z", io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.class, "BinaryOp EQ"),
+                    Arguments.of("compareTo", "(Ljava/lang/Object;)I", io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall.class, "MethodCall")
+            );
         }
 
-        @Test
-        void handle_invokeInterface_compareToMethod_handlesCorrectly() {
-            // Interface compareTo() call
+        @ParameterizedTest(name = "interface {0}() creates {3}")
+        @MethodSource("invokeInterfaceMethodCases")
+        void handle_invokeInterface_method_handlesCorrectly(String methodName, String descriptor,
+                Class<?> expectedResultType, String resultDescription) {
             context.push(field("name", String.class));
             context.push(constant("test"));
-            MethodInsnNode compareToInsn = new MethodInsnNode(INVOKEINTERFACE, "java/lang/Comparable", "compareTo", "(Ljava/lang/Object;)I", true);
+            MethodInsnNode insn = new MethodInsnNode(INVOKEINTERFACE, "java/lang/Comparable", methodName, descriptor, true);
 
-            handler.handle(compareToInsn, context);
+            handler.handle(insn, context);
 
             assertThat(context.getStackSize()).isEqualTo(1);
             assertThat(context.peek())
-                    .as("Interface compareTo() should create MethodCall")
-                    .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall.class);
+                    .as("Interface %s() should create %s", methodName, resultDescription)
+                    .isInstanceOf(expectedResultType);
         }
 
         // ==================== handleInvokeSpecial constructor edge cases (kill mutations 239, 248) ====================
@@ -2776,34 +1913,19 @@ class HandlerEdgeCaseTest {
 
         // ==================== handleStringMethods - kill method name mutations ====================
 
-        @Test
-        void handle_stringStartsWith_createsMethodCall() {
+        @ParameterizedTest(name = "String.{0} with argument creates MethodCall")
+        @ValueSource(strings = {"startsWith", "endsWith"})
+        void handle_stringMethodWithArg_createsMethodCall(String methodName) {
             context.push(field("name", String.class));
             context.push(constant("test"));
-            MethodInsnNode startsWithInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "startsWith", "(Ljava/lang/String;)Z", false);
+            MethodInsnNode insn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", methodName, "(Ljava/lang/String;)Z", false);
 
-            handler.handle(startsWithInsn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            assertThat(context.peek())
-                    .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall.class);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
-            assertThat(call.methodName()).isEqualTo("startsWith");
-        }
-
-        @Test
-        void handle_stringEndsWith_createsMethodCall() {
-            context.push(field("name", String.class));
-            context.push(constant("test"));
-            MethodInsnNode endsWithInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "endsWith", "(Ljava/lang/String;)Z", false);
-
-            handler.handle(endsWithInsn, context);
+            handler.handle(insn, context);
 
             assertThat(context.getStackSize()).isEqualTo(1);
             io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
                     (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
-            assertThat(call.methodName()).isEqualTo("endsWith");
+            assertThat(call.methodName()).isEqualTo(methodName);
         }
 
         @Test
@@ -2820,72 +1942,29 @@ class HandlerEdgeCaseTest {
             assertThat(call.methodName()).isEqualTo("contains");
         }
 
-        @Test
-        void handle_stringLength_createsMethodCall() {
-            context.push(field("name", String.class));
-            MethodInsnNode lengthInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "length", "()I", false);
-
-            handler.handle(lengthInsn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
-            assertThat(call.methodName()).isEqualTo("length");
-            assertThat(call.returnType()).isEqualTo(int.class);
+        static Stream<Arguments> noArgStringMethods() {
+            return Stream.of(
+                    Arguments.of("length", "()I", int.class),
+                    Arguments.of("isEmpty", "()Z", boolean.class),
+                    Arguments.of("toLowerCase", "()Ljava/lang/String;", String.class),
+                    Arguments.of("toUpperCase", "()Ljava/lang/String;", String.class),
+                    Arguments.of("trim", "()Ljava/lang/String;", String.class)
+            );
         }
 
-        @Test
-        void handle_stringIsEmpty_createsMethodCall() {
+        @ParameterizedTest(name = "String.{0} creates MethodCall with {2} return type")
+        @MethodSource("noArgStringMethods")
+        void handle_stringNoArgMethod_createsMethodCall(String methodName, String descriptor, Class<?> returnType) {
             context.push(field("name", String.class));
-            MethodInsnNode isEmptyInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "isEmpty", "()Z", false);
+            MethodInsnNode insn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", methodName, descriptor, false);
 
-            handler.handle(isEmptyInsn, context);
+            handler.handle(insn, context);
 
             assertThat(context.getStackSize()).isEqualTo(1);
             io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
                     (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
-            assertThat(call.methodName()).isEqualTo("isEmpty");
-            assertThat(call.returnType()).isEqualTo(boolean.class);
-        }
-
-        @Test
-        void handle_stringToLowerCase_createsMethodCall() {
-            context.push(field("name", String.class));
-            MethodInsnNode toLowerInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "toLowerCase", "()Ljava/lang/String;", false);
-
-            handler.handle(toLowerInsn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
-            assertThat(call.methodName()).isEqualTo("toLowerCase");
-            assertThat(call.returnType()).isEqualTo(String.class);
-        }
-
-        @Test
-        void handle_stringToUpperCase_createsMethodCall() {
-            context.push(field("name", String.class));
-            MethodInsnNode toUpperInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "toUpperCase", "()Ljava/lang/String;", false);
-
-            handler.handle(toUpperInsn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
-            assertThat(call.methodName()).isEqualTo("toUpperCase");
-        }
-
-        @Test
-        void handle_stringTrim_createsMethodCall() {
-            context.push(field("name", String.class));
-            MethodInsnNode trimInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "trim", "()Ljava/lang/String;", false);
-
-            handler.handle(trimInsn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
-            assertThat(call.methodName()).isEqualTo("trim");
+            assertThat(call.methodName()).isEqualTo(methodName);
+            assertThat(call.returnType()).isEqualTo(returnType);
         }
 
         @Test
@@ -2902,148 +1981,71 @@ class HandlerEdgeCaseTest {
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.FieldAccess.class);
         }
 
-        // ==================== handleEqualsMethod - empty stack mutation ====================
+        // ==================== Stack underflow tests for binary methods (equals, compareTo) ====================
 
-        @Test
-        void handle_equalsMethod_emptyStack_throwsException() {
-            // Empty stack - popPair throws
-            MethodInsnNode equalsInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/Object", "equals", "(Ljava/lang/Object;)Z", false);
-
-            assertThatThrownBy(() -> handler.handle(equalsInsn, context))
-                    .isInstanceOf(BytecodeAnalysisException.class)
-                    .hasMessageContaining("Stack underflow");
+        static Stream<Arguments> binaryMethodUnderflowCases() {
+            return Stream.of(
+                    Arguments.of("equals", "(Ljava/lang/Object;)Z", "java/lang/Object", 0, "empty stack"),
+                    Arguments.of("equals", "(Ljava/lang/Object;)Z", "java/lang/Object", 1, "one element"),
+                    Arguments.of("compareTo", "(Ljava/lang/Integer;)I", "java/lang/Integer", 0, "empty stack"),
+                    Arguments.of("compareTo", "(Ljava/lang/Integer;)I", "java/lang/Integer", 1, "one element")
+            );
         }
 
-        @Test
-        void handle_equalsMethod_oneElement_throwsException() {
-            context.push(field("name", String.class));
-            MethodInsnNode equalsInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/Object", "equals", "(Ljava/lang/Object;)Z", false);
+        @ParameterizedTest(name = "{0} with {4} throws stack underflow")
+        @MethodSource("binaryMethodUnderflowCases")
+        void handle_binaryMethod_insufficientStack_throwsException(String methodName, String descriptor,
+                String owner, int stackElements, String description) {
+            for (int i = 0; i < stackElements; i++) {
+                context.push(field("value", Object.class));
+            }
+            MethodInsnNode insn = new MethodInsnNode(INVOKEVIRTUAL, owner, methodName, descriptor, false);
 
-            // popPair needs 2 elements
-            assertThatThrownBy(() -> handler.handle(equalsInsn, context))
-                    .isInstanceOf(BytecodeAnalysisException.class)
-                    .hasMessageContaining("Stack underflow");
-        }
-
-        // ==================== handleSingleArgumentMethodCall - empty stack mutation ====================
-
-        @Test
-        void handle_compareTo_emptyStack_throwsException() {
-            MethodInsnNode compareToInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/Integer", "compareTo", "(Ljava/lang/Integer;)I", false);
-
-            assertThatThrownBy(() -> handler.handle(compareToInsn, context))
-                    .isInstanceOf(BytecodeAnalysisException.class)
-                    .hasMessageContaining("Stack underflow");
-        }
-
-        @Test
-        void handle_compareTo_oneElement_throwsException() {
-            context.push(field("value", Integer.class));
-            MethodInsnNode compareToInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/Integer", "compareTo", "(Ljava/lang/Integer;)I", false);
-
-            // popPair needs 2 elements
-            assertThatThrownBy(() -> handler.handle(compareToInsn, context))
+            assertThatThrownBy(() -> handler.handle(insn, context))
                     .isInstanceOf(BytecodeAnalysisException.class)
                     .hasMessageContaining("Stack underflow");
         }
 
         // ==================== handleNoArgumentStringMethod - descriptor mismatch ====================
 
-        @Test
-        void handle_stringLength_wrongDescriptor_doesNothing() {
+        @ParameterizedTest(name = "String.{0} with wrong descriptor does nothing")
+        @ValueSource(strings = {"length", "isEmpty"})
+        void handle_stringMethod_wrongDescriptor_doesNothing(String methodName) {
             context.push(field("name", String.class));
-            // Wrong descriptor - expects (I)I instead of ()I
-            MethodInsnNode wrongLengthInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "length", "(I)I", false);
+            MethodInsnNode wrongInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", methodName, "(I)I", false);
 
-            handler.handle(wrongLengthInsn, context);
+            handler.handle(wrongInsn, context);
 
-            // Should leave stack unchanged due to descriptor mismatch
             assertThat(context.getStackSize()).isEqualTo(1);
             assertThat(context.peek())
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.FieldAccess.class);
         }
 
-        @Test
-        void handle_stringIsEmpty_wrongDescriptor_doesNothing() {
-            context.push(field("name", String.class));
-            // Wrong descriptor
-            MethodInsnNode wrongEmptyInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "isEmpty", "(I)Z", false);
-
-            handler.handle(wrongEmptyInsn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-        }
-
         // ==================== handleTemporalMethods - temporal accessor mutations ====================
 
-        @Test
-        void handle_localDateGetYear_createsMethodCall() {
-            context.push(field("birthDate", java.time.LocalDate.class));
-            MethodInsnNode getYearInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/time/LocalDate", "getYear", "()I", false);
+        static Stream<Arguments> temporalAccessorMethods() {
+            return Stream.of(
+                    Arguments.of("java/time/LocalDate", "birthDate", java.time.LocalDate.class, "getYear"),
+                    Arguments.of("java/time/LocalDate", "birthDate", java.time.LocalDate.class, "getMonthValue"),
+                    Arguments.of("java/time/LocalDate", "birthDate", java.time.LocalDate.class, "getDayOfMonth"),
+                    Arguments.of("java/time/LocalTime", "startTime", java.time.LocalTime.class, "getHour"),
+                    Arguments.of("java/time/LocalTime", "startTime", java.time.LocalTime.class, "getMinute"),
+                    Arguments.of("java/time/LocalDateTime", "createdAt", java.time.LocalDateTime.class, "getYear")
+            );
+        }
 
-            handler.handle(getYearInsn, context);
+        @ParameterizedTest(name = "{0}.{3} creates MethodCall")
+        @MethodSource("temporalAccessorMethods")
+        void handle_temporalAccessor_createsMethodCall(String owner, String fieldName, Class<?> fieldType, String methodName) {
+            context.push(field(fieldName, fieldType));
+            MethodInsnNode insn = new MethodInsnNode(INVOKEVIRTUAL, owner, methodName, "()I", false);
+
+            handler.handle(insn, context);
 
             assertThat(context.getStackSize()).isEqualTo(1);
             io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
                     (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
-            assertThat(call.methodName()).isEqualTo("getYear");
-            assertThat(call.returnType()).isEqualTo(int.class);
-        }
-
-        @Test
-        void handle_localDateGetMonth_createsMethodCall() {
-            context.push(field("birthDate", java.time.LocalDate.class));
-            MethodInsnNode getMonthInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/time/LocalDate", "getMonthValue", "()I", false);
-
-            handler.handle(getMonthInsn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
-            assertThat(call.methodName()).isEqualTo("getMonthValue");
-        }
-
-        @Test
-        void handle_localDateGetDayOfMonth_createsMethodCall() {
-            context.push(field("birthDate", java.time.LocalDate.class));
-            MethodInsnNode getDayInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/time/LocalDate", "getDayOfMonth", "()I", false);
-
-            handler.handle(getDayInsn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-        }
-
-        @Test
-        void handle_localTimeGetHour_createsMethodCall() {
-            context.push(field("startTime", java.time.LocalTime.class));
-            MethodInsnNode getHourInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/time/LocalTime", "getHour", "()I", false);
-
-            handler.handle(getHourInsn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
-            assertThat(call.methodName()).isEqualTo("getHour");
-        }
-
-        @Test
-        void handle_localTimeGetMinute_createsMethodCall() {
-            context.push(field("startTime", java.time.LocalTime.class));
-            MethodInsnNode getMinuteInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/time/LocalTime", "getMinute", "()I", false);
-
-            handler.handle(getMinuteInsn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-        }
-
-        @Test
-        void handle_localDateTimeGetYear_createsMethodCall() {
-            context.push(field("createdAt", java.time.LocalDateTime.class));
-            MethodInsnNode getYearInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/time/LocalDateTime", "getYear", "()I", false);
-
-            handler.handle(getYearInsn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
+            assertThat(call.methodName()).isEqualTo(methodName);
         }
 
         @Test
@@ -3056,47 +2058,20 @@ class HandlerEdgeCaseTest {
             assertThat(context.isStackEmpty()).isTrue();
         }
 
-        @Test
-        void handle_temporalComparison_isBefore_createsMethodCall() {
-            context.push(field("startDate", java.time.LocalDate.class));
-            context.push(constant(java.time.LocalDate.of(2024, 1, 1)));
-            MethodInsnNode isBeforeInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/time/LocalDate", "isBefore", "(Ljava/time/chrono/ChronoLocalDate;)Z", false);
-
-            handler.handle(isBeforeInsn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
-            assertThat(call.methodName()).isEqualTo("isBefore");
-            assertThat(call.returnType()).isEqualTo(boolean.class);
-        }
-
-        @Test
-        void handle_temporalComparison_isAfter_createsMethodCall() {
-            context.push(field("endDate", java.time.LocalDate.class));
-            context.push(constant(java.time.LocalDate.of(2024, 12, 31)));
-            MethodInsnNode isAfterInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/time/LocalDate", "isAfter", "(Ljava/time/chrono/ChronoLocalDate;)Z", false);
-
-            handler.handle(isAfterInsn, context);
-
-            assertThat(context.getStackSize()).isEqualTo(1);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
-            assertThat(call.methodName()).isEqualTo("isAfter");
-        }
-
-        @Test
-        void handle_temporalComparison_isEqual_createsMethodCall() {
+        @ParameterizedTest(name = "temporal comparison {0} creates MethodCall")
+        @ValueSource(strings = {"isBefore", "isAfter", "isEqual"})
+        void handle_temporalComparison_createsMethodCall(String methodName) {
             context.push(field("date", java.time.LocalDate.class));
-            context.push(constant(java.time.LocalDate.of(2024, 6, 15)));
-            MethodInsnNode isEqualInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/time/LocalDate", "isEqual", "(Ljava/time/chrono/ChronoLocalDate;)Z", false);
+            context.push(constant(java.time.LocalDate.of(2024, 1, 1)));
+            MethodInsnNode insn = new MethodInsnNode(INVOKEVIRTUAL, "java/time/LocalDate", methodName, "(Ljava/time/chrono/ChronoLocalDate;)Z", false);
 
-            handler.handle(isEqualInsn, context);
+            handler.handle(insn, context);
 
             assertThat(context.getStackSize()).isEqualTo(1);
             io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
                     (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
-            assertThat(call.methodName()).isEqualTo("isEqual");
+            assertThat(call.methodName()).isEqualTo(methodName);
+            assertThat(call.returnType()).isEqualTo(boolean.class);
         }
 
         // ==================== handleBigDecimalMethods - method name mutations ====================
@@ -3213,120 +2188,31 @@ class HandlerEdgeCaseTest {
 
         @Test
         void escapeRecipe_withNull_returnsNullString() {
-            // Use reflection to test private method
             String result = invokeEscapeRecipe(null);
-
-            assertThat(result)
-                    .as("Null recipe should return 'null' string")
-                    .isEqualTo("null");
+            assertThat(result).as("Null recipe should return 'null' string").isEqualTo("null");
         }
 
-        @Test
-        void escapeRecipe_withDynamicArgMarker_escapesAsUnicode() {
-            // Recipe with \u0001 marker should be escaped
-            String result = invokeEscapeRecipe("\u0001");
-
-            assertThat(result)
-                    .as("Dynamic arg marker should be escaped as \\u0001")
-                    .isEqualTo("\\u0001");
+        static Stream<Arguments> escapeRecipeTestCases() {
+            return Stream.of(
+                    Arguments.of("\u0001", "\\u0001", "dynamic arg marker"),
+                    Arguments.of("\u0001-\u0001", "\\u0001-\\u0001", "multiple dynamic args"),
+                    Arguments.of("\t", "\\u0009", "tab control character"),
+                    Arguments.of("\u00FF", "\\u00ff", "high unicode character"),
+                    Arguments.of("Hello World!", "Hello World!", "normal ASCII"),
+                    Arguments.of(" ", " ", "space (boundary char 32)"),
+                    Arguments.of("~", "~", "tilde (boundary char 126)"),
+                    Arguments.of("\u007F", "\\u007f", "DEL (char 127)"),
+                    Arguments.of("\u001F", "\\u001f", "unit separator (char 31)"),
+                    Arguments.of("Hello\u0001World\t!", "Hello\\u0001World\\u0009!", "mixed content"),
+                    Arguments.of("", "", "empty string")
+            );
         }
 
-        @Test
-        void escapeRecipe_withMultipleDynamicArgs_escapesAll() {
-            String result = invokeEscapeRecipe("\u0001-\u0001");
-
-            assertThat(result)
-                    .as("Multiple dynamic arg markers should all be escaped")
-                    .isEqualTo("\\u0001-\\u0001");
-        }
-
-        @Test
-        void escapeRecipe_withControlCharacter_escapesAsUnicode() {
-            // Character < 32 (control character, e.g., tab = 9)
-            String result = invokeEscapeRecipe("\t");
-
-            assertThat(result)
-                    .as("Control character (tab) should be escaped as unicode")
-                    .isEqualTo("\\u0009");
-        }
-
-        @Test
-        void escapeRecipe_withHighUnicodeCharacter_escapesAsUnicode() {
-            // Character > 126 (non-ASCII)
-            String result = invokeEscapeRecipe("\u00FF");
-
-            assertThat(result)
-                    .as("High unicode character should be escaped")
-                    .isEqualTo("\\u00ff");
-        }
-
-        @Test
-        void escapeRecipe_withNormalAscii_returnsAsIs() {
-            // Normal ASCII (32-126)
-            String result = invokeEscapeRecipe("Hello World!");
-
-            assertThat(result)
-                    .as("Normal ASCII should be returned as-is")
-                    .isEqualTo("Hello World!");
-        }
-
-        @Test
-        void escapeRecipe_withBoundaryChar32_returnsAsIs() {
-            // Space (char 32) is the lower boundary of printable ASCII
-            String result = invokeEscapeRecipe(" ");
-
-            assertThat(result)
-                    .as("Space (char 32) should be returned as-is")
-                    .isEqualTo(" ");
-        }
-
-        @Test
-        void escapeRecipe_withBoundaryChar126_returnsAsIs() {
-            // Tilde (char 126) is the upper boundary of printable ASCII
-            String result = invokeEscapeRecipe("~");
-
-            assertThat(result)
-                    .as("Tilde (char 126) should be returned as-is")
-                    .isEqualTo("~");
-        }
-
-        @Test
-        void escapeRecipe_withChar127_escapesAsUnicode() {
-            // DEL character (127) is outside printable range
-            String result = invokeEscapeRecipe("\u007F");
-
-            assertThat(result)
-                    .as("DEL (char 127) should be escaped")
-                    .isEqualTo("\\u007f");
-        }
-
-        @Test
-        void escapeRecipe_withChar31_escapesAsUnicode() {
-            // Character 31 (unit separator) is outside printable range
-            String result = invokeEscapeRecipe("\u001F");
-
-            assertThat(result)
-                    .as("Unit separator (char 31) should be escaped")
-                    .isEqualTo("\\u001f");
-        }
-
-        @Test
-        void escapeRecipe_withMixedContent_handlesCorrectly() {
-            // Mix of normal chars, dynamic args, and control chars
-            String result = invokeEscapeRecipe("Hello\u0001World\t!");
-
-            assertThat(result)
-                    .as("Mixed content should be handled correctly")
-                    .isEqualTo("Hello\\u0001World\\u0009!");
-        }
-
-        @Test
-        void escapeRecipe_withEmptyString_returnsEmpty() {
-            String result = invokeEscapeRecipe("");
-
-            assertThat(result)
-                    .as("Empty string should return empty string")
-                    .isEmpty();
+        @ParameterizedTest(name = "escapeRecipe with {2}")
+        @MethodSource("escapeRecipeTestCases")
+        void escapeRecipe_handlesInput(String input, String expected, String description) {
+            String result = invokeEscapeRecipe(input);
+            assertThat(result).as("escapeRecipe(%s)", description).isEqualTo(expected);
         }
 
         // ==================== StringConcatFactory handle Tests ====================

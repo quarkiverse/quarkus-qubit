@@ -4,6 +4,7 @@ import org.jboss.jandex.ClassInfo;
 import org.jboss.jandex.DotName;
 import org.jboss.jandex.IndexView;
 import org.jboss.jandex.ParameterizedType;
+
 import io.quarkus.logging.Log;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
@@ -15,8 +16,11 @@ import static org.jboss.jandex.Type.Kind.PARAMETERIZED_TYPE;
 import java.util.List;
 import java.util.function.BiFunction;
 
+import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.DESC_CLASS_CONSTRUCTOR;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.CONSTRUCTOR;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.DESC_QUERY_SPEC_TO_JOIN_STREAM;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.DESC_QUERY_SPEC_TO_STREAM;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JOIN_STREAM_IMPL_INTERNAL_NAME;
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JOIN_STREAM_INTERNAL_NAME;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JOIN_TYPE_DESCRIPTOR;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JOIN_TYPE_INTERNAL_NAME;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_JOIN;
@@ -197,8 +201,8 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             mv.visitMethodInsn(
                     Opcodes.INVOKESPECIAL,
                     QUBIT_STREAM_IMPL_INTERNAL_NAME,
-                    "<init>",
-                    "(Ljava/lang/Class;)V",
+                    CONSTRUCTOR,
+                    DESC_CLASS_CONSTRUCTOR,
                     false);
 
             // Load QuerySpec parameter (index 1 for instance method)
@@ -209,7 +213,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
                     Opcodes.INVOKEINTERFACE,
                     QUBIT_STREAM_INTERNAL_NAME,
                     methodName,
-                    "(" + QUERY_SPEC_DESCRIPTOR + ")L" + QUBIT_STREAM_INTERNAL_NAME + ";",
+                    DESC_QUERY_SPEC_TO_STREAM,
                     true);
 
             mv.visitInsn(Opcodes.ARETURN);
@@ -238,7 +242,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
 
             // Method signature: (QuerySpec)JoinStream
             // Note: Generic types are erased at bytecode level
-            String methodDescriptor = "(" + QUERY_SPEC_DESCRIPTOR + ")L" + JOIN_STREAM_INTERNAL_NAME + ";";
+            String methodDescriptor = DESC_QUERY_SPEC_TO_JOIN_STREAM;
             String genericSignature = "<R:Ljava/lang/Object;>(Lio/quarkiverse/qubit/QuerySpec<L" +
                     entityType.getInternalName() + ";Ljava/util/Collection<TR;>;>;)Lio/quarkiverse/qubit/JoinStream<L" +
                     entityType.getInternalName() + ";TR;>;";
@@ -279,7 +283,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             mv.visitMethodInsn(
                     Opcodes.INVOKESPECIAL,
                     JOIN_STREAM_IMPL_INTERNAL_NAME,
-                    "<init>",
+                    CONSTRUCTOR,
                     "(Ljava/lang/Class;Ljava/lang/Class;" + QUERY_SPEC_DESCRIPTOR + JOIN_TYPE_DESCRIPTOR + ")V",
                     false);
 
@@ -333,8 +337,8 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             mv.visitMethodInsn(
                     Opcodes.INVOKESPECIAL,
                     QUBIT_STREAM_IMPL_INTERNAL_NAME,
-                    "<init>",
-                    "(Ljava/lang/Class;)V",
+                    CONSTRUCTOR,
+                    DESC_CLASS_CONSTRUCTOR,
                     false);
 
             // Load QuerySpec parameter (index 1 for instance method)
@@ -345,7 +349,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
                     Opcodes.INVOKEINTERFACE,
                     QUBIT_STREAM_INTERNAL_NAME,
                     methodName,
-                    "(" + QUERY_SPEC_DESCRIPTOR + ")L" + QUBIT_STREAM_INTERNAL_NAME + ";",
+                    DESC_QUERY_SPEC_TO_STREAM,
                     true);
 
             mv.visitInsn(Opcodes.ARETURN);

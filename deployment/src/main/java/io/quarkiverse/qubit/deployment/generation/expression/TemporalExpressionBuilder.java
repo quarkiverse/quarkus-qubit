@@ -58,11 +58,11 @@ public enum TemporalExpressionBuilder implements ExpressionBuilder {
             ResultHandle fieldExpression) {
 
         // Verify the target is a supported temporal type
-        if (!(methodCall.target() instanceof LambdaExpression.FieldAccess fieldAccess)) {
+        if (!(methodCall.target() instanceof LambdaExpression.FieldAccess(var fieldName, var fieldType))) {
             return BuilderResult.notApplicable();
         }
 
-        if (!isSupportedTemporalType(fieldAccess.fieldType())) {
+        if (!isSupportedTemporalType(fieldType)) {
             return BuilderResult.notApplicable();
         }
 

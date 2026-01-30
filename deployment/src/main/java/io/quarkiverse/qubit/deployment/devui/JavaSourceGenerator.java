@@ -14,6 +14,8 @@ public final class JavaSourceGenerator {
 
     private static final String DEFAULT_PARAM = "p";
     private static final String GROUP_PARAM = "g";
+    private static final String DOT_EQUALS_PREFIX = ".equals(";
+    private static final String SUBQUERY_PREFIX = "subquery(";
 
     private JavaSourceGenerator() {
         // Utility class
@@ -120,8 +122,8 @@ public final class JavaSourceGenerator {
                 }
                 yield left + " " + op + " " + right;
             }
-            case UnaryOp unaryOp -> unaryOp.operator().symbol() +
-                    biEntityExpressionToJava(unaryOp.operand(), firstParam, secondParam);
+            case UnaryOp(var operator, var operand) -> operator.symbol() +
+                    biEntityExpressionToJava(operand, firstParam, secondParam);
             case BiEntityFieldAccess biField -> biEntityFieldToJava(biField, firstParam, secondParam);
             case BiEntityPathExpression biPath -> biEntityPathToJava(biPath, firstParam, secondParam);
             case BiEntityParameter biParam -> biEntityParamToJava(biParam, firstParam, secondParam);
@@ -224,18 +226,18 @@ public final class JavaSourceGenerator {
     private static String formatStringEquality(BinaryOp binaryOp, String left, String right) {
         if (binaryOp.operator() == BinaryOp.Operator.EQ) {
             if (isStringConstant(binaryOp.right())) {
-                return left + ".equals(" + right + ")";
+                return left + DOT_EQUALS_PREFIX + right + ")";
             }
             if (isStringConstant(binaryOp.left())) {
-                return right + ".equals(" + left + ")";
+                return right + DOT_EQUALS_PREFIX + left + ")";
             }
         }
         if (binaryOp.operator() == BinaryOp.Operator.NE) {
             if (isStringConstant(binaryOp.right())) {
-                return "!" + left + ".equals(" + right + ")";
+                return "!" + left + DOT_EQUALS_PREFIX + right + ")";
             }
             if (isStringConstant(binaryOp.left())) {
-                return "!" + right + ".equals(" + left + ")";
+                return "!" + right + DOT_EQUALS_PREFIX + left + ")";
             }
         }
         return null;
@@ -255,11 +257,11 @@ public final class JavaSourceGenerator {
         if (value == null) {
             return "null";
         }
-        if (value instanceof String) {
-            return "\"" + escapeString((String) value) + "\"";
+        if (value instanceof String stringValue) {
+            return "\"" + escapeString(stringValue) + "\"";
         }
-        if (value instanceof Character) {
-            return "'" + value + "'";
+        if (value instanceof Character charValue) {
+            return "'" + charValue + "'";
         }
         if (value instanceof Long) {
             return value + "L";
@@ -404,7 +406,7 @@ public final class JavaSourceGenerator {
         };
 
         StringBuilder sb = new StringBuilder();
-        sb.append("subquery(").append(entityName).append(".class)");
+        sb.append(SUBQUERY_PREFIX).append(entityName).append(".class)");
         if (scalarSub.predicate() != null) {
             sb.append(".where(s -> ").append(expressionToJava(scalarSub.predicate(), "s")).append(")");
         }
@@ -421,7 +423,7 @@ public final class JavaSourceGenerator {
         String method = existsSub.negated() ? "notExists" : "exists";
         String predicate = expressionToJava(existsSub.predicate(), "s");
 
-        return "subquery(" + entityName + ".class)." + method + "(s -> " + predicate + ")";
+        return SUBQUERY_PREFIX + entityName + ".class)." + method + "(s -> " + predicate + ")";
     }
 
     private static String inSubqueryToJava(InSubquery inSub, String param) {
@@ -431,7 +433,7 @@ public final class JavaSourceGenerator {
         String method = inSub.negated() ? "notIn" : "in";
 
         StringBuilder sb = new StringBuilder();
-        sb.append("subquery(").append(entityName).append(".class)");
+        sb.append(SUBQUERY_PREFIX).append(entityName).append(".class)");
         sb.append(".").append(method).append("(").append(field);
         sb.append(", s -> ").append(selectExpr);
         if (inSub.predicate() != null) {

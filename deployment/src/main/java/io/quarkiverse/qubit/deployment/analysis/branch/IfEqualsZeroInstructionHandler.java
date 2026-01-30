@@ -6,7 +6,6 @@ import org.objectweb.asm.tree.JumpInsnNode;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.eq;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.ne;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant.ZERO_INT;
-import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.UnaryOp.Operator.NOT;
 import static java.lang.Boolean.TRUE;
 import static org.objectweb.asm.Opcodes.IFEQ;
 
@@ -57,17 +56,7 @@ public class IfEqualsZeroInstructionHandler extends AbstractZeroEqualityBranchHa
 
     @Override
     protected LambdaExpression createBooleanEvaluationExpression(LambdaExpression fieldAccess, Boolean jumpTarget) {
-        // For IFEQ on boolean field:
-        // - Jump to TRUE → field is false (NOT field)
-        // - Jump to FALSE → field is true (field EQ true)
-        if (TRUE.equals(jumpTarget)) {
-            // Jump to TRUE means field is false → NOT field
-            return new LambdaExpression.UnaryOp(NOT, fieldAccess);
-        }
-        // Jump to FALSE means field is true
-        // Don't wrap predicates with == true
-        return isPredicateExpression(fieldAccess) ?
-                fieldAccess :
-                eq(fieldAccess, LambdaExpression.Constant.TRUE);
+        // IFEQ: negate when jumping to TRUE (field is false → NOT field)
+        return createConditionalBooleanExpression(fieldAccess, jumpTarget, TRUE);
     }
 }

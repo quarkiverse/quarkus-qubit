@@ -4,6 +4,9 @@ import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.HANDLERS_
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+
+import org.objectweb.asm.tree.AbstractInsnNode;
 
 /**
  * Registry for instruction handlers. Enables DI for testability.
@@ -33,5 +36,17 @@ public record InstructionHandlerRegistry(List<InstructionHandler> handlers) {
                 InvokeDynamicHandler.INSTANCE,      // Java 9+ string concatenation
                 MethodInvocationHandler.INSTANCE
         ));
+    }
+
+    /**
+     * Finds the first handler that can process the given instruction.
+     *
+     * @param insn bytecode instruction to find handler for
+     * @return handler if found, empty otherwise (unrecognized instructions are valid)
+     */
+    public Optional<InstructionHandler> handlerFor(AbstractInsnNode insn) {
+        return handlers.stream()
+                .filter(h -> h.canHandle(insn))
+                .findFirst();
     }
 }

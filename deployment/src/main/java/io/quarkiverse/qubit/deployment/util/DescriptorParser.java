@@ -227,42 +227,67 @@ public final class DescriptorParser {
             char c = descriptor.charAt(position);
             currentTypeChar = c;
 
-            if (c == 'L') {
-                while (isNotAtClassReferenceTerminator()) {
-                    position++;
-                }
+            switch (c) {
+                case 'L' -> advanceOverObjectReference();
+                case '[' -> advanceOverArrayType();
+                case 'J', 'D' -> advanceOverWideType();
+                default -> advanceOverSingleSlotType();
+            }
+        }
+
+        /** Advances over object reference type (Lclassname;). */
+        private void advanceOverObjectReference() {
+            skipToClassReferenceTerminator();
+            position++; // Skip semicolon
+            currentTypeEnd = position;
+            slotIndex++;
+        }
+
+        /** Advances over array type ([...element). */
+        private void advanceOverArrayType() {
+            skipArrayDimensionBrackets();
+            skipArrayElementType();
+            currentTypeEnd = position;
+            slotIndex++;
+        }
+
+        /** Advances over wide primitive type (long/double, 2 slots). */
+        private void advanceOverWideType() {
+            position++;
+            currentTypeEnd = position;
+            slotIndex += 2;
+        }
+
+        /** Advances over single-slot primitive type. */
+        private void advanceOverSingleSlotType() {
+            position++;
+            currentTypeEnd = position;
+            slotIndex++;
+        }
+
+        /** Skips all array dimension brackets (e.g., [[[ for 3D array). */
+        private void skipArrayDimensionBrackets() {
+            while (position < descriptor.length() && descriptor.charAt(position) == '[') {
                 position++;
-                currentTypeEnd = position;
-                slotIndex++;
-            } else if (c == '[') {
-                // Skip all array dimension brackets (e.g., [[[ for 3D array)
-                while (position < descriptor.length() && descriptor.charAt(position) == '[') {
-                    position++;
+            }
+        }
+
+        /** Skips the array element type (object reference or primitive). */
+        private void skipArrayElementType() {
+            if (position < descriptor.length()) {
+                if (descriptor.charAt(position) == 'L') {
+                    skipToClassReferenceTerminator();
+                    position++; // Skip semicolon
+                } else {
+                    position++; // Primitive element type
                 }
-                // Now skip the element type
-                if (position < descriptor.length()) {
-                    char elementType = descriptor.charAt(position);
-                    if (elementType == 'L') {
-                        // Object array: skip to semicolon
-                        while (isNotAtClassReferenceTerminator()) {
-                            position++;
-                        }
-                        position++; // Skip the semicolon
-                    } else {
-                        // Primitive array: skip the single type character
-                        position++;
-                    }
-                }
-                currentTypeEnd = position;
-                slotIndex++;
-            } else if (c == 'J' || c == 'D') {
+            }
+        }
+
+        /** Advances position to the class reference terminator (;). */
+        private void skipToClassReferenceTerminator() {
+            while (isNotAtClassReferenceTerminator()) {
                 position++;
-                currentTypeEnd = position;
-                slotIndex += 2;
-            } else {
-                position++;
-                currentTypeEnd = position;
-                slotIndex++;
             }
         }
 

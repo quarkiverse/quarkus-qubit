@@ -125,9 +125,9 @@ public enum FluentMethodType {
         return category == MethodCategory.AGGREGATION;
     }
 
-    public static final EnumSet<FluentMethodType> ENTRY_POINTS = EnumSet.allOf(FluentMethodType.class);
+    public static final Set<FluentMethodType> ENTRY_POINTS = EnumSet.allOf(FluentMethodType.class);
 
-    public static final EnumSet<FluentMethodType> AGGREGATIONS = EnumSet.of(
+    public static final Set<FluentMethodType> AGGREGATIONS = EnumSet.of(
             MIN, MAX, AVG, SUM_INTEGER, SUM_LONG, SUM_DOUBLE);
 
     public static final Set<FluentMethodType> SORTING = EnumSet.of(SORTED_BY, SORTED_DESCENDING_BY);

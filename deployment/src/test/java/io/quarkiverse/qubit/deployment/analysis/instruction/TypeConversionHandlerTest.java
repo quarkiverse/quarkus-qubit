@@ -66,16 +66,24 @@ class TypeConversionHandlerTest {
     }
 
     // ========================================================================
-    // Int to Other Type Conversions (I2L, I2F, I2D)
+    // Type Conversion Tests (Parameterized)
     // ========================================================================
 
     @Nested
-    class IntConversionTests {
+    class TypeConversionTests {
 
-        @Test
-        void handle_I2L_convertsIntToLong() {
-            context.push(new LambdaExpression.Constant(42, int.class));
-            InsnNode insn = new InsnNode(Opcodes.I2L);
+        @ParameterizedTest(name = "{0}: {1} → {4}")
+        @MethodSource("io.quarkiverse.qubit.deployment.analysis.instruction.TypeConversionHandlerTest#typeConversionCases")
+        void handle_typeConversion_convertsCorrectly(
+                String description,
+                Object sourceValue,
+                Class<?> sourceType,
+                int opcode,
+                Object expectedValue,
+                Class<?> expectedType) {
+
+            context.push(new LambdaExpression.Constant(sourceValue, sourceType));
+            InsnNode insn = new InsnNode(opcode);
 
             boolean result = handler.handle(insn, context);
 
@@ -84,175 +92,8 @@ class TypeConversionHandlerTest {
             LambdaExpression top = context.pop();
             assertThat(top).isInstanceOf(LambdaExpression.Constant.class);
             LambdaExpression.Constant constant = (LambdaExpression.Constant) top;
-            assertThat(constant.value()).isEqualTo(42L);
-            assertThat(constant.type()).isEqualTo(long.class);
-        }
-
-        @Test
-        void handle_I2F_convertsIntToFloat() {
-            context.push(new LambdaExpression.Constant(42, int.class));
-            InsnNode insn = new InsnNode(Opcodes.I2F);
-
-            boolean result = handler.handle(insn, context);
-
-            assertThat(result).isFalse();
-            LambdaExpression.Constant constant = (LambdaExpression.Constant) context.pop();
-            assertThat(constant.value()).isEqualTo(42.0f);
-            assertThat(constant.type()).isEqualTo(float.class);
-        }
-
-        @Test
-        void handle_I2D_convertsIntToDouble() {
-            context.push(new LambdaExpression.Constant(42, int.class));
-            InsnNode insn = new InsnNode(Opcodes.I2D);
-
-            boolean result = handler.handle(insn, context);
-
-            assertThat(result).isFalse();
-            LambdaExpression.Constant constant = (LambdaExpression.Constant) context.pop();
-            assertThat(constant.value()).isEqualTo(42.0);
-            assertThat(constant.type()).isEqualTo(double.class);
-        }
-    }
-
-    // ========================================================================
-    // Long to Other Type Conversions (L2I, L2F, L2D)
-    // ========================================================================
-
-    @Nested
-    class LongConversionTests {
-
-        @Test
-        void handle_L2I_convertsLongToInt() {
-            context.push(new LambdaExpression.Constant(42L, long.class));
-            InsnNode insn = new InsnNode(Opcodes.L2I);
-
-            boolean result = handler.handle(insn, context);
-
-            assertThat(result).isFalse();
-            LambdaExpression.Constant constant = (LambdaExpression.Constant) context.pop();
-            assertThat(constant.value()).isEqualTo(42);
-            assertThat(constant.type()).isEqualTo(int.class);
-        }
-
-        @Test
-        void handle_L2F_convertsLongToFloat() {
-            context.push(new LambdaExpression.Constant(42L, long.class));
-            InsnNode insn = new InsnNode(Opcodes.L2F);
-
-            boolean result = handler.handle(insn, context);
-
-            assertThat(result).isFalse();
-            LambdaExpression.Constant constant = (LambdaExpression.Constant) context.pop();
-            assertThat(constant.value()).isEqualTo(42.0f);
-            assertThat(constant.type()).isEqualTo(float.class);
-        }
-
-        @Test
-        void handle_L2D_convertsLongToDouble() {
-            context.push(new LambdaExpression.Constant(42L, long.class));
-            InsnNode insn = new InsnNode(Opcodes.L2D);
-
-            boolean result = handler.handle(insn, context);
-
-            assertThat(result).isFalse();
-            LambdaExpression.Constant constant = (LambdaExpression.Constant) context.pop();
-            assertThat(constant.value()).isEqualTo(42.0);
-            assertThat(constant.type()).isEqualTo(double.class);
-        }
-    }
-
-    // ========================================================================
-    // Float to Other Type Conversions (F2I, F2L, F2D)
-    // ========================================================================
-
-    @Nested
-    class FloatConversionTests {
-
-        @Test
-        void handle_F2I_convertsFloatToInt() {
-            context.push(new LambdaExpression.Constant(42.5f, float.class));
-            InsnNode insn = new InsnNode(Opcodes.F2I);
-
-            boolean result = handler.handle(insn, context);
-
-            assertThat(result).isFalse();
-            LambdaExpression.Constant constant = (LambdaExpression.Constant) context.pop();
-            assertThat(constant.value()).isEqualTo(42);
-            assertThat(constant.type()).isEqualTo(int.class);
-        }
-
-        @Test
-        void handle_F2L_convertsFloatToLong() {
-            context.push(new LambdaExpression.Constant(42.5f, float.class));
-            InsnNode insn = new InsnNode(Opcodes.F2L);
-
-            boolean result = handler.handle(insn, context);
-
-            assertThat(result).isFalse();
-            LambdaExpression.Constant constant = (LambdaExpression.Constant) context.pop();
-            assertThat(constant.value()).isEqualTo(42L);
-            assertThat(constant.type()).isEqualTo(long.class);
-        }
-
-        @Test
-        void handle_F2D_convertsFloatToDouble() {
-            context.push(new LambdaExpression.Constant(42.5f, float.class));
-            InsnNode insn = new InsnNode(Opcodes.F2D);
-
-            boolean result = handler.handle(insn, context);
-
-            assertThat(result).isFalse();
-            LambdaExpression.Constant constant = (LambdaExpression.Constant) context.pop();
-            assertThat(constant.value()).isEqualTo(42.5);
-            assertThat(constant.type()).isEqualTo(double.class);
-        }
-    }
-
-    // ========================================================================
-    // Double to Other Type Conversions (D2I, D2L, D2F)
-    // ========================================================================
-
-    @Nested
-    class DoubleConversionTests {
-
-        @Test
-        void handle_D2I_convertsDoubleToInt() {
-            context.push(new LambdaExpression.Constant(42.9, double.class));
-            InsnNode insn = new InsnNode(Opcodes.D2I);
-
-            boolean result = handler.handle(insn, context);
-
-            assertThat(result).isFalse();
-            LambdaExpression.Constant constant = (LambdaExpression.Constant) context.pop();
-            assertThat(constant.value()).isEqualTo(42);
-            assertThat(constant.type()).isEqualTo(int.class);
-        }
-
-        @Test
-        void handle_D2L_convertsDoubleToLong() {
-            context.push(new LambdaExpression.Constant(42.9, double.class));
-            InsnNode insn = new InsnNode(Opcodes.D2L);
-
-            boolean result = handler.handle(insn, context);
-
-            assertThat(result).isFalse();
-            LambdaExpression.Constant constant = (LambdaExpression.Constant) context.pop();
-            assertThat(constant.value()).isEqualTo(42L);
-            assertThat(constant.type()).isEqualTo(long.class);
-        }
-
-        @Test
-        void handle_D2F_convertsDoubleToFloat() {
-            context.push(new LambdaExpression.Constant(42.5, double.class));
-            InsnNode insn = new InsnNode(Opcodes.D2F);
-
-            boolean result = handler.handle(insn, context);
-
-            assertThat(result).isFalse();
-            LambdaExpression.Constant constant = (LambdaExpression.Constant) context.pop();
-            assertThat(constant.value()).isEqualTo(42.5f);
-            assertThat(constant.type()).isEqualTo(float.class);
+            assertThat(constant.value()).isEqualTo(expectedValue);
+            assertThat(constant.type()).isEqualTo(expectedType);
         }
     }
 
@@ -360,6 +201,34 @@ class TypeConversionHandlerTest {
                 Arguments.of(Opcodes.D2I),
                 Arguments.of(Opcodes.D2L),
                 Arguments.of(Opcodes.D2F)
+        );
+    }
+
+    /**
+     * Test data for type conversion operations.
+     * Each entry: description, sourceValue, sourceType, opcode, expectedValue, expectedType
+     */
+    static Stream<Arguments> typeConversionCases() {
+        return Stream.of(
+                // Int to other types
+                Arguments.of("I2L", 42, int.class, Opcodes.I2L, 42L, long.class),
+                Arguments.of("I2F", 42, int.class, Opcodes.I2F, 42.0f, float.class),
+                Arguments.of("I2D", 42, int.class, Opcodes.I2D, 42.0, double.class),
+
+                // Long to other types
+                Arguments.of("L2I", 42L, long.class, Opcodes.L2I, 42, int.class),
+                Arguments.of("L2F", 42L, long.class, Opcodes.L2F, 42.0f, float.class),
+                Arguments.of("L2D", 42L, long.class, Opcodes.L2D, 42.0, double.class),
+
+                // Float to other types (note: truncation for integer conversions)
+                Arguments.of("F2I", 42.5f, float.class, Opcodes.F2I, 42, int.class),
+                Arguments.of("F2L", 42.5f, float.class, Opcodes.F2L, 42L, long.class),
+                Arguments.of("F2D", 42.5f, float.class, Opcodes.F2D, 42.5, double.class),
+
+                // Double to other types (note: truncation for integer conversions)
+                Arguments.of("D2I", 42.9, double.class, Opcodes.D2I, 42, int.class),
+                Arguments.of("D2L", 42.9, double.class, Opcodes.D2L, 42L, long.class),
+                Arguments.of("D2F", 42.5, double.class, Opcodes.D2F, 42.5f, float.class)
         );
     }
 }

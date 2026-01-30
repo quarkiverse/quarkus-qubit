@@ -60,10 +60,10 @@ public sealed interface BranchState permits BranchState.Initial, BranchState.And
      * Returns the previous instruction's jump target, or empty if initial/first comparison.
      */
     default Optional<Boolean> getLastJumpTarget() {
-        if (this instanceof AndMode andMode) {
-            return andMode.lastJumpTarget();
-        } else if (this instanceof OrMode orMode) {
-            return orMode.lastJumpTarget();
+        if (this instanceof AndMode(var lastJumpTarget, var prevWasBooleanCheck)) {
+            return lastJumpTarget;
+        } else if (this instanceof OrMode(var lastJumpTarget, var prevWasBooleanCheck)) {
+            return lastJumpTarget;
         }
         return Optional.empty();
     }
@@ -215,16 +215,16 @@ sealed interface BranchStateTestingAPI permits BranchState.Initial, BranchState.
             }
 
             // Previous wasn't boolean check - determine operator based on stack content
-            boolean stackHasAnd = stackTop instanceof LambdaExpression.BinaryOp topOp &&
-                                  topOp.operator() == AND;
+            boolean stackHasAnd = stackTop instanceof LambdaExpression.BinaryOp(var left, var operator, var right) &&
+                                  operator == AND;
             return stackHasAnd ? OR : AND;
         }
 
         private boolean containsOrOperator(LambdaExpression expr) {
-            if (expr instanceof LambdaExpression.BinaryOp binOp) {
-                return binOp.operator() == OR ||
-                       containsOrOperator(binOp.left()) ||
-                       containsOrOperator(binOp.right());
+            if (expr instanceof LambdaExpression.BinaryOp(var left, var operator, var right)) {
+                return operator == OR ||
+                       containsOrOperator(left) ||
+                       containsOrOperator(right);
             }
             return false;
         }

@@ -97,9 +97,10 @@ public interface BranchHandler {
             LambdaExpression expression,
             String instructionName,
             boolean jumpToTrue) {
+        var branchContext = new BranchExpressionCombiner.BranchProcessingContext(
+                ctx.jumpTarget(), ctx.jumpLabelClass(), ctx.sameLabel(),
+                ctx.completingAndGroup(), ctx.startingNewOrGroup(), jumpToTrue);
         return BranchExpressionCombiner.processAndCombineBranch(
-                ctx.stack(), expression, instructionName, ctx.state(),
-                ctx.jumpTarget(), ctx.jumpLabelClass(),
-                ctx.sameLabel(), ctx.completingAndGroup(), ctx.startingNewOrGroup(), jumpToTrue);
+                ctx.stack(), expression, instructionName, ctx.state(), branchContext);
     }
 }

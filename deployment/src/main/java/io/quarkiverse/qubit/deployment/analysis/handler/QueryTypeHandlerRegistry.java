@@ -8,7 +8,7 @@ import java.util.List;
  * Registry for query type handlers. Immutable and thread-safe.
  * Handlers checked in order: Group, Join, Aggregation, Simple (default).
  */
-public final class QueryTypeHandlerRegistry {
+public record QueryTypeHandlerRegistry(List<QueryTypeHandler> handlers) {
 
     private static final QueryTypeHandlerRegistry DEFAULT = new QueryTypeHandlerRegistry(
             List.of(
@@ -19,11 +19,9 @@ public final class QueryTypeHandlerRegistry {
             )
     );
 
-    private final List<QueryTypeHandler> handlers;
-
     /** Creates registry with handlers in priority order (specific handlers first). */
-    public QueryTypeHandlerRegistry(List<QueryTypeHandler> handlers) {
-        this.handlers = List.copyOf(handlers);
+    public QueryTypeHandlerRegistry {
+        handlers = List.copyOf(handlers);
     }
 
     /** Returns the default registry with all standard handlers. */
@@ -45,10 +43,5 @@ public final class QueryTypeHandlerRegistry {
         // This should never happen since SimpleQueryHandler handles everything else
         throw new IllegalStateException(
                 "No handler found for call site: " + callSite.getCallSiteId());
-    }
-
-    /** Returns all registered handlers. */
-    public List<QueryTypeHandler> handlers() {
-        return handlers;
     }
 }

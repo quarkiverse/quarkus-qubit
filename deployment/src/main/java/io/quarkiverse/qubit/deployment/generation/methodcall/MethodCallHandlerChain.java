@@ -14,6 +14,7 @@ import java.util.Optional;
  * Iterates handlers in priority order (FAST_REJECT → DELEGATING → FALLBACK).
  * Validates ordering at construction to prevent silent handler interception bugs.
  */
+@SuppressWarnings("java:S6206") // Behavioral pattern class, not a data carrier - record semantics inappropriate
 public final class MethodCallHandlerChain {
 
     private static final MethodCallHandlerChain DEFAULT_INSTANCE = new MethodCallHandlerChain(createDefaultHandlers());

@@ -322,19 +322,16 @@ public class LambdaBytecodeAnalyzer {
 
     /** Delegates instruction to appropriate handler. Returns true to terminate early. */
     private boolean delegateToHandlers(AnalysisContext ctx, AbstractInsnNode insn) {
-        for (InstructionHandler handler : handlerRegistry.handlers()) {
-            if (handler.canHandle(insn)) {
-                return handler.handle(insn, ctx); // Instruction handled, continue to next instruction
-            }
-        }
-
-        // No handler accepted this instruction - log and continue
-        if (insn.getOpcode() != -1) { // Ignore pseudo-instructions (labels, line numbers, etc.)
-            Log.tracef("Unhandled instruction: opcode=%d at index=%d",
-                       insn.getOpcode(), ctx.getCurrentInstructionIndex());
-        }
-
-        return false;
+        return handlerRegistry.handlerFor(insn)
+                .map(handler -> handler.handle(insn, ctx))
+                .orElseGet(() -> {
+                    // No handler accepted this instruction - log and continue
+                    if (insn.getOpcode() != -1) { // Ignore pseudo-instructions (labels, line numbers, etc.)
+                        Log.tracef("Unhandled instruction: opcode=%d at index=%d",
+                                insn.getOpcode(), ctx.getCurrentInstructionIndex());
+                    }
+                    return false;
+                });
     }
 
     /** Handles branch instructions via BranchCoordinator. */

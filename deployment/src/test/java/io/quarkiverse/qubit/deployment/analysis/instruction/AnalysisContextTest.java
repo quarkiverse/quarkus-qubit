@@ -535,7 +535,7 @@ class AnalysisContextTest {
         void singleEntityConstructor_setsCorrectMode() {
             context = new AnalysisContext(testMethod, 1);
 
-            assertThat(context.getEntityParameterIndex()).isEqualTo(1);
+            assertThat(context.getFirstEntityParameterIndex()).isEqualTo(1);
             assertThat(context.isBiEntityMode()).isFalse();
             assertThat(context.isGroupContextMode()).isFalse();
             assertThat(context.hasNestedLambdaSupport()).isFalse();
@@ -545,7 +545,7 @@ class AnalysisContextTest {
         void biEntityConstructor_setsBothIndices() {
             context = new AnalysisContext(testMethod, 0, 1);
 
-            assertThat(context.getFirstEntityParameterIndex()).isEqualTo(0);
+            assertThat(context.getFirstEntityParameterIndex()).isZero();
             assertThat(context.getSecondEntityParameterIndex()).isEqualTo(1);
             assertThat(context.isBiEntityMode()).isTrue();
         }
@@ -593,7 +593,7 @@ class AnalysisContextTest {
 
         @Test
         void getCurrentInstructionIndex_initiallyZero() {
-            assertThat(context.getCurrentInstructionIndex()).isEqualTo(0);
+            assertThat(context.getCurrentInstructionIndex()).isZero();
         }
 
         @Test

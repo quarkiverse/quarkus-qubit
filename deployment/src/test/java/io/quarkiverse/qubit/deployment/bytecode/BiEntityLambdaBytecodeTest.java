@@ -6,7 +6,14 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.UnaryOp;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -19,322 +26,257 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>Uses pre-compiled lambda sources from {@link io.quarkiverse.qubit.deployment.testutil.BiEntityLambdaTestSources}
  * for reliable bytecode generation and analysis.
- *
- * <p>Iteration 6: Join Queries - BiQuerySpec lambda analysis.
  */
+@DisplayName("BiEntityLambdaBytecodeTest")
 class BiEntityLambdaBytecodeTest extends PrecompiledBiEntityLambdaAnalyzer {
 
-    // ==================== FIELD ACCESS ON JOINED ENTITY (SECOND) ====================
+    // ==================== SIMPLE FIELD ACCESS ====================
 
-    @Test
-    void joinedEntityFieldEquals() {
-        LambdaExpression expr = analyzeBiEntityLambda("joinedEntityFieldEquals");
+    @Nested
+    @DisplayName("Simple Field Access")
+    class SimpleFieldAccessTests {
 
-        // Expected: ph.type.equals("mobile") - optimized to BinaryOp(EQ)
-        // The analyzer converts String.equals(constant) to BinaryOp for efficiency
-        assertBinaryOp(expr, BinaryOp.Operator.EQ);
-        BinaryOp binOp = (BinaryOp) expr;
+        @ParameterizedTest(name = "{0} → {1}.{2}")
+        @MethodSource("io.quarkiverse.qubit.deployment.bytecode.BiEntityLambdaBytecodeTest#simpleFieldAccessCases")
+        @DisplayName("returns BiEntityFieldAccess")
+        void simpleFieldAccess(String methodName, EntityPosition expectedPosition, String expectedField) {
+            LambdaExpression expr = analyzeBiEntityLambda(methodName);
 
-        // Left should be BiEntityFieldAccess on SECOND entity (ph.type)
-        assertThat(binOp.left()).isInstanceOf(BiEntityFieldAccess.class);
-        BiEntityFieldAccess fieldAccess = (BiEntityFieldAccess) binOp.left();
-        assertThat(fieldAccess.fieldName()).isEqualTo("type");
-        assertThat(fieldAccess.entityPosition()).isEqualTo(EntityPosition.SECOND);
+            assertThat(expr).isInstanceOf(BiEntityFieldAccess.class);
+            BiEntityFieldAccess fieldAccess = (BiEntityFieldAccess) expr;
+            assertThat(fieldAccess.fieldName()).isEqualTo(expectedField);
+            assertThat(fieldAccess.entityPosition()).isEqualTo(expectedPosition);
+        }
 
-        // Right should be constant "mobile"
-        assertConstant(binOp.right(), "mobile");
+        @Test
+        @DisplayName("negated boolean field returns UnaryOp NOT")
+        void joinedEntityNegatedBooleanField() {
+            LambdaExpression expr = analyzeBiEntityLambda("joinedEntityNegatedBooleanField");
+
+            assertUnaryOp(expr, UnaryOp.Operator.NOT);
+            UnaryOp unaryOp = (UnaryOp) expr;
+
+            assertThat(unaryOp.operand()).isInstanceOf(BiEntityFieldAccess.class);
+            BiEntityFieldAccess fieldAccess = (BiEntityFieldAccess) unaryOp.operand();
+            assertThat(fieldAccess.fieldName()).isEqualTo("isPrimary");
+            assertThat(fieldAccess.entityPosition()).isEqualTo(EntityPosition.SECOND);
+        }
     }
 
-    @Test
-    void joinedEntityBooleanField() {
-        LambdaExpression expr = analyzeBiEntityLambda("joinedEntityBooleanField");
-
-        // Expected: ph.isPrimary (BiEntityFieldAccess on SECOND)
-        assertThat(expr).isInstanceOf(BiEntityFieldAccess.class);
-        BiEntityFieldAccess fieldAccess = (BiEntityFieldAccess) expr;
-        assertThat(fieldAccess.fieldName()).isEqualTo("isPrimary");
-        assertThat(fieldAccess.entityPosition()).isEqualTo(EntityPosition.SECOND);
+    static Stream<Arguments> simpleFieldAccessCases() {
+        return Stream.of(
+                // Boolean fields
+                Arguments.of("joinedEntityBooleanField", EntityPosition.SECOND, "isPrimary"),
+                Arguments.of("sourceEntityBooleanField", EntityPosition.FIRST, "active"),
+                // Projections
+                Arguments.of("projectJoinedEntityField", EntityPosition.SECOND, "number"),
+                Arguments.of("projectSourceEntityField", EntityPosition.FIRST, "firstName"),
+                Arguments.of("projectSourceEntityIntField", EntityPosition.FIRST, "age")
+        );
     }
 
-    @Test
-    void joinedEntityNegatedBooleanField() {
-        LambdaExpression expr = analyzeBiEntityLambda("joinedEntityNegatedBooleanField");
+    // ==================== FIELD COMPARISON WITH CONSTANT ====================
 
-        // Expected: !ph.isPrimary (UnaryOp NOT on BiEntityFieldAccess)
-        assertUnaryOp(expr, UnaryOp.Operator.NOT);
-        UnaryOp unaryOp = (UnaryOp) expr;
+    @Nested
+    @DisplayName("Field Comparison with Constant")
+    class FieldComparisonTests {
 
-        assertThat(unaryOp.operand()).isInstanceOf(BiEntityFieldAccess.class);
-        BiEntityFieldAccess fieldAccess = (BiEntityFieldAccess) unaryOp.operand();
-        assertThat(fieldAccess.fieldName()).isEqualTo("isPrimary");
-        assertThat(fieldAccess.entityPosition()).isEqualTo(EntityPosition.SECOND);
+        @ParameterizedTest(name = "{0} → {1}.{2} {3} {4}")
+        @MethodSource("io.quarkiverse.qubit.deployment.bytecode.BiEntityLambdaBytecodeTest#fieldComparisonCases")
+        @DisplayName("returns BinaryOp with field and constant")
+        void fieldComparison(String methodName, EntityPosition expectedPosition,
+                             String expectedField, BinaryOp.Operator expectedOp, Object expectedConstant) {
+            LambdaExpression expr = analyzeBiEntityLambda(methodName);
+
+            assertBinaryOp(expr, expectedOp);
+            BinaryOp binOp = (BinaryOp) expr;
+
+            assertThat(binOp.left()).isInstanceOf(BiEntityFieldAccess.class);
+            BiEntityFieldAccess fieldAccess = (BiEntityFieldAccess) binOp.left();
+            assertThat(fieldAccess.fieldName()).isEqualTo(expectedField);
+            assertThat(fieldAccess.entityPosition()).isEqualTo(expectedPosition);
+
+            assertConstant(binOp.right(), expectedConstant);
+        }
     }
 
-    // ==================== FIELD ACCESS ON SOURCE ENTITY (FIRST) ====================
-
-    @Test
-    void sourceEntityFieldEquals() {
-        LambdaExpression expr = analyzeBiEntityLambda("sourceEntityFieldEquals");
-
-        // Expected: p.firstName.equals("John") - optimized to BinaryOp(EQ)
-        assertBinaryOp(expr, BinaryOp.Operator.EQ);
-        BinaryOp binOp = (BinaryOp) expr;
-
-        // Left should be BiEntityFieldAccess on FIRST entity (p.firstName)
-        assertThat(binOp.left()).isInstanceOf(BiEntityFieldAccess.class);
-        BiEntityFieldAccess fieldAccess = (BiEntityFieldAccess) binOp.left();
-        assertThat(fieldAccess.fieldName()).isEqualTo("firstName");
-        assertThat(fieldAccess.entityPosition()).isEqualTo(EntityPosition.FIRST);
-
-        // Right should be constant "John"
-        assertConstant(binOp.right(), "John");
+    static Stream<Arguments> fieldComparisonCases() {
+        return Stream.of(
+                Arguments.of("joinedEntityFieldEquals", EntityPosition.SECOND, "type", BinaryOp.Operator.EQ, "mobile"),
+                Arguments.of("sourceEntityFieldEquals", EntityPosition.FIRST, "firstName", BinaryOp.Operator.EQ, "John"),
+                Arguments.of("sourceEntityIntegerComparison", EntityPosition.FIRST, "age", BinaryOp.Operator.GT, 30)
+        );
     }
 
-    @Test
-    void sourceEntityIntegerComparison() {
-        LambdaExpression expr = analyzeBiEntityLambda("sourceEntityIntegerComparison");
+    // ==================== STRING METHOD CALLS ====================
 
-        // Expected: p.age > 30
-        assertBinaryOp(expr, BinaryOp.Operator.GT);
-        BinaryOp binOp = (BinaryOp) expr;
+    @Nested
+    @DisplayName("String Method Calls")
+    class StringMethodTests {
 
-        // Left should be BiEntityFieldAccess on FIRST entity (p.age)
-        assertThat(binOp.left()).isInstanceOf(BiEntityFieldAccess.class);
-        BiEntityFieldAccess fieldAccess = (BiEntityFieldAccess) binOp.left();
-        assertThat(fieldAccess.fieldName()).isEqualTo("age");
-        assertThat(fieldAccess.entityPosition()).isEqualTo(EntityPosition.FIRST);
+        @ParameterizedTest(name = "{0} → {2}.{3}({4})")
+        @MethodSource("io.quarkiverse.qubit.deployment.bytecode.BiEntityLambdaBytecodeTest#stringMethodCases")
+        @DisplayName("returns MethodCall on BiEntityFieldAccess")
+        void stringMethod(String lambdaName, EntityPosition expectedPosition,
+                          String expectedField, String expectedMethod, String expectedArg) {
+            LambdaExpression expr = analyzeBiEntityLambda(lambdaName);
 
-        // Right should be constant 30
-        assertConstant(binOp.right(), 30);
+            assertMethodCall(expr, expectedMethod);
+            MethodCall methodCall = (MethodCall) expr;
+
+            assertThat(methodCall.target()).isInstanceOf(BiEntityFieldAccess.class);
+            BiEntityFieldAccess fieldAccess = (BiEntityFieldAccess) methodCall.target();
+            assertThat(fieldAccess.fieldName()).isEqualTo(expectedField);
+            assertThat(fieldAccess.entityPosition()).isEqualTo(expectedPosition);
+
+            assertThat(methodCall.arguments()).hasSize(1);
+            assertConstant(methodCall.arguments().get(0), expectedArg);
+        }
     }
 
-    @Test
-    void sourceEntityBooleanField() {
-        LambdaExpression expr = analyzeBiEntityLambda("sourceEntityBooleanField");
-
-        // Expected: p.active (BiEntityFieldAccess on FIRST)
-        assertThat(expr).isInstanceOf(BiEntityFieldAccess.class);
-        BiEntityFieldAccess fieldAccess = (BiEntityFieldAccess) expr;
-        assertThat(fieldAccess.fieldName()).isEqualTo("active");
-        assertThat(fieldAccess.entityPosition()).isEqualTo(EntityPosition.FIRST);
+    static Stream<Arguments> stringMethodCases() {
+        return Stream.of(
+                Arguments.of("joinedEntityStartsWith", EntityPosition.SECOND, "number", "startsWith", "555"),
+                Arguments.of("joinedEntityContains", EntityPosition.SECOND, "number", "contains", "01"),
+                Arguments.of("joinedEntityEndsWith", EntityPosition.SECOND, "number", "endsWith", "00")
+        );
     }
 
     // ==================== PREDICATES ON BOTH ENTITIES ====================
 
-    @Test
-    void bothEntitiesSimpleAnd() {
-        LambdaExpression expr = analyzeBiEntityLambda("bothEntitiesSimpleAnd");
+    @Nested
+    @DisplayName("Predicates on Both Entities")
+    class BothEntitiesTests {
 
-        // Expected: p.active && ph.isPrimary
-        // Note: Boolean fields get compiled as field == true comparisons at bytecode level
-        assertBinaryOp(expr, BinaryOp.Operator.AND);
-        BinaryOp binOp = (BinaryOp) expr;
+        @Test
+        @DisplayName("AND of boolean fields on both entities")
+        void bothEntitiesSimpleAnd() {
+            LambdaExpression expr = analyzeBiEntityLambda("bothEntitiesSimpleAnd");
 
-        // Left: p.active == true (FIRST entity)
-        assertThat(binOp.left()).isInstanceOf(BinaryOp.class);
-        BinaryOp leftBinOp = (BinaryOp) binOp.left();
-        assertThat(leftBinOp.operator()).isEqualTo(BinaryOp.Operator.EQ);
-        assertThat(leftBinOp.left()).isInstanceOf(BiEntityFieldAccess.class);
-        BiEntityFieldAccess leftField = (BiEntityFieldAccess) leftBinOp.left();
-        assertThat(leftField.fieldName()).isEqualTo("active");
-        assertThat(leftField.entityPosition()).isEqualTo(EntityPosition.FIRST);
+            // Expected: p.active && ph.isPrimary (with == true wrapping)
+            assertBinaryOp(expr, BinaryOp.Operator.AND);
+            BinaryOp binOp = (BinaryOp) expr;
 
-        // Right: ph.isPrimary == true (SECOND entity)
-        assertThat(binOp.right()).isInstanceOf(BinaryOp.class);
-        BinaryOp rightBinOp = (BinaryOp) binOp.right();
-        assertThat(rightBinOp.operator()).isEqualTo(BinaryOp.Operator.EQ);
-        assertThat(rightBinOp.left()).isInstanceOf(BiEntityFieldAccess.class);
-        BiEntityFieldAccess rightField = (BiEntityFieldAccess) rightBinOp.left();
-        assertThat(rightField.fieldName()).isEqualTo("isPrimary");
-        assertThat(rightField.entityPosition()).isEqualTo(EntityPosition.SECOND);
-    }
+            // Left: p.active == true (FIRST entity)
+            assertBooleanFieldComparison(binOp.left(), EntityPosition.FIRST, "active");
 
-    @Test
-    void bothEntitiesComplex() {
-        LambdaExpression expr = analyzeBiEntityLambda("bothEntitiesComplex");
+            // Right: ph.isPrimary == true (SECOND entity)
+            assertBooleanFieldComparison(binOp.right(), EntityPosition.SECOND, "isPrimary");
+        }
 
-        // Expected: p.age >= 30 && ph.type.equals("work")
-        // Note: String.equals() is optimized to BinaryOp(EQ), returned as-is (predicates not wrapped)
-        assertBinaryOp(expr, BinaryOp.Operator.AND);
-        BinaryOp binOp = (BinaryOp) expr;
+        @Test
+        @DisplayName("AND of comparison and equals on both entities")
+        void bothEntitiesComplex() {
+            LambdaExpression expr = analyzeBiEntityLambda("bothEntitiesComplex");
 
-        // Left: p.age >= 30
-        assertThat(binOp.left()).isInstanceOf(BinaryOp.class);
-        BinaryOp leftBinOp = (BinaryOp) binOp.left();
-        assertThat(leftBinOp.operator()).isEqualTo(BinaryOp.Operator.GE);
-        assertThat(leftBinOp.left()).isInstanceOf(BiEntityFieldAccess.class);
-        BiEntityFieldAccess ageField = (BiEntityFieldAccess) leftBinOp.left();
-        assertThat(ageField.fieldName()).isEqualTo("age");
-        assertThat(ageField.entityPosition()).isEqualTo(EntityPosition.FIRST);
+            // Expected: p.age >= 30 && ph.type.equals("work")
+            assertBinaryOp(expr, BinaryOp.Operator.AND);
+            BinaryOp binOp = (BinaryOp) expr;
 
-        // Right: ph.type.equals("work") - optimized to BinaryOp(field, EQ, "work")
-        // Predicates (BinaryOp) are NOT wrapped with == true
-        assertThat(binOp.right()).isInstanceOf(BinaryOp.class);
-        BinaryOp rightBinOp = (BinaryOp) binOp.right();
-        assertThat(rightBinOp.operator()).isEqualTo(BinaryOp.Operator.EQ);
-        assertThat(rightBinOp.left()).isInstanceOf(BiEntityFieldAccess.class);
-        BiEntityFieldAccess typeField = (BiEntityFieldAccess) rightBinOp.left();
-        assertThat(typeField.fieldName()).isEqualTo("type");
-        assertThat(typeField.entityPosition()).isEqualTo(EntityPosition.SECOND);
-        assertConstant(rightBinOp.right(), "work");
-    }
+            // Left: p.age >= 30
+            assertFieldComparison(binOp.left(), EntityPosition.FIRST, "age", BinaryOp.Operator.GE, 30);
 
-    @Test
-    void bothEntitiesWithOr() {
-        LambdaExpression expr = analyzeBiEntityLambda("bothEntitiesWithOr");
+            // Right: ph.type == "work"
+            assertFieldComparison(binOp.right(), EntityPosition.SECOND, "type", BinaryOp.Operator.EQ, "work");
+        }
 
-        // Expected: p.age > 50 || ph.type.equals("mobile")
-        // Note: String.equals() is optimized to BinaryOp(EQ), returned as-is (predicates not wrapped)
-        assertBinaryOp(expr, BinaryOp.Operator.OR);
-        BinaryOp binOp = (BinaryOp) expr;
+        @Test
+        @DisplayName("OR of comparison and equals on both entities")
+        void bothEntitiesWithOr() {
+            LambdaExpression expr = analyzeBiEntityLambda("bothEntitiesWithOr");
 
-        // Left: p.age > 50 (FIRST entity)
-        assertThat(binOp.left()).isInstanceOf(BinaryOp.class);
-        BinaryOp leftBinOp = (BinaryOp) binOp.left();
-        assertThat(leftBinOp.operator()).isEqualTo(BinaryOp.Operator.GT);
-        assertThat(leftBinOp.left()).isInstanceOf(BiEntityFieldAccess.class);
-        BiEntityFieldAccess ageField = (BiEntityFieldAccess) leftBinOp.left();
-        assertThat(ageField.entityPosition()).isEqualTo(EntityPosition.FIRST);
+            // Expected: p.age > 50 || ph.type.equals("mobile")
+            assertBinaryOp(expr, BinaryOp.Operator.OR);
+            BinaryOp binOp = (BinaryOp) expr;
 
-        // Right: ph.type.equals("mobile") - optimized to BinaryOp(field, EQ, "mobile")
-        // Predicates (BinaryOp) are NOT wrapped with == true
-        assertThat(binOp.right()).isInstanceOf(BinaryOp.class);
-        BinaryOp rightBinOp = (BinaryOp) binOp.right();
-        assertThat(rightBinOp.operator()).isEqualTo(BinaryOp.Operator.EQ);
-        assertThat(rightBinOp.left()).isInstanceOf(BiEntityFieldAccess.class);
-        BiEntityFieldAccess typeField = (BiEntityFieldAccess) rightBinOp.left();
-        assertThat(typeField.fieldName()).isEqualTo("type");
-        assertThat(typeField.entityPosition()).isEqualTo(EntityPosition.SECOND);
-        assertConstant(rightBinOp.right(), "mobile");
-    }
+            // Left: p.age > 50 (FIRST entity)
+            BinaryOp leftBinOp = assertFieldComparisonGetBinOp(binOp.left(), EntityPosition.FIRST, BinaryOp.Operator.GT);
+            assertThat(leftBinOp.left()).isInstanceOf(BiEntityFieldAccess.class);
 
-    // ==================== STRING METHODS ON JOINED ENTITY ====================
-
-    @Test
-    void joinedEntityStartsWith() {
-        LambdaExpression expr = analyzeBiEntityLambda("joinedEntityStartsWith");
-
-        // Expected: ph.number.startsWith("555")
-        assertMethodCall(expr, "startsWith");
-        MethodCall methodCall = (MethodCall) expr;
-
-        assertThat(methodCall.target()).isInstanceOf(BiEntityFieldAccess.class);
-        BiEntityFieldAccess fieldAccess = (BiEntityFieldAccess) methodCall.target();
-        assertThat(fieldAccess.fieldName()).isEqualTo("number");
-        assertThat(fieldAccess.entityPosition()).isEqualTo(EntityPosition.SECOND);
-
-        assertThat(methodCall.arguments()).hasSize(1);
-        assertConstant(methodCall.arguments().get(0), "555");
-    }
-
-    @Test
-    void joinedEntityContains() {
-        LambdaExpression expr = analyzeBiEntityLambda("joinedEntityContains");
-
-        // Expected: ph.number.contains("01")
-        assertMethodCall(expr, "contains");
-        MethodCall methodCall = (MethodCall) expr;
-
-        assertThat(methodCall.target()).isInstanceOf(BiEntityFieldAccess.class);
-        BiEntityFieldAccess fieldAccess = (BiEntityFieldAccess) methodCall.target();
-        assertThat(fieldAccess.fieldName()).isEqualTo("number");
-        assertThat(fieldAccess.entityPosition()).isEqualTo(EntityPosition.SECOND);
-    }
-
-    @Test
-    void joinedEntityEndsWith() {
-        LambdaExpression expr = analyzeBiEntityLambda("joinedEntityEndsWith");
-
-        // Expected: ph.number.endsWith("00")
-        assertMethodCall(expr, "endsWith");
-        MethodCall methodCall = (MethodCall) expr;
-
-        assertThat(methodCall.target()).isInstanceOf(BiEntityFieldAccess.class);
-        BiEntityFieldAccess fieldAccess = (BiEntityFieldAccess) methodCall.target();
-        assertThat(fieldAccess.fieldName()).isEqualTo("number");
-        assertThat(fieldAccess.entityPosition()).isEqualTo(EntityPosition.SECOND);
-    }
-
-    // ==================== PROJECTIONS (SELECT) ====================
-
-    @Test
-    void projectJoinedEntityField() {
-        LambdaExpression expr = analyzeBiEntityLambda("projectJoinedEntityField");
-
-        // Expected: ph.number (BiEntityFieldAccess on SECOND)
-        assertThat(expr).isInstanceOf(BiEntityFieldAccess.class);
-        BiEntityFieldAccess fieldAccess = (BiEntityFieldAccess) expr;
-        assertThat(fieldAccess.fieldName()).isEqualTo("number");
-        assertThat(fieldAccess.entityPosition()).isEqualTo(EntityPosition.SECOND);
-    }
-
-    @Test
-    void projectSourceEntityField() {
-        LambdaExpression expr = analyzeBiEntityLambda("projectSourceEntityField");
-
-        // Expected: p.firstName (BiEntityFieldAccess on FIRST)
-        assertThat(expr).isInstanceOf(BiEntityFieldAccess.class);
-        BiEntityFieldAccess fieldAccess = (BiEntityFieldAccess) expr;
-        assertThat(fieldAccess.fieldName()).isEqualTo("firstName");
-        assertThat(fieldAccess.entityPosition()).isEqualTo(EntityPosition.FIRST);
-    }
-
-    @Test
-    void projectSourceEntityIntField() {
-        LambdaExpression expr = analyzeBiEntityLambda("projectSourceEntityIntField");
-
-        // Expected: p.age (BiEntityFieldAccess on FIRST)
-        assertThat(expr).isInstanceOf(BiEntityFieldAccess.class);
-        BiEntityFieldAccess fieldAccess = (BiEntityFieldAccess) expr;
-        assertThat(fieldAccess.fieldName()).isEqualTo("age");
-        assertThat(fieldAccess.entityPosition()).isEqualTo(EntityPosition.FIRST);
+            // Right: ph.type == "mobile"
+            assertFieldComparison(binOp.right(), EntityPosition.SECOND, "type", BinaryOp.Operator.EQ, "mobile");
+        }
     }
 
     // ==================== CAPTURED VARIABLES ====================
 
-    @Test
-    void joinedEntityWithCapturedVariable() {
-        LambdaExpression expr = analyzeBiEntityLambda("joinedEntityWithCapturedVariable");
+    @Nested
+    @DisplayName("Captured Variables")
+    class CapturedVariableTests {
 
-        // Expected: ph.type.equals(phoneType) where phoneType is captured
-        // Note: String.equals() is optimized to BinaryOp(EQ) even with captured variables
-        assertBinaryOp(expr, BinaryOp.Operator.EQ);
-        BinaryOp binOp = (BinaryOp) expr;
+        @Test
+        @DisplayName("joined entity with captured variable")
+        void joinedEntityWithCapturedVariable() {
+            LambdaExpression expr = analyzeBiEntityLambda("joinedEntityWithCapturedVariable");
 
-        // Left should be BiEntityFieldAccess on SECOND entity (ph.type)
-        assertThat(binOp.left()).isInstanceOf(BiEntityFieldAccess.class);
-        BiEntityFieldAccess fieldAccess = (BiEntityFieldAccess) binOp.left();
-        assertThat(fieldAccess.fieldName()).isEqualTo("type");
-        assertThat(fieldAccess.entityPosition()).isEqualTo(EntityPosition.SECOND);
+            assertBinaryOp(expr, BinaryOp.Operator.EQ);
+            BinaryOp binOp = (BinaryOp) expr;
 
-        // Right should be captured variable (phoneType)
-        assertCapturedVariable(binOp.right(), 0);
+            assertThat(binOp.left()).isInstanceOf(BiEntityFieldAccess.class);
+            BiEntityFieldAccess fieldAccess = (BiEntityFieldAccess) binOp.left();
+            assertThat(fieldAccess.fieldName()).isEqualTo("type");
+            assertThat(fieldAccess.entityPosition()).isEqualTo(EntityPosition.SECOND);
+
+            assertCapturedVariable(binOp.right(), 0);
+        }
+
+        @Test
+        @DisplayName("both entities with captured variables")
+        void bothEntitiesWithCapturedVariable() {
+            LambdaExpression expr = analyzeBiEntityLambda("bothEntitiesWithCapturedVariable");
+
+            // Expected: p.age > minAge && ph.type.equals(targetType)
+            assertBinaryOp(expr, BinaryOp.Operator.AND);
+            BinaryOp binOp = (BinaryOp) expr;
+
+            // Left: p.age > minAge (captured variable index 0)
+            assertThat(binOp.left()).isInstanceOf(BinaryOp.class);
+            BinaryOp leftBinOp = (BinaryOp) binOp.left();
+            assertCapturedVariable(leftBinOp.right(), 0);
+
+            // Right: ph.type == targetType (captured variable index 1)
+            assertThat(binOp.right()).isInstanceOf(BinaryOp.class);
+            BinaryOp rightBinOp = (BinaryOp) binOp.right();
+            assertThat(rightBinOp.operator()).isEqualTo(BinaryOp.Operator.EQ);
+            assertThat(rightBinOp.left()).isInstanceOf(BiEntityFieldAccess.class);
+            BiEntityFieldAccess typeField = (BiEntityFieldAccess) rightBinOp.left();
+            assertThat(typeField.fieldName()).isEqualTo("type");
+            assertThat(typeField.entityPosition()).isEqualTo(EntityPosition.SECOND);
+            assertCapturedVariable(rightBinOp.right(), 1);
+        }
     }
 
-    @Test
-    void bothEntitiesWithCapturedVariable() {
-        LambdaExpression expr = analyzeBiEntityLambda("bothEntitiesWithCapturedVariable");
+    // ==================== HELPER METHODS ====================
 
-        // Expected: p.age > minAge && ph.type.equals(targetType)
-        // where minAge and targetType are captured variables
-        // Note: String.equals() is optimized to BinaryOp(EQ), returned as-is (predicates not wrapped)
-        assertBinaryOp(expr, BinaryOp.Operator.AND);
+    private void assertBooleanFieldComparison(LambdaExpression expr, EntityPosition position, String fieldName) {
+        assertThat(expr).isInstanceOf(BinaryOp.class);
         BinaryOp binOp = (BinaryOp) expr;
+        assertThat(binOp.operator()).isEqualTo(BinaryOp.Operator.EQ);
+        assertThat(binOp.left()).isInstanceOf(BiEntityFieldAccess.class);
+        BiEntityFieldAccess field = (BiEntityFieldAccess) binOp.left();
+        assertThat(field.fieldName()).isEqualTo(fieldName);
+        assertThat(field.entityPosition()).isEqualTo(position);
+    }
 
-        // Left: p.age > minAge (captured variable index 0)
-        assertThat(binOp.left()).isInstanceOf(BinaryOp.class);
-        BinaryOp leftBinOp = (BinaryOp) binOp.left();
-        assertCapturedVariable(leftBinOp.right(), 0);
+    private void assertFieldComparison(LambdaExpression expr, EntityPosition position,
+                                        String fieldName, BinaryOp.Operator op, Object constant) {
+        assertThat(expr).isInstanceOf(BinaryOp.class);
+        BinaryOp binOp = (BinaryOp) expr;
+        assertThat(binOp.operator()).isEqualTo(op);
+        assertThat(binOp.left()).isInstanceOf(BiEntityFieldAccess.class);
+        BiEntityFieldAccess field = (BiEntityFieldAccess) binOp.left();
+        assertThat(field.fieldName()).isEqualTo(fieldName);
+        assertThat(field.entityPosition()).isEqualTo(position);
+        assertConstant(binOp.right(), constant);
+    }
 
-        // Right: ph.type.equals(targetType) - optimized to BinaryOp(field, EQ, capturedVar)
-        // Predicates (BinaryOp) are NOT wrapped with == true
-        assertThat(binOp.right()).isInstanceOf(BinaryOp.class);
-        BinaryOp rightBinOp = (BinaryOp) binOp.right();
-        assertThat(rightBinOp.operator()).isEqualTo(BinaryOp.Operator.EQ);
-        assertThat(rightBinOp.left()).isInstanceOf(BiEntityFieldAccess.class);
-        BiEntityFieldAccess typeField = (BiEntityFieldAccess) rightBinOp.left();
-        assertThat(typeField.fieldName()).isEqualTo("type");
-        assertThat(typeField.entityPosition()).isEqualTo(EntityPosition.SECOND);
-        assertCapturedVariable(rightBinOp.right(), 1);
+    private BinaryOp assertFieldComparisonGetBinOp(LambdaExpression expr, EntityPosition position, BinaryOp.Operator op) {
+        assertThat(expr).isInstanceOf(BinaryOp.class);
+        BinaryOp binOp = (BinaryOp) expr;
+        assertThat(binOp.operator()).isEqualTo(op);
+        assertThat(binOp.left()).isInstanceOf(BiEntityFieldAccess.class);
+        BiEntityFieldAccess field = (BiEntityFieldAccess) binOp.left();
+        assertThat(field.entityPosition()).isEqualTo(position);
+        return binOp;
     }
 }

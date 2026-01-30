@@ -264,12 +264,7 @@ public class AnalysisContext {
         return method;
     }
 
-    /** Returns entity parameter index (first entity for bi-entity). */
-    public int getEntityParameterIndex() {
-        return entityParameterIndex;
-    }
-
-    /** Returns first entity parameter index (alias for bi-entity clarity). */
+    /** Returns entity parameter index (first entity for bi-entity lambdas). */
     public int getFirstEntityParameterIndex() {
         return entityParameterIndex;
     }

@@ -146,107 +146,56 @@ public enum LoadInstructionHandler implements InstructionHandler {
 
         switch (target) {
             // ========== Bi-entity mode (join queries) ==========
-            case BiEntityParameter biParam ->
+            case BiEntityParameter(var name, var type, var index, var position) ->
                 // First-level field access from bi-entity parameter: ph.type
-                ctx.push(new BiEntityFieldAccess(fieldName, fieldType, biParam.position()));
+                ctx.push(new BiEntityFieldAccess(fieldName, fieldType, position));
 
-            case BiEntityFieldAccess biField -> {
-                // Second-level field access from bi-entity: ph.owner.firstName
-                // Convert to BiEntityPathExpression
-                PathSegment firstSegment = new PathSegment(
-                        biField.fieldName(),
-                        biField.fieldType(),
-                        RelationType.FIELD);
+            case BiEntityFieldAccess biField ->
+                // Second-level: ph.owner.firstName → BiEntityPathExpression
+                ctx.push(new BiEntityPathExpression(
+                        buildPath(toSegment(biField), newSegment),
+                        fieldType,
+                        biField.entityPosition()));
 
-                List<PathSegment> segments = new ArrayList<>();
-                segments.add(firstSegment);
-                segments.add(newSegment);
-
-                ctx.push(new BiEntityPathExpression(segments, fieldType, biField.entityPosition()));
-            }
-
-            case BiEntityPathExpression biPath -> {
-                // Third+ level bi-entity field access: ph.owner.department.name
-                List<PathSegment> segments = new ArrayList<>(biPath.segments());
-                segments.add(newSegment);
-
-                ctx.push(new BiEntityPathExpression(segments, fieldType, biPath.entityPosition()));
-            }
+            case BiEntityPathExpression(var segments, var resultType, var entityPosition) ->
+                // Third+ level: ph.owner.department.name
+                ctx.push(new BiEntityPathExpression(
+                        extendPath(segments, newSegment),
+                        fieldType,
+                        entityPosition));
 
             // ========== Single-entity mode ==========
             case LambdaExpression.Parameter ignored ->
                 // First-level field access from entity parameter: p.age
-                // For single-level access, continue using FieldAccess for backward compatibility
                 ctx.push(new FieldAccess(fieldName, fieldType));
 
-            case FieldAccess previousField -> {
-                // Second-level field access: p.owner.firstName
-                // Convert previous FieldAccess to PathExpression with two segments
-                PathSegment firstSegment = new PathSegment(
-                        previousField.fieldName(),
-                        previousField.fieldType(),
-                        RelationType.FIELD);
+            case FieldAccess previousField ->
+                // Second-level: p.owner.firstName → PathExpression
+                ctx.push(new PathExpression(
+                        buildPath(toSegment(previousField), newSegment),
+                        fieldType));
 
-                List<PathSegment> segments = new ArrayList<>();
-                segments.add(firstSegment);
-                segments.add(newSegment);
-
-                ctx.push(new PathExpression(segments, fieldType));
-            }
-
-            case PathExpression pathExpr -> {
-                // Third+ level field access: p.owner.department.name
-                // Extend existing PathExpression with new segment
-                List<PathSegment> segments = new ArrayList<>(pathExpr.segments());
-                segments.add(newSegment);
-
-                ctx.push(new PathExpression(segments, fieldType));
-            }
+            case PathExpression(var segments, var resultType) ->
+                // Third+ level: p.owner.department.name
+                ctx.push(new PathExpression(
+                        extendPath(segments, newSegment),
+                        fieldType));
 
             // ========== Subquery correlated variables ==========
-            case LambdaExpression.CapturedVariable capturedVar -> {
+            case LambdaExpression.CapturedVariable(var index, var type, var name) ->
                 // Field access on captured variable → CorrelatedVariable for subquery correlation
-                LambdaExpression fieldExpr = new FieldAccess(fieldName, fieldType);
                 ctx.push(new LambdaExpression.CorrelatedVariable(
-                        fieldExpr,
-                        capturedVar.index(),
-                        capturedVar.type()));
-            }
+                        new FieldAccess(fieldName, fieldType),
+                        index,
+                        type));
 
-            case LambdaExpression.CorrelatedVariable correlatedVar -> {
+            case LambdaExpression.CorrelatedVariable(var fieldExpression, var outerParameterIndex, var outerEntityType) -> {
                 // Chained field access on correlated variable → extend path (e.g., p.owner.id)
-                LambdaExpression innerField = correlatedVar.fieldExpression();
-
-                LambdaExpression extendedPath = switch (innerField) {
-                    case FieldAccess prevField -> {
-                        // Convert FieldAccess to PathExpression with two segments
-                        PathSegment firstSegment = new PathSegment(
-                                prevField.fieldName(),
-                                prevField.fieldType(),
-                                RelationType.FIELD);
-                        List<PathSegment> segments = new ArrayList<>();
-                        segments.add(firstSegment);
-                        segments.add(newSegment);
-                        yield new PathExpression(segments, fieldType);
-                    }
-                    case PathExpression pathExpr -> {
-                        // Extend existing PathExpression
-                        List<PathSegment> segments = new ArrayList<>(pathExpr.segments());
-                        segments.add(newSegment);
-                        yield new PathExpression(segments, fieldType);
-                    }
-                    default -> {
-                        // Fallback: wrap in PathExpression
-                        List<PathSegment> segments = new ArrayList<>();
-                        segments.add(newSegment);
-                        yield new PathExpression(segments, fieldType);
-                    }
-                };
-
+                LambdaExpression extendedPath = extendCorrelatedPath(fieldExpression, newSegment, fieldType);
                 ctx.push(new LambdaExpression.CorrelatedVariable(
                         extendedPath,
-                        correlatedVar.outerParameterIndex(),
-                        correlatedVar.outerEntityType()));
+                        outerParameterIndex,
+                        outerEntityType));
             }
 
             default ->
@@ -254,5 +203,47 @@ public enum LoadInstructionHandler implements InstructionHandler {
                 // This handles edge cases like field access on method return values
                 ctx.push(new FieldAccess(fieldName, fieldType));
         }
+    }
+
+    // ==================== Path Building Helpers ====================
+
+    /** Converts a FieldAccess to a PathSegment. */
+    private static PathSegment toSegment(FieldAccess field) {
+        return new PathSegment(field.fieldName(), field.fieldType(), RelationType.FIELD);
+    }
+
+    /** Converts a BiEntityFieldAccess to a PathSegment. */
+    private static PathSegment toSegment(BiEntityFieldAccess field) {
+        return new PathSegment(field.fieldName(), field.fieldType(), RelationType.FIELD);
+    }
+
+    /** Builds a 2-segment path from first and second segments. */
+    private static List<PathSegment> buildPath(PathSegment first, PathSegment second) {
+        List<PathSegment> segments = new ArrayList<>(2);
+        segments.add(first);
+        segments.add(second);
+        return segments;
+    }
+
+    /** Extends an existing path with a new segment. */
+    private static List<PathSegment> extendPath(List<PathSegment> existing, PathSegment newSegment) {
+        List<PathSegment> segments = new ArrayList<>(existing.size() + 1);
+        segments.addAll(existing);
+        segments.add(newSegment);
+        return segments;
+    }
+
+    /** Extends a correlated variable's inner field expression with a new segment. */
+    private static LambdaExpression extendCorrelatedPath(
+            LambdaExpression innerField, PathSegment newSegment, Class<?> resultType) {
+        return switch (innerField) {
+            case FieldAccess prevField ->
+                new PathExpression(buildPath(toSegment(prevField), newSegment), resultType);
+            case PathExpression(var segments, var pathResultType) ->
+                new PathExpression(extendPath(segments, newSegment), resultType);
+            default ->
+                // Fallback: wrap in single-segment PathExpression
+                new PathExpression(List.of(newSegment), resultType);
+        };
     }
 }

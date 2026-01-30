@@ -62,55 +62,86 @@ public class StreamPipelineAnalyzer {
 
         InsnList instructions = method.instructions;
         List<PipelineOperation> operations = new ArrayList<>();
+        PipelineScanState state = new PipelineScanState();
 
         // Scan backwards from terminal operation to collect all operations
         int currentIndex = terminalInsnIndex - 1;
-        String pendingLambdaMethod = null;
-        String pendingLambdaDescriptor = null;
-
         while (currentIndex >= 0) {
             AbstractInsnNode insn = instructions.get(currentIndex);
 
-            // Found a lambda - save it for the next operation we find
             if (insn instanceof InvokeDynamicInsnNode invokeDynamic) {
-                if (isQuerySpecLambda(invokeDynamic)) {
-                    Handle lambdaHandle = extractLambdaHandle(invokeDynamic);
-                    if (lambdaHandle != null) {
-                        pendingLambdaMethod = lambdaHandle.getName();
-                        pendingLambdaDescriptor = lambdaHandle.getDesc();
-                        Log.tracef("Found lambda at index %d: %s", currentIndex, pendingLambdaMethod);
-                    }
-                }
-            }
-
-            // Found an intermediate operation (where, select, etc.)
-            if (insn instanceof MethodInsnNode methodCall) {
-                String methodName = methodCall.name;
-
-                // Check if this is a fluent intermediate operation
-                if (FLUENT_INTERMEDIATE_METHODS.contains(methodName) && pendingLambdaMethod != null) {
-                    PipelineOperation op = new PipelineOperation(
-                            methodName,
-                            pendingLambdaMethod,
-                            pendingLambdaDescriptor,
-                            currentIndex
-                    );
-                    operations.add(op);
-                    Log.tracef("Found operation at index %d: %s", currentIndex, op);
-
-                    pendingLambdaMethod = null;
-                    pendingLambdaDescriptor = null;
-                }
-                // Check if this is an entry point - we've reached the start of the pipeline
-                else if (FLUENT_ENTRY_POINT_METHODS.contains(methodName)) {
-                    Log.tracef("Reached entry point at index %d: %s", currentIndex, methodName);
-                    break;
-                }
+                processInvokeDynamic(invokeDynamic, state, currentIndex);
+            } else if (insn instanceof MethodInsnNode methodCall
+                    && processMethodCall(methodCall, state, operations, currentIndex)) {
+                break; // Reached entry point
             }
 
             currentIndex--;
         }
 
+        return buildPipeline(classNode, method, terminalOperation, operations, lineNumber);
+    }
+
+    /** Mutable state for pipeline scanning. */
+    private static class PipelineScanState {
+        String pendingLambdaMethod;
+        String pendingLambdaDescriptor;
+
+        void setLambda(String method, String descriptor) {
+            this.pendingLambdaMethod = method;
+            this.pendingLambdaDescriptor = descriptor;
+        }
+
+        void clearLambda() {
+            this.pendingLambdaMethod = null;
+            this.pendingLambdaDescriptor = null;
+        }
+
+        boolean hasLambda() {
+            return pendingLambdaMethod != null;
+        }
+    }
+
+    /** Processes InvokeDynamic instruction to extract lambda info. */
+    private void processInvokeDynamic(InvokeDynamicInsnNode invokeDynamic,
+            PipelineScanState state, int currentIndex) {
+        if (isQuerySpecLambda(invokeDynamic)) {
+            Handle lambdaHandle = extractLambdaHandle(invokeDynamic);
+            if (lambdaHandle != null) {
+                state.setLambda(lambdaHandle.getName(), lambdaHandle.getDesc());
+                Log.tracef("Found lambda at index %d: %s", currentIndex, state.pendingLambdaMethod);
+            }
+        }
+    }
+
+    /** Processes method call instruction. Returns true if entry point reached. */
+    private boolean processMethodCall(MethodInsnNode methodCall, PipelineScanState state,
+            List<PipelineOperation> operations, int currentIndex) {
+        String methodName = methodCall.name;
+
+        if (FLUENT_INTERMEDIATE_METHODS.contains(methodName) && state.hasLambda()) {
+            PipelineOperation op = new PipelineOperation(
+                    methodName,
+                    state.pendingLambdaMethod,
+                    state.pendingLambdaDescriptor,
+                    currentIndex);
+            operations.add(op);
+            Log.tracef("Found operation at index %d: %s", currentIndex, op);
+            state.clearLambda();
+            return false;
+        }
+
+        if (FLUENT_ENTRY_POINT_METHODS.contains(methodName)) {
+            Log.tracef("Reached entry point at index %d: %s", currentIndex, methodName);
+            return true;
+        }
+
+        return false;
+    }
+
+    /** Builds the final pipeline result. */
+    private StreamPipeline buildPipeline(ClassNode classNode, MethodNode method,
+            String terminalOperation, List<PipelineOperation> operations, int lineNumber) {
         if (operations.isEmpty()) {
             Log.debugf("No operations found in pipeline for %s.%s line %d",
                     classNode.name, method.name, lineNumber);
@@ -126,8 +157,7 @@ public class StreamPipelineAnalyzer {
                 method.name,
                 terminalOperation,
                 operations,
-                lineNumber
-        );
+                lineNumber);
 
         Log.debugf("Analyzed pipeline: %s", pipeline);
         return pipeline;

@@ -109,8 +109,9 @@ class LambdaDeduplicatorTest {
 
             String hash = deduplicator.computeLambdaHash(expr, false, false);
 
-            assertThat(hash).hasSize(32);
-            assertThat(hash).matches("[0-9a-f]+");
+            assertThat(hash)
+                    .hasSize(32)
+                    .matches("[0-9a-f]+");
         }
     }
 
@@ -318,8 +319,9 @@ class LambdaDeduplicatorTest {
 
             String hash = deduplicator.computeAggregationHash(null, aggregation, "MAX");
 
-            assertThat(hash).isNotNull();
-            assertThat(hash).hasSize(32);
+            assertThat(hash)
+                    .isNotNull()
+                    .hasSize(32);
         }
 
         @Test
@@ -379,8 +381,9 @@ class LambdaDeduplicatorTest {
 
             String hash = deduplicator.computeJoinHash(joinRel, null, "INNER", false);
 
-            assertThat(hash).isNotNull();
-            assertThat(hash).hasSize(32);
+            assertThat(hash)
+                    .isNotNull()
+                    .hasSize(32);
         }
     }
 
@@ -446,9 +449,11 @@ class LambdaDeduplicatorTest {
             LambdaExpression projection = field("combined");
 
             String withoutProjection = deduplicator.computeJoinHash(
-                    joinRel, null, null, null, "INNER", false, false, false);
+                    new LambdaDeduplicator.JoinHashRequest(
+                            joinRel, null, null, null, "INNER", false, false, false));
             String withProjection = deduplicator.computeJoinHash(
-                    joinRel, null, projection, null, "INNER", false, false, true);
+                    new LambdaDeduplicator.JoinHashRequest(
+                            joinRel, null, projection, null, "INNER", false, false, true));
 
             assertThat(withoutProjection).isNotEqualTo(withProjection);
         }
@@ -459,9 +464,11 @@ class LambdaDeduplicatorTest {
             LambdaExpression projection = field("combined");
 
             String notJoinProjection = deduplicator.computeJoinHash(
-                    joinRel, null, projection, null, "INNER", false, false, false);
+                    new LambdaDeduplicator.JoinHashRequest(
+                            joinRel, null, projection, null, "INNER", false, false, false));
             String isJoinProjection = deduplicator.computeJoinHash(
-                    joinRel, null, projection, null, "INNER", false, false, true);
+                    new LambdaDeduplicator.JoinHashRequest(
+                            joinRel, null, projection, null, "INNER", false, false, true));
 
             assertThat(notJoinProjection).isNotEqualTo(isJoinProjection);
         }
@@ -565,7 +572,7 @@ class LambdaDeduplicatorTest {
             assertThat(deduplicator.getUniqueCount()).isZero();
 
             deduplicator.registerExecutor("hash1", "Executor1");
-            assertThat(deduplicator.getUniqueCount()).isEqualTo(1);
+            assertThat(deduplicator.getUniqueCount()).isOne();
 
             deduplicator.registerExecutor("hash2", "Executor2");
             assertThat(deduplicator.getUniqueCount()).isEqualTo(2);
@@ -582,7 +589,7 @@ class LambdaDeduplicatorTest {
             assertThat(secondResult).isEqualTo("Executor1");
 
             // Only one entry exists
-            assertThat(deduplicator.getUniqueCount()).isEqualTo(1);
+            assertThat(deduplicator.getUniqueCount()).isOne();
         }
     }
 }
