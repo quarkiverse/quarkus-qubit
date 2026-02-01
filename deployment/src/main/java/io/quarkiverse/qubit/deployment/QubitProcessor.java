@@ -210,7 +210,9 @@ public class QubitProcessor {
         CallSiteProcessor configuredProcessor = new CallSiteProcessor(
                 bytecodeAnalyzer, deduplicator, classGenerator, config.generation(), metricsCollector);
 
-        List<InvokeDynamicScanner.LambdaCallSite> allCallSites = filteredClasses.stream()
+        // Parallel class scanning: safe because InvokeDynamicScanner.scanClass() creates
+        // fresh local state per invocation and BytecodeLoader uses ConcurrentHashMap cache
+        List<InvokeDynamicScanner.LambdaCallSite> allCallSites = filteredClasses.parallelStream()
                 .flatMap(classInfo -> scanClassForCallSites(classInfo, scanner, applicationArchives, config.logging(), metricsCollector).stream())
                 .peek(c -> Log.tracef("Qubit: Found callSite %s", c.getCallSiteId()))
                 .toList();

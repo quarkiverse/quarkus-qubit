@@ -152,57 +152,38 @@ public class CallSiteProcessor {
         // Create analysis context with shared deduplicator and metrics collector
         QueryAnalysisContext context = QueryAnalysisContext.of(classBytes, callSite, bytecodeAnalyzer, deduplicator, metricsCollector);
 
+        // Compute bytecode signature once for both early deduplication check and later registration
+        long earlyDeduplicationStartTime = System.nanoTime();
+        String bytecodeSignature = deduplicator.computeBytecodeSignature(callSite);
+
         // Check for early deduplication hit
-        AnalysisOutcome earlyDedup = checkEarlyDeduplication(callSite, callSiteId, processingContext);
-        if (earlyDedup != null) {
-            return earlyDedup;
+        LambdaDeduplicator.CachedAnalysisResult cachedResult = deduplicator.getCachedResult(bytecodeSignature);
+        if (metricsCollector != null) {
+            metricsCollector.addEarlyDeduplicationCheckTime(System.nanoTime() - earlyDeduplicationStartTime);
+        }
+
+        if (cachedResult != null) {
+            // Early deduplication hit: skip analysis and reuse existing executor
+            if (processingContext.loggingConfig().logDeduplication()) {
+                Log.debugf("Early deduplication hit for call site %s (reusing %s)",
+                        callSiteId, cachedResult.executorClassName());
+            }
+            if (metricsCollector != null) {
+                metricsCollector.incrementEarlyDeduplicationHits();
+                metricsCollector.incrementDuplicateCount();
+            }
+            processingContext.deduplicatedCount().incrementAndGet();
+            registerEarlyDeduplicatedQuery(callSite, cachedResult.executorClassName(),
+                    processingContext.queryTransformations(), processingContext.loggingConfig());
+            return AnalysisOutcome.earlyDeduplicated(callSiteId, cachedResult.lambdaHash(),
+                    cachedResult.executorClassName());
         }
 
         // Analyze using the handler
         AnalysisOutcome outcome = handler.analyze(context);
 
-        // Handle the outcome
-        return handleAnalysisOutcome(outcome, callSite, callSiteId, processingContext);
-    }
-
-    /** Checks for early deduplication hit. Returns outcome if hit, null otherwise. */
-    private AnalysisOutcome checkEarlyDeduplication(
-            InvokeDynamicScanner.LambdaCallSite callSite,
-            String callSiteId,
-            CallSiteProcessingContext ctx) {
-
-        long earlyDeduplicationStartTime = System.nanoTime();
-        String bytecodeSignature = deduplicator.computeBytecodeSignature(callSite);
-        LambdaDeduplicator.CachedAnalysisResult cachedResult = deduplicator.getCachedResult(bytecodeSignature);
-
-        if (metricsCollector != null) {
-            metricsCollector.addEarlyDeduplicationCheckTime(System.nanoTime() - earlyDeduplicationStartTime);
-        }
-
-        if (cachedResult == null) {
-            return null;
-        }
-
-        // Early deduplication hit: skip analysis and reuse existing executor
-        if (ctx.loggingConfig().logDeduplication()) {
-            Log.debugf("Early deduplication hit for call site %s (reusing %s)",
-                    callSiteId, cachedResult.executorClassName());
-        }
-
-        if (metricsCollector != null) {
-            metricsCollector.incrementEarlyDeduplicationHits();
-            metricsCollector.incrementDuplicateCount();
-        }
-
-        ctx.deduplicatedCount().incrementAndGet();
-
-        // Register the query transformation for this call site
-        registerEarlyDeduplicatedQuery(callSite, cachedResult.executorClassName(),
-                ctx.queryTransformations(), ctx.loggingConfig());
-
-        // Return a success outcome with the cached hash
-        return AnalysisOutcome.earlyDeduplicated(callSiteId, cachedResult.lambdaHash(),
-                cachedResult.executorClassName());
+        // Handle the outcome, passing bytecode signature for registration
+        return handleAnalysisOutcome(outcome, callSite, callSiteId, bytecodeSignature, processingContext);
     }
 
     /** Handles analysis outcome after handler execution. */
@@ -210,11 +191,12 @@ public class CallSiteProcessor {
             AnalysisOutcome outcome,
             InvokeDynamicScanner.LambdaCallSite callSite,
             String callSiteId,
+            String bytecodeSignature,
             CallSiteProcessingContext ctx) {
 
         return switch (outcome) {
             case AnalysisOutcome.Success success ->
-                    handleSuccessOutcome(success, callSite, callSiteId, ctx);
+                    handleSuccessOutcome(success, callSite, callSiteId, bytecodeSignature, ctx);
 
             case AnalysisOutcome.UnsupportedPattern unsupported -> {
                 Log.debugf("Skipping unsupported pattern at %s: %s",
@@ -245,6 +227,7 @@ public class CallSiteProcessor {
             AnalysisOutcome.Success success,
             InvokeDynamicScanner.LambdaCallSite callSite,
             String callSiteId,
+            String bytecodeSignature,
             CallSiteProcessingContext ctx) {
 
         // Check for deduplication first
@@ -270,12 +253,15 @@ public class CallSiteProcessor {
         }
 
         // Generate executor (delegate to existing generation logic)
+        String executorClassName = targetPackage + "." + classNamePrefix
+                + success.lambdaHash().substring(0, HASH_CHARS_FOR_CLASS_NAME);
         try {
             generateExecutorFromResult(success.result(), success.lambdaHash(), callSite,
                     ctx.generatedClass(), ctx.queryTransformations(), ctx.loggingConfig());
 
-            deduplicator.registerExecutor(success.lambdaHash(),
-                    targetPackage + "." + classNamePrefix + success.lambdaHash().substring(0, HASH_CHARS_FOR_CLASS_NAME));
+            // Register both lambda hash and bytecode signature for deduplication
+            deduplicator.registerExecutor(success.lambdaHash(), executorClassName);
+            deduplicator.registerBytecodeSignature(bytecodeSignature, success.lambdaHash(), executorClassName);
             ctx.generatedCount().incrementAndGet();
 
             if (ctx.loggingConfig().logGeneratedClasses()) {
