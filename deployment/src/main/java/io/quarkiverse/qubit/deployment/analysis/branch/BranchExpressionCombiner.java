@@ -96,7 +96,7 @@ public final class BranchExpressionCombiner {
         if (combineOp == OR &&
             previousCondition instanceof LambdaExpression.BinaryOp(var x, var prevOp, var y) &&
             prevOp == AND &&
-            x instanceof LambdaExpression.BinaryOp(var xLeft, var xOp, var xRight) &&
+            x instanceof LambdaExpression.BinaryOp(_, var xOp, _) &&
             xOp == OR) {
 
             // Restructure: ((a OR b) AND c) OR d → (a OR b) AND (c OR d)
@@ -115,11 +115,11 @@ public final class BranchExpressionCombiner {
      */
     public static boolean isPredicateExpression(LambdaExpression expr) {
         return switch (expr) {
-            case LambdaExpression.BinaryOp ignored -> true;
+            case LambdaExpression.BinaryOp _ -> true;
             case LambdaExpression.MethodCall methodCall -> isBooleanType(methodCall.returnType());
-            case LambdaExpression.InExpression ignored -> true;
-            case LambdaExpression.MemberOfExpression ignored -> true;
-            case LambdaExpression.UnaryOp ignored -> true;
+            case LambdaExpression.InExpression _ -> true;
+            case LambdaExpression.MemberOfExpression _ -> true;
+            case LambdaExpression.UnaryOp _ -> true;
             default -> false;
         };
     }

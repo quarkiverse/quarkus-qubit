@@ -171,11 +171,11 @@ public class InvokeDynamicScanner {
         public String getPrimaryLambdaMethodName() {
             // Single-entity predicates first (QubitStream.where())
             if (predicateLambdas != null && !predicateLambdas.isEmpty()) {
-                return predicateLambdas.get(0).methodName();
+                return predicateLambdas.getFirst().methodName();
             }
             // Bi-entity predicates for join queries (JoinStream.where(BiQuerySpec))
             if (biEntityPredicateLambdas != null && !biEntityPredicateLambdas.isEmpty()) {
-                return biEntityPredicateLambdas.get(0).methodName();
+                return biEntityPredicateLambdas.getFirst().methodName();
             }
             if (groupByLambdaMethodName != null) {
                 return groupByLambdaMethodName;
@@ -191,7 +191,7 @@ public class InvokeDynamicScanner {
             }
             // Sort lambdas (sortedBy/sortedDescendingBy)
             if (sortLambdas != null && !sortLambdas.isEmpty()) {
-                return sortLambdas.get(0).methodName();
+                return sortLambdas.getFirst().methodName();
             }
             if (lambdaMethodName != null) {
                 return lambdaMethodName;
@@ -654,7 +654,7 @@ public class InvokeDynamicScanner {
 
         /** Builds the final LambdaInfo record from accumulated state. */
         LambdaInfo build(List<PendingLambda> pendingLambdas) {
-            PendingLambda first = pendingLambdas.isEmpty() ? null : pendingLambdas.get(0);
+            PendingLambda first = pendingLambdas.isEmpty() ? null : pendingLambdas.getFirst();
             return new LambdaInfo(
                 first != null ? first.methodName() : null,
                 first != null ? first.descriptor() : null,

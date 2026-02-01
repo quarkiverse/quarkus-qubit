@@ -114,32 +114,40 @@ class ClassLoaderHelperTest {
     class ExtractEntityClassInfoTests {
 
         @Test
-        void extractEntityClassInfo_withTypeConstant_returnsLoadedClass() {
-            // ASM Type for a loadable class
+        void extractEntityClassInfo_withTypeConstant_returnsPlaceholderToAvoidDeadlock() {
+            // ASM Type constants are deferred to runtime to avoid JVM class loading deadlocks
+            // in parallel ForkJoinPool workers (see ClassLoaderHelper Javadoc)
             Type asmType = Type.getType(String.class);
             Constant constant = new Constant(asmType, Class.class);
 
             EntityClassInfo result = ClassLoaderHelper.extractEntityClassInfo(constant);
 
             assertThat(result.clazz())
-                    .as("Loaded class should be String.class")
-                    .isEqualTo(String.class);
+                    .as("Placeholder should use Object.class to avoid build-time class loading")
+                    .isEqualTo(Object.class);
             assertThat(result.className())
-                    .as("className should be null when class is loaded")
-                    .isNull();
+                    .as("className should contain the deferred class name")
+                    .isEqualTo("java.lang.String");
+            assertThat(result.isPlaceholder())
+                    .as("Should be marked as placeholder for runtime resolution")
+                    .isTrue();
         }
 
         @Test
-        void extractEntityClassInfo_withTypeConstantInteger_returnsLoadedClass() {
+        void extractEntityClassInfo_withTypeConstantInteger_returnsPlaceholderToAvoidDeadlock() {
+            // ASM Type constants are deferred to runtime to avoid JVM class loading deadlocks
             Type asmType = Type.getType(Integer.class);
             Constant constant = new Constant(asmType, Class.class);
 
             EntityClassInfo result = ClassLoaderHelper.extractEntityClassInfo(constant);
 
             assertThat(result.clazz())
-                    .as("Loaded class should be Integer.class")
-                    .isEqualTo(Integer.class);
-            assertThat(result.className()).isNull();
+                    .as("Placeholder should use Object.class")
+                    .isEqualTo(Object.class);
+            assertThat(result.className())
+                    .as("className should contain the deferred class name")
+                    .isEqualTo("java.lang.Integer");
+            assertThat(result.isPlaceholder()).isTrue();
         }
 
         @Test

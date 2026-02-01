@@ -20,7 +20,7 @@
 
     <properties>
         <!-- Override quarkiverse-parent default Java version -->
-        <maven.compiler.release>21</maven.compiler.release>
+        <maven.compiler.release>25</maven.compiler.release>
 
         <!-- Quarkus version -->
         <quarkus.version>3.31.1</quarkus.version>

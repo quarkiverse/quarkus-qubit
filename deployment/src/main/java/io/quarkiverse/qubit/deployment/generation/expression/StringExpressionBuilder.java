@@ -145,7 +145,7 @@ public enum StringExpressionBuilder implements ExpressionBuilder {
 
         if (arguments.size() == 1) {
             // substring(start)
-            ResultHandle startJava = arguments.get(0);
+            ResultHandle startJava = arguments.getFirst();
             ResultHandle startJpa = addOneToExpression(method, cb, startJava);
 
             ResultHandle result = method.invokeInterfaceMethod(
@@ -154,7 +154,7 @@ public enum StringExpressionBuilder implements ExpressionBuilder {
             return BuilderResult.success(result);
         } else if (arguments.size() == 2) {
             // substring(start, end)
-            ResultHandle startJava = arguments.get(0);
+            ResultHandle startJava = arguments.getFirst();
             ResultHandle endJava = arguments.get(1);
 
             ResultHandle startJpa = addOneToExpression(method, cb, startJava);

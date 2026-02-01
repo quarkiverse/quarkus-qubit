@@ -225,7 +225,7 @@ class LoadInstructionHandlerTest {
             assertThat(result).isInstanceOf(PathExpression.class);
             var pathExpr = (PathExpression) result;
             assertThat(pathExpr.segments()).hasSize(2);
-            assertThat(pathExpr.segments().get(0).fieldName()).isEqualTo("owner");
+            assertThat(pathExpr.segments().getFirst().fieldName()).isEqualTo("owner");
             assertThat(pathExpr.segments().get(1).fieldName()).isEqualTo("firstName");
         }
 

@@ -225,7 +225,7 @@ public enum MethodInvocationHandler implements InstructionHandler {
 
             // Special handling: BigDecimal(String) constructor with constant folding
             if (isBigDecimalStringConstruction(specialInsn, argCount, args)) {
-                LambdaExpression.Constant constant = (LambdaExpression.Constant) args.get(0);
+                LambdaExpression.Constant constant = (LambdaExpression.Constant) args.getFirst();
                 String stringValue = (String) constant.value();
                 handleBigDecimalConstantFolding(ctx, args, stringValue, specialInsn.owner);
             } else {
@@ -446,7 +446,7 @@ public enum MethodInvocationHandler implements InstructionHandler {
         Class<?> returnType = TypeConverter.descriptorToClass(returnTypeDesc);
 
         // Handle bi-entity parameters for join queries
-        if (target instanceof LambdaExpression.BiEntityParameter(var name, var type, var index, var position)) {
+        if (target instanceof LambdaExpression.BiEntityParameter(_, _, _, var position)) {
             ctx.push(new LambdaExpression.BiEntityFieldAccess(fieldName, returnType, position));
         } else {
             ctx.push(new LambdaExpression.FieldAccess(fieldName, returnType));
@@ -525,7 +525,7 @@ public enum MethodInvocationHandler implements InstructionHandler {
     /** Extracts constant int values from arguments. Returns true if all args are constants. */
     private static boolean extractConstantValues(LambdaExpression[] args, int[] values) {
         for (int i = 0; i < args.length; i++) {
-            if (args[i] instanceof LambdaExpression.Constant(var value, var type)) {
+            if (args[i] instanceof LambdaExpression.Constant(var value, _)) {
                 values[i] = ((Number) value).intValue();
             } else {
                 return false;
@@ -539,7 +539,7 @@ public enum MethodInvocationHandler implements InstructionHandler {
         return specialInsn.owner.equals(JVM_JAVA_MATH_BIG_DECIMAL) &&
                argCount == 1 &&
                !args.isEmpty() &&
-               args.get(0) instanceof LambdaExpression.Constant constant &&
+               args.getFirst() instanceof LambdaExpression.Constant constant &&
                constant.value() instanceof String;
     }
 
@@ -549,7 +549,7 @@ public enum MethodInvocationHandler implements InstructionHandler {
         try {
             BigDecimal value = new BigDecimal(stringValue);
             ctx.push(new LambdaExpression.Constant(value, BigDecimal.class));
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             pushConstructorCall(ctx, args, owner);
         }
     }

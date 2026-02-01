@@ -166,7 +166,7 @@ personRepository.where((Person p) -> names.contains(p.firstName)).toList();
 
 ## Requirements
 
-- Java 21+
+- Java 25+
 - Quarkus 3.29+
 - Hibernate ORM with Panache
 - GraalVM 25+ (optional, for native compilation)

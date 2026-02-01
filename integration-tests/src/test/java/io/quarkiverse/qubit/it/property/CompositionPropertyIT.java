@@ -299,7 +299,7 @@ class CompositionPropertyIT {
                     .isNotNull();
             assertThat(first.id)
                     .as("findFirst ID should match first sorted element ID")
-                    .isEqualTo(sorted.get(0).id);
+                    .isEqualTo(sorted.getFirst().id);
         }
     }
 

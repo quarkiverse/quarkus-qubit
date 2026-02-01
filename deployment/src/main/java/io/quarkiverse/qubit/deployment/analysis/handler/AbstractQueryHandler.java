@@ -78,7 +78,7 @@ public abstract sealed class AbstractQueryHandler implements QueryTypeHandler
 
         // Fast path for single lambda
         if (lambdaPairs.size() == 1) {
-            return analyzer.apply(lambdaPairs.get(0));
+            return analyzer.apply(lambdaPairs.getFirst());
         }
 
         // Analyze all lambdas and track captured variable counts

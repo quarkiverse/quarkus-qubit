@@ -129,7 +129,7 @@ public abstract class AbstractJoinSortingTest {
         assertThat(results).hasSize(5);
 
         // First should be Bob (only person with "home" phone - "home" < "mobile" < "work")
-        assertThat(results.get(0).firstName).isEqualTo("Bob");
+        assertThat(results.getFirst().firstName).isEqualTo("Bob");
     }
 
     // ========== MULTIPLE SORT CRITERIA ==========
@@ -147,7 +147,7 @@ public abstract class AbstractJoinSortingTest {
         assertThat(results).hasSize(5);
 
         // First result should be from Bob (only person with home phone - "home" < "mobile" < "work")
-        assertThat(results.get(0).firstName).isEqualTo("Bob");
+        assertThat(results.getFirst().firstName).isEqualTo("Bob");
     }
 
     @Test
@@ -165,7 +165,7 @@ public abstract class AbstractJoinSortingTest {
         assertThat(results).hasSize(5);
 
         // First results should be from Jane (age 25)
-        assertThat(results.get(0).firstName).isEqualTo("Jane");
+        assertThat(results.getFirst().firstName).isEqualTo("Jane");
     }
 
     // ========== SORTING WITH PAGINATION ==========

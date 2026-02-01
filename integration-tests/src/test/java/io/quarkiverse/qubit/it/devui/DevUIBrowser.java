@@ -106,7 +106,7 @@ public class DevUIBrowser implements AutoCloseable {
         if (cachedBrowser != null) {
             try {
                 cachedBrowser.close();
-            } catch (Exception ignored) {
+            } catch (Exception _) {
                 // Ignore errors during cleanup
             }
             cachedBrowser = null;
@@ -114,7 +114,7 @@ public class DevUIBrowser implements AutoCloseable {
         if (cachedPlaywright != null) {
             try {
                 cachedPlaywright.close();
-            } catch (Exception ignored) {
+            } catch (Exception _) {
                 // Ignore errors during cleanup
             }
             cachedPlaywright = null;

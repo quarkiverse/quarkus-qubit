@@ -275,7 +275,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
     /**
      * Generates raw value from lambda expression.
      * <p>
-     * Refactored for Java 21: Uses pattern matching switch for cleaner type dispatch.
+     * Uses pattern matching switch for cleaner type dispatch.
      */
     public @Nullable ResultHandle generateExpression(
             MethodCreator method,
@@ -315,7 +315,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
      * Generates JPA Expression from lambda expression.
      * Includes Parameter handling for identity sort functions.
      * <p>
-     * Refactored for Java 21: Uses pattern matching switch for cleaner type dispatch.
+     * Uses pattern matching switch for cleaner type dispatch.
      */
     public @Nullable ResultHandle generateExpressionAsJpaExpression(
             MethodCreator method,
@@ -352,7 +352,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             case LambdaExpression.ConstructorCall constructorCall ->
                 generateConstructorCall(method, constructorCall, cb, root, capturedValues);
 
-            case LambdaExpression.Parameter ignored ->
+            case LambdaExpression.Parameter _ ->
                 // Parameter expressions occur in identity sort functions like (String s) -> s
                 // These cannot be directly converted to JPA expressions - return null to signal
                 // to caller that special handling is needed
@@ -512,7 +512,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
         if (isEqualityCheck || isInequalityCheck) {
             ResultHandle field = generateExpressionAsJpaExpression(method, methodCall.target(), cb, root, capturedValues);
-            ResultHandle argument = generateExpression(method, methodCall.arguments().get(0), cb, root, capturedValues);
+            ResultHandle argument = generateExpression(method, methodCall.arguments().getFirst(), cb, root, capturedValues);
 
             if (isEqualityCheck) {
                 return method.invokeInterfaceMethod(CB_EQUAL, cb, field, argument);

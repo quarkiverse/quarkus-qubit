@@ -22,7 +22,7 @@ public final class BytecodeAnalysisConstants {
 
     // ========== Lookahead Limits ==========
 
-    /** Boolean markers (ICONST_0/1) - javac 11-21 emits within 5-10 instructions. */
+    /** Boolean markers (ICONST_0/1) - javac 11-25 emits within 5-10 instructions. */
     public static final int LOOKAHEAD_WINDOW_SIZE = 10;
     public static final int LABEL_CLASSIFICATION_LOOKAHEAD_LIMIT = LOOKAHEAD_WINDOW_SIZE;
     public static final int CONDITIONAL_JUMP_LOOKAHEAD_LIMIT = 5;  // GOTO after conditional jumps

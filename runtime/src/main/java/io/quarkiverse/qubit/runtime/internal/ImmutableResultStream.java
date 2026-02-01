@@ -151,7 +151,7 @@ public final class ImmutableResultStream<T> implements QubitStream<T> {
 
     @Override
     public Optional<T> findFirst() {
-        return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
+        return results.isEmpty() ? Optional.empty() : Optional.of(results.getFirst());
     }
 
     @Override

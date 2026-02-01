@@ -86,7 +86,7 @@ class CapturedVariablesBytecodeTest extends PrecompiledLambdaAnalyzer {
 
         // Argument: captured variable "prefix"
         assertThat(methodCall.arguments()).hasSize(1);
-        assertCapturedVariable(methodCall.arguments().get(0), 0);
+        assertCapturedVariable(methodCall.arguments().getFirst(), 0);
     }
 
     @Test

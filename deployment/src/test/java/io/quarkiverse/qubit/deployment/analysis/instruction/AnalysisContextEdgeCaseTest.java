@@ -161,7 +161,7 @@ class AnalysisContextEdgeCaseTest {
 
             assertThat(result).hasSize(3);
             // Result should be in reverse stack order (first = deepest)
-            assertConstantValue(result.get(0), 1);
+            assertConstantValue(result.getFirst(), 1);
             assertConstantValue(result.get(1), 2);
             assertConstantValue(result.get(2), 3);
             assertThat(context.isStackEmpty()).isTrue();

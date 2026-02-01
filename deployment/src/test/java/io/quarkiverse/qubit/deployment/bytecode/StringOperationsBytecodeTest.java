@@ -57,7 +57,7 @@ class StringOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) expr;
         assertFieldAccess(methodCall.target(), expectedFieldName);
         assertThat(methodCall.arguments()).hasSize(1);
-        assertConstant(methodCall.arguments().get(0), expectedArgument);
+        assertConstant(methodCall.arguments().getFirst(), expectedArgument);
     }
 
     @ParameterizedTest(name = "{0}: {2}.{1}().equals(\"{3}\")")
@@ -118,7 +118,7 @@ class StringOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) eqOp.left();
         assertFieldAccess(methodCall.target(), "firstName");
         assertThat(methodCall.arguments()).hasSize(2);
-        assertConstant(methodCall.arguments().get(0), 0);
+        assertConstant(methodCall.arguments().getFirst(), 0);
         assertConstant(methodCall.arguments().get(1), 4);
 
         assertConstant(eqOp.right(), "John");
@@ -132,7 +132,7 @@ class StringOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         assertMethodCall(expr, "contains");
         LambdaExpression.MethodCall containsCall = (LambdaExpression.MethodCall) expr;
         assertThat(containsCall.arguments()).hasSize(1);
-        assertConstant(containsCall.arguments().get(0), "example");
+        assertConstant(containsCall.arguments().getFirst(), "example");
 
         // Target of contains is toLowerCase
         assertMethodCall(containsCall.target(), "toLowerCase");

@@ -319,7 +319,7 @@ class SortingPropertyIT {
         List<Person> sorted = Person.sortedBy((Person p) -> p.age).toList();
 
         if (!sorted.isEmpty()) {
-            int firstAge = sorted.get(0).age;
+            int firstAge = sorted.getFirst().age;
             assertThat(sorted)
                     .as("First element should have minimum age value")
                     .allMatch(p -> p.age >= firstAge);
@@ -332,7 +332,7 @@ class SortingPropertyIT {
         List<Person> sorted = Person.sortedBy((Person p) -> p.age).toList();
 
         if (!sorted.isEmpty()) {
-            int lastAge = sorted.get(sorted.size() - 1).age;
+            int lastAge = sorted.getLast().age;
             assertThat(sorted)
                     .as("Last element should have maximum age value")
                     .allMatch(p -> p.age <= lastAge);
@@ -345,7 +345,7 @@ class SortingPropertyIT {
         List<Person> sorted = Person.sortedDescendingBy((Person p) -> p.age).toList();
 
         if (!sorted.isEmpty()) {
-            int firstAge = sorted.get(0).age;
+            int firstAge = sorted.getFirst().age;
             assertThat(sorted)
                     .as("First element in descending should have maximum age value")
                     .allMatch(p -> p.age <= firstAge);

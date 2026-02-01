@@ -439,8 +439,8 @@ class ComplexQueryIntegrationIT {
                     .extracting(DepartmentStatsDTO::getDepartmentName)
                     .containsExactly("Engineering", "Sales");
 
-            assertThat(topDepts.get(0).getAverageSalary()).isEqualTo(82500.0);
-            assertThat(topDepts.get(1).getAverageSalary()).isEqualTo(60000.0);
+            assertThat(topDepts.getFirst().getAverageSalary()).isEqualTo(82500.0);
+            assertThat(topDepts.getLast().getAverageSalary()).isEqualTo(60000.0);
         }
 
         @Test

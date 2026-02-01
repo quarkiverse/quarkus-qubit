@@ -383,7 +383,7 @@ class CapturedVariableHelperTest {
             assertThat(((CapturedVariable) mc.target()).index())
                     .as("Target index should be 5")
                     .isEqualTo(5);
-            assertThat(((CapturedVariable) mc.arguments().get(0)).index())
+            assertThat(((CapturedVariable) mc.arguments().getFirst()).index())
                     .as("Argument index should be 6")
                     .isEqualTo(6);
         }
@@ -399,7 +399,7 @@ class CapturedVariableHelperTest {
 
             assertThat(result).isInstanceOf(ConstructorCall.class);
             ConstructorCall cc = (ConstructorCall) result;
-            assertThat(((CapturedVariable) cc.arguments().get(0)).index())
+            assertThat(((CapturedVariable) cc.arguments().getFirst()).index())
                     .as("First arg index should be 2")
                     .isEqualTo(2);
             assertThat(((CapturedVariable) cc.arguments().get(1)).index())

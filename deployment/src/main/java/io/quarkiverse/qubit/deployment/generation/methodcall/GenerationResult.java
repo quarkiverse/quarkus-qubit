@@ -46,7 +46,7 @@ public sealed interface GenerationResult permits
     default ResultHandle getOrThrow() {
         return switch (this) {
             case Success(var value) -> value;
-            case Unsupported(var method, var reason) ->
+            case Unsupported(_, var reason) ->
                     throw new IllegalStateException(cannotGetValueFromUnsupported(reason));
         };
     }
@@ -63,7 +63,7 @@ public sealed interface GenerationResult permits
     default ResultHandle orElse(ResultHandle fallback) {
         return switch (this) {
             case Success(var value) -> value;
-            case Unsupported unsupported -> fallback;
+            case Unsupported _ -> fallback;
         };
     }
 

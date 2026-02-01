@@ -16,6 +16,7 @@ import io.quarkiverse.qubit.QubitStream;
 import io.quarkiverse.qubit.SortDirection;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -45,8 +46,9 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
 
     /**
      * The relationship accessor lambda for the join.
+     * Returns a collection-valued relationship (e.g., {@code p -> p.phones}).
      */
-    private final QuerySpec<T, ?> relationshipAccessor;
+    private final QuerySpec<T, Collection<R>> relationshipAccessor;
 
     /**
      * Join type (INNER or LEFT).
@@ -96,7 +98,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
     public JoinStreamImpl(
             Class<T> sourceEntityClass,
             Class<R> joinedEntityClass,
-            QuerySpec<T, ?> relationshipAccessor,
+            QuerySpec<T, Collection<R>> relationshipAccessor,
             JoinType joinType) {
         this(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
              new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(),
@@ -114,7 +116,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
     private JoinStreamImpl(
             Class<T> sourceEntityClass,
             Class<R> joinedEntityClass,
-            QuerySpec<T, ?> relationshipAccessor,
+            QuerySpec<T, Collection<R>> relationshipAccessor,
             JoinType joinType,
             List<BiQuerySpec<T, R, Boolean>> onConditions,
             List<BiQuerySpec<T, R, Boolean>> biPredicates,
@@ -267,7 +269,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
     public Optional<T> findFirst() {
         JoinStream<T, R> stream = (this.limit == null || this.limit > 1) ? this.limit(1) : this;
         List<T> results = stream.toList();
-        return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
+        return results.isEmpty() ? Optional.empty() : Optional.of(results.getFirst());
     }
 
     @Override
@@ -302,11 +304,11 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
     private Object getPrimaryLambda() {
         // Source predicate first (matches build-time predicateLambdas priority)
         if (!sourcePredicates.isEmpty()) {
-            return sourcePredicates.get(0);
+            return sourcePredicates.getFirst();
         }
         // Bi-entity predicate (matches build-time biEntityPredicateLambdas)
         if (!biPredicates.isEmpty()) {
-            return biPredicates.get(0);
+            return biPredicates.getFirst();
         }
         // Relationship accessor (always present for joins)
         if (relationshipAccessor != null) {
@@ -314,7 +316,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         }
         // ON condition
         if (!onConditions.isEmpty()) {
-            return onConditions.get(0);
+            return onConditions.getFirst();
         }
         return null;
     }
@@ -371,7 +373,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         return joinedEntityClass;
     }
 
-    public QuerySpec<T, ?> getRelationshipAccessor() {
+    public QuerySpec<T, Collection<R>> getRelationshipAccessor() {
         return relationshipAccessor;
     }
 

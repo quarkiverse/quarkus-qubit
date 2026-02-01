@@ -100,7 +100,7 @@ class MethodCallHandlerChainTest {
     @Test
     void getterMethodHandler_mustBeLast() {
         List<MethodCallHandler> handlers = MethodCallHandlerChain.createDefaultHandlers();
-        MethodCallHandler lastHandler = handlers.get(handlers.size() - 1);
+        MethodCallHandler lastHandler = handlers.getLast();
 
         assertSame(GetterMethodHandler.INSTANCE, lastHandler,
                 "GetterMethodHandler must be the last handler to avoid intercepting " +

@@ -5,7 +5,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.util.Collections;
 import java.util.List;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant;
@@ -27,7 +26,7 @@ class CapturedVariableHelperErrorTest {
         @DisplayName("K1: Empty list throws IllegalArgumentException")
         void combinePredicates_emptyList_throws() {
             // Given
-            List<LambdaExpression> emptyList = Collections.emptyList();
+            List<LambdaExpression> emptyList = List.of();
 
             // When/Then
             assertThatThrownBy(() -> CapturedVariableHelper.combinePredicatesWithAnd(emptyList))
@@ -215,7 +214,7 @@ class CapturedVariableHelperErrorTest {
         @Test
         @DisplayName("Empty list returns zero")
         void count_emptyList_returnsZero() {
-            int count = CapturedVariableHelper.countCapturedVariablesInSortExpressions(Collections.emptyList());
+            int count = CapturedVariableHelper.countCapturedVariablesInSortExpressions(List.of());
             assertThat(count).isZero();
         }
     }

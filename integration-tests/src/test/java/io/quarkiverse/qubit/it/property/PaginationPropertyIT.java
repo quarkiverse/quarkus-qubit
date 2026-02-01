@@ -82,7 +82,7 @@ class PaginationPropertyIT {
         List<Person> skipped = Person.sortedBy((Person p) -> p.id).skip(skipAmount).toList();
 
         if (skipAmount < all.size()) {
-            assertThat(skipped.get(0).id)
+            assertThat(skipped.getFirst().id)
                     .as("First element after skip(%d) should be element at index %d", skipAmount, skipAmount)
                     .isEqualTo(all.get(skipAmount).id);
         }

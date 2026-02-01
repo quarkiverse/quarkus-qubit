@@ -70,7 +70,7 @@ public record MethodCallContext(
 
     @Override
     public LambdaExpression firstArgument() {
-        return hasArguments() ? methodCall.arguments().get(0) : null;
+        return hasArguments() ? methodCall.arguments().getFirst() : null;
     }
 
     @Override

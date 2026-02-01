@@ -77,11 +77,11 @@ public final class CapturedVariableHelper {
                 collectCapturedVariableIndices(memberOfExpr.collectionField(), capturedIndices);
             }
 
-            // No captured variables (separate cases: Java 21 `_` requires preview)
-            case LambdaExpression.PathExpression ignored1 -> { /* no-op */ }
-            case LambdaExpression.BiEntityFieldAccess ignored2 -> { /* no-op */ }
-            case LambdaExpression.BiEntityPathExpression ignored3 -> { /* no-op */ }
-            case LambdaExpression.BiEntityParameter ignored4 -> { /* no-op */ }
+            // No captured variables (separate cases for exhaustiveness)
+            case LambdaExpression.PathExpression _ -> { /* no-op */ }
+            case LambdaExpression.BiEntityFieldAccess _ -> { /* no-op */ }
+            case LambdaExpression.BiEntityPathExpression _ -> { /* no-op */ }
+            case LambdaExpression.BiEntityParameter _ -> { /* no-op */ }
             default -> { /* no-op */ }
         }
     }
@@ -160,11 +160,11 @@ public final class CapturedVariableHelper {
         }
 
         if (predicates.size() == 1) {
-            return predicates.get(0);
+            return predicates.getFirst();
         }
 
         // Chain predicates with AND: (p1 AND p2 AND p3 AND ...)
-        LambdaExpression combined = predicates.get(0);
+        LambdaExpression combined = predicates.getFirst();
         for (int i = 1; i < predicates.size(); i++) {
             combined = and(combined, predicates.get(i));
         }

@@ -66,7 +66,7 @@ public abstract class AbstractFindFirstEdgeCaseTest {
 
         // Verify it's the actual FIRST result (not second, third, etc.)
         List<Person> allActive = personOps().where((Person p) -> p.active).toList();
-        assertThat(result.get().id).isEqualTo(allActive.get(0).id);
+        assertThat(result.get().id).isEqualTo(allActive.getFirst().id);
     }
 
     @Test

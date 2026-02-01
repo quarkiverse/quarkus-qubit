@@ -132,7 +132,7 @@ class AnalysisContextTest {
             var result = context.popN(3);
 
             assertThat(result).hasSize(3);
-            assertThat(((LambdaExpression.Constant) result.get(0)).value()).isEqualTo(1);
+            assertThat(((LambdaExpression.Constant) result.getFirst()).value()).isEqualTo(1);
             assertThat(((LambdaExpression.Constant) result.get(1)).value()).isEqualTo(2);
             assertThat(((LambdaExpression.Constant) result.get(2)).value()).isEqualTo(3);
         }

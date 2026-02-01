@@ -198,7 +198,7 @@ public class RelationshipMetadataExtractor {
             var parameterizedType = field.type().asParameterizedType();
             var typeArguments = parameterizedType.arguments();
             if (!typeArguments.isEmpty()) {
-                return typeArguments.get(0).name().toString();
+                return typeArguments.getFirst().name().toString();
             }
         }
 

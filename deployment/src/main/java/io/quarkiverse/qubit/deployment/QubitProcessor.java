@@ -8,7 +8,6 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_REPOSIT
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -237,8 +236,8 @@ public class QubitProcessor {
         Map<String, List<InvokeDynamicScanner.LambdaCallSite>> callSitesByClass = allCallSites.stream()
                 .collect(Collectors.groupingBy(InvokeDynamicScanner.LambdaCallSite::ownerClassName));
 
-        // Process each class's call sites together in parallel across classes
-        // All caches use ConcurrentHashMap and all counters use AtomicInteger/AtomicLong for thread safety
+        // Process call sites in parallel - safe because we defer class loading to runtime
+        // (see ClassLoaderHelper.extractEntityClassInfo which uses placeholders instead of Class.forName)
         var processingContext = new CallSiteProcessor.CallSiteProcessingContext(
                 applicationArchives, generatedCount, deduplicatedCount,
                 generatedClass, queryTransformations, config.logging(), true);
@@ -339,12 +338,12 @@ public class QubitProcessor {
         } catch (BytecodeAnalysisException e) {
             // Expected: bytecode analysis failed (e.g., class not found, unsupported bytecode)
             Log.debugf(e, "Could not analyze class %s: %s", classInfo.name(), e.getMessage());
-            return Collections.emptyList();
+            return List.of();
         } catch (Exception e) {
             // Unexpected: log at warn level to surface potential bugs
             Log.warnf(e, "Unexpected error scanning class %s - this may indicate a bug in Qubit",
                     classInfo.name());
-            return Collections.emptyList();
+            return List.of();
         }
     }
 
@@ -358,7 +357,7 @@ public class QubitProcessor {
 
         for (InvokeDynamicScanner.LambdaCallSite callSite : callSites) {
             String callSiteId = callSite.getCallSiteId();
-            callSiteIdToSites.computeIfAbsent(callSiteId, k -> new ArrayList<>()).add(callSite);
+            callSiteIdToSites.computeIfAbsent(callSiteId, _ -> new ArrayList<>()).add(callSite);
         }
 
         // Find duplicates

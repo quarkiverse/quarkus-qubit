@@ -78,15 +78,15 @@ class GroupQueryIT {
                 .containsExactlyInAnyOrder("Engineering", "Sales", "Human Resources");
 
         // Engineering: John, Alice = 2
-        assertThat(stats.stream().filter(s -> s.getDepartmentName().equals("Engineering")).findFirst().get().getEmployeeCount())
+        assertThat(stats.stream().filter(s -> s.getDepartmentName().equals("Engineering")).findFirst().orElseThrow().getEmployeeCount())
                 .isEqualTo(2);
 
         // Sales: Jane, Charlie = 2
-        assertThat(stats.stream().filter(s -> s.getDepartmentName().equals("Sales")).findFirst().get().getEmployeeCount())
+        assertThat(stats.stream().filter(s -> s.getDepartmentName().equals("Sales")).findFirst().orElseThrow().getEmployeeCount())
                 .isEqualTo(2);
 
         // HR: Bob = 1
-        assertThat(stats.stream().filter(s -> s.getDepartmentName().equals("Human Resources")).findFirst().get().getEmployeeCount())
+        assertThat(stats.stream().filter(s -> s.getDepartmentName().equals("Human Resources")).findFirst().orElseThrow().getEmployeeCount())
                 .isEqualTo(1);
     }
 
@@ -106,17 +106,17 @@ class GroupQueryIT {
 
         // Engineering: (75000 + 90000) / 2 = 82500
         DepartmentStatsDTO engineering = stats.stream()
-                .filter(s -> s.getDepartmentName().equals("Engineering")).findFirst().get();
+                .filter(s -> s.getDepartmentName().equals("Engineering")).findFirst().orElseThrow();
         assertThat(engineering.getAverageSalary()).isEqualTo(82500.0);
 
         // Sales: (65000 + 55000) / 2 = 60000
         DepartmentStatsDTO sales = stats.stream()
-                .filter(s -> s.getDepartmentName().equals("Sales")).findFirst().get();
+                .filter(s -> s.getDepartmentName().equals("Sales")).findFirst().orElseThrow();
         assertThat(sales.getAverageSalary()).isEqualTo(60000.0);
 
         // HR: 85000
         DepartmentStatsDTO hr = stats.stream()
-                .filter(s -> s.getDepartmentName().equals("Human Resources")).findFirst().get();
+                .filter(s -> s.getDepartmentName().equals("Human Resources")).findFirst().orElseThrow();
         assertThat(hr.getAverageSalary()).isEqualTo(85000.0);
     }
 
@@ -133,17 +133,17 @@ class GroupQueryIT {
 
         // Find Engineering entry
         Object[] engineering = stats.stream()
-                .filter(arr -> "Engineering".equals(arr[0])).findFirst().get();
+                .filter(arr -> "Engineering".equals(arr[0])).findFirst().orElseThrow();
         assertThat(engineering[1]).isEqualTo(75000.0); // John has min salary
 
         // Find Sales entry
         Object[] sales = stats.stream()
-                .filter(arr -> "Sales".equals(arr[0])).findFirst().get();
+                .filter(arr -> "Sales".equals(arr[0])).findFirst().orElseThrow();
         assertThat(sales[1]).isEqualTo(55000.0); // Charlie has min salary
 
         // Find HR entry
         Object[] hr = stats.stream()
-                .filter(arr -> "Human Resources".equals(arr[0])).findFirst().get();
+                .filter(arr -> "Human Resources".equals(arr[0])).findFirst().orElseThrow();
         assertThat(hr[1]).isEqualTo(85000.0); // Bob only one
     }
 
@@ -160,12 +160,12 @@ class GroupQueryIT {
 
         // Find Engineering entry
         Object[] engineering = stats.stream()
-                .filter(arr -> "Engineering".equals(arr[0])).findFirst().get();
+                .filter(arr -> "Engineering".equals(arr[0])).findFirst().orElseThrow();
         assertThat(engineering[1]).isEqualTo(90000.0); // Alice has max salary
 
         // Find Sales entry
         Object[] sales = stats.stream()
-                .filter(arr -> "Sales".equals(arr[0])).findFirst().get();
+                .filter(arr -> "Sales".equals(arr[0])).findFirst().orElseThrow();
         assertThat(sales[1]).isEqualTo(65000.0); // Jane has max salary
     }
 
@@ -235,9 +235,9 @@ class GroupQueryIT {
 
         // Engineering (2), Sales (2), HR (1) - first two have same count
         assertThat(stats).hasSize(3);
-        assertThat(stats.get(0).getEmployeeCount()).isGreaterThanOrEqualTo(2);
-        assertThat(stats.get(2).getEmployeeCount()).isEqualTo(1);
-        assertThat(stats.get(2).getDepartmentName()).isEqualTo("Human Resources");
+        assertThat(stats.getFirst().getEmployeeCount()).isGreaterThanOrEqualTo(2);
+        assertThat(stats.getLast().getEmployeeCount()).isEqualTo(1);
+        assertThat(stats.getLast().getDepartmentName()).isEqualTo("Human Resources");
     }
 
     // ========== GROUP BY WITH PAGINATION ==========

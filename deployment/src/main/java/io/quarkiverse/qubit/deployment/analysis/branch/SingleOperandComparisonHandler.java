@@ -70,7 +70,7 @@ public class SingleOperandComparisonHandler implements BranchHandler {
                 // CompareTo pattern: a.compareTo(b) → comparison
                 LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) BytecodeValidator.popSafe(stack, INSTRUCTION_NAME + "-CompareTo");
                 left = methodCall.target();
-                right = methodCall.arguments().get(0);
+                right = methodCall.arguments().getFirst();
             }
             default -> {
                 // Plain comparison: value → comparison with 0

@@ -146,7 +146,7 @@ public enum LoadInstructionHandler implements InstructionHandler {
 
         switch (target) {
             // ========== Bi-entity mode (join queries) ==========
-            case BiEntityParameter(var name, var type, var index, var position) ->
+            case BiEntityParameter(_, _, _, var position) ->
                 // First-level field access from bi-entity parameter: ph.type
                 ctx.push(new BiEntityFieldAccess(fieldName, fieldType, position));
 
@@ -157,7 +157,7 @@ public enum LoadInstructionHandler implements InstructionHandler {
                         fieldType,
                         biField.entityPosition()));
 
-            case BiEntityPathExpression(var segments, var resultType, var entityPosition) ->
+            case BiEntityPathExpression(var segments, _, var entityPosition) ->
                 // Third+ level: ph.owner.department.name
                 ctx.push(new BiEntityPathExpression(
                         extendPath(segments, newSegment),
@@ -165,7 +165,7 @@ public enum LoadInstructionHandler implements InstructionHandler {
                         entityPosition));
 
             // ========== Single-entity mode ==========
-            case LambdaExpression.Parameter ignored ->
+            case LambdaExpression.Parameter _ ->
                 // First-level field access from entity parameter: p.age
                 ctx.push(new FieldAccess(fieldName, fieldType));
 
@@ -175,14 +175,14 @@ public enum LoadInstructionHandler implements InstructionHandler {
                         buildPath(toSegment(previousField), newSegment),
                         fieldType));
 
-            case PathExpression(var segments, var resultType) ->
+            case PathExpression(var segments, _) ->
                 // Third+ level: p.owner.department.name
                 ctx.push(new PathExpression(
                         extendPath(segments, newSegment),
                         fieldType));
 
             // ========== Subquery correlated variables ==========
-            case LambdaExpression.CapturedVariable(var index, var type, var name) ->
+            case LambdaExpression.CapturedVariable(var index, var type, _) ->
                 // Field access on captured variable → CorrelatedVariable for subquery correlation
                 ctx.push(new LambdaExpression.CorrelatedVariable(
                         new FieldAccess(fieldName, fieldType),
@@ -219,10 +219,7 @@ public enum LoadInstructionHandler implements InstructionHandler {
 
     /** Builds a 2-segment path from first and second segments. */
     private static List<PathSegment> buildPath(PathSegment first, PathSegment second) {
-        List<PathSegment> segments = new ArrayList<>(2);
-        segments.add(first);
-        segments.add(second);
-        return segments;
+        return List.of(first, second);
     }
 
     /** Extends an existing path with a new segment. */
@@ -239,7 +236,7 @@ public enum LoadInstructionHandler implements InstructionHandler {
         return switch (innerField) {
             case FieldAccess prevField ->
                 new PathExpression(buildPath(toSegment(prevField), newSegment), resultType);
-            case PathExpression(var segments, var pathResultType) ->
+            case PathExpression(var segments, _) ->
                 new PathExpression(extendPath(segments, newSegment), resultType);
             default ->
                 // Fallback: wrap in single-segment PathExpression

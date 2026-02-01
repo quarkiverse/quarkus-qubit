@@ -69,8 +69,8 @@ public final class JavaSourceGenerator {
             case PathExpression pathExpr -> pathExpressionToJava(pathExpr, param);
             case Constant constant -> constantToJava(constant);
             case CapturedVariable captured -> captured.displayName();
-            case Parameter ignored -> param;
-            case NullLiteral ignored -> "null";
+            case Parameter _ -> param;
+            case NullLiteral _ -> "null";
             case MethodCall methodCall -> methodCallToJava(methodCall, param);
             case InExpression inExpr -> inExpressionToJava(inExpr, param);
             case MemberOfExpression memberOf -> memberOfToJava(memberOf, param);
@@ -86,16 +86,16 @@ public final class JavaSourceGenerator {
             case BiEntityParameter biParam -> biEntityParamToJava(biParam, "e1", "e2");
 
             // Group expressions
-            case GroupKeyReference ignored -> "g.key()";
+            case GroupKeyReference _ -> "g.key()";
             case GroupAggregation groupAgg -> groupAggregationToJava(groupAgg);
-            case GroupParameter ignored -> "g";
+            case GroupParameter _ -> "g";
 
             // Subquery expressions
             case ScalarSubquery scalarSub -> scalarSubqueryToJava(scalarSub);
             case ExistsSubquery existsSub -> existsSubqueryToJava(existsSub);
             case InSubquery inSub -> inSubqueryToJava(inSub, param);
             case CorrelatedVariable correlated -> param + "." + expressionToJava(correlated.fieldExpression(), param);
-            case SubqueryBuilderReference ignored -> "subquery(...)";
+            case SubqueryBuilderReference _ -> "subquery(...)";
         };
     }
 
@@ -130,7 +130,7 @@ public final class JavaSourceGenerator {
             case MethodCall methodCall -> biEntityMethodCallToJava(methodCall, firstParam, secondParam);
             case Constant constant -> constantToJava(constant);
             case CapturedVariable captured -> captured.displayName();
-            case NullLiteral ignored -> "null";
+            case NullLiteral _ -> "null";
             default -> expressionToJava(expr, firstParam);
         };
     }
@@ -253,29 +253,16 @@ public final class JavaSourceGenerator {
     }
 
     private static String constantToJava(Constant constant) {
-        Object value = constant.value();
-        if (value == null) {
-            return "null";
-        }
-        if (value instanceof String stringValue) {
-            return "\"" + escapeString(stringValue) + "\"";
-        }
-        if (value instanceof Character charValue) {
-            return "'" + charValue + "'";
-        }
-        if (value instanceof Long) {
-            return value + "L";
-        }
-        if (value instanceof Float) {
-            return value + "f";
-        }
-        if (value instanceof Double) {
-            return value + "d";
-        }
-        if (value instanceof Enum<?> enumVal) {
-            return enumVal.getClass().getSimpleName() + "." + enumVal.name();
-        }
-        return String.valueOf(value);
+        return switch (constant.value()) {
+            case null -> "null";
+            case String s -> "\"" + escapeString(s) + "\"";
+            case Character c -> "'" + c + "'";
+            case Long l -> l + "L";
+            case Float f -> f + "f";
+            case Double d -> d + "d";
+            case Enum<?> e -> e.getClass().getSimpleName() + "." + e.name();
+            default -> String.valueOf(constant.value());
+        };
     }
 
     private static String escapeString(String s) {
@@ -393,7 +380,10 @@ public final class JavaSourceGenerator {
     }
 
     private static String scalarSubqueryToJava(ScalarSubquery scalarSub) {
-        String entityName = scalarSub.entityClass().getSimpleName();
+        // Handle placeholder case: use entityClassName if available, otherwise entityClass
+        String entityName = scalarSub.entityClassName() != null
+                ? ClassNameUtils.extractSimpleName(scalarSub.entityClassName())
+                : scalarSub.entityClass().getSimpleName();
         String field = scalarSub.fieldExpression() != null ?
                 expressionToJava(scalarSub.fieldExpression(), "s") : "";
 
@@ -419,7 +409,10 @@ public final class JavaSourceGenerator {
     }
 
     private static String existsSubqueryToJava(ExistsSubquery existsSub) {
-        String entityName = existsSub.entityClass().getSimpleName();
+        // Handle placeholder case: use entityClassName if available, otherwise entityClass
+        String entityName = existsSub.entityClassName() != null
+                ? ClassNameUtils.extractSimpleName(existsSub.entityClassName())
+                : existsSub.entityClass().getSimpleName();
         String method = existsSub.negated() ? "notExists" : "exists";
         String predicate = expressionToJava(existsSub.predicate(), "s");
 
@@ -428,7 +421,10 @@ public final class JavaSourceGenerator {
 
     private static String inSubqueryToJava(InSubquery inSub, String param) {
         String field = expressionToJava(inSub.field(), param);
-        String entityName = inSub.entityClass().getSimpleName();
+        // Handle placeholder case: use entityClassName if available, otherwise entityClass
+        String entityName = inSub.entityClassName() != null
+                ? ClassNameUtils.extractSimpleName(inSub.entityClassName())
+                : inSub.entityClass().getSimpleName();
         String selectExpr = expressionToJava(inSub.selectExpression(), "s");
         String method = inSub.negated() ? "notIn" : "in";
 

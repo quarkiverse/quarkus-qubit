@@ -4,7 +4,6 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.*;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -25,7 +24,7 @@ public class BytecodeInspector {
      * Gets all method invocations found in the bytecode.
      */
     public List<MethodInvocation> getInvocations() {
-        return Collections.unmodifiableList(invocations);
+        return List.copyOf(invocations);
     }
 
     /**
@@ -52,16 +51,14 @@ public class BytecodeInspector {
      */
     private void analyzeMethod(MethodNode method) {
         for (AbstractInsnNode insn : method.instructions) {
-            if (insn instanceof MethodInsnNode) {
-                MethodInsnNode methodInsn = (MethodInsnNode) insn;
+            if (insn instanceof MethodInsnNode methodInsn) {
                 invocations.add(new MethodInvocation(
                         methodInsn.owner,
                         methodInsn.name,
                         methodInsn.desc
                 ));
-            } else if (insn instanceof LdcInsnNode) {
+            } else if (insn instanceof LdcInsnNode ldcInsn) {
                 // Record constant values (useful for verifying field names, literal values)
-                LdcInsnNode ldcInsn = (LdcInsnNode) insn;
                 invocations.add(new MethodInvocation(
                         "LDC",
                         ldcInsn.cst.toString(),
@@ -74,28 +71,7 @@ public class BytecodeInspector {
     /**
      * Represents a method invocation found in bytecode.
      */
-    public static class MethodInvocation {
-        private final String owner;
-        private final String name;
-        private final String descriptor;
-
-        public MethodInvocation(String owner, String name, String descriptor) {
-            this.owner = owner;
-            this.name = name;
-            this.descriptor = descriptor;
-        }
-
-        public String getOwner() {
-            return owner;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public String getDescriptor() {
-            return descriptor;
-        }
+    public record MethodInvocation(String owner, String name, String descriptor) {
 
         /**
          * Checks if this invocation is a call to a CriteriaBuilder method.

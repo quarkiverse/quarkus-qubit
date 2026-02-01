@@ -55,7 +55,7 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
                 // Aggregation used as a boolean predicate (rare, but possible)
                 generateGroupAggregationExpression(method, groupAgg, cb, root, capturedValues, helper);
 
-            case GroupKeyReference ignored ->
+            case GroupKeyReference _ ->
                 // Key reference as boolean (if key is boolean type)
                 groupKeyExpr;
 
@@ -78,7 +78,7 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
         }
 
         return switch (expression) {
-            case GroupKeyReference ignored ->
+            case GroupKeyReference _ ->
                 // g.key() -> use the pre-computed grouping key expression
                 groupKeyExpr;
 

@@ -161,12 +161,12 @@ public final class PatternDetector {
     }
 
     public static boolean isCompareToPattern(LambdaExpression expr) {
-        return expr instanceof LambdaExpression.MethodCall(var target, var methodName, var args, var returnType) &&
+        return expr instanceof LambdaExpression.MethodCall(_, _, _, var returnType) &&
                returnType == int.class;
     }
 
     public static boolean isArithmeticExpression(LambdaExpression expr) {
-        return expr instanceof LambdaExpression.BinaryOp(var left, var operator, var right) &&
+        return expr instanceof LambdaExpression.BinaryOp(_, var operator, _) &&
                (operator == ADD ||
                 operator == SUB ||
                 operator == MUL ||
@@ -206,7 +206,7 @@ public final class PatternDetector {
             return false;
         }
 
-        if (!(binOp.left() instanceof LambdaExpression.FieldAccess(var fieldName, var fieldType))) {
+        if (!(binOp.left() instanceof LambdaExpression.FieldAccess(_, var fieldType))) {
             return false;
         }
 
@@ -227,7 +227,7 @@ public final class PatternDetector {
             return false;
         }
 
-        if (!(binOp.left() instanceof LambdaExpression.FieldAccess(var fieldName, var fieldType))) {
+        if (!(binOp.left() instanceof LambdaExpression.FieldAccess(_, var fieldType))) {
             return false;
         }
 
@@ -235,7 +235,7 @@ public final class PatternDetector {
             return false;
         }
 
-        if (!(binOp.right() instanceof LambdaExpression.CapturedVariable(var index, var capturedType, var name))) {
+        if (!(binOp.right() instanceof LambdaExpression.CapturedVariable(_, var capturedType, _))) {
             return false;
         }
 
@@ -247,7 +247,7 @@ public final class PatternDetector {
             return false;
         }
 
-        if (!(binOp.left() instanceof LambdaExpression.MethodCall(var target, var methodName, var args, var returnType))) {
+        if (!(binOp.left() instanceof LambdaExpression.MethodCall(_, var methodName, _, _))) {
             return false;
         }
 
@@ -263,9 +263,9 @@ public final class PatternDetector {
     /** Checks if expression contains any subquery (scalar, exists, or in). */
     public static boolean containsSubquery(LambdaExpression expr) {
         return switch (expr) {
-            case LambdaExpression.ScalarSubquery ignored1 -> true;
-            case LambdaExpression.ExistsSubquery ignored2 -> true;
-            case LambdaExpression.InSubquery ignored3 -> true;
+            case LambdaExpression.ScalarSubquery _ -> true;
+            case LambdaExpression.ExistsSubquery _ -> true;
+            case LambdaExpression.InSubquery _ -> true;
             case LambdaExpression.BinaryOp binOp -> containsSubquery(binOp.left()) || containsSubquery(binOp.right());
             case LambdaExpression.UnaryOp unOp -> containsSubquery(unOp.operand());
             case null, default -> false;
@@ -275,9 +275,9 @@ public final class PatternDetector {
     /** Checks if expression contains a scalar subquery (usable in comparisons, unlike EXISTS/IN predicates). */
     public static boolean containsScalarSubquery(LambdaExpression expr) {
         return switch (expr) {
-            case LambdaExpression.ScalarSubquery ignored -> true;
-            case LambdaExpression.ExistsSubquery ignored -> false;
-            case LambdaExpression.InSubquery ignored -> false;
+            case LambdaExpression.ScalarSubquery _ -> true;
+            case LambdaExpression.ExistsSubquery _ -> false;
+            case LambdaExpression.InSubquery _ -> false;
             case LambdaExpression.BinaryOp binOp -> containsScalarSubquery(binOp.left()) || containsScalarSubquery(binOp.right());
             case LambdaExpression.UnaryOp unOp -> containsScalarSubquery(unOp.operand());
             case null, default -> false;
@@ -300,7 +300,7 @@ public final class PatternDetector {
 
     /** Checks if expression is a boolean constant (true/false or 0/1). */
     public static boolean isBooleanConstant(LambdaExpression expr) {
-        if (!(expr instanceof LambdaExpression.Constant(var value, var type))) {
+        if (!(expr instanceof LambdaExpression.Constant(var value, _))) {
             return false;
         }
         return value instanceof Boolean ||
@@ -311,7 +311,7 @@ public final class PatternDetector {
     public static boolean isNegatedSubqueryComparison(
             LambdaExpression.BinaryOp.Operator operator,
             LambdaExpression constantExpr) {
-        if (!(constantExpr instanceof LambdaExpression.Constant(var value, var type))) {
+        if (!(constantExpr instanceof LambdaExpression.Constant(var value, _))) {
             return false;
         }
 

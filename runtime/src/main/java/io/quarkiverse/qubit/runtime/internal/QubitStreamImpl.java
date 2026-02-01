@@ -287,7 +287,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
         // This prevents fetching all rows when we only need the first one
         QubitStream<T> stream = (this.limit == null || this.limit > 1) ? this.limit(1) : this;
         List<T> results = stream.toList();
-        return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
+        return results.isEmpty() ? Optional.empty() : Optional.of(results.getFirst());
     }
 
     @Override
@@ -405,7 +405,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     private Object getPrimaryLambda() {
         // First predicate takes priority
         if (!predicates.isEmpty()) {
-            return predicates.get(0);
+            return predicates.getFirst();
         }
         // Selector for projection-only queries
         if (selector != null) {
@@ -419,7 +419,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
         // Note: sortOrders are prepended (newest at index 0), so we pick the last
         // element (first added) to match build-time's sortLambdas.get(0)
         if (!sortOrders.isEmpty()) {
-            return sortOrders.get(sortOrders.size() - 1).keyExtractor();
+            return sortOrders.getLast().keyExtractor();
         }
         return null;
     }
@@ -442,7 +442,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
 
         // Single predicate optimization (most common case)
         if (predicates.size() == 1) {
-            return CapturedVariableExtractor.extract(predicates.get(0), capturedCount);
+            return CapturedVariableExtractor.extract(predicates.getFirst(), capturedCount);
         }
 
         // Multiple predicates: extract from each and combine

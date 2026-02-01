@@ -507,7 +507,7 @@ public abstract class AbstractJoinQueryTest {
                 .toList();
 
         assertThat(dtos).hasSize(1);
-        var dto = dtos.get(0);
+        var dto = dtos.getFirst();
         assertThat(dto.getPersonName()).isEqualTo("John");
         assertThat(dto.getPhoneNumber()).isEqualTo("555-0101");
     }

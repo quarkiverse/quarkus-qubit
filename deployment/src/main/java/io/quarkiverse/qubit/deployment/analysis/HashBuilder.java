@@ -203,7 +203,7 @@ public final class HashBuilder {
             MessageDigest md = MessageDigest.getInstance("MD5");
             byte[] digest = md.digest(input.getBytes(UTF_8));
             return HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException e) {
+        } catch (NoSuchAlgorithmException _) {
             return String.valueOf(input.hashCode());
         }
     }

@@ -236,7 +236,7 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
     private Object getPrimaryLambda() {
         // First predicate takes priority
         if (!predicates.isEmpty()) {
-            return predicates.get(0);
+            return predicates.getFirst();
         }
         // groupBy key extractor (always present for group queries)
         if (keyExtractor != null) {
@@ -244,7 +244,7 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
         }
         // Having condition
         if (!havingConditions.isEmpty()) {
-            return havingConditions.get(0);
+            return havingConditions.getFirst();
         }
         // Selector for projection
         if (selector != null) {

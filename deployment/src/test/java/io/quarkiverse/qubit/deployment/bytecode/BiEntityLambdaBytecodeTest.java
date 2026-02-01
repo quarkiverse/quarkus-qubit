@@ -130,7 +130,7 @@ class BiEntityLambdaBytecodeTest extends PrecompiledBiEntityLambdaAnalyzer {
             assertThat(fieldAccess.entityPosition()).isEqualTo(expectedPosition);
 
             assertThat(methodCall.arguments()).hasSize(1);
-            assertConstant(methodCall.arguments().get(0), expectedArg);
+            assertConstant(methodCall.arguments().getFirst(), expectedArg);
         }
     }
 

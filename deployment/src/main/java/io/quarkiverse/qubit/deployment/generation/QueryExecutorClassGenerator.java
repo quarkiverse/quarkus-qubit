@@ -773,7 +773,7 @@ public class QueryExecutorClassGenerator {
 
         // Determine result type based on projection expression
         ResultHandle resultTypeClass;
-        if (projectionExpression instanceof LambdaExpression.FieldAccess(var fieldName, var fieldType)) {
+        if (projectionExpression instanceof LambdaExpression.FieldAccess(_, var fieldType)) {
             // Field access projection - use field type for type safety
             resultTypeClass = ctx.method().loadClass(fieldType);
         } else {
@@ -794,7 +794,7 @@ public class QueryExecutorClassGenerator {
 
         // Generate SELECT projection expression
         ResultHandle projectionExpr;
-        if (projectionExpression instanceof LambdaExpression.FieldAccess(var projFieldName, var projFieldType)) {
+        if (projectionExpression instanceof LambdaExpression.FieldAccess(var projFieldName, _)) {
             // Simple field access - root.get("fieldName")
             ResultHandle fieldNameHandle = ctx.method().load(projFieldName);
             projectionExpr = ctx.method().invokeInterfaceMethod(

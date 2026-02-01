@@ -73,7 +73,7 @@ public abstract class AbstractComplexCombinationsTest {
 
         // Verify we got the top 3 oldest persons
         if (results.size() >= 2) {
-            assertThat(results.get(0).age).isGreaterThanOrEqualTo(results.get(1).age);
+            assertThat(results.getFirst().age).isGreaterThanOrEqualTo(results.get(1).age);
         }
     }
 
@@ -98,7 +98,7 @@ public abstract class AbstractComplexCombinationsTest {
         if (allSorted.size() > 2) {
             assertThat(skipped.size()).isEqualTo(allSorted.size() - 2);
             // First person in skipped should be the 3rd oldest overall
-            assertThat(skipped.get(0).id).isEqualTo(allSorted.get(2).id);
+            assertThat(skipped.getFirst().id).isEqualTo(allSorted.get(2).id);
         }
     }
 
@@ -143,7 +143,7 @@ public abstract class AbstractComplexCombinationsTest {
         if (allAges.size() > 2) {
             assertThat(skippedAges.size()).isEqualTo(allAges.size() - 2);
             // First element should be the 3rd smallest age
-            assertThat(skippedAges.get(0)).isEqualTo(allAges.get(2));
+            assertThat(skippedAges.getFirst()).isEqualTo(allAges.get(2));
         }
     }
 
@@ -172,7 +172,7 @@ public abstract class AbstractComplexCombinationsTest {
         if (allActive.size() > 1) {
             assertThat(skipped.size()).isEqualTo(allActive.size() - 1);
             // First person in skipped should be the 2nd youngest active person
-            assertThat(skipped.get(0).id).isEqualTo(allActive.get(1).id);
+            assertThat(skipped.getFirst().id).isEqualTo(allActive.get(1).id);
         }
     }
 
@@ -217,7 +217,7 @@ public abstract class AbstractComplexCombinationsTest {
 
         // Verify pagination integrity
         if (page2.size() == 2) {
-            assertThat(page2.get(0).salary).isLessThanOrEqualTo(page2.get(1).salary);
+            assertThat(page2.getFirst().salary).isLessThanOrEqualTo(page2.getLast().salary);
         }
     }
 }

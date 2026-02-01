@@ -335,6 +335,6 @@ public final class LambdaReflectionUtils {
             throw new NonUniqueResultException(
                     "getSingleResult() expected exactly one result but found " + results.size());
         }
-        return results.get(0);
+        return results.getFirst();
     }
 }

@@ -476,7 +476,7 @@ public class QueryExecutorRegistry {
         List<?> rawResults = executor.execute(entityManager, entityClass, capturedValues, offset, limit, null);
 
         // Convert Tuple results to Object[] if needed (for Object[] projections)
-        if (!rawResults.isEmpty() && rawResults.get(0) instanceof Tuple) {
+        if (!rawResults.isEmpty() && rawResults.getFirst() instanceof Tuple) {
             return (List<R>) rawResults.stream()
                     .map(o -> ((Tuple) o).toArray())
                     .toList();

@@ -184,7 +184,7 @@ public final class JpqlGenerator {
 
         // Helper to get first argument with bi-entity awareness
         String firstArg = methodCall.arguments().isEmpty() ? "?"
-                : expressionToJpqlBiEntity(methodCall.arguments().get(0), joinAlias);
+                : expressionToJpqlBiEntity(methodCall.arguments().getFirst(), joinAlias);
 
         return switch (methodName) {
             case METHOD_EQUALS -> target + " = " + firstArg;
@@ -230,8 +230,8 @@ public final class JpqlGenerator {
             case PathExpression pathExpr -> pathExpressionToJpql(pathExpr);
             case Constant constant -> constantToJpql(constant);
             case CapturedVariable captured -> ":" + captured.displayName();
-            case Parameter param -> ENTITY_ALIAS;
-            case NullLiteral ignored -> "NULL";
+            case Parameter _-> ENTITY_ALIAS;
+            case NullLiteral _ -> "NULL";
             case MethodCall methodCall -> methodCallToJpql(methodCall);
             case InExpression inExpr -> inExpressionToJpql(inExpr);
             case MemberOfExpression memberOf -> memberOfToJpql(memberOf);
@@ -247,23 +247,23 @@ public final class JpqlGenerator {
             case BiEntityParameter biParam -> biEntityParamAlias(biParam);
 
             // Group expressions
-            case GroupKeyReference keyRef -> "KEY";
+            case GroupKeyReference _ -> "KEY";
             case GroupAggregation groupAgg -> groupAggregationToJpql(groupAgg);
-            case GroupParameter ignored -> "GROUP";
+            case GroupParameter _ -> "GROUP";
 
             // Subquery expressions
             case ScalarSubquery scalarSub -> scalarSubqueryToJpql(scalarSub);
             case ExistsSubquery existsSub -> existsSubqueryToJpql(existsSub);
             case InSubquery inSub -> inSubqueryToJpql(inSub);
             case CorrelatedVariable correlated -> "OUTER." + expressionToJpql(correlated.fieldExpression());
-            case SubqueryBuilderReference ignored -> "(SUBQUERY)";
+            case SubqueryBuilderReference _ -> "(SUBQUERY)";
         };
     }
 
     /** Gets first argument as JPQL, or "?" if none. */
     private static String firstArgOrPlaceholder(MethodCall methodCall) {
         return methodCall.arguments().isEmpty() ? "?" :
-                expressionToJpql(methodCall.arguments().get(0));
+                expressionToJpql(methodCall.arguments().getFirst());
     }
 
     private static String binaryOpToJpql(BinaryOp binaryOp) {
@@ -309,22 +309,13 @@ public final class JpqlGenerator {
     }
 
     private static String constantToJpql(Constant constant) {
-        Object value = constant.value();
-        if (value == null) {
-            return "NULL";
-        }
-        if (value instanceof String strValue) {
-            // Escape single quotes for JPQL display (double them per SQL/JPQL standard)
-            String escaped = strValue.replace("'", "''");
-            return "'" + escaped + "'";
-        }
-        if (value instanceof Boolean) {
-            return value.toString().toUpperCase();
-        }
-        if (value instanceof Enum<?> enumVal) {
-            return "'" + enumVal.name() + "'";
-        }
-        return String.valueOf(value);
+        return switch (constant.value()) {
+            case null -> "NULL";
+            case String s -> "'" + s.replace("'", "''") + "'";  // Escape single quotes per SQL/JPQL standard
+            case Boolean b -> b.toString().toUpperCase();
+            case Enum<?> e -> "'" + e.name() + "'";
+            default -> String.valueOf(constant.value());
+        };
     }
 
     private static String methodCallToJpql(MethodCall methodCall) {
@@ -361,11 +352,11 @@ public final class JpqlGenerator {
             case METHOD_LENGTH -> JPQL_LENGTH + target + ")";
             case METHOD_SUBSTRING -> {
                 if (methodCall.arguments().size() >= 2) {
-                    String start = expressionToJpql(methodCall.arguments().get(0));
+                    String start = expressionToJpql(methodCall.arguments().getFirst());
                     String len = expressionToJpql(methodCall.arguments().get(1));
                     yield JPQL_SUBSTRING + target + ", " + start + ", " + len + ")";
                 } else if (methodCall.arguments().size() == 1) {
-                    String start = expressionToJpql(methodCall.arguments().get(0));
+                    String start = expressionToJpql(methodCall.arguments().getFirst());
                     yield JPQL_SUBSTRING + target + ", " + start + ")";
                 }
                 yield JPQL_SUBSTRING + target + ")";
@@ -467,7 +458,10 @@ public final class JpqlGenerator {
     }
 
     private static String scalarSubqueryToJpql(ScalarSubquery scalarSub) {
-        String entityName = scalarSub.entityClass().getSimpleName();
+        // Handle placeholder case: use entityClassName if available, otherwise entityClass
+        String entityName = scalarSub.entityClassName() != null
+                ? ClassNameUtils.extractSimpleName(scalarSub.entityClassName())
+                : scalarSub.entityClass().getSimpleName();
         String field = scalarSub.fieldExpression() != null ?
                 expressionToJpql(scalarSub.fieldExpression()) : "s";
 
@@ -490,7 +484,10 @@ public final class JpqlGenerator {
     }
 
     private static String existsSubqueryToJpql(ExistsSubquery existsSub) {
-        String entityName = existsSub.entityClass().getSimpleName();
+        // Handle placeholder case: use entityClassName if available, otherwise entityClass
+        String entityName = existsSub.entityClassName() != null
+                ? ClassNameUtils.extractSimpleName(existsSub.entityClassName())
+                : existsSub.entityClass().getSimpleName();
         String op = existsSub.negated() ? "NOT EXISTS" : "EXISTS";
 
         StringBuilder sb = new StringBuilder();
@@ -502,7 +499,10 @@ public final class JpqlGenerator {
 
     private static String inSubqueryToJpql(InSubquery inSub) {
         String field = expressionToJpql(inSub.field());
-        String entityName = inSub.entityClass().getSimpleName();
+        // Handle placeholder case: use entityClassName if available, otherwise entityClass
+        String entityName = inSub.entityClassName() != null
+                ? ClassNameUtils.extractSimpleName(inSub.entityClassName())
+                : inSub.entityClass().getSimpleName();
         String selectExpr = expressionToJpql(inSub.selectExpression());
         String op = inSub.negated() ? "NOT IN" : "IN";
 

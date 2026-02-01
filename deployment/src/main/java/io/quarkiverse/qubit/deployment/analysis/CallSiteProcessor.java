@@ -29,7 +29,6 @@ import io.quarkiverse.qubit.deployment.util.BytecodeLoader;
 import io.quarkiverse.qubit.deployment.util.DescriptorParser;
 import io.quarkus.logging.Log;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -338,7 +337,7 @@ public class CallSiteProcessor {
                         callSite.skipValue(), callSite.limitValue(),
                         generatedClass, queryTransformations, loggingConfig);
                 generateAndRegisterSimpleExecutor(agg.predicateExpression(), null,
-                        Collections.emptyList(), agg.aggregationExpression(), agg.aggregationType(),
+                        List.of(), agg.aggregationExpression(), agg.aggregationType(),
                         true, ctx);
             }
 
@@ -438,13 +437,13 @@ public class CallSiteProcessor {
      */
     private String extractEntityClassName(InvokeDynamicScanner.LambdaCallSite callSite, LambdaAnalysisResult result) {
         return switch (result) {
-            case LambdaAnalysisResult.GroupQueryResult ignored ->
+            case LambdaAnalysisResult.GroupQueryResult _ ->
                     DescriptorParser.getEntityClassName(callSite.groupByLambdaDescriptor());
-            case LambdaAnalysisResult.JoinQueryResult ignored ->
+            case LambdaAnalysisResult.JoinQueryResult _ ->
                     DescriptorParser.getEntityClassName(callSite.joinRelationshipLambdaDescriptor());
-            case LambdaAnalysisResult.AggregationQueryResult ignored ->
+            case LambdaAnalysisResult.AggregationQueryResult _ ->
                     DescriptorParser.getEntityClassName(getEntityDescriptor(callSite));
-            case LambdaAnalysisResult.SimpleQueryResult ignored ->
+            case LambdaAnalysisResult.SimpleQueryResult _ ->
                     DescriptorParser.getEntityClassName(getEntityDescriptor(callSite));
         };
     }
@@ -461,7 +460,7 @@ public class CallSiteProcessor {
         // Fall back to first sort lambda descriptor if available
         var sortLambdas = callSite.sortLambdas();
         if (sortLambdas != null && !sortLambdas.isEmpty()) {
-            return sortLambdas.get(0).descriptor();
+            return sortLambdas.getFirst().descriptor();
         }
         // Final fallback
         return null;
@@ -500,7 +499,7 @@ public class CallSiteProcessor {
         return switch (result) {
             case LambdaAnalysisResult.GroupQueryResult group -> group.groupSortExpressions();
             case LambdaAnalysisResult.JoinQueryResult join -> join.sortExpressions();
-            case LambdaAnalysisResult.AggregationQueryResult ignored -> null;
+            case LambdaAnalysisResult.AggregationQueryResult _ -> null;
             case LambdaAnalysisResult.SimpleQueryResult simple -> simple.sortExpressions();
         };
     }
@@ -771,7 +770,7 @@ public class CallSiteProcessor {
         if (sortExpressions == null || sortExpressions.isEmpty()) {
             return new SortDisplayInfo(null, false);
         }
-        SortExpression first = sortExpressions.get(0);
+        SortExpression first = sortExpressions.getFirst();
         boolean descending = first.direction() == io.quarkiverse.qubit.SortDirection.DESCENDING;
         return new SortDisplayInfo(first.keyExtractor(), descending);
     }

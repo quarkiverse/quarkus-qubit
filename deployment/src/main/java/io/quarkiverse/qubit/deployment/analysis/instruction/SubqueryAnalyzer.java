@@ -43,7 +43,7 @@ public class SubqueryAnalyzer {
 
         // Push SubqueryBuilderReference onto stack
         ctx.push(new SubqueryBuilderReference(entityInfo.clazz(), entityInfo.className()));
-        Log.debugf("Created SubqueryBuilderReference for %s", entityInfo.clazz().getSimpleName());
+        Log.debugf("Created SubqueryBuilderReference for %s", entityInfo.getEffectiveClassName());
     }
 
     public void handleSubqueryBuilderMethod(AnalysisContext ctx, MethodInsnNode methodInsn) {
@@ -102,7 +102,7 @@ public class SubqueryAnalyzer {
             return;
         }
 
-        LambdaExpression newPredicate = args.get(0);
+        LambdaExpression newPredicate = args.getFirst();
         SubqueryBuilderReference updatedBuilder = currentBuilder.withPredicate(newPredicate);
         ctx.push(updatedBuilder);
     }
@@ -115,7 +115,7 @@ public class SubqueryAnalyzer {
             return;
         }
 
-        LambdaExpression selector = args.get(0);
+        LambdaExpression selector = args.getFirst();
         // AVG always returns Double, otherwise infer from selector
         Class<?> resultType = (aggregationType == SubqueryAggregationType.AVG)
             ? Double.class
@@ -127,7 +127,7 @@ public class SubqueryAnalyzer {
     /** Combines builder and argument predicates with AND. */
     private void handleBuilderCountSubquery(AnalysisContext ctx, Class<?> entityClass, String entityClassName,
                                               LambdaExpression builderPredicate, List<LambdaExpression> args) {
-        LambdaExpression argPredicate = args.isEmpty() ? null : args.get(0);
+        LambdaExpression argPredicate = args.isEmpty() ? null : args.getFirst();
         LambdaExpression finalPredicate = CapturedVariableHelper.combinePredicatesWithAnd(builderPredicate, argPredicate);
         ctx.push(new ScalarSubquery(SubqueryAggregationType.COUNT, entityClass, entityClassName, null, finalPredicate, Long.class));
     }
@@ -139,7 +139,7 @@ public class SubqueryAnalyzer {
             return;
         }
 
-        LambdaExpression predicate = args.get(0);
+        LambdaExpression predicate = args.getFirst();
         ctx.push(new ExistsSubquery(entityClass, entityClassName, predicate, negated));
     }
 
@@ -151,7 +151,7 @@ public class SubqueryAnalyzer {
             return;
         }
 
-        LambdaExpression field = args.get(0);
+        LambdaExpression field = args.getFirst();
         LambdaExpression selector = args.get(1);
         LambdaExpression argPredicate = args.size() == 3 ? args.get(2) : null;
 

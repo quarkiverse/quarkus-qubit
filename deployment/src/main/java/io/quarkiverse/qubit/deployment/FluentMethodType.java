@@ -125,12 +125,12 @@ public enum FluentMethodType {
         return category == MethodCategory.AGGREGATION;
     }
 
-    public static final Set<FluentMethodType> ENTRY_POINTS = EnumSet.allOf(FluentMethodType.class);
+    protected static final Set<FluentMethodType> ENTRY_POINTS = EnumSet.allOf(FluentMethodType.class);
 
-    public static final Set<FluentMethodType> AGGREGATIONS = EnumSet.of(
+    protected static final Set<FluentMethodType> AGGREGATIONS = EnumSet.of(
             MIN, MAX, AVG, SUM_INTEGER, SUM_LONG, SUM_DOUBLE);
 
-    public static final Set<FluentMethodType> SORTING = EnumSet.of(SORTED_BY, SORTED_DESCENDING_BY);
+    protected static final Set<FluentMethodType> SORTING = EnumSet.of(SORTED_BY, SORTED_DESCENDING_BY);
 
     /** Semantic grouping: PREDICATE (filtering), PROJECTION (transform), SORTING, AGGREGATION. */
     public enum MethodCategory {

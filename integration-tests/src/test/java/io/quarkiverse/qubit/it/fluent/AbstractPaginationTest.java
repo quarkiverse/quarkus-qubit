@@ -43,7 +43,7 @@ public abstract class AbstractPaginationTest {
 
         assertThat(skipped)
                 .hasSize(all.size() - 2)
-                .satisfies(list -> assertThat(((Person) list.get(0)).id).isEqualTo(all.get(2).id));
+                .satisfies(list -> assertThat(((Person) list.getFirst()).id).isEqualTo(all.get(2).id));
     }
 
     @Test
@@ -62,7 +62,7 @@ public abstract class AbstractPaginationTest {
 
         assertThat(skippedActive)
                 .hasSize(allActive.size() - 1)
-                .satisfies(list -> assertThat(((Person) list.get(0)).id).isEqualTo(allActive.get(1).id));
+                .satisfies(list -> assertThat(((Person) list.getFirst()).id).isEqualTo(allActive.get(1).id));
     }
 
     @Test
@@ -161,7 +161,7 @@ public abstract class AbstractPaginationTest {
 
         // Verify descending order
         if (results.size() == 2) {
-            assertThat(((Person) results.get(0)).age).isGreaterThanOrEqualTo(((Person) results.get(1)).age);
+            assertThat(((Person) results.getFirst()).age).isGreaterThanOrEqualTo(((Person) results.getLast()).age);
         }
     }
 

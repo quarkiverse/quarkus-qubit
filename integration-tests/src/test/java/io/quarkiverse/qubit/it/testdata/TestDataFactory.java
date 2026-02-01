@@ -80,7 +80,7 @@ public class TestDataFactory {
     // ========== Tag Helpers (Private) ==========
 
     private static Tag getOrCreateTag(String name, String color) {
-        return tagCache.computeIfAbsent(name, k -> {
+        return tagCache.computeIfAbsent(name, _ -> {
             Tag tag = new Tag(name, color);
             tag.persist();
             return tag;
@@ -99,7 +99,7 @@ public class TestDataFactory {
     // ========== Department Helpers (Private) ==========
 
     private static Department getOrCreateDepartment(String name, String code, int budget) {
-        return departmentCache.computeIfAbsent(name, k -> {
+        return departmentCache.computeIfAbsent(name, _ -> {
             Department dept = new Department(name, code, budget);
             dept.persist();
             return dept;

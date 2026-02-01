@@ -301,7 +301,7 @@ public enum SubqueryExpressionBuilder implements ExpressionBuilder {
 
             // Generate expression for the argument (e.g., p.id which may be a CorrelatedVariable)
             ResultHandle argumentExpr = generateSubqueryExpression(
-                    method, methodCall.arguments().get(0), cb, subRoot, outerRoot, capturedValues);
+                    method, methodCall.arguments().getFirst(), cb, subRoot, outerRoot, capturedValues);
 
             // Generate cb.equal(target, argument)
             return method.invokeInterfaceMethod(CB_EQUAL, cb, targetExpr, argumentExpr);
@@ -372,7 +372,7 @@ public enum SubqueryExpressionBuilder implements ExpressionBuilder {
             }
 
             // The subquery parameter refers to the subquery root
-            case LambdaExpression.Parameter ignored -> subRoot;
+            case LambdaExpression.Parameter _ -> subRoot;
 
             case LambdaExpression.MethodCall methodCall ->
                 generateMethodCallExpression(method, methodCall, cb, subRoot, outerRoot, capturedValues);

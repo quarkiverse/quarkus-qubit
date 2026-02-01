@@ -38,7 +38,7 @@ public sealed interface BuilderResult permits
     default ResultHandle getOrThrow() {
         return switch (this) {
             case Success(var value) -> value;
-            case NotApplicable notApplicable ->
+            case NotApplicable _ ->
                     throw new IllegalStateException(CANNOT_GET_VALUE_FROM_NOT_APPLICABLE);
         };
     }
@@ -47,7 +47,7 @@ public sealed interface BuilderResult permits
     default Optional<ResultHandle> toOptional() {
         return switch (this) {
             case Success(var value) -> Optional.of(value);
-            case NotApplicable notApplicable -> Optional.empty();
+            case NotApplicable _ -> Optional.empty();
         };
     }
 

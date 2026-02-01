@@ -50,7 +50,7 @@
         <!-- Test dependencies -->
         <dependency>
             <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-junit5</artifactId>
+            <artifactId>quarkus-junit</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -74,7 +74,7 @@
         <!-- Required for QuarkusDevModeTest (DevUI Playwright tests) -->
         <dependency>
             <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-junit5-internal</artifactId>
+            <artifactId>quarkus-junit-internal</artifactId>
             <scope>test</scope>
         </dependency>
         <!-- Playwright for browser automation (DevUI tests) -->

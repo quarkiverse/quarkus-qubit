@@ -425,6 +425,6 @@ public class LambdaBytecodeAnalyzer {
 
             exprs.add(0, combined);
         }
-        return exprs.isEmpty() ? null : exprs.get(0);
+        return exprs.isEmpty() ? null : exprs.getFirst();
     }
 }

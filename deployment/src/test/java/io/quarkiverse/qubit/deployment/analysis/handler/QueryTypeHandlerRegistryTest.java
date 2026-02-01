@@ -45,7 +45,7 @@ class QueryTypeHandlerRegistryTest {
             QueryTypeHandlerRegistry registry = QueryTypeHandlerRegistry.getDefault();
             List<QueryTypeHandler> handlers = registry.handlers();
 
-            assertThat(handlers.get(0)).isInstanceOf(GroupQueryHandler.class);
+            assertThat(handlers.getFirst()).isInstanceOf(GroupQueryHandler.class);
             assertThat(handlers.get(1)).isInstanceOf(JoinQueryHandler.class);
             assertThat(handlers.get(2)).isInstanceOf(AggregationQueryHandler.class);
             assertThat(handlers.get(3)).isInstanceOf(SimpleQueryHandler.class);

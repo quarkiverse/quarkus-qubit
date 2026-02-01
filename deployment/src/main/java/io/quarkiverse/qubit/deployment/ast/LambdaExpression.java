@@ -441,7 +441,7 @@ public sealed interface LambdaExpression {
          * Returns the final segment (the actual field being accessed).
          */
         public PathSegment finalSegment() {
-            return segments.get(segments.size() - 1);
+            return segments.getLast();
         }
 
         /**

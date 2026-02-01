@@ -125,7 +125,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
                         ParameterizedType parameterizedType = interfaceType.asParameterizedType();
                         List<org.jboss.jandex.Type> typeArguments = parameterizedType.arguments();
                         if (!typeArguments.isEmpty()) {
-                            org.jboss.jandex.Type jandexType = typeArguments.get(0);
+                            org.jboss.jandex.Type jandexType = typeArguments.getFirst();
                             String entityClassName = jandexType.name().toString();
                             this.entityType = Type.getObjectType(entityClassName.replace('.', '/'));
                             Log.debugf("Extracted entity type: %s", entityClassName);

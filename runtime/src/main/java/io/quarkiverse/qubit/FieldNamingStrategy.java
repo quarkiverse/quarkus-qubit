@@ -24,7 +24,7 @@ public interface FieldNamingStrategy {
                 Field field = lambdaClass.getDeclaredField(fieldName);
                 field.setAccessible(true);
                 return Optional.of(field);
-            } catch (NoSuchFieldException e) {
+            } catch (NoSuchFieldException _) {
                 return Optional.empty();
             }
         }
@@ -44,7 +44,7 @@ public interface FieldNamingStrategy {
                 Field field = lambdaClass.getDeclaredField(fieldName);
                 field.setAccessible(true);
                 return Optional.of(field);
-            } catch (NoSuchFieldException e) {
+            } catch (NoSuchFieldException _) {
                 return Optional.empty();
             }
         }
@@ -64,7 +64,7 @@ public interface FieldNamingStrategy {
                 Field field = lambdaClass.getDeclaredField(fieldName);
                 field.setAccessible(true);
                 return Optional.of(field);
-            } catch (NoSuchFieldException e) {
+            } catch (NoSuchFieldException _) {
                 return Optional.empty();
             }
         }

@@ -144,7 +144,7 @@ public abstract class AbstractSingleResultTest {
                 .satisfies(person -> {
                     assertThat(person.isActive()).isTrue();
                     // Verify it's the same as the first element from toList()
-                    assertThat(person.id).isEqualTo(allResults.get(0).id);
+                    assertThat(person.id).isEqualTo(allResults.getFirst().id);
                 });
     }
 

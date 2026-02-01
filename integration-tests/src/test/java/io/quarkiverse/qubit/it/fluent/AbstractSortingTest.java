@@ -76,8 +76,8 @@ public abstract class AbstractSortingTest {
         assertThat(sorted)
                 .hasSize(5)
                 .isSortedAccordingTo(Comparator.comparing(Person::getFirstName));
-        assertThat(sorted.get(0).firstName).isEqualTo("Alice");
-        assertThat(sorted.get(4).firstName).isEqualTo("John");
+        assertThat(sorted.getFirst().firstName).isEqualTo("Alice");
+        assertThat(sorted.getLast().firstName).isEqualTo("John");
     }
 
     // =============================================================================================
@@ -92,8 +92,8 @@ public abstract class AbstractSortingTest {
                 .hasSize(5)
                 .isSortedAccordingTo(Comparator.comparing(Person::getAge).reversed());
         // Verify specific ordering: 45, 35, 30, 28, 25
-        assertThat(sorted.get(0).firstName).isEqualTo("Bob");     // age 45
-        assertThat(sorted.get(4).firstName).isEqualTo("Jane");    // age 25
+        assertThat(sorted.getFirst().firstName).isEqualTo("Bob");     // age 45
+        assertThat(sorted.getLast().firstName).isEqualTo("Jane");    // age 25
     }
 
     @Test
@@ -217,8 +217,8 @@ public abstract class AbstractSortingTest {
         assertThat(results)
                 .hasSize(2) // Alice, Bob
                 .isSortedAccordingTo(Comparator.comparing(Person::getAge));
-        assertThat(results.get(0).firstName).isEqualTo("Alice");   // age 35
-        assertThat(results.get(1).firstName).isEqualTo("Bob");     // age 45
+        assertThat(results.getFirst().firstName).isEqualTo("Alice");   // age 35
+        assertThat(results.getLast().firstName).isEqualTo("Bob");     // age 45
     }
 
     @Test
@@ -324,8 +324,8 @@ public abstract class AbstractSortingTest {
                 .hasSize(5)
                 .isSortedAccordingTo(Comparator.comparing(p -> p.price));
         // Verify first and last
-        assertThat(sorted.get(0).name).isEqualTo("Coffee Maker");
-        assertThat(sorted.get(4).name).isEqualTo("Laptop");
+        assertThat(sorted.getFirst().name).isEqualTo("Coffee Maker");
+        assertThat(sorted.getLast().name).isEqualTo("Laptop");
     }
 
     @Test

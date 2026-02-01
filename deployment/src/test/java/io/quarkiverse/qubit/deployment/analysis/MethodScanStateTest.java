@@ -91,7 +91,7 @@ class MethodScanStateTest {
 
             assertThat(state.hasLambdas()).isTrue();
             assertThat(state.pendingLambdas()).hasSize(1);
-            assertThat(state.pendingLambdas().get(0)).isEqualTo(lambda);
+            assertThat(state.pendingLambdas().getFirst()).isEqualTo(lambda);
         }
 
         @Test
@@ -385,7 +385,7 @@ class MethodScanStateTest {
             state.markGroupQuery();
 
             assertThat(state.hasLambdas()).isTrue();
-            assertThat(state.pendingLambdas().get(0).methodName()).isEqualTo("lambda$1");
+            assertThat(state.pendingLambdas().getFirst().methodName()).isEqualTo("lambda$1");
             assertThat(state.isGroupContext()).isTrue();
             assertThat(state.isJoinContext()).isFalse();
         }
@@ -509,7 +509,7 @@ class MethodScanStateTest {
 
             // Verify second query state
             assertThat(state.hasLambdas()).isTrue();
-            assertThat(state.pendingLambdas().get(0).methodName()).isEqualTo("lambda$1");
+            assertThat(state.pendingLambdas().getFirst().methodName()).isEqualTo("lambda$1");
             assertThat(state.hasDistinct()).isTrue();
             assertThat(state.limitValue()).isNull(); // Reset from first query
             assertThat(state.currentLine()).isEqualTo(55);

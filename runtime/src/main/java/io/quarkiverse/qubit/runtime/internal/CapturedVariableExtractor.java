@@ -28,7 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * This version introduced lambda reflection support, allowing captured variables to be accessed via reflection.
  * Earlier versions do not support reflection on lambda-proxy class fields.
  *
- * @see <a href="https://www.graalvm.org/jdk21/reference-manual/native-image/dynamic-features/Reflection/">GraalVM Reflection Documentation</a>
+ * @see <a href="https://www.graalvm.org/latest/reference-manual/native-image/dynamic-features/Reflection/">GraalVM Reflection Documentation</a>
  */
 public final class CapturedVariableExtractor {
 
@@ -106,21 +106,21 @@ public final class CapturedVariableExtractor {
             if (field == null) {
                 String availableFields = listAvailableFields(lambdaClass);
                 if (IS_NATIVE_IMAGE && "none".equals(availableFields)) {
-                    throw new NoSuchFieldException(String.format(
-                            "Could not find captured variable at index %d in lambda class %s. " +
-                            "NATIVE IMAGE ERROR: Lambda reflection metadata may not be properly configured. " +
-                            "Ensure you are using GraalVM/Mandrel 25+ and that the reachability-metadata.json " +
-                            "was generated during the native build. Check that the quarkus-qubit extension is " +
-                            "properly included in your build. " +
-                            "See: https://www.graalvm.org/latest/reference-manual/native-image/metadata/",
+                    throw new NoSuchFieldException(String.format("""
+                            Could not find captured variable at index %d in lambda class %s. \
+                            NATIVE IMAGE ERROR: Lambda reflection metadata may not be properly configured. \
+                            Ensure you are using GraalVM/Mandrel 25+ and that the reachability-metadata.json \
+                            was generated during the native build. Check that the quarkus-qubit extension is \
+                            properly included in your build. \
+                            See: https://www.graalvm.org/latest/reference-manual/native-image/metadata/""",
                             i, lambdaClass.getName()));
                 }
-                throw new NoSuchFieldException(String.format(
-                        "Could not find captured variable at index %d in lambda class %s. " +
-                        "Your Java compiler uses an unsupported field naming convention. " +
-                        "Supported compilers: Oracle/OpenJDK javac (arg$N), Eclipse JDT (val$N), GraalVM (argN). " +
-                        "Available fields in lambda: [%s]. " +
-                        "To fix: (1) Use a supported compiler, or (2) File an issue to add support for your compiler's naming convention.",
+                throw new NoSuchFieldException(String.format("""
+                        Could not find captured variable at index %d in lambda class %s. \
+                        Your Java compiler uses an unsupported field naming convention. \
+                        Supported compilers: Oracle/OpenJDK javac (arg$N), Eclipse JDT (val$N), GraalVM (argN). \
+                        Available fields in lambda: [%s]. \
+                        To fix: (1) Use a supported compiler, or (2) File an issue to add support for your compiler's naming convention.""",
                         i, lambdaClass.getName(), availableFields));
             }
             fields[i] = field;

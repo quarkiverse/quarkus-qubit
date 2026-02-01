@@ -68,7 +68,7 @@ public interface MethodCallDispatchContext {
 
     /** Returns the first argument expression, or null if no arguments. */
     default LambdaExpression firstArgument() {
-        return hasArguments() ? methodCall().arguments().get(0) : null;
+        return hasArguments() ? methodCall().arguments().getFirst() : null;
     }
 
     // ========== Method Name Validation Helpers ==========

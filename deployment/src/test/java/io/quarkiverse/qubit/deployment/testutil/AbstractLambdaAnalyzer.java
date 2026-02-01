@@ -145,8 +145,8 @@ public abstract class AbstractLambdaAnalyzer {
      */
     protected Handle extractLambdaHandle(InvokeDynamicInsnNode invokeDynamic) {
         Object[] bsmArgs = invokeDynamic.bsmArgs;
-        if (bsmArgs != null && bsmArgs.length >= 2 && bsmArgs[1] instanceof Handle) {
-            return (Handle) bsmArgs[1];
+        if (bsmArgs != null && bsmArgs.length >= 2 && bsmArgs[1] instanceof Handle handle) {
+            return handle;
         }
         return null;
     }
