@@ -1,0 +1,15 @@
+# Qubit Codestart Configuration
+
+# H2 Database (in-memory for development)
+quarkus:
+  datasource:
+    db-kind: h2
+    jdbc:
+      url: jdbc:h2:mem:qubit;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+  hibernate-orm:
+    database:
+      generation: drop-and-create
+    log:
+      sql: true

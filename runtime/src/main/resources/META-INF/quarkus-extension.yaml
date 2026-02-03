@@ -1,0 +1,20 @@
+name: Qubit
+description: |
+  Type-safe JPA Criteria queries using lambda expressions.
+  Query entities using fluent, compile-time checked syntax.
+metadata:
+  keywords:
+    - jpa
+    - criteria
+    - lambda
+    - panache
+    - query
+    - typesafe
+  guide: https://quarkiverse.github.io/quarkiverse-docs/quarkus-qubit/dev/
+  categories:
+    - "data"
+  codestart:
+    name: Qubit
+    languages:
+      - java
+    artifact: "io.quarkiverse.qubit:quarkus-qubit:codestarts:jar:${project.version}"
