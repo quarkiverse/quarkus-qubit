@@ -63,16 +63,15 @@ public class LambdaDeduplicator {
     /**
      * Computes bytecode signature for early deduplication.
      * This hash is computed BEFORE bytecode analysis using structural elements only.
+     * <p>
+     * NOTE: We intentionally exclude ownerClassName and methodName to allow
+     * identical lambda expressions in different call sites to be deduplicated.
      *
      * @param callSite the lambda call site
      * @return bytecode signature hash
      */
     public String computeBytecodeSignature(InvokeDynamicScanner.LambdaCallSite callSite) {
         StringBuilder sb = new StringBuilder();
-
-        // Include owner class and method for uniqueness
-        sb.append(callSite.ownerClassName()).append("|");
-        sb.append(callSite.methodName()).append("|");
 
         // Include all lambda components
         appendLambdaPairs(sb, "W", callSite.predicateLambdas());

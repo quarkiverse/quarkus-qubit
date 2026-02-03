@@ -515,6 +515,10 @@ public class LambdaTestSources {
         return p -> p.email.isEmpty();
     }
 
+    public static QuerySpec<TestPerson, Boolean> stringIsBlank() {
+        return p -> p.email.isBlank();
+    }
+
     public static QuerySpec<TestPerson, Boolean> stringSubstring() {
         return p -> p.firstName.substring(0, 4).equals("John");
     }

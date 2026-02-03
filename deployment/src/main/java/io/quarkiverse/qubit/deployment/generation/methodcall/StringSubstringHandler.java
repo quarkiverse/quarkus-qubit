@@ -3,13 +3,18 @@ package io.quarkiverse.qubit.deployment.generation.methodcall;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUBSTRING;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.LocalVar;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/** Handles substring(beginIndex) and substring(beginIndex, endIndex) via StringExpressionBuilder. */
+/**
+ * Handles substring(beginIndex) and substring(beginIndex, endIndex) via StringExpressionBuilder.
+ *
+ * <p>Uses Gizmo 2 API with Expr type.
+ */
 public enum StringSubstringHandler implements MethodCallHandler {
     INSTANCE;
 
@@ -19,22 +24,27 @@ public enum StringSubstringHandler implements MethodCallHandler {
     }
 
     @Override
-    public Optional<ResultHandle> handle(MethodCallDispatchContext context) {
+    public Optional<Expr> handle(MethodCallDispatchContext context) {
         if (!context.isMethod(METHOD_SUBSTRING)) {
             return Optional.empty();
         }
 
-        ResultHandle fieldExpression = context.generateTargetAsJpaExpression();
+        Expr fieldExpression = context.generateTargetAsJpaExpression();
 
-        List<ResultHandle> arguments = new ArrayList<>();
+        // Store each argument in a LocalVar to ensure proper bytecode ordering (Gizmo2 requirement)
+        List<Expr> arguments = new ArrayList<>();
+        int argIndex = 0;
         for (LambdaExpression arg : context.methodCall().arguments()) {
-            arguments.add(context.generateArgumentAsJpaExpression(arg));
+            LocalVar argVar = context.bc().localVar("substringArg" + argIndex,
+                    context.generateArgumentAsJpaExpression(arg));
+            arguments.add(argVar);
+            argIndex++;
         }
 
         return context.builderRegistry()
                 .stringBuilder()
                 .buildStringSubstring(
-                        context.method(),
+                        context.bc(),
                         context.methodCall(),
                         context.cb(),
                         fieldExpression,

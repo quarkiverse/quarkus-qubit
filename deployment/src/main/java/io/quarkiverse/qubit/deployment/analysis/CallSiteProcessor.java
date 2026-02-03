@@ -252,15 +252,30 @@ public class CallSiteProcessor {
             return success;  // Deduplicated, no generation needed
         }
 
-        // Generate executor (delegate to existing generation logic)
+        // Build executor class name
         String executorClassName = targetPackage + "." + classNamePrefix
                 + success.lambdaHash().substring(0, HASH_CHARS_FOR_CLASS_NAME);
+
+        // Atomic registration BEFORE generation - prevents duplicate class generation in parallel processing
+        String existingExecutor = deduplicator.registerExecutor(success.lambdaHash(), executorClassName);
+        if (existingExecutor != null) {
+            // Another thread already registered this lambda hash - treat as late dedup hit
+            if (metricsCollector != null) {
+                metricsCollector.incrementDuplicateCount();
+            }
+            ctx.deduplicatedCount().incrementAndGet();
+            // Still need to register for this call site's runtime lookup
+            deduplicator.registerBytecodeSignature(bytecodeSignature, success.lambdaHash(), existingExecutor);
+            registerEarlyDeduplicatedQuery(callSite, existingExecutor, ctx.queryTransformations(), ctx.loggingConfig());
+            return success;
+        }
+
+        // We won the race - generate the executor
         try {
             generateExecutorFromResult(success.result(), success.lambdaHash(), callSite,
                     ctx.generatedClass(), ctx.queryTransformations(), ctx.loggingConfig());
 
-            // Register both lambda hash and bytecode signature for deduplication
-            deduplicator.registerExecutor(success.lambdaHash(), executorClassName);
+            // Register bytecode signature for early deduplication
             deduplicator.registerBytecodeSignature(bytecodeSignature, success.lambdaHash(), executorClassName);
             ctx.generatedCount().incrementAndGet();
 
@@ -340,6 +355,44 @@ public class CallSiteProcessor {
                         null, null, false, ctx);
             }
         }
+    }
+
+    /**
+     * Registers a duplicate call site that was detected by pre-grouping by bytecode signature.
+     * This method is called for call sites that have the same signature as an already-processed representative.
+     *
+     * @param duplicate the duplicate call site to register
+     * @param representative the already-processed call site with the same signature
+     * @param ctx the processing context
+     * @return true if registration succeeded, false if fallback to full analysis is needed
+     */
+    public boolean registerEarlyDeduplicated(
+            InvokeDynamicScanner.LambdaCallSite duplicate,
+            InvokeDynamicScanner.LambdaCallSite representative,
+            CallSiteProcessingContext ctx) {
+
+        // Get the executor class name from the representative's signature
+        String bytecodeSignature = deduplicator.computeBytecodeSignature(representative);
+        LambdaDeduplicator.CachedAnalysisResult cachedResult = deduplicator.getCachedResult(bytecodeSignature);
+
+        if (cachedResult == null) {
+            // Representative failed analysis - caller should process duplicate independently
+            Log.debugf("Early deduplication: no cached result for representative %s, will process duplicate independently",
+                    representative.getCallSiteId());
+            return false;
+        }
+
+        String executorClassName = cachedResult.executorClassName();
+        ctx.deduplicatedCount().incrementAndGet();
+
+        registerEarlyDeduplicatedQuery(duplicate, executorClassName,
+                ctx.queryTransformations(), ctx.loggingConfig());
+
+        if (ctx.loggingConfig().logDeduplication()) {
+            Log.debugf("Early pre-grouped deduplication: %s -> %s (same as %s)",
+                    duplicate.getCallSiteId(), executorClassName, representative.getCallSiteId());
+        }
+        return true;
     }
 
     /**

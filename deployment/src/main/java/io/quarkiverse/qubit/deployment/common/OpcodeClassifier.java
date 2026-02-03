@@ -11,9 +11,9 @@ public final class OpcodeClassifier {
 
     // ========== Arithmetic & Logical Operations ==========
 
-    /** Checks if opcode is arithmetic (ADD, SUB, MUL, DIV, REM), excludes IAND/IOR. */
+    /** Checks if opcode is arithmetic (ADD, SUB, MUL, DIV, REM). Range IADD-DREM (96-115). */
     public static boolean isArithmeticOpcode(int opcode) {
-        return (opcode >= IADD && opcode <= DREM) && opcode != IAND && opcode != IOR;
+        return opcode >= IADD && opcode <= DREM;
     }
 
     /** Checks if opcode is logical (IAND, IOR, IXOR). */
@@ -71,9 +71,9 @@ public final class OpcodeClassifier {
                isDoubleConstantOpcode(opcode);
     }
 
-    /** Checks if opcode is ICONST_0 to ICONST_5. */
+    /** Checks if opcode is ICONST_M1 to ICONST_5. */
     public static boolean isIntConstantOpcode(int opcode) {
-        return opcode >= ICONST_0 && opcode <= ICONST_5;
+        return opcode >= ICONST_M1 && opcode <= ICONST_5;
     }
 
     /** Checks if opcode is FCONST_0 to FCONST_2. */

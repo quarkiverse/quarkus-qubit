@@ -1,12 +1,12 @@
 package io.quarkiverse.qubit.deployment.generation.methodcall;
 
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Const;
+import io.quarkus.gizmo2.Expr;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
 
 /**
  * Unit tests for {@link GenerationResult} sealed interface and its implementations.
@@ -22,7 +22,7 @@ class GenerationResultTest {
 
         @Test
         void success_isSuccessReturnsTrue() {
-            ResultHandle handle = mock(ResultHandle.class);
+            Expr handle = Const.of("test");
             GenerationResult result = new GenerationResult.Success(handle);
 
             assertThat(result.isSuccess()).isTrue();
@@ -37,29 +37,29 @@ class GenerationResultTest {
 
         @Test
         void success_getOrThrow_returnsValue() {
-            ResultHandle handle = mock(ResultHandle.class);
+            Expr handle = Const.of("test");
             GenerationResult result = new GenerationResult.Success(handle);
 
-            ResultHandle returned = result.getOrThrow();
+            Expr returned = result.getOrThrow();
 
             assertThat(returned).isSameAs(handle);
         }
 
         @Test
         void success_orElse_returnsValue() {
-            ResultHandle handle = mock(ResultHandle.class);
-            ResultHandle fallback = mock(ResultHandle.class);
+            Expr handle = Const.of("handle");
+            Expr fallback = Const.of("fallback");
             GenerationResult result = new GenerationResult.Success(handle);
 
-            ResultHandle returned = result.orElse(fallback);
+            Expr returned = result.orElse(fallback);
 
             assertThat(returned).isSameAs(handle);
         }
 
         @Test
         void success_map_appliesMapper() {
-            ResultHandle original = mock(ResultHandle.class);
-            ResultHandle mapped = mock(ResultHandle.class);
+            Expr original = Const.of("original");
+            Expr mapped = Const.of("mapped");
             GenerationResult result = new GenerationResult.Success(original);
 
             GenerationResult mappedResult = result.map(rh -> mapped);
@@ -70,7 +70,7 @@ class GenerationResultTest {
 
         @Test
         void success_factoryMethod_createsSuccess() {
-            ResultHandle handle = mock(ResultHandle.class);
+            Expr handle = Const.of("test");
 
             GenerationResult result = GenerationResult.success(handle);
 
@@ -118,10 +118,10 @@ class GenerationResultTest {
 
         @Test
         void unsupported_orElse_returnsFallback() {
-            ResultHandle fallback = mock(ResultHandle.class);
+            Expr fallback = Const.of("test");
             GenerationResult result = new GenerationResult.Unsupported("method", "reason");
 
-            ResultHandle returned = result.orElse(fallback);
+            Expr returned = result.orElse(fallback);
 
             assertThat(returned).isSameAs(fallback);
         }
@@ -130,7 +130,7 @@ class GenerationResultTest {
         void unsupported_map_returnsSameUnsupported() {
             GenerationResult.Unsupported original = new GenerationResult.Unsupported("method", "reason");
 
-            GenerationResult mappedResult = original.map(rh -> mock(ResultHandle.class));
+            GenerationResult mappedResult = original.map(rh -> Const.of("test"));
 
             assertThat(mappedResult).isSameAs(original);
         }

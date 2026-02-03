@@ -5,12 +5,16 @@ import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.notCompar
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.*;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
-import io.quarkus.gizmo.MethodDescriptor;
+import io.quarkus.gizmo2.desc.MethodDesc;
 
 import java.util.EnumMap;
 import java.util.Map;
 
-/** Maps binary operators to JPA CriteriaBuilder method descriptors. */
+/**
+ * Maps binary operators to JPA CriteriaBuilder method descriptors.
+ *
+ * <p>Uses Gizmo 2 API with MethodDesc type.
+ */
 public final class OperatorMethodMapper {
 
     private OperatorMethodMapper() {}
@@ -18,7 +22,7 @@ public final class OperatorMethodMapper {
     // ========== Comparison Operator Registry ==========
 
     /** Holds both Expression-based and Comparable-based method descriptors for a comparison operator. */
-    private record ComparisonSpec(MethodDescriptor exprVariant, MethodDescriptor comparableVariant) {}
+    private record ComparisonSpec(MethodDesc exprVariant, MethodDesc comparableVariant) {}
 
     /** Data-driven registry mapping comparison operators to their CriteriaBuilder methods. */
     private static final Map<Operator, ComparisonSpec> COMPARISON_SPECS;
@@ -35,7 +39,7 @@ public final class OperatorMethodMapper {
     }
 
     /** Maps arithmetic operator to CriteriaBuilder method (sum/diff/prod/quot/mod). */
-    public static MethodDescriptor mapArithmeticOperator(Operator operator) {
+    public static MethodDesc mapArithmeticOperator(Operator operator) {
         return switch (operator) {
             case ADD -> CB_SUM_BINARY;
             case SUB -> CB_DIFF;
@@ -50,7 +54,7 @@ public final class OperatorMethodMapper {
      * Maps comparison operator to CriteriaBuilder method.
      * @param useExpressionVariant true for Expression-based, false for Comparable-based
      */
-    public static MethodDescriptor mapComparisonOperator(Operator operator, boolean useExpressionVariant) {
+    public static MethodDesc mapComparisonOperator(Operator operator, boolean useExpressionVariant) {
         ComparisonSpec spec = COMPARISON_SPECS.get(operator);
         if (spec == null) {
             throw new IllegalArgumentException(notComparisonOperator(operator));

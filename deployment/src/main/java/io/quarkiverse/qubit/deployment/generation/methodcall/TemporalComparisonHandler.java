@@ -2,12 +2,14 @@ package io.quarkiverse.qubit.deployment.generation.methodcall;
 
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.TEMPORAL_COMPARISON_METHOD_NAMES;
 
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Expr;
 
 import java.util.Optional;
 
 /**
  * Handles isBefore(), isAfter(), isEqual() via TemporalExpressionBuilder.
+ *
+ * <p>Uses Gizmo 2 API with Expr type.
  */
 public enum TemporalComparisonHandler implements MethodCallHandler {
     INSTANCE;
@@ -18,18 +20,18 @@ public enum TemporalComparisonHandler implements MethodCallHandler {
     }
 
     @Override
-    public Optional<ResultHandle> handle(MethodCallDispatchContext context) {
+    public Optional<Expr> handle(MethodCallDispatchContext context) {
         if (!context.isValidMethodWithArguments(TEMPORAL_COMPARISON_METHOD_NAMES)) {
             return Optional.empty();
         }
 
-        ResultHandle fieldExpression = context.generateTargetAsJpaExpression();
-        ResultHandle argument = context.generateArgument(context.firstArgument());
+        Expr fieldExpression = context.generateTargetAsJpaExpression();
+        Expr argument = context.generateArgument(context.firstArgument());
 
         return context.builderRegistry()
                 .temporalBuilder()
                 .buildTemporalComparison(
-                        context.method(),
+                        context.bc(),
                         context.methodCall(),
                         context.cb(),
                         fieldExpression,

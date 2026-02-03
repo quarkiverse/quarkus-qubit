@@ -1,11 +1,13 @@
 package io.quarkiverse.qubit.deployment.generation.methodcall;
 
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Expr;
 
 import java.util.Optional;
 
 /**
  * Handles toUpperCase/toLowerCase/trim/length via StringExpressionBuilder.
+ *
+ * <p>Uses Gizmo 2 API with Expr type.
  */
 public enum StringTransformationHandler implements MethodCallHandler {
     INSTANCE;
@@ -16,12 +18,12 @@ public enum StringTransformationHandler implements MethodCallHandler {
     }
 
     @Override
-    public Optional<ResultHandle> handle(MethodCallDispatchContext context) {
-        ResultHandle fieldExpression = context.generateTargetAsJpaExpression();
+    public Optional<Expr> handle(MethodCallDispatchContext context) {
+        Expr fieldExpression = context.generateTargetAsJpaExpression();
         return context.builderRegistry()
                 .stringBuilder()
                 .buildStringTransformation(
-                        context.method(),
+                        context.bc(),
                         context.methodCall(),
                         context.cb(),
                         fieldExpression)

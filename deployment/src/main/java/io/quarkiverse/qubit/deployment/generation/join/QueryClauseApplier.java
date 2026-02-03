@@ -1,25 +1,27 @@
 package io.quarkiverse.qubit.deployment.generation.join;
 
-import io.quarkus.gizmo.MethodCreator;
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.creator.BlockCreator;
 
 import java.util.List;
 
 /**
  * Strategy for applying query clauses (WHERE, ORDER BY, DISTINCT, pagination).
  * Decouples query builders from bytecode generation details.
+ *
+ * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public interface QueryClauseApplier {
 
-    void applyWherePredicate(MethodCreator method, ResultHandle query, ResultHandle predicate);
+    void applyWherePredicate(BlockCreator bc, Expr query, Expr predicate);
 
     /** Uses "last call wins" semantics for sort ordering. */
-    void applyBiEntityOrderBy(MethodCreator method, ResultHandle query, ResultHandle root,
-            ResultHandle join, ResultHandle cb, List<?> sortExpressions,
-            ResultHandle capturedValues);
+    void applyBiEntityOrderBy(BlockCreator bc, Expr query, Expr root,
+            Expr join, Expr cb, List<?> sortExpressions,
+            Expr capturedValues);
 
-    void applyDistinct(MethodCreator method, ResultHandle query, ResultHandle distinct);
+    void applyDistinct(BlockCreator bc, Expr query, Expr distinct);
 
-    void applyPagination(MethodCreator method, ResultHandle typedQuery,
-            ResultHandle offset, ResultHandle limit);
+    void applyPagination(BlockCreator bc, Expr typedQuery,
+            Expr offset, Expr limit);
 }

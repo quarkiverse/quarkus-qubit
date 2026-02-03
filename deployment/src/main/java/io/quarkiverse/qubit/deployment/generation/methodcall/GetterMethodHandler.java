@@ -4,13 +4,15 @@ import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.extr
 import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.isGetterMethodName;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Expr;
 
 import java.util.Optional;
 
 /**
  * Fallback handler: converts getter calls (getXxx, isXxx) to field access.
  * getName() → root.get("name"), isActive() → root.get("active")
+ *
+ * <p>Uses Gizmo 2 API with Expr type.
  */
 public enum GetterMethodHandler implements MethodCallHandler {
     INSTANCE;
@@ -21,7 +23,7 @@ public enum GetterMethodHandler implements MethodCallHandler {
     }
 
     @Override
-    public Optional<ResultHandle> handle(MethodCallDispatchContext context) {
+    public Optional<Expr> handle(MethodCallDispatchContext context) {
         String methodName = context.methodName();
 
         if (!isGetterMethodName(methodName)) {
@@ -35,7 +37,7 @@ public enum GetterMethodHandler implements MethodCallHandler {
                 context.methodCall().returnType());
 
         // Use polymorphic interface methods (not context.helper()/root())
-        ResultHandle result = context.generateFieldAccess(fieldAccess, context.defaultRoot());
+        Expr result = context.generateFieldAccess(fieldAccess, context.defaultRoot());
 
         return Optional.of(result);
     }

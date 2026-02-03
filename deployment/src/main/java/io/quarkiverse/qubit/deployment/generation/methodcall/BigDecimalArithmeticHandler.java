@@ -3,11 +3,15 @@ package io.quarkiverse.qubit.deployment.generation.methodcall;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.BIG_DECIMAL_ARITHMETIC_METHODS;
 
 import io.quarkiverse.qubit.deployment.generation.expression.BuilderResult;
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Expr;
 
 import java.util.Optional;
 
-/** Handles BigDecimal add/subtract/multiply/divide via BigDecimalExpressionBuilder. */
+/**
+ * Handles BigDecimal add/subtract/multiply/divide via BigDecimalExpressionBuilder.
+ *
+ * <p>Uses Gizmo 2 API with Expr type.
+ */
 public enum BigDecimalArithmeticHandler implements MethodCallHandler {
     INSTANCE;
 
@@ -17,18 +21,18 @@ public enum BigDecimalArithmeticHandler implements MethodCallHandler {
     }
 
     @Override
-    public Optional<ResultHandle> handle(MethodCallDispatchContext context) {
+    public Optional<Expr> handle(MethodCallDispatchContext context) {
         if (!context.isValidMethodWithArguments(BIG_DECIMAL_ARITHMETIC_METHODS)) {
             return Optional.empty();
         }
 
-        ResultHandle fieldExpression = context.generateTargetAsJpaExpression();
-        ResultHandle argument = context.generateArgumentAsJpaExpression(context.firstArgument());
+        Expr fieldExpression = context.generateTargetAsJpaExpression();
+        Expr argument = context.generateArgumentAsJpaExpression(context.firstArgument());
 
         BuilderResult result = context.builderRegistry()
                 .bigDecimalBuilder()
                 .buildBigDecimalArithmetic(
-                        context.method(),
+                        context.bc(),
                         context.methodCall(),
                         context.cb(),
                         fieldExpression,

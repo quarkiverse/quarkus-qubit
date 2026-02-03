@@ -24,6 +24,7 @@ class StringOperationsCriteriaTest extends CriteriaQueryTestBase {
             "stringToUpperCase, upper",
             "stringTrim, trim",
             "stringIsEmpty, equal",
+            "stringIsBlank, equal",
             "stringSubstring, substring"
     })
     void stringTransformation(String lambdaMethodName, String expectedMethod) {
@@ -97,5 +98,17 @@ class StringOperationsCriteriaTest extends CriteriaQueryTestBase {
         assertCriteriaMethodCalled(structure, "lower");
         assertFieldAccessed(structure, "firstName");
         assertConstantUsed(structure, "john");
+    }
+
+    @Test
+    void stringIsBlank() {
+        LambdaExpression expr = analyzeLambda("stringIsBlank");
+        CriteriaQueryStructure structure = generateCriteriaQuery(expr);
+        assertCriteriaGenerationSucceeds(expr);
+        // isBlank() generates cb.equal(cb.trim(field), cb.literal(""))
+        assertCriteriaMethodCalled(structure, "trim");
+        assertCriteriaMethodCalled(structure, "equal");
+        assertFieldAccessed(structure, "email");
+        assertConstantUsed(structure, "");  // empty string literal
     }
 }

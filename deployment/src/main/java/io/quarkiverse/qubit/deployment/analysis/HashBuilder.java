@@ -3,15 +3,11 @@ package io.quarkiverse.qubit.deployment.analysis;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_TYPE_COUNT;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_TYPE_LIST;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 /** Fluent builder for constructing query hash strings. */
 public final class HashBuilder {
@@ -178,9 +174,9 @@ public final class HashBuilder {
         return builder.toString();
     }
 
-    /** Computes MD5 hash of built string. */
+    /** Computes FNV-1a hash of built string. */
     public String buildHash() {
-        return computeMd5Hash(builder.toString());
+        return computeFnv1aHash(builder.toString());
     }
 
     // ========== Private Helpers ==========
@@ -197,14 +193,20 @@ public final class HashBuilder {
                 .collect(Collectors.joining(","));
     }
 
-    /** MD5 hash, falls back to hashCode() if MD5 unavailable. */
-    private static String computeMd5Hash(String input) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] digest = md.digest(input.getBytes(UTF_8));
-            return HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException _) {
-            return String.valueOf(input.hashCode());
+    // FNV-1a 64-bit constants
+    private static final long FNV_OFFSET_BASIS = 0xcbf29ce484222325L;
+    private static final long FNV_PRIME = 0x100000001b3L;
+
+    /** Fast FNV-1a 64-bit hash - no MessageDigest overhead. Padded to 16 chars. */
+    private static String computeFnv1aHash(String input) {
+        long hash = FNV_OFFSET_BASIS;
+        int length = input.length();
+        for (int i = 0; i < length; i++) {
+            hash ^= input.charAt(i);
+            hash *= FNV_PRIME;
         }
+        // Pad to 16 hex chars (use Long.toHexString then left-pad with zeros)
+        String hex = Long.toHexString(hash);
+        return "0".repeat(16 - hex.length()) + hex;
     }
 }

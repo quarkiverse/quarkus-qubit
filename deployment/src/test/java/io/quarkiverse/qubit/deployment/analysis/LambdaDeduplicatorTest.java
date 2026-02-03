@@ -104,13 +104,14 @@ class LambdaDeduplicatorTest {
         }
 
         @Test
-        void hash_is32CharacterHexString() {
+        void hash_isHexString() {
             LambdaExpression expr = comparison("age", 25);
 
             String hash = deduplicator.computeLambdaHash(expr, false, false);
 
+            // FNV-1a 64-bit produces up to 16 hex characters
             assertThat(hash)
-                    .hasSize(32)
+                    .hasSize(16)
                     .matches("[0-9a-f]+");
         }
     }
@@ -319,9 +320,10 @@ class LambdaDeduplicatorTest {
 
             String hash = deduplicator.computeAggregationHash(null, aggregation, "MAX");
 
+            // FNV-1a 64-bit produces up to 16 hex characters
             assertThat(hash)
                     .isNotNull()
-                    .hasSize(32);
+                    .hasSize(16);
         }
 
         @Test
@@ -381,9 +383,10 @@ class LambdaDeduplicatorTest {
 
             String hash = deduplicator.computeJoinHash(joinRel, null, "INNER", false);
 
+            // FNV-1a 64-bit produces up to 16 hex characters
             assertThat(hash)
                     .isNotNull()
-                    .hasSize(32);
+                    .hasSize(16);
         }
     }
 

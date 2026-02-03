@@ -2,6 +2,8 @@ package io.quarkiverse.qubit.deployment.analysis.instruction;
 
 import org.objectweb.asm.tree.AbstractInsnNode;
 
+import java.util.Set;
+
 /**
  * Strategy interface for handling bytecode instructions during lambda analysis.
  *
@@ -10,9 +12,25 @@ import org.objectweb.asm.tree.AbstractInsnNode;
  *
  * <p><b>Contract:</b> {@link #canHandle} must be pure; {@link #handle} only called when canHandle returns true.
  *
+ * <p><b>Optimization:</b> Handlers should override {@link #supportedOpcodes()} to enable O(1) dispatch
+ * table lookup instead of O(n) linear search through handlers.
+ *
  * @see AnalysisContext
  */
 public interface InstructionHandler {
+
+    /**
+     * Returns the set of opcodes this handler can process.
+     * Used by {@link InstructionHandlerRegistry} for O(1) dispatch table lookup.
+     *
+     * <p>Override this method for optimal performance. Handlers that don't override
+     * will fall back to linear search via {@link #canHandle}.
+     *
+     * @return set of supported opcodes, or empty set for linear-search fallback
+     */
+    default Set<Integer> supportedOpcodes() {
+        return Set.of();
+    }
 
     /**
      * Determines whether this handler can process the instruction.

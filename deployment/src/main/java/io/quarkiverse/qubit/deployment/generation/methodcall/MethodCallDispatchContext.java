@@ -2,8 +2,8 @@ package io.quarkiverse.qubit.deployment.generation.methodcall;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionBuilderRegistry;
-import io.quarkus.gizmo.MethodCreator;
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.creator.BlockCreator;
 
 import java.util.Collection;
 
@@ -12,42 +12,44 @@ import java.util.Collection;
  * Enables handler reuse across single-entity ({@link MethodCallContext})
  * and bi-entity ({@link BiEntityMethodCallContext}) query types.
  *
+ * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
+ *
  * @see MethodCallHandler
  */
 public interface MethodCallDispatchContext {
 
     // ========== Core Handles ==========
 
-    /** Gizmo method creator for bytecode generation. */
-    MethodCreator method();
+    /** Gizmo 2 block creator for bytecode generation. */
+    BlockCreator bc();
 
     /** Method call expression from the lambda AST. */
     LambdaExpression.MethodCall methodCall();
 
     /** CriteriaBuilder handle. */
-    ResultHandle cb();
+    Expr cb();
 
     // ========== Expression Generation (Context-Specific) ==========
 
     /** Generates JPA Expression from the method call's target. Context determines path resolution. */
-    ResultHandle generateTargetAsJpaExpression();
+    Expr generateTargetAsJpaExpression();
 
     /** Generates target bytecode, returning raw values where appropriate (e.g., LIKE patterns). */
-    ResultHandle generateTarget();
+    Expr generateTarget();
 
     /** Generates JPA Expression from a lambda expression argument. */
-    ResultHandle generateArgumentAsJpaExpression(LambdaExpression expression);
+    Expr generateArgumentAsJpaExpression(LambdaExpression expression);
 
     /** Generates argument bytecode, returning raw values where appropriate. */
-    ResultHandle generateArgument(LambdaExpression expression);
+    Expr generateArgument(LambdaExpression expression);
 
     // ========== Field Access Generation ==========
 
     /** Generates JPA field access expression (path.get("fieldName")). */
-    ResultHandle generateFieldAccess(LambdaExpression.FieldAccess fieldAccess, ResultHandle path);
+    Expr generateFieldAccess(LambdaExpression.FieldAccess fieldAccess, Expr path);
 
     /** Returns the default root for fallback scenarios. */
-    ResultHandle defaultRoot();
+    Expr defaultRoot();
 
     // ========== Builder Registry Access ==========
 

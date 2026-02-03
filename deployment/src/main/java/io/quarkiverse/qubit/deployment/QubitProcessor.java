@@ -172,6 +172,9 @@ public class QubitProcessor {
                 ? new BuildMetricsCollector()
                 : null;
 
+        // Set metrics collector on class generator for Gizmo2 timing
+        classGenerator.setMetricsCollector(metricsCollector);
+
         // Clear caches for fresh metrics collection (also essential for dev mode hot reload)
         BytecodeLoader.clearCache();
         LambdaBytecodeAnalyzer.clearCache();

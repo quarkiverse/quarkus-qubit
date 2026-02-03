@@ -2,12 +2,14 @@ package io.quarkiverse.qubit.deployment.generation.methodcall;
 
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_EQUALS;
 
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Expr;
 
 import java.util.Optional;
 
 /**
  * Handles equals/isEmpty/isBlank/length via StringExpressionBuilder.
+ *
+ * <p>Uses Gizmo 2 API with Expr type.
  */
 public enum StringUtilityHandler implements MethodCallHandler {
     INSTANCE;
@@ -18,11 +20,11 @@ public enum StringUtilityHandler implements MethodCallHandler {
     }
 
     @Override
-    public Optional<ResultHandle> handle(MethodCallDispatchContext context) {
-        ResultHandle fieldExpression = context.generateTargetAsJpaExpression();
+    public Optional<Expr> handle(MethodCallDispatchContext context) {
+        Expr fieldExpression = context.generateTargetAsJpaExpression();
 
         // Special handling for equals() - needs raw argument, not JPA expression
-        ResultHandle argument = null;
+        Expr argument = null;
         if (METHOD_EQUALS.equals(context.methodName()) && context.hasArguments()) {
             argument = context.generateArgument(context.firstArgument());
         }
@@ -30,7 +32,7 @@ public enum StringUtilityHandler implements MethodCallHandler {
         return context.builderRegistry()
                 .stringBuilder()
                 .buildStringUtility(
-                        context.method(),
+                        context.bc(),
                         context.methodCall(),
                         context.cb(),
                         fieldExpression,

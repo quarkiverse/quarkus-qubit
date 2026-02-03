@@ -194,6 +194,21 @@ class MethodInvocationHandlerTest {
         }
 
         @Test
+        void stringIsBlank_createsMethodCall() {
+            context.push(field("name", String.class));
+
+            var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "isBlank", "()Z");
+            handler.handle(insn, context);
+
+            assertThat(context.getStackSize()).isEqualTo(1);
+            var result = context.pop();
+            assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
+            var methodCall = (LambdaExpression.MethodCall) result;
+            assertThat(methodCall.methodName()).isEqualTo("isBlank");
+            assertThat(methodCall.returnType()).isEqualTo(boolean.class);
+        }
+
+        @Test
         void stringStartsWith_createsMethodCall() {
             context.push(field("name", String.class));
             context.push(constant("prefix"));

@@ -2,9 +2,9 @@ package io.quarkiverse.qubit.deployment.generation.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
 
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Const;
+import io.quarkus.gizmo2.Expr;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -30,7 +30,7 @@ class BuilderResultTest {
         @Test
         @DisplayName("isSuccess returns true")
         void isSuccessReturnsTrue() {
-            ResultHandle handle = mock(ResultHandle.class);
+            Expr handle = Const.of("test");
             BuilderResult result = new BuilderResult.Success(handle);
 
             assertThat(result.isSuccess()).isTrue();
@@ -39,7 +39,7 @@ class BuilderResultTest {
         @Test
         @DisplayName("getOrThrow returns the value")
         void getOrThrowReturnsValue() {
-            ResultHandle handle = mock(ResultHandle.class);
+            Expr handle = Const.of("test");
             BuilderResult result = new BuilderResult.Success(handle);
 
             assertThat(result.getOrThrow()).isSameAs(handle);
@@ -48,7 +48,7 @@ class BuilderResultTest {
         @Test
         @DisplayName("toOptional returns present Optional")
         void toOptionalReturnsPresent() {
-            ResultHandle handle = mock(ResultHandle.class);
+            Expr handle = Const.of("test");
             BuilderResult result = new BuilderResult.Success(handle);
 
             assertThat(result.toOptional())
@@ -94,7 +94,7 @@ class BuilderResultTest {
         @Test
         @DisplayName("success() creates Success instance")
         void successFactory() {
-            ResultHandle handle = mock(ResultHandle.class);
+            Expr handle = Const.of("test");
 
             BuilderResult result = BuilderResult.success(handle);
 
@@ -116,7 +116,7 @@ class BuilderResultTest {
         @Test
         @DisplayName("fromNullable with non-null returns Success")
         void fromNullableWithValue() {
-            ResultHandle handle = mock(ResultHandle.class);
+            Expr handle = Const.of("test");
 
             BuilderResult result = BuilderResult.fromNullable(handle);
 

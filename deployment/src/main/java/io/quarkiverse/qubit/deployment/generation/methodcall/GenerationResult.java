@@ -2,7 +2,7 @@ package io.quarkiverse.qubit.deployment.generation.methodcall;
 
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.cannotGetValueFromUnsupported;
 
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Expr;
 
 import java.util.Objects;
 import java.util.function.UnaryOperator;
@@ -11,15 +11,17 @@ import java.util.function.UnaryOperator;
  * Sealed result type for method call expression generation.
  * Success = bytecode generated; Unsupported = no handler could process.
  * Replaces null returns with explicit semantics for exhaustive switch expressions.
+ *
+ * <p>Uses Gizmo 2 API with Expr type.
  */
 public sealed interface GenerationResult permits
         GenerationResult.Success,
         GenerationResult.Unsupported {
 
-    /** Successful generation with a valid ResultHandle. */
-    record Success(ResultHandle value) implements GenerationResult {
+    /** Successful generation with a valid Expr. */
+    record Success(Expr value) implements GenerationResult {
         public Success {
-            Objects.requireNonNull(value, "ResultHandle value cannot be null in Success");
+            Objects.requireNonNull(value, "Expr value cannot be null in Success");
         }
     }
 
@@ -42,8 +44,8 @@ public sealed interface GenerationResult permits
         return this instanceof Success;
     }
 
-    /** Returns the ResultHandle if Success, or throws if Unsupported. */
-    default ResultHandle getOrThrow() {
+    /** Returns the Expr if Success, or throws if Unsupported. */
+    default Expr getOrThrow() {
         return switch (this) {
             case Success(var value) -> value;
             case Unsupported(_, var reason) ->
@@ -52,15 +54,15 @@ public sealed interface GenerationResult permits
     }
 
     /** Maps the Success value, passing through Unsupported unchanged. */
-    default GenerationResult map(UnaryOperator<ResultHandle> mapper) {
+    default GenerationResult map(UnaryOperator<Expr> mapper) {
         return switch (this) {
             case Success(var value) -> new Success(mapper.apply(value));
             case Unsupported u -> u;
         };
     }
 
-    /** Returns the ResultHandle if Success, or the fallback if Unsupported. */
-    default ResultHandle orElse(ResultHandle fallback) {
+    /** Returns the Expr if Success, or the fallback if Unsupported. */
+    default Expr orElse(Expr fallback) {
         return switch (this) {
             case Success(var value) -> value;
             case Unsupported _ -> fallback;
@@ -68,7 +70,7 @@ public sealed interface GenerationResult permits
     }
 
     /** Creates a Success result. */
-    static GenerationResult success(ResultHandle value) {
+    static GenerationResult success(Expr value) {
         return new Success(value);
     }
 

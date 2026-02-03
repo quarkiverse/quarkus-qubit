@@ -457,7 +457,7 @@ class OpcodeClassifierTest {
         }
 
         @ParameterizedTest
-        @ValueSource(ints = {ICONST_0, ICONST_1, ICONST_2, ICONST_3, ICONST_4, ICONST_5})
+        @ValueSource(ints = {ICONST_M1, ICONST_0, ICONST_1, ICONST_2, ICONST_3, ICONST_4, ICONST_5})
         void iconstOpcodes_areConstant(int opcode) {
             assertThat(OpcodeClassifier.isConstantOpcode(opcode))
                     .as("ICONST opcode %d should be constant", opcode)
@@ -503,7 +503,7 @@ class OpcodeClassifierTest {
     class IsIntConstantOpcodeTests {
 
         @ParameterizedTest
-        @ValueSource(ints = {ICONST_0, ICONST_1, ICONST_2, ICONST_3, ICONST_4, ICONST_5})
+        @ValueSource(ints = {ICONST_M1, ICONST_0, ICONST_1, ICONST_2, ICONST_3, ICONST_4, ICONST_5})
         void validIntConstants_areIntConstant(int opcode) {
             assertThat(OpcodeClassifier.isIntConstantOpcode(opcode))
                     .as("ICONST opcode %d should be int constant", opcode)
@@ -511,17 +511,17 @@ class OpcodeClassifierTest {
         }
 
         @Test
-        void iconstM1_isNotInRange() {
-            // ICONST_M1 is below ICONST_0
+        void iconstM1_isInRange() {
+            // ICONST_M1 represents the constant -1 and should be classified as an int constant
             assertThat(OpcodeClassifier.isIntConstantOpcode(ICONST_M1))
-                    .as("ICONST_M1 should NOT be int constant (below range)")
-                    .isFalse();
+                    .as("ICONST_M1 should be int constant")
+                    .isTrue();
         }
 
         @Test
         void belowRange_isNotIntConstant() {
-            assertThat(OpcodeClassifier.isIntConstantOpcode(ICONST_0 - 1))
-                    .as("Opcode below ICONST_0 should not be int constant")
+            assertThat(OpcodeClassifier.isIntConstantOpcode(ICONST_M1 - 1))
+                    .as("Opcode below ICONST_M1 should not be int constant")
                     .isFalse();
         }
 

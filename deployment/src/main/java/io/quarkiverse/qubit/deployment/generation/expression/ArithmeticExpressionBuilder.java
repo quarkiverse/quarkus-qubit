@@ -2,9 +2,9 @@ package io.quarkiverse.qubit.deployment.generation.expression;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.common.OperatorMethodMapper;
-import io.quarkus.gizmo.MethodCreator;
-import io.quarkus.gizmo.MethodDescriptor;
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.creator.BlockCreator;
+import io.quarkus.gizmo2.desc.MethodDesc;
 
 /**
  * Builds JPA Criteria API expressions for arithmetic operations.
@@ -17,19 +17,21 @@ import io.quarkus.gizmo.ResultHandle;
  *   <li>DIV (/) → {@code CriteriaBuilder.quot()}</li>
  *   <li>MOD (%) → {@code CriteriaBuilder.mod()}</li>
  * </ul>
+ *
+ * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public enum ArithmeticExpressionBuilder implements ExpressionBuilder {
     INSTANCE;
 
     /** Generates bytecode for arithmetic operations. */
-    public ResultHandle buildArithmeticOperation(
-            MethodCreator method,
+    public Expr buildArithmeticOperation(
+            BlockCreator bc,
             LambdaExpression.BinaryOp.Operator operator,
-            ResultHandle cb,
-            ResultHandle left,
-            ResultHandle right) {
+            Expr cb,
+            Expr left,
+            Expr right) {
 
-        MethodDescriptor arithmeticMethod = OperatorMethodMapper.mapArithmeticOperator(operator);
-        return method.invokeInterfaceMethod(arithmeticMethod, cb, left, right);
+        MethodDesc arithmeticMethod = OperatorMethodMapper.mapArithmeticOperator(operator);
+        return bc.invokeInterface(arithmeticMethod, cb, left, right);
     }
 }

@@ -3,8 +3,8 @@ package io.quarkiverse.qubit.deployment.generation.methodcall;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionBuilderRegistry;
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionGeneratorHelper;
-import io.quarkus.gizmo.MethodCreator;
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.creator.BlockCreator;
 
 import java.util.List;
 import java.util.Optional;
@@ -13,6 +13,8 @@ import java.util.Optional;
  * Chain of Responsibility coordinator for method call → JPA expression generation.
  * Iterates handlers in priority order (FAST_REJECT → DELEGATING → FALLBACK).
  * Validates ordering at construction to prevent silent handler interception bugs.
+ *
+ * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 @SuppressWarnings("java:S6206") // Behavioral pattern class, not a data carrier - record semantics inappropriate
 public final class MethodCallHandlerChain {
@@ -71,7 +73,7 @@ public final class MethodCallHandlerChain {
                 // DELEGATING priority - delegate to expression builders
                 TemporalAccessorHandler.INSTANCE,     // getYear, getMonth, getDayOfMonth
                 StringTransformationHandler.INSTANCE, // toUpperCase, toLowerCase, trim
-                StringUtilityHandler.INSTANCE,        // equals, isEmpty, isBlank
+                StringUtilityHandler.INSTANCE,        // equals, isEmpty, isBlank, length
 
                 // FALLBACK priority - broad getter pattern matching (MUST be last)
                 GetterMethodHandler.INSTANCE          // getXxx, isXxx → field access
@@ -80,19 +82,19 @@ public final class MethodCallHandlerChain {
 
     /** Iterates handlers, returns Success or Unsupported (never null). */
     public GenerationResult handleMethodCall(
-            MethodCreator method,
+            BlockCreator bc,
             LambdaExpression.MethodCall methodCall,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle capturedValues,
+            Expr cb,
+            Expr root,
+            Expr capturedValues,
             ExpressionBuilderRegistry builderRegistry,
             ExpressionGeneratorHelper helper) {
 
         MethodCallContext context = new MethodCallContext(
-                method, methodCall, cb, root, capturedValues, builderRegistry, helper);
+                bc, methodCall, cb, root, capturedValues, builderRegistry, helper);
 
         for (MethodCallHandler handler : handlers) {
-            Optional<ResultHandle> result = handler.handle(context);
+            Optional<Expr> result = handler.handle(context);
             if (result.isPresent()) {
                 return GenerationResult.success(result.get());
             }
@@ -110,7 +112,7 @@ public final class MethodCallHandlerChain {
     /** Polymorphic dispatch: accepts MethodCallContext or BiEntityMethodCallContext. */
     public GenerationResult handleMethodCall(MethodCallDispatchContext context) {
         for (MethodCallHandler handler : handlers) {
-            Optional<ResultHandle> result = handler.handle(context);
+            Optional<Expr> result = handler.handle(context);
             if (result.isPresent()) {
                 return GenerationResult.success(result.get());
             }

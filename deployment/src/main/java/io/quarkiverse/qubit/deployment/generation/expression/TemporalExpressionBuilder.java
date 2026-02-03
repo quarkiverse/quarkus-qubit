@@ -1,10 +1,9 @@
 package io.quarkiverse.qubit.deployment.generation.expression;
 
-import io.quarkus.gizmo.BranchResult;
-import io.quarkus.gizmo.BytecodeCreator;
-import io.quarkus.gizmo.MethodCreator;
-import io.quarkus.gizmo.MethodDescriptor;
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.LocalVar;
+import io.quarkus.gizmo2.creator.BlockCreator;
+import io.quarkus.gizmo2.desc.MethodDesc;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.generation.MethodDescriptors;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
@@ -31,6 +30,8 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.TEMPORAL_COMP
  * </ul>
  *
  * <p><b>Supported Types:</b> LocalDate, LocalDateTime, LocalTime
+ *
+ * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public enum TemporalExpressionBuilder implements ExpressionBuilder {
     INSTANCE;
@@ -52,10 +53,10 @@ public enum TemporalExpressionBuilder implements ExpressionBuilder {
      * Uses database-agnostic methods (year, month, day, hour, minute, second).
      */
     public BuilderResult buildTemporalAccessorFunction(
-            MethodCreator method,
+            BlockCreator bc,
             LambdaExpression.MethodCall methodCall,
-            ResultHandle cb,
-            ResultHandle fieldExpression) {
+            Expr cb,
+            Expr fieldExpression) {
 
         // Verify the target is a supported temporal type
         if (!(methodCall.target() instanceof LambdaExpression.FieldAccess(_, var fieldType))) {
@@ -72,39 +73,31 @@ public enum TemporalExpressionBuilder implements ExpressionBuilder {
             return BuilderResult.notApplicable();
         }
 
-        // Runtime guard: verify CriteriaBuilder is HibernateCriteriaBuilder before casting
-        // This provides a clear error message instead of ClassCastException if using non-Hibernate JPA
-        ResultHandle isHibernate = method.instanceOf(cb, HibernateCriteriaBuilder.class);
-        BranchResult guardBranch = method.ifFalse(isHibernate);
-        try (BytecodeCreator notHibernate = guardBranch.trueBranch()) {
-            notHibernate.throwException(UnsupportedOperationException.class,
-                    "Temporal accessor methods (getYear, getMonth, etc.) require Hibernate as JPA provider. " +
-                    "The CriteriaBuilder is not a HibernateCriteriaBuilder. " +
-                    "Ensure quarkus-hibernate-orm is configured as your JPA provider.");
-        }
+        // Cast to HibernateCriteriaBuilder - Quarkus with Hibernate always provides this
+        // Note: If using a non-Hibernate JPA provider, this will fail with ClassCastException at runtime
+        // Use LocalVar for the fieldExpression since it's passed in from another context (Gizmo2 requirement)
+        LocalVar fieldExprLocal = bc.localVar("fieldExpr", fieldExpression);
+        LocalVar hcb = bc.localVar("hcb", bc.cast(cb, HibernateCriteriaBuilder.class));
 
-        // Safe cast after guard - CriteriaBuilder is guaranteed to be HibernateCriteriaBuilder
-        ResultHandle hcb = method.checkCast(cb, HibernateCriteriaBuilder.class);
-
-        // Get the MethodDescriptor directly from the enum and invoke the HibernateCriteriaBuilder method
-        MethodDescriptor md = temporalMethod.get().getMethodDescriptor();
-        ResultHandle result = method.invokeInterfaceMethod(md, hcb, fieldExpression);
+        // Get the MethodDesc directly from the enum and invoke the HibernateCriteriaBuilder method
+        MethodDesc md = temporalMethod.get().getMethodDesc();
+        Expr result = bc.invokeInterface(md, hcb, fieldExprLocal);
         return BuilderResult.success(result);
     }
 
     /** Generates bytecode for temporal comparisons: isAfter, isBefore, isEqual. */
     public BuilderResult buildTemporalComparison(
-            MethodCreator method,
+            BlockCreator bc,
             LambdaExpression.MethodCall methodCall,
-            ResultHandle cb,
-            ResultHandle fieldExpression,
-            ResultHandle argument) {
+            Expr cb,
+            Expr fieldExpression,
+            Expr argument) {
 
         if (!TEMPORAL_COMPARISON_METHOD_NAMES.contains(methodCall.methodName())) {
             return BuilderResult.notApplicable();
         }
 
-        MethodDescriptor comparisonMethod = switch (methodCall.methodName()) {
+        MethodDesc comparisonMethod = switch (methodCall.methodName()) {
             case METHOD_IS_AFTER -> MethodDescriptors.CB_GREATER_THAN;
             case METHOD_IS_BEFORE -> MethodDescriptors.CB_LESS_THAN;
             case METHOD_IS_EQUAL -> MethodDescriptors.CB_EQUAL;
@@ -115,7 +108,7 @@ public enum TemporalExpressionBuilder implements ExpressionBuilder {
             return BuilderResult.notApplicable();
         }
 
-        ResultHandle result = method.invokeInterfaceMethod(comparisonMethod, cb, fieldExpression, argument);
+        Expr result = bc.invokeInterface(comparisonMethod, cb, fieldExpression, argument);
         return BuilderResult.success(result);
     }
 }

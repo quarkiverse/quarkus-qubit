@@ -7,6 +7,8 @@ import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.IntInsnNode;
 import org.objectweb.asm.tree.LdcInsnNode;
 
+import java.util.Set;
+
 import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.DESC_BOOLEAN_VALUE_OF;
 import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.LOOKAHEAD_WINDOW_SIZE;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JVM_JAVA_LANG_BOOLEAN;
@@ -19,9 +21,32 @@ import static org.objectweb.asm.Opcodes.*;
 public enum ConstantInstructionHandler implements InstructionHandler {
     INSTANCE;
 
+    /** Opcodes handled by this handler for O(1) dispatch. */
+    private static final Set<Integer> SUPPORTED_OPCODES = Set.of(
+            // Push null
+            ACONST_NULL,
+            // Push integer constants -1 to 5
+            ICONST_M1, ICONST_0, ICONST_1, ICONST_2, ICONST_3, ICONST_4, ICONST_5,
+            // Push long constants 0 and 1
+            LCONST_0, LCONST_1,
+            // Push float constants 0, 1, 2
+            FCONST_0, FCONST_1, FCONST_2,
+            // Push double constants 0 and 1
+            DCONST_0, DCONST_1,
+            // Push byte/short immediate
+            BIPUSH, SIPUSH,
+            // Load constant from pool
+            LDC
+    );
+
+    @Override
+    public Set<Integer> supportedOpcodes() {
+        return SUPPORTED_OPCODES;
+    }
+
     @Override
     public boolean canHandle(AbstractInsnNode insn) {
-        return OpcodeClassifier.isConstantOpcode(insn.getOpcode());
+        return SUPPORTED_OPCODES.contains(insn.getOpcode());
     }
 
     @Override

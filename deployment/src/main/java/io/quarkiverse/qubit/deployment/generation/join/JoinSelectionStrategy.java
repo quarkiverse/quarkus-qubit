@@ -1,10 +1,12 @@
 package io.quarkiverse.qubit.deployment.generation.join;
 
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Expr;
 
 /**
  * Strategy for join query SELECT clause: root entity, joined entity, or bi-entity projection.
  * Sealed interface for exhaustive pattern matching.
+ *
+ * <p>Uses Gizmo 2 API with Expr type.
  */
 public sealed interface JoinSelectionStrategy permits
         JoinSelectionStrategy.SelectRoot,
@@ -12,15 +14,15 @@ public sealed interface JoinSelectionStrategy permits
         JoinSelectionStrategy.SelectProjection {
 
     /** Result class handle for CriteriaQuery (entity class or Object.class). */
-    ResultHandle resultClass();
+    Expr resultClass();
 
     /** True if explicit query.select() needed (not needed for root selection). */
     boolean requiresExplicitSelection();
 
     /** SELECT root entity (implicit, default JPA behavior). */
-    record SelectRoot(ResultHandle entityClass) implements JoinSelectionStrategy {
+    record SelectRoot(Expr entityClass) implements JoinSelectionStrategy {
         @Override
-        public ResultHandle resultClass() {
+        public Expr resultClass() {
             return entityClass;
         }
 
@@ -31,9 +33,9 @@ public sealed interface JoinSelectionStrategy permits
     }
 
     /** SELECT joined entity (requires explicit query.select). */
-    record SelectJoined(ResultHandle objectClass) implements JoinSelectionStrategy {
+    record SelectJoined(Expr objectClass) implements JoinSelectionStrategy {
         @Override
-        public ResultHandle resultClass() {
+        public Expr resultClass() {
             return objectClass;
         }
 
@@ -45,12 +47,12 @@ public sealed interface JoinSelectionStrategy permits
 
     /** SELECT bi-entity projection (DTO or tuple). */
     record SelectProjection(
-            ResultHandle objectClass,
+            Expr objectClass,
             io.quarkiverse.qubit.deployment.ast.LambdaExpression projectionExpression
     ) implements JoinSelectionStrategy {
 
         @Override
-        public ResultHandle resultClass() {
+        public Expr resultClass() {
             return objectClass;
         }
 

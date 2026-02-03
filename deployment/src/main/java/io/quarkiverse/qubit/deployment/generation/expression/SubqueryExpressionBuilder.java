@@ -25,9 +25,11 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.ScalarSubquery;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.SubqueryAggregationType;
 import io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer;
 import io.quarkiverse.qubit.deployment.generation.GizmoHelper;
-import io.quarkus.gizmo.MethodCreator;
-import io.quarkus.gizmo.MethodDescriptor;
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Const;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.LocalVar;
+import io.quarkus.gizmo2.creator.BlockCreator;
+import io.quarkus.gizmo2.desc.MethodDesc;
 import io.quarkus.logging.Log;
 import jakarta.persistence.criteria.Predicate;
 
@@ -36,13 +38,13 @@ public enum SubqueryExpressionBuilder implements ExpressionBuilder {
     INSTANCE;
 
     /** Generates JPA scalar aggregation subquery. */
-    public ResultHandle buildScalarSubquery(
-            MethodCreator method,
+    public Expr buildScalarSubquery(
+            BlockCreator bc,
             ScalarSubquery scalar,
-            ResultHandle cb,
-            ResultHandle query,
-            ResultHandle outerRoot,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr query,
+            Expr outerRoot,
+            Expr capturedValues) {
 
         if (scalar == null) {
             throw new IllegalArgumentException(SCALAR_SUBQUERY_NULL);
@@ -52,27 +54,28 @@ public enum SubqueryExpressionBuilder implements ExpressionBuilder {
         Class<?> resultType = getAggregationResultType(scalar.aggregationType());
 
         // Create subquery: query.subquery(resultType)
-        ResultHandle resultTypeHandle = method.loadClass(resultType);
-        ResultHandle subquery = method.invokeInterfaceMethod(
-                CRITERIA_QUERY_SUBQUERY, query, resultTypeHandle);
+        // Use LocalVar for values used across multiple operations (Gizmo2 requirement)
+        Expr resultTypeHandle = Const.of(resultType);
+        LocalVar subquery = bc.localVar("subquery", bc.invokeInterface(
+                CRITERIA_QUERY_SUBQUERY, query, resultTypeHandle));
 
         // Create from clause: subquery.from(entityClass)
-        ResultHandle entityClassHandle = GizmoHelper.loadEntityClass(method, scalar.entityClass(), scalar.entityClassName());
-        ResultHandle subRoot = method.invokeInterfaceMethod(
-                SUBQUERY_FROM, subquery, entityClassHandle);
+        Expr entityClassHandle = GizmoHelper.loadEntityClass(bc, scalar.entityClass(), scalar.entityClassName());
+        LocalVar subRoot = bc.localVar("subRoot", bc.invokeInterface(
+                SUBQUERY_FROM, subquery, entityClassHandle));
 
         // Generate the select expression with aggregation
-        ResultHandle aggregation = generateAggregation(method, scalar, cb, subRoot);
+        Expr aggregation = generateAggregation(bc, scalar, cb, subRoot);
 
         // Set the select: subquery.select(aggregation)
-        method.invokeInterfaceMethod(SUBQUERY_SELECT, subquery, aggregation);
+        bc.invokeInterface(SUBQUERY_SELECT, subquery, aggregation);
 
         // Generate the where clause if there's a predicate
         if (scalar.hasPredicate()) {
-            ResultHandle wherePredicate = generateSubqueryPredicate(
-                    method, scalar.predicate(), cb, subRoot, outerRoot, capturedValues);
+            Expr wherePredicate = generateSubqueryPredicate(
+                    bc, scalar.predicate(), cb, subRoot, outerRoot, capturedValues);
             if (wherePredicate != null) {
-                applySubqueryWhere(method, subquery, wherePredicate);
+                applySubqueryWhere(bc, subquery, wherePredicate);
             }
         }
 
@@ -80,99 +83,102 @@ public enum SubqueryExpressionBuilder implements ExpressionBuilder {
     }
 
     /** Generates JPA EXISTS subquery predicate. */
-    public ResultHandle buildExistsSubquery(
-            MethodCreator method,
+    public Expr buildExistsSubquery(
+            BlockCreator bc,
             ExistsSubquery exists,
-            ResultHandle cb,
-            ResultHandle query,
-            ResultHandle outerRoot,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr query,
+            Expr outerRoot,
+            Expr capturedValues) {
 
         if (exists == null) {
             throw new IllegalArgumentException(EXISTS_SUBQUERY_NULL);
         }
 
         // Create subquery: query.subquery(entityClass)
-        ResultHandle entityClassHandle = GizmoHelper.loadEntityClass(method, exists.entityClass(), exists.entityClassName());
-        ResultHandle subquery = method.invokeInterfaceMethod(
-                CRITERIA_QUERY_SUBQUERY, query, entityClassHandle);
+        // Use LocalVar for values used across multiple operations (Gizmo2 requirement)
+        LocalVar entityClassHandle = bc.localVar("entityClass",
+                GizmoHelper.loadEntityClass(bc, exists.entityClass(), exists.entityClassName()));
+        LocalVar subquery = bc.localVar("subquery", bc.invokeInterface(
+                CRITERIA_QUERY_SUBQUERY, query, entityClassHandle));
 
         // Create from clause: subquery.from(entityClass)
-        ResultHandle subRoot = method.invokeInterfaceMethod(
-                SUBQUERY_FROM, subquery, entityClassHandle);
+        LocalVar subRoot = bc.localVar("subRoot", bc.invokeInterface(
+                SUBQUERY_FROM, subquery, entityClassHandle));
 
         // Select the subquery root (EXISTS just needs any selection)
-        method.invokeInterfaceMethod(SUBQUERY_SELECT, subquery, subRoot);
+        bc.invokeInterface(SUBQUERY_SELECT, subquery, subRoot);
 
         // Generate the where clause from the predicate
-        ResultHandle wherePredicate = generateSubqueryPredicate(
-                method, exists.predicate(), cb, subRoot, outerRoot, capturedValues);
+        Expr wherePredicate = generateSubqueryPredicate(
+                bc, exists.predicate(), cb, subRoot, outerRoot, capturedValues);
         if (wherePredicate != null) {
-            applySubqueryWhere(method, subquery, wherePredicate);
+            applySubqueryWhere(bc, subquery, wherePredicate);
         }
 
         // Generate cb.exists(subquery)
-        ResultHandle existsPredicate = method.invokeInterfaceMethod(CB_EXISTS, cb, subquery);
+        Expr existsPredicate = bc.invokeInterface(CB_EXISTS, cb, subquery);
 
         // If negated, wrap with cb.not()
         if (exists.negated()) {
-            return method.invokeInterfaceMethod(CB_NOT, cb, existsPredicate);
+            return bc.invokeInterface(CB_NOT, cb, existsPredicate);
         }
 
         return existsPredicate;
     }
 
     /** Generates JPA IN subquery predicate. */
-    public ResultHandle buildInSubquery(
-            MethodCreator method,
+    public Expr buildInSubquery(
+            BlockCreator bc,
             InSubquery inSubquery,
-            ResultHandle cb,
-            ResultHandle query,
-            ResultHandle outerRoot,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr query,
+            Expr outerRoot,
+            Expr capturedValues) {
 
         if (inSubquery == null) {
             throw new IllegalArgumentException(IN_SUBQUERY_NULL);
         }
 
         // Generate the left-hand field expression from the outer query
-        ResultHandle fieldPath = generateFieldPath(method, inSubquery.field(), outerRoot);
+        // Use LocalVar for values used across multiple operations (Gizmo2 requirement)
+        LocalVar fieldPath = bc.localVar("fieldPath", generateFieldPath(bc, inSubquery.field(), outerRoot));
 
         // Determine the result type from the select expression
         Class<?> selectType = ExpressionTypeInferrer.inferFieldType(inSubquery.selectExpression());
 
         // Create subquery: query.subquery(selectType)
-        ResultHandle selectTypeHandle = method.loadClass(selectType);
-        ResultHandle subquery = method.invokeInterfaceMethod(
-                CRITERIA_QUERY_SUBQUERY, query, selectTypeHandle);
+        Expr selectTypeHandle = Const.of(selectType);
+        LocalVar subquery = bc.localVar("subquery", bc.invokeInterface(
+                CRITERIA_QUERY_SUBQUERY, query, selectTypeHandle));
 
         // Create from clause: subquery.from(entityClass)
-        ResultHandle entityClassHandle = GizmoHelper.loadEntityClass(method, inSubquery.entityClass(), inSubquery.entityClassName());
-        ResultHandle subRoot = method.invokeInterfaceMethod(
-                SUBQUERY_FROM, subquery, entityClassHandle);
+        Expr entityClassHandle = GizmoHelper.loadEntityClass(bc, inSubquery.entityClass(), inSubquery.entityClassName());
+        LocalVar subRoot = bc.localVar("subRoot", bc.invokeInterface(
+                SUBQUERY_FROM, subquery, entityClassHandle));
 
         // Generate the select expression
-        ResultHandle selectExpr = generateFieldPath(method, inSubquery.selectExpression(), subRoot);
+        Expr selectExpr = generateFieldPath(bc, inSubquery.selectExpression(), subRoot);
 
         // Set the select: subquery.select(selectExpr)
-        method.invokeInterfaceMethod(SUBQUERY_SELECT, subquery, selectExpr);
+        bc.invokeInterface(SUBQUERY_SELECT, subquery, selectExpr);
 
         // Generate the where clause if there's a predicate
         if (inSubquery.hasPredicate()) {
-            ResultHandle wherePredicate = generateSubqueryPredicate(
-                    method, inSubquery.predicate(), cb, subRoot, outerRoot, capturedValues);
+            Expr wherePredicate = generateSubqueryPredicate(
+                    bc, inSubquery.predicate(), cb, subRoot, outerRoot, capturedValues);
             if (wherePredicate != null) {
-                applySubqueryWhere(method, subquery, wherePredicate);
+                applySubqueryWhere(bc, subquery, wherePredicate);
             }
         }
 
         // Generate fieldPath.in(subquery)
-        ResultHandle inPredicate = method.invokeInterfaceMethod(
+        Expr inPredicate = bc.invokeInterface(
                 EXPRESSION_IN, fieldPath, subquery);
 
         // If negated, wrap with cb.not()
         if (inSubquery.negated()) {
-            return method.invokeInterfaceMethod(CB_NOT, cb, inPredicate);
+            return bc.invokeInterface(CB_NOT, cb, inPredicate);
         }
 
         return inPredicate;
@@ -188,46 +194,47 @@ public enum SubqueryExpressionBuilder implements ExpressionBuilder {
         };
     }
 
-    private ResultHandle generateAggregation(
-            MethodCreator method,
+    private Expr generateAggregation(
+            BlockCreator bc,
             ScalarSubquery scalar,
-            ResultHandle cb,
-            ResultHandle subRoot) {
+            Expr cb,
+            Expr subRoot) {
 
         // For COUNT, we don't need a field expression
         if (scalar.isCount()) {
-            return method.invokeInterfaceMethod(CB_COUNT, cb, subRoot);
+            return bc.invokeInterface(CB_COUNT, cb, subRoot);
         }
 
         // Generate the field path from the field expression
-        ResultHandle fieldPath = generateFieldPath(method, scalar.fieldExpression(), subRoot);
+        Expr fieldPath = generateFieldPath(bc, scalar.fieldExpression(), subRoot);
 
         // Generate the appropriate aggregation
         return switch (scalar.aggregationType()) {
-            case AVG -> method.invokeInterfaceMethod(CB_AVG, cb, fieldPath);
-            case SUM -> method.invokeInterfaceMethod(CB_SUM, cb, fieldPath);
-            case MIN -> method.invokeInterfaceMethod(CB_MIN, cb, fieldPath);
-            case MAX -> method.invokeInterfaceMethod(CB_MAX, cb, fieldPath);
+            case AVG -> bc.invokeInterface(CB_AVG, cb, fieldPath);
+            case SUM -> bc.invokeInterface(CB_SUM, cb, fieldPath);
+            case MIN -> bc.invokeInterface(CB_MIN, cb, fieldPath);
+            case MAX -> bc.invokeInterface(CB_MAX, cb, fieldPath);
             case COUNT -> throw new IllegalStateException(COUNT_SHOULD_BE_HANDLED_ABOVE);
             default -> throw new IllegalStateException(unexpectedAggregationType(scalar.aggregationType()));
         };
     }
 
-    private ResultHandle generateFieldPath(MethodCreator method, LambdaExpression expr, ResultHandle root) {
+    private Expr generateFieldPath(BlockCreator bc, LambdaExpression expr, Expr root) {
         if (expr == null) {
             throw new IllegalArgumentException(FIELD_PATH_EXPRESSION_NULL);
         }
         return switch (expr) {
             case FieldAccess field -> {
-                ResultHandle fieldName = method.load(field.fieldName());
-                yield method.invokeInterfaceMethod(PATH_GET, root, fieldName);
+                Expr fieldName = Const.of(field.fieldName());
+                yield bc.invokeInterface(PATH_GET, root, fieldName);
             }
 
             case PathExpression pathExpr -> {
-                ResultHandle currentPath = root;
+                // Use LocalVar for intermediate path values used across loop iterations (Gizmo2 requirement)
+                LocalVar currentPath = bc.localVar("currentPath", root);
                 for (PathSegment segment : pathExpr.segments()) {
-                    ResultHandle fieldName = method.load(segment.fieldName());
-                    currentPath = method.invokeInterfaceMethod(PATH_GET, currentPath, fieldName);
+                    Expr fieldName = Const.of(segment.fieldName());
+                    bc.set(currentPath, bc.invokeInterface(PATH_GET, currentPath, fieldName));
                 }
                 yield currentPath;
             }
@@ -237,13 +244,13 @@ public enum SubqueryExpressionBuilder implements ExpressionBuilder {
         };
     }
 
-    private ResultHandle generateSubqueryPredicate(
-            MethodCreator method,
+    private Expr generateSubqueryPredicate(
+            BlockCreator bc,
             LambdaExpression predicate,
-            ResultHandle cb,
-            ResultHandle subRoot,
-            ResultHandle outerRoot,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr subRoot,
+            Expr outerRoot,
+            Expr capturedValues) {
 
         if (predicate == null) {
             return null;
@@ -252,29 +259,29 @@ public enum SubqueryExpressionBuilder implements ExpressionBuilder {
         return switch (predicate) {
             // Handle BinaryOp predicates (most common case)
             case LambdaExpression.BinaryOp binOp ->
-                generateBinaryOpPredicate(method, binOp, cb, subRoot, outerRoot, capturedValues);
+                generateBinaryOpPredicate(bc, binOp, cb, subRoot, outerRoot, capturedValues);
 
             case LambdaExpression.UnaryOp unaryOp -> {
-                ResultHandle operand = generateSubqueryPredicate(
-                        method, unaryOp.operand(), cb, subRoot, outerRoot, capturedValues);
+                Expr operand = generateSubqueryPredicate(
+                        bc, unaryOp.operand(), cb, subRoot, outerRoot, capturedValues);
                 yield switch (unaryOp.operator()) {
-                    case NOT -> method.invokeInterfaceMethod(CB_NOT, cb, operand);
+                    case NOT -> bc.invokeInterface(CB_NOT, cb, operand);
                 };
             }
 
             case LambdaExpression.MethodCall methodCall ->
-                generateMethodCallPredicate(method, methodCall, cb, subRoot, outerRoot, capturedValues);
+                generateMethodCallPredicate(bc, methodCall, cb, subRoot, outerRoot, capturedValues);
 
             // Handle FieldAccess as boolean
             case FieldAccess field -> {
-                ResultHandle path = generateFieldPath(method, field, subRoot);
-                yield method.invokeInterfaceMethod(CB_IS_TRUE, cb, path);
+                Expr path = generateFieldPath(bc, field, subRoot);
+                yield bc.invokeInterface(CB_IS_TRUE, cb, path);
             }
 
             // Handle PathExpression as boolean
             case PathExpression pathExpr -> {
-                ResultHandle path = generateFieldPath(method, pathExpr, subRoot);
-                yield method.invokeInterfaceMethod(CB_IS_TRUE, cb, path);
+                Expr path = generateFieldPath(bc, pathExpr, subRoot);
+                yield bc.invokeInterface(CB_IS_TRUE, cb, path);
             }
 
             default -> {
@@ -285,26 +292,26 @@ public enum SubqueryExpressionBuilder implements ExpressionBuilder {
         };
     }
 
-    private ResultHandle generateMethodCallPredicate(
-            MethodCreator method,
+    private Expr generateMethodCallPredicate(
+            BlockCreator bc,
             LambdaExpression.MethodCall methodCall,
-            ResultHandle cb,
-            ResultHandle subRoot,
-            ResultHandle outerRoot,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr subRoot,
+            Expr outerRoot,
+            Expr capturedValues) {
 
-        // Handle .equals() method calls → cb.equal()
+        // Handle .equals() method calls -> cb.equal()
         if (METHOD_EQUALS.equals(methodCall.methodName()) && !methodCall.arguments().isEmpty()) {
             // Generate expression for the target (e.g., ph.owner.id)
-            ResultHandle targetExpr = generateSubqueryExpression(
-                    method, methodCall.target(), cb, subRoot, outerRoot, capturedValues);
+            Expr targetExpr = generateSubqueryExpression(
+                    bc, methodCall.target(), cb, subRoot, outerRoot, capturedValues);
 
             // Generate expression for the argument (e.g., p.id which may be a CorrelatedVariable)
-            ResultHandle argumentExpr = generateSubqueryExpression(
-                    method, methodCall.arguments().getFirst(), cb, subRoot, outerRoot, capturedValues);
+            Expr argumentExpr = generateSubqueryExpression(
+                    bc, methodCall.arguments().getFirst(), cb, subRoot, outerRoot, capturedValues);
 
             // Generate cb.equal(target, argument)
-            return method.invokeInterfaceMethod(CB_EQUAL, cb, targetExpr, argumentExpr);
+            return bc.invokeInterface(CB_EQUAL, cb, targetExpr, argumentExpr);
         }
 
         Log.warnf("Unhandled method call in subquery predicate: %s. %s",
@@ -312,45 +319,45 @@ public enum SubqueryExpressionBuilder implements ExpressionBuilder {
         return null;
     }
 
-    private ResultHandle generateBinaryOpPredicate(
-            MethodCreator method,
+    private Expr generateBinaryOpPredicate(
+            BlockCreator bc,
             LambdaExpression.BinaryOp binOp,
-            ResultHandle cb,
-            ResultHandle subRoot,
-            ResultHandle outerRoot,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr subRoot,
+            Expr outerRoot,
+            Expr capturedValues) {
 
         // Handle logical operators (AND/OR) differently - they need predicates
         if (isLogicalOperation(binOp)) {
             // Recursively generate predicates for both sides
-            ResultHandle leftPredicate = generateSubqueryPredicate(method, binOp.left(), cb, subRoot, outerRoot, capturedValues);
-            ResultHandle rightPredicate = generateSubqueryPredicate(method, binOp.right(), cb, subRoot, outerRoot, capturedValues);
+            Expr leftPredicate = generateSubqueryPredicate(bc, binOp.left(), cb, subRoot, outerRoot, capturedValues);
+            Expr rightPredicate = generateSubqueryPredicate(bc, binOp.right(), cb, subRoot, outerRoot, capturedValues);
 
-            ResultHandle predicateArray = GizmoHelper.createElementArray(method, Predicate.class, leftPredicate, rightPredicate);
+            Expr predicateArray = GizmoHelper.createElementArray(bc, Predicate.class, leftPredicate, rightPredicate);
 
-            MethodDescriptor cbOperator = binOp.operator() == AND ? CB_AND : CB_OR;
-            return method.invokeInterfaceMethod(cbOperator, cb, predicateArray);
+            MethodDesc cbOperator = binOp.operator() == AND ? CB_AND : CB_OR;
+            return bc.invokeInterface(cbOperator, cb, predicateArray);
         }
 
         // For comparison operators, generate expressions
-        ResultHandle left = generateSubqueryExpression(method, binOp.left(), cb, subRoot, outerRoot, capturedValues);
-        ResultHandle right = generateSubqueryExpression(method, binOp.right(), cb, subRoot, outerRoot, capturedValues);
+        Expr left = generateSubqueryExpression(bc, binOp.left(), cb, subRoot, outerRoot, capturedValues);
+        Expr right = generateSubqueryExpression(bc, binOp.right(), cb, subRoot, outerRoot, capturedValues);
 
         // Generate the appropriate comparison
         if (OperatorMethodMapper.isComparisonOperator(binOp.operator())) {
             var comparisonMethod = OperatorMethodMapper.mapComparisonOperator(binOp.operator(), false);
-            return method.invokeInterfaceMethod(comparisonMethod, cb, left, right);
+            return bc.invokeInterface(comparisonMethod, cb, left, right);
         }
         return null;
     }
 
-    private ResultHandle generateSubqueryExpression(
-            MethodCreator method,
+    private Expr generateSubqueryExpression(
+            BlockCreator bc,
             LambdaExpression expr,
-            ResultHandle cb,
-            ResultHandle subRoot,
-            ResultHandle outerRoot,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr subRoot,
+            Expr outerRoot,
+            Expr capturedValues) {
 
         if (expr == null) {
             return null;
@@ -358,24 +365,22 @@ public enum SubqueryExpressionBuilder implements ExpressionBuilder {
 
         return switch (expr) {
             case FieldAccess field ->
-                generateFieldPath(method, field, subRoot);
+                generateFieldPath(bc, field, subRoot);
             case PathExpression pathExpr ->
-                generateFieldPath(method, pathExpr, subRoot);
+                generateFieldPath(bc, pathExpr, subRoot);
             case LambdaExpression.CorrelatedVariable correlated ->
-                generateFieldPath(method, correlated.fieldExpression(), outerRoot);
+                generateFieldPath(bc, correlated.fieldExpression(), outerRoot);
             case LambdaExpression.Constant constant ->
-                generateConstant(method, constant);
-            case LambdaExpression.CapturedVariable capturedVar -> {
-                ResultHandle index = method.load(capturedVar.index());
-                ResultHandle value = method.readArrayValue(capturedValues, index);
-                yield method.checkCast(value, Object.class);
-            }
+                generateConstant(bc, constant);
+            case LambdaExpression.CapturedVariable capturedVar ->
+                // Array element already returns Object type, no cast needed
+                capturedValues.elem(capturedVar.index());
 
             // The subquery parameter refers to the subquery root
             case LambdaExpression.Parameter _ -> subRoot;
 
             case LambdaExpression.MethodCall methodCall ->
-                generateMethodCallExpression(method, methodCall, cb, subRoot, outerRoot, capturedValues);
+                generateMethodCallExpression(bc, methodCall, cb, subRoot, outerRoot, capturedValues);
 
             // Handle BinaryOp expressions
             // For comparison operators (EQ, NE, GT, GE, LT, LE), use generateBinaryOpPredicate
@@ -384,9 +389,9 @@ public enum SubqueryExpressionBuilder implements ExpressionBuilder {
             // For arithmetic operators (ADD, SUB, MUL, DIV), use generateBinaryOpExpression.
             case LambdaExpression.BinaryOp binOp -> {
                 if (isComparisonOrLogicalOperator(binOp.operator())) {
-                    yield generateBinaryOpPredicate(method, binOp, cb, subRoot, outerRoot, capturedValues);
+                    yield generateBinaryOpPredicate(bc, binOp, cb, subRoot, outerRoot, capturedValues);
                 } else {
-                    yield generateBinaryOpExpression(method, binOp, cb, subRoot, outerRoot, capturedValues);
+                    yield generateBinaryOpExpression(bc, binOp, cb, subRoot, outerRoot, capturedValues);
                 }
             }
 
@@ -398,28 +403,28 @@ public enum SubqueryExpressionBuilder implements ExpressionBuilder {
         };
     }
 
-    private ResultHandle generateMethodCallExpression(
-            MethodCreator method,
+    private Expr generateMethodCallExpression(
+            BlockCreator bc,
             LambdaExpression.MethodCall methodCall,
-            ResultHandle cb,
-            ResultHandle subRoot,
-            ResultHandle outerRoot,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr subRoot,
+            Expr outerRoot,
+            Expr capturedValues) {
 
         String methodName = methodCall.methodName();
 
-        // Handle getter methods (getXxx, isXxx) → path navigation
+        // Handle getter methods (getXxx, isXxx) -> path navigation
         if (isGetterMethodName(methodName)) {
             // First, resolve the target expression
-            ResultHandle targetPath = generateSubqueryExpression(
-                    method, methodCall.target(), cb, subRoot, outerRoot, capturedValues);
+            Expr targetPath = generateSubqueryExpression(
+                    bc, methodCall.target(), cb, subRoot, outerRoot, capturedValues);
 
-            // Extract field name from getter (getOwner → owner, isActive → active)
+            // Extract field name from getter (getOwner -> owner, isActive -> active)
             String fieldName = ExpressionTypeInferrer.extractFieldName(methodName);
-            ResultHandle fieldNameHandle = method.load(fieldName);
+            Expr fieldNameHandle = Const.of(fieldName);
 
             // Generate path.get(fieldName)
-            return method.invokeInterfaceMethod(PATH_GET, targetPath, fieldNameHandle);
+            return bc.invokeInterface(PATH_GET, targetPath, fieldNameHandle);
         }
 
         Log.warnf("Unhandled method call expression in subquery: %s. %s",
@@ -427,21 +432,21 @@ public enum SubqueryExpressionBuilder implements ExpressionBuilder {
         return null;
     }
 
-    private ResultHandle generateBinaryOpExpression(
-            MethodCreator method,
+    private Expr generateBinaryOpExpression(
+            BlockCreator bc,
             LambdaExpression.BinaryOp binOp,
-            ResultHandle cb,
-            ResultHandle subRoot,
-            ResultHandle outerRoot,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr subRoot,
+            Expr outerRoot,
+            Expr capturedValues) {
 
-        ResultHandle left = generateSubqueryExpression(method, binOp.left(), cb, subRoot, outerRoot, capturedValues);
-        ResultHandle right = generateSubqueryExpression(method, binOp.right(), cb, subRoot, outerRoot, capturedValues);
+        Expr left = generateSubqueryExpression(bc, binOp.left(), cb, subRoot, outerRoot, capturedValues);
+        Expr right = generateSubqueryExpression(bc, binOp.right(), cb, subRoot, outerRoot, capturedValues);
 
         // Generate the appropriate arithmetic operation
         if (OperatorMethodMapper.isArithmeticOperator(binOp.operator())) {
             var arithmeticMethod = OperatorMethodMapper.mapArithmeticOperator(binOp.operator());
-            return method.invokeInterfaceMethod(arithmeticMethod, cb, left, right);
+            return bc.invokeInterface(arithmeticMethod, cb, left, right);
         }
         Log.warnf("Unhandled binary operator in subquery expression: %s", binOp.operator());
         return null;
@@ -450,18 +455,17 @@ public enum SubqueryExpressionBuilder implements ExpressionBuilder {
     private boolean isComparisonOrLogicalOperator(LambdaExpression.BinaryOp.Operator operator) {
         return switch (operator) {
             case EQ, NE, GT, GE, LT, LE, AND, OR -> true;
-            case ADD, SUB, MUL, DIV -> false;
-            default -> false;  // Future operators default to arithmetic handling
+            case ADD, SUB, MUL, DIV, MOD -> false;
         };
     }
 
-    private ResultHandle generateConstant(MethodCreator method, LambdaExpression.Constant constant) {
-        return GizmoHelper.loadConstant(method, constant.value());
+    private Expr generateConstant(BlockCreator bc, LambdaExpression.Constant constant) {
+        return GizmoHelper.loadConstant(bc, constant.value());
     }
 
     /** JPA's Subquery.where() takes Predicate... varargs. */
-    private void applySubqueryWhere(MethodCreator method, ResultHandle subquery, ResultHandle predicate) {
-        ResultHandle predicateArray = GizmoHelper.createElementArray(method, Predicate.class, predicate);
-        method.invokeInterfaceMethod(SUBQUERY_WHERE, subquery, predicateArray);
+    private void applySubqueryWhere(BlockCreator bc, Expr subquery, Expr predicate) {
+        Expr predicateArray = GizmoHelper.createElementArray(bc, Predicate.class, predicate);
+        bc.invokeInterface(SUBQUERY_WHERE, subquery, predicateArray);
     }
 }

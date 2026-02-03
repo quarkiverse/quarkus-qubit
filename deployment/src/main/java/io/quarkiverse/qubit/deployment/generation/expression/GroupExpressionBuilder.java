@@ -16,8 +16,8 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_TU
 
 import org.jspecify.annotations.Nullable;
 
-import io.quarkus.gizmo.MethodCreator;
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.creator.BlockCreator;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupAggregation;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupAggregationType;
@@ -31,13 +31,13 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
     INSTANCE;
 
     /** Generates JPA Predicate for HAVING clause. */
-    public @Nullable ResultHandle generateGroupPredicate(
-            MethodCreator method,
+    public @Nullable Expr generateGroupPredicate(
+            BlockCreator bc,
             @Nullable LambdaExpression expression,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle groupKeyExpr,
-            ResultHandle capturedValues,
+            Expr cb,
+            Expr root,
+            Expr groupKeyExpr,
+            Expr capturedValues,
             ExpressionGeneratorHelper helper) {
 
         if (expression == null) {
@@ -46,14 +46,14 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
 
         return switch (expression) {
             case LambdaExpression.BinaryOp binOp ->
-                generateGroupBinaryOperation(method, binOp, cb, root, groupKeyExpr, capturedValues, helper);
+                generateGroupBinaryOperation(bc, binOp, cb, root, groupKeyExpr, capturedValues, helper);
 
             case LambdaExpression.UnaryOp unOp ->
-                generateGroupUnaryOperation(method, unOp, cb, root, groupKeyExpr, capturedValues, helper);
+                generateGroupUnaryOperation(bc, unOp, cb, root, groupKeyExpr, capturedValues, helper);
 
             case GroupAggregation groupAgg ->
                 // Aggregation used as a boolean predicate (rare, but possible)
-                generateGroupAggregationExpression(method, groupAgg, cb, root, capturedValues, helper);
+                generateGroupAggregationExpression(bc, groupAgg, cb, root, capturedValues, helper);
 
             case GroupKeyReference _ ->
                 // Key reference as boolean (if key is boolean type)
@@ -64,13 +64,13 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
     }
 
     /** Generates JPA Expression for GROUP BY SELECT. */
-    public @Nullable ResultHandle generateGroupSelectExpression(
-            MethodCreator method,
+    public @Nullable Expr generateGroupSelectExpression(
+            BlockCreator bc,
             @Nullable LambdaExpression expression,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle groupKeyExpr,
-            ResultHandle capturedValues,
+            Expr cb,
+            Expr root,
+            Expr groupKeyExpr,
+            Expr capturedValues,
             ExpressionGeneratorHelper helper) {
 
         if (expression == null) {
@@ -84,95 +84,87 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
 
             case GroupAggregation groupAgg ->
                 // g.count(), g.avg(), etc. -> generate aggregation expression
-                generateGroupAggregationExpression(method, groupAgg, cb, root, capturedValues, helper);
+                generateGroupAggregationExpression(bc, groupAgg, cb, root, capturedValues, helper);
 
             case LambdaExpression.ArrayCreation arrayCreation ->
                 // Object[] projection using cb.tuple()
-                generateGroupArrayCreation(method, arrayCreation, cb, root, groupKeyExpr, capturedValues, helper);
+                generateGroupArrayCreation(bc, arrayCreation, cb, root, groupKeyExpr, capturedValues, helper);
 
             case LambdaExpression.ConstructorCall constructorCall ->
                 // DTO constructor with group elements
-                generateGroupConstructorCall(method, constructorCall, cb, root, groupKeyExpr, capturedValues, helper);
+                generateGroupConstructorCall(bc, constructorCall, cb, root, groupKeyExpr, capturedValues, helper);
 
             case LambdaExpression.FieldAccess field ->
                 // Field access in group context (from nested lambda in aggregation)
-                helper.generateFieldAccess(method, field, root);
+                helper.generateFieldAccess(bc, field, root);
 
             case PathExpression pathExpr ->
-                helper.generatePathExpression(method, pathExpr, root);
+                helper.generatePathExpression(bc, pathExpr, root);
 
             case LambdaExpression.Constant constant -> {
-                ResultHandle constantValue = helper.generateConstant(method, constant);
-                yield helper.wrapAsLiteral(method, cb, constantValue);
+                Expr constantValue = helper.generateConstant(bc, constant);
+                yield helper.wrapAsLiteral(bc, cb, constantValue);
             }
 
             case LambdaExpression.CapturedVariable capturedVar ->
-                helper.loadAndWrapCapturedValue(method, cb, capturedVar, capturedValues);
+                helper.loadAndWrapCapturedValue(bc, cb, capturedVar, capturedValues);
 
             case LambdaExpression.BinaryOp binOp ->
-                generateGroupBinaryOperation(method, binOp, cb, root, groupKeyExpr, capturedValues, helper);
+                generateGroupBinaryOperation(bc, binOp, cb, root, groupKeyExpr, capturedValues, helper);
 
             default -> null;
         };
     }
 
     /** Generates JPA Expression for group ORDER BY clause. */
-    public @Nullable ResultHandle generateGroupSortExpression(
-            MethodCreator method,
+    public @Nullable Expr generateGroupSortExpression(
+            BlockCreator bc,
             @Nullable LambdaExpression expression,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle groupKeyExpr,
-            ResultHandle capturedValues,
+            Expr cb,
+            Expr root,
+            Expr groupKeyExpr,
+            Expr capturedValues,
             ExpressionGeneratorHelper helper) {
 
         // Delegate to generateGroupSelectExpression since they handle the same types
-        return generateGroupSelectExpression(method, expression, cb, root, groupKeyExpr, capturedValues, helper);
+        return generateGroupSelectExpression(bc, expression, cb, root, groupKeyExpr, capturedValues, helper);
     }
 
     /** Generates JPA multiselect array for Object[] projections. */
-    public ResultHandle generateGroupArraySelections(
-            MethodCreator method,
+    public Expr generateGroupArraySelections(
+            BlockCreator bc,
             LambdaExpression.ArrayCreation arrayCreation,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle groupKeyExpr,
-            ResultHandle capturedValues,
+            Expr cb,
+            Expr root,
+            Expr groupKeyExpr,
+            Expr capturedValues,
             ExpressionGeneratorHelper helper) {
 
-        int elementCount = arrayCreation.elements().size();
-        ResultHandle selectionsArray = method.newArray(Selection.class, elementCount);
-
-        for (int i = 0; i < elementCount; i++) {
-            LambdaExpression element = arrayCreation.elements().get(i);
-            ResultHandle elementSelection = generateGroupSelectExpression(
-                    method, element, cb, root, groupKeyExpr, capturedValues, helper);
-            method.writeArrayValue(selectionsArray, i, elementSelection);
-        }
-
-        return selectionsArray;
+        // Generate array from list using Gizmo2 API
+        return bc.newArray(Selection.class, arrayCreation.elements(),
+                element -> generateGroupSelectExpression(bc, element, cb, root, groupKeyExpr, capturedValues, helper));
     }
 
     // ========== Private Helper Methods ==========
 
-    private ResultHandle generateGroupAggregationExpression(
-            MethodCreator method,
+    private Expr generateGroupAggregationExpression(
+            BlockCreator bc,
             GroupAggregation groupAgg,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle capturedValues,
+            Expr cb,
+            Expr root,
+            Expr capturedValues,
             ExpressionGeneratorHelper helper) {
 
         GroupAggregationType aggType = groupAgg.aggregationType();
 
         // Handle COUNT specially - it operates on the root, not a field
         if (aggType == GroupAggregationType.COUNT) {
-            return method.invokeInterfaceMethod(CB_COUNT, cb, root);
+            return bc.invokeInterface(CB_COUNT, cb, root);
         }
 
         // For all other aggregations, we need to extract the field expression
         LambdaExpression fieldExpr = groupAgg.fieldExpression();
-        ResultHandle fieldPath = helper.generateExpressionAsJpaExpression(method, fieldExpr, cb, root, capturedValues);
+        Expr fieldPath = helper.generateExpressionAsJpaExpression(bc, fieldExpr, cb, root, capturedValues);
 
         if (fieldPath == null) {
             // Fallback: if field expression is null, use root
@@ -180,88 +172,88 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
         }
 
         return switch (aggType) {
-            case COUNT_DISTINCT -> method.invokeInterfaceMethod(CB_COUNT_DISTINCT, cb, fieldPath);
-            case AVG -> method.invokeInterfaceMethod(CB_AVG, cb, fieldPath);
-            case SUM_INTEGER -> method.invokeInterfaceMethod(CB_SUM, cb, fieldPath);
-            case SUM_LONG -> method.invokeInterfaceMethod(CB_SUM_AS_LONG, cb, fieldPath);
-            case SUM_DOUBLE -> method.invokeInterfaceMethod(CB_SUM_AS_DOUBLE, cb, fieldPath);
-            case MIN -> method.invokeInterfaceMethod(CB_MIN, cb, fieldPath);
-            case MAX -> method.invokeInterfaceMethod(CB_MAX, cb, fieldPath);
+            case COUNT_DISTINCT -> bc.invokeInterface(CB_COUNT_DISTINCT, cb, fieldPath);
+            case AVG -> bc.invokeInterface(CB_AVG, cb, fieldPath);
+            case SUM_INTEGER -> bc.invokeInterface(CB_SUM, cb, fieldPath);
+            case SUM_LONG -> bc.invokeInterface(CB_SUM_AS_LONG, cb, fieldPath);
+            case SUM_DOUBLE -> bc.invokeInterface(CB_SUM_AS_DOUBLE, cb, fieldPath);
+            case MIN -> bc.invokeInterface(CB_MIN, cb, fieldPath);
+            case MAX -> bc.invokeInterface(CB_MAX, cb, fieldPath);
             case COUNT -> throw new IllegalStateException(COUNT_SHOULD_BE_HANDLED_ABOVE);
             default -> throw new IllegalStateException(unexpectedGroupAggregationType(aggType));
         };
     }
 
-    private ResultHandle generateGroupBinaryOperation(
-            MethodCreator method,
+    private Expr generateGroupBinaryOperation(
+            BlockCreator bc,
             LambdaExpression.BinaryOp binOp,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle groupKeyExpr,
-            ResultHandle capturedValues,
+            Expr cb,
+            Expr root,
+            Expr groupKeyExpr,
+            Expr capturedValues,
             ExpressionGeneratorHelper helper) {
 
         // Logical operations (AND, OR)
         if (isLogicalOperation(binOp)) {
-            ResultHandle left = generateGroupPredicate(method, binOp.left(), cb, root, groupKeyExpr, capturedValues, helper);
-            ResultHandle right = generateGroupPredicate(method, binOp.right(), cb, root, groupKeyExpr, capturedValues, helper);
-            return helper.combinePredicates(method, cb, left, right, binOp.operator());
+            Expr left = generateGroupPredicate(bc, binOp.left(), cb, root, groupKeyExpr, capturedValues, helper);
+            Expr right = generateGroupPredicate(bc, binOp.right(), cb, root, groupKeyExpr, capturedValues, helper);
+            return helper.combinePredicates(bc, cb, left, right, binOp.operator());
         }
 
         // Arithmetic operations
         if (PatternDetector.isArithmeticExpression(binOp)) {
-            ResultHandle left = generateGroupSelectExpression(method, binOp.left(), cb, root, groupKeyExpr, capturedValues, helper);
-            ResultHandle right = generateGroupSelectExpression(method, binOp.right(), cb, root, groupKeyExpr, capturedValues, helper);
-            return ArithmeticExpressionBuilder.INSTANCE.buildArithmeticOperation(method, binOp.operator(), cb, left, right);
+            Expr left = generateGroupSelectExpression(bc, binOp.left(), cb, root, groupKeyExpr, capturedValues, helper);
+            Expr right = generateGroupSelectExpression(bc, binOp.right(), cb, root, groupKeyExpr, capturedValues, helper);
+            return ArithmeticExpressionBuilder.INSTANCE.buildArithmeticOperation(bc, binOp.operator(), cb, left, right);
         }
 
         // Comparison operations (most common in HAVING)
-        ResultHandle left = generateGroupSelectExpression(method, binOp.left(), cb, root, groupKeyExpr, capturedValues, helper);
-        ResultHandle right = generateGroupSelectExpression(method, binOp.right(), cb, root, groupKeyExpr, capturedValues, helper);
-        return ComparisonExpressionBuilder.INSTANCE.buildComparisonOperation(method, binOp.operator(), cb, left, right);
+        Expr left = generateGroupSelectExpression(bc, binOp.left(), cb, root, groupKeyExpr, capturedValues, helper);
+        Expr right = generateGroupSelectExpression(bc, binOp.right(), cb, root, groupKeyExpr, capturedValues, helper);
+        return ComparisonExpressionBuilder.INSTANCE.buildComparisonOperation(bc, binOp.operator(), cb, left, right);
     }
 
-    private ResultHandle generateGroupUnaryOperation(
-            MethodCreator method,
+    private Expr generateGroupUnaryOperation(
+            BlockCreator bc,
             LambdaExpression.UnaryOp unOp,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle groupKeyExpr,
-            ResultHandle capturedValues,
+            Expr cb,
+            Expr root,
+            Expr groupKeyExpr,
+            Expr capturedValues,
             ExpressionGeneratorHelper helper) {
 
-        ResultHandle operand = generateGroupPredicate(method, unOp.operand(), cb, root, groupKeyExpr, capturedValues, helper);
-        return helper.applyUnaryOperator(method, cb, operand, unOp.operator());
+        Expr operand = generateGroupPredicate(bc, unOp.operand(), cb, root, groupKeyExpr, capturedValues, helper);
+        return helper.applyUnaryOperator(bc, cb, operand, unOp.operator());
     }
 
-    private ResultHandle generateGroupArrayCreation(
-            MethodCreator method,
+    private Expr generateGroupArrayCreation(
+            BlockCreator bc,
             LambdaExpression.ArrayCreation arrayCreation,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle groupKeyExpr,
-            ResultHandle capturedValues,
+            Expr cb,
+            Expr root,
+            Expr groupKeyExpr,
+            Expr capturedValues,
             ExpressionGeneratorHelper helper) {
 
         // Generate Selection array for all elements
-        ResultHandle selectionsArray = generateGroupArraySelections(
-                method, arrayCreation, cb, root, groupKeyExpr, capturedValues, helper);
+        Expr selectionsArray = generateGroupArraySelections(
+                bc, arrayCreation, cb, root, groupKeyExpr, capturedValues, helper);
 
-        return method.invokeInterfaceMethod(CB_TUPLE, cb, selectionsArray);
+        return bc.invokeInterface(CB_TUPLE, cb, selectionsArray);
     }
 
-    private ResultHandle generateGroupConstructorCall(
-            MethodCreator method,
+    private Expr generateGroupConstructorCall(
+            BlockCreator bc,
             LambdaExpression.ConstructorCall constructorCall,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle groupKeyExpr,
-            ResultHandle capturedValues,
+            Expr cb,
+            Expr root,
+            Expr groupKeyExpr,
+            Expr capturedValues,
             ExpressionGeneratorHelper helper) {
 
-        ResultHandle resultClassHandle = helper.loadDtoClass(method, constructorCall.className());
+        Expr resultClassHandle = helper.loadDtoClass(bc, constructorCall.className());
 
-        return buildConstructorExpression(method, cb, resultClassHandle, constructorCall.arguments(),
-                arg -> generateGroupSelectExpression(method, arg, cb, root, groupKeyExpr, capturedValues, helper));
+        return buildConstructorExpression(bc, cb, resultClassHandle, constructorCall.arguments(),
+                arg -> generateGroupSelectExpression(bc, arg, cb, root, groupKeyExpr, capturedValues, helper));
     }
 }

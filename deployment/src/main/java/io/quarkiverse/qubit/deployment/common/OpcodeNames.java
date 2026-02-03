@@ -29,10 +29,13 @@ public final class OpcodeNames {
             case DDIV -> "DDIV";
             case IREM -> "IREM";
             case LREM -> "LREM";
+            case FREM -> "FREM";
+            case DREM -> "DREM";
 
             // Logical opcodes
             case IAND -> "IAND";
             case IOR -> "IOR";
+            case IXOR -> "IXOR";
 
             // Comparison opcodes
             case DCMPL -> "DCMPL";

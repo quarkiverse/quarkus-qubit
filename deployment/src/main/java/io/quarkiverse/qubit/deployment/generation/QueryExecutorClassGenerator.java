@@ -7,9 +7,7 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_MIN;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_SUM_DOUBLE;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_SUM_INTEGER;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_SUM_LONG;
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.CONSTRUCTOR;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QE_EXECUTE;
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_EXECUTOR_CLASS_NAME;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_AVG;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_COUNT;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_COUNT_DISTINCT;
@@ -35,24 +33,29 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.TQ_GE
 
 import java.util.List;
 
-import io.quarkus.gizmo.ClassCreator;
-import io.quarkus.gizmo.MethodCreator;
-import io.quarkus.gizmo.MethodDescriptor;
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Const;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.Gizmo;
+import io.quarkus.gizmo2.LocalVar;
+import io.quarkus.gizmo2.creator.BlockCreator;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
+import org.jspecify.annotations.Nullable;
 import io.quarkiverse.qubit.deployment.generation.join.JoinQueryBuilder;
 import io.quarkiverse.qubit.deployment.generation.join.JoinQueryContext;
 import io.quarkiverse.qubit.deployment.generation.join.JoinSelectionStrategy;
 import io.quarkiverse.qubit.deployment.generation.join.StandardClauseApplier;
-import io.quarkiverse.qubit.deployment.util.ByteArrayClassOutput;
+import io.quarkiverse.qubit.runtime.internal.QueryExecutor;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 
 /**
  * Generates query executor classes that execute JPA Criteria API queries from lambda expressions.
+ *
+ * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public class QueryExecutorClassGenerator {
 
@@ -63,38 +66,46 @@ public class QueryExecutorClassGenerator {
 
     private final StandardClauseApplier clauseApplier = new StandardClauseApplier(expressionGenerator);
 
+    /** Optional metrics collector for timing Gizmo2 code generation. */
+    private @Nullable BuildMetricsCollector metricsCollector;
+
     public QueryExecutorClassGenerator() {
         this.joinQueryBuilder = new JoinQueryBuilder(expressionGenerator, clauseApplier);
     }
 
+    /** Sets the metrics collector for timing code generation. */
+    public void setMetricsCollector(@Nullable BuildMetricsCollector metricsCollector) {
+        this.metricsCollector = metricsCollector;
+    }
+
     /** Context for query generation methods with shared parameters. */
     private record QueryGenContext(
-        MethodCreator method,
-        ResultHandle em,
-        ResultHandle entityClass,
+        BlockCreator bc,
+        Expr em,
+        Expr entityClass,
         List<?> sortExpressions,
-        ResultHandle capturedValues,
-        ResultHandle offset,
-        ResultHandle limit,
-        ResultHandle distinct
+        Expr capturedValues,
+        Expr offset,
+        Expr limit,
+        Expr distinct
     ) {}
 
-    /** JPA Criteria API query setup: CriteriaBuilder, CriteriaQuery, and Root. */
+    /** JPA Criteria API query setup: CriteriaBuilder, CriteriaQuery, and Root stored as LocalVar for Gizmo2. */
     private record QuerySetup(
-        ResultHandle cb,
-        ResultHandle query,
-        ResultHandle root
+        LocalVar cb,
+        LocalVar query,
+        LocalVar root
     ) {}
 
     /** Context for GROUP BY query generation with WHERE, GROUP BY, and HAVING. */
     private record GroupQueryContext(
-        MethodCreator method,
-        ResultHandle em,
-        ResultHandle entityClass,
+        BlockCreator bc,
+        Expr em,
+        Expr entityClass,
         LambdaExpression predicateExpression,
         LambdaExpression groupByKeyExpression,
         LambdaExpression havingExpression,
-        ResultHandle capturedValues
+        Expr capturedValues
     ) {}
 
     /** Extended GROUP BY context adding select, sort, pagination, and distinct. */
@@ -102,38 +113,39 @@ public class QueryExecutorClassGenerator {
         GroupQueryContext base,
         LambdaExpression groupSelectExpression,
         List<SortExpression> groupSortExpressions,
-        ResultHandle offset,
-        ResultHandle limit,
-        ResultHandle distinct
+        Expr offset,
+        Expr limit,
+        Expr distinct
     ) {
         // Delegate accessors for convenience
-        MethodCreator method() { return base.method(); }
-        ResultHandle em() { return base.em(); }
-        ResultHandle entityClass() { return base.entityClass(); }
+        BlockCreator bc() { return base.bc(); }
+        Expr em() { return base.em(); }
+        Expr entityClass() { return base.entityClass(); }
         LambdaExpression havingExpression() { return base.havingExpression(); }
-        ResultHandle capturedValues() { return base.capturedValues(); }
+        Expr capturedValues() { return base.capturedValues(); }
     }
 
-    /** Sets up CriteriaBuilder, CriteriaQuery, and Root in a single call. */
+    /** Sets up CriteriaBuilder, CriteriaQuery, and Root in a single call. Uses LocalVar for Gizmo2 stack management. */
     private QuerySetup setupQuery(
-            MethodCreator method,
-            ResultHandle em,
-            ResultHandle entityClass,
-            ResultHandle resultClass) {
-        ResultHandle cb = method.invokeInterfaceMethod(EM_GET_CRITERIA_BUILDER, em);
-        ResultHandle query = method.invokeInterfaceMethod(CB_CREATE_QUERY, cb, resultClass);
-        ResultHandle root = method.invokeInterfaceMethod(CQ_FROM, query, entityClass);
+            BlockCreator bc,
+            Expr em,
+            Expr entityClass,
+            Expr resultClass) {
+        // Use LocalVar to store values that are used across multiple operations (Gizmo2 requirement)
+        LocalVar cb = bc.localVar("cb", bc.invokeInterface(EM_GET_CRITERIA_BUILDER, em));
+        LocalVar query = bc.localVar("query", bc.invokeInterface(CB_CREATE_QUERY, cb, resultClass));
+        LocalVar root = bc.localVar("root", bc.invokeInterface(CQ_FROM, query, entityClass));
         return new QuerySetup(cb, query, root);
     }
 
     /** Sets up query with Object.class result type (projections, groups). */
-    private QuerySetup setupQueryForObject(MethodCreator method, ResultHandle em, ResultHandle entityClass) {
-        return setupQuery(method, em, entityClass, method.loadClass(Object.class));
+    private QuerySetup setupQueryForObject(BlockCreator bc, Expr em, Expr entityClass) {
+        return setupQuery(bc, em, entityClass, Const.of(Object.class));
     }
 
     /** Sets up query with Long.class result type (count queries). */
-    private QuerySetup setupQueryForLong(MethodCreator method, ResultHandle em, ResultHandle entityClass) {
-        return setupQuery(method, em, entityClass, method.loadClass(Long.class));
+    private QuerySetup setupQueryForLong(BlockCreator bc, Expr em, Expr entityClass) {
+        return setupQuery(bc, em, entityClass, Const.of(Long.class));
     }
 
     /** Generates query executor class with WHERE, SELECT, ORDER BY, and aggregation. */
@@ -147,52 +159,54 @@ public class QueryExecutorClassGenerator {
             boolean isCountQuery,
             boolean isAggregationQuery) {
 
-        ByteArrayClassOutput classOutput = new ByteArrayClassOutput();
+        long startTime = System.nanoTime();
+        try {
+            // Holder for the generated bytecode
+            final byte[][] bytecodeHolder = new byte[1][];
 
-        try (ClassCreator classCreator = ClassCreator.builder()
-                .classOutput(classOutput)
-                .className(className)
-                .interfaces(QUERY_EXECUTOR_CLASS_NAME)
-                .build()) {
-
-            try (MethodCreator constructor = classCreator.getMethodCreator(CONSTRUCTOR, void.class)) {
-                constructor.invokeSpecialMethod(
-                        MethodDescriptor.ofConstructor(Object.class),
-                        constructor.getThis());
-                constructor.returnValue(null);
-            }
+            // Gizmo2 ClassOutput uses ClassDesc, byte[] signature
+            Gizmo gizmo = Gizmo.create((desc, bytes) -> bytecodeHolder[0] = bytes);
+            gizmo.class_(className, cc -> {
+            cc.implements_(QueryExecutor.class);
+            cc.defaultConstructor();
 
             // Execute method signature includes offset, limit, and distinct parameters
-            try (MethodCreator execute = classCreator.getMethodCreator(
-                    QE_EXECUTE, Object.class, EntityManager.class, Class.class, Object[].class,
-                    Integer.class, Integer.class, Boolean.class)) {
+            cc.method(QE_EXECUTE, mc -> {
+                mc.public_();
+                mc.returning(Object.class);
+                var em = mc.parameter("em", EntityManager.class);
+                var entityClassParam = mc.parameter("entityClass", Class.class);
+                var capturedValues = mc.parameter("capturedValues", Object[].class);
+                var offset = mc.parameter("offset", Integer.class);
+                var limit = mc.parameter("limit", Integer.class);
+                var distinct = mc.parameter("distinct", Boolean.class);
 
-                ResultHandle em = execute.getMethodParam(0);
-                ResultHandle entityClassParam = execute.getMethodParam(1);
-                ResultHandle capturedValues = execute.getMethodParam(2);
-                ResultHandle offset = execute.getMethodParam(3);
-                ResultHandle limit = execute.getMethodParam(4);
-                ResultHandle distinct = execute.getMethodParam(5);
+                mc.body(bc -> {
+                    Expr result;
+                    if (isAggregationQuery) {
+                        // Aggregation queries (min, max, avg, sum*)
+                        result = generateAggregationQueryBody(bc, em, entityClassParam, predicateExpression,
+                                aggregationExpression, aggregationType, capturedValues);
+                    } else if (isCountQuery) {
+                        // Count queries ignore pagination and distinct parameters
+                        result = generateCountQueryBody(bc, em, entityClassParam, predicateExpression, capturedValues);
+                    } else {
+                        QueryGenContext ctx = new QueryGenContext(bc, em, entityClassParam,
+                                sortExpressions, capturedValues, offset, limit, distinct);
+                        result = generateListQueryBody(ctx, predicateExpression, projectionExpression);
+                    }
 
-                ResultHandle result;
-                if (isAggregationQuery) {
-                    // Aggregation queries (min, max, avg, sum*)
-                    result = generateAggregationQueryBody(execute, em, entityClassParam, predicateExpression,
-                            aggregationExpression, aggregationType, capturedValues);
-                } else if (isCountQuery) {
-                    // Count queries ignore pagination and distinct parameters
-                    result = generateCountQueryBody(execute, em, entityClassParam, predicateExpression, capturedValues);
-                } else {
-                    QueryGenContext ctx = new QueryGenContext(execute, em, entityClassParam,
-                            sortExpressions, capturedValues, offset, limit, distinct);
-                    result = generateListQueryBody(ctx, predicateExpression, projectionExpression);
-                }
+                    bc.return_(result);
+                });
+            });
+        });
 
-                execute.returnValue(result);
+            return bytecodeHolder[0];
+        } finally {
+            if (metricsCollector != null) {
+                metricsCollector.addCodeGenerationTime(System.nanoTime() - startTime);
             }
         }
-
-        return classOutput.getData();
     }
 
     /** Generates query executor for JOIN queries with bi-entity predicates and projections. */
@@ -207,69 +221,71 @@ public class QueryExecutorClassGenerator {
             boolean isSelectJoined,
             boolean isJoinProjection) {
 
-        ByteArrayClassOutput classOutput = new ByteArrayClassOutput();
+        long startTime = System.nanoTime();
+        try {
+            // Holder for the generated bytecode
+            final byte[][] bytecodeHolder = new byte[1][];
 
-        try (ClassCreator classCreator = ClassCreator.builder()
-                .classOutput(classOutput)
-                .className(className)
-                .interfaces(QUERY_EXECUTOR_CLASS_NAME)
-                .build()) {
-
-            try (MethodCreator constructor = classCreator.getMethodCreator(CONSTRUCTOR, void.class)) {
-                constructor.invokeSpecialMethod(
-                        MethodDescriptor.ofConstructor(Object.class),
-                        constructor.getThis());
-                constructor.returnValue(null);
-            }
+            // Gizmo2 ClassOutput uses ClassDesc, byte[] signature
+            Gizmo gizmo = Gizmo.create((desc, bytes) -> bytecodeHolder[0] = bytes);
+        gizmo.class_(className, cc -> {
+            cc.implements_(QueryExecutor.class);
+            cc.defaultConstructor();
 
             // Same execute method signature as regular queries
-            try (MethodCreator execute = classCreator.getMethodCreator(
-                    QE_EXECUTE, Object.class, EntityManager.class, Class.class, Object[].class,
-                    Integer.class, Integer.class, Boolean.class)) {
+            cc.method(QE_EXECUTE, mc -> {
+                mc.public_();
+                mc.returning(Object.class);
+                var em = mc.parameter("em", EntityManager.class);
+                var entityClassParam = mc.parameter("entityClass", Class.class);
+                var capturedValues = mc.parameter("capturedValues", Object[].class);
+                var offset = mc.parameter("offset", Integer.class);
+                var limit = mc.parameter("limit", Integer.class);
+                var distinct = mc.parameter("distinct", Boolean.class);
 
-                ResultHandle em = execute.getMethodParam(0);
-                ResultHandle entityClassParam = execute.getMethodParam(1);
-                ResultHandle capturedValues = execute.getMethodParam(2);
-                ResultHandle offset = execute.getMethodParam(3);
-                ResultHandle limit = execute.getMethodParam(4);
-                ResultHandle distinct = execute.getMethodParam(5);
-
-                ResultHandle result;
-                if (isCountQuery) {
-                    result = generateJoinCountQueryBody(
-                            execute, em, entityClassParam,
-                            joinRelationshipExpression, biEntityPredicateExpression,
-                            joinType, capturedValues);
-                } else {
-                    // Use Template Method pattern with Strategy for the three join query variants
-                    JoinQueryContext ctx = new JoinQueryContext(
-                            execute, em, entityClassParam,
-                            joinRelationshipExpression, biEntityPredicateExpression,
-                            joinType, sortExpressions, capturedValues, offset, limit, distinct);
-
-                    // Determine selection strategy based on query type
-                    JoinSelectionStrategy strategy;
-                    if (isJoinProjection) {
-                        // select() with BiQuerySpec returns projected results
-                        ResultHandle objectClass = execute.loadClass(Object.class);
-                        strategy = new JoinSelectionStrategy.SelectProjection(objectClass, biEntityProjectionExpression);
-                    } else if (isSelectJoined) {
-                        // selectJoined() returns joined entities instead of source entities
-                        ResultHandle objectClass = execute.loadClass(Object.class);
-                        strategy = new JoinSelectionStrategy.SelectJoined(objectClass);
+                mc.body(bc -> {
+                    Expr result;
+                    if (isCountQuery) {
+                        result = generateJoinCountQueryBody(
+                                bc, em, entityClassParam,
+                                joinRelationshipExpression, biEntityPredicateExpression,
+                                joinType, capturedValues);
                     } else {
-                        // Default: return root entities
-                        strategy = new JoinSelectionStrategy.SelectRoot(entityClassParam);
+                        // Use Template Method pattern with Strategy for the three join query variants
+                        JoinQueryContext ctx = new JoinQueryContext(
+                                bc, em, entityClassParam,
+                                joinRelationshipExpression, biEntityPredicateExpression,
+                                joinType, sortExpressions, capturedValues, offset, limit, distinct);
+
+                        // Determine selection strategy based on query type
+                        JoinSelectionStrategy strategy;
+                        if (isJoinProjection) {
+                            // select() with BiQuerySpec returns projected results
+                            Expr objectClass = Const.of(Object.class);
+                            strategy = new JoinSelectionStrategy.SelectProjection(objectClass, biEntityProjectionExpression);
+                        } else if (isSelectJoined) {
+                            // selectJoined() returns joined entities instead of source entities
+                            Expr objectClass = Const.of(Object.class);
+                            strategy = new JoinSelectionStrategy.SelectJoined(objectClass);
+                        } else {
+                            // Default: return root entities
+                            strategy = new JoinSelectionStrategy.SelectRoot(entityClassParam);
+                        }
+
+                        result = joinQueryBuilder.build(ctx, strategy);
                     }
 
-                    result = joinQueryBuilder.build(ctx, strategy);
-                }
+                    bc.return_(result);
+                });
+            });
+        });
 
-                execute.returnValue(result);
+            return bytecodeHolder[0];
+        } finally {
+            if (metricsCollector != null) {
+                metricsCollector.addCodeGenerationTime(System.nanoTime() - startTime);
             }
         }
-
-        return classOutput.getData();
     }
 
     /** Generates query executor for GROUP BY with optional HAVING, aggregations, and sorting. */
@@ -282,133 +298,137 @@ public class QueryExecutorClassGenerator {
             String className,
             boolean isCountQuery) {
 
-        ByteArrayClassOutput classOutput = new ByteArrayClassOutput();
+        long startTime = System.nanoTime();
+        try {
+            // Holder for the generated bytecode
+            final byte[][] bytecodeHolder = new byte[1][];
 
-        try (ClassCreator classCreator = ClassCreator.builder()
-                .classOutput(classOutput)
-                .className(className)
-                .interfaces(QUERY_EXECUTOR_CLASS_NAME)
-                .build()) {
-
-            try (MethodCreator constructor = classCreator.getMethodCreator(CONSTRUCTOR, void.class)) {
-                constructor.invokeSpecialMethod(
-                        MethodDescriptor.ofConstructor(Object.class),
-                        constructor.getThis());
-                constructor.returnValue(null);
-            }
+            // Gizmo2 ClassOutput uses ClassDesc, byte[] signature
+            Gizmo gizmo = Gizmo.create((desc, bytes) -> bytecodeHolder[0] = bytes);
+        gizmo.class_(className, cc -> {
+            cc.implements_(QueryExecutor.class);
+            cc.defaultConstructor();
 
             // Same execute method signature as regular queries
-            try (MethodCreator execute = classCreator.getMethodCreator(
-                    QE_EXECUTE, Object.class, EntityManager.class, Class.class, Object[].class,
-                    Integer.class, Integer.class, Boolean.class)) {
+            cc.method(QE_EXECUTE, mc -> {
+                mc.public_();
+                mc.returning(Object.class);
+                var em = mc.parameter("em", EntityManager.class);
+                var entityClassParam = mc.parameter("entityClass", Class.class);
+                var capturedValues = mc.parameter("capturedValues", Object[].class);
+                var offset = mc.parameter("offset", Integer.class);
+                var limit = mc.parameter("limit", Integer.class);
+                var distinct = mc.parameter("distinct", Boolean.class);
 
-                ResultHandle em = execute.getMethodParam(0);
-                ResultHandle entityClassParam = execute.getMethodParam(1);
-                ResultHandle capturedValues = execute.getMethodParam(2);
-                ResultHandle offset = execute.getMethodParam(3);
-                ResultHandle limit = execute.getMethodParam(4);
-                ResultHandle distinct = execute.getMethodParam(5);
+                mc.body(bc -> {
+                    // Create base context with common parameters
+                    GroupQueryContext baseCtx = new GroupQueryContext(
+                            bc, em, entityClassParam,
+                            predicateExpression, groupByKeyExpression,
+                            havingExpression, capturedValues);
 
-                // Create base context with common parameters
-                GroupQueryContext baseCtx = new GroupQueryContext(
-                        execute, em, entityClassParam,
-                        predicateExpression, groupByKeyExpression,
-                        havingExpression, capturedValues);
+                    Expr result;
+                    if (isCountQuery) {
+                        result = generateGroupCountQueryBody(baseCtx);
+                    } else {
+                        GroupListContext listCtx = new GroupListContext(
+                                baseCtx, groupSelectExpression, groupSortExpressions,
+                                offset, limit, distinct);
+                        result = generateGroupQueryBody(listCtx);
+                    }
 
-                ResultHandle result;
-                if (isCountQuery) {
-                    result = generateGroupCountQueryBody(baseCtx);
-                } else {
-                    GroupListContext listCtx = new GroupListContext(
-                            baseCtx, groupSelectExpression, groupSortExpressions,
-                            offset, limit, distinct);
-                    result = generateGroupQueryBody(listCtx);
-                }
+                    bc.return_(result);
+                });
+            });
+        });
 
-                execute.returnValue(result);
+            return bytecodeHolder[0];
+        } finally {
+            if (metricsCollector != null) {
+                metricsCollector.addCodeGenerationTime(System.nanoTime() - startTime);
             }
         }
-
-        return classOutput.getData();
     }
 
     /** Generates GROUP BY query with optional WHERE, HAVING, SELECT, and ORDER BY. */
-    private ResultHandle generateGroupQueryBody(GroupListContext ctx) {
-        MethodCreator method = ctx.method();
+    private Expr generateGroupQueryBody(GroupListContext ctx) {
+        BlockCreator bc = ctx.bc();
 
         // Setup query and apply common GROUP BY logic
-        QuerySetup setup = setupQueryForObject(method, ctx.em(), ctx.entityClass());
-        ResultHandle cb = setup.cb();
-        ResultHandle query = setup.query();
-        ResultHandle root = setup.root();
+        QuerySetup setup = setupQueryForObject(bc, ctx.em(), ctx.entityClass());
+        Expr cb = setup.cb();
+        Expr query = setup.query();
+        Expr root = setup.root();
 
         // Apply common WHERE and GROUP BY setup
-        ResultHandle groupKeyExpr = applyGroupQuerySetup(ctx.base(), setup);
+        Expr groupKeyExpr = applyGroupQuerySetup(ctx.base(), setup);
 
         // Apply HAVING predicate if present
         if (ctx.havingExpression() != null) {
-            ResultHandle havingPredicate = expressionGenerator.generateGroupPredicate(
-                    method, ctx.havingExpression(), cb, root, groupKeyExpr, ctx.capturedValues());
-            applyHavingPredicate(method, query, havingPredicate);
+            Expr havingPredicate = expressionGenerator.generateGroupPredicate(
+                    bc, ctx.havingExpression(), cb, root, groupKeyExpr, ctx.capturedValues());
+            applyHavingPredicate(bc, query, havingPredicate);
         }
 
         // Apply SELECT projection if present
         if (ctx.groupSelectExpression() != null) {
-            ResultHandle selection = expressionGenerator.generateGroupSelectExpression(
-                    method, ctx.groupSelectExpression(), cb, root, groupKeyExpr, ctx.capturedValues());
-            method.invokeInterfaceMethod(CQ_SELECT, query, selection);
+            Expr selection = expressionGenerator.generateGroupSelectExpression(
+                    bc, ctx.groupSelectExpression(), cb, root, groupKeyExpr, ctx.capturedValues());
+            bc.invokeInterface(CQ_SELECT, query, selection);
         } else {
             // Default: SELECT the grouping key
-            method.invokeInterfaceMethod(CQ_SELECT, query, groupKeyExpr);
+            bc.invokeInterface(CQ_SELECT, query, groupKeyExpr);
         }
 
         // Apply ORDER BY for group queries
-        applyGroupOrderBy(method, query, root, groupKeyExpr, cb, ctx.groupSortExpressions(), ctx.capturedValues());
+        applyGroupOrderBy(bc, query, root, groupKeyExpr, cb, ctx.groupSortExpressions(), ctx.capturedValues());
 
         // Apply DISTINCT if requested
-        clauseApplier.applyDistinct(method, query, ctx.distinct());
+        clauseApplier.applyDistinct(bc, query, ctx.distinct());
 
         // Create TypedQuery
-        ResultHandle typedQuery = method.invokeInterfaceMethod(EM_CREATE_QUERY, ctx.em(), query);
+        // Use LocalVar for values used across multiple operations (Gizmo2 requirement)
+        LocalVar typedQuery = bc.localVar("typedQuery", bc.invokeInterface(EM_CREATE_QUERY, ctx.em(), query));
 
         // Apply pagination
-        clauseApplier.applyPagination(method, typedQuery, ctx.offset(), ctx.limit());
+        clauseApplier.applyPagination(bc, typedQuery, ctx.offset(), ctx.limit());
 
         // Return getResultList()
-        return method.invokeInterfaceMethod(TQ_GET_RESULT_LIST, typedQuery);
+        return bc.invokeInterface(TQ_GET_RESULT_LIST, typedQuery);
     }
 
     /** Applies WHERE predicate and generates GROUP BY key expression. */
-    private ResultHandle applyWhereAndGenerateGroupKey(GroupQueryContext ctx, QuerySetup setup) {
-        MethodCreator method = ctx.method();
+    private Expr applyWhereAndGenerateGroupKey(GroupQueryContext ctx, QuerySetup setup) {
+        BlockCreator bc = ctx.bc();
 
         // Apply pre-grouping WHERE predicate if present (with subquery support)
         if (ctx.predicateExpression() != null) {
-            ResultHandle predicate = expressionGenerator.generatePredicateWithSubqueries(
-                    method, ctx.predicateExpression(), setup.cb(), setup.query(), setup.root(), ctx.capturedValues());
-            clauseApplier.applyWherePredicate(method, setup.query(), predicate);
+            Expr predicate = expressionGenerator.generatePredicateWithSubqueries(
+                    bc, ctx.predicateExpression(), setup.cb(), setup.query(), setup.root(), ctx.capturedValues());
+            clauseApplier.applyWherePredicate(bc, setup.query(), predicate);
         }
 
         // Generate and return GROUP BY key expression
         return expressionGenerator.generateExpression(
-                method, ctx.groupByKeyExpression(), setup.cb(), setup.root(), ctx.capturedValues());
+                bc, ctx.groupByKeyExpression(), setup.cb(), setup.root(), ctx.capturedValues());
     }
 
     /** Applies WHERE, GROUP BY key, and GROUP BY clause setup. */
-    private ResultHandle applyGroupQuerySetup(GroupQueryContext ctx, QuerySetup setup) {
+    private Expr applyGroupQuerySetup(GroupQueryContext ctx, QuerySetup setup) {
         // Apply WHERE and generate group key
-        ResultHandle groupKeyExpr = applyWhereAndGenerateGroupKey(ctx, setup);
+        Expr groupKeyExpr = applyWhereAndGenerateGroupKey(ctx, setup);
 
         // Apply GROUP BY
-        ResultHandle groupByArray = ctx.method().newArray(Expression.class, 1);
-        ctx.method().writeArrayValue(groupByArray, 0, groupKeyExpr);
-        ctx.method().invokeInterfaceMethod(CQ_GROUP_BY, setup.query(), groupByArray);
+        // Use LocalVar for values used across multiple operations (Gizmo2 requirement)
+        LocalVar groupByArray = ctx.bc().localVar("groupByArray", ctx.bc().newEmptyArray(Expression.class, 1));
+        ctx.bc().set(groupByArray.elem(0), groupKeyExpr);
+        ctx.bc().invokeInterface(CQ_GROUP_BY, setup.query(), groupByArray);
 
         return groupKeyExpr;
     }
 
     /** Generates GROUP BY COUNT using COUNT(DISTINCT) or runtime result counting for HAVING. */
-    private ResultHandle generateGroupCountQueryBody(GroupQueryContext ctx) {
+    private Expr generateGroupCountQueryBody(GroupQueryContext ctx) {
         if (ctx.havingExpression() != null) {
             return generateGroupCountWithHaving(ctx);
         } else {
@@ -417,61 +437,61 @@ public class QueryExecutorClassGenerator {
     }
 
     /** Generates GROUP COUNT with HAVING (counts results at runtime). */
-    private ResultHandle generateGroupCountWithHaving(GroupQueryContext ctx) {
-        MethodCreator method = ctx.method();
+    private Expr generateGroupCountWithHaving(GroupQueryContext ctx) {
+        BlockCreator bc = ctx.bc();
 
         // With HAVING: Create query for Object (group key type may vary)
-        QuerySetup setup = setupQueryForObject(method, ctx.em(), ctx.entityClass());
+        QuerySetup setup = setupQueryForObject(bc, ctx.em(), ctx.entityClass());
 
         // Apply WHERE + GROUP BY setup
-        ResultHandle groupKeyExpr = applyGroupQuerySetup(ctx, setup);
+        Expr groupKeyExpr = applyGroupQuerySetup(ctx, setup);
 
         // Apply HAVING predicate
-        ResultHandle havingPredicate = expressionGenerator.generateGroupPredicate(
-                method, ctx.havingExpression(), setup.cb(), setup.root(), groupKeyExpr, ctx.capturedValues());
-        applyHavingPredicate(method, setup.query(), havingPredicate);
+        Expr havingPredicate = expressionGenerator.generateGroupPredicate(
+                bc, ctx.havingExpression(), setup.cb(), setup.root(), groupKeyExpr, ctx.capturedValues());
+        applyHavingPredicate(bc, setup.query(), havingPredicate);
 
         // SELECT groupKey (we'll count results at runtime)
-        method.invokeInterfaceMethod(CQ_SELECT, setup.query(), groupKeyExpr);
+        bc.invokeInterface(CQ_SELECT, setup.query(), groupKeyExpr);
 
         // Create TypedQuery and get result list
-        ResultHandle typedQuery = method.invokeInterfaceMethod(EM_CREATE_QUERY, ctx.em(), setup.query());
-        ResultHandle resultList = method.invokeInterfaceMethod(TQ_GET_RESULT_LIST, typedQuery);
+        Expr typedQuery = bc.invokeInterface(EM_CREATE_QUERY, ctx.em(), setup.query());
+        Expr resultList = bc.invokeInterface(TQ_GET_RESULT_LIST, typedQuery);
 
         // Return result list size as Long
-        ResultHandle size = method.invokeInterfaceMethod(LIST_SIZE, resultList);
-        ResultHandle sizeLong = method.invokeVirtualMethod(
+        Expr size = bc.invokeInterface(LIST_SIZE, resultList);
+        Expr sizeLong = bc.invokeVirtual(
                 INTEGER_LONG_VALUE,
-                method.invokeStaticMethod(INTEGER_VALUE_OF, size));
-        return method.invokeStaticMethod(LONG_VALUE_OF, sizeLong);
+                bc.invokeStatic(INTEGER_VALUE_OF, size));
+        return bc.invokeStatic(LONG_VALUE_OF, sizeLong);
     }
 
     /** Generates GROUP COUNT without HAVING using COUNT(DISTINCT groupKey). */
-    private ResultHandle generateGroupCountWithoutHaving(GroupQueryContext ctx) {
-        MethodCreator method = ctx.method();
+    private Expr generateGroupCountWithoutHaving(GroupQueryContext ctx) {
+        BlockCreator bc = ctx.bc();
 
         // Without HAVING: Create query for Long (count result)
-        QuerySetup setup = setupQueryForLong(method, ctx.em(), ctx.entityClass());
+        QuerySetup setup = setupQueryForLong(bc, ctx.em(), ctx.entityClass());
 
         // Apply WHERE and generate group key (no GROUP BY needed for COUNT DISTINCT)
-        ResultHandle groupKeyExpr = applyWhereAndGenerateGroupKey(ctx, setup);
+        Expr groupKeyExpr = applyWhereAndGenerateGroupKey(ctx, setup);
 
         // Simple COUNT(DISTINCT groupKey)
-        ResultHandle countExpr = method.invokeInterfaceMethod(CB_COUNT_DISTINCT, setup.cb(), groupKeyExpr);
-        method.invokeInterfaceMethod(CQ_SELECT, setup.query(), countExpr);
+        Expr countExpr = bc.invokeInterface(CB_COUNT_DISTINCT, setup.cb(), groupKeyExpr);
+        bc.invokeInterface(CQ_SELECT, setup.query(), countExpr);
 
         // Create TypedQuery and return getSingleResult()
-        ResultHandle typedQuery = method.invokeInterfaceMethod(EM_CREATE_QUERY, ctx.em(), setup.query());
-        return method.invokeInterfaceMethod(TQ_GET_SINGLE_RESULT, typedQuery);
+        Expr typedQuery = bc.invokeInterface(EM_CREATE_QUERY, ctx.em(), setup.query());
+        return bc.invokeInterface(TQ_GET_SINGLE_RESULT, typedQuery);
     }
 
     /**
      * Applies HAVING clause predicate to CriteriaQuery.
      */
-    private void applyHavingPredicate(MethodCreator method, ResultHandle query, ResultHandle predicate) {
+    private void applyHavingPredicate(BlockCreator bc, Expr query, Expr predicate) {
         if (predicate != null) {
-            ResultHandle predicateArray = GizmoHelper.createElementArray(method, Predicate.class, predicate);
-            method.invokeInterfaceMethod(CQ_HAVING, query, predicateArray);
+            Expr predicateArray = GizmoHelper.createElementArray(bc, Predicate.class, predicate);
+            bc.invokeInterface(CQ_HAVING, query, predicateArray);
         }
     }
 
@@ -479,21 +499,21 @@ public class QueryExecutorClassGenerator {
      * Applies ORDER BY clause for GROUP BY queries.
      */
     private void applyGroupOrderBy(
-            MethodCreator method,
-            ResultHandle query,
-            ResultHandle root,
-            ResultHandle groupKeyExpr,
-            ResultHandle cb,
+            BlockCreator bc,
+            Expr query,
+            Expr root,
+            Expr groupKeyExpr,
+            Expr cb,
             List<?> sortExpressions,
-            ResultHandle capturedValues) {
+            Expr capturedValues) {
 
-        GizmoHelper.buildOrderByClause(method, query, cb, sortExpressions,
+        GizmoHelper.buildOrderByClause(bc, query, cb, sortExpressions,
                 sortExpr -> expressionGenerator.generateGroupSortExpression(
-                        method, sortExpr.keyExtractor(), cb, root, groupKeyExpr, capturedValues));
+                        bc, sortExpr.keyExtractor(), cb, root, groupKeyExpr, capturedValues));
     }
 
     /** Generates LIST query with WHERE, SELECT, ORDER BY, and pagination. */
-    private ResultHandle generateListQueryBody(
+    private Expr generateListQueryBody(
             QueryGenContext ctx,
             LambdaExpression predicateExpression,
             LambdaExpression projectionExpression) {
@@ -509,13 +529,13 @@ public class QueryExecutorClassGenerator {
         }
 
         // Both predicate and no-predicate paths share the same query execution flow
-        QuerySetup setup = setupQuery(ctx.method(), ctx.em(), ctx.entityClass(), ctx.entityClass());
+        QuerySetup setup = setupQuery(ctx.bc(), ctx.em(), ctx.entityClass(), ctx.entityClass());
 
         // Apply WHERE predicate if present (with subquery support)
         if (predicateExpression != null) {
-            ResultHandle predicate = expressionGenerator.generatePredicateWithSubqueries(
-                    ctx.method(), predicateExpression, setup.cb(), setup.query(), setup.root(), ctx.capturedValues());
-            clauseApplier.applyWherePredicate(ctx.method(), setup.query(), predicate);
+            Expr predicate = expressionGenerator.generatePredicateWithSubqueries(
+                    ctx.bc(), predicateExpression, setup.cb(), setup.query(), setup.root(), ctx.capturedValues());
+            clauseApplier.applyWherePredicate(ctx.bc(), setup.query(), predicate);
         }
 
         // Execute common list query flow: ORDER BY, DISTINCT, pagination, getResultList()
@@ -523,81 +543,77 @@ public class QueryExecutorClassGenerator {
     }
 
     /** Executes list query: ORDER BY, DISTINCT, pagination, getResultList(). */
-    private ResultHandle executeListQuery(QueryGenContext ctx, QuerySetup setup) {
-        applyOrderBy(ctx.method(), setup.query(), setup.root(), setup.cb(),
+    private Expr executeListQuery(QueryGenContext ctx, QuerySetup setup) {
+        applyOrderBy(ctx.bc(), setup.query(), setup.root(), setup.cb(),
                 ctx.sortExpressions(), ctx.capturedValues(), null);
-        clauseApplier.applyDistinct(ctx.method(), setup.query(), ctx.distinct());
-        ResultHandle typedQuery = ctx.method().invokeInterfaceMethod(EM_CREATE_QUERY, ctx.em(), setup.query());
-        clauseApplier.applyPagination(ctx.method(), typedQuery, ctx.offset(), ctx.limit());
-        return ctx.method().invokeInterfaceMethod(TQ_GET_RESULT_LIST, typedQuery);
+        clauseApplier.applyDistinct(ctx.bc(), setup.query(), ctx.distinct());
+        // Use LocalVar for values used across multiple operations (Gizmo2 requirement)
+        LocalVar typedQuery = ctx.bc().localVar("typedQuery", ctx.bc().invokeInterface(EM_CREATE_QUERY, ctx.em(), setup.query()));
+        clauseApplier.applyPagination(ctx.bc(), typedQuery, ctx.offset(), ctx.limit());
+        return ctx.bc().invokeInterface(TQ_GET_RESULT_LIST, typedQuery);
     }
 
     /** Generates COUNT query with subquery support. */
-    private ResultHandle generateCountQueryBody(
-            MethodCreator method,
-            ResultHandle em,
-            ResultHandle entityClass,
+    private Expr generateCountQueryBody(
+            BlockCreator bc,
+            Expr em,
+            Expr entityClass,
             LambdaExpression expression,
-            ResultHandle capturedValues) {
+            Expr capturedValues) {
 
-        QuerySetup setup = setupQueryForLong(method, em, entityClass);
-        ResultHandle cb = setup.cb();
-        ResultHandle query = setup.query();
-        ResultHandle root = setup.root();
-        ResultHandle countExpr = method.invokeInterfaceMethod(CB_COUNT, cb, root);
-        method.invokeInterfaceMethod(CQ_SELECT, query, countExpr);
-        ResultHandle predicate = expressionGenerator.generatePredicateWithSubqueries(method, expression, cb, query, root, capturedValues);
-        clauseApplier.applyWherePredicate(method, query, predicate);
-        ResultHandle typedQuery = method.invokeInterfaceMethod(EM_CREATE_QUERY, em, query);
-        return method.invokeInterfaceMethod(TQ_GET_SINGLE_RESULT, typedQuery);
+        QuerySetup setup = setupQueryForLong(bc, em, entityClass);
+        Expr cb = setup.cb();
+        Expr query = setup.query();
+        Expr root = setup.root();
+        Expr countExpr = bc.invokeInterface(CB_COUNT, cb, root);
+        bc.invokeInterface(CQ_SELECT, query, countExpr);
+        Expr predicate = expressionGenerator.generatePredicateWithSubqueries(bc, expression, cb, query, root, capturedValues);
+        clauseApplier.applyWherePredicate(bc, query, predicate);
+        Expr typedQuery = bc.invokeInterface(EM_CREATE_QUERY, em, query);
+        return bc.invokeInterface(TQ_GET_SINGLE_RESULT, typedQuery);
     }
 
     /** Generates aggregation query (MIN, MAX, AVG, SUM) with optional WHERE. */
-    private ResultHandle generateAggregationQueryBody(
-            MethodCreator method,
-            ResultHandle em,
-            ResultHandle entityClass,
+    private Expr generateAggregationQueryBody(
+            BlockCreator bc,
+            Expr em,
+            Expr entityClass,
             LambdaExpression predicateExpression,
             LambdaExpression aggregationExpression,
             String aggregationType,
-            ResultHandle capturedValues) {
+            Expr capturedValues) {
 
         // Determine result type based on aggregation type
         Class<?> resultType = getAggregationResultType(aggregationType);
-        ResultHandle resultClass = method.loadClass(resultType);
+        Expr resultClass = Const.of(resultType);
 
         // Setup query with the aggregation result type
-        QuerySetup setup = setupQuery(method, em, entityClass, resultClass);
-        ResultHandle cb = setup.cb();
-        ResultHandle query = setup.query();
-        ResultHandle root = setup.root();
+        QuerySetup setup = setupQuery(bc, em, entityClass, resultClass);
+        Expr cb = setup.cb();
+        Expr query = setup.query();
+        Expr root = setup.root();
 
         // Generate expression for aggregation mapper (e.g., root.get("salary"))
-        ResultHandle mapperExpr = expressionGenerator.generateExpression(
-                method, aggregationExpression, cb, root, capturedValues);
+        Expr mapperExpr = expressionGenerator.generateExpression(
+                bc, aggregationExpression, cb, root, capturedValues);
 
         // Apply aggregation function
-        ResultHandle aggExpr = applyAggregationFunction(method, cb, mapperExpr, aggregationType);
+        Expr aggExpr = applyAggregationFunction(bc, cb, mapperExpr, aggregationType);
 
         // SELECT aggregation result
-        method.invokeInterfaceMethod(
-                CQ_SELECT,
-                query, aggExpr);
+        bc.invokeInterface(CQ_SELECT, query, aggExpr);
 
         // Apply WHERE predicate if present (with subquery support)
         if (predicateExpression != null) {
-            ResultHandle predicate = expressionGenerator.generatePredicateWithSubqueries(
-                    method, predicateExpression, cb, query, root, capturedValues);
-            clauseApplier.applyWherePredicate(method, query, predicate);
+            Expr predicate = expressionGenerator.generatePredicateWithSubqueries(
+                    bc, predicateExpression, cb, query, root, capturedValues);
+            clauseApplier.applyWherePredicate(bc, query, predicate);
         }
 
         // Create and execute query
-        ResultHandle typedQuery = method.invokeInterfaceMethod(
-                EM_CREATE_QUERY,
-                em, query);
+        Expr typedQuery = bc.invokeInterface(EM_CREATE_QUERY, em, query);
 
-        return method.invokeInterfaceMethod(
-                TQ_GET_SINGLE_RESULT, typedQuery);
+        return bc.invokeInterface(TQ_GET_SINGLE_RESULT, typedQuery);
     }
 
     /** Maps aggregation type to Java result type (AVG->Double, SUM->Long, etc). */
@@ -613,115 +629,104 @@ public class QueryExecutorClassGenerator {
     }
 
     /** Generates cb.min(), cb.max(), cb.avg(), or cb.sum() call. */
-    private ResultHandle applyAggregationFunction(
-            MethodCreator method,
-            ResultHandle cb,
-            ResultHandle expression,
+    private Expr applyAggregationFunction(
+            BlockCreator bc,
+            Expr cb,
+            Expr expression,
             String aggregationType) {
 
         return switch (aggregationType) {
-            case AGG_TYPE_MIN -> method.invokeInterfaceMethod(CB_MIN, cb, expression);
-            case AGG_TYPE_MAX -> method.invokeInterfaceMethod(CB_MAX, cb, expression);
-            case AGG_TYPE_AVG -> method.invokeInterfaceMethod(CB_AVG, cb, expression);
-            case AGG_TYPE_SUM_INTEGER -> method.invokeInterfaceMethod(CB_SUM_AS_LONG, cb, expression);  // Use sumAsLong for Integer fields
-            case AGG_TYPE_SUM_LONG -> method.invokeInterfaceMethod(CB_SUM_AS_LONG, cb, expression);
-            case AGG_TYPE_SUM_DOUBLE -> method.invokeInterfaceMethod(CB_SUM_AS_DOUBLE, cb, expression);
+            case AGG_TYPE_MIN -> bc.invokeInterface(CB_MIN, cb, expression);
+            case AGG_TYPE_MAX -> bc.invokeInterface(CB_MAX, cb, expression);
+            case AGG_TYPE_AVG -> bc.invokeInterface(CB_AVG, cb, expression);
+            case AGG_TYPE_SUM_INTEGER -> bc.invokeInterface(CB_SUM_AS_LONG, cb, expression);  // Use sumAsLong for Integer fields
+            case AGG_TYPE_SUM_LONG -> bc.invokeInterface(CB_SUM_AS_LONG, cb, expression);
+            case AGG_TYPE_SUM_DOUBLE -> bc.invokeInterface(CB_SUM_AS_DOUBLE, cb, expression);
             default -> throw new IllegalArgumentException(unknownAggregationType(aggregationType));
         };
     }
 
     /** Generates JOIN COUNT query with relationship navigation and bi-entity predicates. */
-    private ResultHandle generateJoinCountQueryBody(
-            MethodCreator method,
-            ResultHandle em,
-            ResultHandle entityClass,
+    private Expr generateJoinCountQueryBody(
+            BlockCreator bc,
+            Expr em,
+            Expr entityClass,
             LambdaExpression joinRelationshipExpression,
             LambdaExpression biEntityPredicateExpression,
             InvokeDynamicScanner.JoinType joinType,
-            ResultHandle capturedValues) {
+            Expr capturedValues) {
 
         // Setup query for Long (count result)
-        QuerySetup setup = setupQueryForLong(method, em, entityClass);
-        ResultHandle cb = setup.cb();
-        ResultHandle query = setup.query();
-        ResultHandle root = setup.root();
+        QuerySetup setup = setupQueryForLong(bc, em, entityClass);
+        Expr cb = setup.cb();
+        Expr query = setup.query();
+        Expr root = setup.root();
 
         // Extract relationship field name from join relationship expression
         String relationshipFieldName = joinRelationshipExpression.getFieldNameOrThrow();
 
         // Create Join by calling root.join(relationshipFieldName, JoinType)
-        ResultHandle relationshipName = method.load(relationshipFieldName);
-        ResultHandle jpaJoinType = GizmoHelper.loadJpaJoinType(method, joinType);
-        ResultHandle joinHandle = method.invokeInterfaceMethod(FROM_JOIN, root, relationshipName, jpaJoinType);
+        Expr relationshipName = Const.of(relationshipFieldName);
+        Expr jpaJoinType = GizmoHelper.loadJpaJoinType(joinType);
+        Expr joinHandle = bc.invokeInterface(FROM_JOIN, root, relationshipName, jpaJoinType);
 
         // SELECT COUNT(root)
-        ResultHandle countExpr = method.invokeInterfaceMethod(
-                CB_COUNT, cb, root);
-        method.invokeInterfaceMethod(
-                CQ_SELECT, query, countExpr);
+        Expr countExpr = bc.invokeInterface(CB_COUNT, cb, root);
+        bc.invokeInterface(CQ_SELECT, query, countExpr);
 
         // Apply bi-entity predicate if present
         if (biEntityPredicateExpression != null) {
-            ResultHandle predicate = expressionGenerator.generateBiEntityPredicateWithSubqueries(
-                    method, biEntityPredicateExpression, cb, query, root, joinHandle, capturedValues);
-            clauseApplier.applyWherePredicate(method, query, predicate);
+            Expr predicate = expressionGenerator.generateBiEntityPredicateWithSubqueries(
+                    bc, biEntityPredicateExpression, cb, query, root, joinHandle, capturedValues);
+            clauseApplier.applyWherePredicate(bc, query, predicate);
         }
 
         // Create TypedQuery
-        ResultHandle typedQuery = method.invokeInterfaceMethod(
-                EM_CREATE_QUERY,
-                em, query);
+        Expr typedQuery = bc.invokeInterface(EM_CREATE_QUERY, em, query);
 
         // Return getSingleResult() for count
-        return method.invokeInterfaceMethod(
-                TQ_GET_SINGLE_RESULT, typedQuery);
+        return bc.invokeInterface(TQ_GET_SINGLE_RESULT, typedQuery);
     }
 
     /** Generates simple field projection: select(p -> p.field).toList(). */
-    private ResultHandle generateSimpleFieldProjectionQuery(
+    private Expr generateSimpleFieldProjectionQuery(
             QueryGenContext ctx,
             LambdaExpression.FieldAccess fieldAccess) {
 
         // Load field type class and setup query
-        ResultHandle fieldTypeClass = ctx.method().loadClass(fieldAccess.fieldType());
-        QuerySetup setup = setupQuery(ctx.method(), ctx.em(), ctx.entityClass(), fieldTypeClass);
-        ResultHandle cb = setup.cb();
-        ResultHandle query = setup.query();
-        ResultHandle root = setup.root();
+        Expr fieldTypeClass = Const.of(fieldAccess.fieldType());
+        QuerySetup setup = setupQuery(ctx.bc(), ctx.em(), ctx.entityClass(), fieldTypeClass);
+        Expr cb = setup.cb();
+        Expr query = setup.query();
+        Expr root = setup.root();
 
         // Generate root.get("fieldName")
-        ResultHandle fieldName = ctx.method().load(fieldAccess.fieldName());
-        ResultHandle path = ctx.method().invokeInterfaceMethod(
-                PATH_GET,
-                root, fieldName);
+        // Use LocalVar for path since it's used in multiple operations (Gizmo2 requirement)
+        Expr fieldName = Const.of(fieldAccess.fieldName());
+        LocalVar path = ctx.bc().localVar("path", ctx.bc().invokeInterface(PATH_GET, root, fieldName));
 
         // query.select(path)
-        ctx.method().invokeInterfaceMethod(
-                CQ_SELECT,
-                query, path);
+        ctx.bc().invokeInterface(CQ_SELECT, query, path);
 
         // Apply ORDER BY if sorting expressions present
-        applyOrderBy(ctx.method(), query, root, cb, ctx.sortExpressions(), ctx.capturedValues(), path);
+        applyOrderBy(ctx.bc(), query, root, cb, ctx.sortExpressions(), ctx.capturedValues(), path);
 
         // Apply DISTINCT if requested
-        clauseApplier.applyDistinct(ctx.method(), query, ctx.distinct());
+        clauseApplier.applyDistinct(ctx.bc(), query, ctx.distinct());
 
         // Create TypedQuery
-        ResultHandle typedQuery = ctx.method().invokeInterfaceMethod(
-                EM_CREATE_QUERY,
-                ctx.em(), query);
+        // Use LocalVar for values used across multiple operations (Gizmo2 requirement)
+        LocalVar typedQuery = ctx.bc().localVar("typedQuery", ctx.bc().invokeInterface(EM_CREATE_QUERY, ctx.em(), query));
 
         // Apply pagination
-        clauseApplier.applyPagination(ctx.method(), typedQuery, ctx.offset(), ctx.limit());
+        clauseApplier.applyPagination(ctx.bc(), typedQuery, ctx.offset(), ctx.limit());
 
         // Return getResultList()
-        return ctx.method().invokeInterfaceMethod(
-                TQ_GET_RESULT_LIST,
-                typedQuery);
+        return ctx.bc().invokeInterface(TQ_GET_RESULT_LIST, typedQuery);
     }
 
     /** Generates projection query for field access or expressions. */
-    private ResultHandle generateProjectionQuery(
+    private Expr generateProjectionQuery(
             QueryGenContext ctx,
             LambdaExpression projectionExpression) {
 
@@ -731,121 +736,110 @@ public class QueryExecutorClassGenerator {
         }
 
         // Expression projection - use Object query
-        QuerySetup setup = setupQueryForObject(ctx.method(), ctx.em(), ctx.entityClass());
-        ResultHandle cb = setup.cb();
-        ResultHandle query = setup.query();
-        ResultHandle root = setup.root();
+        QuerySetup setup = setupQueryForObject(ctx.bc(), ctx.em(), ctx.entityClass());
+        Expr cb = setup.cb();
+        Expr query = setup.query();
+        Expr root = setup.root();
 
         // Generate the projection expression as JPA Expression
-        ResultHandle projectionExpr = expressionGenerator.generateExpressionAsJpaExpression(
-                ctx.method(), projectionExpression, cb, root, ctx.capturedValues());
+        // Use LocalVar since projectionExpr is used in multiple operations (Gizmo2 requirement)
+        LocalVar projectionExpr = ctx.bc().localVar("projectionExpr", expressionGenerator.generateExpressionAsJpaExpression(
+                ctx.bc(), projectionExpression, cb, root, ctx.capturedValues()));
 
         // query.select(projectionExpr)
-        ctx.method().invokeInterfaceMethod(
-                CQ_SELECT,
-                query, projectionExpr);
+        ctx.bc().invokeInterface(CQ_SELECT, query, projectionExpr);
 
         // Apply ORDER BY if sorting expressions present
-        applyOrderBy(ctx.method(), query, root, cb, ctx.sortExpressions(), ctx.capturedValues(), projectionExpr);
+        applyOrderBy(ctx.bc(), query, root, cb, ctx.sortExpressions(), ctx.capturedValues(), projectionExpr);
 
         // Apply DISTINCT if requested
-        clauseApplier.applyDistinct(ctx.method(), query, ctx.distinct());
+        clauseApplier.applyDistinct(ctx.bc(), query, ctx.distinct());
 
         // Create TypedQuery
-        ResultHandle typedQuery = ctx.method().invokeInterfaceMethod(
-                EM_CREATE_QUERY,
-                ctx.em(), query);
+        // Use LocalVar for values used across multiple operations (Gizmo2 requirement)
+        LocalVar typedQuery = ctx.bc().localVar("typedQuery", ctx.bc().invokeInterface(EM_CREATE_QUERY, ctx.em(), query));
 
         // Apply pagination
-        clauseApplier.applyPagination(ctx.method(), typedQuery, ctx.offset(), ctx.limit());
+        clauseApplier.applyPagination(ctx.bc(), typedQuery, ctx.offset(), ctx.limit());
 
         // Return getResultList()
-        return ctx.method().invokeInterfaceMethod(
-                TQ_GET_RESULT_LIST,
-                typedQuery);
+        return ctx.bc().invokeInterface(TQ_GET_RESULT_LIST, typedQuery);
     }
 
     /** Generates combined WHERE + SELECT query. */
-    private ResultHandle generateCombinedWhereSelectQuery(
+    private Expr generateCombinedWhereSelectQuery(
             QueryGenContext ctx,
             LambdaExpression predicateExpression,
             LambdaExpression projectionExpression) {
 
         // Determine result type based on projection expression
-        ResultHandle resultTypeClass;
+        Expr resultTypeClass;
         if (projectionExpression instanceof LambdaExpression.FieldAccess(_, var fieldType)) {
             // Field access projection - use field type for type safety
-            resultTypeClass = ctx.method().loadClass(fieldType);
+            resultTypeClass = Const.of(fieldType);
         } else {
             // Expression projection - use Object.class
-            resultTypeClass = ctx.method().loadClass(Object.class);
+            resultTypeClass = Const.of(Object.class);
         }
 
         // Setup query with the determined result type
-        QuerySetup setup = setupQuery(ctx.method(), ctx.em(), ctx.entityClass(), resultTypeClass);
-        ResultHandle cb = setup.cb();
-        ResultHandle query = setup.query();
-        ResultHandle root = setup.root();
+        QuerySetup setup = setupQuery(ctx.bc(), ctx.em(), ctx.entityClass(), resultTypeClass);
+        Expr cb = setup.cb();
+        Expr query = setup.query();
+        Expr root = setup.root();
 
         // Generate WHERE predicate (with subquery support)
-        ResultHandle predicate = expressionGenerator.generatePredicateWithSubqueries(
-                ctx.method(), predicateExpression, cb, query, root, ctx.capturedValues());
-        clauseApplier.applyWherePredicate(ctx.method(), query, predicate);
+        Expr predicate = expressionGenerator.generatePredicateWithSubqueries(
+                ctx.bc(), predicateExpression, cb, query, root, ctx.capturedValues());
+        clauseApplier.applyWherePredicate(ctx.bc(), query, predicate);
 
         // Generate SELECT projection expression
-        ResultHandle projectionExpr;
+        // Use LocalVar since projectionExpr is used in multiple operations (Gizmo2 requirement)
+        LocalVar projectionExpr;
         if (projectionExpression instanceof LambdaExpression.FieldAccess(var projFieldName, _)) {
             // Simple field access - root.get("fieldName")
-            ResultHandle fieldNameHandle = ctx.method().load(projFieldName);
-            projectionExpr = ctx.method().invokeInterfaceMethod(
-                    PATH_GET,
-                    root, fieldNameHandle);
+            Expr fieldNameHandle = Const.of(projFieldName);
+            projectionExpr = ctx.bc().localVar("projectionExpr", ctx.bc().invokeInterface(PATH_GET, root, fieldNameHandle));
         } else {
             // Expression projection - use expression generator
-            ResultHandle expr = expressionGenerator.generateExpressionAsJpaExpression(
-                    ctx.method(), projectionExpression, cb, root, ctx.capturedValues());
-            projectionExpr = expr;
+            projectionExpr = ctx.bc().localVar("projectionExpr", expressionGenerator.generateExpressionAsJpaExpression(
+                    ctx.bc(), projectionExpression, cb, root, ctx.capturedValues()));
         }
 
         // query.select(projectionExpr)
-        ctx.method().invokeInterfaceMethod(
-                CQ_SELECT,
-                query, projectionExpr);
+        ctx.bc().invokeInterface(CQ_SELECT, query, projectionExpr);
 
         // Apply ORDER BY if sorting expressions present
-        applyOrderBy(ctx.method(), query, root, cb, ctx.sortExpressions(), ctx.capturedValues(), projectionExpr);
+        applyOrderBy(ctx.bc(), query, root, cb, ctx.sortExpressions(), ctx.capturedValues(), projectionExpr);
 
         // Apply DISTINCT if requested
-        clauseApplier.applyDistinct(ctx.method(), query, ctx.distinct());
+        clauseApplier.applyDistinct(ctx.bc(), query, ctx.distinct());
 
         // Create TypedQuery
-        ResultHandle typedQuery = ctx.method().invokeInterfaceMethod(
-                EM_CREATE_QUERY,
-                ctx.em(), query);
+        // Use LocalVar for values used across multiple operations (Gizmo2 requirement)
+        LocalVar typedQuery = ctx.bc().localVar("typedQuery", ctx.bc().invokeInterface(EM_CREATE_QUERY, ctx.em(), query));
 
         // Apply pagination
-        clauseApplier.applyPagination(ctx.method(), typedQuery, ctx.offset(), ctx.limit());
+        clauseApplier.applyPagination(ctx.bc(), typedQuery, ctx.offset(), ctx.limit());
 
         // Return getResultList()
-        return ctx.method().invokeInterfaceMethod(
-                TQ_GET_RESULT_LIST,
-                typedQuery);
+        return ctx.bc().invokeInterface(TQ_GET_RESULT_LIST, typedQuery);
     }
 
     /** Applies ORDER BY, using projectionExpression as fallback for identity sorts. */
     private void applyOrderBy(
-            MethodCreator method,
-            ResultHandle query,
-            ResultHandle root,
-            ResultHandle cb,
+            BlockCreator bc,
+            Expr query,
+            Expr root,
+            Expr cb,
             List<?> sortExpressions,
-            ResultHandle capturedValues,
-            ResultHandle projectionExpression) {
+            Expr capturedValues,
+            Expr projectionExpression) {
 
-        GizmoHelper.buildOrderByClause(method, query, cb, sortExpressions, sortExpr -> {
+        GizmoHelper.buildOrderByClause(bc, query, cb, sortExpressions, sortExpr -> {
             // Generate JPA Expression for the sort key extractor
-            ResultHandle sortKeyExpr = expressionGenerator.generateExpressionAsJpaExpression(
-                    method, sortExpr.keyExtractor(), cb, root, capturedValues);
+            Expr sortKeyExpr = expressionGenerator.generateExpressionAsJpaExpression(
+                    bc, sortExpr.keyExtractor(), cb, root, capturedValues);
 
             // If sort key is null (identity function like s -> s after projection),
             // use the projection expression instead

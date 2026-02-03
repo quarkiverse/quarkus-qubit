@@ -2,8 +2,9 @@ package io.quarkiverse.qubit.deployment.analysis.instruction;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
-import io.quarkiverse.qubit.deployment.common.OpcodeClassifier;
 import org.objectweb.asm.tree.AbstractInsnNode;
+
+import java.util.Set;
 
 import static org.objectweb.asm.Opcodes.*;
 
@@ -13,9 +14,22 @@ import static org.objectweb.asm.Opcodes.*;
 public enum TypeConversionHandler implements InstructionHandler {
     INSTANCE;
 
+    /** Opcodes handled by this handler for O(1) dispatch. */
+    private static final Set<Integer> SUPPORTED_OPCODES = Set.of(
+            I2L, I2F, I2D,
+            L2I, L2F, L2D,
+            F2I, F2L, F2D,
+            D2I, D2L, D2F
+    );
+
+    @Override
+    public Set<Integer> supportedOpcodes() {
+        return SUPPORTED_OPCODES;
+    }
+
     @Override
     public boolean canHandle(AbstractInsnNode insn) {
-        return OpcodeClassifier.isTypeConversionOpcode(insn.getOpcode());
+        return SUPPORTED_OPCODES.contains(insn.getOpcode());
     }
 
     @Override

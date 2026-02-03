@@ -1,7 +1,7 @@
 package io.quarkiverse.qubit.deployment.generation.expression;
 
-import io.quarkus.gizmo.MethodCreator;
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.creator.BlockCreator;
 
 /**
  * Sealed interface for bi-entity (join) query context.
@@ -12,23 +12,25 @@ import io.quarkus.gizmo.ResultHandle;
  *   <li>{@link BiEntityBaseContext} - for non-subquery methods (no query handle)</li>
  *   <li>{@link BiEntitySubqueryContext} - for subquery methods (includes query handle)</li>
  * </ul>
+ *
+ * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public sealed interface BiEntityContext permits BiEntityBaseContext, BiEntitySubqueryContext {
 
-    /** Gizmo method creator for bytecode generation. */
-    MethodCreator method();
+    /** Gizmo 2 block creator for bytecode generation. */
+    BlockCreator bc();
 
     /** CriteriaBuilder handle. */
-    ResultHandle cb();
+    Expr cb();
 
     /** Root entity handle. */
-    ResultHandle root();
+    Expr root();
 
     /** Joined entity handle. */
-    ResultHandle join();
+    Expr join();
 
     /** Captured lambda variables array handle. */
-    ResultHandle capturedValues();
+    Expr capturedValues();
 
     /** Expression generator helper for delegating generation. */
     ExpressionGeneratorHelper helper();

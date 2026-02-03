@@ -1,5 +1,6 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
 import io.quarkiverse.qubit.deployment.common.BytecodeValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -197,6 +198,35 @@ class HandlerEdgeCaseTest {
 
             assertThat(terminated).isFalse();
             assertThat(context.getStackSize()).isEqualTo(1);
+        }
+
+        @Test
+        void handle_ixor_throwsUnsupportedException() {
+            // XOR is not supported in JPA Criteria API - should throw explicit exception
+            context.push(constant(1));
+            context.push(constant(0));
+
+            assertThatThrownBy(() -> handler.handle(new InsnNode(IXOR), context))
+                    .isInstanceOf(BytecodeAnalysisException.class)
+                    .hasMessageContaining("Unsupported XOR operator");
+        }
+
+        @ParameterizedTest(name = "handle float/double remainder {0} succeeds")
+        @ValueSource(ints = {FREM, DREM})
+        void handle_floatDoubleRemainder_succeeds(int opcode) {
+            // Float and double modulo operations should be handled correctly
+            context.push(new LambdaExpression.Constant(5.5f, float.class));
+            context.push(new LambdaExpression.Constant(2.0f, float.class));
+
+            boolean terminated = handler.handle(new InsnNode(opcode), context);
+
+            assertThat(terminated).isFalse();
+            assertThat(context.getStackSize()).isEqualTo(1);
+            assertThat(context.peek())
+                    .isInstanceOf(LambdaExpression.BinaryOp.class);
+            LambdaExpression.BinaryOp result =
+                    (LambdaExpression.BinaryOp) context.peek();
+            assertThat(result.operator()).isEqualTo(LambdaExpression.BinaryOp.Operator.MOD);
         }
     }
 
@@ -578,6 +608,7 @@ class HandlerEdgeCaseTest {
                     Arguments.of(FCONST_1, 1.0f, "FCONST_1"),
                     Arguments.of(LCONST_0, 0L, "LCONST_0"),
                     Arguments.of(LCONST_1, 1L, "LCONST_1"),
+                    Arguments.of(ICONST_M1, -1, "ICONST_M1"),  // Bug fix: was not handled before
                     Arguments.of(ICONST_0, 0, "ICONST_0"),
                     Arguments.of(ICONST_5, 5, "ICONST_5")
             );
@@ -755,9 +786,9 @@ class HandlerEdgeCaseTest {
         // ==================== Kill mutations for boundary conditions ====================
 
         @ParameterizedTest(name = "canHandle non-constant opcode {0} returns false")
-        @ValueSource(ints = {ALOAD, ISTORE, POP, NOP, ICONST_M1})
+        @ValueSource(ints = {ALOAD, ISTORE, POP, NOP})
         void canHandle_withNonConstantOpcode_returnsFalse(int opcode) {
-            // Opcodes outside constant range or ICONST_M1 should not be handled
+            // Opcodes outside constant range should not be handled
             assertThat(handler.canHandle(new InsnNode(opcode)))
                     .as("Opcode %d should not be handled by ConstantInstructionHandler", opcode)
                     .isFalse();

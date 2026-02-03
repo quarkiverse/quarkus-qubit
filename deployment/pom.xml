@@ -37,10 +37,10 @@
             <version>${project.version}</version>
         </dependency>
 
-        <!-- Bytecode manipulation -->
+        <!-- Bytecode generation - Gizmo 2 (lambda-based API with ClassFile support) -->
         <dependency>
             <groupId>io.quarkus.gizmo</groupId>
-            <artifactId>gizmo</artifactId>
+            <artifactId>gizmo2</artifactId>
         </dependency>
 
         <!-- ASM for bytecode analysis -->

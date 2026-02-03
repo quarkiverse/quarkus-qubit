@@ -7,14 +7,17 @@ import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.SortDirection;
-import io.quarkus.gizmo.FieldDescriptor;
-import io.quarkus.gizmo.MethodCreator;
-import io.quarkus.gizmo.MethodDescriptor;
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Const;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.LocalVar;
+import io.quarkus.gizmo2.creator.BlockCreator;
+import io.quarkus.gizmo2.desc.ConstructorDesc;
+import io.quarkus.gizmo2.desc.FieldDesc;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Selection;
 
+import java.lang.constant.ClassDesc;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.function.Function;
@@ -35,130 +38,114 @@ public final class GizmoHelper {
     }
 
     /** Loads entity class, using Class.forName() for placeholder class names. */
-    public static ResultHandle loadEntityClass(MethodCreator method, Class<?> entityClass, String entityClassName) {
+    public static Expr loadEntityClass(BlockCreator bc, Class<?> entityClass, String entityClassName) {
         // Placeholder case: Load class by name at runtime
         if (entityClassName != null) {
-            ResultHandle classNameHandle = method.load(entityClassName);
-            return method.invokeStaticMethod(CLASS_FOR_NAME, classNameHandle);
+            return bc.invokeStatic(CLASS_FOR_NAME, Const.of(entityClassName));
         }
         // Normal case: Direct class reference
-        return method.loadClass(entityClass);
+        return Const.of(entityClass);
     }
 
     /** Loads JPA JoinType enum value (INNER or LEFT). */
-    public static ResultHandle loadJpaJoinType(MethodCreator method, InvokeDynamicScanner.JoinType joinType) {
+    public static Expr loadJpaJoinType(InvokeDynamicScanner.JoinType joinType) {
         String jpaJoinTypeName = (joinType == InvokeDynamicScanner.JoinType.LEFT) ? "LEFT" : "INNER";
-        return method.readStaticField(
-            FieldDescriptor.of(JoinType.class, jpaJoinTypeName, JoinType.class)
-        );
+        ClassDesc joinTypeDesc = ClassDesc.of(JoinType.class.getName());
+        return Expr.staticField(FieldDesc.of(joinTypeDesc, jpaJoinTypeName, joinTypeDesc));
     }
 
     /** Creates an array for JPA varargs methods like where(Predicate...). */
-    public static ResultHandle createElementArray(MethodCreator method, Class<?> elementType, ResultHandle... elements) {
-        ResultHandle array = method.newArray(elementType, elements.length);
-        for (int i = 0; i < elements.length; i++) {
-            method.writeArrayValue(array, i, elements[i]);
-        }
-        return array;
+    public static Expr createElementArray(BlockCreator bc, Class<?> elementType, Expr... elements) {
+        return bc.newArray(elementType, elements);
     }
 
     /** Unboxes Integer to int. */
-    public static ResultHandle unboxInteger(MethodCreator method, ResultHandle boxedValue) {
-        return method.invokeVirtualMethod(INTEGER_INT_VALUE, boxedValue);
+    public static Expr unboxInteger(BlockCreator bc, Expr boxedValue) {
+        return bc.invokeVirtual(INTEGER_INT_VALUE, boxedValue);
     }
 
     /** Unboxes Boolean to boolean. */
-    public static ResultHandle unboxBoolean(MethodCreator method, ResultHandle boxedValue) {
-        return method.invokeVirtualMethod(BOOLEAN_BOOLEAN_VALUE, boxedValue);
+    public static Expr unboxBoolean(BlockCreator bc, Expr boxedValue) {
+        return bc.invokeVirtual(BOOLEAN_BOOLEAN_VALUE, boxedValue);
     }
 
     /** Unboxes Long to long. */
-    public static ResultHandle unboxLong(MethodCreator method, ResultHandle boxedValue) {
-        return method.invokeVirtualMethod(LONG_LONG_VALUE, boxedValue);
+    public static Expr unboxLong(BlockCreator bc, Expr boxedValue) {
+        return bc.invokeVirtual(LONG_LONG_VALUE, boxedValue);
     }
 
     /** Loads constant as bytecode (primitives, BigDecimal, LocalDate/Time). */
-    public static ResultHandle loadConstant(MethodCreator method, Object value) {
+    public static Expr loadConstant(BlockCreator bc, Object value) {
         return switch (value) {
-            case null -> method.loadNull();
-            case String s -> method.load(s);
-            case Integer i -> method.load(i);
-            case Long l -> method.load(l);
-            case Boolean b -> method.load(b);
-            case Double d -> method.load(d);
-            case Float f -> method.load(f);
+            case null -> Const.ofNull(Object.class);
+            case String s -> Const.of(s);
+            case Integer i -> Const.of(i);
+            case Long l -> Const.of(l);
+            case Boolean b -> Const.of(b);
+            case Double d -> Const.of(d);
+            case Float f -> Const.of(f);
 
-            case BigDecimal bd -> {
-                ResultHandle bdString = method.load(bd.toString());
-                yield method.newInstance(MethodDescriptor.ofConstructor(BigDecimal.class, String.class), bdString);
-            }
+            case BigDecimal bd -> bc.new_(
+                    ConstructorDesc.of(BigDecimal.class, String.class),
+                    Const.of(bd.toString()));
 
-            case LocalDate ld -> {
-                ResultHandle year = method.load(ld.getYear());
-                ResultHandle month = method.load(ld.getMonthValue());
-                ResultHandle day = method.load(ld.getDayOfMonth());
-                yield method.invokeStaticMethod(
-                        md(LocalDate.class, METHOD_OF, LocalDate.class, int.class, int.class, int.class),
-                        year, month, day);
-            }
+            case LocalDate ld -> bc.invokeStatic(
+                    md(LocalDate.class, METHOD_OF, LocalDate.class, int.class, int.class, int.class),
+                    Const.of(ld.getYear()), Const.of(ld.getMonthValue()), Const.of(ld.getDayOfMonth()));
 
-            case LocalDateTime ldt -> {
-                ResultHandle year = method.load(ldt.getYear());
-                ResultHandle month = method.load(ldt.getMonthValue());
-                ResultHandle day = method.load(ldt.getDayOfMonth());
-                ResultHandle hour = method.load(ldt.getHour());
-                ResultHandle minute = method.load(ldt.getMinute());
-                yield method.invokeStaticMethod(
-                        md(LocalDateTime.class, METHOD_OF, LocalDateTime.class,
-                                int.class, int.class, int.class, int.class, int.class),
-                        year, month, day, hour, minute);
-            }
+            case LocalDateTime ldt -> bc.invokeStatic(
+                    md(LocalDateTime.class, METHOD_OF, LocalDateTime.class,
+                            int.class, int.class, int.class, int.class, int.class),
+                    Const.of(ldt.getYear()), Const.of(ldt.getMonthValue()), Const.of(ldt.getDayOfMonth()),
+                    Const.of(ldt.getHour()), Const.of(ldt.getMinute()));
 
-            case LocalTime lt -> {
-                ResultHandle hour = method.load(lt.getHour());
-                ResultHandle minute = method.load(lt.getMinute());
-                yield method.invokeStaticMethod(
-                        md(LocalTime.class, METHOD_OF, LocalTime.class, int.class, int.class),
-                        hour, minute);
-            }
+            case LocalTime lt -> bc.invokeStatic(
+                    md(LocalTime.class, METHOD_OF, LocalTime.class, int.class, int.class),
+                    Const.of(lt.getHour()), Const.of(lt.getMinute()));
 
-            default -> method.loadNull();
+            default -> Const.ofNull(Object.class);
         };
     }
 
     /** Builds cb.construct() for DTO projections from constructor arguments. */
-    public static ResultHandle buildConstructorExpression(
-            MethodCreator method,
-            ResultHandle cb,
-            ResultHandle resultClassHandle,
+    public static Expr buildConstructorExpression(
+            BlockCreator bc,
+            Expr cb,
+            Expr resultClassHandle,
             List<LambdaExpression> arguments,
-            Function<LambdaExpression, ResultHandle> expressionGenerator) {
+            Function<LambdaExpression, Expr> expressionGenerator) {
 
         int argCount = arguments.size();
-        ResultHandle selectionsArray = method.newArray(Selection.class, argCount);
+        // Use LocalVar for values used across multiple operations (Gizmo2 requirement)
+        // Store cb and resultClassHandle in LocalVars since they're passed in from another context
+        LocalVar cbLocal = bc.localVar("cbLocal", cb);
+        LocalVar resultClassLocal = bc.localVar("resultClassLocal", resultClassHandle);
+        LocalVar selectionsArray = bc.localVar("selectionsArray", bc.newEmptyArray(Selection.class, argCount));
 
         for (int i = 0; i < argCount; i++) {
-            ResultHandle argExpression = expressionGenerator.apply(arguments.get(i));
-            method.writeArrayValue(selectionsArray, i, argExpression);
+            // Store each generated expression in a LocalVar before array assignment
+            LocalVar argExpression = bc.localVar("arg" + i, expressionGenerator.apply(arguments.get(i)));
+            bc.set(selectionsArray.elem(i), argExpression);
         }
 
-        return method.invokeInterfaceMethod(CB_CONSTRUCT, cb, resultClassHandle, selectionsArray);
+        return bc.invokeInterface(CB_CONSTRUCT, cbLocal, resultClassLocal, selectionsArray);
     }
 
     /** Builds ORDER BY clause with "last call wins" semantics (reverse order). */
     public static void buildOrderByClause(
-            MethodCreator method,
-            ResultHandle query,
-            ResultHandle cb,
+            BlockCreator bc,
+            Expr query,
+            Expr cb,
             List<?> sortExpressions,
-            Function<SortExpression, ResultHandle> sortKeyGenerator) {
+            Function<SortExpression, Expr> sortKeyGenerator) {
 
         if (sortExpressions == null || sortExpressions.isEmpty()) {
             return; // No sorting
         }
 
         // Create array to hold Order objects
-        ResultHandle ordersArray = method.newArray(Order.class, sortExpressions.size());
+        // Use LocalVar for values used across multiple operations (Gizmo2 requirement)
+        LocalVar ordersArray = bc.localVar("ordersArray", bc.newEmptyArray(Order.class, sortExpressions.size()));
 
         // Reverse order for "last call wins" semantics (sortedBy(a).sortedBy(b) → ORDER BY b, a)
         for (int i = 0; i < sortExpressions.size(); i++) {
@@ -167,22 +154,22 @@ public final class GizmoHelper {
 
             if (sortExprObj instanceof SortExpression sortExpr) {
                 // Generate JPA Expression for the sort key using provided generator
-                ResultHandle sortKeyExpr = sortKeyGenerator.apply(sortExpr);
+                Expr sortKeyExpr = sortKeyGenerator.apply(sortExpr);
 
                 // Create Order object (ascending or descending)
-                ResultHandle order;
+                Expr order;
                 if (sortExpr.direction() == SortDirection.DESCENDING) {
-                    order = method.invokeInterfaceMethod(CB_DESC, cb, sortKeyExpr);
+                    order = bc.invokeInterface(CB_DESC, cb, sortKeyExpr);
                 } else {
-                    order = method.invokeInterfaceMethod(CB_ASC, cb, sortKeyExpr);
+                    order = bc.invokeInterface(CB_ASC, cb, sortKeyExpr);
                 }
 
                 // Add to orders array at position i (forward order)
-                method.writeArrayValue(ordersArray, i, order);
+                bc.set(ordersArray.elem(i), order);
             }
         }
 
         // Apply orderBy to query
-        method.invokeInterfaceMethod(CQ_ORDER_BY, query, ordersArray);
+        bc.invokeInterface(CQ_ORDER_BY, query, ordersArray);
     }
 }

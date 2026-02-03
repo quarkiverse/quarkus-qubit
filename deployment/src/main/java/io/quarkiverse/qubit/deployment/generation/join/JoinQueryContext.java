@@ -3,31 +3,33 @@ package io.quarkiverse.qubit.deployment.generation.join;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkus.gizmo.MethodCreator;
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.creator.BlockCreator;
 
 import java.util.List;
 import java.util.Objects;
 
 /**
  * Immutable context consolidating all parameters for join query bytecode generation.
+ *
+ * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public record JoinQueryContext(
-        MethodCreator method,
-        ResultHandle em,
-        ResultHandle entityClass,
+        BlockCreator bc,
+        Expr em,
+        Expr entityClass,
         LambdaExpression joinRelationshipExpression,
         LambdaExpression biEntityPredicateExpression,
         InvokeDynamicScanner.JoinType joinType,
         List<SortExpression> sortExpressions,
-        ResultHandle capturedValues,
-        ResultHandle offset,
-        ResultHandle limit,
-        ResultHandle distinct
+        Expr capturedValues,
+        Expr offset,
+        Expr limit,
+        Expr distinct
 ) {
 
     public JoinQueryContext {
-        Objects.requireNonNull(method, "method cannot be null");
+        Objects.requireNonNull(bc, "bc cannot be null");
         Objects.requireNonNull(em, "em cannot be null");
         Objects.requireNonNull(entityClass, "entityClass cannot be null");
         Objects.requireNonNull(joinRelationshipExpression, "joinRelationshipExpression cannot be null");

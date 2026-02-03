@@ -20,6 +20,7 @@ import org.objectweb.asm.tree.VarInsnNode;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import static org.objectweb.asm.Opcodes.*;
 
@@ -30,11 +31,19 @@ import static org.objectweb.asm.Opcodes.*;
 public enum LoadInstructionHandler implements InstructionHandler {
     INSTANCE;
 
+    /** Opcodes handled by this handler for O(1) dispatch. */
+    private static final Set<Integer> SUPPORTED_OPCODES = Set.of(
+            ALOAD, ILOAD, LLOAD, FLOAD, DLOAD, GETFIELD
+    );
+
+    @Override
+    public Set<Integer> supportedOpcodes() {
+        return SUPPORTED_OPCODES;
+    }
+
     @Override
     public boolean canHandle(AbstractInsnNode insn) {
-        int opcode = insn.getOpcode();
-        return opcode == ALOAD || opcode == ILOAD || opcode == LLOAD ||
-               opcode == FLOAD || opcode == DLOAD || opcode == GETFIELD;
+        return SUPPORTED_OPCODES.contains(insn.getOpcode());
     }
 
     @Override

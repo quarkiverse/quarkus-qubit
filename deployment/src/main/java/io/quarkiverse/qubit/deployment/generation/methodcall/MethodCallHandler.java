@@ -1,6 +1,6 @@
 package io.quarkiverse.qubit.deployment.generation.methodcall;
 
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Expr;
 
 import java.util.Optional;
 
@@ -8,6 +8,8 @@ import java.util.Optional;
  * Chain of Responsibility handler for method call → JPA expression generation.
  * Each handler specializes in a category (temporal, string, arithmetic).
  * Priority ordering ensures specific handlers run before broad ones (e.g., getters).
+ *
+ * <p>Uses Gizmo 2 API with Expr type.
  */
 public sealed interface MethodCallHandler permits
         TemporalAccessorHandler,
@@ -19,8 +21,8 @@ public sealed interface MethodCallHandler permits
         StringUtilityHandler,
         GetterMethodHandler {
 
-    /** Returns Optional with generated ResultHandle, or empty if this handler doesn't apply. */
-    Optional<ResultHandle> handle(MethodCallDispatchContext context);
+    /** Returns Optional with generated Expr, or empty if this handler doesn't apply. */
+    Optional<Expr> handle(MethodCallDispatchContext context);
 
     /** Priority for chain ordering (lower = processed first). */
     HandlerPriority priority();

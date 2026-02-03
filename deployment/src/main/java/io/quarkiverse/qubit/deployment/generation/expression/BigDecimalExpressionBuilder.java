@@ -1,7 +1,7 @@
 package io.quarkiverse.qubit.deployment.generation.expression;
 
-import io.quarkus.gizmo.MethodCreator;
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.creator.BlockCreator;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.unexpectedBigDecimalMethod;
@@ -27,6 +27,8 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
  *
  * <p><b>Note:</b> BigDecimal methods are mapped to binary operators and delegated
  * to {@link ArithmeticExpressionBuilder} for actual bytecode generation.
+ *
+ * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public enum BigDecimalExpressionBuilder implements ExpressionBuilder {
     INSTANCE;
@@ -49,11 +51,11 @@ public enum BigDecimalExpressionBuilder implements ExpressionBuilder {
 
     /** Generates bytecode for BigDecimal arithmetic, delegating to {@link ArithmeticExpressionBuilder}. */
     public BuilderResult buildBigDecimalArithmetic(
-            MethodCreator method,
+            BlockCreator bc,
             LambdaExpression.MethodCall methodCall,
-            ResultHandle cb,
-            ResultHandle fieldExpression,
-            ResultHandle argument,
+            Expr cb,
+            Expr fieldExpression,
+            Expr argument,
             ArithmeticExpressionBuilder arithmeticBuilder) {
 
         if (!BIG_DECIMAL_ARITHMETIC_METHODS.contains(methodCall.methodName())) {
@@ -66,7 +68,7 @@ public enum BigDecimalExpressionBuilder implements ExpressionBuilder {
         }
 
         // Delegate to arithmetic builder for the actual code generation
-        ResultHandle result = arithmeticBuilder.buildArithmeticOperation(method, operator, cb, fieldExpression, argument);
+        Expr result = arithmeticBuilder.buildArithmeticOperation(bc, operator, cb, fieldExpression, argument);
         return success(result);
     }
 }

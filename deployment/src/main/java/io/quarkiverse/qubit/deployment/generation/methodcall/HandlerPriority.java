@@ -18,7 +18,7 @@ package io.quarkiverse.qubit.deployment.generation.methodcall;
  * <ul>
  *   <li>TemporalAccessorHandler (getYear, getMonth) MUST precede GetterMethodHandler</li>
  *   <li>TemporalComparisonHandler (isBefore, isAfter) MUST precede GetterMethodHandler</li>
- *   <li>StringUtilityHandler (isEmpty, isBlank) MUST precede GetterMethodHandler</li>
+ *   <li>StringUtilityHandler (isEmpty, isBlank, length) MUST precede GetterMethodHandler</li>
  * </ul>
  *
  * @see MethodCallHandler#priority()

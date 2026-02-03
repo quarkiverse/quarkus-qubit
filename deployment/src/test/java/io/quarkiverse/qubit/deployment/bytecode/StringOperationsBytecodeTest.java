@@ -107,6 +107,17 @@ class StringOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
     }
 
     @Test
+    void stringIsBlank() {
+        LambdaExpression expr = analyzeLambda("stringIsBlank");
+
+        // p.email.isBlank()
+        assertMethodCall(expr, "isBlank");
+        LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) expr;
+        assertFieldAccess(methodCall.target(), "email");
+        assertThat(methodCall.arguments()).isEmpty();
+    }
+
+    @Test
     void stringSubstring() {
         LambdaExpression expr = analyzeLambda("stringSubstring");
 

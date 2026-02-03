@@ -73,7 +73,7 @@ class StringExpressionBuilderTest {
         }
 
         @ParameterizedTest(name = "{0} should return UTILITY")
-        @ValueSource(strings = { "equals", "length", "isEmpty" })
+        @ValueSource(strings = { "equals", "length", "isEmpty", "isBlank" })
         void shouldReturnUtilityForUtilityMethods(String methodName) {
             LambdaExpression.MethodCall methodCall = createMethodCall(methodName);
 

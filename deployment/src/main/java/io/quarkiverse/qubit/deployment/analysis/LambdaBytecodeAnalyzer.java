@@ -56,6 +56,17 @@ public class LambdaBytecodeAnalyzer {
     }
 
     /**
+     * Pre-loads a ClassNode into the cache.
+     * Called during cache warm-up phase before parallel processing to eliminate contention.
+     *
+     * @param classBytes the class bytecode
+     * @param metricsCollector optional metrics collector (may be null)
+     */
+    public static void preloadClassNode(byte[] classBytes, BuildMetricsCollector metricsCollector) {
+        getOrParseClassNode(classBytes, metricsCollector);
+    }
+
+    /**
      * Gets or parses a ClassNode from bytecode, using cache to avoid repeated parsing.
      *
      * @param classBytes the class bytecode

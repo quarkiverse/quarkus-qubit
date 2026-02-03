@@ -2,7 +2,7 @@ package io.quarkiverse.qubit.deployment.generation.expression;
 
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.CANNOT_GET_VALUE_FROM_NOT_APPLICABLE;
 
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Expr;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -11,6 +11,8 @@ import java.util.Optional;
  * Sealed result type for expression builder operations.
  * Success = expression generated; NotApplicable = this builder doesn't handle this operation.
  * Replaces null returns with explicit semantics for exhaustive switch expressions.
+ *
+ * <p>Uses Gizmo 2 API with Expr type.
  */
 public sealed interface BuilderResult permits
         BuilderResult.Success,
@@ -19,10 +21,10 @@ public sealed interface BuilderResult permits
     /** Singleton instance for not applicable results. */
     NotApplicable NOT_APPLICABLE = new NotApplicable();
 
-    /** Successful expression generation with a valid ResultHandle. */
-    record Success(ResultHandle value) implements BuilderResult {
+    /** Successful expression generation with a valid Expr. */
+    record Success(Expr value) implements BuilderResult {
         public Success {
-            Objects.requireNonNull(value, "ResultHandle value cannot be null in Success");
+            Objects.requireNonNull(value, "Expr value cannot be null in Success");
         }
     }
 
@@ -34,8 +36,8 @@ public sealed interface BuilderResult permits
         return this instanceof Success;
     }
 
-    /** Returns the ResultHandle if Success, or throws if NotApplicable. */
-    default ResultHandle getOrThrow() {
+    /** Returns the Expr if Success, or throws if NotApplicable. */
+    default Expr getOrThrow() {
         return switch (this) {
             case Success(var value) -> value;
             case NotApplicable _ ->
@@ -44,7 +46,7 @@ public sealed interface BuilderResult permits
     }
 
     /** Converts to Optional - present for Success, empty for NotApplicable. */
-    default Optional<ResultHandle> toOptional() {
+    default Optional<Expr> toOptional() {
         return switch (this) {
             case Success(var value) -> Optional.of(value);
             case NotApplicable _ -> Optional.empty();
@@ -52,7 +54,7 @@ public sealed interface BuilderResult permits
     }
 
     /** Creates a Success result. */
-    static BuilderResult success(ResultHandle value) {
+    static BuilderResult success(Expr value) {
         return new Success(value);
     }
 
@@ -62,7 +64,7 @@ public sealed interface BuilderResult permits
     }
 
     /** Migration helper: Success if non-null, NotApplicable if null. */
-    static BuilderResult fromNullable(ResultHandle value) {
+    static BuilderResult fromNullable(Expr value) {
         return value != null ? new Success(value) : NOT_APPLICABLE;
     }
 }

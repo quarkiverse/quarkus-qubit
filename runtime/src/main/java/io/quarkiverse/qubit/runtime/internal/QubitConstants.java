@@ -188,6 +188,7 @@ public final class QubitConstants {
     public static final String METHOD_EQUALS_IGNORE_CASE = "equalsIgnoreCase";
     public static final String METHOD_LENGTH = "length";
     public static final String METHOD_IS_EMPTY = "isEmpty";
+    public static final String METHOD_IS_BLANK = "isBlank";
     public static final String METHOD_SUBSTRING = "substring";
 
     public static final Set<String> STRING_TRANSFORMATION_METHODS = Set.of(
@@ -195,7 +196,7 @@ public final class QubitConstants {
     );
 
     public static final Set<String> STRING_UTILITY_METHODS = Set.of(
-        METHOD_EQUALS, METHOD_LENGTH, METHOD_IS_EMPTY
+        METHOD_EQUALS, METHOD_LENGTH, METHOD_IS_EMPTY, METHOD_IS_BLANK
     );
     public static final String METHOD_GET_YEAR = "getYear";
     public static final String METHOD_GET_MONTH_VALUE = "getMonthValue";

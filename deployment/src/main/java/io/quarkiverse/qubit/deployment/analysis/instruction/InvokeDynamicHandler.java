@@ -10,6 +10,7 @@ import org.objectweb.asm.tree.MethodNode;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.add;
 import static io.quarkiverse.qubit.deployment.util.DescriptorParser.returnsType;
@@ -25,8 +26,16 @@ import static org.objectweb.asm.Opcodes.INVOKEDYNAMIC;
 public enum InvokeDynamicHandler implements InstructionHandler {
     INSTANCE;
 
+    /** Opcodes handled by this handler for O(1) dispatch. */
+    private static final Set<Integer> SUPPORTED_OPCODES = Set.of(INVOKEDYNAMIC);
+
     /** Marker for dynamic argument in StringConcatFactory recipe. */
     private static final char RECIPE_DYNAMIC_ARG = '\u0001';
+
+    @Override
+    public Set<Integer> supportedOpcodes() {
+        return SUPPORTED_OPCODES;
+    }
 
     /** INVOKEDYNAMIC categories, checked in priority order. */
     public enum IndyCategory {
@@ -62,7 +71,7 @@ public enum InvokeDynamicHandler implements InstructionHandler {
 
     @Override
     public boolean canHandle(AbstractInsnNode insn) {
-        return insn.getOpcode() == INVOKEDYNAMIC;
+        return SUPPORTED_OPCODES.contains(insn.getOpcode());
     }
 
     @Override

@@ -6,88 +6,90 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NO
 
 import org.jspecify.annotations.Nullable;
 
-import io.quarkus.gizmo.MethodCreator;
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.creator.BlockCreator;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable;
 
 /**
  * Shared expression generation methods for BiEntityExpressionBuilder and GroupExpressionBuilder.
  * Extracted to avoid circular dependencies with CriteriaExpressionGenerator.
+ *
+ * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public interface ExpressionGeneratorHelper {
 
     /** Generates JPA field access expression. */
-    ResultHandle generateFieldAccess(MethodCreator method, LambdaExpression.FieldAccess field, ResultHandle root);
+    Expr generateFieldAccess(BlockCreator bc, LambdaExpression.FieldAccess field, Expr root);
 
     /** Generates JPA path expression for relationship navigation. */
-    ResultHandle generatePathExpression(MethodCreator method, LambdaExpression.PathExpression pathExpr, ResultHandle root);
+    Expr generatePathExpression(BlockCreator bc, LambdaExpression.PathExpression pathExpr, Expr root);
 
     /** Generates constant value bytecode. */
-    ResultHandle generateConstant(MethodCreator method, LambdaExpression.Constant constant);
+    Expr generateConstant(BlockCreator bc, LambdaExpression.Constant constant);
 
     /** Wraps value as literal Expression using cb.literal(). */
-    ResultHandle wrapAsLiteral(MethodCreator method, ResultHandle cb, ResultHandle value);
+    Expr wrapAsLiteral(BlockCreator bc, Expr cb, Expr value);
 
     /** Combines two predicates with AND or OR. */
-    ResultHandle combinePredicates(MethodCreator method, ResultHandle cb, ResultHandle left, ResultHandle right,
+    Expr combinePredicates(BlockCreator bc, Expr cb, Expr left, Expr right,
             LambdaExpression.BinaryOp.Operator operator);
 
     /** Generates comparison operation (EQ, NE, GT, GE, LT, LE). */
-    ResultHandle generateComparisonOperation(MethodCreator method, LambdaExpression.BinaryOp.Operator operator,
-            ResultHandle cb, ResultHandle left, ResultHandle right);
+    Expr generateComparisonOperation(BlockCreator bc, LambdaExpression.BinaryOp.Operator operator,
+            Expr cb, Expr left, Expr right);
 
     /** Generates arithmetic operation (ADD, SUB, MUL, DIV, MOD). */
-    ResultHandle generateArithmeticOperation(MethodCreator method, LambdaExpression.BinaryOp.Operator operator,
-            ResultHandle cb, ResultHandle left, ResultHandle right);
+    Expr generateArithmeticOperation(BlockCreator bc, LambdaExpression.BinaryOp.Operator operator,
+            Expr cb, Expr left, Expr right);
 
     /** Checks if binary operation is string concatenation. */
     boolean isStringConcatenation(LambdaExpression.BinaryOp binOp);
 
     /** Generates string concatenation using cb.concat(). */
-    ResultHandle generateStringConcatenation(MethodCreator method, ResultHandle cb, ResultHandle left, ResultHandle right);
+    Expr generateStringConcatenation(BlockCreator bc, Expr cb, Expr left, Expr right);
 
     /** Generates JPA Expression from lambda expression. Returns null if expression is null. */
-    @Nullable ResultHandle generateExpressionAsJpaExpression(MethodCreator method, @Nullable LambdaExpression expression,
-            ResultHandle cb, ResultHandle root, ResultHandle capturedValues);
+    @Nullable Expr generateExpressionAsJpaExpression(BlockCreator bc, @Nullable LambdaExpression expression,
+            Expr cb, Expr root, Expr capturedValues);
 
     /**
      * Generates bytecode for lambda expression, returning raw values or JPA expressions.
      * Returns null if expression is null.
      */
-    @Nullable ResultHandle generateExpression(MethodCreator method, @Nullable LambdaExpression expression,
-            ResultHandle cb, ResultHandle root, ResultHandle capturedValues);
+    @Nullable Expr generateExpression(BlockCreator bc, @Nullable LambdaExpression expression,
+            Expr cb, Expr root, Expr capturedValues);
 
     // ========== Captured Variable Utilities ==========
 
     /** Loads captured variable from array and casts to appropriate type (raw, not JPA literal). */
-    ResultHandle loadCapturedValue(MethodCreator method, CapturedVariable capturedVar, ResultHandle capturedValues);
+    Expr loadCapturedValue(BlockCreator bc, CapturedVariable capturedVar, Expr capturedValues);
 
     /** Loads captured variable and wraps as JPA literal expression. */
-    ResultHandle loadAndWrapCapturedValue(MethodCreator method, ResultHandle cb,
-            CapturedVariable capturedVar, ResultHandle capturedValues);
+    Expr loadAndWrapCapturedValue(BlockCreator bc, Expr cb,
+            CapturedVariable capturedVar, Expr capturedValues);
 
     // ========== DTO Class Loading Utilities ==========
 
     /** Loads DTO class by internal name ("com/example/MyDto" → Class.forName). */
-    ResultHandle loadDtoClass(MethodCreator method, String internalClassName);
+    Expr loadDtoClass(BlockCreator bc, String internalClassName);
 
     // ========== Boolean Predicate Wrapping Utilities ==========
 
     /** Wraps boolean-typed path as predicate using cb.isTrue() if type is boolean. */
-    ResultHandle wrapBooleanAsPredicateIfNeeded(MethodCreator method, ResultHandle cb, ResultHandle path, Class<?> type);
+    Expr wrapBooleanAsPredicateIfNeeded(BlockCreator bc, Expr cb, Expr path, Class<?> type);
 
     // ========== Correlated Variable Utilities ==========
 
     /** Generates field expression from CorrelatedVariable. Returns null if unsupported expression type. */
-    default @Nullable ResultHandle generateCorrelatedFieldExpression(
-            MethodCreator method,
+    default @Nullable Expr generateCorrelatedFieldExpression(
+            BlockCreator bc,
             LambdaExpression.CorrelatedVariable correlated,
-            ResultHandle root) {
+            Expr root) {
         LambdaExpression fieldExpr = correlated.fieldExpression();
         return switch (fieldExpr) {
-            case LambdaExpression.FieldAccess field -> generateFieldAccess(method, field, root);
-            case LambdaExpression.PathExpression path -> generatePathExpression(method, path, root);
+            case LambdaExpression.FieldAccess field -> generateFieldAccess(bc, field, root);
+            case LambdaExpression.PathExpression path -> generatePathExpression(bc, path, root);
             default -> null;
         };
     }
@@ -101,28 +103,28 @@ public interface ExpressionGeneratorHelper {
     }
 
     /** Generates IS NULL (EQ) or IS NOT NULL (NE) predicate. */
-    default ResultHandle generateNullCheckPredicate(
-            MethodCreator method,
-            ResultHandle cb,
-            ResultHandle expression,
+    default Expr generateNullCheckPredicate(
+            BlockCreator bc,
+            Expr cb,
+            Expr expression,
             LambdaExpression.BinaryOp.Operator operator) {
         if (operator == LambdaExpression.BinaryOp.Operator.EQ) {
-            return method.invokeInterfaceMethod(CB_IS_NULL, cb, expression);
+            return bc.invokeInterface(CB_IS_NULL, cb, expression);
         } else {
-            return method.invokeInterfaceMethod(CB_IS_NOT_NULL, cb, expression);
+            return bc.invokeInterface(CB_IS_NOT_NULL, cb, expression);
         }
     }
 
     // ========== Unary Operation Utilities ==========
 
     /** Applies unary operator to operand. Currently only NOT is supported. */
-    default ResultHandle applyUnaryOperator(
-            MethodCreator method,
-            ResultHandle cb,
-            ResultHandle operand,
+    default Expr applyUnaryOperator(
+            BlockCreator bc,
+            Expr cb,
+            Expr operand,
             LambdaExpression.UnaryOp.Operator operator) {
         return switch (operator) {
-            case NOT -> method.invokeInterfaceMethod(CB_NOT, cb, operand);
+            case NOT -> bc.invokeInterface(CB_NOT, cb, operand);
         };
     }
 }

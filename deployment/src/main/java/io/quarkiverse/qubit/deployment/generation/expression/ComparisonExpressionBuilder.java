@@ -2,9 +2,9 @@ package io.quarkiverse.qubit.deployment.generation.expression;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.common.OperatorMethodMapper;
-import io.quarkus.gizmo.MethodCreator;
-import io.quarkus.gizmo.MethodDescriptor;
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.creator.BlockCreator;
+import io.quarkus.gizmo2.desc.MethodDesc;
 
 /**
  * Builds JPA Criteria API predicates for comparison operations.
@@ -18,19 +18,21 @@ import io.quarkus.gizmo.ResultHandle;
  *   <li>LT (<) → {@code CriteriaBuilder.lessThan()}</li>
  *   <li>LE (<=) → {@code CriteriaBuilder.lessThanOrEqualTo()}</li>
  * </ul>
+ *
+ * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public enum ComparisonExpressionBuilder implements ExpressionBuilder {
     INSTANCE;
 
     /** Generates bytecode for comparison operations. */
-    public ResultHandle buildComparisonOperation(
-            MethodCreator method,
+    public Expr buildComparisonOperation(
+            BlockCreator bc,
             LambdaExpression.BinaryOp.Operator operator,
-            ResultHandle cb,
-            ResultHandle left,
-            ResultHandle right) {
+            Expr cb,
+            Expr left,
+            Expr right) {
 
-        MethodDescriptor comparisonMethod = OperatorMethodMapper.mapComparisonOperator(operator, true);
-        return method.invokeInterfaceMethod(comparisonMethod, cb, left, right);
+        MethodDesc comparisonMethod = OperatorMethodMapper.mapComparisonOperator(operator, true);
+        return bc.invokeInterface(comparisonMethod, cb, left, right);
     }
 }

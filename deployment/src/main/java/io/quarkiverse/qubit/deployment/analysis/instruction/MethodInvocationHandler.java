@@ -39,8 +39,18 @@ import static org.objectweb.asm.Opcodes.*;
 public enum MethodInvocationHandler implements InstructionHandler {
     INSTANCE;
 
+    /** Opcodes handled by this handler for O(1) dispatch. */
+    private static final Set<Integer> SUPPORTED_OPCODES = Set.of(
+            INVOKEVIRTUAL, INVOKESTATIC, INVOKESPECIAL, INVOKEINTERFACE
+    );
+
     private final SubqueryAnalyzer subqueryAnalyzer = new SubqueryAnalyzer();
     private final GroupMethodAnalyzer groupMethodAnalyzer = new GroupMethodAnalyzer();
+
+    @Override
+    public Set<Integer> supportedOpcodes() {
+        return SUPPORTED_OPCODES;
+    }
 
     /**
      * Maps temporal type owners to their valid accessor method sets.
@@ -144,9 +154,7 @@ public enum MethodInvocationHandler implements InstructionHandler {
 
     @Override
     public boolean canHandle(AbstractInsnNode insn) {
-        int opcode = insn.getOpcode();
-        return opcode == INVOKEVIRTUAL || opcode == INVOKESTATIC ||
-               opcode == INVOKESPECIAL || opcode == INVOKEINTERFACE;
+        return SUPPORTED_OPCODES.contains(insn.getOpcode());
     }
 
     @Override
@@ -361,7 +369,7 @@ public enum MethodInvocationHandler implements InstructionHandler {
             case METHOD_LENGTH ->
                 handleNoArgumentStringMethod(ctx, methodInsn, DESC_NO_ARG_TO_INT, int.class);
 
-            case METHOD_IS_EMPTY ->
+            case METHOD_IS_EMPTY, METHOD_IS_BLANK ->
                 handleNoArgumentStringMethod(ctx, methodInsn, DESC_NO_ARG_TO_BOOLEAN, boolean.class);
 
             case METHOD_TO_LOWER_CASE, METHOD_TO_UPPER_CASE, METHOD_TRIM ->

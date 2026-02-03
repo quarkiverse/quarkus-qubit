@@ -559,15 +559,15 @@ class HashBuilderTest {
         }
 
         @Test
-        void buildHash_returnsMd5Hash() {
+        void buildHash_returnsFnv1aHash() {
             String hash = HashBuilder.create()
                     .queryType("TEST")
                     .buildHash();
 
-            // MD5 hash is 32 hex characters
+            // FNV-1a 64-bit hash is up to 16 hex characters (no leading zeros)
             assertThat(hash)
-                    .hasSize(32)
-                    .matches("[0-9a-f]{32}");
+                    .hasSize(16)
+                    .matches("[0-9a-f]{1,16}");
         }
 
         @Test
@@ -600,10 +600,10 @@ class HashBuilderTest {
         void buildHash_emptyBuilder_returnsValidHash() {
             String hash = HashBuilder.create().buildHash();
 
-            // MD5 of empty string
+            // FNV-1a of empty string - returns offset basis
             assertThat(hash)
-                    .hasSize(32)
-                    .matches("[0-9a-f]{32}");
+                    .hasSize(16)
+                    .matches("[0-9a-f]{1,16}");
         }
 
         @Test

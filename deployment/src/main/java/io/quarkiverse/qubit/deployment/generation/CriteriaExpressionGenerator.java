@@ -9,6 +9,7 @@ import static io.quarkiverse.qubit.deployment.common.PatternDetector.containsSub
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isLogicalOperation;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isNegatedSubqueryComparison;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isSubqueryBooleanComparison;
+import static io.quarkiverse.qubit.deployment.generation.GizmoHelper.createElementArray;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_AND;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_CONCAT_EXPR_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_CONSTRUCT;
@@ -29,9 +30,11 @@ import java.util.Objects;
 
 import org.jspecify.annotations.Nullable;
 
-import io.quarkus.gizmo.MethodCreator;
-import io.quarkus.gizmo.MethodDescriptor;
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Const;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.LocalVar;
+import io.quarkus.gizmo2.creator.BlockCreator;
+import io.quarkus.gizmo2.desc.MethodDesc;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.ExistsSubquery;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.InExpression;
@@ -46,20 +49,17 @@ import io.quarkiverse.qubit.deployment.generation.expression.ExpressionBuilderRe
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionGeneratorHelper;
 import io.quarkiverse.qubit.deployment.generation.methodcall.GenerationResult;
 import io.quarkiverse.qubit.deployment.generation.methodcall.MethodCallHandlerChain;
-
-import static io.quarkiverse.qubit.deployment.generation.GizmoHelper.createElementArray;
 import io.quarkiverse.qubit.deployment.util.TypeConverter;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Selection;
 
 /**
- * Converts lambda expression AST into JPA Criteria API bytecode using Gizmo.
+ * Converts lambda expression AST into JPA Criteria API bytecode using Gizmo 2.
  *
  * <p>Implements ExpressionGeneratorHelper to provide common generation methods
  * to specialized builders (BiEntityExpressionBuilder, GroupExpressionBuilder).
  *
- * many internal generate* methods return ResultHandle, but callers
- * typically know the result is non-null in their specific context.
+ * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
@@ -86,12 +86,12 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
     }
 
     /** Generates JPA Predicate from lambda expression AST. Returns null if expression is null. */
-    public @Nullable ResultHandle generatePredicate(
-            MethodCreator method,
+    public @Nullable Expr generatePredicate(
+            BlockCreator bc,
             LambdaExpression expression,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr root,
+            Expr capturedValues) {
 
         if (expression == null) {
             return null;
@@ -99,29 +99,29 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
         return switch (expression) {
             case LambdaExpression.BinaryOp binOp ->
-                generateBinaryOperation(method, binOp, cb, root, capturedValues);
+                generateBinaryOperation(bc, binOp, cb, root, capturedValues);
 
             case LambdaExpression.UnaryOp unOp ->
-                generateUnaryOperation(method, unOp, cb, root, capturedValues);
+                generateUnaryOperation(bc, unOp, cb, root, capturedValues);
 
             case LambdaExpression.FieldAccess field -> {
-                ResultHandle path = generateFieldAccess(method, field, root);
-                yield wrapBooleanAsPredicateIfNeeded(method, cb, path, field.fieldType());
+                Expr path = generateFieldAccess(bc, field, root);
+                yield wrapBooleanAsPredicateIfNeeded(bc, cb, path, field.fieldType());
             }
 
             case PathExpression pathExpr -> {
-                ResultHandle path = generatePathExpression(method, pathExpr, root);
-                yield wrapBooleanAsPredicateIfNeeded(method, cb, path, pathExpr.resultType());
+                Expr path = generatePathExpression(bc, pathExpr, root);
+                yield wrapBooleanAsPredicateIfNeeded(bc, cb, path, pathExpr.resultType());
             }
 
             case LambdaExpression.MethodCall methodCall ->
-                generateMethodCall(method, methodCall, cb, root, capturedValues);
+                generateMethodCall(bc, methodCall, cb, root, capturedValues);
 
             case InExpression inExpr ->
-                generateInPredicate(method, inExpr, cb, root, capturedValues);
+                generateInPredicate(bc, inExpr, cb, root, capturedValues);
 
             case MemberOfExpression memberOfExpr ->
-                generateMemberOfPredicate(method, memberOfExpr, cb, root, capturedValues);
+                generateMemberOfPredicate(bc, memberOfExpr, cb, root, capturedValues);
 
             default -> throw new UnsupportedExpressionException(expression, "predicate generation");
         };
@@ -131,13 +131,13 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
      * Generates JPA Predicate with subquery support (ExistsSubquery, InSubquery, ScalarSubquery).
      * Accepts CriteriaQuery for creating subqueries.
      */
-    public @Nullable ResultHandle generatePredicateWithSubqueries(
-            MethodCreator method,
+    public @Nullable Expr generatePredicateWithSubqueries(
+            BlockCreator bc,
             LambdaExpression expression,
-            ResultHandle cb,
-            ResultHandle query,
-            ResultHandle root,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr query,
+            Expr root,
+            Expr capturedValues) {
 
         if (expression == null) {
             return null;
@@ -146,31 +146,31 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         return switch (expression) {
             // Handle subquery expressions first
             case ExistsSubquery existsSubquery ->
-                builderRegistry.subqueryBuilder().buildExistsSubquery(method, existsSubquery, cb, query, root, capturedValues);
+                builderRegistry.subqueryBuilder().buildExistsSubquery(bc, existsSubquery, cb, query, root, capturedValues);
 
             case InSubquery inSubquery ->
-                builderRegistry.subqueryBuilder().buildInSubquery(method, inSubquery, cb, query, root, capturedValues);
+                builderRegistry.subqueryBuilder().buildInSubquery(bc, inSubquery, cb, query, root, capturedValues);
 
             // Handle binary operations that may contain subqueries
             case LambdaExpression.BinaryOp binOp ->
-                generateBinaryOperationWithSubqueries(method, binOp, cb, query, root, capturedValues);
+                generateBinaryOperationWithSubqueries(bc, binOp, cb, query, root, capturedValues);
 
             case LambdaExpression.UnaryOp unOp ->
-                generateUnaryOperationWithSubqueries(method, unOp, cb, query, root, capturedValues);
+                generateUnaryOperationWithSubqueries(bc, unOp, cb, query, root, capturedValues);
 
             // For non-subquery expressions, delegate to the original method
-            default -> generatePredicate(method, expression, cb, root, capturedValues);
+            default -> generatePredicate(bc, expression, cb, root, capturedValues);
         };
     }
 
     /** Generates JPA Expression with ScalarSubquery support. Returns null if expression is null. */
-    public @Nullable ResultHandle generateExpressionWithSubqueries(
-            MethodCreator method,
+    public @Nullable Expr generateExpressionWithSubqueries(
+            BlockCreator bc,
             LambdaExpression expression,
-            ResultHandle cb,
-            ResultHandle query,
-            ResultHandle root,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr query,
+            Expr root,
+            Expr capturedValues) {
 
         if (expression == null) {
             return null;
@@ -178,10 +178,10 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
         return switch (expression) {
             case ScalarSubquery scalarSubquery ->
-                builderRegistry.subqueryBuilder().buildScalarSubquery(method, scalarSubquery, cb, query, root, capturedValues);
+                builderRegistry.subqueryBuilder().buildScalarSubquery(bc, scalarSubquery, cb, query, root, capturedValues);
 
             // For non-subquery expressions, delegate to the original method
-            default -> generateExpressionAsJpaExpression(method, expression, cb, root, capturedValues);
+            default -> generateExpressionAsJpaExpression(bc, expression, cb, root, capturedValues);
         };
     }
 
@@ -189,19 +189,19 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
      * Generates binary operation with subquery support.
      * Handles comparisons that may contain ScalarSubquery on either side.
      */
-    private ResultHandle generateBinaryOperationWithSubqueries(
-            MethodCreator method,
+    private Expr generateBinaryOperationWithSubqueries(
+            BlockCreator bc,
             LambdaExpression.BinaryOp binOp,
-            ResultHandle cb,
-            ResultHandle query,
-            ResultHandle root,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr query,
+            Expr root,
+            Expr capturedValues) {
 
         // Check for logical operations (AND, OR)
         if (isLogicalOperation(binOp)) {
-            ResultHandle left = generatePredicateWithSubqueries(method, binOp.left(), cb, query, root, capturedValues);
-            ResultHandle right = generatePredicateWithSubqueries(method, binOp.right(), cb, query, root, capturedValues);
-            return combinePredicates(method, cb, left, right, binOp.operator());
+            Expr left = generatePredicateWithSubqueries(bc, binOp.left(), cb, query, root, capturedValues);
+            Expr right = generatePredicateWithSubqueries(bc, binOp.right(), cb, query, root, capturedValues);
+            return combinePredicates(bc, cb, left, right, binOp.operator());
         }
 
         // Only scalar subqueries can be used in comparisons. EXISTS/IN are predicates, not expressions.
@@ -210,9 +210,9 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
         if (leftHasScalarSubquery || rightHasScalarSubquery) {
             // Generate expressions with subquery support
-            ResultHandle left = generateExpressionWithSubqueries(method, binOp.left(), cb, query, root, capturedValues);
-            ResultHandle right = generateExpressionWithSubqueries(method, binOp.right(), cb, query, root, capturedValues);
-            return generateComparisonOperation(method, binOp.operator(), cb, left, right);
+            Expr left = generateExpressionWithSubqueries(bc, binOp.left(), cb, query, root, capturedValues);
+            Expr right = generateExpressionWithSubqueries(bc, binOp.right(), cb, query, root, capturedValues);
+            return generateComparisonOperation(bc, binOp.operator(), cb, left, right);
         }
 
         // Handle EXISTS/IN subquery patterns
@@ -220,56 +220,56 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         boolean rightHasSubquery = containsSubquery(binOp.right());
 
         if (leftHasSubquery || rightHasSubquery) {
-            return handleSubqueryComparison(method, binOp, cb, query, root, capturedValues, leftHasSubquery);
+            return handleSubqueryComparison(bc, binOp, cb, query, root, capturedValues, leftHasSubquery);
         }
 
         // No subqueries - delegate to original method
-        return generateBinaryOperation(method, binOp, cb, root, capturedValues);
+        return generateBinaryOperation(bc, binOp, cb, root, capturedValues);
     }
 
     /** Handles comparison operations involving EXISTS/IN subqueries. */
-    private ResultHandle handleSubqueryComparison(
-            MethodCreator method,
+    private Expr handleSubqueryComparison(
+            BlockCreator bc,
             LambdaExpression.BinaryOp binOp,
-            ResultHandle cb,
-            ResultHandle query,
-            ResultHandle root,
-            ResultHandle capturedValues,
+            Expr cb,
+            Expr query,
+            Expr root,
+            Expr capturedValues,
             boolean leftHasSubquery) {
 
         // If comparing a subquery predicate to a boolean constant, simplify
         if (isSubqueryBooleanComparison(binOp)) {
             LambdaExpression subqueryExpr = leftHasSubquery ? binOp.left() : binOp.right();
             LambdaExpression constantExpr = leftHasSubquery ? binOp.right() : binOp.left();
-            ResultHandle predicate = generatePredicateWithSubqueries(method, subqueryExpr, cb, query, root, capturedValues);
+            Expr predicate = generatePredicateWithSubqueries(bc, subqueryExpr, cb, query, root, capturedValues);
 
             // If comparing to false or using NE with true, negate the result
             if (isNegatedSubqueryComparison(binOp.operator(), constantExpr)) {
-                return method.invokeInterfaceMethod(CB_NOT, cb, predicate);
+                return bc.invokeInterface(CB_NOT, cb, predicate);
             }
             return predicate;
         }
 
         // For other patterns with subqueries, recursively process with subquery support
-        ResultHandle left = generatePredicateWithSubqueries(method, binOp.left(), cb, query, root, capturedValues);
-        ResultHandle right = generatePredicateWithSubqueries(method, binOp.right(), cb, query, root, capturedValues);
-        return generateComparisonOperation(method, binOp.operator(), cb, left, right);
+        Expr left = generatePredicateWithSubqueries(bc, binOp.left(), cb, query, root, capturedValues);
+        Expr right = generatePredicateWithSubqueries(bc, binOp.right(), cb, query, root, capturedValues);
+        return generateComparisonOperation(bc, binOp.operator(), cb, left, right);
     }
 
     /**
      * Generates unary operation with subquery support.
      * Handles NOT operations that may wrap subquery predicates.
      */
-    private ResultHandle generateUnaryOperationWithSubqueries(
-            MethodCreator method,
+    private Expr generateUnaryOperationWithSubqueries(
+            BlockCreator bc,
             LambdaExpression.UnaryOp unOp,
-            ResultHandle cb,
-            ResultHandle query,
-            ResultHandle root,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr query,
+            Expr root,
+            Expr capturedValues) {
 
-        ResultHandle operand = generatePredicateWithSubqueries(method, unOp.operand(), cb, query, root, capturedValues);
-        return applyUnaryOperator(method, cb, operand, unOp.operator());
+        Expr operand = generatePredicateWithSubqueries(bc, unOp.operand(), cb, query, root, capturedValues);
+        return applyUnaryOperator(bc, cb, operand, unOp.operator());
     }
 
     /**
@@ -277,12 +277,13 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
      * <p>
      * Uses pattern matching switch for cleaner type dispatch.
      */
-    public @Nullable ResultHandle generateExpression(
-            MethodCreator method,
+    @Override
+    public @Nullable Expr generateExpression(
+            BlockCreator bc,
             @Nullable LambdaExpression expression,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr root,
+            Expr capturedValues) {
 
         if (expression == null) {
             return null;
@@ -290,22 +291,22 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
         return switch (expression) {
             case LambdaExpression.FieldAccess field ->
-                generateFieldAccess(method, field, root);
+                generateFieldAccess(bc, field, root);
 
             case PathExpression pathExpr ->
-                generatePathExpression(method, pathExpr, root);
+                generatePathExpression(bc, pathExpr, root);
 
             case LambdaExpression.Constant constant ->
-                generateConstant(method, constant);
+                generateConstant(bc, constant);
 
             case LambdaExpression.CapturedVariable capturedVar ->
-                loadCapturedValue(method, capturedVar, capturedValues);
+                loadCapturedValue(bc, capturedVar, capturedValues);
 
             case LambdaExpression.MethodCall methodCall ->
-                generateMethodCall(method, methodCall, cb, root, capturedValues);
+                generateMethodCall(bc, methodCall, cb, root, capturedValues);
 
             case LambdaExpression.CorrelatedVariable correlated ->
-                generateCorrelatedFieldExpression(method, correlated, root);
+                generateCorrelatedFieldExpression(bc, correlated, root);
 
             default -> throw new UnsupportedExpressionException(expression, "raw expression generation");
         };
@@ -317,12 +318,13 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
      * <p>
      * Uses pattern matching switch for cleaner type dispatch.
      */
-    public @Nullable ResultHandle generateExpressionAsJpaExpression(
-            MethodCreator method,
+    @Override
+    public @Nullable Expr generateExpressionAsJpaExpression(
+            BlockCreator bc,
             @Nullable LambdaExpression expression,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr root,
+            Expr capturedValues) {
 
         if (expression == null) {
             return null;
@@ -330,27 +332,27 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
         return switch (expression) {
             case LambdaExpression.FieldAccess field ->
-                generateFieldAccess(method, field, root);
+                generateFieldAccess(bc, field, root);
 
             case PathExpression pathExpr ->
-                generatePathExpression(method, pathExpr, root);
+                generatePathExpression(bc, pathExpr, root);
 
             case LambdaExpression.Constant constant -> {
-                ResultHandle constantValue = generateConstant(method, constant);
-                yield wrapAsLiteral(method, cb, constantValue);
+                Expr constantValue = generateConstant(bc, constant);
+                yield wrapAsLiteral(bc, cb, constantValue);
             }
 
             case LambdaExpression.CapturedVariable capturedVar ->
-                loadAndWrapCapturedValue(method, cb, capturedVar, capturedValues);
+                loadAndWrapCapturedValue(bc, cb, capturedVar, capturedValues);
 
             case LambdaExpression.MethodCall methodCall ->
-                generateMethodCall(method, methodCall, cb, root, capturedValues);
+                generateMethodCall(bc, methodCall, cb, root, capturedValues);
 
             case LambdaExpression.BinaryOp binOp ->
-                generateBinaryOperation(method, binOp, cb, root, capturedValues);
+                generateBinaryOperation(bc, binOp, cb, root, capturedValues);
 
             case LambdaExpression.ConstructorCall constructorCall ->
-                generateConstructorCall(method, constructorCall, cb, root, capturedValues);
+                generateConstructorCall(bc, constructorCall, cb, root, capturedValues);
 
             case LambdaExpression.Parameter _ ->
                 // Parameter expressions occur in identity sort functions like (String s) -> s
@@ -361,19 +363,19 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             case InExpression inExpr ->
                 // InExpression is a predicate but Predicate extends Expression<Boolean>
                 // so we can return it as a JPA expression
-                generateInPredicate(method, inExpr, cb, root, capturedValues);
+                generateInPredicate(bc, inExpr, cb, root, capturedValues);
 
             case MemberOfExpression memberOfExpr ->
                 // MemberOfExpression is also a predicate that can be used as expression
-                generateMemberOfPredicate(method, memberOfExpr, cb, root, capturedValues);
+                generateMemberOfPredicate(bc, memberOfExpr, cb, root, capturedValues);
 
             case LambdaExpression.UnaryOp unaryOp ->
                 // UnaryOp (NOT) is a predicate that can be used as expression
                 // This occurs when IFEQ creates NOT(InExpression) for short-circuit evaluation
-                generateUnaryOperation(method, unaryOp, cb, root, capturedValues);
+                generateUnaryOperation(bc, unaryOp, cb, root, capturedValues);
 
             case LambdaExpression.CorrelatedVariable correlated ->
-                generateCorrelatedFieldExpression(method, correlated, root);
+                generateCorrelatedFieldExpression(bc, correlated, root);
 
             default -> throw new UnsupportedExpressionException(expression);
         };
@@ -382,47 +384,47 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
     /**
      * Generates comparison, logical, arithmetic, or string concatenation operation.
      */
-    public ResultHandle generateBinaryOperation(
-            MethodCreator method,
+    public Expr generateBinaryOperation(
+            BlockCreator bc,
             LambdaExpression.BinaryOp binOp,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr root,
+            Expr capturedValues) {
 
         BinaryOperationCategory category = BinaryOperationCategory.categorize(binOp, this::isStringConcatenation);
 
         return switch (category) {
             case STRING_CONCATENATION -> {
-                ResultHandle left = generateExpressionAsJpaExpression(method, binOp.left(), cb, root, capturedValues);
-                ResultHandle right = generateExpressionAsJpaExpression(method, binOp.right(), cb, root, capturedValues);
-                yield generateStringConcatenation(method, cb, left, right);
+                Expr left = generateExpressionAsJpaExpression(bc, binOp.left(), cb, root, capturedValues);
+                Expr right = generateExpressionAsJpaExpression(bc, binOp.right(), cb, root, capturedValues);
+                yield generateStringConcatenation(bc, cb, left, right);
             }
 
             case ARITHMETIC -> {
-                ResultHandle left = generateExpressionAsJpaExpression(method, binOp.left(), cb, root, capturedValues);
-                ResultHandle right = generateExpressionAsJpaExpression(method, binOp.right(), cb, root, capturedValues);
-                yield generateArithmeticOperation(method, binOp.operator(), cb, left, right);
+                Expr left = generateExpressionAsJpaExpression(bc, binOp.left(), cb, root, capturedValues);
+                Expr right = generateExpressionAsJpaExpression(bc, binOp.right(), cb, root, capturedValues);
+                yield generateArithmeticOperation(bc, binOp.operator(), cb, left, right);
             }
 
             case LOGICAL -> {
-                ResultHandle left = generatePredicate(method, binOp.left(), cb, root, capturedValues);
-                ResultHandle right = generatePredicate(method, binOp.right(), cb, root, capturedValues);
-                yield combinePredicates(method, cb, left, right, binOp.operator());
+                Expr left = generatePredicate(bc, binOp.left(), cb, root, capturedValues);
+                Expr right = generatePredicate(bc, binOp.right(), cb, root, capturedValues);
+                yield combinePredicates(bc, cb, left, right, binOp.operator());
             }
 
-            case NULL_CHECK -> generateNullCheckPredicate(method, binOp, cb, root, capturedValues);
+            case NULL_CHECK -> generateNullCheckPredicate(bc, binOp, cb, root, capturedValues);
 
-            case BOOLEAN_FIELD_CONSTANT -> generateBooleanFieldConstantPredicate(method, binOp, cb, root, capturedValues);
+            case BOOLEAN_FIELD_CONSTANT -> generateBooleanFieldConstantPredicate(bc, binOp, cb, root, capturedValues);
 
-            case BOOLEAN_FIELD_CAPTURED_VARIABLE -> generateBooleanFieldCapturedVariablePredicate(method, binOp, cb, root, capturedValues);
+            case BOOLEAN_FIELD_CAPTURED_VARIABLE -> generateBooleanFieldCapturedVariablePredicate(bc, binOp, cb, root, capturedValues);
 
             case COMPARE_TO_EQUALITY -> {
                 // compareTo equality can return null if constant is not 0/false/true
-                ResultHandle result = generateCompareToEqualityPredicate(method, binOp, cb, root, capturedValues);
-                yield result != null ? result : generateDefaultComparison(method, binOp, cb, root, capturedValues);
+                Expr result = generateCompareToEqualityPredicate(bc, binOp, cb, root, capturedValues);
+                yield result != null ? result : generateDefaultComparison(bc, binOp, cb, root, capturedValues);
             }
 
-            case COMPARISON -> generateDefaultComparison(method, binOp, cb, root, capturedValues);
+            case COMPARISON -> generateDefaultComparison(bc, binOp, cb, root, capturedValues);
         };
     }
 
@@ -430,78 +432,78 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
      * Generates default comparison operation (EQ, NE, LT, LE, GT, GE).
      * Extracted for reuse in fallthrough case from COMPARE_TO_EQUALITY.
      */
-    private ResultHandle generateDefaultComparison(
-            MethodCreator method,
+    private Expr generateDefaultComparison(
+            BlockCreator bc,
             LambdaExpression.BinaryOp binOp,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr root,
+            Expr capturedValues) {
 
-        ResultHandle left = generateExpressionAsJpaExpression(method, binOp.left(), cb, root, capturedValues);
-        ResultHandle right = generateExpressionAsJpaExpression(method, binOp.right(), cb, root, capturedValues);
-        return generateComparisonOperation(method, binOp.operator(), cb, left, right);
+        Expr left = generateExpressionAsJpaExpression(bc, binOp.left(), cb, root, capturedValues);
+        Expr right = generateExpressionAsJpaExpression(bc, binOp.right(), cb, root, capturedValues);
+        return generateComparisonOperation(bc, binOp.operator(), cb, left, right);
     }
 
     /** Generates null check predicate (IS NULL or IS NOT NULL). */
-    private ResultHandle generateNullCheckPredicate(
-            MethodCreator method,
+    private Expr generateNullCheckPredicate(
+            BlockCreator bc,
             LambdaExpression.BinaryOp binOp,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr root,
+            Expr capturedValues) {
 
         LambdaExpression nonNullExpr = extractNonNullExpression(binOp);
-        ResultHandle expression = generateExpression(method, nonNullExpr, cb, root, capturedValues);
-        return generateNullCheckPredicate(method, cb, expression, binOp.operator());
+        Expr expression = generateExpression(bc, nonNullExpr, cb, root, capturedValues);
+        return generateNullCheckPredicate(bc, cb, expression, binOp.operator());
     }
 
     /** Generates boolean field comparison with constant 0 or 1. */
-    private ResultHandle generateBooleanFieldConstantPredicate(
-            MethodCreator method,
+    private Expr generateBooleanFieldConstantPredicate(
+            BlockCreator bc,
             LambdaExpression.BinaryOp binOp,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr root,
+            Expr capturedValues) {
 
         LambdaExpression.Constant constant = (LambdaExpression.Constant) binOp.right();
-        ResultHandle field = generateExpression(method, binOp.left(), cb, root, capturedValues);
+        Expr field = generateExpression(bc, binOp.left(), cb, root, capturedValues);
 
         boolean compareToTrue = constant.value().equals(1);
         boolean isEqualOp = binOp.operator() == EQ;
         boolean useIsTrue = (isEqualOp && compareToTrue) || (!isEqualOp && !compareToTrue);
 
         if (useIsTrue) {
-            return method.invokeInterfaceMethod(CB_IS_TRUE, cb, field);
+            return bc.invokeInterface(CB_IS_TRUE, cb, field);
         } else {
-            return method.invokeInterfaceMethod(CB_IS_FALSE, cb, field);
+            return bc.invokeInterface(CB_IS_FALSE, cb, field);
         }
     }
 
     /** Generates boolean field comparison with captured variable. */
-    private ResultHandle generateBooleanFieldCapturedVariablePredicate(
-            MethodCreator method,
+    private Expr generateBooleanFieldCapturedVariablePredicate(
+            BlockCreator bc,
             LambdaExpression.BinaryOp binOp,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr root,
+            Expr capturedValues) {
 
-        ResultHandle fieldExpr = generateExpressionAsJpaExpression(method, binOp.left(), cb, root, capturedValues);
-        ResultHandle capturedExpr = generateExpressionAsJpaExpression(method, binOp.right(), cb, root, capturedValues);
+        Expr fieldExpr = generateExpressionAsJpaExpression(bc, binOp.left(), cb, root, capturedValues);
+        Expr capturedExpr = generateExpressionAsJpaExpression(bc, binOp.right(), cb, root, capturedValues);
 
         if (binOp.operator() == EQ) {
-            return method.invokeInterfaceMethod(CB_EQUAL, cb, fieldExpr, capturedExpr);
+            return bc.invokeInterface(CB_EQUAL, cb, fieldExpr, capturedExpr);
         } else {
-            return method.invokeInterfaceMethod(CB_NOT_EQUAL, cb, fieldExpr, capturedExpr);
+            return bc.invokeInterface(CB_NOT_EQUAL, cb, fieldExpr, capturedExpr);
         }
     }
 
     /** Generates compareTo equality pattern predicate. Returns null if not applicable. */
-    private ResultHandle generateCompareToEqualityPredicate(
-            MethodCreator method,
+    private Expr generateCompareToEqualityPredicate(
+            BlockCreator bc,
             LambdaExpression.BinaryOp binOp,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr root,
+            Expr capturedValues) {
 
         LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) binOp.left();
         LambdaExpression.Constant constant = (LambdaExpression.Constant) binOp.right();
@@ -511,39 +513,39 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         boolean isInequalityCheck = (constant.value() instanceof Boolean && constant.value().equals(true));
 
         if (isEqualityCheck || isInequalityCheck) {
-            ResultHandle field = generateExpressionAsJpaExpression(method, methodCall.target(), cb, root, capturedValues);
-            ResultHandle argument = generateExpression(method, methodCall.arguments().getFirst(), cb, root, capturedValues);
+            Expr field = generateExpressionAsJpaExpression(bc, methodCall.target(), cb, root, capturedValues);
+            Expr argument = generateExpression(bc, methodCall.arguments().getFirst(), cb, root, capturedValues);
 
             if (isEqualityCheck) {
-                return method.invokeInterfaceMethod(CB_EQUAL, cb, field, argument);
+                return bc.invokeInterface(CB_EQUAL, cb, field, argument);
             } else {
-                return method.invokeInterfaceMethod(CB_NOT_EQUAL, cb, field, argument);
+                return bc.invokeInterface(CB_NOT_EQUAL, cb, field, argument);
             }
         }
         return null;
     }
 
     /** Generates unary NOT operation. */
-    public ResultHandle generateUnaryOperation(
-            MethodCreator method,
+    public Expr generateUnaryOperation(
+            BlockCreator bc,
             LambdaExpression.UnaryOp unOp,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr root,
+            Expr capturedValues) {
 
-        ResultHandle operand = generatePredicate(method, unOp.operand(), cb, root, capturedValues);
-        return applyUnaryOperator(method, cb, operand, unOp.operator());
+        Expr operand = generatePredicate(bc, unOp.operand(), cb, root, capturedValues);
+        return applyUnaryOperator(bc, cb, operand, unOp.operator());
     }
 
     /** Generates JPA field access expression. */
     @Override
-    public ResultHandle generateFieldAccess(
-            MethodCreator method,
+    public Expr generateFieldAccess(
+            BlockCreator bc,
             LambdaExpression.FieldAccess field,
-            ResultHandle root) {
+            Expr root) {
 
-        ResultHandle fieldName = method.load(field.fieldName());
-        return method.invokeInterfaceMethod(PATH_GET, root, fieldName);
+        Expr fieldName = Const.of(field.fieldName());
+        return bc.invokeInterface(PATH_GET, root, fieldName);
     }
 
     /**
@@ -551,18 +553,17 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
      * Converts PathExpression to chained Path.get() calls.
      */
     @Override
-    public ResultHandle generatePathExpression(
-            MethodCreator method,
+    public Expr generatePathExpression(
+            BlockCreator bc,
             PathExpression pathExpr,
-            ResultHandle root) {
+            Expr root) {
 
-        ResultHandle currentPath = root;
+        // Use LocalVar for intermediate path values used across loop iterations (Gizmo2 requirement)
+        LocalVar currentPath = bc.localVar("currentPath", root);
 
         for (PathSegment segment : pathExpr.segments()) {
-            ResultHandle fieldName = method.load(segment.fieldName());
-            currentPath = method.invokeInterfaceMethod(
-                    PATH_GET,
-                    currentPath, fieldName);
+            Expr fieldName = Const.of(segment.fieldName());
+            bc.set(currentPath, bc.invokeInterface(PATH_GET, currentPath, fieldName));
         }
 
         return currentPath;
@@ -571,27 +572,27 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
     /**
      * Generates constant value bytecode.
      * <p>
-     * Delegates to {@link GizmoHelper#loadConstant(MethodCreator, Object)} for the
+     * Delegates to {@link GizmoHelper#loadConstant(BlockCreator, Object)} for the
      * actual bytecode generation.
      */
     @Override
-    public ResultHandle generateConstant(MethodCreator method, LambdaExpression.Constant constant) {
-        return GizmoHelper.loadConstant(method, constant.value());
+    public Expr generateConstant(BlockCreator bc, LambdaExpression.Constant constant) {
+        return GizmoHelper.loadConstant(bc, constant.value());
     }
 
     /**
      * Generates JPA expression for method call using handler chain.
      * @throws UnsupportedExpressionException if the method call is not supported
      */
-    public ResultHandle generateMethodCall(
-            MethodCreator method,
+    public Expr generateMethodCall(
+            BlockCreator bc,
             LambdaExpression.MethodCall methodCall,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr root,
+            Expr capturedValues) {
 
         GenerationResult result = methodCallHandlerChain.handleMethodCall(
-                method, methodCall, cb, root, capturedValues, builderRegistry, this);
+                bc, methodCall, cb, root, capturedValues, builderRegistry, this);
 
         return switch (result) {
             case GenerationResult.Success(var handle) -> handle;
@@ -601,48 +602,53 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
     }
 
     /** Generates JPA cb.construct() for DTO projections. */
-    private ResultHandle generateConstructorCall(
-            MethodCreator method,
+    private Expr generateConstructorCall(
+            BlockCreator bc,
             LambdaExpression.ConstructorCall constructorCall,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr root,
+            Expr capturedValues) {
 
         // Load the DTO class at runtime
-        ResultHandle resultClassHandle = loadDtoClass(method, constructorCall.className());
+        // Use LocalVar for values used across multiple operations (Gizmo2 requirement)
+        // Store cb and resultClassHandle in LocalVars since they're passed in from another context
+        LocalVar cbLocal = bc.localVar("cbLocal", cb);
+        LocalVar resultClassLocal = bc.localVar("resultClassLocal", loadDtoClass(bc, constructorCall.className()));
 
         // Generate JPA expressions for each constructor argument
         int argCount = constructorCall.arguments().size();
-        ResultHandle selectionsArray = method.newArray(Selection.class, argCount);
+        LocalVar selectionsArray = bc.localVar("selectionsArray", bc.newEmptyArray(Selection.class, argCount));
 
         for (int i = 0; i < argCount; i++) {
             LambdaExpression arg = constructorCall.arguments().get(i);
-            ResultHandle argExpression = generateExpressionAsJpaExpression(method, arg, cb, root, capturedValues);
+            Expr argExpression = generateExpressionAsJpaExpression(bc, arg, cb, root, capturedValues);
 
             // Null check: Parameter expressions return null and are not allowed in constructor arguments
             if (argExpression == null) {
                 throw UnsupportedExpressionException.inConstructorArgument(arg, i, constructorCall.className());
             }
 
-            method.writeArrayValue(selectionsArray, i, argExpression);
+            // Store each generated expression in a LocalVar before array assignment
+            LocalVar argExprLocal = bc.localVar("arg" + i, argExpression);
+            bc.set(selectionsArray.elem(i), argExprLocal);
         }
 
         // Call cb.construct(resultClass, selections...)
-        return method.invokeInterfaceMethod(CB_CONSTRUCT, cb, resultClassHandle, selectionsArray);
+        return bc.invokeInterface(CB_CONSTRUCT, cbLocal, resultClassLocal, selectionsArray);
     }
 
     // ========== Collection Operations (IN, MEMBER OF) ==========
 
     /** Generates JPA IN predicate: cities.contains(p.city) -> root.get("city").in(cities). */
-    private ResultHandle generateInPredicate(
-            MethodCreator method,
+    private Expr generateInPredicate(
+            BlockCreator bc,
             InExpression inExpr,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr root,
+            Expr capturedValues) {
 
         // Generate the field expression (e.g., root.get("city"))
-        ResultHandle fieldExpr = generateExpressionAsJpaExpression(method, inExpr.field(), cb, root, capturedValues);
+        Expr fieldExpr = generateExpressionAsJpaExpression(bc, inExpr.field(), cb, root, capturedValues);
 
         // Null check: Parameter expressions return null and are not allowed in IN predicates
         if (fieldExpr == null) {
@@ -650,51 +656,49 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         }
 
         // Generate the collection expression (e.g., capturedValues[0])
-        ResultHandle collectionExpr = generateExpression(method, inExpr.collection(), cb, root, capturedValues);
+        Expr collectionExpr = generateExpression(bc, inExpr.collection(), cb, root, capturedValues);
 
         // Call fieldExpr.in(collection) - Expression.in(Collection)
         // This creates a Predicate that checks if field value is in the collection
-        ResultHandle inPredicate = method.invokeInterfaceMethod(EXPRESSION_IN_COLLECTION, fieldExpr, collectionExpr);
+        Expr inPredicate = bc.invokeInterface(EXPRESSION_IN_COLLECTION, fieldExpr, collectionExpr);
 
         // If negated (NOT IN), wrap with cb.not()
         if (inExpr.negated()) {
-            return method.invokeInterfaceMethod(
-                    CB_NOT,
-                    cb, inPredicate);
+            return bc.invokeInterface(CB_NOT, cb, inPredicate);
         }
 
         return inPredicate;
     }
 
     /** Generates JPA MEMBER OF: p.roles.contains("admin") -> cb.isMember("admin", root.get("roles")). */
-    private ResultHandle generateMemberOfPredicate(
-            MethodCreator method,
+    private Expr generateMemberOfPredicate(
+            BlockCreator bc,
             MemberOfExpression memberOfExpr,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr root,
+            Expr capturedValues) {
 
         // Generate the value expression (e.g., "admin" constant or captured variable)
-        ResultHandle valueExpr = generateExpression(method, memberOfExpr.value(), cb, root, capturedValues);
+        Expr valueExpr = generateExpression(bc, memberOfExpr.value(), cb, root, capturedValues);
 
         // Generate the collection field expression (e.g., root.get("roles"))
-        ResultHandle collectionFieldExpr = generateExpressionAsJpaExpression(
-                method, memberOfExpr.collectionField(), cb, root, capturedValues);
+        Expr collectionFieldExpr = generateExpressionAsJpaExpression(
+                bc, memberOfExpr.collectionField(), cb, root, capturedValues);
 
-        MethodDescriptor mdMember = memberOfExpr.negated() ? CB_IS_NOT_MEMBER : CB_IS_MEMBER;
-        return method.invokeInterfaceMethod(mdMember, cb, valueExpr, collectionFieldExpr);
+        MethodDesc mdMember = memberOfExpr.negated() ? CB_IS_NOT_MEMBER : CB_IS_MEMBER;
+        return bc.invokeInterface(mdMember, cb, valueExpr, collectionFieldExpr);
     }
 
     /** Generates arithmetic operations. Delegates to ArithmeticExpressionBuilder. */
     @Override
-    public ResultHandle generateArithmeticOperation(
-            MethodCreator method,
+    public Expr generateArithmeticOperation(
+            BlockCreator bc,
             LambdaExpression.BinaryOp.Operator operator,
-            ResultHandle cb,
-            ResultHandle left,
-            ResultHandle right) {
+            Expr cb,
+            Expr left,
+            Expr right) {
 
-        return builderRegistry.arithmeticBuilder().buildArithmeticOperation(method, operator, cb, left, right);
+        return builderRegistry.arithmeticBuilder().buildArithmeticOperation(bc, operator, cb, left, right);
     }
 
     /**
@@ -728,51 +732,51 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
      * Handles chaining of multiple concat operations.
      */
     @Override
-    public ResultHandle generateStringConcatenation(
-            MethodCreator method,
-            ResultHandle cb,
-            ResultHandle left,
-            ResultHandle right) {
+    public Expr generateStringConcatenation(
+            BlockCreator bc,
+            Expr cb,
+            Expr left,
+            Expr right) {
 
-        return method.invokeInterfaceMethod(CB_CONCAT_EXPR_EXPR, cb, left, right);
+        return bc.invokeInterface(CB_CONCAT_EXPR_EXPR, cb, left, right);
     }
 
     /** Generates comparison operations. Delegates to ComparisonExpressionBuilder. */
     @Override
-    public ResultHandle generateComparisonOperation(
-            MethodCreator method,
+    public Expr generateComparisonOperation(
+            BlockCreator bc,
             LambdaExpression.BinaryOp.Operator operator,
-            ResultHandle cb,
-            ResultHandle left,
-            ResultHandle right) {
+            Expr cb,
+            Expr left,
+            Expr right) {
 
-        return builderRegistry.comparisonBuilder().buildComparisonOperation(method, operator, cb, left, right);
+        return builderRegistry.comparisonBuilder().buildComparisonOperation(bc, operator, cb, left, right);
     }
 
     /** Combines two predicates with AND or OR. */
     @Override
-    public ResultHandle combinePredicates(
-            MethodCreator method,
-            ResultHandle cb,
-            ResultHandle left,
-            ResultHandle right,
+    public Expr combinePredicates(
+            BlockCreator bc,
+            Expr cb,
+            Expr left,
+            Expr right,
             LambdaExpression.BinaryOp.Operator operator) {
 
-        ResultHandle predicateArray = createElementArray(method, Predicate.class, left, right);
+        Expr predicateArray = createElementArray(bc, Predicate.class, left, right);
 
-        MethodDescriptor combineMethod = switch (operator) {
+        MethodDesc combineMethod = switch (operator) {
             case AND -> CB_AND;
             case OR -> CB_OR;
             default -> throw new IllegalArgumentException(expectedAndOrOperator(operator));
         };
 
-        return method.invokeInterfaceMethod(combineMethod, cb, predicateArray);
+        return bc.invokeInterface(combineMethod, cb, predicateArray);
     }
 
     /** Wraps value as literal Expression. */
     @Override
-    public ResultHandle wrapAsLiteral(MethodCreator method, ResultHandle cb, ResultHandle value) {
-        return method.invokeInterfaceMethod(CB_LITERAL, cb, value);
+    public Expr wrapAsLiteral(BlockCreator bc, Expr cb, Expr value) {
+        return bc.invokeInterface(CB_LITERAL, cb, value);
     }
 
     // ========== Captured Variable Utilities ==========
@@ -781,44 +785,44 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
      * {@inheritDoc}
      */
     @Override
-    public ResultHandle loadCapturedValue(MethodCreator method,
-            LambdaExpression.CapturedVariable capturedVar, ResultHandle capturedValues) {
-        ResultHandle index = method.load(capturedVar.index());
-        ResultHandle value = method.readArrayValue(capturedValues, index);
+    public Expr loadCapturedValue(BlockCreator bc,
+            LambdaExpression.CapturedVariable capturedVar, Expr capturedValues) {
+        Expr value = capturedValues.elem(capturedVar.index());
         Class<?> targetType = TypeConverter.getBoxedType(capturedVar.type());
-        return method.checkCast(value, targetType);
+        // Use BlockCreator.cast() for type casting in Gizmo2
+        return bc.cast(value, targetType);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public ResultHandle loadAndWrapCapturedValue(MethodCreator method, ResultHandle cb,
-            LambdaExpression.CapturedVariable capturedVar, ResultHandle capturedValues) {
-        ResultHandle castedValue = loadCapturedValue(method, capturedVar, capturedValues);
-        return wrapAsLiteral(method, cb, castedValue);
+    public Expr loadAndWrapCapturedValue(BlockCreator bc, Expr cb,
+            LambdaExpression.CapturedVariable capturedVar, Expr capturedValues) {
+        Expr castedValue = loadCapturedValue(bc, capturedVar, capturedValues);
+        return wrapAsLiteral(bc, cb, castedValue);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public ResultHandle loadDtoClass(MethodCreator method, String internalClassName) {
+    public Expr loadDtoClass(BlockCreator bc, String internalClassName) {
         // Convert internal class name to fully qualified class name (replace / with .)
         String fqClassName = internalClassName.replace('/', '.');
         // Load the class at runtime using Class.forName()
-        ResultHandle classNameHandle = method.load(fqClassName);
-        return method.invokeStaticMethod(CLASS_FOR_NAME, classNameHandle);
+        Expr classNameHandle = Const.of(fqClassName);
+        return bc.invokeStatic(CLASS_FOR_NAME, classNameHandle);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public ResultHandle wrapBooleanAsPredicateIfNeeded(MethodCreator method, ResultHandle cb,
-            ResultHandle path, Class<?> type) {
+    public Expr wrapBooleanAsPredicateIfNeeded(BlockCreator bc, Expr cb,
+            Expr path, Class<?> type) {
         if (isBooleanType(type)) {
-            return method.invokeInterfaceMethod(CB_IS_TRUE, cb, path);
+            return bc.invokeInterface(CB_IS_TRUE, cb, path);
         }
         return path;
     }
@@ -826,107 +830,107 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
     // ========== Bi-Entity Expressions (Join Queries) ==========
 
     /** Generates JPA Predicate from bi-entity lambda (for join queries). */
-    public ResultHandle generateBiEntityPredicate(
-            MethodCreator method,
+    public Expr generateBiEntityPredicate(
+            BlockCreator bc,
             LambdaExpression expression,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle join,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr root,
+            Expr join,
+            Expr capturedValues) {
 
-        var ctx = new BiEntityBaseContext(method, cb, root, join, capturedValues, this);
+        var ctx = new BiEntityBaseContext(bc, cb, root, join, capturedValues, this);
         return builderRegistry.biEntityBuilder().generateBiEntityPredicate(ctx, expression);
     }
 
     /** Generates bi-entity JPA Predicate with subquery support. */
-    public ResultHandle generateBiEntityPredicateWithSubqueries(
-            MethodCreator method,
+    public Expr generateBiEntityPredicateWithSubqueries(
+            BlockCreator bc,
             LambdaExpression expression,
-            ResultHandle cb,
-            ResultHandle query,
-            ResultHandle root,
-            ResultHandle join,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr query,
+            Expr root,
+            Expr join,
+            Expr capturedValues) {
 
-        var ctx = new BiEntitySubqueryContext(method, cb, query, root, join, capturedValues, this);
+        var ctx = new BiEntitySubqueryContext(bc, cb, query, root, join, capturedValues, this);
         return builderRegistry.biEntityBuilder().generateBiEntityPredicateWithSubqueries(ctx, expression);
     }
 
     /** Generates JPA Expression from bi-entity lambda. */
-    public ResultHandle generateBiEntityExpressionAsJpaExpression(
-            MethodCreator method,
+    public Expr generateBiEntityExpressionAsJpaExpression(
+            BlockCreator bc,
             LambdaExpression expression,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle join,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr root,
+            Expr join,
+            Expr capturedValues) {
 
-        var ctx = new BiEntityBaseContext(method, cb, root, join, capturedValues, this);
+        var ctx = new BiEntityBaseContext(bc, cb, root, join, capturedValues, this);
         return builderRegistry.biEntityBuilder().generateBiEntityExpressionAsJpaExpression(ctx, expression);
     }
 
     // ========== Bi-Entity Projections ==========
 
     /** Generates JPA Selection from bi-entity projection. */
-    public ResultHandle generateBiEntityProjection(
-            MethodCreator method,
+    public Expr generateBiEntityProjection(
+            BlockCreator bc,
             LambdaExpression expression,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle join,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr root,
+            Expr join,
+            Expr capturedValues) {
 
-        var ctx = new BiEntityBaseContext(method, cb, root, join, capturedValues, this);
+        var ctx = new BiEntityBaseContext(bc, cb, root, join, capturedValues, this);
         return builderRegistry.biEntityBuilder().generateBiEntityProjection(ctx, expression);
     }
 
     // ========== Group Expressions (GROUP BY) ==========
 
     /** Generates JPA Predicate for HAVING clause in GROUP BY queries. */
-    public ResultHandle generateGroupPredicate(
-            MethodCreator method,
+    public Expr generateGroupPredicate(
+            BlockCreator bc,
             LambdaExpression expression,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle groupKeyExpr,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr root,
+            Expr groupKeyExpr,
+            Expr capturedValues) {
 
-        return builderRegistry.groupBuilder().generateGroupPredicate(method, expression, cb, root, groupKeyExpr, capturedValues, this);
+        return builderRegistry.groupBuilder().generateGroupPredicate(bc, expression, cb, root, groupKeyExpr, capturedValues, this);
     }
 
     /** Generates JPA Expression for GROUP BY SELECT clause. */
-    public ResultHandle generateGroupSelectExpression(
-            MethodCreator method,
+    public Expr generateGroupSelectExpression(
+            BlockCreator bc,
             LambdaExpression expression,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle groupKeyExpr,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr root,
+            Expr groupKeyExpr,
+            Expr capturedValues) {
 
-        return builderRegistry.groupBuilder().generateGroupSelectExpression(method, expression, cb, root, groupKeyExpr, capturedValues, this);
+        return builderRegistry.groupBuilder().generateGroupSelectExpression(bc, expression, cb, root, groupKeyExpr, capturedValues, this);
     }
 
     /** Generates JPA Expression for group ORDER BY clause. */
-    public ResultHandle generateGroupSortExpression(
-            MethodCreator method,
+    public Expr generateGroupSortExpression(
+            BlockCreator bc,
             LambdaExpression expression,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle groupKeyExpr,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr root,
+            Expr groupKeyExpr,
+            Expr capturedValues) {
 
-        return builderRegistry.groupBuilder().generateGroupSortExpression(method, expression, cb, root, groupKeyExpr, capturedValues, this);
+        return builderRegistry.groupBuilder().generateGroupSortExpression(bc, expression, cb, root, groupKeyExpr, capturedValues, this);
     }
 
     /** Generates JPA multiselect array for Object[] projections in group context. */
-    public ResultHandle generateGroupArraySelections(
-            MethodCreator method,
+    public Expr generateGroupArraySelections(
+            BlockCreator bc,
             LambdaExpression.ArrayCreation arrayCreation,
-            ResultHandle cb,
-            ResultHandle root,
-            ResultHandle groupKeyExpr,
-            ResultHandle capturedValues) {
+            Expr cb,
+            Expr root,
+            Expr groupKeyExpr,
+            Expr capturedValues) {
 
-        return builderRegistry.groupBuilder().generateGroupArraySelections(method, arrayCreation, cb, root, groupKeyExpr, capturedValues, this);
+        return builderRegistry.groupBuilder().generateGroupArraySelections(bc, arrayCreation, cb, root, groupKeyExpr, capturedValues, this);
     }
 }

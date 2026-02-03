@@ -8,25 +8,29 @@ import io.quarkiverse.qubit.deployment.generation.expression.BiEntityBaseContext
 import io.quarkiverse.qubit.deployment.generation.expression.BiEntityExpressionBuilder;
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionBuilderRegistry;
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionGeneratorHelper;
-import io.quarkus.gizmo.MethodCreator;
-import io.quarkus.gizmo.ResultHandle;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.creator.BlockCreator;
 
 import java.util.Objects;
 
-/** Context for method call handling in bi-entity (join) queries with two entity handles. */
+/**
+ * Context for method call handling in bi-entity (join) queries with two entity handles.
+ *
+ * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
+ */
 public record BiEntityMethodCallContext(
-        MethodCreator method,
+        BlockCreator bc,
         LambdaExpression.MethodCall methodCall,
-        ResultHandle cb,
-        ResultHandle root,
-        ResultHandle join,
-        ResultHandle capturedValues,
+        Expr cb,
+        Expr root,
+        Expr join,
+        Expr capturedValues,
         ExpressionBuilderRegistry builderRegistry,
         ExpressionGeneratorHelper helper
 ) implements MethodCallDispatchContext {
 
     public BiEntityMethodCallContext {
-        Objects.requireNonNull(method, "method cannot be null");
+        Objects.requireNonNull(bc, "bc cannot be null");
         Objects.requireNonNull(methodCall, "methodCall cannot be null");
         Objects.requireNonNull(cb, "cb cannot be null");
         Objects.requireNonNull(root, "root cannot be null");
@@ -39,36 +43,36 @@ public record BiEntityMethodCallContext(
     // ========== MethodCallDispatchContext Implementation ==========
 
     @Override
-    public ResultHandle generateTargetAsJpaExpression() {
-        var ctx = new BiEntityBaseContext(method, cb, root, join, capturedValues, helper);
+    public Expr generateTargetAsJpaExpression() {
+        var ctx = new BiEntityBaseContext(bc, cb, root, join, capturedValues, helper);
         return BiEntityExpressionBuilder.INSTANCE.generateBiEntityExpressionAsJpaExpression(ctx, methodCall.target());
     }
 
     @Override
-    public ResultHandle generateTarget() {
-        var ctx = new BiEntityBaseContext(method, cb, root, join, capturedValues, helper);
+    public Expr generateTarget() {
+        var ctx = new BiEntityBaseContext(bc, cb, root, join, capturedValues, helper);
         return BiEntityExpressionBuilder.INSTANCE.generateBiEntityExpression(ctx, methodCall.target());
     }
 
     @Override
-    public ResultHandle generateArgumentAsJpaExpression(LambdaExpression expression) {
-        var ctx = new BiEntityBaseContext(method, cb, root, join, capturedValues, helper);
+    public Expr generateArgumentAsJpaExpression(LambdaExpression expression) {
+        var ctx = new BiEntityBaseContext(bc, cb, root, join, capturedValues, helper);
         return BiEntityExpressionBuilder.INSTANCE.generateBiEntityExpressionAsJpaExpression(ctx, expression);
     }
 
     @Override
-    public ResultHandle generateArgument(LambdaExpression expression) {
-        var ctx = new BiEntityBaseContext(method, cb, root, join, capturedValues, helper);
+    public Expr generateArgument(LambdaExpression expression) {
+        var ctx = new BiEntityBaseContext(bc, cb, root, join, capturedValues, helper);
         return BiEntityExpressionBuilder.INSTANCE.generateBiEntityExpression(ctx, expression);
     }
 
     @Override
-    public ResultHandle generateFieldAccess(LambdaExpression.FieldAccess fieldAccess, ResultHandle path) {
-        return helper.generateFieldAccess(method, fieldAccess, path);
+    public Expr generateFieldAccess(LambdaExpression.FieldAccess fieldAccess, Expr path) {
+        return helper.generateFieldAccess(bc, fieldAccess, path);
     }
 
     @Override
-    public ResultHandle defaultRoot() {
+    public Expr defaultRoot() {
         LambdaExpression target = methodCall.target();
 
         // Check for bi-entity field access
@@ -85,7 +89,7 @@ public record BiEntityMethodCallContext(
         return root;
     }
 
-    private ResultHandle getBaseForEntityPosition(EntityPosition position) {
+    private Expr getBaseForEntityPosition(EntityPosition position) {
         return position == EntityPosition.FIRST ? root : join;
     }
 }

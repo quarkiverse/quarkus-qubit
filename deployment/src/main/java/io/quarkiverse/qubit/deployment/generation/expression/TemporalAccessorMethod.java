@@ -3,9 +3,13 @@ package io.quarkiverse.qubit.deployment.generation.expression;
 import java.util.Optional;
 
 import io.quarkiverse.qubit.deployment.generation.MethodDescriptors;
-import io.quarkus.gizmo.MethodDescriptor;
+import io.quarkus.gizmo2.desc.MethodDesc;
 
-/** Maps temporal accessor methods (getYear, getHour, etc.) to HibernateCriteriaBuilder methods. */
+/**
+ * Maps temporal accessor methods (getYear, getHour, etc.) to HibernateCriteriaBuilder methods.
+ *
+ * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
+ */
 public enum TemporalAccessorMethod {
 
     // ========== Date Methods (LocalDate, LocalDateTime) ==========
@@ -19,19 +23,19 @@ public enum TemporalAccessorMethod {
     GET_SECOND("getSecond", MethodDescriptors.HCB_SECOND);
 
     private final String javaMethod;
-    private final MethodDescriptor methodDescriptor;
+    private final MethodDesc methodDesc;
 
-    TemporalAccessorMethod(String javaMethod, MethodDescriptor methodDescriptor) {
+    TemporalAccessorMethod(String javaMethod, MethodDesc methodDesc) {
         this.javaMethod = javaMethod;
-        this.methodDescriptor = methodDescriptor;
+        this.methodDesc = methodDesc;
     }
 
     public String getJavaMethod() {
         return javaMethod;
     }
 
-    public MethodDescriptor getMethodDescriptor() {
-        return methodDescriptor;
+    public MethodDesc getMethodDesc() {
+        return methodDesc;
     }
 
     public static Optional<TemporalAccessorMethod> fromJavaMethod(String methodName) {
