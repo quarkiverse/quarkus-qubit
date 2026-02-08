@@ -12,8 +12,6 @@ import java.util.Objects;
  * Context for method call handling in single-entity queries.
  * Implements {@link MethodCallDispatchContext} for handler reuse across query types.
  *
- * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
- *
  * @see BiEntityMethodCallContext
  */
 public record MethodCallContext(

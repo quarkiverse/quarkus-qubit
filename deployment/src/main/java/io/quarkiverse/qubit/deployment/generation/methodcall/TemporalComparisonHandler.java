@@ -8,8 +8,6 @@ import java.util.Optional;
 
 /**
  * Handles isBefore(), isAfter(), isEqual() via TemporalExpressionBuilder.
- *
- * <p>Uses Gizmo 2 API with Expr type.
  */
 public enum TemporalComparisonHandler implements MethodCallHandler {
     INSTANCE;

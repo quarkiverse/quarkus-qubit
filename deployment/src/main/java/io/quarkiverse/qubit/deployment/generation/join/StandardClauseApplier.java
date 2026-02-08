@@ -16,8 +16,6 @@ import java.util.Objects;
 
 /**
  * Standard implementation generating JPA Criteria API clause bytecode. Thread-safe.
- *
- * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public final class StandardClauseApplier implements QueryClauseApplier {
 

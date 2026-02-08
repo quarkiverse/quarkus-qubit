@@ -33,7 +33,21 @@ public interface QubitBuildTimeConfig {
         @WithDefault("java.,jakarta.")
         List<String> excludePackages();
 
-        /** Package prefixes to include (overrides excludes). */
+        /**
+         * Package prefixes to include in scanning (whitelist mode).
+         * <p>
+         * <b>IMPORTANT:</b> When this list is configured and non-empty, ONLY classes in these
+         * packages will be scanned. This dramatically improves build performance by skipping
+         * framework classes that cannot contain Qubit queries.
+         * <p>
+         * Example: {@code quarkus.qubit.scanning.include-packages=com.example.,org.myapp.}
+         * <p>
+         * When not configured (default), all classes are scanned except those in {@code excludePackages}.
+         * <p>
+         * <b>Recommended:</b> Configure this to your application's base package(s) to avoid
+         * scanning framework classes (Narayana, Mutiny, Vert.x, etc.) which typically
+         * consume 90%+ of scan time without containing any Qubit queries.
+         */
         Optional<List<String>> includePackages();
 
         /**

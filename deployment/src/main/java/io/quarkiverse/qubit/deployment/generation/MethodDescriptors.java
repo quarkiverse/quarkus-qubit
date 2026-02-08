@@ -10,13 +10,7 @@ import jakarta.persistence.criteria.*;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 import org.hibernate.query.criteria.JpaFunction;
 
-/**
- * Cached MethodDesc constants for JPA Criteria API and JDK methods.
- *
- * <p>Uses Gizmo 2 descriptors with auto-detection:
- * {@link MethodDesc#of(Class, String, Class, Class[])} automatically determines
- * whether to return InterfaceMethodDesc or ClassMethodDesc based on the owner class.
- */
+/** Cached {@link MethodDesc} constants for JPA Criteria API and JDK methods (Gizmo 2). */
 public final class MethodDescriptors {
 
     private MethodDescriptors() {}
@@ -230,6 +224,24 @@ public final class MethodDescriptors {
             MethodDesc.of(CriteriaQuery.class, "groupBy", CriteriaQuery.class, Expression[].class);
     public static final MethodDesc CQ_HAVING =
             MethodDesc.of(CriteriaQuery.class, "having", CriteriaQuery.class, Predicate[].class);
+
+    // ========== CriteriaBuilder Case/When (Ternary Expressions) ==========
+
+    /** CriteriaBuilder.selectCase() -> Case<Object> */
+    public static final MethodDesc CB_SELECT_CASE =
+            MethodDesc.of(CriteriaBuilder.class, "selectCase", CriteriaBuilder.Case.class);
+    /** Case.when(Expression<Boolean> condition, Expression<R> result) -> Case<R> */
+    public static final MethodDesc CASE_WHEN_EXPR =
+            MethodDesc.of(CriteriaBuilder.Case.class, "when", CriteriaBuilder.Case.class, Expression.class, Expression.class);
+    /** Case.when(Expression<Boolean> condition, R result) -> Case<R> */
+    public static final MethodDesc CASE_WHEN_VALUE =
+            MethodDesc.of(CriteriaBuilder.Case.class, "when", CriteriaBuilder.Case.class, Expression.class, Object.class);
+    /** Case.otherwise(Expression<R> result) -> Expression<R> */
+    public static final MethodDesc CASE_OTHERWISE_EXPR =
+            MethodDesc.of(CriteriaBuilder.Case.class, "otherwise", Expression.class, Expression.class);
+    /** Case.otherwise(R result) -> Expression<R> */
+    public static final MethodDesc CASE_OTHERWISE_VALUE =
+            MethodDesc.of(CriteriaBuilder.Case.class, "otherwise", Expression.class, Object.class);
 
     // ========== CriteriaBuilder Ordering ==========
 

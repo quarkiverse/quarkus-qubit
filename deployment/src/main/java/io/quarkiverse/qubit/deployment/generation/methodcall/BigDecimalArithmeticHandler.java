@@ -9,8 +9,6 @@ import java.util.Optional;
 
 /**
  * Handles BigDecimal add/subtract/multiply/divide via BigDecimalExpressionBuilder.
- *
- * <p>Uses Gizmo 2 API with Expr type.
  */
 public enum BigDecimalArithmeticHandler implements MethodCallHandler {
     INSTANCE;

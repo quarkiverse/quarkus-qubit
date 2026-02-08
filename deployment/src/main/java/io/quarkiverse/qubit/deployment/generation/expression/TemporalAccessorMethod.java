@@ -7,8 +7,6 @@ import io.quarkus.gizmo2.desc.MethodDesc;
 
 /**
  * Maps temporal accessor methods (getYear, getHour, etc.) to HibernateCriteriaBuilder methods.
- *
- * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public enum TemporalAccessorMethod {
 

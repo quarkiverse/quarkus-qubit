@@ -8,8 +8,6 @@ import java.util.List;
 /**
  * Strategy for applying query clauses (WHERE, ORDER BY, DISTINCT, pagination).
  * Decouples query builders from bytecode generation details.
- *
- * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public interface QueryClauseApplier {
 

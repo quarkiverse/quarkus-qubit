@@ -15,8 +15,6 @@ import java.util.Objects;
 
 /**
  * Context for method call handling in bi-entity (join) queries with two entity handles.
- *
- * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public record BiEntityMethodCallContext(
         BlockCreator bc,

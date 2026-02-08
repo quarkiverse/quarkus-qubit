@@ -12,8 +12,6 @@ import io.quarkus.gizmo2.creator.BlockCreator;
  *   <li>{@link BiEntityBaseContext} - for non-subquery methods (no query handle)</li>
  *   <li>{@link BiEntitySubqueryContext} - for subquery methods (includes query handle)</li>
  * </ul>
- *
- * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public sealed interface BiEntityContext permits BiEntityBaseContext, BiEntitySubqueryContext {
 

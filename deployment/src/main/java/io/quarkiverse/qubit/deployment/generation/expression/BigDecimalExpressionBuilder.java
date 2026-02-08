@@ -27,8 +27,6 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
  *
  * <p><b>Note:</b> BigDecimal methods are mapped to binary operators and delegated
  * to {@link ArithmeticExpressionBuilder} for actual bytecode generation.
- *
- * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public enum BigDecimalExpressionBuilder implements ExpressionBuilder {
     INSTANCE;

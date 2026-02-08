@@ -69,6 +69,7 @@
                 </configuration>
                 <executions>
                     <execution>
+                        <?m2e execute onConfiguration?>
                         <id>generate-codestart-jar</id>
                         <phase>generate-resources</phase>
                         <goals>

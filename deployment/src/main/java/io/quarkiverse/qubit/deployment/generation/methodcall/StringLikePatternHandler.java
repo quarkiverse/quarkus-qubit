@@ -8,8 +8,6 @@ import java.util.Optional;
 
 /**
  * Handles startsWith/endsWith/contains as LIKE patterns via StringExpressionBuilder.
- *
- * <p>Uses Gizmo 2 API with Expr type.
  */
 public enum StringLikePatternHandler implements MethodCallHandler {
     INSTANCE;

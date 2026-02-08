@@ -28,8 +28,6 @@ import io.quarkus.gizmo2.Expr;
 
 /**
  * Builds JPA Criteria expressions for bi-entity (join) queries.
- *
- * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public enum BiEntityExpressionBuilder implements ExpressionBuilder {
     INSTANCE;

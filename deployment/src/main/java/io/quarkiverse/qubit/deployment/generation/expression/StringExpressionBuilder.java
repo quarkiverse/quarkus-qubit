@@ -39,8 +39,6 @@ import io.quarkiverse.qubit.deployment.generation.MethodDescriptors;
  *
  * <p><b>Note:</b> Java's substring() uses 0-based indexing, but JPA uses 1-based.
  * This builder automatically adds 1 to the start index.
- *
- * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public enum StringExpressionBuilder implements ExpressionBuilder {
     INSTANCE;

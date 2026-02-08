@@ -40,6 +40,20 @@ public final class BytecodeLoader {
             metricsCollector.incrementTotalBytecodeLoads();
         }
 
+        // Check cache first to track hit/miss
+        byte[] cached = BYTECODE_CACHE.get(className);
+        if (cached != null) {
+            if (metricsCollector != null) {
+                metricsCollector.recordBytecodeCacheHit();
+            }
+            return cached;
+        }
+
+        // Cache miss - load and cache
+        if (metricsCollector != null) {
+            metricsCollector.recordBytecodeCacheMiss();
+        }
+
         return BYTECODE_CACHE.computeIfAbsent(className, key -> {
             long startTime = System.nanoTime();
             try {

@@ -31,9 +31,6 @@ import static java.lang.Boolean.TRUE;
  *   <li>Adjusting combine operators based on label semantics</li>
  *   <li>Determining jump-to-true semantics</li>
  * </ul>
- *
- * @see BranchHandler
- * @see BranchState
  */
 public final class BranchExpressionCombiner {
 

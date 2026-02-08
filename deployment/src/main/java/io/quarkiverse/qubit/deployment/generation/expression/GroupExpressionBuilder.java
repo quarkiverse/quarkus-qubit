@@ -13,10 +13,14 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_SU
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_SUM_AS_DOUBLE;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_SUM_AS_LONG;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_TUPLE;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_SELECT_CASE;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CASE_WHEN_EXPR;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CASE_OTHERWISE_EXPR;
 
 import org.jspecify.annotations.Nullable;
 
 import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.LocalVar;
 import io.quarkus.gizmo2.creator.BlockCreator;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupAggregation;
@@ -24,6 +28,7 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupAggregationType
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupKeyReference;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathExpression;
 import io.quarkiverse.qubit.deployment.common.PatternDetector;
+import io.quarkiverse.qubit.deployment.generation.UnsupportedExpressionException;
 import jakarta.persistence.criteria.Selection;
 
 /** Builds JPA Criteria expressions for GROUP BY queries. */
@@ -112,6 +117,11 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
             case LambdaExpression.BinaryOp binOp ->
                 generateGroupBinaryOperation(bc, binOp, cb, root, groupKeyExpr, capturedValues, helper);
 
+            case LambdaExpression.Conditional conditional ->
+                // Ternary conditional: condition ? trueValue : falseValue
+                // Maps to JPA: cb.selectCase().when(condition, trueExpr).otherwise(falseExpr)
+                generateGroupConditionalExpression(bc, conditional, cb, root, groupKeyExpr, capturedValues, helper);
+
             default -> null;
         };
     }
@@ -197,6 +207,13 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
         if (isLogicalOperation(binOp)) {
             Expr left = generateGroupPredicate(bc, binOp.left(), cb, root, groupKeyExpr, capturedValues, helper);
             Expr right = generateGroupPredicate(bc, binOp.right(), cb, root, groupKeyExpr, capturedValues, helper);
+
+            // Handle unsupported expressions that return null
+            if (left == null || right == null) {
+                throw new UnsupportedExpressionException(binOp,
+                        "Logical operation (" + binOp.operator() + ") contains unsupported operand types in GROUP BY context");
+            }
+
             return helper.combinePredicates(bc, cb, left, right, binOp.operator());
         }
 
@@ -255,5 +272,34 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
 
         return buildConstructorExpression(bc, cb, resultClassHandle, constructorCall.arguments(),
                 arg -> generateGroupSelectExpression(bc, arg, cb, root, groupKeyExpr, capturedValues, helper));
+    }
+
+    /**
+     * Generates JPA CASE WHEN expression from a ternary conditional in GROUP BY context.
+     * <p>
+     * Maps: {@code condition ? trueValue : falseValue}
+     * To JPA: {@code cb.selectCase().when(conditionPredicate, trueExpr).otherwise(falseExpr)}
+     */
+    private Expr generateGroupConditionalExpression(
+            BlockCreator bc,
+            LambdaExpression.Conditional conditional,
+            Expr cb,
+            Expr root,
+            Expr groupKeyExpr,
+            Expr capturedValues,
+            ExpressionGeneratorHelper helper) {
+
+        // Generate the condition as a predicate (may reference aggregations)
+        Expr conditionPredicate = generateGroupPredicate(bc, conditional.condition(), cb, root, groupKeyExpr, capturedValues, helper);
+
+        // Generate true and false branch expressions (may contain aggregations)
+        Expr trueExpr = generateGroupSelectExpression(bc, conditional.trueValue(), cb, root, groupKeyExpr, capturedValues, helper);
+        Expr falseExpr = generateGroupSelectExpression(bc, conditional.falseValue(), cb, root, groupKeyExpr, capturedValues, helper);
+
+        // Build: cb.selectCase().when(condition, trueExpr).otherwise(falseExpr)
+        // Use LocalVar for intermediate values (Gizmo2 requirement for chained calls)
+        LocalVar caseBuilder = bc.localVar("caseBuilder", bc.invokeInterface(CB_SELECT_CASE, cb));
+        LocalVar caseWhen = bc.localVar("caseWhen", bc.invokeInterface(CASE_WHEN_EXPR, caseBuilder, conditionPredicate, trueExpr));
+        return bc.invokeInterface(CASE_OTHERWISE_EXPR, caseWhen, falseExpr);
     }
 }

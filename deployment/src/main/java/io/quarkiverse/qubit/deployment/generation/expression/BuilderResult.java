@@ -11,8 +11,6 @@ import java.util.Optional;
  * Sealed result type for expression builder operations.
  * Success = expression generated; NotApplicable = this builder doesn't handle this operation.
  * Replaces null returns with explicit semantics for exhaustive switch expressions.
- *
- * <p>Uses Gizmo 2 API with Expr type.
  */
 public sealed interface BuilderResult permits
         BuilderResult.Success,

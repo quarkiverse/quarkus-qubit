@@ -15,11 +15,6 @@ import org.jspecify.annotations.Nullable;
  * <p>Handlers return new immutable {@link BranchState} rather than mutating input.
  * Expression combination logic is delegated to {@link BranchExpressionCombiner}
  * following composition over inheritance.
- *
- * @see BranchContext
- * @see BranchExpressionCombiner
- * @see BranchState
- * @see BranchCoordinator
  */
 public interface BranchHandler {
 

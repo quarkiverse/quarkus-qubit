@@ -20,8 +20,6 @@ import java.util.Objects;
 /**
  * Generates join query bytecode using Template Method pattern.
  * Handles root/joined/projection selection via {@link JoinSelectionStrategy}.
- *
- * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public final class JoinQueryBuilder {
 

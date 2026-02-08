@@ -16,40 +16,20 @@ import static java.util.Objects.requireNonNull;
 
 /**
  * Deduplicates lambda expressions to reuse executors and reduce bytecode size.
- * <p>
- * Uses {@link HashBuilder} to construct query hashes in a consistent, fluent manner.
- * <p>
- * Supports two deduplication strategies:
- * <ul>
- *   <li><b>Early deduplication</b>: Uses bytecode signature (method name + descriptor + query type)
- *       to detect duplicates BEFORE expensive bytecode analysis. This is a fast check that
- *       avoids redundant analysis work.</li>
- *   <li><b>Late deduplication</b>: Uses analyzed expression hash to detect semantic duplicates
- *       AFTER analysis. This catches duplicates that have identical semantics but different
- *       bytecode signatures.</li>
- * </ul>
+ * Uses {@link HashBuilder} for consistent query hashing. Early deduplication checks
+ * bytecode signatures before analysis; late deduplication catches semantic duplicates after.
  */
 public class LambdaDeduplicator {
 
     private final Map<String, String> lambdaHashToExecutor = new ConcurrentHashMap<>();
 
-    /**
-     * Maps bytecode signature to lambda hash for early deduplication.
-     * Key: bytecode signature (computed before analysis)
-     * Value: lambda hash (computed after analysis)
-     */
+    /** Bytecode signature -> lambda hash, for early deduplication. */
     private final Map<String, String> bytecodeSignatureToLambdaHash = new ConcurrentHashMap<>();
 
-    /**
-     * Cached analysis results for early deduplication hits.
-     * Key: bytecode signature
-     * Value: cached AnalysisOutcome.Success
-     */
+    /** Bytecode signature -> cached analysis result, for early deduplication hits. */
     private final Map<String, CachedAnalysisResult> cachedAnalysisResults = new ConcurrentHashMap<>();
 
-    /**
-     * Cached analysis result for early deduplication.
-     */
+    /** Cached analysis result for early deduplication. */
     public record CachedAnalysisResult(
             String lambdaHash,
             String executorClassName) {
@@ -61,14 +41,8 @@ public class LambdaDeduplicator {
     }
 
     /**
-     * Computes bytecode signature for early deduplication.
-     * This hash is computed BEFORE bytecode analysis using structural elements only.
-     * <p>
-     * NOTE: We intentionally exclude ownerClassName and methodName to allow
-     * identical lambda expressions in different call sites to be deduplicated.
-     *
-     * @param callSite the lambda call site
-     * @return bytecode signature hash
+     * Computes bytecode signature for early deduplication using structural elements only.
+     * Excludes ownerClassName and methodName so identical lambdas across call sites deduplicate.
      */
     public String computeBytecodeSignature(InvokeDynamicScanner.LambdaCallSite callSite) {
         StringBuilder sb = new StringBuilder();
@@ -143,32 +117,19 @@ public class LambdaDeduplicator {
         sb.append("selectKey=").append(callSite.isGroupSelectKey()).append("|");
     }
 
-    /**
-     * Checks if a bytecode signature has already been analyzed.
-     *
-     * @param bytecodeSignature the bytecode signature
-     * @return cached result if found, null otherwise
-     */
+    /** Returns cached result for the given bytecode signature, or null if not found. */
     public CachedAnalysisResult getCachedResult(String bytecodeSignature) {
         return cachedAnalysisResults.get(bytecodeSignature);
     }
 
-    /**
-     * Registers a bytecode signature with its analysis result for early deduplication.
-     *
-     * @param bytecodeSignature the bytecode signature
-     * @param lambdaHash the lambda hash (computed after analysis)
-     * @param executorClassName the generated executor class name
-     */
+    /** Registers a bytecode signature with its analysis result for early deduplication. */
     public void registerBytecodeSignature(String bytecodeSignature, String lambdaHash, String executorClassName) {
         bytecodeSignatureToLambdaHash.putIfAbsent(bytecodeSignature, lambdaHash);
         cachedAnalysisResults.putIfAbsent(bytecodeSignature,
                 new CachedAnalysisResult(lambdaHash, executorClassName));
     }
 
-    /**
-     * Returns the number of early deduplication cache entries.
-     */
+    /** Returns the number of early deduplication cache entries. */
     public int getEarlyDeduplicationCacheSize() {
         return cachedAnalysisResults.size();
     }

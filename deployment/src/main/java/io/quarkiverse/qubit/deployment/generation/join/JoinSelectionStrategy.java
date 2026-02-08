@@ -5,8 +5,6 @@ import io.quarkus.gizmo2.Expr;
 /**
  * Strategy for join query SELECT clause: root entity, joined entity, or bi-entity projection.
  * Sealed interface for exhaustive pattern matching.
- *
- * <p>Uses Gizmo 2 API with Expr type.
  */
 public sealed interface JoinSelectionStrategy permits
         JoinSelectionStrategy.SelectRoot,

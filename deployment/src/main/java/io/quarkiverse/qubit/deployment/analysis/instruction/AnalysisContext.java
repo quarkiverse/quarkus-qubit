@@ -2,6 +2,8 @@ package io.quarkiverse.qubit.deployment.analysis.instruction;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
+import io.quarkiverse.qubit.deployment.analysis.TernaryPatternDetector;
+import io.quarkiverse.qubit.deployment.analysis.TernaryPatternDetector.TernaryPattern;
 import io.quarkiverse.qubit.deployment.analysis.branch.BranchCoordinator;
 import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
 
@@ -392,5 +394,50 @@ public class AnalysisContext {
         }
 
         return null;
+    }
+
+    // ==================== Ternary Pattern Detection ====================
+
+    /** Cached ternary patterns detected in the instruction list. */
+    private List<TernaryPattern> ternaryPatterns;
+
+    /** Lazily initializes and returns detected ternary patterns. */
+    public List<TernaryPattern> getTernaryPatterns() {
+        if (ternaryPatterns == null) {
+            ternaryPatterns = TernaryPatternDetector.detectAll(instructions);
+        }
+        return ternaryPatterns;
+    }
+
+    /** Checks if instruction at index starts a ternary pattern. */
+    public boolean startsTernaryPattern(int instructionIndex) {
+        return TernaryPatternDetector.findPatternStartingAt(getTernaryPatterns(), instructionIndex).isPresent();
+    }
+
+    /** Gets the ternary pattern starting at the given instruction index, if any. */
+    public @Nullable TernaryPattern getTernaryPatternAt(int instructionIndex) {
+        return TernaryPatternDetector.findPatternStartingAt(getTernaryPatterns(), instructionIndex).orElse(null);
+    }
+
+    // ==================== Instruction Skip Support ====================
+
+    /** Index to skip to after special pattern handling (-1 = no skip). */
+    private int skipToIndex = -1;
+
+    /** Sets the index to skip to in the main processing loop. */
+    public void setSkipToIndex(int index) {
+        this.skipToIndex = index;
+    }
+
+    /** Gets and clears the skip-to index. Returns -1 if no skip pending. */
+    public int consumeSkipToIndex() {
+        int result = skipToIndex;
+        skipToIndex = -1;
+        return result;
+    }
+
+    /** Checks if a skip is pending. */
+    public boolean hasSkipPending() {
+        return skipToIndex >= 0;
     }
 }

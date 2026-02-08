@@ -15,8 +15,6 @@ import java.util.List;
  *   <li>{@link JoinQueryResult}: join, leftJoin with BiQuerySpec</li>
  *   <li>{@link GroupQueryResult}: groupBy with GroupQuerySpec</li>
  * </ul>
- *
- * @see CallSiteProcessor
  */
 public sealed interface LambdaAnalysisResult {
 

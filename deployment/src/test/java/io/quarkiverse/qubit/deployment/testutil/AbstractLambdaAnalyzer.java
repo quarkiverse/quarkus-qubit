@@ -34,12 +34,11 @@ public abstract class AbstractLambdaAnalyzer {
     // Cache of loaded class nodes, keyed by class name
     private static final Map<String, ClassNode> classNodeCache = new HashMap<>();
 
-    /**
-     * Clears the LambdaBytecodeAnalyzer cache before each test for isolation.
-     */
+    /** Clears all caches before each test for isolation. */
     @BeforeEach
     void clearAnalyzerCache() {
         LambdaBytecodeAnalyzer.clearCache();
+        classNodeCache.clear();
     }
 
     /**

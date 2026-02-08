@@ -11,8 +11,6 @@ import java.util.function.UnaryOperator;
  * Sealed result type for method call expression generation.
  * Success = bytecode generated; Unsupported = no handler could process.
  * Replaces null returns with explicit semantics for exhaustive switch expressions.
- *
- * <p>Uses Gizmo 2 API with Expr type.
  */
 public sealed interface GenerationResult permits
         GenerationResult.Success,

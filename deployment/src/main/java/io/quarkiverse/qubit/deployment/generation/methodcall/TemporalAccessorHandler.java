@@ -6,8 +6,6 @@ import java.util.Optional;
 
 /**
  * Handles getYear/getMonth/getDayOfMonth/getHour/etc. via TemporalExpressionBuilder.
- *
- * <p>Uses Gizmo 2 API with Expr type.
  */
 public enum TemporalAccessorHandler implements MethodCallHandler {
     INSTANCE;

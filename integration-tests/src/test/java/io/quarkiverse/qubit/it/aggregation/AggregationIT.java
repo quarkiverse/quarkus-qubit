@@ -41,7 +41,7 @@ class AggregationIT extends AbstractAggregationTest {
         Integer minStock = Product.min((Product p) -> p.stockQuantity).getSingleResult();
 
         // Stock quantities: 50 (Laptop), 100 (Smartphone), 25 (Chair), 0 (Coffee Maker), 30 (Monitor)
-        assertThat(minStock).isEqualTo(0); // Coffee Maker
+        assertThat(minStock).isZero(); // Coffee Maker
     }
 
     @Test

@@ -33,7 +33,7 @@ public enum LoadInstructionHandler implements InstructionHandler {
 
     /** Opcodes handled by this handler for O(1) dispatch. */
     private static final Set<Integer> SUPPORTED_OPCODES = Set.of(
-            ALOAD, ILOAD, LLOAD, FLOAD, DLOAD, GETFIELD
+            ALOAD, ILOAD, LLOAD, FLOAD, DLOAD, GETFIELD, GETSTATIC
     );
 
     @Override
@@ -54,6 +54,7 @@ public enum LoadInstructionHandler implements InstructionHandler {
             case ALOAD -> handleALoad(ctx, (VarInsnNode) insn);
             case ILOAD, LLOAD, FLOAD, DLOAD -> handlePrimitiveLoad(ctx, opcode, (VarInsnNode) insn);
             case GETFIELD -> handleGetField(ctx, (FieldInsnNode) insn);
+            case GETSTATIC -> handleGetStatic(ctx, (FieldInsnNode) insn);
         }
 
         return false;
@@ -118,6 +119,27 @@ public enum LoadInstructionHandler implements InstructionHandler {
 
         String varName = ctx.getVariableNameForSlot(varInsn.var);
         ctx.push(new LambdaExpression.CapturedVariable(paramIndex, actualType, varName));
+    }
+
+    /**
+     * Handles GETSTATIC: loads static field values like enum constants.
+     * <p>
+     * Common patterns:
+     * <ul>
+     *   <li>Enum comparison: {@code o.status == OrderStatus.DELIVERED}</li>
+     *   <li>Static constants: {@code Product.MAX_PRICE}</li>
+     * </ul>
+     * <p>
+     * The value is wrapped in a Constant expression for JPQL generation.
+     * Enum values are represented as the enum name for proper JPQL literal conversion.
+     */
+    private void handleGetStatic(AnalysisContext ctx, FieldInsnNode fieldInsn) {
+        Class<?> fieldType = TypeConverter.descriptorToClass(fieldInsn.desc);
+        String fieldName = fieldInsn.name;
+
+        // For enum constants, create a Constant with the enum value name
+        // For other static fields, create a constant placeholder
+        ctx.push(new LambdaExpression.Constant(fieldName, fieldType));
     }
 
     /**

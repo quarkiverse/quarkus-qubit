@@ -8,8 +8,6 @@ import java.util.Optional;
  * Chain of Responsibility handler for method call → JPA expression generation.
  * Each handler specializes in a category (temporal, string, arithmetic).
  * Priority ordering ensures specific handlers run before broad ones (e.g., getters).
- *
- * <p>Uses Gizmo 2 API with Expr type.
  */
 public sealed interface MethodCallHandler permits
         TemporalAccessorHandler,

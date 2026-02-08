@@ -56,7 +56,13 @@ public final class PatternDetector {
                 return ARITHMETIC;
             }
 
-            // Default: Other patterns
+            // Priority 4: Non-boolean method call (e.g., getSecond(), getMinute())
+            // These need comparison with zero, not boolean NOT treatment
+            if (isNumericMethodCall(top)) {
+                return ARITHMETIC;
+            }
+
+            // Default: Other patterns (boolean field access, etc.)
             return OTHER;
         }
     }
@@ -161,8 +167,9 @@ public final class PatternDetector {
     }
 
     public static boolean isCompareToPattern(LambdaExpression expr) {
-        return expr instanceof LambdaExpression.MethodCall(_, _, _, var returnType) &&
-               returnType == int.class;
+        return expr instanceof LambdaExpression.MethodCall(_, var methodName, _, var returnType) &&
+               returnType == int.class &&
+               METHOD_COMPARE_TO.equals(methodName);
     }
 
     public static boolean isArithmeticExpression(LambdaExpression expr) {
@@ -172,6 +179,13 @@ public final class PatternDetector {
                 operator == MUL ||
                 operator == DIV ||
                 operator == MOD);
+    }
+
+    /** Returns true if expression is a method call returning a primitive numeric type. */
+    public static boolean isNumericMethodCall(LambdaExpression expr) {
+        return expr instanceof LambdaExpression.MethodCall(_, _, _, var returnType) &&
+               (returnType == int.class || returnType == long.class ||
+                returnType == double.class || returnType == float.class);
     }
 
     public static boolean isArithmeticComparisonPattern(Deque<LambdaExpression> stack) {

@@ -14,8 +14,6 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable;
 /**
  * Shared expression generation methods for BiEntityExpressionBuilder and GroupExpressionBuilder.
  * Extracted to avoid circular dependencies with CriteriaExpressionGenerator.
- *
- * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public interface ExpressionGeneratorHelper {
 

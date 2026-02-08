@@ -11,8 +11,6 @@ import java.util.Objects;
 
 /**
  * Immutable context consolidating all parameters for join query bytecode generation.
- *
- * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public record JoinQueryContext(
         BlockCreator bc,

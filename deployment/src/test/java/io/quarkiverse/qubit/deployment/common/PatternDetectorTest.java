@@ -1045,12 +1045,23 @@ class PatternDetectorTest {
         }
 
         @Test
-        void branchPatternDetect_returnsCompareTo_forIntReturningMethodCall() {
+        void branchPatternDetect_returnsCompareTo_forCompareToMethodCall() {
+            Deque<LambdaExpression> stack = new ArrayDeque<>();
+            LambdaExpression target = new LambdaExpression.FieldAccess("name", String.class);
+            LambdaExpression arg = new LambdaExpression.FieldAccess("otherName", String.class);
+            stack.push(new LambdaExpression.MethodCall(target, "compareTo", java.util.List.of(arg), int.class));
+            assertThat(PatternDetector.BranchPattern.detect(stack))
+                    .isEqualTo(PatternDetector.BranchPattern.COMPARE_TO);
+        }
+
+        @Test
+        void branchPatternDetect_returnsArithmetic_forLengthMethodCall() {
+            // length() returns int — should be ARITHMETIC (comparison with zero), not boolean NOT
             Deque<LambdaExpression> stack = new ArrayDeque<>();
             LambdaExpression target = new LambdaExpression.FieldAccess("name", String.class);
             stack.push(new LambdaExpression.MethodCall(target, "length", java.util.List.of(), int.class));
             assertThat(PatternDetector.BranchPattern.detect(stack))
-                    .isEqualTo(PatternDetector.BranchPattern.COMPARE_TO);
+                    .isEqualTo(PatternDetector.BranchPattern.ARITHMETIC);
         }
 
         @ParameterizedTest(name = "{0} returning method → OTHER")

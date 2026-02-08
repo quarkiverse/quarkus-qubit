@@ -6,8 +6,6 @@ import java.util.Optional;
 
 /**
  * Handles toUpperCase/toLowerCase/trim/length via StringExpressionBuilder.
- *
- * <p>Uses Gizmo 2 API with Expr type.
  */
 public enum StringTransformationHandler implements MethodCallHandler {
     INSTANCE;

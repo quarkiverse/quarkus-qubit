@@ -28,9 +28,20 @@
 ### Code Quality Standards
 - Follow existing code patterns and conventions
 - Write clear, maintainable code
-- Add meaningful comments only when necessary
 - Use proper error handling
 - Verify code compiles before considering it complete
+
+### Javadoc and Comment Standards (Mandatory for All Code Generation)
+**Apply these rules during code generation — not as a post-hoc cleanup.**
+
+- **Class Javadoc**: 3-6 lines max. One sentence summary + optional `<p>` with key details.
+- **Method Javadoc**: Single-line `/** ... */` format. No multi-line for simple methods.
+- **No redundant @param/@return tags**: Omit when the parameter/return description just restates the name or type.
+- **Focus on "why" not "what"**: Keep architectural notes (patterns, delegation, optimization rationale). Remove obvious explanations.
+- **Keep reference data**: Operator mappings, supported types lists, method-to-SQL mappings are valuable.
+- **No verbose examples**: Code is self-documenting. Don't add code blocks that repeat method signatures.
+- **Consolidate**: Multiple example blocks → single concise list. Multi-paragraph → 1-2 line summaries.
+- **Model**: See `GizmoHelper.java` for the target style — single-line method docs, 4-5 line class doc.
 
 ### Quality Improvement Reporting
 **After each refactor or code quality improvement, present a summary to the user:**
@@ -88,136 +99,234 @@ This helps maintain visibility into the overall quality backlog.
 - **Remove ALL debug-marked logging before marking functionality as complete** - search for `// DEBUG` comments and remove those lines
 - Debug logging is temporary and must never be committed to the final implementation
 
-### Modern Java 21 Code Review (Pre-Test Requirement)
+### Modern Java 25 Code Review (Pre-Test Requirement)
 
-**Before running tests on any generated or modified code, perform a code review for idiomatic Java 21 patterns.**
+**Before running tests on any generated or modified code, perform a code review for idiomatic Java 25 patterns.**
+
+Java 25 is an LTS release (September 2025). This project targets `maven.compiler.release=25`.
+Features are grouped by maturity: **Stable** features require no flags; **Preview** features need `--enable-preview` and should only be used when explicitly agreed upon.
 
 **Required Review Checklist:**
 
-1. **Records over POJOs**
-   - Use `record` for immutable data carriers (89 records in use across 31 files)
+#### Stable Features (Java 16-25 — no flags required)
+
+1. **Records over POJOs** *(Java 16)*
+   - Use `record` for immutable data carriers (~50 records across codebase)
    - Replace Lombok `@Value`/`@Data` with records where appropriate
-   - Keep records simple (no complex logic in compact constructors)
+   - Keep records simple — no complex logic in compact constructors
+   - Records are ideal as inner types in sealed interfaces (algebraic data types)
 
-2. **Pattern Matching for instanceof**
+2. **Sealed Classes and Interfaces** *(Java 17)*
+   - Use `sealed` for restricted hierarchies (~17 sealed types in codebase)
+   - Core pattern: sealed interface + record implementations = algebraic data type
+   - Examples: `LambdaAnalysisResult`, `AnalysisOutcome`, `BuilderResult`, `BranchState`, `GenerationResult`, `MethodCallHandler`, `JoinSelectionStrategy`
+   - Define `permits` clause explicitly
+   - Prefer `record` implementations (inherently `final`) over `non-sealed` classes
+
+3. **Pattern Matching for instanceof** *(Java 16)*
    - Use `instanceof` pattern matching: `if (obj instanceof String s)`
-   - Eliminate redundant casts after type checks (69 usages in codebase)
+   - Eliminate redundant casts after type checks
+   - Combine with record destructuring: `if (this instanceof AndMode(var target, _))`
 
-3. **Pattern Matching for switch (Java 21 - stable)**
+4. **Pattern Matching for switch** *(Java 21)*
    - Use switch expressions with type patterns for polymorphic dispatch
    - Use `case Type t when condition ->` for guarded patterns
    - Use `case null ->` for explicit null handling
-   - **Note**: Multi-pattern cases with unnamed `_` require preview; use separate named variables instead
+   - Compiler enforces exhaustiveness for sealed types — no default needed
 
-4. **Text Blocks**
-   - Use `"""` for multi-line strings (SQL, JSON, error messages)
-   - Proper indentation alignment with closing `"""`
-   - Use `\` for line continuation where needed
+5. **Unnamed Variables and Patterns (`_`)** *(Java 22)*
+   - Use `_` for unused variables in catch blocks: `catch (Exception _)`
+   - Use `_` in record pattern destructuring: `case Success(var value, _) ->`
+   - Use `_` for unused lambda parameters: `(_, index) -> process(index)`
+   - Use `_` for unnamed pattern matches: `case NotApplicable _ ->`
+   - **This is stable in Java 22+** — no preview flag needed (~8 usages in codebase)
 
-5. **Sealed Classes and Interfaces**
-   - Use `sealed` for restricted hierarchies (11 files use sealed/permits)
-   - Examples: LambdaExpression (AST nodes), LambdaAnalysisResult, BuilderResult, AnalysisOutcome
-   - Define `permits` clause explicitly
-   - Use `non-sealed` or `final` for permitted subclasses
+6. **Record Pattern Destructuring** *(Java 21 — enhanced in 22)*
+   - Destructure records directly in switch and instanceof:
+     ```java
+     case BiEntityParameter(_, _, _, var position) -> handlePosition(position);
+     case BiEntityPathExpression(var segments, _, var entityPosition) -> ...
+     ```
+   - Combine with unnamed patterns for ignored components
+   - Supports nested destructuring for records containing records
 
-6. **Switch Expressions**
-   - Use switch expressions with `->` instead of `:` for all cases (648 usages)
+7. **Switch Expressions** *(Java 14)*
+   - Use switch expressions with `->` instead of `:` for all cases (~116 usages)
    - Use `yield` for complex blocks
    - Ensure exhaustiveness (compiler enforces for sealed types)
    - Add default cases to non-sealed enum switches for future-proofing
 
-7. **Stream API Best Practices**
-   - Use `toList()` instead of `.collect(Collectors.toList())`
-   - Prefer `Stream.ofNullable()` for nullable sources
-   - Use `takeWhile()`/`dropWhile()` for conditional processing
+8. **Text Blocks** *(Java 15)*
+   - Use `"""` for multi-line strings (SQL, JSON, error messages)
+   - Proper indentation alignment with closing `"""`
+   - Use `\` for line continuation where needed
 
-8. **Optional Improvements**
-   - Use `Optional.isEmpty()` instead of `!isPresent()`
-   - Use `Optional.ifPresentOrElse()` for branching
-   - Avoid `Optional.get()` - use `orElseThrow()` with message
+9. **Flexible Constructor Bodies** *(Java 25)*
+   - Code **may precede** `super(...)` or `this(...)` calls
+   - Use for parameter validation before delegation:
+     ```java
+     public TypedQuery(String name, Class<?> type) {
+         Objects.requireNonNull(name, "name must not be null");
+         super(name);  // validated before delegation
+         this.type = type;
+     }
+     ```
+   - Constraint: must not read uninitialized instance fields before `super()`/`this()`
 
-9. **Null Safety**
-   - Use `Objects.requireNonNull()` for parameter validation
-   - Use `Objects.requireNonNullElse()` for defaults
-   - Prefer empty collections over null
+10. **Scoped Values** *(Java 25)*
+    - Thread-safe alternative to `ThreadLocal` with immutable values and limited scope
+    - Use `ScopedValue.where(KEY, value).run(() -> ...)` for scoped execution
+    - Prefer over `ThreadLocal` in new code, especially with virtual threads
 
-10. **Local Variable Type Inference**
-    - Use `var` for local variables when type is obvious
+11. **Module Import Declarations** *(Java 25)*
+    - `import module java.base;` imports all exported packages of a module
+    - Useful for reducing import boilerplate in utility classes
+    - Not yet adopted in this codebase — consider for new files when beneficial
+
+12. **Stream Gatherers** *(Java 24)*
+    - Custom intermediate stream operations via `stream.gather(Gatherer)`
+    - Built-in gatherers: `Gatherers.windowFixed()`, `Gatherers.windowSliding()`, `Gatherers.fold()`, `Gatherers.scan()`, `Gatherers.mapConcurrent()`
+    - Prefer over complex multi-step stream pipelines when a custom gatherer is cleaner
+
+13. **Markdown JavaDoc Comments** *(Java 23)*
+    - JavaDoc comments can use Markdown instead of HTML
+    - Use `` `code` `` instead of `{@code code}`
+    - Use `[text](url)` instead of `{@link}` for external links
+    - Use `///` line comments for markdown-style JavaDoc
+    - **Not yet adopted** in this codebase — HTML JavaDoc remains the convention
+
+#### Best Practices (Java 9-21 — still relevant)
+
+14. **Stream API Best Practices**
+    - Use `toList()` instead of `.collect(Collectors.toList())`
+    - Prefer `Stream.ofNullable()` for nullable sources
+    - Use `takeWhile()`/`dropWhile()` for conditional processing
+
+15. **Optional Improvements**
+    - Use `Optional.isEmpty()` instead of `!isPresent()`
+    - Use `Optional.ifPresentOrElse()` for branching
+    - Avoid `Optional.get()` — use `orElseThrow()` with message
+
+16. **Null Safety**
+    - Use `Objects.requireNonNull()` for parameter validation
+    - Use `Objects.requireNonNullElse()` for defaults
+    - Prefer empty collections over null
+
+17. **Local Variable Type Inference** *(Java 10)*
+    - Use `var` for local variables when type is obvious (~951 usages in codebase)
     - Avoid `var` when it reduces readability
     - Never use `var` for method parameters or fields
 
-11. **API Deprecation Awareness**
-    - No `new Integer()`, `new Long()` - use `valueOf()`
-    - No `Thread.stop()` or `finalize()`
+18. **API Deprecation Awareness**
+    - No `new Integer()`, `new Long()` — use `valueOf()`
+    - No `Thread.stop()` or `finalize()` — finalization permanently removed
     - Use `Files.readString()` / `Files.writeString()`
+    - Security Manager permanently disabled (Java 24) — don't use `System.setSecurityManager()`
+
+#### Preview Features (Java 25 — require `--enable-preview`)
+
+19. **Primitive Types in Patterns** *(Third Preview — JEP 507)*
+    - Extends pattern matching to primitive types: `case int i when i > 0 ->`
+    - Checks value representability without precision loss
+    - **Do not use** unless explicitly discussed — still in preview
+
+20. **Stable Values** *(Preview — JEP 502)*
+    - Thread-safe lazy initialization: `StableValue.supplier(() -> expensiveComputation())`
+    - Values become JVM constants after first access
+    - **Do not use** unless explicitly discussed — still in preview
 
 **Review Process:**
 ```
 1. Write/generate code
-2. Review against checklist above
-3. Refactor to modern Java 21 idioms
+2. Review against checklist above (stable features only)
+3. Refactor to modern Java 25 idioms
 4. Run tests to verify correctness
 5. Fix any issues, repeat until all pass
 ```
 
-**Example Transformations:**
+**Example Transformations (Java 25 Idioms):**
 
 ```java
+// POJO → Record
 // Before (Java 8 style)
 public class PersonDto {
     private final String name;
     private final int age;
     // constructor, getters, equals, hashCode, toString...
 }
-
-// After (Java 21)
+// After
 public record PersonDto(String name, int age) {}
 ```
 
 ```java
-// Before (if-else instanceof chain)
-if (expression instanceof MethodCall) {
-    MethodCall mc = (MethodCall) expression;
-    return mc.methodName();
-}
+// Sealed algebraic data type with exhaustive pattern matching
+// This is the core pattern used throughout the codebase
+public sealed interface GenerationResult {
+    record Success(Expr value) implements GenerationResult {}
+    record Unsupported(String methodName, String reason) implements GenerationResult {}
 
-// After (pattern matching instanceof)
-if (expression instanceof MethodCall mc) {
-    return mc.methodName();
+    default Expr getOrThrow() {
+        return switch (this) {
+            case Success(var value) -> value;  // record destructuring
+            case Unsupported(_, var reason) ->  // unnamed pattern for ignored field
+                throw new IllegalStateException(reason);
+        };
+    }
 }
 ```
 
 ```java
-// Before (if-else type checks)
-if (result instanceof SimpleQueryResult simple) {
-    return processSimple(simple);
-} else if (result instanceof JoinQueryResult join) {
-    return processJoin(join);
-} else {
-    throw new IllegalStateException("Unknown result type");
-}
-
-// After (Java 21 pattern matching switch)
-return switch (result) {
-    case SimpleQueryResult simple -> processSimple(simple);
-    case JoinQueryResult join -> processJoin(join);
-    case GroupQueryResult group -> processGroup(group);
-    // Exhaustive for sealed types - compiler enforces completeness
-};
-```
-
-```java
+// Unnamed variables in catch blocks (Java 22)
 // Before
-String query = "SELECT p FROM Person p\n" +
-               "WHERE p.age > :minAge\n" +
-               "ORDER BY p.name";
+try { field = clazz.getDeclaredField(name); }
+catch (NoSuchFieldException e) { /* e unused */ }
 
-// After (text block)
-String query = """
-    SELECT p FROM Person p
-    WHERE p.age > :minAge
-    ORDER BY p.name
-    """;
+// After
+try { field = clazz.getDeclaredField(name); }
+catch (NoSuchFieldException _) { /* clearly intentionally unused */ }
+```
+
+```java
+// Record destructuring with unnamed patterns in switch (Java 22)
+// Before
+case BiEntityParameter param -> handlePosition(param.position());
+
+// After
+case BiEntityParameter(_, _, _, var position) -> handlePosition(position);
+```
+
+```java
+// Flexible constructor bodies (Java 25)
+// Before — had to use static helper or factory method for validation
+public TypedQuery(String name, Class<?> type) {
+    super(name); // can't validate before this in Java 24
+    this.type = Objects.requireNonNull(type);
+}
+
+// After — validate before super()
+public TypedQuery(String name, Class<?> type) {
+    Objects.requireNonNull(name);
+    Objects.requireNonNull(type);
+    super(name);  // now allowed after statements
+    this.type = type;
+}
+```
+
+```java
+// Sealed state machine with record patterns (codebase pattern)
+public sealed interface BranchState {
+    record Initial() implements BranchState {}
+    record AndMode(int lastJumpTarget, boolean inverted) implements BranchState {}
+    record OrMode(int lastJumpTarget, boolean inverted) implements BranchState {}
+
+    default int getLastJumpTarget() {
+        return switch (this) {
+            case Initial _ -> -1;
+            case AndMode(var target, _) -> target;
+            case OrMode(var target, _) -> target;
+        };
+    }
+}
 ```
 
 ## Project-Specific Guidelines
@@ -291,7 +400,8 @@ When asked to "test the whole project" or run comprehensive tests, execute the f
 ### Quarkus Extension Development
 - Deployment module: build-time processing, bytecode generation
 - Runtime module: runtime components, no heavy processing
-- Use Gizmo for bytecode generation
+- Use **Gizmo2** for bytecode generation (migrated from Gizmo 1)
+- Use ASM for bytecode **analysis** (reading lambda bytecode)
 - Follow Quarkus extension patterns
 
 ### Quarkus Knowledge and Research
@@ -560,40 +670,8 @@ class IfNotEqualsZeroHandler extends AbstractZeroEqualityBranchHandler {
 - Improved maintainability score
 
 ### Javadoc Brevity Principles
-**Documentation should be concise yet complete.**
-
-**Applied in Session 8 + 9:**
-
-1. **Remove Verbose Examples**
-   - Code is self-documenting
-   - Examples repeat what method signatures show
-   - Remove 3-5 code block examples per class
-
-2. **Focus on "Why" Not "What"**
-   - Keep architectural notes (Strategy pattern, delegation)
-   - Keep optimization explanations (constant folding, index conversion)
-   - Remove obvious explanations of what parameters are
-
-3. **Keep Essential Reference Data**
-   - Operator mappings tables are useful (EQ → equal())
-   - Supported types lists are valuable
-   - Method-to-SQL-function mappings stay
-
-4. **Simplify Parameter Descriptions**
-   - Before: "the left operand Expression handle"
-   - After: "the left operand Expression"
-   - Before: "ResultHandle pointing to the arithmetic Expression"
-   - After: "the arithmetic Expression"
-
-5. **Consolidate Verbose Sections**
-   - Multiple example blocks → Single concise list
-   - Multi-paragraph explanations → 1-2 line summaries
-
-**Metrics from Full Review:**
-- ~600 Javadoc lines removed across 14 files
-- Class Javadocs: 50+ lines → 10-15 lines typical
-- Method Javadocs: Multi-line → Single focused line
-- Zero functional impact, improved readability
+See **"Javadoc and Comment Standards"** in the Code Quality Standards section above.
+Rules are mandatory during code generation. Session 8+9 removed ~600 lines across 14 files.
 
 ### Todo List Discipline
 **Use TodoWrite effectively for complex multi-step tasks.**

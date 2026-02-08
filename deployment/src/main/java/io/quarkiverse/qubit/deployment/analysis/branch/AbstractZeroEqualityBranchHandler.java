@@ -18,22 +18,15 @@ import java.util.Optional;
  *
  * <p>Consolidates the common switch-based pattern handling used by both handlers,
  * delegating opcode-specific expression creation to abstract methods.
- *
- * @see IfEqualsZeroInstructionHandler
- * @see IfNotEqualsZeroInstructionHandler
  */
 public abstract class AbstractZeroEqualityBranchHandler implements BranchHandler {
 
-    /**
-     * Creates boolean evaluation expression based on instruction semantics.
-     */
+    /** Creates boolean evaluation expression based on instruction semantics. */
     protected abstract LambdaExpression createBooleanEvaluationExpression(
             LambdaExpression fieldAccess,
             Boolean jumpTarget);
 
-    /**
-     * Returns instruction name for logging.
-     */
+    /** Returns instruction name for logging. */
     protected abstract String getInstructionName();
 
     /**
@@ -49,9 +42,7 @@ public abstract class AbstractZeroEqualityBranchHandler implements BranchHandler
      */
     protected abstract LambdaExpression createCompareToExpression(LambdaExpression compareToExpr);
 
-    /**
-     * Creates expression for arithmetic pattern (comparison with zero).
-     */
+    /** Creates expression for arithmetic pattern (comparison with zero). */
     protected abstract LambdaExpression createArithmeticExpression(LambdaExpression arithmeticExpr);
 
     /**
@@ -120,9 +111,7 @@ public abstract class AbstractZeroEqualityBranchHandler implements BranchHandler
         };
     }
 
-    /**
-     * Handles boolean field pattern with AND/OR combination logic.
-     */
+    /** Handles boolean field pattern with AND/OR combination logic. */
     private BranchState handleBooleanFieldPattern(BranchContext ctx) {
         Deque<LambdaExpression> stack = ctx.stack();
         BranchState state = ctx.state();

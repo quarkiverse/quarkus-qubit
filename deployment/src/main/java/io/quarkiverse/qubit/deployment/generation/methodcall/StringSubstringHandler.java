@@ -12,8 +12,6 @@ import java.util.Optional;
 
 /**
  * Handles substring(beginIndex) and substring(beginIndex, endIndex) via StringExpressionBuilder.
- *
- * <p>Uses Gizmo 2 API with Expr type.
  */
 public enum StringSubstringHandler implements MethodCallHandler {
     INSTANCE;

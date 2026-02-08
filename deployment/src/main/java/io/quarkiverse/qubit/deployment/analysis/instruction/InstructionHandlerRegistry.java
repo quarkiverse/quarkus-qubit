@@ -12,12 +12,7 @@ import org.objectweb.asm.tree.AbstractInsnNode;
 
 /**
  * Registry for instruction handlers with O(1) opcode dispatch.
- *
- * <p>Handler order matters: first matching handler wins (chain of responsibility).
- * Handlers that declare {@link InstructionHandler#supportedOpcodes()} are indexed
- * in a dispatch table for O(1) lookup; others fall back to linear search.
- *
- * @see InstructionHandler
+ * First matching handler wins (chain of responsibility).
  */
 public final class InstructionHandlerRegistry {
 
@@ -60,13 +55,7 @@ public final class InstructionHandlerRegistry {
         return dispatch;
     }
 
-    /**
-     * Finds the handler that can process the given instruction.
-     * Uses O(1) dispatch table lookup when possible, falls back to linear search.
-     *
-     * @param insn bytecode instruction to find handler for
-     * @return handler if found, empty otherwise (unrecognized instructions are valid)
-     */
+    /** Finds the handler for the instruction via O(1) dispatch, falling back to linear search. */
     public Optional<InstructionHandler> handlerFor(AbstractInsnNode insn) {
         int opcode = insn.getOpcode();
 

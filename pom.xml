@@ -386,6 +386,31 @@
         </profile>
 
         <!--
+            JFR profiling profile.
+            Enables Java Flight Recorder during build to capture Qubit build metrics.
+            Records are saved to target/qubit-build.jfr.
+
+            Usage:
+              mvn package -Pjfr -pl integration-tests/simple-test
+
+            View recording:
+              - IntelliJ: File > Open > target/qubit-build.jfr (requires Java JFR Profiler plugin)
+              - JDK Mission Control: jmc target/qubit-build.jfr
+
+            Custom Qubit events visible:
+              - io.quarkiverse.qubit.Phase - High-level phase timing
+              - io.quarkiverse.qubit.Analysis - Per-lambda analysis timing
+              - io.quarkiverse.qubit.CodeGen - Code generation timing
+        -->
+        <profile>
+            <id>jfr</id>
+            <properties>
+                <!-- JFR settings for build-time profiling -->
+                <argLine>-XX:StartFlightRecording=filename=${project.build.directory}/qubit-build.jfr,settings=profile,dumponexit=true</argLine>
+            </properties>
+        </profile>
+
+        <!--
             Mutation testing profile.
             Runs Pitest mutation testing on deployment module.
 

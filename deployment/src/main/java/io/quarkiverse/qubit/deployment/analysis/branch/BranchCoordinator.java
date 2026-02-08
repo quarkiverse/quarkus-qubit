@@ -14,10 +14,6 @@ import java.util.Map;
 /**
  * Coordinates branch instruction handling using the Strategy pattern.
  * Delegates to specialized handlers and manages {@link BranchState} lifecycle.
- *
- * @see BranchHandler
- * @see BranchContext
- * @see BranchState
  */
 public class BranchCoordinator {
 

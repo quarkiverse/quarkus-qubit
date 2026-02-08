@@ -116,7 +116,7 @@ class CountQueryPropertyIT {
                 .isGreaterThanOrEqualTo(0);
         assertThat(impossibleCount)
                 .as("Impossible filter count should be non-negative (zero)")
-                .isEqualTo(0);
+                .isZero();
     }
 
     // ======================================================================

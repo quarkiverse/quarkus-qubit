@@ -10,6 +10,8 @@ import static io.quarkiverse.qubit.deployment.common.PatternDetector.isLogicalOp
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isNegatedSubqueryComparison;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isSubqueryBooleanComparison;
 import static io.quarkiverse.qubit.deployment.generation.GizmoHelper.createElementArray;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CASE_OTHERWISE_EXPR;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CASE_WHEN_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_AND;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_CONCAT_EXPR_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_CONSTRUCT;
@@ -22,6 +24,7 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_LI
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NOT;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NOT_EQUAL;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_OR;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_SELECT_CASE;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CLASS_FOR_NAME;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.EXPRESSION_IN_COLLECTION;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.PATH_GET;
@@ -58,8 +61,6 @@ import jakarta.persistence.criteria.Selection;
  *
  * <p>Implements ExpressionGeneratorHelper to provide common generation methods
  * to specialized builders (BiEntityExpressionBuilder, GroupExpressionBuilder).
- *
- * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
@@ -377,8 +378,40 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             case LambdaExpression.CorrelatedVariable correlated ->
                 generateCorrelatedFieldExpression(bc, correlated, root);
 
+            case LambdaExpression.Conditional conditional ->
+                // Ternary conditional: condition ? trueValue : falseValue
+                // Maps to JPA: cb.selectCase().when(condition, trueExpr).otherwise(falseExpr)
+                generateConditionalExpression(bc, conditional, cb, root, capturedValues);
+
             default -> throw new UnsupportedExpressionException(expression);
         };
+    }
+
+    /**
+     * Generates JPA CASE WHEN expression from a ternary conditional.
+     * <p>
+     * Maps: {@code condition ? trueValue : falseValue}
+     * To JPA: {@code cb.selectCase().when(conditionPredicate, trueExpr).otherwise(falseExpr)}
+     */
+    public Expr generateConditionalExpression(
+            BlockCreator bc,
+            LambdaExpression.Conditional conditional,
+            Expr cb,
+            Expr root,
+            Expr capturedValues) {
+
+        // Generate the condition as a predicate
+        Expr conditionPredicate = generatePredicate(bc, conditional.condition(), cb, root, capturedValues);
+
+        // Generate true and false branch expressions
+        Expr trueExpr = generateExpressionAsJpaExpression(bc, conditional.trueValue(), cb, root, capturedValues);
+        Expr falseExpr = generateExpressionAsJpaExpression(bc, conditional.falseValue(), cb, root, capturedValues);
+
+        // Build: cb.selectCase().when(condition, trueExpr).otherwise(falseExpr)
+        // Use LocalVar for intermediate values (Gizmo2 requirement for chained calls)
+        LocalVar caseBuilder = bc.localVar("caseBuilder", bc.invokeInterface(CB_SELECT_CASE, cb));
+        LocalVar caseWhen = bc.localVar("caseWhen", bc.invokeInterface(CASE_WHEN_EXPR, caseBuilder, conditionPredicate, trueExpr));
+        return bc.invokeInterface(CASE_OTHERWISE_EXPR, caseWhen, falseExpr);
     }
 
     /**

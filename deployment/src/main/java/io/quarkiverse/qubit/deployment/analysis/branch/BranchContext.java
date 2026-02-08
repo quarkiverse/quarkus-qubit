@@ -8,24 +8,7 @@ import org.objectweb.asm.tree.LabelNode;
 import java.util.Deque;
 import java.util.Map;
 
-/**
- * Encapsulates all context needed for branch instruction handling.
- *
- * <p>This parameter object reduces the number of parameters passed to handler methods,
- * improving readability and making the API easier to evolve.
- *
- * @param stack the expression stack for pushing/popping operands
- * @param jumpInsn the branch instruction being processed
- * @param labelToValue maps labels to their boolean values (true/false sink)
- * @param labelClassifications maps labels to their semantic classification
- * @param state current branch state machine state
- * @param sameLabel true if jumping to same label as previous instruction
- * @param completingAndGroup true if completing an AND group (INTERMEDIATE → TRUE_SINK)
- * @param startingNewOrGroup true if starting a new OR group (FALSE_SINK → TRUE_SINK)
- *
- * @see BranchHandler
- * @see BranchState
- */
+/** Parameter object for branch instruction handling context. */
 public record BranchContext(
         Deque<LambdaExpression> stack,
         JumpInsnNode jumpInsn,
@@ -36,26 +19,17 @@ public record BranchContext(
         boolean completingAndGroup,
         boolean startingNewOrGroup) {
 
-    /**
-     * Returns the jump target value for this instruction's label.
-     * @return true if jumping to TRUE sink, false if FALSE sink, null if unknown
-     */
+    /** Returns jump target value: true=TRUE_SINK, false=FALSE_SINK, null=unknown. */
     public Boolean jumpTarget() {
         return labelToValue.get(jumpInsn.label);
     }
 
-    /**
-     * Returns the classification of the jump target label.
-     * @return label classification (TRUE_SINK, FALSE_SINK, INTERMEDIATE)
-     */
+    /** Returns the classification of the jump target label. */
     public ControlFlowAnalyzer.LabelClassification jumpLabelClass() {
         return labelClassifications.get(jumpInsn.label);
     }
 
-    /**
-     * Returns the opcode of the branch instruction.
-     * @return opcode value
-     */
+    /** Returns the opcode of the branch instruction. */
     public int opcode() {
         return jumpInsn.getOpcode();
     }

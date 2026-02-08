@@ -115,8 +115,7 @@ class EqualityOperationsCriteriaTest extends CriteriaQueryTestBase {
         LambdaExpression expr = analyzeLambda("booleanNotEqualityFalse");
         CriteriaQueryStructure structure = generateCriteriaQuery(expr);
         assertCriteriaGenerationSucceeds(expr);
-        // Compiler transforms "p.active != false" to "p.active == true" with boolean constant
-        // which falls through to general equality and generates cb.equal()
+        // p.active != false → analyzer produces BinaryOp(EQ, active, true) → cb.equal()
         assertCriteriaMethodCalled(structure, "equal");
         assertFieldAccessed(structure, "active");
     }

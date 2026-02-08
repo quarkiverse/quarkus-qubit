@@ -36,7 +36,7 @@ class MemoryEstimatorIT {
     @Test
     void handlesNullGracefully() {
         long size = MemoryEstimator.estimateDeepSize(null);
-        assertThat(size).isEqualTo(0);
+        assertThat(size).isZero();
     }
 
     @Test

@@ -14,8 +14,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-
+import java.lang.reflect.Modifier;
+import io.quarkiverse.qubit.deployment.jfr.QubitPhaseEvent;
+import io.quarkiverse.qubit.deployment.jfr.QubitScanEvent;
 import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
+import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicQuickCheck;
 
 import org.jboss.jandex.ClassInfo;
 import org.jboss.jandex.DotName;
@@ -178,10 +181,16 @@ public class QubitProcessor {
         // Clear caches for fresh metrics collection (also essential for dev mode hot reload)
         BytecodeLoader.clearCache();
         LambdaBytecodeAnalyzer.clearCache();
+        QueryExecutorClassGenerator.clearCache();
 
         Log.debugf("Qubit: Scanning for lambda call sites using invokedynamic analysis");
 
         IndexView index = combinedIndex.getIndex();
+
+        // Record entity/repository enhancement counts for metrics
+        if (metricsCollector != null) {
+            recordEnhancementCounts(index, metricsCollector);
+        }
         InvokeDynamicScanner scanner = new InvokeDynamicScanner();
 
         Collection<ClassInfo> allClasses = index.getKnownClasses();
@@ -189,6 +198,7 @@ public class QubitProcessor {
         Log.debugf("Qubit: Scanning %d classes for lambda call sites", allClasses.size());
 
         // Phase: Lambda Discovery
+        QubitPhaseEvent discoveryEvent = QubitPhaseEvent.start("lambda_discovery");
         if (metricsCollector != null) {
             metricsCollector.startPhase("lambda_discovery");
         }
@@ -202,7 +212,7 @@ public class QubitProcessor {
 
         // Log test classes found
         long testClassCount = filteredClasses.stream()
-                .filter(c -> c.name().toString().contains(".it.") || c.name().toString().contains(".test."))
+                .filter(c -> isTestClass(c.name().toString()))
                 .count();
         if (config.scanning().scanTestClasses()) {
             Log.infof("Qubit: Found %d test classes (scanning enabled)", testClassCount);
@@ -223,6 +233,7 @@ public class QubitProcessor {
         if (metricsCollector != null) {
             metricsCollector.endPhase("lambda_discovery");
         }
+        discoveryEvent.complete(allClasses.size(), allCallSites.size(), 0);
 
         Log.debugf("Qubit: Found %d total lambda call site(s)", allCallSites.size());
 
@@ -231,23 +242,45 @@ public class QubitProcessor {
         AtomicInteger generatedCount = new AtomicInteger(0);
         AtomicInteger deduplicatedCount = new AtomicInteger(0);
 
+        // Phase: Cache Warming - pre-load bytecode and ClassNodes for classes with call sites
+        // This reduces I/O contention during parallel analysis by warming both caches
+        Set<String> classesWithCallSites = allCallSites.stream()
+                .map(InvokeDynamicScanner.LambdaCallSite::ownerClassName)
+                .collect(Collectors.toSet());
+
+        Log.debugf("Qubit: Warming bytecode and ClassNode caches for %d classes with call sites", classesWithCallSites.size());
+        long warmupStart = System.nanoTime();
+        classesWithCallSites.forEach(className -> {
+            try {
+                // Load bytecode (file I/O)
+                byte[] bytecode = BytecodeLoader.loadClassBytecode(className, applicationArchives, metricsCollector);
+                // Pre-parse ClassNode (ASM parsing) - avoids contention during parallel analysis
+                LambdaBytecodeAnalyzer.preloadClassNode(bytecode, metricsCollector);
+            } catch (Exception e) {
+                // Ignore errors during warmup - will be handled during actual processing
+                Log.tracef("Cache warmup skipped for %s: %s", className, e.getMessage());
+            }
+        });
+        long warmupTimeMs = (System.nanoTime() - warmupStart) / 1_000_000;
+        Log.debugf("Qubit: Cache warmup completed in %dms for %d classes", warmupTimeMs, classesWithCallSites.size());
+
         // Phase: Bytecode Analysis and Code Generation
+        QubitPhaseEvent analysisEvent = QubitPhaseEvent.start("bytecode_analysis");
         if (metricsCollector != null) {
             metricsCollector.startPhase("bytecode_analysis");
         }
 
-        // Group call sites by owner class for cache locality - improves bytecode and ClassNode cache hit rates
-        // by processing all lambdas from the same class together before moving to the next class
-        Map<String, List<InvokeDynamicScanner.LambdaCallSite>> callSitesByClass = allCallSites.stream()
-                .collect(Collectors.groupingBy(InvokeDynamicScanner.LambdaCallSite::ownerClassName));
-
-        // Process call sites in parallel - safe because we defer class loading to runtime
-        // (see ClassLoaderHelper.extractEntityClassInfo which uses placeholders instead of Class.forName)
         var processingContext = new CallSiteProcessor.CallSiteProcessingContext(
                 applicationArchives, generatedCount, deduplicatedCount,
                 generatedClass, queryTransformations, config.logging(), true);
-        callSitesByClass.values().parallelStream()
-                .flatMap(List::stream)  // Keep call sites from same class together in processing order
+
+        // JIT warm-up: process first call site sequentially to prime Gizmo2 hot paths.
+        // Without this, each ForkJoinPool thread pays ~150ms JIT penalty on its first task.
+        var remainingCallSites = jitWarmUpAndGetRemaining(
+                allCallSites, configuredProcessor, processingContext, metricsCollector);
+
+        // Parallel processing with JIT-primed code paths
+        remainingCallSites.parallelStream()
                 .forEach(callSite -> {
                     configuredProcessor.processCallSiteWithHandlers(callSite, processingContext);
                     if (metricsCollector != null) {
@@ -258,18 +291,71 @@ public class QubitProcessor {
         if (metricsCollector != null) {
             metricsCollector.endPhase("bytecode_analysis");
         }
+        analysisEvent.complete(allCallSites.size(), generatedCount.get(), deduplicatedCount.get());
 
         Log.infof("Qubit extension initialized - Call sites: %d | Query executors: %d generated, %d deduplicated",
                 allCallSites.size(), generatedCount.get(), deduplicatedCount.get());
 
-        // Write metrics report if enabled
+        // Write metrics reports if enabled
         if (metricsCollector != null) {
+            writeMetricsReports(config, metricsCollector);
+        }
+    }
+
+    /** Processes first call site sequentially to prime JIT, returns remaining for parallel processing. */
+    private List<InvokeDynamicScanner.LambdaCallSite> jitWarmUpAndGetRemaining(
+            List<InvokeDynamicScanner.LambdaCallSite> allCallSites,
+            CallSiteProcessor processor,
+            CallSiteProcessor.CallSiteProcessingContext ctx,
+            BuildMetricsCollector metricsCollector) {
+
+        if (allCallSites.isEmpty()) {
+            return allCallSites;
+        }
+        var warmupCallSite = allCallSites.getFirst();
+        processor.processCallSiteWithHandlers(warmupCallSite, ctx);
+        if (metricsCollector != null) {
+            metricsCollector.incrementQueryCount();
+        }
+        Log.debugf("Qubit: JIT warm-up completed with %s", warmupCallSite.getCallSiteId());
+        return allCallSites.subList(1, allCallSites.size());
+    }
+
+    /** Records entity and repository counts for enhancement metrics. */
+    private void recordEnhancementCounts(IndexView index, BuildMetricsCollector metricsCollector) {
+        DotName qubitEntityName = DotName.createSimple(QUBIT_ENTITY_CLASS_NAME);
+        DotName qubitRepositoryName = DotName.createSimple(QUBIT_REPOSITORY_CLASS_NAME);
+
+        int entityCount = index.getAllKnownSubclasses(qubitEntityName).size();
+        int repositoryCount = index.getAllKnownImplementations(qubitRepositoryName).size();
+
+        for (int i = 0; i < entityCount; i++) {
+            metricsCollector.incrementEntityClassesEnhanced();
+        }
+        for (int i = 0; i < repositoryCount; i++) {
+            metricsCollector.incrementRepositoriesEnhanced();
+        }
+    }
+
+    /** Writes JSON metrics and optionally flame graph output. */
+    private void writeMetricsReports(QubitBuildTimeConfig config, BuildMetricsCollector metricsCollector) {
+        // Write JSON report
+        try {
+            Path outputPath = Path.of(config.metrics().outputPath());
+            metricsCollector.writeReport(outputPath);
+            Log.infof("Qubit: Build metrics written to %s", outputPath);
+        } catch (Exception e) {
+            Log.warnf(e, "Qubit: Failed to write build metrics");
+        }
+
+        // Write flame graph output if enabled
+        if (config.metrics().flameGraph()) {
             try {
-                Path outputPath = Path.of(config.metrics().outputPath());
-                metricsCollector.writeReport(outputPath);
-                Log.infof("Qubit: Build metrics written to %s", outputPath);
+                Path flameGraphPath = Path.of(config.metrics().flameGraphPath());
+                metricsCollector.writeFlameGraph(flameGraphPath);
+                Log.infof("Qubit: Flame graph stacks written to %s", flameGraphPath);
             } catch (Exception e) {
-                Log.warnf(e, "Qubit: Failed to write build metrics");
+                Log.warnf(e, "Qubit: Failed to write flame graph output");
             }
         }
     }
@@ -278,16 +364,35 @@ public class QubitProcessor {
     private boolean isNotExcludedClass(ClassInfo classInfo, QubitBuildTimeConfig.ScanningConfig scanningConfig) {
         String className = classInfo.name().toString();
 
-        // Check include packages first (override excludes)
-        var includePackages = scanningConfig.includePackages();
-        if (includePackages.isPresent()) {
-            for (String includePrefix : includePackages.get()) {
-                if (className.startsWith(includePrefix)) {
-                    return true;
-                }
-            }
+        // Always include qubit extension classes (needed for internal functionality)
+        if (className.startsWith("io.quarkiverse.qubit.")) {
+            return true;
         }
 
+        // Whitelist mode: when includePackages is configured (non-empty), ONLY scan matching packages
+        // This dramatically improves performance by skipping framework classes (Narayana, Mutiny, Vert.x, etc.)
+        var includePackagesOpt = scanningConfig.includePackages();
+        if (includePackagesOpt.isPresent() && !includePackagesOpt.get().isEmpty()) {
+            return isIncludedByWhitelist(className, includePackagesOpt.get(), scanningConfig);
+        }
+
+        // Legacy mode (no whitelist configured): use exclusion-based filtering
+        return isIncludedByExclusionRules(className, scanningConfig);
+    }
+
+    /** Checks if class matches whitelist packages and passes test filter. */
+    private boolean isIncludedByWhitelist(String className, List<String> includePackages,
+                                          QubitBuildTimeConfig.ScanningConfig scanningConfig) {
+        boolean matchesInclude = includePackages.stream().anyMatch(className::startsWith);
+        if (!matchesInclude) {
+            return false;  // Strict whitelist: reject classes not in include list
+        }
+        // Class matches whitelist - still apply test class filter
+        return !isTestClass(className) || scanningConfig.scanTestClasses();
+    }
+
+    /** Checks if class passes exclusion-based filtering (legacy mode). */
+    private boolean isIncludedByExclusionRules(String className, QubitBuildTimeConfig.ScanningConfig scanningConfig) {
         // Check exclude packages
         for (String excludePrefix : scanningConfig.excludePackages()) {
             if (className.startsWith(excludePrefix)) {
@@ -296,58 +401,101 @@ public class QubitProcessor {
         }
 
         // Handle test classes based on config
-        boolean isTestClass = className.contains(".it.") || className.contains(".test.");
-        if (isTestClass && !scanningConfig.scanTestClasses()) {
+        if (isTestClass(className) && !scanningConfig.scanTestClasses()) {
             return false;
-        }
-
-        // Always include qubit extension classes
-        if (className.startsWith("io.quarkiverse.qubit.")) {
-            return true;
         }
 
         // For io.quarkus.* classes, only include test classes (if test scanning is enabled)
         if (className.startsWith("io.quarkus.")) {
-            return isTestClass && scanningConfig.scanTestClasses();
+            return isTestClass(className) && scanningConfig.scanTestClasses();
         }
 
         return true;
     }
 
-    /**
-     * Scans a class for lambda call sites.
-     */
+    /** Checks if class name indicates a test class. */
+    private static boolean isTestClass(String className) {
+        return className.contains(".it.") || className.contains(".test.");
+    }
+
+    /** Returns true if Jandex metadata proves this class cannot contain lambda call sites. */
+    private static boolean shouldSkipByStructure(ClassInfo classInfo) {
+        // Annotations cannot contain lambda expressions
+        if (classInfo.isAnnotation()) {
+            return true;
+        }
+        // Pure interfaces without default methods have no code bodies
+        if (classInfo.isInterface()) {
+            return classInfo.methods().stream()
+                    .allMatch(m -> Modifier.isAbstract(m.flags()));
+        }
+        return false;
+    }
+
+    /** Scans a class for lambda call sites with Jandex pre-filter and constant pool quick check. */
     private List<InvokeDynamicScanner.LambdaCallSite> scanClassForCallSites(
             ClassInfo classInfo,
             InvokeDynamicScanner scanner,
             ApplicationArchivesBuildItem applicationArchives,
             QubitBuildTimeConfig.LoggingConfig loggingConfig,
             BuildMetricsCollector metricsCollector) {
-        try {
-            String className = classInfo.name().toString();
 
+        var className = classInfo.name().toString();
+        var scanEvent = QubitScanEvent.start(className);
+
+        try {
             if (loggingConfig.logScannedClasses()) {
                 Log.debugf("Qubit: Scanning class: %s", className);
             }
 
-            byte[] classBytes = BytecodeLoader.loadClassBytecode(className, applicationArchives, metricsCollector);
+            if (metricsCollector != null) {
+                metricsCollector.incrementClassesScanned();
+            }
 
+            // Jandex pre-filter: skip classes that structurally cannot contain lambdas (no IO cost)
+            if (shouldSkipByStructure(classInfo)) {
+                if (metricsCollector != null) {
+                    metricsCollector.incrementJandexPreFilterSkips();
+                }
+                scanEvent.complete(false, false, 0);
+                return List.of();
+            }
+
+            var classBytes = BytecodeLoader.loadClassBytecode(className, applicationArchives, metricsCollector);
+
+            // Quick check: skip full ASM parsing if no CONSTANT_InvokeDynamic in constant pool
+            if (!InvokeDynamicQuickCheck.mightContainInvokeDynamic(classBytes)) {
+                if (metricsCollector != null) {
+                    metricsCollector.incrementQuickCheckSkips();
+                }
+                scanEvent.complete(false, false, 0);
+                return List.of();
+            }
+
+            if (metricsCollector != null) {
+                metricsCollector.incrementQuickCheckPasses();
+            }
+
+            // Full ASM parsing for classes that might contain invokedynamic
             List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(classBytes, className);
 
             if (!callSites.isEmpty()) {
                 Log.debugf("Found %d lambda call site(s) in %s", callSites.size(), className);
             }
 
+            scanEvent.complete(true, true, callSites.size());
             return callSites;
 
         } catch (BytecodeAnalysisException e) {
             // Expected: bytecode analysis failed (e.g., class not found, unsupported bytecode)
             Log.debugf(e, "Could not analyze class %s: %s", classInfo.name(), e.getMessage());
+            scanEvent.skip("bytecode_load_failed");
             return List.of();
         } catch (Exception e) {
             // Unexpected: log at warn level to surface potential bugs
             Log.warnf(e, "Unexpected error scanning class %s - this may indicate a bug in Qubit",
                     classInfo.name());
+            scanEvent.skip("unexpected_error");
             return List.of();
         }
     }

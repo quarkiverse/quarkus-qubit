@@ -20,7 +20,9 @@ import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator.Deduplication
 import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator.DeduplicationRequest;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
+import io.quarkiverse.qubit.deployment.jfr.QubitAnalysisEvent;
 import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
+import io.quarkiverse.qubit.deployment.metrics.ExpressionTypeCounter;
 import io.quarkiverse.qubit.deployment.QubitBuildTimeConfig;
 import io.quarkiverse.qubit.deployment.QubitProcessor;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
@@ -125,6 +127,10 @@ public class CallSiteProcessor {
             InvokeDynamicScanner.LambdaCallSite callSite,
             CallSiteProcessingContext processingContext) {
 
+        // Start JFR event for this analysis
+        QubitAnalysisEvent jfrEvent = QubitAnalysisEvent.start(
+                callSite.getCallSiteId(), callSite.ownerClassName());
+
         // Load bytecode
         byte[] classBytes;
         try {
@@ -132,6 +138,7 @@ public class CallSiteProcessor {
                     processingContext.applicationArchives(), metricsCollector);
         } catch (BytecodeAnalysisException e) {
             Log.warnf("Could not load bytecode for class: %s - %s", callSite.ownerClassName(), e.getMessage());
+            jfrEvent.fail(e.getMessage());
             return AnalysisOutcome.unsupported(e.getMessage(), callSite.getCallSiteId());
         }
 
@@ -175,15 +182,45 @@ public class CallSiteProcessor {
             processingContext.deduplicatedCount().incrementAndGet();
             registerEarlyDeduplicatedQuery(callSite, cachedResult.executorClassName(),
                     processingContext.queryTransformations(), processingContext.loggingConfig());
+            jfrEvent.complete("DEDUPLICATED", true, true, cachedResult.lambdaHash());
             return AnalysisOutcome.earlyDeduplicated(callSiteId, cachedResult.lambdaHash(),
                     cachedResult.executorClassName());
         }
 
-        // Analyze using the handler
+        // Analyze using the handler with timing for query type breakdown
+        String queryType = handler.queryTypeName();
+        long analysisStartTime = System.nanoTime();
         AnalysisOutcome outcome = handler.analyze(context);
+        long analysisTimeNanos = System.nanoTime() - analysisStartTime;
+
+        if (metricsCollector != null) {
+            metricsCollector.recordQueryType(queryType);
+            metricsCollector.addQueryTypeAnalysisTime(queryType, analysisTimeNanos);
+            metricsCollector.addClassAnalysisTime(callSite.ownerClassName(), analysisTimeNanos);
+            metricsCollector.addClassLambdaCount(callSite.ownerClassName(), 1);
+        }
 
         // Handle the outcome, passing bytecode signature for registration
-        return handleAnalysisOutcome(outcome, callSite, callSiteId, bytecodeSignature, processingContext);
+        AnalysisOutcome result = handleAnalysisOutcome(outcome, callSite, callSiteId, bytecodeSignature, queryType, processingContext);
+
+        // Complete JFR event based on outcome
+        completeJfrEvent(jfrEvent, result, queryType);
+
+        return result;
+    }
+
+    /** Completes the JFR analysis event based on the outcome. */
+    private void completeJfrEvent(QubitAnalysisEvent event, AnalysisOutcome outcome, String queryType) {
+        switch (outcome) {
+            case AnalysisOutcome.Success success ->
+                    event.complete(queryType, true, false, success.lambdaHash());
+            case AnalysisOutcome.EarlyDeduplicated dedup ->
+                    event.complete(queryType, true, true, dedup.lambdaHash());
+            case AnalysisOutcome.UnsupportedPattern _ ->
+                    event.complete(queryType, false, false, null);
+            case AnalysisOutcome.AnalysisError _ ->
+                    event.fail("Analysis error");
+        }
     }
 
     /** Handles analysis outcome after handler execution. */
@@ -192,11 +229,12 @@ public class CallSiteProcessor {
             InvokeDynamicScanner.LambdaCallSite callSite,
             String callSiteId,
             String bytecodeSignature,
+            String queryType,
             CallSiteProcessingContext ctx) {
 
         return switch (outcome) {
             case AnalysisOutcome.Success success ->
-                    handleSuccessOutcome(success, callSite, callSiteId, bytecodeSignature, ctx);
+                    handleSuccessOutcome(success, callSite, callSiteId, bytecodeSignature, queryType, ctx);
 
             case AnalysisOutcome.UnsupportedPattern unsupported -> {
                 Log.debugf("Skipping unsupported pattern at %s: %s",
@@ -228,6 +266,7 @@ public class CallSiteProcessor {
             InvokeDynamicScanner.LambdaCallSite callSite,
             String callSiteId,
             String bytecodeSignature,
+            String queryType,
             CallSiteProcessingContext ctx) {
 
         // Check for deduplication first
@@ -272,8 +311,15 @@ public class CallSiteProcessor {
 
         // We won the race - generate the executor
         try {
+            long codeGenStartTime = System.nanoTime();
             generateExecutorFromResult(success.result(), success.lambdaHash(), callSite,
                     ctx.generatedClass(), ctx.queryTransformations(), ctx.loggingConfig());
+            long codeGenTimeNanos = System.nanoTime() - codeGenStartTime;
+
+            // Record code generation time by query type
+            if (metricsCollector != null) {
+                metricsCollector.addQueryTypeCodeGenTime(queryType, codeGenTimeNanos);
+            }
 
             // Register bytecode signature for early deduplication
             deduplicator.registerBytecodeSignature(bytecodeSignature, success.lambdaHash(), executorClassName);
@@ -284,6 +330,9 @@ public class CallSiteProcessor {
                         success.callSiteId(), success.lambdaHash().substring(0, HASH_CHARS_FOR_LOG));
             }
         } catch (Exception e) {
+            if (metricsCollector != null) {
+                metricsCollector.recordFailedClass(callSite.ownerClassName());
+            }
             Log.errorf(e, "Failed to generate executor for call site: %s", callSiteId);
             return AnalysisOutcome.error(e, callSiteId);
         }
@@ -303,6 +352,11 @@ public class CallSiteProcessor {
             QubitBuildTimeConfig.LoggingConfig loggingConfig) {
 
         String callSiteId = callSite.getCallSiteId();
+
+        // Count expression types for metrics before code generation
+        if (metricsCollector != null) {
+            countExpressionTypes(result, metricsCollector);
+        }
 
         // Delegate to generation methods based on result type
         switch (result) {
@@ -357,15 +411,7 @@ public class CallSiteProcessor {
         }
     }
 
-    /**
-     * Registers a duplicate call site that was detected by pre-grouping by bytecode signature.
-     * This method is called for call sites that have the same signature as an already-processed representative.
-     *
-     * @param duplicate the duplicate call site to register
-     * @param representative the already-processed call site with the same signature
-     * @param ctx the processing context
-     * @return true if registration succeeded, false if fallback to full analysis is needed
-     */
+    /** Registers a duplicate call site detected by bytecode signature pre-grouping. Returns false if fallback analysis needed. */
     public boolean registerEarlyDeduplicated(
             InvokeDynamicScanner.LambdaCallSite duplicate,
             InvokeDynamicScanner.LambdaCallSite representative,
@@ -816,6 +862,43 @@ public class CallSiteProcessor {
 
     /** First sort expression for DevUI display. */
     private record SortDisplayInfo(LambdaExpression sortKey, boolean descending) {}
+
+    /** Counts expression types from analysis result for metrics. */
+    private void countExpressionTypes(LambdaAnalysisResult result, BuildMetricsCollector collector) {
+        switch (result) {
+            case LambdaAnalysisResult.GroupQueryResult group -> {
+                ExpressionTypeCounter.countAndRecord(group.predicateExpression(), collector);
+                ExpressionTypeCounter.countAndRecord(group.groupByKeyExpression(), collector);
+                ExpressionTypeCounter.countAndRecord(group.havingExpression(), collector);
+                ExpressionTypeCounter.countAndRecord(group.groupSelectExpression(), collector);
+                countSortExpressionTypes(group.groupSortExpressions(), collector);
+            }
+            case LambdaAnalysisResult.JoinQueryResult join -> {
+                ExpressionTypeCounter.countAndRecord(join.joinRelationshipExpression(), collector);
+                ExpressionTypeCounter.countAndRecord(join.biEntityPredicateExpression(), collector);
+                ExpressionTypeCounter.countAndRecord(join.biEntityProjectionExpression(), collector);
+                countSortExpressionTypes(join.sortExpressions(), collector);
+            }
+            case LambdaAnalysisResult.AggregationQueryResult agg -> {
+                ExpressionTypeCounter.countAndRecord(agg.predicateExpression(), collector);
+                ExpressionTypeCounter.countAndRecord(agg.aggregationExpression(), collector);
+            }
+            case LambdaAnalysisResult.SimpleQueryResult simple -> {
+                ExpressionTypeCounter.countAndRecord(simple.predicateExpression(), collector);
+                ExpressionTypeCounter.countAndRecord(simple.projectionExpression(), collector);
+                countSortExpressionTypes(simple.sortExpressions(), collector);
+            }
+        }
+    }
+
+    /** Counts expression types from sort expressions. */
+    private void countSortExpressionTypes(List<SortExpression> sortExpressions, BuildMetricsCollector collector) {
+        if (sortExpressions != null) {
+            for (SortExpression sort : sortExpressions) {
+                ExpressionTypeCounter.countAndRecord(sort.keyExtractor(), collector);
+            }
+        }
+    }
 
     /** Groups analysis result, call site ID, and lambda hash. */
     private record LambdaAnalysis(

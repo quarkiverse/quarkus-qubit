@@ -12,8 +12,6 @@ import java.util.Map;
 
 /**
  * Maps binary operators to JPA CriteriaBuilder method descriptors.
- *
- * <p>Uses Gizmo 2 API with MethodDesc type.
  */
 public final class OperatorMethodMapper {
 

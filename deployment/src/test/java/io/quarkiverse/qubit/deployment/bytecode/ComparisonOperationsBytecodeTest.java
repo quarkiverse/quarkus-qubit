@@ -193,4 +193,42 @@ class ComparisonOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         // Right: second comparison (e.g., age <= 35)
         assertBinaryOp(andOp.right(), expectedRightOperator);
     }
+
+    // ==================== BOXED INTEGER FIELD-TO-FIELD COMPARISONS ====================
+    // These tests reproduce the JFR-documented stack underflow bug where
+    // comparing two boxed Integer fields triggers Integer.intValue() unboxing.
+    // Bytecode pattern:
+    //   aload_0, getfield age:Integer, invokevirtual intValue,
+    //   aload_0, getfield minAge:Integer, invokevirtual intValue, if_icmpgt
+
+    /**
+     * Test data for boxed Integer field-to-field comparisons.
+     * Each entry: methodName, expectedOperator
+     */
+    static Stream<Arguments> boxedIntegerFieldComparisons() {
+        return Stream.of(
+                Arguments.of("boxedIntegerFieldLessThanOrEqual", LambdaExpression.BinaryOp.Operator.LE),
+                Arguments.of("boxedIntegerFieldGreaterThan", LambdaExpression.BinaryOp.Operator.GT),
+                Arguments.of("boxedIntegerFieldGreaterThanOrEqual", LambdaExpression.BinaryOp.Operator.GE),
+                Arguments.of("boxedIntegerFieldLessThan", LambdaExpression.BinaryOp.Operator.LT),
+                Arguments.of("boxedIntegerFieldEquals", LambdaExpression.BinaryOp.Operator.EQ),
+                Arguments.of("boxedIntegerFieldNotEquals", LambdaExpression.BinaryOp.Operator.NE)
+        );
+    }
+
+    @ParameterizedTest(name = "{0}: age {1} minAge")
+    @MethodSource("boxedIntegerFieldComparisons")
+    void boxedIntegerFieldComparison(
+            String methodName,
+            LambdaExpression.BinaryOp.Operator expectedOperator) {
+
+        // This test reproduces the stack underflow bug documented in jfr-analysis-2026-02-04.md:
+        // "Stack underflow processing IF_ICMP*/IF_ACMP*: expected 2 elements, found 1"
+        LambdaExpression expr = analyzeLambda(methodName);
+
+        assertBinaryOp(expr, expectedOperator);
+        LambdaExpression.BinaryOp binOp = (LambdaExpression.BinaryOp) expr;
+        assertFieldAccess(binOp.left(), "age");
+        assertFieldAccess(binOp.right(), "minAge");
+    }
 }

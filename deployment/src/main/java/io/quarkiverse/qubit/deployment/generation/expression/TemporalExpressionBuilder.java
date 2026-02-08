@@ -30,8 +30,6 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.TEMPORAL_COMP
  * </ul>
  *
  * <p><b>Supported Types:</b> LocalDate, LocalDateTime, LocalTime
- *
- * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public enum TemporalExpressionBuilder implements ExpressionBuilder {
     INSTANCE;

@@ -38,10 +38,11 @@ public class LambdaTestSources {
         public LocalTime startTime;
     }
 
-    // Test entity with wrapper types for null checks
+    // Test entity with wrapper types for null checks and boxed type comparisons
     @Entity
     public static class TestPersonNullable extends QubitEntity {
         public Integer age;
+        public Integer minAge;  // Second Integer field for field-to-field comparisons
         public Long employeeId;
         public Float height;
         public Double salary;
@@ -308,6 +309,34 @@ public class LambdaTestSources {
 
     public static QuerySpec<TestPerson, Boolean> localTimeNullCheck() {
         return p -> p.startTime == null;
+    }
+
+    // ==================== BOXED INTEGER FIELD-TO-FIELD COMPARISONS ====================
+    // These test cases reproduce the JFR-documented stack underflow bug
+    // where comparing two boxed Integer fields triggers Integer.intValue() unboxing
+
+    public static QuerySpec<TestPersonNullable, Boolean> boxedIntegerFieldLessThanOrEqual() {
+        return p -> p.age <= p.minAge;
+    }
+
+    public static QuerySpec<TestPersonNullable, Boolean> boxedIntegerFieldGreaterThan() {
+        return p -> p.age > p.minAge;
+    }
+
+    public static QuerySpec<TestPersonNullable, Boolean> boxedIntegerFieldGreaterThanOrEqual() {
+        return p -> p.age >= p.minAge;
+    }
+
+    public static QuerySpec<TestPersonNullable, Boolean> boxedIntegerFieldLessThan() {
+        return p -> p.age < p.minAge;
+    }
+
+    public static QuerySpec<TestPersonNullable, Boolean> boxedIntegerFieldEquals() {
+        return p -> p.age == p.minAge;
+    }
+
+    public static QuerySpec<TestPersonNullable, Boolean> boxedIntegerFieldNotEquals() {
+        return p -> p.age != p.minAge;
     }
 
     // ==================== CHAINED NULL CHECKS ====================

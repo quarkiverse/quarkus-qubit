@@ -11,8 +11,6 @@ import java.util.Optional;
 /**
  * Fallback handler: converts getter calls (getXxx, isXxx) to field access.
  * getName() → root.get("name"), isActive() → root.get("active")
- *
- * <p>Uses Gizmo 2 API with Expr type.
  */
 public enum GetterMethodHandler implements MethodCallHandler {
     INSTANCE;

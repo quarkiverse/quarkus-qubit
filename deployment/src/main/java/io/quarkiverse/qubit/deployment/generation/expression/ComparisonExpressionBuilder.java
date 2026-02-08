@@ -18,8 +18,6 @@ import io.quarkus.gizmo2.desc.MethodDesc;
  *   <li>LT (<) → {@code CriteriaBuilder.lessThan()}</li>
  *   <li>LE (<=) → {@code CriteriaBuilder.lessThanOrEqualTo()}</li>
  * </ul>
- *
- * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public enum ComparisonExpressionBuilder implements ExpressionBuilder {
     INSTANCE;

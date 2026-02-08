@@ -13,8 +13,6 @@ import java.util.Optional;
  * Chain of Responsibility coordinator for method call → JPA expression generation.
  * Iterates handlers in priority order (FAST_REJECT → DELEGATING → FALLBACK).
  * Validates ordering at construction to prevent silent handler interception bugs.
- *
- * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 @SuppressWarnings("java:S6206") // Behavioral pattern class, not a data carrier - record semantics inappropriate
 public final class MethodCallHandlerChain {

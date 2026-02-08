@@ -17,8 +17,6 @@ import io.quarkus.gizmo2.desc.MethodDesc;
  *   <li>DIV (/) → {@code CriteriaBuilder.quot()}</li>
  *   <li>MOD (%) → {@code CriteriaBuilder.mod()}</li>
  * </ul>
- *
- * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
  */
 public enum ArithmeticExpressionBuilder implements ExpressionBuilder {
     INSTANCE;

@@ -8,8 +8,6 @@ import java.util.Optional;
 
 /**
  * Handles equals/isEmpty/isBlank/length via StringExpressionBuilder.
- *
- * <p>Uses Gizmo 2 API with Expr type.
  */
 public enum StringUtilityHandler implements MethodCallHandler {
     INSTANCE;

@@ -12,8 +12,6 @@ import java.util.Collection;
  * Enables handler reuse across single-entity ({@link MethodCallContext})
  * and bi-entity ({@link BiEntityMethodCallContext}) query types.
  *
- * <p>Uses Gizmo 2 API with BlockCreator and Expr types.
- *
  * @see MethodCallHandler
  */
 public interface MethodCallDispatchContext {
