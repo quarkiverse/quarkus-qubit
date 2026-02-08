@@ -1,0 +1,88 @@
+= Configuration & Performance
+
+Qubit provides build-time configuration for scanning optimization, metrics collection, and JFR profiling.
+
+== Scanning Configuration
+
+By default, Qubit scans all application classes for lambda queries.
+For large applications, configure a package whitelist to skip framework classes:
+
+[source,properties]
+----
+# Only scan classes in these packages (whitelist mode)
+quarkus.qubit.scanning.include-packages=com.example.
+----
+
+Multiple packages:
+
+[source,properties]
+----
+quarkus.qubit.scanning.include-packages=com.example.api.,com.example.service.,com.example.domain.
+----
+
+When configured, Qubit skips scanning of framework classes (Narayana, Mutiny, Vert.x, Netty, etc.), reducing discovery phase time by up to 80%.
+
+== Build Metrics
+
+Enable build-time performance metrics to diagnose scanning and code generation costs:
+
+[source,properties]
+----
+quarkus.qubit.metrics.enabled=true
+quarkus.qubit.metrics.output-path=target/qubit-build-metrics.json
+quarkus.qubit.metrics.level=detailed
+----
+
+Metrics levels:
+
+* `basic` — Phase timing and query counts
+* `detailed` — Adds cache hit rates, query type breakdown, granular operation timing
+* `full` — Adds per-class analysis, thread utilization, latency histograms
+
+=== Flame Graph Output
+
+Generate async-profiler compatible flame graph data:
+
+[source,properties]
+----
+quarkus.qubit.metrics.flame-graph=true
+quarkus.qubit.metrics.flame-graph-path=target/qubit-flamegraph.collapsed
+----
+
+Visualize with https://www.speedscope.app[speedscope.app] or async-profiler's `flamegraph.pl`.
+
+== JFR Profiling
+
+Qubit emits custom Java Flight Recorder events during build-time processing:
+
+* `io.quarkiverse.qubit.Phase` — High-level phase timing (discovery, analysis)
+* `io.quarkiverse.qubit.Analysis` — Per-query analysis events with query type and duration
+* `io.quarkiverse.qubit.ClassScan` — Per-class scanning with quick check result
+* `io.quarkiverse.qubit.CodeGen` — Code generation events
+
+Enable JFR during Maven build:
+
+[source,bash]
+----
+MAVEN_OPTS="-XX:StartFlightRecording=filename=qubit.jfr,settings=profile" mvn package
+----
+
+Analyze the recording:
+
+[source,bash]
+----
+jfr print --events 'io.quarkiverse.qubit.*' qubit.jfr
+----
+
+== Build-Time Optimizations
+
+Qubit uses a multi-layer filtering pipeline to minimize processing time:
+
+1. **Package filtering** — Jandex-based class name matching (zero I/O cost)
+2. **Structural pre-filter** — Skips annotations and pure interfaces via Jandex metadata
+3. **Constant pool quick check** — Scans for `CONSTANT_InvokeDynamic` (tag 18) and Qubit API references without full ASM parsing
+4. **JIT warm-up** — Processes one query sequentially before parallel phase to prime Gizmo2 code paths
+5. **Cache warming** — Pre-loads bytecode and ClassNode caches before parallel analysis
+6. **Parallel processing** — Distributes analysis and code generation across all available CPU cores
+
+These optimizations achieve 66% build-time reduction on large projects (826ms → 284ms for 323 queries).

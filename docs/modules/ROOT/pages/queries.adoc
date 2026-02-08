@@ -177,8 +177,11 @@ List<Person> matching = personRepository
 |`== null`, `!= null`
 
 |Temporal
-|`isAfter()`, `isBefore()`, `isEqual()` for LocalDate, LocalDateTime, LocalTime
+|`isAfter()`, `isBefore()`, `isEqual()`, `getYear()`, `getMonth()`, `getDayOfMonth()`, `getHour()`, `getMinute()`, `getSecond()` for LocalDate, LocalDateTime, LocalTime
 
 |BigDecimal
 |`compareTo()`
+
+|Ternary
+|`condition ? trueExpr : falseExpr` in projections
 |===

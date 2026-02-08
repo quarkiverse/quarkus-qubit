@@ -37,6 +37,9 @@ List<Person> adults = personRepository
 
 |xref:subqueries.adoc[Subqueries]
 |EXISTS, IN, and scalar comparisons with subqueries
+
+|xref:configuration.adoc[Configuration & Performance]
+|Build metrics, JFR profiling, scanning optimization
 |===
 
 == Installation
@@ -55,7 +58,7 @@ Add the dependency to your project:
 == Requirements
 
 * Java 25+
-* Quarkus 3.29+
+* Quarkus 3.31+
 * Hibernate ORM with Panache
 * GraalVM 25+ (optional, for native compilation)
 
