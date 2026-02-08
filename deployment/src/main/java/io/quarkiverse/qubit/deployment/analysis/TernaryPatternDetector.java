@@ -171,8 +171,8 @@ public final class TernaryPatternDetector {
 
     /** Checks if ICONST_0 or ICONST_1 appears before GOTO (boolean expression pattern). */
     private static boolean isBooleanPattern(InsnList instructions, int gotoIndex) {
-        for (var i = gotoIndex - 1; i >= 0; i--) {
-            var opcode = instructions.get(i).getOpcode();
+        for (int i = gotoIndex - 1; i >= 0; i--) {
+            int opcode = instructions.get(i).getOpcode();
             if (opcode == -1) continue;
             return opcode == ICONST_0 || opcode == ICONST_1;
         }

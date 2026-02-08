@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
+import java.io.InputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -27,7 +28,7 @@ class InvokeDynamicQuickCheckTest {
     }
 
     private static byte[] loadClassBytes(String resourcePath) throws Exception {
-        try (var is = InvokeDynamicQuickCheckTest.class.getClassLoader().getResourceAsStream(resourcePath)) {
+        try (InputStream is = InvokeDynamicQuickCheckTest.class.getClassLoader().getResourceAsStream(resourcePath)) {
             if (is == null) {
                 throw new RuntimeException("Cannot find class file: " + resourcePath);
             }
@@ -64,8 +65,8 @@ class InvokeDynamicQuickCheckTest {
             assertThat(InvokeDynamicQuickCheck.mightContainInvokeDynamic(classWithoutLambdas))
                     .isFalse();
 
-            var rawScanFinds0xBA = false;
-            for (var b : classWithoutLambdas) {
+            boolean rawScanFinds0xBA = false;
+            for (byte b : classWithoutLambdas) {
                 if ((b & 0xFF) == 0xBA) {
                     rawScanFinds0xBA = true;
                     break;
@@ -97,7 +98,7 @@ class InvokeDynamicQuickCheckTest {
 
         @Test
         void returnsTrueForInvalidMagicNumber() {
-            var garbage = new byte[100];
+            byte[] garbage = new byte[100];
             garbage[0] = (byte) 0xDE;
             assertThat(InvokeDynamicQuickCheck.mightContainInvokeDynamic(garbage))
                     .as("Invalid class file should return true (conservative)")
@@ -106,7 +107,7 @@ class InvokeDynamicQuickCheckTest {
 
         @Test
         void returnsTrueForTruncatedConstantPool() {
-            var truncated = new byte[] {
+            byte[] truncated = new byte[] {
                     (byte) 0xCA, (byte) 0xFE, (byte) 0xBA, (byte) 0xBE,
                     0x00, 0x00, 0x00, 0x41,
                     0x00, 0x05
@@ -122,7 +123,7 @@ class InvokeDynamicQuickCheckTest {
 
         @Test
         void returnsTrueWhenBothTag18AndQubitMarkerPresent() throws Exception {
-            var classBytes = buildSyntheticClass(true, true);
+            byte[] classBytes = buildSyntheticClass(true, true);
             assertThat(InvokeDynamicQuickCheck.mightContainInvokeDynamic(classBytes))
                     .as("Class with both tag 18 and Qubit Utf8 reference should return true")
                     .isTrue();
@@ -130,7 +131,7 @@ class InvokeDynamicQuickCheckTest {
 
         @Test
         void returnsFalseWhenTag18ButNoQubitMarker() throws Exception {
-            var classBytes = buildSyntheticClass(true, false);
+            byte[] classBytes = buildSyntheticClass(true, false);
             assertThat(InvokeDynamicQuickCheck.mightContainInvokeDynamic(classBytes))
                     .as("Class with tag 18 but no Qubit reference should return false")
                     .isFalse();
@@ -138,7 +139,7 @@ class InvokeDynamicQuickCheckTest {
 
         @Test
         void returnsFalseWhenQubitMarkerButNoTag18() throws Exception {
-            var classBytes = buildSyntheticClass(false, true);
+            byte[] classBytes = buildSyntheticClass(false, true);
             assertThat(InvokeDynamicQuickCheck.mightContainInvokeDynamic(classBytes))
                     .as("Class with Qubit reference but no tag 18 should return false")
                     .isFalse();
@@ -146,7 +147,7 @@ class InvokeDynamicQuickCheckTest {
 
         @Test
         void returnsFalseWhenNeitherPresent() throws Exception {
-            var classBytes = buildSyntheticClass(false, false);
+            byte[] classBytes = buildSyntheticClass(false, false);
             assertThat(InvokeDynamicQuickCheck.mightContainInvokeDynamic(classBytes))
                     .as("Class with neither tag 18 nor Qubit reference should return false")
                     .isFalse();
@@ -157,14 +158,14 @@ class InvokeDynamicQuickCheckTest {
          * CP: [Utf8 className, Class->#1, optional Utf8 qubitMarker, optional InvokeDynamic]
          */
         private byte[] buildSyntheticClass(boolean includeTag18, boolean includeQubitRef) throws Exception {
-            var baos = new ByteArrayOutputStream();
-            var dos = new DataOutputStream(baos);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            DataOutputStream dos = new DataOutputStream(baos);
 
             dos.writeInt(0xCAFEBABE);
             dos.writeShort(0);
             dos.writeShort(65);
 
-            var cpCount = 3;
+            int cpCount = 3;
             if (includeQubitRef) cpCount++;
             if (includeTag18) cpCount++;
             dos.writeShort(cpCount);
@@ -180,7 +181,7 @@ class InvokeDynamicQuickCheckTest {
 
             if (includeQubitRef) {
                 // Utf8 with Qubit API reference
-                var marker = "io/quarkiverse/qubit/QuerySpec";
+                String marker = "io/quarkiverse/qubit/QuerySpec";
                 dos.writeByte(1);
                 dos.writeShort(marker.length());
                 dos.writeBytes(marker);

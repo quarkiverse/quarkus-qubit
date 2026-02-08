@@ -11,6 +11,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -203,7 +204,7 @@ public class QubitProcessor {
             metricsCollector.startPhase("lambda_discovery");
         }
 
-        var filteredClasses = allClasses.stream()
+        List<ClassInfo> filteredClasses = allClasses.stream()
                 .filter(classInfo -> isNotExcludedClass(classInfo, config.scanning()))
                 .toList();
 
@@ -270,13 +271,13 @@ public class QubitProcessor {
             metricsCollector.startPhase("bytecode_analysis");
         }
 
-        var processingContext = new CallSiteProcessor.CallSiteProcessingContext(
+        CallSiteProcessor.CallSiteProcessingContext processingContext = new CallSiteProcessor.CallSiteProcessingContext(
                 applicationArchives, generatedCount, deduplicatedCount,
                 generatedClass, queryTransformations, config.logging(), true);
 
         // JIT warm-up: process first call site sequentially to prime Gizmo2 hot paths.
         // Without this, each ForkJoinPool thread pays ~150ms JIT penalty on its first task.
-        var remainingCallSites = jitWarmUpAndGetRemaining(
+        List<InvokeDynamicScanner.LambdaCallSite> remainingCallSites = jitWarmUpAndGetRemaining(
                 allCallSites, configuredProcessor, processingContext, metricsCollector);
 
         // Parallel processing with JIT-primed code paths
@@ -312,7 +313,7 @@ public class QubitProcessor {
         if (allCallSites.isEmpty()) {
             return allCallSites;
         }
-        var warmupCallSite = allCallSites.getFirst();
+        InvokeDynamicScanner.LambdaCallSite warmupCallSite = allCallSites.getFirst();
         processor.processCallSiteWithHandlers(warmupCallSite, ctx);
         if (metricsCollector != null) {
             metricsCollector.incrementQueryCount();
@@ -371,7 +372,7 @@ public class QubitProcessor {
 
         // Whitelist mode: when includePackages is configured (non-empty), ONLY scan matching packages
         // This dramatically improves performance by skipping framework classes (Narayana, Mutiny, Vert.x, etc.)
-        var includePackagesOpt = scanningConfig.includePackages();
+        Optional<List<String>> includePackagesOpt = scanningConfig.includePackages();
         if (includePackagesOpt.isPresent() && !includePackagesOpt.get().isEmpty()) {
             return isIncludedByWhitelist(className, includePackagesOpt.get(), scanningConfig);
         }
@@ -440,8 +441,8 @@ public class QubitProcessor {
             QubitBuildTimeConfig.LoggingConfig loggingConfig,
             BuildMetricsCollector metricsCollector) {
 
-        var className = classInfo.name().toString();
-        var scanEvent = QubitScanEvent.start(className);
+        String className = classInfo.name().toString();
+        QubitScanEvent scanEvent = QubitScanEvent.start(className);
 
         try {
             if (loggingConfig.logScannedClasses()) {
@@ -461,7 +462,7 @@ public class QubitProcessor {
                 return List.of();
             }
 
-            var classBytes = BytecodeLoader.loadClassBytecode(className, applicationArchives, metricsCollector);
+            byte[] classBytes = BytecodeLoader.loadClassBytecode(className, applicationArchives, metricsCollector);
 
             // Quick check: skip full ASM parsing if no CONSTANT_InvokeDynamic in constant pool
             if (!InvokeDynamicQuickCheck.mightContainInvokeDynamic(classBytes)) {
@@ -1005,10 +1006,10 @@ public class QubitProcessor {
                 if (characteristics == null) {
                     throw new IllegalStateException(CHARACTERISTICS_REQUIRED);
                 }
-                var expressions = new DevUIExpressions(
+                DevUIExpressions expressions = new DevUIExpressions(
                         predicateExpression, projectionExpression, sortExpression, aggregationExpression,
                         groupByKeyExpression, havingExpression, joinRelationshipExpression);
-                var metadata = new DevUIMetadata(
+                DevUIMetadata metadata = new DevUIMetadata(
                         terminalMethodName, hasDistinct, sortDescending, isSelectKey, aggregationType,
                         skipValue, limitValue);
                 return new QueryTransformationBuildItem(

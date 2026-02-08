@@ -400,18 +400,19 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             Expr root,
             Expr capturedValues) {
 
-        // Generate the condition as a predicate
-        Expr conditionPredicate = generatePredicate(bc, conditional.condition(), cb, root, capturedValues);
-
-        // Generate true and false branch expressions
-        Expr trueExpr = generateExpressionAsJpaExpression(bc, conditional.trueValue(), cb, root, capturedValues);
-        Expr falseExpr = generateExpressionAsJpaExpression(bc, conditional.falseValue(), cb, root, capturedValues);
+        // Generate and store sub-expressions in LocalVars (Gizmo2 stack discipline requirement)
+        LocalVar conditionLocal = bc.localVar("ternaryCondition",
+                generatePredicate(bc, conditional.condition(), cb, root, capturedValues));
+        LocalVar trueLocal = bc.localVar("ternaryTrue",
+                generateExpressionAsJpaExpression(bc, conditional.trueValue(), cb, root, capturedValues));
+        LocalVar falseLocal = bc.localVar("ternaryFalse",
+                generateExpressionAsJpaExpression(bc, conditional.falseValue(), cb, root, capturedValues));
 
         // Build: cb.selectCase().when(condition, trueExpr).otherwise(falseExpr)
-        // Use LocalVar for intermediate values (Gizmo2 requirement for chained calls)
         LocalVar caseBuilder = bc.localVar("caseBuilder", bc.invokeInterface(CB_SELECT_CASE, cb));
-        LocalVar caseWhen = bc.localVar("caseWhen", bc.invokeInterface(CASE_WHEN_EXPR, caseBuilder, conditionPredicate, trueExpr));
-        return bc.invokeInterface(CASE_OTHERWISE_EXPR, caseWhen, falseExpr);
+        LocalVar caseWhen = bc.localVar("caseWhen",
+                bc.invokeInterface(CASE_WHEN_EXPR, caseBuilder, conditionLocal, trueLocal));
+        return bc.invokeInterface(CASE_OTHERWISE_EXPR, caseWhen, falseLocal);
     }
 
     /**

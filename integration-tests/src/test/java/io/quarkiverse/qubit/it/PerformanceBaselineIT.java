@@ -38,7 +38,7 @@ class PerformanceBaselineIT {
             .isGreaterThan(0);
 
         // Write runtime metrics to JSON (consumed by performance analysis scripts)
-        var outputPath = Path.of("target/qubit-runtime-metrics.json");
+        Path outputPath = Path.of("target/qubit-runtime-metrics.json");
         PerformanceReport.writeRuntimeMetrics(executorCount, heapBytes, outputPath);
     }
 }

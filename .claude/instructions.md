@@ -213,9 +213,11 @@ Features are grouped by maturity: **Stable** features require no flags; **Previe
     - Prefer empty collections over null
 
 17. **Local Variable Type Inference** *(Java 10)*
-    - Use `var` for local variables when type is obvious (~951 usages in codebase)
-    - Avoid `var` when it reduces readability
+    - **Explicit types are the default** — always declare the type unless `var` is clearly better
+    - Use `var` ONLY when the type is long/complex AND adds no value because the programmer can infer it from the right side (e.g., `new CallSiteProcessor.CallSiteProcessingContext(...)`)
+    - Never use `var` for simple types: `int`, `long`, `boolean`, `String`, `byte[]`, `Path`, etc.
     - Never use `var` for method parameters or fields
+    - `var` IS required in record pattern destructuring: `case Success(var value, _) ->`
 
 18. **API Deprecation Awareness**
     - No `new Integer()`, `new Long()` — use `valueOf()`
@@ -378,9 +380,10 @@ See [docs/testing/](docs/testing/README.md) for complete testing guidelines.
 - Handle edge cases in bytecode compilation (e.g., boolean optimizations)
 
 ### Maven and Build
+- **IMPORTANT: Always prepend `clean` to every Maven command** - use `mvn clean test`, `mvn clean verify`, `mvn clean compile`, etc. Never run `mvn test` or `mvn verify` without `clean`. Stale compiled classes cause false positives/negatives and waste debugging time.
 - **Run tests after EACH change** - incremental validation is required
 - Run tests in correct module (deployment module for unit tests)
-- Use proper Maven commands: `mvn test -Dtest="TestClass"`
+- Use proper Maven commands: `mvn clean test -Dtest="TestClass"`
 - Check test output for both passed and failed tests
 - Verify build success before considering task complete
 - Never make multiple changes before testing - test immediately after each modification

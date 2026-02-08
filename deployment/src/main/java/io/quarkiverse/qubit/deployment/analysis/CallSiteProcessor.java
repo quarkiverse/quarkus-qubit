@@ -157,7 +157,7 @@ public class CallSiteProcessor {
         QueryAnalysisContext context = QueryAnalysisContext.of(classBytes, callSite, bytecodeAnalyzer, deduplicator, metricsCollector);
 
         // Check early deduplication before expensive analysis
-        var bytecodeSignature = computeAndCheckEarlyDedup(callSite);
+        EarlyDedupResult bytecodeSignature = computeAndCheckEarlyDedup(callSite);
         if (bytecodeSignature.outcome() != null) {
             processingContext.deduplicatedCount().incrementAndGet();
             registerEarlyDeduplicatedQuery(callSite, bytecodeSignature.outcome().executorClassName(),
@@ -208,10 +208,10 @@ public class CallSiteProcessor {
 
     /** Computes bytecode signature and checks early dedup cache. */
     private EarlyDedupResult computeAndCheckEarlyDedup(InvokeDynamicScanner.LambdaCallSite callSite) {
-        var startTime = System.nanoTime();
+        long startTime = System.nanoTime();
         try {
-            var signature = deduplicator.computeBytecodeSignature(callSite);
-            var cached = deduplicator.getCachedResult(signature);
+            String signature = deduplicator.computeBytecodeSignature(callSite);
+            LambdaDeduplicator.CachedAnalysisResult cached = deduplicator.getCachedResult(signature);
             if (cached != null && metricsCollector != null) {
                 metricsCollector.incrementEarlyDeduplicationHits();
                 metricsCollector.incrementDuplicateCount();
@@ -765,7 +765,7 @@ public class CallSiteProcessor {
                 ? QueryCharacteristics.forGroupCount()
                 : QueryCharacteristics.forGroupList();
 
-        var isSelectKey = isGroupSelectKey;
+        boolean isSelectKey = isGroupSelectKey;
 
         ctx.queryTransformations().produce(
                 QubitProcessor.QueryTransformationBuildItem.builder()

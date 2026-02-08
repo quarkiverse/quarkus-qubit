@@ -37,14 +37,14 @@ public final class InvokeDynamicQuickCheck {
         if (readU4(data, 0) != MAGIC) {
             return true;
         }
-        var cpCount = readU2(data, 8);
+        int cpCount = readU2(data, 8);
         // flags[0] = hasInvokeDynamic, flags[1] = hasQubitReference
-        var flags = new boolean[2];
-        var pos = 10;
-        var index = 1;
+        boolean[] flags = new boolean[2];
+        int pos = 10;
+        int index = 1;
 
         while (index < cpCount && pos < data.length) {
-            var tag = data[pos] & 0xFF;
+            int tag = data[pos] & 0xFF;
             pos = advancePastEntry(data, pos + 1, tag, flags);
             if (pos < 0) return true;       // parse error — conservative
             if (flags[0] && flags[1]) return true; // both found — early exit
@@ -63,13 +63,13 @@ public final class InvokeDynamicQuickCheck {
         if (tag == TAG_UTF8) {
             return advancePastUtf8(data, pos, flags);
         }
-        var size = entryPayloadSize(tag);
+        int size = entryPayloadSize(tag);
         return size >= 0 ? pos + size : -1;
     }
 
     /** Advances past a Utf8 entry, checking for Qubit marker if not yet found. */
     private static int advancePastUtf8(byte[] data, int pos, boolean[] flags) {
-        var len = readU2(data, pos);
+        int len = readU2(data, pos);
         if (!flags[1]) {
             flags[1] = containsMarker(data, pos + 2, len);
         }
@@ -94,8 +94,8 @@ public final class InvokeDynamicQuickCheck {
         if (len < QUBIT_MARKER.length || offset + len > data.length) {
             return false;
         }
-        var end = offset + len - QUBIT_MARKER.length + 1;
-        for (var i = offset; i < end; i++) {
+        int end = offset + len - QUBIT_MARKER.length + 1;
+        for (int i = offset; i < end; i++) {
             if (data[i] == QUBIT_MARKER[0] && matchesMarkerAt(data, i)) {
                 return true;
             }

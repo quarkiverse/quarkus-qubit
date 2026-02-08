@@ -9,6 +9,7 @@ import io.quarkus.logging.Log;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
@@ -382,24 +383,24 @@ public class LambdaBytecodeAnalyzer {
      * polluting the expression stack.
      */
     private void skipBooleanValuePattern(AnalysisContext ctx) {
-        var instructions = ctx.getInstructions();
-        var idx = ctx.getCurrentInstructionIndex() + 1;
+        InsnList instructions = ctx.getInstructions();
+        int idx = ctx.getCurrentInstructionIndex() + 1;
 
         // Find next real instruction after branch
         while (idx < ctx.getInstructionCount() && instructions.get(idx).getOpcode() == -1) idx++;
         if (idx >= ctx.getInstructionCount()) return;
 
-        var nextOpcode = instructions.get(idx).getOpcode();
+        int nextOpcode = instructions.get(idx).getOpcode();
         if (nextOpcode != ICONST_0 && nextOpcode != ICONST_1) return;
 
         // Found ICONST after branch — look for GOTO
-        var gotoIdx = idx + 1;
+        int gotoIdx = idx + 1;
         while (gotoIdx < ctx.getInstructionCount() && instructions.get(gotoIdx).getOpcode() == -1) gotoIdx++;
         if (gotoIdx >= ctx.getInstructionCount() || instructions.get(gotoIdx).getOpcode() != GOTO) return;
 
         // Found ICONST + GOTO pattern — skip to the GOTO's target (merge point)
-        var gotoInsn = (JumpInsnNode) instructions.get(gotoIdx);
-        for (var i = 0; i < ctx.getInstructionCount(); i++) {
+        JumpInsnNode gotoInsn = (JumpInsnNode) instructions.get(gotoIdx);
+        for (int i = 0; i < ctx.getInstructionCount(); i++) {
             if (instructions.get(i) == gotoInsn.label) {
                 ctx.setSkipToIndex(i);
                 Log.tracef("Skipping boolean value pattern: ICONST at %d, GOTO at %d, merge at %d", idx, gotoIdx, i);
@@ -448,8 +449,8 @@ public class LambdaBytecodeAnalyzer {
             LambdaExpression condition, LambdaExpression trueValue, LambdaExpression falseValue) {
         if (trueValue instanceof LambdaExpression.Constant t
                 && falseValue instanceof LambdaExpression.Constant f) {
-            var tv = intValue(t);
-            var fv = intValue(f);
+            int tv = intValue(t);
+            int fv = intValue(f);
             if (tv == 1 && fv == 0) return condition;
             if (tv == 0 && fv == 1) return new LambdaExpression.UnaryOp(LambdaExpression.UnaryOp.Operator.NOT, condition);
         }
