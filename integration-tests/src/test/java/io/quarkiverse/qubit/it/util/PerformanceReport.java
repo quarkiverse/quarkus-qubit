@@ -14,13 +14,7 @@ public final class PerformanceReport {
         // Utility class
     }
 
-    /**
-     * Writes runtime metrics to a JSON file.
-     *
-     * @param executorCount Number of registered query executors
-     * @param heapBytes     Estimated heap usage in bytes
-     * @param outputPath    Path to write JSON file
-     */
+    /** Writes runtime metrics (executor count, heap usage) to a JSON file. */
     public static void writeRuntimeMetrics(int executorCount, long heapBytes, Path outputPath) throws IOException {
         StringBuilder json = new StringBuilder();
         json.append("{\n");

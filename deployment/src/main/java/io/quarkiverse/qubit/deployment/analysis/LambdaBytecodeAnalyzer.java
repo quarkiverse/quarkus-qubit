@@ -210,8 +210,9 @@ public class LambdaBytecodeAnalyzer {
         try {
             classNode = getOrParseClassNode(classBytes, metricsCollector);
         } catch (Exception e) {
-            throw new BytecodeAnalysisException(
-                    "Failed to read class bytecode for lambda analysis: " + e.getMessage(), e);
+            throw BytecodeAnalysisException.analysisFailedWithContext(
+                    "Failed to read class bytecode for lambda analysis",
+                    null, lambdaMethodName, lambdaDescriptor, e);
         }
 
         MethodNode lambdaMethod = null;

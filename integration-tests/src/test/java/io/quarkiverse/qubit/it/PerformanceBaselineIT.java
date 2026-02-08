@@ -37,14 +37,8 @@ class PerformanceBaselineIT {
             .as("Registry should occupy some heap space")
             .isGreaterThan(0);
 
-        // Write runtime metrics
-        Path outputPath = Path.of("target/qubit-runtime-metrics.json");
+        // Write runtime metrics to JSON (consumed by performance analysis scripts)
+        var outputPath = Path.of("target/qubit-runtime-metrics.json");
         PerformanceReport.writeRuntimeMetrics(executorCount, heapBytes, outputPath);
-
-        // Log for visibility
-        System.out.printf("Qubit Performance Baseline:%n");
-        System.out.printf("  Executor count: %d%n", executorCount);
-        System.out.printf("  Heap usage: %d bytes (%.2f KB)%n", heapBytes, heapBytes / 1024.0);
-        System.out.printf("  Report: %s%n", outputPath.toAbsolutePath());
     }
 }
