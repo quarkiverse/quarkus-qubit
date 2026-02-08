@@ -203,7 +203,7 @@ public class QubitProcessor {
             metricsCollector.startPhase("lambda_discovery");
         }
 
-        List<ClassInfo> filteredClasses = allClasses.stream()
+        var filteredClasses = allClasses.stream()
                 .filter(classInfo -> isNotExcludedClass(classInfo, config.scanning()))
                 .toList();
 

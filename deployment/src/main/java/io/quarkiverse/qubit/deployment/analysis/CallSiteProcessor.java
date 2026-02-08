@@ -49,10 +49,7 @@ public class CallSiteProcessor {
     private final String targetPackage;
     private final BuildMetricsCollector metricsCollector;
 
-    /**
-     * Creates a CallSiteProcessor with default configuration.
-     * Used for backward compatibility.
-     */
+    /** Creates a CallSiteProcessor with default configuration. */
     public CallSiteProcessor(
             LambdaBytecodeAnalyzer bytecodeAnalyzer,
             LambdaDeduplicator deduplicator,
@@ -159,32 +156,15 @@ public class CallSiteProcessor {
         // Create analysis context with shared deduplicator and metrics collector
         QueryAnalysisContext context = QueryAnalysisContext.of(classBytes, callSite, bytecodeAnalyzer, deduplicator, metricsCollector);
 
-        // Compute bytecode signature once for both early deduplication check and later registration
-        long earlyDeduplicationStartTime = System.nanoTime();
-        String bytecodeSignature = deduplicator.computeBytecodeSignature(callSite);
-
-        // Check for early deduplication hit
-        LambdaDeduplicator.CachedAnalysisResult cachedResult = deduplicator.getCachedResult(bytecodeSignature);
-        if (metricsCollector != null) {
-            metricsCollector.addEarlyDeduplicationCheckTime(System.nanoTime() - earlyDeduplicationStartTime);
-        }
-
-        if (cachedResult != null) {
-            // Early deduplication hit: skip analysis and reuse existing executor
-            if (processingContext.loggingConfig().logDeduplication()) {
-                Log.debugf("Early deduplication hit for call site %s (reusing %s)",
-                        callSiteId, cachedResult.executorClassName());
-            }
-            if (metricsCollector != null) {
-                metricsCollector.incrementEarlyDeduplicationHits();
-                metricsCollector.incrementDuplicateCount();
-            }
+        // Check early deduplication before expensive analysis
+        var bytecodeSignature = computeAndCheckEarlyDedup(callSite);
+        if (bytecodeSignature.outcome() != null) {
             processingContext.deduplicatedCount().incrementAndGet();
-            registerEarlyDeduplicatedQuery(callSite, cachedResult.executorClassName(),
+            registerEarlyDeduplicatedQuery(callSite, bytecodeSignature.outcome().executorClassName(),
                     processingContext.queryTransformations(), processingContext.loggingConfig());
-            jfrEvent.complete("DEDUPLICATED", true, true, cachedResult.lambdaHash());
-            return AnalysisOutcome.earlyDeduplicated(callSiteId, cachedResult.lambdaHash(),
-                    cachedResult.executorClassName());
+            jfrEvent.complete("DEDUPLICATED", true, true, bytecodeSignature.outcome().lambdaHash());
+            return AnalysisOutcome.earlyDeduplicated(callSiteId,
+                    bytecodeSignature.outcome().lambdaHash(), bytecodeSignature.outcome().executorClassName());
         }
 
         // Analyze using the handler with timing for query type breakdown
@@ -201,7 +181,7 @@ public class CallSiteProcessor {
         }
 
         // Handle the outcome, passing bytecode signature for registration
-        AnalysisOutcome result = handleAnalysisOutcome(outcome, callSite, callSiteId, bytecodeSignature, queryType, processingContext);
+        AnalysisOutcome result = handleAnalysisOutcome(outcome, callSite, callSiteId, bytecodeSignature.signature(), queryType, processingContext);
 
         // Complete JFR event based on outcome
         completeJfrEvent(jfrEvent, result, queryType);
@@ -220,6 +200,27 @@ public class CallSiteProcessor {
                     event.complete(queryType, false, false, null);
             case AnalysisOutcome.AnalysisError _ ->
                     event.fail("Analysis error");
+        }
+    }
+
+    /** Result of early deduplication check: signature is always set, outcome is non-null on cache hit. */
+    private record EarlyDedupResult(String signature, LambdaDeduplicator.CachedAnalysisResult outcome) {}
+
+    /** Computes bytecode signature and checks early dedup cache. */
+    private EarlyDedupResult computeAndCheckEarlyDedup(InvokeDynamicScanner.LambdaCallSite callSite) {
+        var startTime = System.nanoTime();
+        try {
+            var signature = deduplicator.computeBytecodeSignature(callSite);
+            var cached = deduplicator.getCachedResult(signature);
+            if (cached != null && metricsCollector != null) {
+                metricsCollector.incrementEarlyDeduplicationHits();
+                metricsCollector.incrementDuplicateCount();
+            }
+            return new EarlyDedupResult(signature, cached);
+        } finally {
+            if (metricsCollector != null) {
+                metricsCollector.addEarlyDeduplicationCheckTime(System.nanoTime() - startTime);
+            }
         }
     }
 
@@ -368,7 +369,7 @@ public class CallSiteProcessor {
                         callSite.isCountQuery(), callSite.hasDistinct(),
                         callSite.skipValue(), callSite.limitValue(),
                         generatedClass, queryTransformations, loggingConfig);
-                generateAndRegisterGroupExecutor(group, callSite, ctx);
+                generateAndRegisterGroupExecutor(group, callSite.isGroupSelectKey(), ctx);
             }
 
             case LambdaAnalysisResult.JoinQueryResult join -> {
@@ -734,7 +735,7 @@ public class CallSiteProcessor {
     /** Generates and registers GROUP BY query executor with HAVING, aggregations, and sorting. */
     private String generateAndRegisterGroupExecutor(
             LambdaAnalysisResult.GroupQueryResult group,
-            InvokeDynamicScanner.LambdaCallSite callSite,
+            boolean isGroupSelectKey,
             ExecutorRegistrationContext ctx) {
 
         int capturedVarCount = group.totalCapturedVarCount();
@@ -764,8 +765,7 @@ public class CallSiteProcessor {
                 ? QueryCharacteristics.forGroupCount()
                 : QueryCharacteristics.forGroupList();
 
-        // Use the explicit isGroupSelectKey flag from the scanner instead of heuristic
-        boolean isSelectKey = callSite.isGroupSelectKey();
+        var isSelectKey = isGroupSelectKey;
 
         ctx.queryTransformations().produce(
                 QubitProcessor.QueryTransformationBuildItem.builder()

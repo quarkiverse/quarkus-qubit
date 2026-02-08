@@ -36,19 +36,7 @@ public final class TernaryPatternDetector {
     private TernaryPatternDetector() {
     }
 
-    /**
-     * Represents a detected ternary expression pattern in bytecode.
-     *
-     * @param conditionJumpIndex Index of the conditional jump instruction (IF_*)
-     * @param trueBranchStart    Index of first instruction in true branch (after condition jump)
-     * @param trueBranchEnd      Index of GOTO instruction ending true branch
-     * @param falseBranchStart   Index of first instruction in false branch (after L_FALSE label)
-     * @param falseBranchEnd     Index of last instruction before L_MERGE label
-     * @param mergeIndex         Index of the merge label (L_MERGE)
-     * @param conditionJump      The conditional jump instruction
-     * @param falseBranchLabel   The label for the false branch
-     * @param mergeLabel         The label where both branches merge
-     */
+    /** Detected ternary expression pattern: IF_* → true branch → GOTO → false branch → merge. */
     public record TernaryPattern(
             int conditionJumpIndex,
             int trueBranchStart,
