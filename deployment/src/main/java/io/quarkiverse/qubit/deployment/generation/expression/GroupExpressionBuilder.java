@@ -289,17 +289,18 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
             Expr capturedValues,
             ExpressionGeneratorHelper helper) {
 
-        // Generate the condition as a predicate (may reference aggregations)
-        Expr conditionPredicate = generateGroupPredicate(bc, conditional.condition(), cb, root, groupKeyExpr, capturedValues, helper);
-
-        // Generate true and false branch expressions (may contain aggregations)
-        Expr trueExpr = generateGroupSelectExpression(bc, conditional.trueValue(), cb, root, groupKeyExpr, capturedValues, helper);
-        Expr falseExpr = generateGroupSelectExpression(bc, conditional.falseValue(), cb, root, groupKeyExpr, capturedValues, helper);
+        // Generate and store sub-expressions in LocalVars (Gizmo2 stack discipline requirement)
+        LocalVar conditionLocal = bc.localVar("groupTernaryCondition",
+                generateGroupPredicate(bc, conditional.condition(), cb, root, groupKeyExpr, capturedValues, helper));
+        LocalVar trueLocal = bc.localVar("groupTernaryTrue",
+                generateGroupSelectExpression(bc, conditional.trueValue(), cb, root, groupKeyExpr, capturedValues, helper));
+        LocalVar falseLocal = bc.localVar("groupTernaryFalse",
+                generateGroupSelectExpression(bc, conditional.falseValue(), cb, root, groupKeyExpr, capturedValues, helper));
 
         // Build: cb.selectCase().when(condition, trueExpr).otherwise(falseExpr)
-        // Use LocalVar for intermediate values (Gizmo2 requirement for chained calls)
         LocalVar caseBuilder = bc.localVar("caseBuilder", bc.invokeInterface(CB_SELECT_CASE, cb));
-        LocalVar caseWhen = bc.localVar("caseWhen", bc.invokeInterface(CASE_WHEN_EXPR, caseBuilder, conditionPredicate, trueExpr));
-        return bc.invokeInterface(CASE_OTHERWISE_EXPR, caseWhen, falseExpr);
+        LocalVar caseWhen = bc.localVar("caseWhen",
+                bc.invokeInterface(CASE_WHEN_EXPR, caseBuilder, conditionLocal, trueLocal));
+        return bc.invokeInterface(CASE_OTHERWISE_EXPR, caseWhen, falseLocal);
     }
 }

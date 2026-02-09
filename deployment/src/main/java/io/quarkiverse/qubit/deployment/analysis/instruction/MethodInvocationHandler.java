@@ -191,13 +191,12 @@ public enum MethodInvocationHandler implements InstructionHandler {
         }
     }
 
-    /** Handles INVOKESTATIC: skips Boolean.valueOf, handles temporal factory methods with constant folding,
+    /** Handles INVOKESTATIC: skips auto-boxing valueOf, handles temporal factory methods with constant folding,
      *  and handles Subqueries.subquery() factory method for subquery builder pattern. */
     private void handleInvokeStatic(AnalysisContext ctx, MethodInsnNode staticInsn) {
-        // Skip Boolean.valueOf (optimization - we work directly with boolean expressions)
-        if (staticInsn.owner.equals(JVM_JAVA_LANG_BOOLEAN) &&
-            staticInsn.name.equals(METHOD_VALUE_OF) &&
-            staticInsn.desc.equals(DESC_BOOLEAN_VALUE_OF)) {
+        // Skip auto-boxing valueOf calls (Boolean, Integer, Long, Double, Float, Short, Byte)
+        // These are identity wrappers that don't affect query semantics
+        if (staticInsn.name.equals(METHOD_VALUE_OF) && isBoxingCall(staticInsn)) {
             return;
         }
 
@@ -565,6 +564,18 @@ public enum MethodInvocationHandler implements InstructionHandler {
     private void pushConstructorCall(AnalysisContext ctx, List<LambdaExpression> args, String owner) {
         Class<?> constructedType = TypeConverter.descriptorToClass("L" + owner + ";");
         ctx.push(new LambdaExpression.ConstructorCall(owner, args, constructedType));
+    }
+
+    /** Auto-boxing valueOf owners — these are identity wrappers stripped during analysis. */
+    private static final Set<String> BOXING_OWNERS = Set.of(
+            "java/lang/Boolean", "java/lang/Integer", "java/lang/Long",
+            "java/lang/Double", "java/lang/Float", "java/lang/Short",
+            "java/lang/Byte", "java/lang/Character"
+    );
+
+    /** Returns true if this INVOKESTATIC is an auto-boxing valueOf call. */
+    private static boolean isBoxingCall(MethodInsnNode staticInsn) {
+        return BOXING_OWNERS.contains(staticInsn.owner);
     }
 
     // Note: Subquery Methods have been extracted to SubqueryAnalyzer

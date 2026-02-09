@@ -440,8 +440,6 @@ public class LambdaBytecodeAnalyzer {
 
         // Step 6: Set skip index to merge point
         ctx.setSkipToIndex(pattern.mergeIndex());
-
-        Log.debugf("Created ternary expression: %s", result);
     }
 
     /** Simplifies boolean ternary: (cond ? 1 : 0) → cond, (cond ? 0 : 1) → NOT(cond). */
@@ -492,29 +490,53 @@ public class LambdaBytecodeAnalyzer {
                 yield LambdaExpression.BinaryOp.eq(pair.left(), pair.right());
             }
             // Single-operand comparisons: compare with zero/null
+            // Special case: if preceded by LCMP/DCMPL/DCMPG/FCMPL/FCMPG, pop both original
+            // operands directly (the CMP handler leaves them on the stack for the branch handler)
             case IFEQ -> {
-                // IFEQ jumps when value == 0, so true branch condition is value != 0
+                if (previousInstructionIsCmp(ctx)) {
+                    AnalysisContext.PopPairResult pair = ctx.popPair();
+                    yield LambdaExpression.BinaryOp.ne(pair.left(), pair.right());
+                }
                 LambdaExpression value = ctx.pop();
                 yield LambdaExpression.BinaryOp.ne(value, new LambdaExpression.Constant(0, int.class));
             }
             case IFNE -> {
-                // IFNE jumps when value != 0, so true branch condition is value == 0
+                if (previousInstructionIsCmp(ctx)) {
+                    AnalysisContext.PopPairResult pair = ctx.popPair();
+                    yield LambdaExpression.BinaryOp.eq(pair.left(), pair.right());
+                }
                 LambdaExpression value = ctx.pop();
                 yield LambdaExpression.BinaryOp.eq(value, new LambdaExpression.Constant(0, int.class));
             }
             case IFLT -> {
+                if (previousInstructionIsCmp(ctx)) {
+                    AnalysisContext.PopPairResult pair = ctx.popPair();
+                    yield LambdaExpression.BinaryOp.ge(pair.left(), pair.right());
+                }
                 LambdaExpression value = ctx.pop();
                 yield LambdaExpression.BinaryOp.ge(value, new LambdaExpression.Constant(0, int.class));
             }
             case IFLE -> {
+                if (previousInstructionIsCmp(ctx)) {
+                    AnalysisContext.PopPairResult pair = ctx.popPair();
+                    yield LambdaExpression.BinaryOp.gt(pair.left(), pair.right());
+                }
                 LambdaExpression value = ctx.pop();
                 yield LambdaExpression.BinaryOp.gt(value, new LambdaExpression.Constant(0, int.class));
             }
             case IFGT -> {
+                if (previousInstructionIsCmp(ctx)) {
+                    AnalysisContext.PopPairResult pair = ctx.popPair();
+                    yield LambdaExpression.BinaryOp.le(pair.left(), pair.right());
+                }
                 LambdaExpression value = ctx.pop();
                 yield LambdaExpression.BinaryOp.le(value, new LambdaExpression.Constant(0, int.class));
             }
             case IFGE -> {
+                if (previousInstructionIsCmp(ctx)) {
+                    AnalysisContext.PopPairResult pair = ctx.popPair();
+                    yield LambdaExpression.BinaryOp.lt(pair.left(), pair.right());
+                }
                 LambdaExpression value = ctx.pop();
                 yield LambdaExpression.BinaryOp.lt(value, new LambdaExpression.Constant(0, int.class));
             }
@@ -531,6 +553,18 @@ public class LambdaBytecodeAnalyzer {
             default -> throw new BytecodeAnalysisException(
                     "Unexpected opcode in ternary condition: " + opcode);
         };
+    }
+
+    /** Checks if the previous real instruction was LCMP/DCMPL/DCMPG/FCMPL/FCMPG (comparison that leaves operands on stack). */
+    private static boolean previousInstructionIsCmp(AnalysisContext ctx) {
+        InsnList instructions = ctx.getInstructions();
+        for (int i = ctx.getCurrentInstructionIndex() - 1; i >= 0; i--) {
+            int prevOpcode = instructions.get(i).getOpcode();
+            if (prevOpcode == -1) continue; // skip labels/line numbers
+            return prevOpcode == LCMP || prevOpcode == DCMPL || prevOpcode == DCMPG
+                    || prevOpcode == FCMPL || prevOpcode == FCMPG;
+        }
+        return false;
     }
 
     /** Analyzes a range of instructions to extract a single expression for ternary branches. */
