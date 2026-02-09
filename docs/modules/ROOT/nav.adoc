@@ -4,5 +4,5 @@
 * xref:joins.adoc[Join Queries]
 * xref:grouping.adoc[Grouping & Aggregations]
 * xref:subqueries.adoc[Subqueries]
-* xref:configuration.adoc[Configuration & Performance]
+* xref:configuration.adoc[Configuration]
 * xref:devui.adoc[Dev UI]

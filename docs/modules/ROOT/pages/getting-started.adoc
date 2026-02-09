@@ -2,7 +2,18 @@
 
 This guide shows how to set up Qubit and write your first type-safe query.
 
-== Installation
+== Quick Start with Code Start
+
+Create a new project with the Qubit extension pre-configured:
+
+[source,bash]
+----
+quarkus create app com.example:my-app --extension=qubit
+----
+
+This generates a project with a sample entity and REST resource demonstrating Qubit queries.
+
+== Manual Installation
 
 Add the Qubit dependency to your `pom.xml`:
 
@@ -15,39 +26,9 @@ Add the Qubit dependency to your `pom.xml`:
 </dependency>
 ----
 
-For Gradle:
-
-[source,groovy]
-----
-implementation 'io.quarkiverse.qubit:quarkus-qubit:1.0.0-SNAPSHOT'
-----
-
 == Choose Your Pattern
 
 Qubit supports two patterns for defining queryable entities.
-
-=== Repository Pattern (Recommended)
-
-Create a repository interface that extends `QubitRepository`:
-
-[source,java]
-----
-@ApplicationScoped
-public class PersonRepository implements QubitRepository<Person, Long> {
-}
-----
-
-Inject and use the repository:
-
-[source,java]
-----
-@Inject
-PersonRepository personRepository;
-
-List<Person> adults = personRepository
-    .where((Person p) -> p.age >= 18)
-    .toList();
-----
 
 === ActiveRecord Pattern
 
@@ -64,12 +45,38 @@ public class Person extends QubitEntity {
 }
 ----
 
-Call static methods directly on the entity:
+Call static methods directly on the entity.
+The explicit type annotation `(Person p)` is required due to Java's static method type inference:
 
 [source,java]
 ----
 List<Person> adults = Person
     .where((Person p) -> p.age >= 18)
+    .toList();
+----
+
+=== Repository Pattern
+
+Create a repository interface that extends `QubitRepository`:
+
+[source,java]
+----
+@ApplicationScoped
+public class PersonRepository implements QubitRepository<Person, Long> {
+}
+----
+
+Inject and use the repository.
+The repository is typed, so lambda parameters are inferred automatically:
+
+[source,java]
+----
+@Inject
+PersonRepository personRepository;
+
+// No explicit type needed — p is inferred as Person
+List<Person> adults = personRepository
+    .where(p -> p.age >= 18)
     .toList();
 ----
 
@@ -79,22 +86,27 @@ Here is a complete example showing filtering, projection, and aggregation:
 
 [source,java]
 ----
-// Filter and sort
+// Filter and sort (repository — type inferred)
 List<Person> activeAdults = personRepository
-    .where((Person p) -> p.age >= 18 && p.active)
-    .sortedBy((Person p) -> p.lastName)
+    .where(p -> p.age >= 18 && p.active)
+    .sortedBy(p -> p.lastName)
     .toList();
 
 // Project to DTO
 List<PersonDTO> dtos = personRepository
-    .where((Person p) -> p.active)
-    .select((Person p) -> new PersonDTO(p.firstName, p.lastName))
+    .where(p -> p.active)
+    .select(p -> new PersonDTO(p.firstName, p.lastName))
     .toList();
 
 // Aggregate
 Double avgSalary = personRepository
-    .avg((Person p) -> p.salary)
+    .avg(p -> p.salary)
     .getSingleResult();
+
+// Ternary expressions in projections
+List<String> labels = personRepository
+    .select(p -> p.age >= 18 ? "adult" : "minor")
+    .toList();
 ----
 
 == What's Next
@@ -102,3 +114,4 @@ Double avgSalary = personRepository
 * xref:queries.adoc[Query Operations] - Filtering, sorting, pagination
 * xref:joins.adoc[Join Queries] - Working with related entities
 * xref:grouping.adoc[Grouping & Aggregations] - GROUP BY and aggregate functions
+* xref:configuration.adoc[Configuration] - Scanning, logging, and code generation options

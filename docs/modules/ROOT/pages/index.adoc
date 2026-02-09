@@ -38,8 +38,8 @@ List<Person> adults = personRepository
 |xref:subqueries.adoc[Subqueries]
 |EXISTS, IN, and scalar comparisons with subqueries
 
-|xref:configuration.adoc[Configuration & Performance]
-|Build metrics, JFR profiling, scanning optimization
+|xref:configuration.adoc[Configuration]
+|Scanning, code generation, and logging options
 |===
 
 == Installation

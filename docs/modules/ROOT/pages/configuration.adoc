@@ -1,15 +1,15 @@
-= Configuration & Performance
+= Configuration
 
-Qubit provides build-time configuration for scanning optimization, metrics collection, and JFR profiling.
+Qubit provides build-time configuration for scanning, code generation, and logging.
 
-== Scanning Configuration
+== Scanning
 
 By default, Qubit scans all application classes for lambda queries.
-For large applications, configure a package whitelist to skip framework classes:
+For large applications, configure a package allowlist to skip framework classes:
 
 [source,properties]
 ----
-# Only scan classes in these packages (whitelist mode)
+# Only scan classes in these packages (allowlist mode)
 quarkus.qubit.scanning.include-packages=com.example.
 ----
 
@@ -20,69 +20,67 @@ Multiple packages:
 quarkus.qubit.scanning.include-packages=com.example.api.,com.example.service.,com.example.domain.
 ----
 
-When configured, Qubit skips scanning of framework classes (Narayana, Mutiny, Vert.x, Netty, etc.), reducing discovery phase time by up to 80%.
+When configured, Qubit skips scanning of framework classes (Narayana, Mutiny, Vert.x, Netty, etc.), reducing discovery phase time.
 
-== Build Metrics
+Other scanning options:
 
-Enable build-time performance metrics to diagnose scanning and code generation costs:
+[cols="1,1,2"]
+|===
+|Property |Default |Description
 
-[source,properties]
-----
-quarkus.qubit.metrics.enabled=true
-quarkus.qubit.metrics.output-path=target/qubit-build-metrics.json
-quarkus.qubit.metrics.level=detailed
-----
+|`quarkus.qubit.scanning.exclude-packages`
+|`java.,jakarta.`
+|Package prefixes to exclude from scanning
 
-Metrics levels:
+|`quarkus.qubit.scanning.include-packages`
+|_(not set)_
+|Package allowlist (when set, ONLY these packages are scanned)
 
-* `basic` — Phase timing and query counts
-* `detailed` — Adds cache hit rates, query type breakdown, granular operation timing
-* `full` — Adds per-class analysis, thread utilization, latency histograms
+|`quarkus.qubit.scanning.scan-test-classes`
+|`true`
+|Whether to scan integration test classes (`.it.`, `.test.` paths)
+|===
 
-=== Flame Graph Output
+== Code Generation
 
-Generate async-profiler compatible flame graph data:
+[cols="1,1,2"]
+|===
+|Property |Default |Description
 
-[source,properties]
-----
-quarkus.qubit.metrics.flame-graph=true
-quarkus.qubit.metrics.flame-graph-path=target/qubit-flamegraph.collapsed
-----
+|`quarkus.qubit.generation.class-name-prefix`
+|`QueryExecutor_`
+|Prefix for generated executor class names
 
-Visualize with https://www.speedscope.app[speedscope.app] or async-profiler's `flamegraph.pl`.
+|`quarkus.qubit.generation.target-package`
+|`io.quarkiverse.qubit.generated`
+|Package for generated executor classes
+|===
 
-== JFR Profiling
+== Logging
 
-Qubit emits custom Java Flight Recorder events during build-time processing:
+Control build-time log verbosity for debugging lambda analysis:
 
-* `io.quarkiverse.qubit.Phase` — High-level phase timing (discovery, analysis)
-* `io.quarkiverse.qubit.Analysis` — Per-query analysis events with query type and duration
-* `io.quarkiverse.qubit.ClassScan` — Per-class scanning with quick check result
-* `io.quarkiverse.qubit.CodeGen` — Code generation events
+[cols="1,1,2"]
+|===
+|Property |Default |Description
 
-Enable JFR during Maven build:
+|`quarkus.qubit.logging.level`
+|`INFO`
+|Log level (OFF, ERROR, WARN, INFO, DEBUG, TRACE)
 
-[source,bash]
-----
-MAVEN_OPTS="-XX:StartFlightRecording=filename=qubit.jfr,settings=profile" mvn package
-----
+|`quarkus.qubit.logging.log-scanned-classes`
+|`false`
+|Log each scanned class (very verbose)
 
-Analyze the recording:
+|`quarkus.qubit.logging.log-generated-classes`
+|`true`
+|Log each generated executor class
 
-[source,bash]
-----
-jfr print --events 'io.quarkiverse.qubit.*' qubit.jfr
-----
+|`quarkus.qubit.logging.log-deduplication`
+|`false`
+|Log lambda deduplication events
 
-== Build-Time Optimizations
-
-Qubit uses a multi-layer filtering pipeline to minimize processing time:
-
-1. **Package filtering** — Jandex-based class name matching (zero I/O cost)
-2. **Structural pre-filter** — Skips annotations and pure interfaces via Jandex metadata
-3. **Constant pool quick check** — Scans for `CONSTANT_InvokeDynamic` (tag 18) and Qubit API references without full ASM parsing
-4. **JIT warm-up** — Processes one query sequentially before parallel phase to prime Gizmo2 code paths
-5. **Cache warming** — Pre-loads bytecode and ClassNode caches before parallel analysis
-6. **Parallel processing** — Distributes analysis and code generation across all available CPU cores
-
-These optimizations achieve 66% build-time reduction on large projects (826ms → 284ms for 323 queries).
+|`quarkus.qubit.logging.log-bytecode-analysis`
+|`false`
+|Log detailed bytecode analysis steps
+|===
