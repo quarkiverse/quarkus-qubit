@@ -120,19 +120,10 @@ class QubitBuildTimeConfigTest {
     class LoggingConfigTests {
 
         @Test
-        @DisplayName("Default log level is INFO")
-        void defaultLogLevel() {
-            QubitBuildTimeConfig.LoggingConfig config = createLoggingConfig(
-                    "INFO", false, true, false, false);
-
-            assertEquals("INFO", config.level());
-        }
-
-        @Test
         @DisplayName("logScannedClasses defaults to false")
         void logScannedClassesDefaultFalse() {
             QubitBuildTimeConfig.LoggingConfig config = createLoggingConfig(
-                    "INFO", false, true, false, false);
+                    false, true, false, false);
 
             assertFalse(config.logScannedClasses());
         }
@@ -141,7 +132,7 @@ class QubitBuildTimeConfigTest {
         @DisplayName("logGeneratedClasses defaults to true")
         void logGeneratedClassesDefaultTrue() {
             QubitBuildTimeConfig.LoggingConfig config = createLoggingConfig(
-                    "INFO", false, true, false, false);
+                    false, true, false, false);
 
             assertTrue(config.logGeneratedClasses());
         }
@@ -150,7 +141,7 @@ class QubitBuildTimeConfigTest {
         @DisplayName("logDeduplication defaults to false")
         void logDeduplicationDefaultFalse() {
             QubitBuildTimeConfig.LoggingConfig config = createLoggingConfig(
-                    "INFO", false, true, false, false);
+                    false, true, false, false);
 
             assertFalse(config.logDeduplication());
         }
@@ -159,7 +150,7 @@ class QubitBuildTimeConfigTest {
         @DisplayName("logBytecodeAnalysis defaults to false")
         void logBytecodeAnalysisDefaultFalse() {
             QubitBuildTimeConfig.LoggingConfig config = createLoggingConfig(
-                    "INFO", false, true, false, false);
+                    false, true, false, false);
 
             assertFalse(config.logBytecodeAnalysis());
         }
@@ -168,9 +159,8 @@ class QubitBuildTimeConfigTest {
         @DisplayName("All logging options can be enabled")
         void allLoggingOptionsEnabled() {
             QubitBuildTimeConfig.LoggingConfig config = createLoggingConfig(
-                    "DEBUG", true, true, true, true);
+                    true, true, true, true);
 
-            assertEquals("DEBUG", config.level());
             assertTrue(config.logScannedClasses());
             assertTrue(config.logGeneratedClasses());
             assertTrue(config.logDeduplication());
@@ -219,17 +209,11 @@ class QubitBuildTimeConfigTest {
     }
 
     private QubitBuildTimeConfig.LoggingConfig createLoggingConfig(
-            String level,
             boolean logScannedClasses,
             boolean logGeneratedClasses,
             boolean logDeduplication,
             boolean logBytecodeAnalysis) {
         return new QubitBuildTimeConfig.LoggingConfig() {
-            @Override
-            public String level() {
-                return level;
-            }
-
             @Override
             public boolean logScannedClasses() {
                 return logScannedClasses;

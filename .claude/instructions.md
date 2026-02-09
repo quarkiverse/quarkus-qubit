@@ -441,6 +441,9 @@ When asked to "test the whole project" or run comprehensive tests, execute the f
 - Learn from failures and adjust strategy
 
 ## Task Completion Criteria
+
+**MANDATORY: ALL criteria below must be satisfied before a task is considered complete. No exceptions. Do not skip any criterion — each one exists because skipping it has caused problems.**
+
 A task is **only** complete when:
 - ✅ All code is implemented
 - ✅ All tests pass (0 failures, 0 errors)
@@ -448,8 +451,11 @@ A task is **only** complete when:
 - ✅ Code has been verified by running it
 - ✅ No TODOs or partial implementations remain
 - ✅ Documentation updated if needed
-- ✅ **Mutation testing passed** - Run `mvn test-compile org.pitest:pitest-maven:mutationCoverage` and verify coverage thresholds are met (when testing the whole project)
-- ✅ **Lessons learned documented** - Add any new patterns, pitfalls, or insights discovered during implementation to this instructions.md file before committing
+- ✅ **Antora docs reviewed** — Check if code changes affect user-facing features, configuration, or API. Update `docs/modules/ROOT/pages/` accordingly (queries.adoc, joins.adoc, grouping.adoc, configuration.adoc, getting-started.adoc). This is NOT optional.
+- ✅ **Mutation testing passed** — Run `mvn test-compile org.pitest:pitest-maven:mutationCoverage` and verify coverage thresholds are met (when testing the whole project). This is NOT optional.
+- ✅ **Lessons learned documented** — Add any new patterns, pitfalls, or insights discovered during implementation to this instructions.md file before committing. This is NOT optional.
+
+**Skipping criteria is an anti-pattern.** If a criterion cannot be satisfied, explicitly state why and get user approval before proceeding.
 
 ## Anti-Patterns to Avoid
 - ❌ Partial implementations ("I'll do 90% and leave the rest")

@@ -89,14 +89,8 @@ public interface QubitBuildTimeConfig {
      * for debugging and troubleshooting lambda analysis.
      */
     interface LoggingConfig {
-
-        /**
-         * Log level for QUBIT build processing.
-         * <p>
-         * Options: OFF, ERROR, WARN, INFO, DEBUG, TRACE
-         */
-        @WithDefault("INFO")
-        String level();
+        // Note: Log level is controlled via standard Quarkus config:
+        // quarkus.log.category."io.quarkiverse.qubit".level=DEBUG
 
         /**
          * Log each scanned class (very verbose).

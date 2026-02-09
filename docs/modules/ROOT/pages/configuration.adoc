@@ -58,15 +58,18 @@ Other scanning options:
 
 == Logging
 
-Control build-time log verbosity for debugging lambda analysis:
+The log level for Qubit uses the standard Quarkus logging category:
+
+[source,properties]
+----
+quarkus.log.category."io.quarkiverse.qubit".level=DEBUG
+----
+
+Additional fine-grained logging switches:
 
 [cols="1,1,2"]
 |===
 |Property |Default |Description
-
-|`quarkus.qubit.logging.level`
-|`INFO`
-|Log level (OFF, ERROR, WARN, INFO, DEBUG, TRACE)
 
 |`quarkus.qubit.logging.log-scanned-classes`
 |`false`
