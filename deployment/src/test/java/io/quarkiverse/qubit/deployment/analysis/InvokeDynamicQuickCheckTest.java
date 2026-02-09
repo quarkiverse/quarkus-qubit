@@ -207,4 +207,114 @@ class InvokeDynamicQuickCheckTest {
             return baos.toByteArray();
         }
     }
+
+    @Nested
+    class ConstantPoolParsingAccuracy {
+
+        @Test
+        void correctlyParsesUtf8LengthAndSkipsForward() throws Exception {
+            // Kills mutation: advancePastUtf8 line 74 "addition → subtraction"
+            // If pos += 2 + len becomes pos += 2 - len, the parser goes backward
+            // and would loop forever or produce wrong result.
+            // This test uses a Utf8 entry followed by tag 18 — the parser must
+            // advance PAST the Utf8 to find the tag 18.
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            DataOutputStream dos = new DataOutputStream(baos);
+            dos.writeInt(0xCAFEBABE);
+            dos.writeShort(0);
+            dos.writeShort(65);
+            dos.writeShort(4); // 3 entries + 1
+
+            // #1: Utf8 with Qubit marker (30 bytes — must advance correctly)
+            String marker = "io/quarkiverse/qubit/QuerySpec";
+            dos.writeByte(1);
+            dos.writeShort(marker.length());
+            dos.writeBytes(marker);
+
+            // #2: Utf8 "X" (padding — ensures parser advanced past #1)
+            dos.writeByte(1);
+            dos.writeShort(1);
+            dos.writeBytes("X");
+
+            // #3: CONSTANT_InvokeDynamic (tag 18 — must be reached)
+            dos.writeByte(18);
+            dos.writeShort(0);
+            dos.writeShort(1);
+
+            dos.writeShort(0x0021); dos.writeShort(1); dos.writeShort(0);
+            dos.writeShort(0); dos.writeShort(0); dos.writeShort(0); dos.writeShort(0);
+            dos.flush();
+
+            assertThat(InvokeDynamicQuickCheck.mightContainInvokeDynamic(baos.toByteArray()))
+                    .as("Parser must advance past Utf8 entries to find tag 18")
+                    .isTrue();
+        }
+
+        @Test
+        void detectsMarkerWithExactLength() throws Exception {
+            // Kills mutation: containsMarker line 94 "< → <=" boundary
+            // If len < MARKER.length becomes len <= MARKER.length,
+            // an exact-length match would be rejected.
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            DataOutputStream dos = new DataOutputStream(baos);
+            dos.writeInt(0xCAFEBABE);
+            dos.writeShort(0);
+            dos.writeShort(65);
+            dos.writeShort(3);
+
+            // #1: Utf8 with EXACT marker string "quarkiverse/qubit" (17 bytes)
+            String exactMarker = "quarkiverse/qubit";
+            dos.writeByte(1);
+            dos.writeShort(exactMarker.length());
+            dos.writeBytes(exactMarker);
+
+            // #2: CONSTANT_InvokeDynamic
+            dos.writeByte(18);
+            dos.writeShort(0);
+            dos.writeShort(1);
+
+            dos.writeShort(0x0021); dos.writeShort(1); dos.writeShort(0);
+            dos.writeShort(0); dos.writeShort(0); dos.writeShort(0); dos.writeShort(0);
+            dos.flush();
+
+            assertThat(InvokeDynamicQuickCheck.mightContainInvokeDynamic(baos.toByteArray()))
+                    .as("Exact-length marker must be detected")
+                    .isTrue();
+        }
+
+        @Test
+        void returnsFalseWhenTag18ExistsButNoMarkerInAnyUtf8() throws Exception {
+            // Validates that the marker check actually filters — not just tag 18
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            DataOutputStream dos = new DataOutputStream(baos);
+            dos.writeInt(0xCAFEBABE);
+            dos.writeShort(0);
+            dos.writeShort(65);
+            dos.writeShort(4);
+
+            // #1: Utf8 "java/lang/Object" (no qubit marker)
+            String noMarker = "java/lang/Object";
+            dos.writeByte(1);
+            dos.writeShort(noMarker.length());
+            dos.writeBytes(noMarker);
+
+            // #2: Utf8 "toString" (no qubit marker)
+            dos.writeByte(1);
+            dos.writeShort(8);
+            dos.writeBytes("toString");
+
+            // #3: CONSTANT_InvokeDynamic
+            dos.writeByte(18);
+            dos.writeShort(0);
+            dos.writeShort(1);
+
+            dos.writeShort(0x0021); dos.writeShort(1); dos.writeShort(0);
+            dos.writeShort(0); dos.writeShort(0); dos.writeShort(0); dos.writeShort(0);
+            dos.flush();
+
+            assertThat(InvokeDynamicQuickCheck.mightContainInvokeDynamic(baos.toByteArray()))
+                    .as("Tag 18 without qubit marker in any Utf8 should return false")
+                    .isFalse();
+        }
+    }
 }
