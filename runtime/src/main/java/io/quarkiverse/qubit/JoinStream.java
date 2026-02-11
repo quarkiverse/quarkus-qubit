@@ -5,11 +5,12 @@ import java.util.Optional;
 
 /**
  * Fluent query builder for join operations with access to both entities.
+ *
  * <pre>{@code
  * Person.join(p -> p.phones)
- *       .where((p, ph) -> ph.type.equals("mobile"))
- *       .select((p, ph) -> new PersonPhoneDTO(p.firstName, ph.number))
- *       .toList();
+ *         .where((p, ph) -> ph.type.equals("mobile"))
+ *         .select((p, ph) -> new PersonPhoneDTO(p.firstName, ph.number))
+ *         .toList();
  * }</pre>
  *
  * @param <T> the source entity type (left side of join)
@@ -53,12 +54,14 @@ public interface JoinStream<T, R> {
 
     /**
      * Skips the first {@code n} results (SQL OFFSET).
+     *
      * @throws IllegalArgumentException if {@code n < 0}
      */
     JoinStream<T, R> skip(int n);
 
     /**
      * Limits results to {@code n} items (SQL LIMIT).
+     *
      * @throws IllegalArgumentException if {@code n < 0}
      */
     JoinStream<T, R> limit(int n);
@@ -75,6 +78,7 @@ public interface JoinStream<T, R> {
 
     /**
      * Executes query expecting exactly one result.
+     *
      * @throws jakarta.persistence.NoResultException if no result found
      * @throws jakarta.persistence.NonUniqueResultException if multiple results found
      */

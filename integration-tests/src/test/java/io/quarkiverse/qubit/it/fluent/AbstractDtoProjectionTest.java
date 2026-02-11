@@ -20,12 +20,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Abstract base class for DTO constructor-based projection tests.
  *
- * <p>Validates constructor-based projections using {@code new DTOClass(field1, field2, ...)} syntax
+ * <p>
+ * Validates constructor-based projections using {@code new DTOClass(field1, field2, ...)} syntax
  * which translates to JPA's {@code cb.construct(DTOClass.class, selection1, selection2, ...)}.
  */
 public abstract class AbstractDtoProjectionTest {
 
     protected abstract PersonQueryOperations personOps();
+
     protected abstract ProductQueryOperations productOps();
 
     @BeforeEach
@@ -101,8 +103,8 @@ public abstract class AbstractDtoProjectionTest {
     @Test
     void whereActive_selectDTO() {
         var activeNames = personOps().where((Person p) -> p.active)
-                                .select((Person p) -> new PersonNameDTO(p.firstName, p.lastName))
-                                .toList();
+                .select((Person p) -> new PersonNameDTO(p.firstName, p.lastName))
+                .toList();
 
         // Active persons: John, Jane, Alice, Charlie (Bob is inactive)
         assertThat(activeNames)
@@ -117,8 +119,8 @@ public abstract class AbstractDtoProjectionTest {
     @Test
     void whereAgeLessThan30_selectDTO() {
         var youngPeople = personOps().where((Person p) -> p.age < 30)
-                                .select((Person p) -> new PersonSummaryDTO(p.firstName, p.age, p.salary))
-                                .toList();
+                .select((Person p) -> new PersonSummaryDTO(p.firstName, p.age, p.salary))
+                .toList();
 
         // age < 30 → Jane(25, $65K), Charlie(28, $55K)
         assertThat(youngPeople)
@@ -131,8 +133,8 @@ public abstract class AbstractDtoProjectionTest {
     @Test
     void whereSalaryGreaterThan70K_selectDTO() {
         var highEarners = personOps().where((Person p) -> p.salary > 70000.0)
-                                .select((Person p) -> new PersonBasicDTO(p.firstName, p.lastName, p.email))
-                                .toList();
+                .select((Person p) -> new PersonBasicDTO(p.firstName, p.lastName, p.email))
+                .toList();
 
         // salary > $70K → John($75K), Bob($85K), Alice($90K)
         assertThat(highEarners)
@@ -146,8 +148,8 @@ public abstract class AbstractDtoProjectionTest {
     @Test
     void productWhereAvailable_selectDTO() {
         var availableProducts = productOps().where((Product p) -> p.available)
-                                       .select((Product p) -> new ProductInfoDTO(p.name, p.price, p.category))
-                                       .toList();
+                .select((Product p) -> new ProductInfoDTO(p.name, p.price, p.category))
+                .toList();
 
         // Available products: Laptop, Smartphone, Desk Chair, Monitor (Coffee Maker is not available)
         assertThat(availableProducts)
@@ -164,8 +166,8 @@ public abstract class AbstractDtoProjectionTest {
     @Test
     void whereActiveAndSalaryGreaterThan60K_selectDTO() {
         var activeHighEarners = personOps().where((Person p) -> p.active && p.salary > 60000.0)
-                                      .select((Person p) -> new PersonSummaryDTO(p.firstName, p.age, p.salary))
-                                      .toList();
+                .select((Person p) -> new PersonSummaryDTO(p.firstName, p.age, p.salary))
+                .toList();
 
         // active && salary > $60K → John($75K), Jane($65K), Alice($90K)
         assertThat(activeHighEarners)
@@ -179,8 +181,8 @@ public abstract class AbstractDtoProjectionTest {
     @Test
     void whereInactive_selectDTO() {
         var inactivePeople = personOps().where((Person p) -> !p.active)
-                                   .select((Person p) -> new PersonNameDTO(p.firstName, p.lastName))
-                                   .toList();
+                .select((Person p) -> new PersonNameDTO(p.firstName, p.lastName))
+                .toList();
 
         // inactive → Bob
         assertThat(inactivePeople)
@@ -191,8 +193,8 @@ public abstract class AbstractDtoProjectionTest {
     @Test
     void productWherePriceGreaterThan300_selectDTO() {
         var expensiveProducts = productOps().where((Product p) -> p.price.compareTo(new BigDecimal("300.00")) > 0)
-                                       .select((Product p) -> new ProductInfoDTO(p.name, p.price, p.category))
-                                       .toList();
+                .select((Product p) -> new ProductInfoDTO(p.name, p.price, p.category))
+                .toList();
 
         // price > $300 → Laptop($1299.99), Smartphone($899.99), Monitor($399.99)
         assertThat(expensiveProducts)
@@ -208,8 +210,8 @@ public abstract class AbstractDtoProjectionTest {
     @Test
     void whereNoMatches_selectDTO_returnsEmptyList() {
         var results = personOps().where((Person p) -> p.age > 100)
-                            .select((Person p) -> new PersonNameDTO(p.firstName, p.lastName))
-                            .toList();
+                .select((Person p) -> new PersonNameDTO(p.firstName, p.lastName))
+                .toList();
 
         assertThat(results).isEmpty();
     }

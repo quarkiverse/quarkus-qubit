@@ -1,18 +1,20 @@
 package io.quarkiverse.qubit.deployment;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import org.junit.jupiter.api.Test;
-
 import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 
+import org.junit.jupiter.api.Test;
+
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+
 /**
  * Unit tests for LambdaExpression AST classes.
  *
- * <p>Uses {@link io.quarkiverse.qubit.deployment.testutil.AstBuilders} for fluent AST construction.
+ * <p>
+ * Uses {@link io.quarkiverse.qubit.deployment.testutil.AstBuilders} for fluent AST construction.
  */
 class LambdaExpressionTest {
 
@@ -37,8 +39,7 @@ class LambdaExpressionTest {
 
     @Test
     void testFieldAccessNullValidation() {
-        assertThatThrownBy(() ->
-                new LambdaExpression.FieldAccess(null, String.class))
+        assertThatThrownBy(() -> new LambdaExpression.FieldAccess(null, String.class))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("Field name cannot be null");
     }

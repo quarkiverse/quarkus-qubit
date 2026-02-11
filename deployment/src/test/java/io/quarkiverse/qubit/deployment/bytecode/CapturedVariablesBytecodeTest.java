@@ -1,28 +1,33 @@
 package io.quarkiverse.qubit.deployment.bytecode;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /**
  * Bytecode analysis tests for lambda expressions with captured variables.
  *
- * <p>Captured variables are variables from the enclosing scope that are used
+ * <p>
+ * Captured variables are variables from the enclosing scope that are used
  * inside a lambda expression. For example:
+ *
  * <pre>{@code
  * String prefix = "J";
  * List<Person> results = Person.findWhere(p -> p.name.startsWith(prefix));
  * }</pre>
  *
- * <p>In this case, {@code prefix} is a captured variable. At the bytecode level,
+ * <p>
+ * In this case, {@code prefix} is a captured variable. At the bytecode level,
  * captured variables are passed as additional parameters to the lambda's synthetic method.
  *
- * <p>These tests verify that:
+ * <p>
+ * These tests verify that:
  * <ul>
- *   <li>Captured variables are correctly detected and represented in the AST</li>
- *   <li>The entity parameter is correctly distinguished from captured variables</li>
- *   <li>Multiple captured variables are handled properly</li>
+ * <li>Captured variables are correctly detected and represented in the AST</li>
+ * <li>The entity parameter is correctly distinguished from captured variables</li>
+ * <li>Multiple captured variables are handled properly</li>
  * </ul>
  */
 class CapturedVariablesBytecodeTest extends PrecompiledLambdaAnalyzer {
@@ -40,7 +45,7 @@ class CapturedVariablesBytecodeTest extends PrecompiledLambdaAnalyzer {
         assertFieldAccess(eqOp.left(), "firstName");
 
         // Right: captured variable "searchName"
-        assertCapturedVariable(eqOp.right(), 0);  // Index 0 because it's the first parameter
+        assertCapturedVariable(eqOp.right(), 0); // Index 0 because it's the first parameter
     }
 
     @Test
@@ -103,13 +108,13 @@ class CapturedVariablesBytecodeTest extends PrecompiledLambdaAnalyzer {
         assertBinaryOp(andOp.left(), LambdaExpression.BinaryOp.Operator.EQ);
         LambdaExpression.BinaryOp eqOp = (LambdaExpression.BinaryOp) andOp.left();
         assertFieldAccess(eqOp.left(), "firstName");
-        assertCapturedVariable(eqOp.right(), 0);  // searchName is first captured variable
+        assertCapturedVariable(eqOp.right(), 0); // searchName is first captured variable
 
         // Right: age > minAge
         assertBinaryOp(andOp.right(), LambdaExpression.BinaryOp.Operator.GT);
         LambdaExpression.BinaryOp gtOp = (LambdaExpression.BinaryOp) andOp.right();
         assertFieldAccess(gtOp.left(), "age");
-        assertCapturedVariable(gtOp.right(), 1);  // minAge is second captured variable
+        assertCapturedVariable(gtOp.right(), 1); // minAge is second captured variable
     }
 
     @Test
@@ -128,7 +133,7 @@ class CapturedVariablesBytecodeTest extends PrecompiledLambdaAnalyzer {
         assertBinaryOp(andOp.left(), LambdaExpression.BinaryOp.Operator.GT);
         LambdaExpression.BinaryOp gtOp = (LambdaExpression.BinaryOp) andOp.left();
         assertFieldAccess(gtOp.left(), "age");
-        assertCapturedVariable(gtOp.right(), 0);  // threshold is captured variable
+        assertCapturedVariable(gtOp.right(), 0); // threshold is captured variable
 
         // Right of AND: active
         LambdaExpression.BinaryOp activeCheck = (LambdaExpression.BinaryOp) andOp.right();

@@ -1,17 +1,18 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.jboss.jandex.AnnotationInstance;
 import org.jboss.jandex.ClassInfo;
 import org.jboss.jandex.DotName;
 import org.jboss.jandex.FieldInfo;
 import org.jboss.jandex.IndexView;
 import org.jboss.jandex.Type;
-import io.quarkus.logging.Log;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType;
+import io.quarkus.logging.Log;
 
 /**
  * Extracts JPA relationship annotations (@ManyToOne, @OneToOne, @OneToMany, @ManyToMany)

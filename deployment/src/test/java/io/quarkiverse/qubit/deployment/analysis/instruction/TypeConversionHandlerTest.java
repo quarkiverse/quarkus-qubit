@@ -1,7 +1,13 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
+import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
+import static io.quarkiverse.qubit.deployment.testutil.fixtures.AnalysisContextFixtures.contextFor;
+import static io.quarkiverse.qubit.deployment.testutil.fixtures.AsmFixtures.testMethod;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.util.stream.Stream;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -13,13 +19,8 @@ import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
-import java.util.stream.Stream;
-
-import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
-import static io.quarkiverse.qubit.deployment.testutil.fixtures.AsmFixtures.testMethod;
-import static io.quarkiverse.qubit.deployment.testutil.fixtures.AnalysisContextFixtures.contextFor;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
 
 /**
  * Unit tests for {@link TypeConversionHandler} covering all type conversion opcodes
@@ -130,14 +131,14 @@ class TypeConversionHandlerTest {
         void handle_constantWithWrongType_leavesStackUnchanged() {
             // Push a long constant but try to convert from int
             context.push(new LambdaExpression.Constant(42L, long.class));
-            InsnNode insn = new InsnNode(Opcodes.I2L);  // Expects int source type
+            InsnNode insn = new InsnNode(Opcodes.I2L); // Expects int source type
 
             boolean result = handler.handle(insn, context);
 
             assertThat(result).isFalse();
             LambdaExpression.Constant constant = (LambdaExpression.Constant) context.pop();
-            assertThat(constant.value()).isEqualTo(42L);  // Unchanged
-            assertThat(constant.type()).isEqualTo(long.class);  // Unchanged
+            assertThat(constant.value()).isEqualTo(42L); // Unchanged
+            assertThat(constant.type()).isEqualTo(long.class); // Unchanged
         }
 
         @Test
@@ -175,7 +176,7 @@ class TypeConversionHandlerTest {
 
         @Test
         void handle_unsupportedOpcode_throwsException() {
-            InsnNode insn = new InsnNode(Opcodes.I2B);  // Byte conversion not supported
+            InsnNode insn = new InsnNode(Opcodes.I2B); // Byte conversion not supported
 
             assertThatThrownBy(() -> handler.handle(insn, context))
                     .isInstanceOf(BytecodeAnalysisException.class)
@@ -200,8 +201,7 @@ class TypeConversionHandlerTest {
                 Arguments.of(Opcodes.F2D),
                 Arguments.of(Opcodes.D2I),
                 Arguments.of(Opcodes.D2L),
-                Arguments.of(Opcodes.D2F)
-        );
+                Arguments.of(Opcodes.D2F));
     }
 
     /**
@@ -228,7 +228,6 @@ class TypeConversionHandlerTest {
                 // Double to other types (note: truncation for integer conversions)
                 Arguments.of("D2I", 42.9, double.class, Opcodes.D2I, 42, int.class),
                 Arguments.of("D2L", 42.9, double.class, Opcodes.D2L, 42L, long.class),
-                Arguments.of("D2F", 42.5, double.class, Opcodes.D2F, 42.5f, float.class)
-        );
+                Arguments.of("D2F", 42.5, double.class, Opcodes.D2F, 42.5f, float.class));
     }
 }

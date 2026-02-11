@@ -7,20 +7,20 @@
  *
  * <h2>Key Types</h2>
  * <ul>
- *   <li>{@link QueryExecutorClassGenerator} - Generates executor classes
- *   <li>{@link CriteriaExpressionGenerator} - Generates JPA expressions
+ * <li>{@link QueryExecutorClassGenerator} - Generates executor classes
+ * <li>{@link CriteriaExpressionGenerator} - Generates JPA expressions
  * </ul>
  *
  * <h2>Sub-packages</h2>
  * <ul>
- *   <li>{@code expression} - Specialized expression builders
+ * <li>{@code expression} - Specialized expression builders
  * </ul>
  *
  * <h2>Dependencies</h2>
  * <ul>
- *   <li>{@code ast} - For AST node types (input)
- *   <li>{@code common} - For shared utilities
- *   <li>{@code util} - For type conversion
+ * <li>{@code ast} - For AST node types (input)
+ * <li>{@code common} - For shared utilities
+ * <li>{@code util} - For type conversion
  * </ul>
  *
  * <h2>Design Pattern</h2>

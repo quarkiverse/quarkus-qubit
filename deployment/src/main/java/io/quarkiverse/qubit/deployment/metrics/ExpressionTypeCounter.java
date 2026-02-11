@@ -26,15 +26,13 @@ public final class ExpressionTypeCounter {
     private static final Set<Class<?>> TEMPORAL_TYPES = Set.of(
             LocalDate.class, LocalDateTime.class, LocalTime.class,
             Instant.class, OffsetDateTime.class, ZonedDateTime.class,
-            java.util.Date.class, java.sql.Date.class, java.sql.Timestamp.class
-    );
+            java.util.Date.class, java.sql.Date.class, java.sql.Timestamp.class);
 
     /** String methods that map to EXPR_STRING. */
     private static final Set<String> STRING_METHODS = Set.of(
             "equals", "equalsIgnoreCase", "contains", "startsWith", "endsWith",
             "isEmpty", "isBlank", "toLowerCase", "toUpperCase", "trim", "length",
-            "substring", "concat", "replace", "matches"
-    );
+            "substring", "concat", "replace", "matches");
 
     private ExpressionTypeCounter() {
         // Utility class
@@ -213,8 +211,7 @@ public final class ExpressionTypeCounter {
             }
 
             // Leaf nodes that don't contribute to expression type counts
-            case Parameter _, CapturedVariable _, NullLiteral _,
-                 BiEntityParameter _, GroupParameter _ -> {
+            case Parameter _,CapturedVariable _,NullLiteral _,BiEntityParameter _,GroupParameter _ -> {
                 // No counting for these leaf nodes
             }
         }

@@ -3,32 +3,34 @@ package io.quarkiverse.qubit.deployment.generation;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.*;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_OF;
 
+import java.lang.constant.ClassDesc;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.List;
+import java.util.function.Function;
+
+import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Order;
+import jakarta.persistence.criteria.Selection;
+
+import io.quarkiverse.qubit.SortDirection;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.SortDirection;
 import io.quarkus.gizmo2.Const;
 import io.quarkus.gizmo2.Expr;
 import io.quarkus.gizmo2.LocalVar;
 import io.quarkus.gizmo2.creator.BlockCreator;
 import io.quarkus.gizmo2.desc.ConstructorDesc;
 import io.quarkus.gizmo2.desc.FieldDesc;
-import jakarta.persistence.criteria.JoinType;
-import jakarta.persistence.criteria.Order;
-import jakarta.persistence.criteria.Selection;
-
-import java.lang.constant.ClassDesc;
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.function.Function;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
 
 /**
  * Utility class for common Gizmo bytecode generation patterns.
  *
- * <p>This class provides reusable methods for generating bytecode using
+ * <p>
+ * This class provides reusable methods for generating bytecode using
  * the Gizmo library, avoiding duplication across expression builders.
  */
 public final class GizmoHelper {

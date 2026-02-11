@@ -21,8 +21,8 @@ public class ProductResourceIT {
     @Test
     void getAll_returnsAllProducts() {
         given()
-            .when().get("/api/products")
-            .then()
+                .when().get("/api/products")
+                .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("$", hasSize(greaterThanOrEqualTo(5)));
@@ -31,8 +31,8 @@ public class ProductResourceIT {
     @Test
     void count_returnsCorrectCount() {
         given()
-            .when().get("/api/products/count")
-            .then()
+                .when().get("/api/products/count")
+                .then()
                 .statusCode(200)
                 .body(greaterThanOrEqualTo("5"));
     }
@@ -40,8 +40,8 @@ public class ProductResourceIT {
     @Test
     void getAvailable_returnsOnlyAvailableProducts() {
         given()
-            .when().get("/api/products/available")
-            .then()
+                .when().get("/api/products/available")
+                .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("$", hasSize(greaterThan(0)))
@@ -51,8 +51,8 @@ public class ProductResourceIT {
     @Test
     void getUnavailable_returnsOnlyUnavailableProducts() {
         given()
-            .when().get("/api/products/unavailable")
-            .then()
+                .when().get("/api/products/unavailable")
+                .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("$", hasSize(greaterThan(0)))
@@ -62,8 +62,8 @@ public class ProductResourceIT {
     @Test
     void getInStock_returnsProductsWithStock() {
         given()
-            .when().get("/api/products/in-stock")
-            .then()
+                .when().get("/api/products/in-stock")
+                .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("$", hasSize(greaterThan(0)))
@@ -77,8 +77,8 @@ public class ProductResourceIT {
     @Test
     void getPriceGreaterThan_filtersCorrectly() {
         given()
-            .when().get("/api/products/price-greater-than/500")
-            .then()
+                .when().get("/api/products/price-greater-than/500")
+                .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("$", hasSize(greaterThan(0)));
@@ -87,8 +87,8 @@ public class ProductResourceIT {
     @Test
     void getPriceLessThan_filtersCorrectly() {
         given()
-            .when().get("/api/products/price-less-than/500")
-            .then()
+                .when().get("/api/products/price-less-than/500")
+                .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("$", hasSize(greaterThan(0)));
@@ -97,8 +97,8 @@ public class ProductResourceIT {
     @Test
     void getPriceBetween_filtersCorrectly() {
         given()
-            .when().get("/api/products/price-between/100/500")
-            .then()
+                .when().get("/api/products/price-between/100/500")
+                .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("$", hasSize(greaterThan(0)));
@@ -111,8 +111,8 @@ public class ProductResourceIT {
     @Test
     void getByCategory_filtersCorrectly() {
         given()
-            .when().get("/api/products/category/Electronics")
-            .then()
+                .when().get("/api/products/category/Electronics")
+                .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("$", hasSize(greaterThan(0)))
@@ -122,8 +122,8 @@ public class ProductResourceIT {
     @Test
     void getCategoryContains_filtersCorrectly() {
         given()
-            .when().get("/api/products/category-contains/Electro")
-            .then()
+                .when().get("/api/products/category-contains/Electro")
+                .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("$", hasSize(greaterThan(0)))
@@ -137,8 +137,8 @@ public class ProductResourceIT {
     @Test
     void getAvailableAndInStock_combinesConditions() {
         given()
-            .when().get("/api/products/available-and-in-stock")
-            .then()
+                .when().get("/api/products/available-and-in-stock")
+                .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("$", hasSize(greaterThan(0)))
@@ -149,8 +149,8 @@ public class ProductResourceIT {
     @Test
     void getAvailableOrLowPrice_combinesWithOr() {
         given()
-            .when().get("/api/products/available-or-low-price")
-            .then()
+                .when().get("/api/products/available-or-low-price")
+                .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("$", hasSize(greaterThan(0)));
@@ -163,8 +163,8 @@ public class ProductResourceIT {
     @Test
     void getSortedByPrice_sortsAscending() {
         var prices = given()
-            .when().get("/api/products/sorted-by-price")
-            .then()
+                .when().get("/api/products/sorted-by-price")
+                .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("$", hasSize(greaterThan(0)))
@@ -178,8 +178,8 @@ public class ProductResourceIT {
     @Test
     void getSortedByPriceDesc_sortsDescending() {
         var prices = given()
-            .when().get("/api/products/sorted-by-price-desc")
-            .then()
+                .when().get("/api/products/sorted-by-price-desc")
+                .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("$", hasSize(greaterThan(0)))
@@ -193,8 +193,8 @@ public class ProductResourceIT {
     @Test
     void getSortedByName_sortsAlphabetically() {
         var names = given()
-            .when().get("/api/products/sorted-by-name")
-            .then()
+                .when().get("/api/products/sorted-by-name")
+                .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("$", hasSize(greaterThan(0)))
@@ -212,8 +212,8 @@ public class ProductResourceIT {
     @Test
     void getNames_projectsCorrectly() {
         given()
-            .when().get("/api/products/names")
-            .then()
+                .when().get("/api/products/names")
+                .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("$", hasSize(greaterThan(0)))
@@ -223,8 +223,8 @@ public class ProductResourceIT {
     @Test
     void getCategories_returnsDistinct() {
         var categories = given()
-            .when().get("/api/products/categories")
-            .then()
+                .when().get("/api/products/categories")
+                .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("$", hasSize(greaterThan(0)))
@@ -242,8 +242,8 @@ public class ProductResourceIT {
     @Test
     void getMinPrice_returnsMinimum() {
         given()
-            .when().get("/api/products/min-price")
-            .then()
+                .when().get("/api/products/min-price")
+                .then()
                 .statusCode(200)
                 .body(notNullValue());
     }
@@ -251,8 +251,8 @@ public class ProductResourceIT {
     @Test
     void getMaxPrice_returnsMaximum() {
         given()
-            .when().get("/api/products/max-price")
-            .then()
+                .when().get("/api/products/max-price")
+                .then()
                 .statusCode(200)
                 .body(notNullValue());
     }
@@ -260,8 +260,8 @@ public class ProductResourceIT {
     @Test
     void getAvgRating_returnsAverage() {
         given()
-            .when().get("/api/products/avg-rating")
-            .then()
+                .when().get("/api/products/avg-rating")
+                .then()
                 .statusCode(200)
                 .body(notNullValue());
     }
@@ -269,8 +269,8 @@ public class ProductResourceIT {
     @Test
     void getSumStock_returnsSum() {
         given()
-            .when().get("/api/products/sum-stock")
-            .then()
+                .when().get("/api/products/sum-stock")
+                .then()
                 .statusCode(200)
                 .body(notNullValue());
     }
@@ -282,8 +282,8 @@ public class ProductResourceIT {
     @Test
     void getAvailableSortedByPrice_combinesFilterAndSort() {
         var prices = given()
-            .when().get("/api/products/available-sorted-by-price")
-            .then()
+                .when().get("/api/products/available-sorted-by-price")
+                .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("$", hasSize(greaterThan(0)))
@@ -298,8 +298,8 @@ public class ProductResourceIT {
     @Test
     void getAvailableTopByPrice_combinesFilterSortLimit() {
         given()
-            .when().get("/api/products/available-top/2")
-            .then()
+                .when().get("/api/products/available-top/2")
+                .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("$", hasSize(lessThanOrEqualTo(2)))
@@ -309,8 +309,8 @@ public class ProductResourceIT {
     @Test
     void getCategorySortedByPrice_filtersByCategory() {
         given()
-            .when().get("/api/products/category/Electronics/sorted-by-price")
-            .then()
+                .when().get("/api/products/category/Electronics/sorted-by-price")
+                .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("category", everyItem(equalTo("Electronics")));
@@ -323,8 +323,8 @@ public class ProductResourceIT {
     @Test
     void getFirstAvailable_returnsSingleProduct() {
         given()
-            .when().get("/api/products/first-available")
-            .then()
+                .when().get("/api/products/first-available")
+                .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("available", is(true));
@@ -333,8 +333,8 @@ public class ProductResourceIT {
     @Test
     void existsInCategory_returnsTrue() {
         given()
-            .when().get("/api/products/exists-category/Electronics")
-            .then()
+                .when().get("/api/products/exists-category/Electronics")
+                .then()
                 .statusCode(200)
                 .body(is("true"));
     }
@@ -342,8 +342,8 @@ public class ProductResourceIT {
     @Test
     void getCheapest_returnsCheapestProduct() {
         given()
-            .when().get("/api/products/cheapest")
-            .then()
+                .when().get("/api/products/cheapest")
+                .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("name", notNullValue());
@@ -352,8 +352,8 @@ public class ProductResourceIT {
     @Test
     void getMostExpensive_returnsMostExpensiveProduct() {
         given()
-            .when().get("/api/products/most-expensive")
-            .then()
+                .when().get("/api/products/most-expensive")
+                .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("name", notNullValue());

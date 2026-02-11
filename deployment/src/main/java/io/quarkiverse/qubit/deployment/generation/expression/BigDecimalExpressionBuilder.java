@@ -1,31 +1,32 @@
 package io.quarkiverse.qubit.deployment.generation.expression;
 
-import io.quarkus.gizmo2.Expr;
-import io.quarkus.gizmo2.creator.BlockCreator;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.unexpectedBigDecimalMethod;
-import static io.quarkiverse.qubit.deployment.generation.expression.BuilderResult.notApplicable;
-import static io.quarkiverse.qubit.deployment.generation.expression.BuilderResult.success;
-
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.ADD;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.DIV;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.MUL;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.SUB;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.unexpectedBigDecimalMethod;
+import static io.quarkiverse.qubit.deployment.generation.expression.BuilderResult.notApplicable;
+import static io.quarkiverse.qubit.deployment.generation.expression.BuilderResult.success;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
+
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.creator.BlockCreator;
 
 /**
  * Builds JPA Criteria API expressions for BigDecimal arithmetic operations.
  *
- * <p>Method mappings:
+ * <p>
+ * Method mappings:
  * <ul>
- *   <li>add() → {@code CriteriaBuilder.sum()}</li>
- *   <li>subtract() → {@code CriteriaBuilder.diff()}</li>
- *   <li>multiply() → {@code CriteriaBuilder.prod()}</li>
- *   <li>divide() → {@code CriteriaBuilder.quot()}</li>
+ * <li>add() → {@code CriteriaBuilder.sum()}</li>
+ * <li>subtract() → {@code CriteriaBuilder.diff()}</li>
+ * <li>multiply() → {@code CriteriaBuilder.prod()}</li>
+ * <li>divide() → {@code CriteriaBuilder.quot()}</li>
  * </ul>
  *
- * <p><b>Note:</b> BigDecimal methods are mapped to binary operators and delegated
+ * <p>
+ * <b>Note:</b> BigDecimal methods are mapped to binary operators and delegated
  * to {@link ArithmeticExpressionBuilder} for actual bytecode generation.
  */
 public enum BigDecimalExpressionBuilder implements ExpressionBuilder {

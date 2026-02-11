@@ -15,7 +15,7 @@ import jdk.jfr.StackTrace;
  */
 @Name("io.quarkiverse.qubit.Phase")
 @Label("Qubit Phase")
-@Category({"Qubit", "Build"})
+@Category({ "Qubit", "Build" })
 @Description("High-level Qubit build phase timing")
 @StackTrace(false)
 public class QubitPhaseEvent extends Event {

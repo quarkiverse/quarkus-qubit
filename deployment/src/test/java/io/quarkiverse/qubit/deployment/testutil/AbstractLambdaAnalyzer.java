@@ -1,7 +1,11 @@
 package io.quarkiverse.qubit.deployment.testutil;
 
-import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Handle;
@@ -9,24 +13,23 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.InvokeDynamicInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
-import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /**
  * Abstract base class for lambda bytecode analysis tests.
  *
- * <p>Provides shared infrastructure for loading compiled test source classes
+ * <p>
+ * Provides shared infrastructure for loading compiled test source classes
  * and extracting lambda expressions from their methods. This eliminates code
  * duplication across PrecompiledLambdaAnalyzer, PrecompiledBiEntityLambdaAnalyzer,
  * PrecompiledSubqueryLambdaAnalyzer, and CriteriaQueryTestBase.
  *
- * <p>Subclasses specify:
+ * <p>
+ * Subclasses specify:
  * <ul>
- *   <li>The source class to analyze (via {@link #getSourcesClassName()})</li>
- *   <li>The descriptor pattern to match (via {@link #getDescriptorPattern()})</li>
+ * <li>The source class to analyze (via {@link #getSourcesClassName()})</li>
+ * <li>The descriptor pattern to match (via {@link #getDescriptorPattern()})</li>
  * </ul>
  */
 public abstract class AbstractLambdaAnalyzer {
@@ -252,7 +255,8 @@ public abstract class AbstractLambdaAnalyzer {
      */
     protected void assertCapturedVariable(LambdaExpression expr) {
         assertThat(expr)
-                .as("Expression should be a CapturedVariable but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .as("Expression should be a CapturedVariable but was %s",
+                        expr == null ? "null" : expr.getClass().getSimpleName())
                 .isInstanceOf(LambdaExpression.CapturedVariable.class);
     }
 
@@ -261,7 +265,8 @@ public abstract class AbstractLambdaAnalyzer {
      */
     protected void assertCapturedVariable(LambdaExpression expr, int expectedIndex) {
         assertThat(expr)
-                .as("Expression should be a CapturedVariable but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .as("Expression should be a CapturedVariable but was %s",
+                        expr == null ? "null" : expr.getClass().getSimpleName())
                 .isInstanceOf(LambdaExpression.CapturedVariable.class);
         LambdaExpression.CapturedVariable capturedVar = (LambdaExpression.CapturedVariable) expr;
         assertThat(capturedVar.index())

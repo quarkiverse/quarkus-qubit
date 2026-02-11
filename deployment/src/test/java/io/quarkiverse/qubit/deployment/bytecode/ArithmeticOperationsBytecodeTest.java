@@ -1,18 +1,20 @@
 package io.quarkiverse.qubit.deployment.bytecode;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import java.util.stream.Stream;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.stream.Stream;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /**
  * Bytecode analysis tests for arithmetic operations (+, -, *, /, %).
  * Tests lambda bytecode parsing without executing queries.
  *
- * <p>This class uses JUnit 5 parameterized tests to consolidate repetitive
+ * <p>
+ * This class uses JUnit 5 parameterized tests to consolidate repetitive
  * test patterns, reducing code duplication while maintaining full coverage.
  */
 class ArithmeticOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
@@ -67,8 +69,7 @@ class ArithmeticOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
                 Arguments.of("doubleMultiplication", LambdaExpression.BinaryOp.Operator.GT,
                         LambdaExpression.BinaryOp.Operator.MUL, "salary", 1.1, 80000.0),
                 Arguments.of("doubleDivision", LambdaExpression.BinaryOp.Operator.GT,
-                        LambdaExpression.BinaryOp.Operator.DIV, "salary", 1000.0, 75.0)
-        );
+                        LambdaExpression.BinaryOp.Operator.DIV, "salary", 1000.0, 75.0));
     }
 
     // ==================== PARAMETERIZED TESTS ====================

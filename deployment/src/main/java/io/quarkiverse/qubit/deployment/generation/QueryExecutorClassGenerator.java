@@ -1,13 +1,6 @@
 package io.quarkiverse.qubit.deployment.generation;
 
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.unknownAggregationType;
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_AVG;
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_MAX;
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_MIN;
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_SUM_DOUBLE;
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_SUM_INTEGER;
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_SUM_LONG;
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QE_EXECUTE;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_AVG;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_COUNT;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_COUNT_DISTINCT;
@@ -24,35 +17,44 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.EM_CR
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.EM_GET_CRITERIA_BUILDER;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.FROM_JOIN;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.INTEGER_LONG_VALUE;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.INTEGER_VALUE_OF;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.LIST_SIZE;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.LONG_VALUE_OF;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.INTEGER_VALUE_OF;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.PATH_GET;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.TQ_GET_RESULT_LIST;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.TQ_GET_SINGLE_RESULT;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_AVG;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_MAX;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_MIN;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_SUM_DOUBLE;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_SUM_INTEGER;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_SUM_LONG;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QE_EXECUTE;
 
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
-import io.quarkus.gizmo2.Const;
-import io.quarkus.logging.Log;
-import io.quarkus.gizmo2.Expr;
-import io.quarkus.gizmo2.Gizmo;
-import io.quarkus.gizmo2.LocalVar;
-import io.quarkus.gizmo2.creator.BlockCreator;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Predicate;
+
+import org.jspecify.annotations.Nullable;
+
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
-import org.jspecify.annotations.Nullable;
 import io.quarkiverse.qubit.deployment.generation.join.JoinQueryBuilder;
 import io.quarkiverse.qubit.deployment.generation.join.JoinQueryContext;
 import io.quarkiverse.qubit.deployment.generation.join.JoinSelectionStrategy;
 import io.quarkiverse.qubit.deployment.generation.join.StandardClauseApplier;
+import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
 import io.quarkiverse.qubit.runtime.internal.QueryExecutor;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.criteria.Expression;
-import jakarta.persistence.criteria.Predicate;
+import io.quarkus.gizmo2.Const;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.Gizmo;
+import io.quarkus.gizmo2.LocalVar;
+import io.quarkus.gizmo2.creator.BlockCreator;
+import io.quarkus.logging.Log;
 
 /**
  * Generates query executor classes that execute JPA Criteria API queries from lambda expressions.
@@ -67,8 +69,8 @@ public class QueryExecutorClassGenerator {
      * <p>
      * This cache provides significant performance improvement in:
      * <ul>
-     *   <li>Dev mode hot reload - same queries don't need regeneration</li>
-     *   <li>Multi-module builds - shared queries across modules</li>
+     * <li>Dev mode hot reload - same queries don't need regeneration</li>
+     * <li>Multi-module builds - shared queries across modules</li>
      * </ul>
      * <p>
      * The cache is keyed by class name which includes the lambda hash,
@@ -108,49 +110,62 @@ public class QueryExecutorClassGenerator {
 
     /** Context for query generation methods with shared parameters. */
     private record QueryGenContext(
-        BlockCreator bc,
-        Expr em,
-        Expr entityClass,
-        List<?> sortExpressions,
-        Expr capturedValues,
-        Expr offset,
-        Expr limit,
-        Expr distinct
-    ) {}
+            BlockCreator bc,
+            Expr em,
+            Expr entityClass,
+            List<?> sortExpressions,
+            Expr capturedValues,
+            Expr offset,
+            Expr limit,
+            Expr distinct) {
+    }
 
     /** JPA Criteria API query setup: CriteriaBuilder, CriteriaQuery, and Root stored as LocalVar for Gizmo2. */
     private record QuerySetup(
-        LocalVar cb,
-        LocalVar query,
-        LocalVar root
-    ) {}
+            LocalVar cb,
+            LocalVar query,
+            LocalVar root) {
+    }
 
     /** Context for GROUP BY query generation with WHERE, GROUP BY, and HAVING. */
     private record GroupQueryContext(
-        BlockCreator bc,
-        Expr em,
-        Expr entityClass,
-        LambdaExpression predicateExpression,
-        LambdaExpression groupByKeyExpression,
-        LambdaExpression havingExpression,
-        Expr capturedValues
-    ) {}
+            BlockCreator bc,
+            Expr em,
+            Expr entityClass,
+            LambdaExpression predicateExpression,
+            LambdaExpression groupByKeyExpression,
+            LambdaExpression havingExpression,
+            Expr capturedValues) {
+    }
 
     /** Extended GROUP BY context adding select, sort, pagination, and distinct. */
     private record GroupListContext(
-        GroupQueryContext base,
-        LambdaExpression groupSelectExpression,
-        List<SortExpression> groupSortExpressions,
-        Expr offset,
-        Expr limit,
-        Expr distinct
-    ) {
+            GroupQueryContext base,
+            LambdaExpression groupSelectExpression,
+            List<SortExpression> groupSortExpressions,
+            Expr offset,
+            Expr limit,
+            Expr distinct) {
         // Delegate accessors for convenience
-        BlockCreator bc() { return base.bc(); }
-        Expr em() { return base.em(); }
-        Expr entityClass() { return base.entityClass(); }
-        LambdaExpression havingExpression() { return base.havingExpression(); }
-        Expr capturedValues() { return base.capturedValues(); }
+        BlockCreator bc() {
+            return base.bc();
+        }
+
+        Expr em() {
+            return base.em();
+        }
+
+        Expr entityClass() {
+            return base.entityClass();
+        }
+
+        LambdaExpression havingExpression() {
+            return base.havingExpression();
+        }
+
+        Expr capturedValues() {
+            return base.capturedValues();
+        }
     }
 
     /** Sets up CriteriaBuilder, CriteriaQuery, and Root in a single call. Uses LocalVar for Gizmo2 stack management. */
@@ -204,39 +219,39 @@ public class QueryExecutorClassGenerator {
             // Gizmo2 ClassOutput uses ClassDesc, byte[] signature
             Gizmo gizmo = Gizmo.create((desc, bytes) -> bytecodeHolder[0] = bytes);
             gizmo.class_(className, cc -> {
-            cc.implements_(QueryExecutor.class);
-            cc.defaultConstructor();
+                cc.implements_(QueryExecutor.class);
+                cc.defaultConstructor();
 
-            // Execute method signature includes offset, limit, and distinct parameters
-            cc.method(QE_EXECUTE, mc -> {
-                mc.public_();
-                mc.returning(Object.class);
-                var em = mc.parameter("em", EntityManager.class);
-                var entityClassParam = mc.parameter("entityClass", Class.class);
-                var capturedValues = mc.parameter("capturedValues", Object[].class);
-                var offset = mc.parameter("offset", Integer.class);
-                var limit = mc.parameter("limit", Integer.class);
-                var distinct = mc.parameter("distinct", Boolean.class);
+                // Execute method signature includes offset, limit, and distinct parameters
+                cc.method(QE_EXECUTE, mc -> {
+                    mc.public_();
+                    mc.returning(Object.class);
+                    var em = mc.parameter("em", EntityManager.class);
+                    var entityClassParam = mc.parameter("entityClass", Class.class);
+                    var capturedValues = mc.parameter("capturedValues", Object[].class);
+                    var offset = mc.parameter("offset", Integer.class);
+                    var limit = mc.parameter("limit", Integer.class);
+                    var distinct = mc.parameter("distinct", Boolean.class);
 
-                mc.body(bc -> {
-                    Expr result;
-                    if (isAggregationQuery) {
-                        // Aggregation queries (min, max, avg, sum*)
-                        result = generateAggregationQueryBody(bc, em, entityClassParam, predicateExpression,
-                                aggregationExpression, aggregationType, capturedValues);
-                    } else if (isCountQuery) {
-                        // Count queries ignore pagination and distinct parameters
-                        result = generateCountQueryBody(bc, em, entityClassParam, predicateExpression, capturedValues);
-                    } else {
-                        QueryGenContext ctx = new QueryGenContext(bc, em, entityClassParam,
-                                sortExpressions, capturedValues, offset, limit, distinct);
-                        result = generateListQueryBody(ctx, predicateExpression, projectionExpression);
-                    }
+                    mc.body(bc -> {
+                        Expr result;
+                        if (isAggregationQuery) {
+                            // Aggregation queries (min, max, avg, sum*)
+                            result = generateAggregationQueryBody(bc, em, entityClassParam, predicateExpression,
+                                    aggregationExpression, aggregationType, capturedValues);
+                        } else if (isCountQuery) {
+                            // Count queries ignore pagination and distinct parameters
+                            result = generateCountQueryBody(bc, em, entityClassParam, predicateExpression, capturedValues);
+                        } else {
+                            QueryGenContext ctx = new QueryGenContext(bc, em, entityClassParam,
+                                    sortExpressions, capturedValues, offset, limit, distinct);
+                            result = generateListQueryBody(ctx, predicateExpression, projectionExpression);
+                        }
 
-                    bc.return_(result);
+                        bc.return_(result);
+                    });
                 });
             });
-        });
 
             // Cache the generated bytecode for future reuse
             byte[] bytecode = bytecodeHolder[0];
@@ -280,57 +295,58 @@ public class QueryExecutorClassGenerator {
 
             // Gizmo2 ClassOutput uses ClassDesc, byte[] signature
             Gizmo gizmo = Gizmo.create((desc, bytes) -> bytecodeHolder[0] = bytes);
-        gizmo.class_(className, cc -> {
-            cc.implements_(QueryExecutor.class);
-            cc.defaultConstructor();
+            gizmo.class_(className, cc -> {
+                cc.implements_(QueryExecutor.class);
+                cc.defaultConstructor();
 
-            // Same execute method signature as regular queries
-            cc.method(QE_EXECUTE, mc -> {
-                mc.public_();
-                mc.returning(Object.class);
-                var em = mc.parameter("em", EntityManager.class);
-                var entityClassParam = mc.parameter("entityClass", Class.class);
-                var capturedValues = mc.parameter("capturedValues", Object[].class);
-                var offset = mc.parameter("offset", Integer.class);
-                var limit = mc.parameter("limit", Integer.class);
-                var distinct = mc.parameter("distinct", Boolean.class);
+                // Same execute method signature as regular queries
+                cc.method(QE_EXECUTE, mc -> {
+                    mc.public_();
+                    mc.returning(Object.class);
+                    var em = mc.parameter("em", EntityManager.class);
+                    var entityClassParam = mc.parameter("entityClass", Class.class);
+                    var capturedValues = mc.parameter("capturedValues", Object[].class);
+                    var offset = mc.parameter("offset", Integer.class);
+                    var limit = mc.parameter("limit", Integer.class);
+                    var distinct = mc.parameter("distinct", Boolean.class);
 
-                mc.body(bc -> {
-                    Expr result;
-                    if (isCountQuery) {
-                        result = generateJoinCountQueryBody(
-                                bc, em, entityClassParam,
-                                joinRelationshipExpression, biEntityPredicateExpression,
-                                joinType, capturedValues);
-                    } else {
-                        // Use Template Method pattern with Strategy for the three join query variants
-                        JoinQueryContext ctx = new JoinQueryContext(
-                                bc, em, entityClassParam,
-                                joinRelationshipExpression, biEntityPredicateExpression,
-                                joinType, sortExpressions, capturedValues, offset, limit, distinct);
-
-                        // Determine selection strategy based on query type
-                        JoinSelectionStrategy strategy;
-                        if (isJoinProjection) {
-                            // select() with BiQuerySpec returns projected results
-                            Expr objectClass = Const.of(Object.class);
-                            strategy = new JoinSelectionStrategy.SelectProjection(objectClass, biEntityProjectionExpression);
-                        } else if (isSelectJoined) {
-                            // selectJoined() returns joined entities instead of source entities
-                            Expr objectClass = Const.of(Object.class);
-                            strategy = new JoinSelectionStrategy.SelectJoined(objectClass);
+                    mc.body(bc -> {
+                        Expr result;
+                        if (isCountQuery) {
+                            result = generateJoinCountQueryBody(
+                                    bc, em, entityClassParam,
+                                    joinRelationshipExpression, biEntityPredicateExpression,
+                                    joinType, capturedValues);
                         } else {
-                            // Default: return root entities
-                            strategy = new JoinSelectionStrategy.SelectRoot(entityClassParam);
+                            // Use Template Method pattern with Strategy for the three join query variants
+                            JoinQueryContext ctx = new JoinQueryContext(
+                                    bc, em, entityClassParam,
+                                    joinRelationshipExpression, biEntityPredicateExpression,
+                                    joinType, sortExpressions, capturedValues, offset, limit, distinct);
+
+                            // Determine selection strategy based on query type
+                            JoinSelectionStrategy strategy;
+                            if (isJoinProjection) {
+                                // select() with BiQuerySpec returns projected results
+                                Expr objectClass = Const.of(Object.class);
+                                strategy = new JoinSelectionStrategy.SelectProjection(objectClass,
+                                        biEntityProjectionExpression);
+                            } else if (isSelectJoined) {
+                                // selectJoined() returns joined entities instead of source entities
+                                Expr objectClass = Const.of(Object.class);
+                                strategy = new JoinSelectionStrategy.SelectJoined(objectClass);
+                            } else {
+                                // Default: return root entities
+                                strategy = new JoinSelectionStrategy.SelectRoot(entityClassParam);
+                            }
+
+                            result = joinQueryBuilder.build(ctx, strategy);
                         }
 
-                        result = joinQueryBuilder.build(ctx, strategy);
-                    }
-
-                    bc.return_(result);
+                        bc.return_(result);
+                    });
                 });
             });
-        });
 
             // Cache the generated bytecode for future reuse
             byte[] bytecode = bytecodeHolder[0];
@@ -372,42 +388,42 @@ public class QueryExecutorClassGenerator {
 
             // Gizmo2 ClassOutput uses ClassDesc, byte[] signature
             Gizmo gizmo = Gizmo.create((desc, bytes) -> bytecodeHolder[0] = bytes);
-        gizmo.class_(className, cc -> {
-            cc.implements_(QueryExecutor.class);
-            cc.defaultConstructor();
+            gizmo.class_(className, cc -> {
+                cc.implements_(QueryExecutor.class);
+                cc.defaultConstructor();
 
-            // Same execute method signature as regular queries
-            cc.method(QE_EXECUTE, mc -> {
-                mc.public_();
-                mc.returning(Object.class);
-                var em = mc.parameter("em", EntityManager.class);
-                var entityClassParam = mc.parameter("entityClass", Class.class);
-                var capturedValues = mc.parameter("capturedValues", Object[].class);
-                var offset = mc.parameter("offset", Integer.class);
-                var limit = mc.parameter("limit", Integer.class);
-                var distinct = mc.parameter("distinct", Boolean.class);
+                // Same execute method signature as regular queries
+                cc.method(QE_EXECUTE, mc -> {
+                    mc.public_();
+                    mc.returning(Object.class);
+                    var em = mc.parameter("em", EntityManager.class);
+                    var entityClassParam = mc.parameter("entityClass", Class.class);
+                    var capturedValues = mc.parameter("capturedValues", Object[].class);
+                    var offset = mc.parameter("offset", Integer.class);
+                    var limit = mc.parameter("limit", Integer.class);
+                    var distinct = mc.parameter("distinct", Boolean.class);
 
-                mc.body(bc -> {
-                    // Create base context with common parameters
-                    GroupQueryContext baseCtx = new GroupQueryContext(
-                            bc, em, entityClassParam,
-                            predicateExpression, groupByKeyExpression,
-                            havingExpression, capturedValues);
+                    mc.body(bc -> {
+                        // Create base context with common parameters
+                        GroupQueryContext baseCtx = new GroupQueryContext(
+                                bc, em, entityClassParam,
+                                predicateExpression, groupByKeyExpression,
+                                havingExpression, capturedValues);
 
-                    Expr result;
-                    if (isCountQuery) {
-                        result = generateGroupCountQueryBody(baseCtx);
-                    } else {
-                        GroupListContext listCtx = new GroupListContext(
-                                baseCtx, groupSelectExpression, groupSortExpressions,
-                                offset, limit, distinct);
-                        result = generateGroupQueryBody(listCtx);
-                    }
+                        Expr result;
+                        if (isCountQuery) {
+                            result = generateGroupCountQueryBody(baseCtx);
+                        } else {
+                            GroupListContext listCtx = new GroupListContext(
+                                    baseCtx, groupSelectExpression, groupSortExpressions,
+                                    offset, limit, distinct);
+                            result = generateGroupQueryBody(listCtx);
+                        }
 
-                    bc.return_(result);
+                        bc.return_(result);
+                    });
                 });
             });
-        });
 
             // Cache the generated bytecode for future reuse
             byte[] bytecode = bytecodeHolder[0];
@@ -625,7 +641,8 @@ public class QueryExecutorClassGenerator {
                 ctx.sortExpressions(), ctx.capturedValues(), null);
         clauseApplier.applyDistinct(ctx.bc(), setup.query(), ctx.distinct());
         // Use LocalVar for values used across multiple operations (Gizmo2 requirement)
-        LocalVar typedQuery = ctx.bc().localVar("typedQuery", ctx.bc().invokeInterface(EM_CREATE_QUERY, ctx.em(), setup.query()));
+        LocalVar typedQuery = ctx.bc().localVar("typedQuery",
+                ctx.bc().invokeInterface(EM_CREATE_QUERY, ctx.em(), setup.query()));
         clauseApplier.applyPagination(ctx.bc(), typedQuery, ctx.offset(), ctx.limit());
         return ctx.bc().invokeInterface(TQ_GET_RESULT_LIST, typedQuery);
     }
@@ -696,11 +713,11 @@ public class QueryExecutorClassGenerator {
     /** Maps aggregation type to Java result type (AVG->Double, SUM->Long, etc). */
     private Class<?> getAggregationResultType(String aggregationType) {
         return switch (aggregationType) {
-            case AGG_TYPE_AVG -> Double.class;           // AVG always returns Double
-            case AGG_TYPE_SUM_INTEGER -> Long.class;     // SUM of integers returns Long
-            case AGG_TYPE_SUM_LONG -> Long.class;        // SUM of longs returns Long
-            case AGG_TYPE_SUM_DOUBLE -> Double.class;    // SUM of doubles returns Double
-            case AGG_TYPE_MIN, AGG_TYPE_MAX -> Object.class;    // MIN/MAX return same type as field (use Object for now)
+            case AGG_TYPE_AVG -> Double.class; // AVG always returns Double
+            case AGG_TYPE_SUM_INTEGER -> Long.class; // SUM of integers returns Long
+            case AGG_TYPE_SUM_LONG -> Long.class; // SUM of longs returns Long
+            case AGG_TYPE_SUM_DOUBLE -> Double.class; // SUM of doubles returns Double
+            case AGG_TYPE_MIN, AGG_TYPE_MAX -> Object.class; // MIN/MAX return same type as field (use Object for now)
             default -> throw new IllegalArgumentException(unknownAggregationType(aggregationType));
         };
     }
@@ -716,7 +733,7 @@ public class QueryExecutorClassGenerator {
             case AGG_TYPE_MIN -> bc.invokeInterface(CB_MIN, cb, expression);
             case AGG_TYPE_MAX -> bc.invokeInterface(CB_MAX, cb, expression);
             case AGG_TYPE_AVG -> bc.invokeInterface(CB_AVG, cb, expression);
-            case AGG_TYPE_SUM_INTEGER -> bc.invokeInterface(CB_SUM_AS_LONG, cb, expression);  // Use sumAsLong for Integer fields
+            case AGG_TYPE_SUM_INTEGER -> bc.invokeInterface(CB_SUM_AS_LONG, cb, expression); // Use sumAsLong for Integer fields
             case AGG_TYPE_SUM_LONG -> bc.invokeInterface(CB_SUM_AS_LONG, cb, expression);
             case AGG_TYPE_SUM_DOUBLE -> bc.invokeInterface(CB_SUM_AS_DOUBLE, cb, expression);
             default -> throw new IllegalArgumentException(unknownAggregationType(aggregationType));

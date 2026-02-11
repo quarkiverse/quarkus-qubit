@@ -1,13 +1,13 @@
 package io.quarkiverse.qubit.deployment.analysis.branch;
 
+import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
+import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.AND;
+import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.OR;
+
 import java.util.Optional;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkus.logging.Log;
-
-import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
-import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.AND;
-import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.OR;
 
 /** Immutable state machine for AND/OR combination during branch analysis. */
 public sealed interface BranchState permits BranchState.Initial, BranchState.AndMode, BranchState.OrMode {
@@ -18,7 +18,8 @@ public sealed interface BranchState permits BranchState.Initial, BranchState.And
      * @param combineOperator operator to combine with previous expression (AND/OR), or null if shouldn't combine
      * @param newState the new state after processing this branch instruction
      */
-    record BranchResult(Operator combineOperator, BranchState newState) {}
+    record BranchResult(Operator combineOperator, BranchState newState) {
+    }
 
     /**
      * Updates state after combination. Handles mode transitions when completing expression groups.
@@ -33,7 +34,8 @@ public sealed interface BranchState permits BranchState.Initial, BranchState.And
     /**
      * Processes a branch instruction, returning combine operator and new state atomically.
      *
-     * <p>Default implementation delegates to testing API methods ({@code determineCombineOperator}
+     * <p>
+     * Default implementation delegates to testing API methods ({@code determineCombineOperator}
      * and {@code transition}). Implementations can override for custom behavior (e.g., {@link Initial}).
      *
      * @param jumpTarget true if jump targets true branch, false otherwise
@@ -68,24 +70,24 @@ public sealed interface BranchState permits BranchState.Initial, BranchState.And
         return Optional.empty();
     }
 
-/**
- * Package-private interface for testing-only methods.
- * These methods are used by tests to verify state machine logic in isolation.
- */
-sealed interface BranchStateTestingAPI permits BranchState.Initial, BranchState.AndMode, BranchState.OrMode {
-
     /**
-     * Transitions to new state based on jump target.
-     * For testing purposes only. Production code should use {@link BranchState#processBranch}.
+     * Package-private interface for testing-only methods.
+     * These methods are used by tests to verify state machine logic in isolation.
      */
-    BranchState transition(boolean jumpTarget, boolean isBooleanCheck);
+    sealed interface BranchStateTestingAPI permits BranchState.Initial, BranchState.AndMode, BranchState.OrMode {
 
-    /**
-     * Determines the combine operator for the current branch.
-     * For testing purposes only. Production code should use {@link BranchState#processBranch}.
-     */
-    Operator determineCombineOperator(boolean jumpTarget, LambdaExpression stackTop);
-}
+        /**
+         * Transitions to new state based on jump target.
+         * For testing purposes only. Production code should use {@link BranchState#processBranch}.
+         */
+        BranchState transition(boolean jumpTarget, boolean isBooleanCheck);
+
+        /**
+         * Determines the combine operator for the current branch.
+         * For testing purposes only. Production code should use {@link BranchState#processBranch}.
+         */
+        Operator determineCombineOperator(boolean jumpTarget, LambdaExpression stackTop);
+    }
 
     /**
      * Initial state. First jump determines AND or OR mode.
@@ -96,25 +98,23 @@ sealed interface BranchStateTestingAPI permits BranchState.Initial, BranchState.
         public BranchResult processBranch(boolean jumpTarget, boolean isBooleanCheck, LambdaExpression stackTop) {
             // First comparison doesn't combine, and first jump determines the mode
             // CRITICAL: Record the first jump target and boolean check flag for second comparison
-            BranchState newState = jumpTarget ?
-                    new OrMode(Optional.of(jumpTarget), isBooleanCheck) :
-                    new AndMode(Optional.of(jumpTarget), isBooleanCheck);
+            BranchState newState = jumpTarget ? new OrMode(Optional.of(jumpTarget), isBooleanCheck)
+                    : new AndMode(Optional.of(jumpTarget), isBooleanCheck);
             Log.tracef("BranchState Initial -> %s (jumpTarget=%b, isBooleanCheck=%b)",
                     newState.getClass().getSimpleName(), jumpTarget, isBooleanCheck);
             return new BranchResult(null, newState);
         }
 
         @Override
-        public BranchState afterCombination(boolean currentJumpTarget, Optional<Boolean> previousJumpTarget, Operator combineOp) {
+        public BranchState afterCombination(boolean currentJumpTarget, Optional<Boolean> previousJumpTarget,
+                Operator combineOp) {
             // Initial state doesn't change after combination (no combination happens)
             return this;
         }
 
         @Override
         public BranchState transition(boolean jumpTarget, boolean isBooleanCheck) {
-            return jumpTarget ?
-                    new OrMode(Optional.empty(), false) :
-                    new AndMode(Optional.empty(), false);
+            return jumpTarget ? new OrMode(Optional.empty(), false) : new AndMode(Optional.empty(), false);
         }
 
         @Override
@@ -126,10 +126,12 @@ sealed interface BranchStateTestingAPI permits BranchState.Initial, BranchState.
     /**
      * AND mode: combines expressions with AND (jump-to-false pattern).
      */
-    record AndMode(Optional<Boolean> lastJumpTarget, boolean prevWasBooleanCheck) implements BranchState, BranchStateTestingAPI {
+    record AndMode(Optional<Boolean> lastJumpTarget,
+            boolean prevWasBooleanCheck) implements BranchState, BranchStateTestingAPI {
 
         @Override
-        public BranchState afterCombination(boolean currentJumpTarget, Optional<Boolean> previousJumpTarget, Operator combineOp) {
+        public BranchState afterCombination(boolean currentJumpTarget, Optional<Boolean> previousJumpTarget,
+                Operator combineOp) {
             // Post-combination transition logic for AND mode
             // Transitions to OR mode when completing a nested AND group that leads to OR alternatives
             // Does NOT transition when completing an OR group (even if we used AND to combine)
@@ -211,20 +213,20 @@ sealed interface BranchStateTestingAPI permits BranchState.Initial, BranchState.
 
             // Stack doesn't have OR - handle based on previous comparison type
             if (prevWasBooleanCheck) {
-                return null;  // Previous was boolean check, don't combine
+                return null; // Previous was boolean check, don't combine
             }
 
             // Previous wasn't boolean check - determine operator based on stack content
             boolean stackHasAnd = stackTop instanceof LambdaExpression.BinaryOp(_, var operator, _) &&
-                                  operator == AND;
+                    operator == AND;
             return stackHasAnd ? OR : AND;
         }
 
         private boolean containsOrOperator(LambdaExpression expr) {
             if (expr instanceof LambdaExpression.BinaryOp(var left, var operator, var right)) {
                 return operator == OR ||
-                       containsOrOperator(left) ||
-                       containsOrOperator(right);
+                        containsOrOperator(left) ||
+                        containsOrOperator(right);
             }
             return false;
         }
@@ -236,7 +238,8 @@ sealed interface BranchStateTestingAPI permits BranchState.Initial, BranchState.
     record OrMode(Optional<Boolean> lastJumpTarget, boolean prevWasBooleanCheck) implements BranchState, BranchStateTestingAPI {
 
         @Override
-        public BranchState afterCombination(boolean currentJumpTarget, Optional<Boolean> previousJumpTarget, Operator combineOp) {
+        public BranchState afterCombination(boolean currentJumpTarget, Optional<Boolean> previousJumpTarget,
+                Operator combineOp) {
             // Post-combination transition logic for OR mode
             // No state transitions occur after combination in OR mode
             // Transitions from OR to AND happen before combination during processBranch/transition
@@ -276,8 +279,8 @@ sealed interface BranchStateTestingAPI permits BranchState.Initial, BranchState.
             // Pattern: (a OR b) AND (c OR ...)
             // When current jump is TRUE and stack has an OR expression, use AND to combine the groups
             if (jumpTarget && stackTop instanceof LambdaExpression.BinaryOp binOp && binOp.operator() == OR) {
-                    // Stack has OR expression, jumping to TRUE → use AND
-                    return AND;
+                // Stack has OR expression, jumping to TRUE → use AND
+                return AND;
             }
 
             // Both FALSE → transition to AND group is happening

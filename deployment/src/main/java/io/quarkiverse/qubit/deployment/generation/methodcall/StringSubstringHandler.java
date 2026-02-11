@@ -2,13 +2,13 @@ package io.quarkiverse.qubit.deployment.generation.methodcall;
 
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUBSTRING;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkus.gizmo2.Expr;
-import io.quarkus.gizmo2.LocalVar;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.LocalVar;
 
 /**
  * Handles substring(beginIndex) and substring(beginIndex, endIndex) via StringExpressionBuilder.

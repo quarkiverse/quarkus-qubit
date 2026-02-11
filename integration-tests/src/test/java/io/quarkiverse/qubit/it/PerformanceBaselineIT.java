@@ -28,14 +28,14 @@ class PerformanceBaselineIT {
         // Get executor count
         int executorCount = QueryExecutorRegistry.getRegisteredExecutorCount();
         assertThat(executorCount)
-            .as("Should have registered query executors from integration tests")
-            .isGreaterThan(0);
+                .as("Should have registered query executors from integration tests")
+                .isGreaterThan(0);
 
         // Estimate heap usage
         long heapBytes = MemoryEstimator.estimateDeepSize(registry);
         assertThat(heapBytes)
-            .as("Registry should occupy some heap space")
-            .isGreaterThan(0);
+                .as("Registry should occupy some heap space")
+                .isGreaterThan(0);
 
         // Write runtime metrics to JSON (consumed by performance analysis scripts)
         Path outputPath = Path.of("target/qubit-runtime-metrics.json");

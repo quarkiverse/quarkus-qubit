@@ -5,7 +5,8 @@ import static org.objectweb.asm.Opcodes.*;
 /** Converts bytecode opcodes to human-readable names for logging. */
 public final class OpcodeNames {
 
-    private OpcodeNames() {}
+    private OpcodeNames() {
+    }
 
     /** Returns opcode name (e.g., "IADD", "IFEQ") or "UNKNOWN(n)" if not recognized. */
     public static String get(int opcode) {

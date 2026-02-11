@@ -38,7 +38,6 @@ public record ExpressionBuilderRegistry(
                 BigDecimalExpressionBuilder.INSTANCE,
                 SubqueryExpressionBuilder.INSTANCE,
                 BiEntityExpressionBuilder.INSTANCE,
-                GroupExpressionBuilder.INSTANCE
-        );
+                GroupExpressionBuilder.INSTANCE);
     }
 }

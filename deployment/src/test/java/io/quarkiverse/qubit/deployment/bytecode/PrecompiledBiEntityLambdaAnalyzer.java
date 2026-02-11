@@ -1,24 +1,28 @@
 package io.quarkiverse.qubit.deployment.bytecode;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
-import io.quarkiverse.qubit.deployment.testutil.AbstractLambdaAnalyzer;
-import org.objectweb.asm.Handle;
-
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.BI_QUERY_SPEC_DESCRIPTOR;
 import static org.assertj.core.api.Assertions.assertThat;
+
+import org.objectweb.asm.Handle;
+
+import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.testutil.AbstractLambdaAnalyzer;
 
 /**
  * Base class for bi-entity lambda bytecode analysis tests.
  *
- * <p>This analyzer loads the BiEntityLambdaTestSources class and extracts
+ * <p>
+ * This analyzer loads the BiEntityLambdaTestSources class and extracts
  * bi-entity lambda expressions (BiQuerySpec) from its pre-compiled methods.
  *
- * <p>Unlike single-entity lambdas, bi-entity lambdas take two parameters
+ * <p>
+ * Unlike single-entity lambdas, bi-entity lambdas take two parameters
  * (source and joined entity) and produce BiEntityFieldAccess, BiEntityParameter,
  * and BiEntityPathExpression AST nodes.
  *
- * <p>Extends {@link AbstractLambdaAnalyzer} to share common infrastructure.
+ * <p>
+ * Extends {@link AbstractLambdaAnalyzer} to share common infrastructure.
  */
 public abstract class PrecompiledBiEntityLambdaAnalyzer extends AbstractLambdaAnalyzer {
 
@@ -60,7 +64,8 @@ public abstract class PrecompiledBiEntityLambdaAnalyzer extends AbstractLambdaAn
      */
     protected void assertBiEntityFieldAccess(LambdaExpression expr, String expectedFieldName) {
         assertThat(expr)
-                .as("Expression should be a BiEntityFieldAccess but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .as("Expression should be a BiEntityFieldAccess but was %s",
+                        expr == null ? "null" : expr.getClass().getSimpleName())
                 .isInstanceOf(LambdaExpression.BiEntityFieldAccess.class);
         var fieldAccess = (LambdaExpression.BiEntityFieldAccess) expr;
         assertThat(fieldAccess.fieldName())
@@ -72,9 +77,10 @@ public abstract class PrecompiledBiEntityLambdaAnalyzer extends AbstractLambdaAn
      * Asserts that an expression is a BiEntityFieldAccess with expected field and position.
      */
     protected void assertBiEntityFieldAccess(LambdaExpression expr, String expectedFieldName,
-                                              LambdaExpression.EntityPosition expectedPosition) {
+            LambdaExpression.EntityPosition expectedPosition) {
         assertThat(expr)
-                .as("Expression should be a BiEntityFieldAccess but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .as("Expression should be a BiEntityFieldAccess but was %s",
+                        expr == null ? "null" : expr.getClass().getSimpleName())
                 .isInstanceOf(LambdaExpression.BiEntityFieldAccess.class);
         var fieldAccess = (LambdaExpression.BiEntityFieldAccess) expr;
         assertThat(fieldAccess.fieldName())

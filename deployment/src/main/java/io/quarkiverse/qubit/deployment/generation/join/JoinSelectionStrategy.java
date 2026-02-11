@@ -46,8 +46,7 @@ public sealed interface JoinSelectionStrategy permits
     /** SELECT bi-entity projection (DTO or tuple). */
     record SelectProjection(
             Expr objectClass,
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression projectionExpression
-    ) implements JoinSelectionStrategy {
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression projectionExpression) implements JoinSelectionStrategy {
 
         @Override
         public Expr resultClass() {

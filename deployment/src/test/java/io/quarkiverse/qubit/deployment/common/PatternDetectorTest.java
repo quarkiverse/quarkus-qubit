@@ -1,27 +1,30 @@
 package io.quarkiverse.qubit.deployment.common;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.ValueSource;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
+
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
 
 /**
  * Unit tests for PatternDetector utility class.
  *
- * <p>These tests target surviving mutations in the PatternDetector class,
+ * <p>
+ * These tests target surviving mutations in the PatternDetector class,
  * particularly the boolean return value mutations and equality check conditions.
  *
- * <p>This class uses JUnit 5 parameterized tests to consolidate repetitive
+ * <p>
+ * This class uses JUnit 5 parameterized tests to consolidate repetitive
  * test patterns, reducing code duplication while maintaining full coverage.
  */
 class PatternDetectorTest {
@@ -37,8 +40,7 @@ class PatternDetectorTest {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("active", boolean.class),
                     Operator.LT,
-                    new LambdaExpression.CapturedVariable(0, boolean.class)
-            );
+                    new LambdaExpression.CapturedVariable(0, boolean.class));
             assertThat(PatternDetector.isBooleanFieldCapturedVariableComparison(binOp)).isFalse();
         }
 
@@ -47,8 +49,7 @@ class PatternDetectorTest {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.Constant(true, boolean.class),
                     Operator.EQ,
-                    new LambdaExpression.CapturedVariable(0, boolean.class)
-            );
+                    new LambdaExpression.CapturedVariable(0, boolean.class));
             assertThat(PatternDetector.isBooleanFieldCapturedVariableComparison(binOp)).isFalse();
         }
 
@@ -57,8 +58,7 @@ class PatternDetectorTest {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("name", String.class),
                     Operator.EQ,
-                    new LambdaExpression.CapturedVariable(0, String.class)
-            );
+                    new LambdaExpression.CapturedVariable(0, String.class));
             assertThat(PatternDetector.isBooleanFieldCapturedVariableComparison(binOp)).isFalse();
         }
 
@@ -67,8 +67,7 @@ class PatternDetectorTest {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("active", boolean.class),
                     Operator.EQ,
-                    new LambdaExpression.Constant(true, boolean.class)
-            );
+                    new LambdaExpression.Constant(true, boolean.class));
             assertThat(PatternDetector.isBooleanFieldCapturedVariableComparison(binOp)).isFalse();
         }
 
@@ -77,8 +76,7 @@ class PatternDetectorTest {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("active", boolean.class),
                     Operator.EQ,
-                    new LambdaExpression.CapturedVariable(0, int.class)
-            );
+                    new LambdaExpression.CapturedVariable(0, int.class));
             assertThat(PatternDetector.isBooleanFieldCapturedVariableComparison(binOp)).isFalse();
         }
 
@@ -93,8 +91,7 @@ class PatternDetectorTest {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("active", fieldType),
                     operator,
-                    new LambdaExpression.CapturedVariable(0, fieldType)
-            );
+                    new LambdaExpression.CapturedVariable(0, fieldType));
             assertThat(PatternDetector.isBooleanFieldCapturedVariableComparison(binOp)).isTrue();
         }
     }
@@ -136,8 +133,7 @@ class PatternDetectorTest {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.MethodCall(target, "compareTo", java.util.List.of(), int.class),
                     Operator.NE,
-                    new LambdaExpression.Constant(0, int.class)
-            );
+                    new LambdaExpression.Constant(0, int.class));
             assertThat(PatternDetector.isCompareToEqualityPattern(binOp)).isFalse();
         }
 
@@ -146,8 +142,7 @@ class PatternDetectorTest {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.Constant(0, int.class),
                     Operator.EQ,
-                    new LambdaExpression.Constant(0, int.class)
-            );
+                    new LambdaExpression.Constant(0, int.class));
             assertThat(PatternDetector.isCompareToEqualityPattern(binOp)).isFalse();
         }
 
@@ -157,8 +152,7 @@ class PatternDetectorTest {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.MethodCall(target, "equals", java.util.List.of(), boolean.class),
                     Operator.EQ,
-                    new LambdaExpression.Constant(0, int.class)
-            );
+                    new LambdaExpression.Constant(0, int.class));
             assertThat(PatternDetector.isCompareToEqualityPattern(binOp)).isFalse();
         }
 
@@ -168,8 +162,7 @@ class PatternDetectorTest {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.MethodCall(target, "compareTo", java.util.List.of(), int.class),
                     Operator.EQ,
-                    new LambdaExpression.FieldAccess("value", int.class)
-            );
+                    new LambdaExpression.FieldAccess("value", int.class));
             assertThat(PatternDetector.isCompareToEqualityPattern(binOp)).isFalse();
         }
 
@@ -179,8 +172,7 @@ class PatternDetectorTest {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.MethodCall(target, "compareTo", java.util.List.of(), int.class),
                     Operator.EQ,
-                    new LambdaExpression.Constant(0, int.class)
-            );
+                    new LambdaExpression.Constant(0, int.class));
             assertThat(PatternDetector.isCompareToEqualityPattern(binOp)).isTrue();
         }
     }
@@ -196,8 +188,7 @@ class PatternDetectorTest {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("name", String.class),
                     Operator.LT,
-                    new LambdaExpression.NullLiteral(Object.class)
-            );
+                    new LambdaExpression.NullLiteral(Object.class));
             assertThat(PatternDetector.isNullCheckPattern(binOp)).isFalse();
         }
 
@@ -206,8 +197,7 @@ class PatternDetectorTest {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.NullLiteral(Object.class),
                     Operator.EQ,
-                    new LambdaExpression.FieldAccess("name", String.class)
-            );
+                    new LambdaExpression.FieldAccess("name", String.class));
             assertThat(PatternDetector.isNullCheckPattern(binOp)).isTrue();
         }
 
@@ -216,8 +206,7 @@ class PatternDetectorTest {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("name", String.class),
                     Operator.EQ,
-                    new LambdaExpression.NullLiteral(Object.class)
-            );
+                    new LambdaExpression.NullLiteral(Object.class));
             assertThat(PatternDetector.isNullCheckPattern(binOp)).isTrue();
         }
 
@@ -226,8 +215,7 @@ class PatternDetectorTest {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("name", String.class),
                     Operator.EQ,
-                    new LambdaExpression.Constant("test", String.class)
-            );
+                    new LambdaExpression.Constant("test", String.class));
             assertThat(PatternDetector.isNullCheckPattern(binOp)).isFalse();
         }
     }
@@ -243,8 +231,7 @@ class PatternDetectorTest {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("active", boolean.class),
                     Operator.LT,
-                    new LambdaExpression.Constant(1, int.class)
-            );
+                    new LambdaExpression.Constant(1, int.class));
             assertThat(PatternDetector.isBooleanFieldConstantComparison(binOp)).isFalse();
         }
 
@@ -253,8 +240,7 @@ class PatternDetectorTest {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.Constant(true, boolean.class),
                     Operator.EQ,
-                    new LambdaExpression.Constant(1, int.class)
-            );
+                    new LambdaExpression.Constant(1, int.class));
             assertThat(PatternDetector.isBooleanFieldConstantComparison(binOp)).isFalse();
         }
 
@@ -263,8 +249,7 @@ class PatternDetectorTest {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("count", int.class),
                     Operator.EQ,
-                    new LambdaExpression.Constant(1, int.class)
-            );
+                    new LambdaExpression.Constant(1, int.class));
             assertThat(PatternDetector.isBooleanFieldConstantComparison(binOp)).isFalse();
         }
 
@@ -273,8 +258,7 @@ class PatternDetectorTest {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("active", boolean.class),
                     Operator.EQ,
-                    new LambdaExpression.FieldAccess("other", int.class)
-            );
+                    new LambdaExpression.FieldAccess("other", int.class));
             assertThat(PatternDetector.isBooleanFieldConstantComparison(binOp)).isFalse();
         }
 
@@ -291,8 +275,7 @@ class PatternDetectorTest {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("active", boolean.class),
                     Operator.EQ,
-                    new LambdaExpression.Constant(constantValue, type)
-            );
+                    new LambdaExpression.Constant(constantValue, type));
             assertThat(PatternDetector.isBooleanFieldConstantComparison(binOp)).isEqualTo(expected);
         }
     }
@@ -339,8 +322,7 @@ class PatternDetectorTest {
             Deque<LambdaExpression> stack = new ArrayDeque<>();
             stack.push(BinaryOp.add(
                     new LambdaExpression.Constant(1, int.class),
-                    new LambdaExpression.Constant(2, int.class)
-            ));
+                    new LambdaExpression.Constant(2, int.class)));
             stack.push(new LambdaExpression.FieldAccess("value", int.class));
             assertThat(PatternDetector.isArithmeticComparisonPattern(stack)).isFalse();
         }
@@ -358,8 +340,7 @@ class PatternDetectorTest {
             Deque<LambdaExpression> stack = new ArrayDeque<>();
             BinaryOp arithmetic = BinaryOp.add(
                     new LambdaExpression.FieldAccess("a", int.class),
-                    new LambdaExpression.FieldAccess("b", int.class)
-            );
+                    new LambdaExpression.FieldAccess("b", int.class));
             stack.push(arithmetic);
             stack.push(new LambdaExpression.Constant(10, int.class));
             assertThat(PatternDetector.isArithmeticComparisonPattern(stack)).isTrue();
@@ -377,8 +358,7 @@ class PatternDetectorTest {
             LambdaExpression expr = LambdaExpression.ScalarSubquery.avg(
                     Object.class,
                     new LambdaExpression.FieldAccess("salary", Long.class),
-                    null
-            );
+                    null);
             assertThat(PatternDetector.containsSubquery(expr)).isTrue();
         }
 
@@ -386,8 +366,7 @@ class PatternDetectorTest {
         void returnsTrue_forExistsSubquery() {
             LambdaExpression expr = LambdaExpression.ExistsSubquery.exists(
                     Object.class,
-                    new LambdaExpression.Constant(true, boolean.class)
-            );
+                    new LambdaExpression.Constant(true, boolean.class));
             assertThat(PatternDetector.containsSubquery(expr)).isTrue();
         }
 
@@ -396,13 +375,12 @@ class PatternDetectorTest {
             LambdaExpression fieldExpr = new LambdaExpression.FieldAccess("id", Long.class);
             LambdaExpression selectExpr = new LambdaExpression.FieldAccess("foreignId", Long.class);
             LambdaExpression expr = new LambdaExpression.InSubquery(
-                    fieldExpr, Object.class, null, selectExpr, null, false
-            );
+                    fieldExpr, Object.class, null, selectExpr, null, false);
             assertThat(PatternDetector.containsSubquery(expr)).isTrue();
         }
 
         @ParameterizedTest(name = "returns false for {0}")
-        @ValueSource(strings = {"constant", "null", "fieldAccess", "methodCall"})
+        @ValueSource(strings = { "constant", "null", "fieldAccess", "methodCall" })
         void returnsFalse_forNonSubqueryTypes(String type) {
             LambdaExpression expr = switch (type) {
                 case "constant" -> new LambdaExpression.Constant(1, int.class);
@@ -419,8 +397,7 @@ class PatternDetectorTest {
         @Test
         void returnsTrue_forNestedSubqueryInBinaryOp() {
             LambdaExpression subquery = LambdaExpression.ScalarSubquery.avg(
-                    Object.class, new LambdaExpression.FieldAccess("salary", Long.class), null
-            );
+                    Object.class, new LambdaExpression.FieldAccess("salary", Long.class), null);
             BinaryOp binOp = BinaryOp.gt(new LambdaExpression.FieldAccess("salary", Long.class), subquery);
             assertThat(PatternDetector.containsSubquery(binOp)).isTrue();
         }
@@ -428,19 +405,16 @@ class PatternDetectorTest {
         @Test
         void returnsTrue_forSubqueryInUnaryOp() {
             LambdaExpression subquery = LambdaExpression.ExistsSubquery.exists(
-                    Object.class, new LambdaExpression.Constant(true, boolean.class)
-            );
+                    Object.class, new LambdaExpression.Constant(true, boolean.class));
             LambdaExpression unaryOp = new LambdaExpression.UnaryOp(
-                    LambdaExpression.UnaryOp.Operator.NOT, subquery
-            );
+                    LambdaExpression.UnaryOp.Operator.NOT, subquery);
             assertThat(PatternDetector.containsSubquery(unaryOp)).isTrue();
         }
 
         @Test
         void returnsTrue_forSubqueryInLeftOfBinaryOp() {
             LambdaExpression subquery = LambdaExpression.ScalarSubquery.avg(
-                    Object.class, new LambdaExpression.FieldAccess("salary", Long.class), null
-            );
+                    Object.class, new LambdaExpression.FieldAccess("salary", Long.class), null);
             BinaryOp binOp = BinaryOp.gt(subquery, new LambdaExpression.Constant(100, int.class));
             assertThat(PatternDetector.containsSubquery(binOp))
                     .as("Left side subquery must be detected").isTrue();
@@ -449,8 +423,7 @@ class PatternDetectorTest {
         @Test
         void returnsTrue_forSubqueryOnlyInRightOfBinaryOp() {
             LambdaExpression subquery = LambdaExpression.ExistsSubquery.exists(
-                    Object.class, new LambdaExpression.Constant(true, boolean.class)
-            );
+                    Object.class, new LambdaExpression.Constant(true, boolean.class));
             BinaryOp binOp = BinaryOp.and(new LambdaExpression.Constant(true, boolean.class), subquery);
             assertThat(PatternDetector.containsSubquery(binOp))
                     .as("Right side subquery must be detected").isTrue();
@@ -460,8 +433,7 @@ class PatternDetectorTest {
         void returnsFalse_forBinaryOpWithNoSubqueries() {
             BinaryOp binOp = BinaryOp.and(
                     new LambdaExpression.FieldAccess("active", boolean.class),
-                    new LambdaExpression.FieldAccess("enabled", boolean.class)
-            );
+                    new LambdaExpression.FieldAccess("enabled", boolean.class));
             assertThat(PatternDetector.containsSubquery(binOp))
                     .as("BinaryOp with no subqueries should return false").isFalse();
         }
@@ -476,16 +448,14 @@ class PatternDetectorTest {
         @Test
         void returnsTrue_forScalarSubquery() {
             LambdaExpression expr = LambdaExpression.ScalarSubquery.avg(
-                    Object.class, new LambdaExpression.FieldAccess("salary", Long.class), null
-            );
+                    Object.class, new LambdaExpression.FieldAccess("salary", Long.class), null);
             assertThat(PatternDetector.containsScalarSubquery(expr)).isTrue();
         }
 
         @Test
         void returnsFalse_forExistsSubquery() {
             LambdaExpression expr = LambdaExpression.ExistsSubquery.exists(
-                    Object.class, new LambdaExpression.Constant(true, boolean.class)
-            );
+                    Object.class, new LambdaExpression.Constant(true, boolean.class));
             assertThat(PatternDetector.containsScalarSubquery(expr)).isFalse();
         }
 
@@ -494,16 +464,14 @@ class PatternDetectorTest {
             LambdaExpression fieldExpr = new LambdaExpression.FieldAccess("id", Long.class);
             LambdaExpression selectExpr = new LambdaExpression.FieldAccess("foreignId", Long.class);
             LambdaExpression expr = new LambdaExpression.InSubquery(
-                    fieldExpr, Object.class, null, selectExpr, null, false
-            );
+                    fieldExpr, Object.class, null, selectExpr, null, false);
             assertThat(PatternDetector.containsScalarSubquery(expr)).isFalse();
         }
 
         @Test
         void returnsTrue_forNestedScalarSubqueryInBinaryOp() {
             LambdaExpression subquery = LambdaExpression.ScalarSubquery.avg(
-                    Object.class, new LambdaExpression.FieldAccess("salary", Long.class), null
-            );
+                    Object.class, new LambdaExpression.FieldAccess("salary", Long.class), null);
             BinaryOp binOp = BinaryOp.gt(new LambdaExpression.FieldAccess("salary", Long.class), subquery);
             assertThat(PatternDetector.containsScalarSubquery(binOp)).isTrue();
         }
@@ -511,8 +479,7 @@ class PatternDetectorTest {
         @Test
         void returnsTrue_forScalarSubqueryInLeftOfBinaryOp() {
             LambdaExpression subquery = LambdaExpression.ScalarSubquery.avg(
-                    Object.class, new LambdaExpression.FieldAccess("salary", Long.class), null
-            );
+                    Object.class, new LambdaExpression.FieldAccess("salary", Long.class), null);
             BinaryOp binOp = BinaryOp.gt(subquery, new LambdaExpression.Constant(100, int.class));
             assertThat(PatternDetector.containsScalarSubquery(binOp))
                     .as("Left side ScalarSubquery must be detected").isTrue();
@@ -521,8 +488,7 @@ class PatternDetectorTest {
         @Test
         void returnsTrue_forScalarSubqueryOnlyInRightOfBinaryOp() {
             LambdaExpression subquery = LambdaExpression.ScalarSubquery.avg(
-                    Object.class, new LambdaExpression.FieldAccess("salary", Long.class), null
-            );
+                    Object.class, new LambdaExpression.FieldAccess("salary", Long.class), null);
             BinaryOp binOp = BinaryOp.gt(new LambdaExpression.Constant(100, int.class), subquery);
             assertThat(PatternDetector.containsScalarSubquery(binOp))
                     .as("Right side ScalarSubquery must be detected").isTrue();
@@ -531,16 +497,14 @@ class PatternDetectorTest {
         @Test
         void returnsTrue_forScalarSubqueryInUnaryOp() {
             LambdaExpression subquery = LambdaExpression.ScalarSubquery.avg(
-                    Object.class, new LambdaExpression.FieldAccess("salary", Long.class), null
-            );
+                    Object.class, new LambdaExpression.FieldAccess("salary", Long.class), null);
             LambdaExpression unaryOp = new LambdaExpression.UnaryOp(
-                    LambdaExpression.UnaryOp.Operator.NOT, subquery
-            );
+                    LambdaExpression.UnaryOp.Operator.NOT, subquery);
             assertThat(PatternDetector.containsScalarSubquery(unaryOp)).isTrue();
         }
 
         @ParameterizedTest(name = "returns false for {0}")
-        @ValueSource(strings = {"null", "constant", "binaryOpNoSubquery", "binaryOpWithExists"})
+        @ValueSource(strings = { "null", "constant", "binaryOpNoSubquery", "binaryOpWithExists" })
         void returnsFalse_forNonScalarTypes(String type) {
             LambdaExpression expr = switch (type) {
                 case "null" -> null;
@@ -604,8 +568,7 @@ class PatternDetectorTest {
         @Test
         void returnsTrue_forExistsSubqueryEqTrue() {
             LambdaExpression subquery = LambdaExpression.ExistsSubquery.exists(
-                    Object.class, new LambdaExpression.Constant(true, boolean.class)
-            );
+                    Object.class, new LambdaExpression.Constant(true, boolean.class));
             BinaryOp binOp = BinaryOp.eq(subquery, new LambdaExpression.Constant(true, boolean.class));
             assertThat(PatternDetector.isSubqueryBooleanComparison(binOp)).isTrue();
         }
@@ -613,8 +576,7 @@ class PatternDetectorTest {
         @Test
         void returnsTrue_forExistsSubqueryNeOne() {
             LambdaExpression subquery = LambdaExpression.ExistsSubquery.exists(
-                    Object.class, new LambdaExpression.Constant(true, boolean.class)
-            );
+                    Object.class, new LambdaExpression.Constant(true, boolean.class));
             BinaryOp binOp = BinaryOp.ne(subquery, new LambdaExpression.Constant(1, int.class));
             assertThat(PatternDetector.isSubqueryBooleanComparison(binOp)).isTrue();
         }
@@ -622,8 +584,7 @@ class PatternDetectorTest {
         @Test
         void returnsTrue_forBooleanConstantOnLeftSubqueryOnRight() {
             LambdaExpression subquery = LambdaExpression.ExistsSubquery.exists(
-                    Object.class, new LambdaExpression.Constant(true, boolean.class)
-            );
+                    Object.class, new LambdaExpression.Constant(true, boolean.class));
             BinaryOp binOp = BinaryOp.eq(new LambdaExpression.Constant(true, boolean.class), subquery);
             assertThat(PatternDetector.isSubqueryBooleanComparison(binOp)).isTrue();
         }
@@ -631,8 +592,7 @@ class PatternDetectorTest {
         @Test
         void returnsFalse_forNonEqualityOperator() {
             LambdaExpression subquery = LambdaExpression.ExistsSubquery.exists(
-                    Object.class, new LambdaExpression.Constant(true, boolean.class)
-            );
+                    Object.class, new LambdaExpression.Constant(true, boolean.class));
             BinaryOp binOp = BinaryOp.lt(subquery, new LambdaExpression.Constant(1, int.class));
             assertThat(PatternDetector.isSubqueryBooleanComparison(binOp)).isFalse();
         }
@@ -640,8 +600,7 @@ class PatternDetectorTest {
         @Test
         void returnsFalse_forSubqueryComparedToNonBoolean() {
             LambdaExpression subquery = LambdaExpression.ExistsSubquery.exists(
-                    Object.class, new LambdaExpression.Constant(true, boolean.class)
-            );
+                    Object.class, new LambdaExpression.Constant(true, boolean.class));
             BinaryOp binOp = BinaryOp.eq(subquery, new LambdaExpression.Constant("test", String.class));
             assertThat(PatternDetector.isSubqueryBooleanComparison(binOp)).isFalse();
         }
@@ -650,8 +609,7 @@ class PatternDetectorTest {
         void returnsFalse_forNoSubquery() {
             BinaryOp binOp = BinaryOp.eq(
                     new LambdaExpression.FieldAccess("active", boolean.class),
-                    new LambdaExpression.Constant(true, boolean.class)
-            );
+                    new LambdaExpression.Constant(true, boolean.class));
             assertThat(PatternDetector.isSubqueryBooleanComparison(binOp)).isFalse();
         }
     }
@@ -713,8 +671,7 @@ class PatternDetectorTest {
             Deque<LambdaExpression> stack = new ArrayDeque<>();
             BinaryOp arithmetic = BinaryOp.sub(
                     new LambdaExpression.FieldAccess("a", int.class),
-                    new LambdaExpression.FieldAccess("b", int.class)
-            );
+                    new LambdaExpression.FieldAccess("b", int.class));
             stack.push(arithmetic);
             stack.push(new LambdaExpression.Constant(0, int.class));
             assertThat(PatternDetector.BranchPattern.detect(stack))
@@ -735,8 +692,7 @@ class PatternDetectorTest {
             Deque<LambdaExpression> stack = new ArrayDeque<>();
             BinaryOp arithmetic = BinaryOp.add(
                     new LambdaExpression.FieldAccess("a", int.class),
-                    new LambdaExpression.FieldAccess("b", int.class)
-            );
+                    new LambdaExpression.FieldAccess("b", int.class));
             stack.push(arithmetic);
             assertThat(PatternDetector.BranchPattern.detect(stack))
                     .isEqualTo(PatternDetector.BranchPattern.ARITHMETIC);
@@ -834,14 +790,17 @@ class PatternDetectorTest {
                 }
                 case "pathExpression" -> {
                     var segments = java.util.List.of(
-                            new LambdaExpression.PathSegment("address", Object.class, LambdaExpression.RelationType.MANY_TO_ONE),
+                            new LambdaExpression.PathSegment("address", Object.class,
+                                    LambdaExpression.RelationType.MANY_TO_ONE),
                             new LambdaExpression.PathSegment("city", String.class, LambdaExpression.RelationType.FIELD));
                     stack.push(new LambdaExpression.PathExpression(segments, String.class));
                     stack.push(new LambdaExpression.Constant("NYC", String.class));
                 }
                 case "biEntityFieldAccess" -> {
-                    stack.push(new LambdaExpression.BiEntityFieldAccess("salary", Long.class, LambdaExpression.EntityPosition.FIRST));
-                    stack.push(new LambdaExpression.BiEntityFieldAccess("salary", Long.class, LambdaExpression.EntityPosition.SECOND));
+                    stack.push(new LambdaExpression.BiEntityFieldAccess("salary", Long.class,
+                            LambdaExpression.EntityPosition.FIRST));
+                    stack.push(new LambdaExpression.BiEntityFieldAccess("salary", Long.class,
+                            LambdaExpression.EntityPosition.SECOND));
                 }
                 case "groupKeyReference" -> {
                     stack.push(new LambdaExpression.GroupKeyReference(
@@ -850,9 +809,11 @@ class PatternDetectorTest {
                 }
                 case "biEntityPathExpression" -> {
                     var segments = java.util.List.of(
-                            new LambdaExpression.PathSegment("address", Object.class, LambdaExpression.RelationType.MANY_TO_ONE),
+                            new LambdaExpression.PathSegment("address", Object.class,
+                                    LambdaExpression.RelationType.MANY_TO_ONE),
                             new LambdaExpression.PathSegment("city", String.class, LambdaExpression.RelationType.FIELD));
-                    stack.push(new LambdaExpression.BiEntityPathExpression(segments, String.class, LambdaExpression.EntityPosition.FIRST));
+                    stack.push(new LambdaExpression.BiEntityPathExpression(segments, String.class,
+                            LambdaExpression.EntityPosition.FIRST));
                     stack.push(new LambdaExpression.Constant("NYC", String.class));
                 }
                 case "arithmetic" -> {
@@ -877,8 +838,7 @@ class PatternDetectorTest {
         void returnsStringConcatenation_whenPredicateReturnsTrue() {
             BinaryOp binOp = BinaryOp.add(
                     new LambdaExpression.FieldAccess("first", String.class),
-                    new LambdaExpression.FieldAccess("last", String.class)
-            );
+                    new LambdaExpression.FieldAccess("last", String.class));
             assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, op -> true))
                     .isEqualTo(PatternDetector.BinaryOperationCategory.STRING_CONCATENATION);
         }
@@ -892,8 +852,7 @@ class PatternDetectorTest {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("a", int.class),
                     operator,
-                    new LambdaExpression.FieldAccess("b", int.class)
-            );
+                    new LambdaExpression.FieldAccess("b", int.class));
             assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, op -> false))
                     .isEqualTo(expected);
         }
@@ -902,8 +861,7 @@ class PatternDetectorTest {
         void returnsNullCheck_forNullComparisonPattern() {
             BinaryOp binOp = BinaryOp.eq(
                     new LambdaExpression.FieldAccess("name", String.class),
-                    new LambdaExpression.NullLiteral(String.class)
-            );
+                    new LambdaExpression.NullLiteral(String.class));
             assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, op -> false))
                     .isEqualTo(PatternDetector.BinaryOperationCategory.NULL_CHECK);
         }
@@ -912,8 +870,7 @@ class PatternDetectorTest {
         void returnsBooleanFieldConstant_forBooleanFieldWithConstant() {
             BinaryOp binOp = BinaryOp.eq(
                     new LambdaExpression.FieldAccess("active", boolean.class),
-                    new LambdaExpression.Constant(1, int.class)
-            );
+                    new LambdaExpression.Constant(1, int.class));
             assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, op -> false))
                     .isEqualTo(PatternDetector.BinaryOperationCategory.BOOLEAN_FIELD_CONSTANT);
         }
@@ -922,8 +879,7 @@ class PatternDetectorTest {
         void returnsBooleanFieldCapturedVariable_forBooleanFieldWithCapturedVar() {
             BinaryOp binOp = BinaryOp.eq(
                     new LambdaExpression.FieldAccess("active", boolean.class),
-                    new LambdaExpression.CapturedVariable(0, boolean.class)
-            );
+                    new LambdaExpression.CapturedVariable(0, boolean.class));
             assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, op -> false))
                     .isEqualTo(PatternDetector.BinaryOperationCategory.BOOLEAN_FIELD_CAPTURED_VARIABLE);
         }
@@ -933,8 +889,7 @@ class PatternDetectorTest {
             LambdaExpression target = new LambdaExpression.FieldAccess("name", String.class);
             BinaryOp binOp = BinaryOp.eq(
                     new LambdaExpression.MethodCall(target, "compareTo", java.util.List.of(), int.class),
-                    new LambdaExpression.Constant(0, int.class)
-            );
+                    new LambdaExpression.Constant(0, int.class));
             assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, op -> false))
                     .isEqualTo(PatternDetector.BinaryOperationCategory.COMPARE_TO_EQUALITY);
         }
@@ -943,8 +898,7 @@ class PatternDetectorTest {
         void returnsComparison_forSimpleEquality() {
             BinaryOp binOp = BinaryOp.eq(
                     new LambdaExpression.FieldAccess("id", int.class),
-                    new LambdaExpression.Constant(42, int.class)
-            );
+                    new LambdaExpression.Constant(42, int.class));
             assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, op -> false))
                     .isEqualTo(PatternDetector.BinaryOperationCategory.COMPARISON);
         }
@@ -970,8 +924,7 @@ class PatternDetectorTest {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("a", int.class),
                     operator,
-                    new LambdaExpression.FieldAccess("b", int.class)
-            );
+                    new LambdaExpression.FieldAccess("b", int.class));
             assertThat(PatternDetector.isArithmeticExpression(binOp)).isEqualTo(expected);
         }
 
@@ -993,8 +946,7 @@ class PatternDetectorTest {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("name", String.class),
                     Operator.EQ,
-                    new LambdaExpression.CapturedVariable(0, boolean.class)
-            );
+                    new LambdaExpression.CapturedVariable(0, boolean.class));
             assertThat(PatternDetector.isBooleanFieldCapturedVariableComparison(binOp))
                     .as("Should return false when field type is not boolean").isFalse();
         }
@@ -1003,8 +955,7 @@ class PatternDetectorTest {
         void isSubqueryBooleanComparison_returnsFalse_whenRightIsNotSubqueryButLeftIsBooleanConstant() {
             BinaryOp binOp = BinaryOp.eq(
                     new LambdaExpression.Constant(true, boolean.class),
-                    new LambdaExpression.FieldAccess("active", boolean.class)
-            );
+                    new LambdaExpression.FieldAccess("active", boolean.class));
             assertThat(PatternDetector.isSubqueryBooleanComparison(binOp))
                     .as("Should return false when right is not subquery").isFalse();
         }
@@ -1013,8 +964,7 @@ class PatternDetectorTest {
         void isSubqueryBooleanComparison_returnsFalse_whenRightIsNotSubqueryAndLeftIsIntZero() {
             BinaryOp binOp = BinaryOp.eq(
                     new LambdaExpression.Constant(0, int.class),
-                    new LambdaExpression.FieldAccess("count", int.class)
-            );
+                    new LambdaExpression.FieldAccess("count", int.class));
             assertThat(PatternDetector.isSubqueryBooleanComparison(binOp))
                     .as("Should return false when right is not subquery").isFalse();
         }
@@ -1038,8 +988,7 @@ class PatternDetectorTest {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("active", boolean.class),
                     Operator.EQ,
-                    new LambdaExpression.Constant(1L, long.class)
-            );
+                    new LambdaExpression.Constant(1L, long.class));
             assertThat(PatternDetector.isBooleanFieldConstantComparison(binOp))
                     .as("Should return false when constant type is Long").isFalse();
         }
@@ -1065,7 +1014,7 @@ class PatternDetectorTest {
         }
 
         @ParameterizedTest(name = "{0} returning method → OTHER")
-        @ValueSource(strings = {"boolean", "void"})
+        @ValueSource(strings = { "boolean", "void" })
         void branchPatternDetect_returnsOther_forNonIntReturningMethodCall(String returnType) {
             Deque<LambdaExpression> stack = new ArrayDeque<>();
             LambdaExpression target = new LambdaExpression.FieldAccess("name", String.class);

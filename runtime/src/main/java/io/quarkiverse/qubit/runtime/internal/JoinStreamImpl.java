@@ -8,17 +8,17 @@ import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.requir
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.validateLimitCount;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.validateSkipCount;
 
-import io.quarkiverse.qubit.BiQuerySpec;
-import io.quarkiverse.qubit.JoinStream;
-import io.quarkiverse.qubit.JoinType;
-import io.quarkiverse.qubit.QuerySpec;
-import io.quarkiverse.qubit.QubitStream;
-import io.quarkiverse.qubit.SortDirection;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+
+import io.quarkiverse.qubit.BiQuerySpec;
+import io.quarkiverse.qubit.JoinStream;
+import io.quarkiverse.qubit.JoinType;
+import io.quarkiverse.qubit.QubitStream;
+import io.quarkiverse.qubit.QuerySpec;
+import io.quarkiverse.qubit.SortDirection;
 
 /**
  * Default implementation of {@link JoinStream} for join query operations.
@@ -101,8 +101,8 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
             QuerySpec<T, Collection<R>> relationshipAccessor,
             JoinType joinType) {
         this(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
-             new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(),
-             null, null, false);
+                new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(),
+                null, null, false);
     }
 
     /**
@@ -179,7 +179,8 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         Object[] capturedValues = extractCapturedVariables();
 
         QueryExecutorRegistry registry = getQueryExecutorRegistry();
-        List<S> results = registry.executeJoinProjectionQuery(callSiteId, sourceEntityClass, capturedValues, offset, limit, distinct);
+        List<S> results = registry.executeJoinProjectionQuery(callSiteId, sourceEntityClass, capturedValues, offset, limit,
+                distinct);
         return new ImmutableResultStream<>(results, "join projection");
     }
 
@@ -200,7 +201,8 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         Object[] capturedValues = extractCapturedVariables();
 
         QueryExecutorRegistry registry = getQueryExecutorRegistry();
-        List<R> results = registry.executeJoinSelectJoinedQuery(callSiteId, sourceEntityClass, capturedValues, offset, limit, distinct);
+        List<R> results = registry.executeJoinSelectJoinedQuery(callSiteId, sourceEntityClass, capturedValues, offset, limit,
+                distinct);
         return new ImmutableResultStream<>(results, "selectJoined projection");
     }
 
@@ -293,10 +295,10 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
      * <p>
      * Priority order (matching build-time InvokeDynamicScanner.getPrimaryLambdaMethodName):
      * <ol>
-     *   <li>First source predicate (single-entity WHERE on source)</li>
-     *   <li>First bi-entity predicate (bi-entity WHERE on both)</li>
-     *   <li>Relationship accessor (join relationship)</li>
-     *   <li>First ON condition</li>
+     * <li>First source predicate (single-entity WHERE on source)</li>
+     * <li>First bi-entity predicate (bi-entity WHERE on both)</li>
+     * <li>Relationship accessor (join relationship)</li>
+     * <li>First ON condition</li>
      * </ol>
      *
      * @return the primary lambda, or null if no lambdas are present

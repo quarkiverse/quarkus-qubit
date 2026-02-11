@@ -1,15 +1,17 @@
 package io.quarkiverse.qubit.deployment.criteria;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+
 /**
  * Criteria query generation tests for String operations.
  *
- * <p>This class uses JUnit 5 parameterized tests to consolidate repetitive
+ * <p>
+ * This class uses JUnit 5 parameterized tests to consolidate repetitive
  * test patterns, reducing code duplication while maintaining full coverage.
  */
 class StringOperationsCriteriaTest extends CriteriaQueryTestBase {
@@ -38,7 +40,7 @@ class StringOperationsCriteriaTest extends CriteriaQueryTestBase {
      * Tests that verify criteria generation succeeds without additional assertions.
      */
     @ParameterizedTest(name = "{0} → success")
-    @ValueSource(strings = {"stringMethodChaining", "stringComplexConditions"})
+    @ValueSource(strings = { "stringMethodChaining", "stringComplexConditions" })
     void complexStringOperation(String lambdaMethodName) {
         LambdaExpression expr = analyzeLambda(lambdaMethodName);
         assertCriteriaGenerationSucceeds(expr);
@@ -109,6 +111,6 @@ class StringOperationsCriteriaTest extends CriteriaQueryTestBase {
         assertCriteriaMethodCalled(structure, "trim");
         assertCriteriaMethodCalled(structure, "equal");
         assertFieldAccessed(structure, "email");
-        assertConstantUsed(structure, "");  // empty string literal
+        assertConstantUsed(structure, ""); // empty string literal
     }
 }

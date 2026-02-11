@@ -1,18 +1,18 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
-import io.quarkus.deployment.annotations.BuildProducer;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.QubitProcessor;
-import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
-import io.quarkus.logging.Log;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_TYPE_LIST;
+import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_TYPE_LIST;
-import static java.util.Objects.requireNonNull;
+import io.quarkiverse.qubit.deployment.QubitProcessor;
+import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkus.deployment.annotations.BuildProducer;
+import io.quarkus.logging.Log;
 
 /**
  * Deduplicates lambda expressions to reuse executors and reduce bytecode size.
@@ -79,7 +79,7 @@ public class LambdaDeduplicator {
         }
         for (InvokeDynamicScanner.LambdaPair pair : pairs) {
             sb.append(prefix).append(":").append(pair.methodName())
-              .append(":").append(pair.descriptor()).append("|");
+                    .append(":").append(pair.descriptor()).append("|");
         }
     }
 
@@ -91,8 +91,8 @@ public class LambdaDeduplicator {
         }
         for (InvokeDynamicScanner.SortLambda sl : sortLambdas) {
             sb.append(prefix).append(":").append(sl.methodName())
-              .append(":").append(sl.descriptor())
-              .append(":").append(sl.direction()).append("|");
+                    .append(":").append(sl.descriptor())
+                    .append(":").append(sl.direction()).append("|");
         }
     }
 
@@ -103,7 +103,7 @@ public class LambdaDeduplicator {
             return;
         }
         sb.append(prefix).append(":").append(methodName)
-          .append(":").append(descriptor).append("|");
+                .append(":").append(descriptor).append("|");
     }
 
     /** Appends query modifiers to signature builder. */
@@ -145,8 +145,8 @@ public class LambdaDeduplicator {
 
     /** Computes MD5 hash for combined WHERE + SELECT query. */
     public String computeCombinedHash(LambdaExpression predicateExpression,
-                                     LambdaExpression projectionExpression,
-                                     boolean isCountQuery) {
+            LambdaExpression projectionExpression,
+            boolean isCountQuery) {
         String queryType = CallSiteProcessor.getQueryType(isCountQuery, true, true);
         return HashBuilder.create()
                 .where(predicateExpression)
@@ -253,7 +253,6 @@ public class LambdaDeduplicator {
                 .queryType(request.isCountQuery())
                 .buildHash();
     }
-
 
     /** Computes MD5 hash for GROUP BY query with HAVING, select, and sort. */
     public String computeGroupHash(

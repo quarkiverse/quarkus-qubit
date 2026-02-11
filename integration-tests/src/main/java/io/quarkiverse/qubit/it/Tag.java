@@ -12,7 +12,8 @@ import java.util.Set;
 /**
  * Tag entity for testing many-to-many relationships.
  *
- * <p>This entity extends {@link QubitEntity} to gain lambda-based
+ * <p>
+ * This entity extends {@link QubitEntity} to gain lambda-based
  * query methods including relationship navigation.
  */
 @Entity
@@ -21,7 +22,7 @@ public class Tag extends QubitEntity {
     public String name;
     public String color;
 
-    @JsonIgnore  // Prevent circular reference in JSON serialization
+    @JsonIgnore // Prevent circular reference in JSON serialization
     @ManyToMany(mappedBy = "tags")
     public Set<Product> products = new HashSet<>();
 
@@ -47,11 +48,13 @@ public class Tag extends QubitEntity {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Tag tag)) return false;
+        if (this == o)
+            return true;
+        if (!(o instanceof Tag tag))
+            return false;
         return Objects.equals(id, tag.id) &&
-               Objects.equals(name, tag.name) &&
-               Objects.equals(color, tag.color);
+                Objects.equals(name, tag.name) &&
+                Objects.equals(color, tag.color);
     }
 
     @Override
@@ -62,9 +65,9 @@ public class Tag extends QubitEntity {
     @Override
     public String toString() {
         return "Tag{" +
-               "id=" + id +
-               ", name='" + name + '\'' +
-               ", color='" + color + '\'' +
-               '}';
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", color='" + color + '\'' +
+                '}';
     }
 }

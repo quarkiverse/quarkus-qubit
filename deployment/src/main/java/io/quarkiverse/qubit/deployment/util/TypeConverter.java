@@ -77,18 +77,18 @@ public final class TypeConverter {
     /** Returns true if type is numeric (primitive or wrapper). */
     public static boolean isNumericType(Class<?> type) {
         return type == int.class || type == Integer.class ||
-               type == long.class || type == Long.class ||
-               type == double.class || type == Double.class ||
-               type == float.class || type == Float.class ||
-               type == short.class || type == Short.class ||
-               type == byte.class || type == Byte.class ||
-               Number.class.isAssignableFrom(type);
+                type == long.class || type == Long.class ||
+                type == double.class || type == Double.class ||
+                type == float.class || type == Float.class ||
+                type == short.class || type == Short.class ||
+                type == byte.class || type == Byte.class ||
+                Number.class.isAssignableFrom(type);
     }
 
     /** Returns true if type is a temporal type (LocalDate, LocalDateTime, LocalTime). */
     public static boolean isTemporalType(Class<?> type) {
         return type == LocalDate.class ||
-               type == LocalDateTime.class ||
-               type == LocalTime.class;
+                type == LocalDateTime.class ||
+                type == LocalTime.class;
     }
 }

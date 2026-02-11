@@ -1,13 +1,13 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.LAMBDA_HASH_REQUIRED;
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.QUERY_ID_REQUIRED;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.HASH_CHARS_FOR_CLASS_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 
 /**
  * Unit tests for {@link QueryExecutionPlan} record and its Builder.
@@ -36,8 +36,7 @@ class QueryExecutionPlanTest {
                     false,
                     null,
                     null,
-                    0
-            );
+                    0);
 
             String className = plan.generateClassName("io.quarkiverse.qubit.generated", "QueryExecutor_");
 

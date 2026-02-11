@@ -4,23 +4,25 @@ import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.notArithm
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.notComparisonOperator;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.*;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
-import io.quarkus.gizmo2.desc.MethodDesc;
-
 import java.util.EnumMap;
 import java.util.Map;
+
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
+import io.quarkus.gizmo2.desc.MethodDesc;
 
 /**
  * Maps binary operators to JPA CriteriaBuilder method descriptors.
  */
 public final class OperatorMethodMapper {
 
-    private OperatorMethodMapper() {}
+    private OperatorMethodMapper() {
+    }
 
     // ========== Comparison Operator Registry ==========
 
     /** Holds both Expression-based and Comparable-based method descriptors for a comparison operator. */
-    private record ComparisonSpec(MethodDesc exprVariant, MethodDesc comparableVariant) {}
+    private record ComparisonSpec(MethodDesc exprVariant, MethodDesc comparableVariant) {
+    }
 
     /** Data-driven registry mapping comparison operators to their CriteriaBuilder methods. */
     private static final Map<Operator, ComparisonSpec> COMPARISON_SPECS;
@@ -50,6 +52,7 @@ public final class OperatorMethodMapper {
 
     /**
      * Maps comparison operator to CriteriaBuilder method.
+     *
      * @param useExpressionVariant true for Expression-based, false for Comparable-based
      */
     public static MethodDesc mapComparisonOperator(Operator operator, boolean useExpressionVariant) {

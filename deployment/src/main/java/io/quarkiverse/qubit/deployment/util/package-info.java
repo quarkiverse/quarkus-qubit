@@ -7,9 +7,9 @@
  *
  * <h2>Key Types</h2>
  * <ul>
- *   <li>{@link DescriptorParser} - Parses method descriptors
- *   <li>{@link TypeConverter} - Converts between JVM and Java types
- *   <li>{@link BytecodeLoader} - Loads bytecode from class files
+ * <li>{@link DescriptorParser} - Parses method descriptors
+ * <li>{@link TypeConverter} - Converts between JVM and Java types
+ * <li>{@link BytecodeLoader} - Loads bytecode from class files
  * </ul>
  *
  * <h2>Dependencies</h2>

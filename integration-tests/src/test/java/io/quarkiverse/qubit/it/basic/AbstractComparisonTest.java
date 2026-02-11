@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public abstract class AbstractComparisonTest {
 
     protected abstract PersonQueryOperations personOps();
+
     protected abstract ProductQueryOperations productOps();
 
     @BeforeEach
@@ -328,9 +329,7 @@ public abstract class AbstractComparisonTest {
 
     @Test
     void longRangeQuery() {
-        var results = personOps().where((Person p) ->
-                p.employeeId >= 1000002L && p.employeeId <= 1000004L
-        ).toList();
+        var results = personOps().where((Person p) -> p.employeeId >= 1000002L && p.employeeId <= 1000004L).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -348,14 +347,12 @@ public abstract class AbstractComparisonTest {
 
     @Test
     void bigDecimalRangeQuery() {
-        var results = productOps().where((Product p) ->
-                p.price.compareTo(new BigDecimal("800.00")) >= 0 &&
-                p.price.compareTo(new BigDecimal("1500.00")) <= 0
-        ).toList();
+        var results = productOps().where((Product p) -> p.price.compareTo(new BigDecimal("800.00")) >= 0 &&
+                p.price.compareTo(new BigDecimal("1500.00")) <= 0).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
                 .allMatch(p -> p.getPrice().compareTo(new BigDecimal("800.00")) >= 0 &&
-                              p.getPrice().compareTo(new BigDecimal("1500.00")) <= 0);
+                        p.getPrice().compareTo(new BigDecimal("1500.00")) <= 0);
     }
 }

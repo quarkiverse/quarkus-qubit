@@ -1,17 +1,8 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.analysis.instruction.*;
-import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
-import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
-import io.quarkiverse.qubit.deployment.util.DescriptorParser;
-import io.quarkus.logging.Log;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.InsnList;
-import org.objectweb.asm.tree.JumpInsnNode;
-import org.objectweb.asm.tree.MethodNode;
+import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.and;
+import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.or;
+import static org.objectweb.asm.Opcodes.*;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -21,14 +12,25 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.and;
-import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.or;
-import static org.objectweb.asm.Opcodes.*;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.InsnList;
+import org.objectweb.asm.tree.JumpInsnNode;
+import org.objectweb.asm.tree.MethodNode;
+
+import io.quarkiverse.qubit.deployment.analysis.instruction.*;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
+import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
+import io.quarkiverse.qubit.deployment.util.DescriptorParser;
+import io.quarkus.logging.Log;
 
 /**
  * Converts synthetic lambda bytecode to expression AST using the Strategy pattern.
  *
- * <p>Architecture: Chain of responsibility where each instruction is offered to handlers
+ * <p>
+ * Architecture: Chain of responsibility where each instruction is offered to handlers
  * in sequence until one accepts it via {@code canHandle()}.
  *
  * <pre>
@@ -42,7 +44,8 @@ import static org.objectweb.asm.Opcodes.*;
  *   └── BranchCoordinator (IF_ICMP*, IFEQ, IFNE, IFNULL, etc.)
  * </pre>
  *
- * <p>{@link AnalysisContext} encapsulates analysis state: expression stack, instruction list,
+ * <p>
+ * {@link AnalysisContext} encapsulates analysis state: expression stack, instruction list,
  * label classifications, branch coordinator, and method metadata.
  */
 public class LambdaBytecodeAnalyzer {
@@ -101,6 +104,7 @@ public class LambdaBytecodeAnalyzer {
 
     /**
      * Analyzes synthetic lambda bytecode and returns expression AST.
+     *
      * @throws BytecodeAnalysisException if bytecode cannot be read or lambda method not found
      */
     public LambdaExpression analyze(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor) {
@@ -109,15 +113,17 @@ public class LambdaBytecodeAnalyzer {
 
     /**
      * Analyzes synthetic lambda bytecode with optional metrics collection.
+     *
      * @throws BytecodeAnalysisException if bytecode cannot be read or lambda method not found
      */
     public LambdaExpression analyze(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor,
-                                    BuildMetricsCollector metricsCollector) {
+            BuildMetricsCollector metricsCollector) {
         return analyze(classBytes, lambdaMethodName, lambdaDescriptor, false, metricsCollector);
     }
 
     /**
      * Analyzes bi-entity lambda (BiQuerySpec) for join query predicates and projections.
+     *
      * @throws BytecodeAnalysisException if bytecode cannot be read or lambda method not found
      */
     public LambdaExpression analyzeBiEntity(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor) {
@@ -126,15 +132,17 @@ public class LambdaBytecodeAnalyzer {
 
     /**
      * Analyzes bi-entity lambda with optional metrics collection.
+     *
      * @throws BytecodeAnalysisException if bytecode cannot be read or lambda method not found
      */
     public LambdaExpression analyzeBiEntity(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor,
-                                            BuildMetricsCollector metricsCollector) {
+            BuildMetricsCollector metricsCollector) {
         return analyze(classBytes, lambdaMethodName, lambdaDescriptor, true, metricsCollector);
     }
 
     /**
      * Analyzes group lambda (GroupQuerySpec) with aggregation methods (key, count, avg, etc).
+     *
      * @throws BytecodeAnalysisException if bytecode cannot be read or lambda method not found
      */
     public LambdaExpression analyzeGroupQuerySpec(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor) {
@@ -143,16 +151,17 @@ public class LambdaBytecodeAnalyzer {
 
     /**
      * Analyzes group lambda with optional metrics collection.
+     *
      * @throws BytecodeAnalysisException if bytecode cannot be read or lambda method not found
      */
     public LambdaExpression analyzeGroupQuerySpec(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor,
-                                                  BuildMetricsCollector metricsCollector) {
+            BuildMetricsCollector metricsCollector) {
         return analyzeGroupContext(classBytes, lambdaMethodName, lambdaDescriptor, metricsCollector);
     }
 
     /** Internal: analyzes group context lambda (fail-fast on error). */
     private LambdaExpression analyzeGroupContext(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor,
-                                                 BuildMetricsCollector metricsCollector) {
+            BuildMetricsCollector metricsCollector) {
         ClassNode classNode;
         try {
             classNode = getOrParseClassNode(classBytes, metricsCollector);
@@ -205,8 +214,8 @@ public class LambdaBytecodeAnalyzer {
 
     /** Internal: analyzes single or bi-entity lambda (fail-fast on error). */
     private LambdaExpression analyze(byte[] classBytes, String lambdaMethodName,
-                                      String lambdaDescriptor, boolean biEntityMode,
-                                      BuildMetricsCollector metricsCollector) {
+            String lambdaDescriptor, boolean biEntityMode,
+            BuildMetricsCollector metricsCollector) {
         ClassNode classNode;
         try {
             classNode = getOrParseClassNode(classBytes, metricsCollector);
@@ -264,7 +273,7 @@ public class LambdaBytecodeAnalyzer {
 
     /** Analyzes single-entity lambda instructions. */
     private LambdaExpression analyzeMethodInstructions(MethodNode method, int entityParameterIndex,
-                                                        List<MethodNode> classMethods) {
+            List<MethodNode> classMethods) {
         AnalysisContext.NestedLambdaSupport nestedLambdaSupport = createNestedLambdaSupport(classMethods);
         AnalysisContext ctx = new AnalysisContext(method, entityParameterIndex, false, nestedLambdaSupport);
         return processInstructions(ctx);
@@ -272,11 +281,12 @@ public class LambdaBytecodeAnalyzer {
 
     /** Analyzes bi-entity lambda instructions. */
     private LambdaExpression analyzeMethodInstructions(MethodNode method,
-                                                        int firstEntityParameterIndex,
-                                                        int secondEntityParameterIndex,
-                                                        List<MethodNode> classMethods) {
+            int firstEntityParameterIndex,
+            int secondEntityParameterIndex,
+            List<MethodNode> classMethods) {
         AnalysisContext.NestedLambdaSupport nestedLambdaSupport = createNestedLambdaSupport(classMethods);
-        AnalysisContext ctx = new AnalysisContext(method, firstEntityParameterIndex, secondEntityParameterIndex, nestedLambdaSupport);
+        AnalysisContext ctx = new AnalysisContext(method, firstEntityParameterIndex, secondEntityParameterIndex,
+                nestedLambdaSupport);
         return processInstructions(ctx);
     }
 
@@ -287,8 +297,7 @@ public class LambdaBytecodeAnalyzer {
                 (nestedMethod, entityParamIndex) -> {
                     AnalysisContext nestedCtx = new AnalysisContext(nestedMethod, entityParamIndex);
                     return processInstructions(nestedCtx);
-                }
-        );
+                });
     }
 
     /** Processes all instructions to build the lambda expression AST. */
@@ -345,13 +354,13 @@ public class LambdaBytecodeAnalyzer {
     private boolean handleBranchInstruction(AnalysisContext ctx, AbstractInsnNode insn, int opcode) {
         switch (opcode) {
             case IF_ICMPGT, IF_ICMPGE, IF_ICMPLT, IF_ICMPLE, IF_ICMPEQ, IF_ICMPNE,
-                 IF_ACMPEQ, IF_ACMPNE,
-                 IFEQ, IFNE, IFLE, IFLT, IFGE, IFGT,
-                 IFNULL, IFNONNULL -> {
+                    IF_ACMPEQ, IF_ACMPNE,
+                    IFEQ, IFNE, IFLE, IFLT, IFGE, IFGT,
+                    IFNULL, IFNONNULL -> {
 
                 // Check if this branch starts a ternary pattern
-                TernaryPatternDetector.TernaryPattern ternaryPattern =
-                        ctx.getTernaryPatternAt(ctx.getCurrentInstructionIndex());
+                TernaryPatternDetector.TernaryPattern ternaryPattern = ctx
+                        .getTernaryPatternAt(ctx.getCurrentInstructionIndex());
 
                 if (ternaryPattern != null) {
                     // Handle ternary pattern: condition ? trueValue : falseValue
@@ -365,8 +374,7 @@ public class LambdaBytecodeAnalyzer {
                         ctx.getStack(),
                         (JumpInsnNode) insn,
                         ctx.getLabelToValue(),
-                        ctx.getLabelClassifications()
-                );
+                        ctx.getLabelClassifications());
                 // Skip past ICONST+GOTO boolean value instructions to prevent stack pollution
                 skipBooleanValuePattern(ctx);
                 return true;
@@ -387,16 +395,21 @@ public class LambdaBytecodeAnalyzer {
         int idx = ctx.getCurrentInstructionIndex() + 1;
 
         // Find next real instruction after branch
-        while (idx < ctx.getInstructionCount() && instructions.get(idx).getOpcode() == -1) idx++;
-        if (idx >= ctx.getInstructionCount()) return;
+        while (idx < ctx.getInstructionCount() && instructions.get(idx).getOpcode() == -1)
+            idx++;
+        if (idx >= ctx.getInstructionCount())
+            return;
 
         int nextOpcode = instructions.get(idx).getOpcode();
-        if (nextOpcode != ICONST_0 && nextOpcode != ICONST_1) return;
+        if (nextOpcode != ICONST_0 && nextOpcode != ICONST_1)
+            return;
 
         // Found ICONST after branch — look for GOTO
         int gotoIdx = idx + 1;
-        while (gotoIdx < ctx.getInstructionCount() && instructions.get(gotoIdx).getOpcode() == -1) gotoIdx++;
-        if (gotoIdx >= ctx.getInstructionCount() || instructions.get(gotoIdx).getOpcode() != GOTO) return;
+        while (gotoIdx < ctx.getInstructionCount() && instructions.get(gotoIdx).getOpcode() == -1)
+            gotoIdx++;
+        if (gotoIdx >= ctx.getInstructionCount() || instructions.get(gotoIdx).getOpcode() != GOTO)
+            return;
 
         // Found ICONST + GOTO pattern — skip to the GOTO's target (merge point)
         JumpInsnNode gotoInsn = (JumpInsnNode) instructions.get(gotoIdx);
@@ -449,8 +462,10 @@ public class LambdaBytecodeAnalyzer {
                 && falseValue instanceof LambdaExpression.Constant f) {
             int tv = intValue(t);
             int fv = intValue(f);
-            if (tv == 1 && fv == 0) return condition;
-            if (tv == 0 && fv == 1) return new LambdaExpression.UnaryOp(LambdaExpression.UnaryOp.Operator.NOT, condition);
+            if (tv == 1 && fv == 0)
+                return condition;
+            if (tv == 0 && fv == 1)
+                return new LambdaExpression.UnaryOp(LambdaExpression.UnaryOp.Operator.NOT, condition);
         }
         return new LambdaExpression.Conditional(condition, trueValue, falseValue);
     }
@@ -560,7 +575,8 @@ public class LambdaBytecodeAnalyzer {
         InsnList instructions = ctx.getInstructions();
         for (int i = ctx.getCurrentInstructionIndex() - 1; i >= 0; i--) {
             int prevOpcode = instructions.get(i).getOpcode();
-            if (prevOpcode == -1) continue; // skip labels/line numbers
+            if (prevOpcode == -1)
+                continue; // skip labels/line numbers
             return prevOpcode == LCMP || prevOpcode == DCMPL || prevOpcode == DCMPG
                     || prevOpcode == FCMPL || prevOpcode == FCMPG;
         }
@@ -629,9 +645,9 @@ public class LambdaBytecodeAnalyzer {
         } else if (opcode == AASTORE && ctx.isInArrayCreation()) {
             // Store value into array
             // Stack: [array_ref, index, value] (value on top)
-            LambdaExpression value = ctx.pop();  // pop value
-            ctx.pop();  // pop index (we track order implicitly)
-            ctx.pop();  // pop array_ref (will be re-pushed by DUP before next element)
+            LambdaExpression value = ctx.pop(); // pop value
+            ctx.pop(); // pop index (we track order implicitly)
+            ctx.pop(); // pop array_ref (will be re-pushed by DUP before next element)
             ctx.addArrayElement(value);
             return true;
         } else if (opcode == DUP && !ctx.isStackEmpty()) {

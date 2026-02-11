@@ -1,9 +1,9 @@
 package io.quarkiverse.qubit.deployment.generation.join;
 
+import java.util.List;
+
 import io.quarkus.gizmo2.Expr;
 import io.quarkus.gizmo2.creator.BlockCreator;
-
-import java.util.List;
 
 /**
  * Strategy for applying query clauses (WHERE, ORDER BY, DISTINCT, pagination).

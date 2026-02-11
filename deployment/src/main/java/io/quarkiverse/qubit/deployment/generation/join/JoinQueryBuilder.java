@@ -8,14 +8,14 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.EM_GE
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.FROM_JOIN;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.TQ_GET_RESULT_LIST;
 
+import java.util.Objects;
+
 import io.quarkiverse.qubit.deployment.generation.CriteriaExpressionGenerator;
 import io.quarkiverse.qubit.deployment.generation.GizmoHelper;
 import io.quarkus.gizmo2.Const;
 import io.quarkus.gizmo2.Expr;
 import io.quarkus.gizmo2.LocalVar;
 import io.quarkus.gizmo2.creator.BlockCreator;
-
-import java.util.Objects;
 
 /**
  * Generates join query bytecode using Template Method pattern.

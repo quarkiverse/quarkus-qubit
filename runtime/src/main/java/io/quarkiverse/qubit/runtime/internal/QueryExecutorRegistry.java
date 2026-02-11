@@ -1,18 +1,18 @@
 package io.quarkiverse.qubit.runtime.internal;
 
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.Tuple;
-
-import org.jboss.logging.Logger;
-
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Supplier;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Tuple;
+
+import org.jboss.logging.Logger;
 
 /**
  * Registry of build-time generated query executors keyed by call site ID.
@@ -100,7 +100,7 @@ public class QueryExecutorRegistry {
             executorMap.put(callSiteId, executor);
             CAPTURED_VAR_COUNTS.put(callSiteId, capturedVarCount);
             LOG.debugf("Registered %s executor for call site: %s (captured variables: %d)",
-                       type.displayName(), callSiteId, capturedVarCount);
+                    type.displayName(), callSiteId, capturedVarCount);
         } finally {
             EXECUTOR_LOCK.writeLock().unlock();
         }
@@ -140,19 +140,19 @@ public class QueryExecutorRegistry {
     private static String buildExecutorNotFoundError(String callSiteId, ExecutorType type, Supplier<String> registeredCounts) {
         return String.format(
                 "No %s executor found for call site: %s%n" +
-                "%n" +
-                "Possible causes:%n" +
-                "  1. %s expression was not analyzed during build-time processing%n" +
-                "  2. Lambda is in test code (only application code is analyzed)%n" +
-                "  3. Incremental compilation didn't detect changes%n" +
-                "%n" +
-                "Solutions:%n" +
-                "  - Run a clean build: 'mvn clean compile' or 'gradle clean build'%n" +
-                "  - Check build logs for 'QubitProcessor' messages%n" +
-                "  - Verify lambda is in src/main/java (not src/test/java)%n" +
-                "  - Ensure query is reachable from application code%n" +
-                "%n" +
-                "Registered executors: %s",
+                        "%n" +
+                        "Possible causes:%n" +
+                        "  1. %s expression was not analyzed during build-time processing%n" +
+                        "  2. Lambda is in test code (only application code is analyzed)%n" +
+                        "  3. Incremental compilation didn't detect changes%n" +
+                        "%n" +
+                        "Solutions:%n" +
+                        "  - Run a clean build: 'mvn clean compile' or 'gradle clean build'%n" +
+                        "  - Check build logs for 'QubitProcessor' messages%n" +
+                        "  - Verify lambda is in src/main/java (not src/test/java)%n" +
+                        "  - Ensure query is reachable from application code%n" +
+                        "%n" +
+                        "Registered executors: %s",
                 type.displayName(),
                 callSiteId,
                 capitalize(type.expressionType()),
@@ -168,7 +168,7 @@ public class QueryExecutorRegistry {
         if (entityManager == null) {
             throw new IllegalStateException(
                     "EntityManager not available. Ensure CDI injection is working and " +
-                    "you are within a transaction context.");
+                            "you are within a transaction context.");
         }
     }
 
@@ -203,16 +203,16 @@ public class QueryExecutorRegistry {
             if (count == null) {
                 throw new IllegalStateException(String.format(
                         "No captured variable count registered for call site: %s%n" +
-                        "%n" +
-                        "This typically indicates:%n" +
-                        "  1. The query was not analyzed during build-time processing%n" +
-                        "  2. Dev mode hot reload cleared executors before re-registration completed%n" +
-                        "  3. Call site ID mismatch between build-time and runtime%n" +
-                        "%n" +
-                        "Solutions:%n" +
-                        "  - Run a clean build: 'mvn clean compile'%n" +
-                        "  - If in dev mode, retry the request after reload completes%n" +
-                        "  - Check build logs for QubitProcessor registration messages",
+                                "%n" +
+                                "This typically indicates:%n" +
+                                "  1. The query was not analyzed during build-time processing%n" +
+                                "  2. Dev mode hot reload cleared executors before re-registration completed%n" +
+                                "  3. Call site ID mismatch between build-time and runtime%n" +
+                                "%n" +
+                                "Solutions:%n" +
+                                "  - Run a clean build: 'mvn clean compile'%n" +
+                                "  - If in dev mode, retry the request after reload completes%n" +
+                                "  - Check build logs for QubitProcessor registration messages",
                         callSiteId));
             }
             return count;
@@ -226,7 +226,7 @@ public class QueryExecutorRegistry {
     /** Executes list query (lock held only during lookup, not DB execution). */
     @SuppressWarnings("unchecked")
     public <T> List<T> executeListQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues,
-                                         Integer offset, Integer limit, Boolean distinct) {
+            Integer offset, Integer limit, Boolean distinct) {
         requireEntityManager();
 
         QueryExecutor<List<?>> executor = getExecutor(LIST_EXECUTORS, callSiteId, ExecutorType.LIST,
@@ -234,7 +234,7 @@ public class QueryExecutorRegistry {
 
         if (LOG.isTraceEnabled()) {
             LOG.tracef("Executing list query for call site: %s with %d captured variables (offset=%s, limit=%s, distinct=%s)",
-                       callSiteId, capturedValues.length, offset, limit, distinct);
+                    callSiteId, capturedValues.length, offset, limit, distinct);
         }
 
         return (List<T>) executor.execute(entityManager, entityClass, capturedValues, offset, limit, distinct);
@@ -251,7 +251,7 @@ public class QueryExecutorRegistry {
 
         if (LOG.isTraceEnabled()) {
             LOG.tracef("Executing count query for call site: %s with %d captured variables",
-                       callSiteId, capturedValues.length);
+                    callSiteId, capturedValues.length);
         }
 
         return executor.execute(entityManager, entityClass, capturedValues, null, null, null);
@@ -277,7 +277,7 @@ public class QueryExecutorRegistry {
 
         if (LOG.isTraceEnabled()) {
             LOG.tracef("Executing aggregation query for call site: %s with %d captured variables",
-                       callSiteId, capturedValues.length);
+                    callSiteId, capturedValues.length);
         }
 
         return (R) executor.execute(entityManager, entityClass, capturedValues, null, null, null);
@@ -341,14 +341,16 @@ public class QueryExecutorRegistry {
     /**
      * Registers join selectJoined query executor for call site.
      */
-    public static void registerJoinSelectJoinedExecutor(String callSiteId, QueryExecutor<List<?>> executor, int capturedVarCount) {
+    public static void registerJoinSelectJoinedExecutor(String callSiteId, QueryExecutor<List<?>> executor,
+            int capturedVarCount) {
         registerExecutor(callSiteId, executor, capturedVarCount, JOIN_SELECT_JOINED_EXECUTORS, ExecutorType.JOIN_SELECT_JOINED);
     }
 
     /**
      * Registers join projection query executor for call site.
      */
-    public static void registerJoinProjectionExecutor(String callSiteId, QueryExecutor<List<?>> executor, int capturedVarCount) {
+    public static void registerJoinProjectionExecutor(String callSiteId, QueryExecutor<List<?>> executor,
+            int capturedVarCount) {
         registerExecutor(callSiteId, executor, capturedVarCount, JOIN_PROJECTION_EXECUTORS, ExecutorType.JOIN_PROJECTION);
     }
 
@@ -359,7 +361,7 @@ public class QueryExecutorRegistry {
      */
     @SuppressWarnings("unchecked")
     public <T> List<T> executeJoinListQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues,
-                                             Integer offset, Integer limit, Boolean distinct) {
+            Integer offset, Integer limit, Boolean distinct) {
         requireEntityManager();
 
         QueryExecutor<List<?>> executor = getExecutor(JOIN_LIST_EXECUTORS, callSiteId, ExecutorType.JOIN_LIST,
@@ -368,8 +370,9 @@ public class QueryExecutorRegistry {
                         getJoinListExecutorCount(), getJoinCountExecutorCount()));
 
         if (LOG.isTraceEnabled()) {
-            LOG.tracef("Executing join list query for call site: %s with %d captured variables (offset=%s, limit=%s, distinct=%s)",
-                       callSiteId, capturedValues.length, offset, limit, distinct);
+            LOG.tracef(
+                    "Executing join list query for call site: %s with %d captured variables (offset=%s, limit=%s, distinct=%s)",
+                    callSiteId, capturedValues.length, offset, limit, distinct);
         }
 
         return (List<T>) executor.execute(entityManager, entityClass, capturedValues, offset, limit, distinct);
@@ -388,7 +391,7 @@ public class QueryExecutorRegistry {
 
         if (LOG.isTraceEnabled()) {
             LOG.tracef("Executing join count query for call site: %s with %d captured variables",
-                       callSiteId, capturedValues.length);
+                    callSiteId, capturedValues.length);
         }
 
         return executor.execute(entityManager, entityClass, capturedValues, null, null, null);
@@ -399,7 +402,7 @@ public class QueryExecutorRegistry {
      */
     @SuppressWarnings("unchecked")
     public <T, R> List<R> executeJoinSelectJoinedQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues,
-                                                        Integer offset, Integer limit, Boolean distinct) {
+            Integer offset, Integer limit, Boolean distinct) {
         requireEntityManager();
 
         QueryExecutor<List<?>> executor = getExecutor(JOIN_SELECT_JOINED_EXECUTORS, callSiteId, ExecutorType.JOIN_SELECT_JOINED,
@@ -408,8 +411,9 @@ public class QueryExecutorRegistry {
                         getJoinListExecutorCount(), getJoinCountExecutorCount(), getJoinSelectJoinedExecutorCount()));
 
         if (LOG.isTraceEnabled()) {
-            LOG.tracef("Executing join selectJoined query for call site: %s with %d captured variables (offset=%s, limit=%s, distinct=%s)",
-                       callSiteId, capturedValues.length, offset, limit, distinct);
+            LOG.tracef(
+                    "Executing join selectJoined query for call site: %s with %d captured variables (offset=%s, limit=%s, distinct=%s)",
+                    callSiteId, capturedValues.length, offset, limit, distinct);
         }
 
         return (List<R>) executor.execute(entityManager, entityClass, capturedValues, offset, limit, distinct);
@@ -420,7 +424,7 @@ public class QueryExecutorRegistry {
      */
     @SuppressWarnings("unchecked")
     public <T, S> List<S> executeJoinProjectionQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues,
-                                                      Integer offset, Integer limit, Boolean distinct) {
+            Integer offset, Integer limit, Boolean distinct) {
         requireEntityManager();
 
         QueryExecutor<List<?>> executor = getExecutor(JOIN_PROJECTION_EXECUTORS, callSiteId, ExecutorType.JOIN_PROJECTION,
@@ -430,8 +434,9 @@ public class QueryExecutorRegistry {
                         getJoinSelectJoinedExecutorCount(), getJoinProjectionExecutorCount()));
 
         if (LOG.isTraceEnabled()) {
-            LOG.tracef("Executing join projection query for call site: %s with %d captured variables (offset=%s, limit=%s, distinct=%s)",
-                       callSiteId, capturedValues.length, offset, limit, distinct);
+            LOG.tracef(
+                    "Executing join projection query for call site: %s with %d captured variables (offset=%s, limit=%s, distinct=%s)",
+                    callSiteId, capturedValues.length, offset, limit, distinct);
         }
 
         return (List<S>) executor.execute(entityManager, entityClass, capturedValues, offset, limit, distinct);
@@ -460,7 +465,7 @@ public class QueryExecutorRegistry {
      */
     @SuppressWarnings("unchecked")
     public <T, R> List<R> executeGroupQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues,
-                                             Integer offset, Integer limit) {
+            Integer offset, Integer limit) {
         requireEntityManager();
 
         QueryExecutor<List<?>> executor = getExecutor(GROUP_LIST_EXECUTORS, callSiteId, ExecutorType.GROUP_LIST,
@@ -470,7 +475,7 @@ public class QueryExecutorRegistry {
 
         if (LOG.isTraceEnabled()) {
             LOG.tracef("Executing group list query for call site: %s with %d captured variables (offset=%s, limit=%s)",
-                       callSiteId, capturedValues.length, offset, limit);
+                    callSiteId, capturedValues.length, offset, limit);
         }
 
         List<?> rawResults = executor.execute(entityManager, entityClass, capturedValues, offset, limit, null);
@@ -490,7 +495,7 @@ public class QueryExecutorRegistry {
      */
     @SuppressWarnings("unchecked")
     public <T, K> List<K> executeGroupKeyQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues,
-                                                Integer offset, Integer limit) {
+            Integer offset, Integer limit) {
         requireEntityManager();
 
         QueryExecutor<List<?>> executor = getExecutor(GROUP_LIST_EXECUTORS, callSiteId, ExecutorType.GROUP_LIST,
@@ -500,7 +505,7 @@ public class QueryExecutorRegistry {
 
         if (LOG.isTraceEnabled()) {
             LOG.tracef("Executing group key query for call site: %s with %d captured variables (offset=%s, limit=%s)",
-                       callSiteId, capturedValues.length, offset, limit);
+                    callSiteId, capturedValues.length, offset, limit);
         }
 
         return (List<K>) executor.execute(entityManager, entityClass, capturedValues, offset, limit, null);
@@ -519,7 +524,7 @@ public class QueryExecutorRegistry {
 
         if (LOG.isTraceEnabled()) {
             LOG.tracef("Executing group count query for call site: %s with %d captured variables",
-                       callSiteId, capturedValues.length);
+                    callSiteId, capturedValues.length);
         }
 
         return executor.execute(entityManager, entityClass, capturedValues, null, null, null);

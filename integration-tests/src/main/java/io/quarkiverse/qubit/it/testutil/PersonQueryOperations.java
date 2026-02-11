@@ -11,13 +11,15 @@ import java.util.Collection;
  * Abstraction for Person query operations that allows the same test logic
  * to be run against both static entity methods and repository instance methods.
  *
- * <p>This interface eliminates duplication between:
+ * <p>
+ * This interface eliminates duplication between:
  * <ul>
- *   <li>Tests using {@code Person.where()}, {@code Person.select()}, etc.</li>
- *   <li>Tests using {@code personRepository.where()}, {@code personRepository.select()}, etc.</li>
+ * <li>Tests using {@code Person.where()}, {@code Person.select()}, etc.</li>
+ * <li>Tests using {@code personRepository.where()}, {@code personRepository.select()}, etc.</li>
  * </ul>
  *
- * <p>Use {@link StaticPersonQueryOperations} for static entity methods and
+ * <p>
+ * Use {@link StaticPersonQueryOperations} for static entity methods and
  * inject/create a repository-based implementation for repository pattern tests.
  */
 public interface PersonQueryOperations {

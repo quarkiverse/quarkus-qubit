@@ -15,7 +15,8 @@ import java.util.Set;
 /**
  * Another test entity for comprehensive query testing with Qubit.
  *
- * <p>This entity extends {@link QubitEntity} to gain lambda-based
+ * <p>
+ * This entity extends {@link QubitEntity} to gain lambda-based
  * query methods. The abstract methods are implemented at build time.
  */
 @Entity
@@ -29,20 +30,16 @@ public class Product extends QubitEntity {
     public String description;
     public Double rating;
 
-    @JsonIgnore  // Prevent circular reference in JSON serialization
+    @JsonIgnore // Prevent circular reference in JSON serialization
     @ManyToMany
-    @JoinTable(
-            name = "product_tag",
-            joinColumns = @JoinColumn(name = "product_id"),
-            inverseJoinColumns = @JoinColumn(name = "tag_id")
-    )
+    @JoinTable(name = "product_tag", joinColumns = @JoinColumn(name = "product_id"), inverseJoinColumns = @JoinColumn(name = "tag_id"))
     public Set<Tag> tags = new HashSet<>();
 
     public Product() {
     }
 
     public Product(String name, String category, BigDecimal price,
-                   int stockQuantity, boolean available, String description, Double rating) {
+            int stockQuantity, boolean available, String description, Double rating) {
         this.name = name;
         this.category = category;
         this.price = price;
@@ -86,16 +83,18 @@ public class Product extends QubitEntity {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Product product)) return false;
+        if (this == o)
+            return true;
+        if (!(o instanceof Product product))
+            return false;
         return stockQuantity == product.stockQuantity &&
-               available == product.available &&
-               Objects.equals(id, product.id) &&
-               Objects.equals(name, product.name) &&
-               Objects.equals(category, product.category) &&
-               Objects.equals(price, product.price) &&
-               Objects.equals(description, product.description) &&
-               Objects.equals(rating, product.rating);
+                available == product.available &&
+                Objects.equals(id, product.id) &&
+                Objects.equals(name, product.name) &&
+                Objects.equals(category, product.category) &&
+                Objects.equals(price, product.price) &&
+                Objects.equals(description, product.description) &&
+                Objects.equals(rating, product.rating);
     }
 
     @Override
@@ -106,14 +105,14 @@ public class Product extends QubitEntity {
     @Override
     public String toString() {
         return "Product{" +
-               "id=" + id +
-               ", name='" + name + '\'' +
-               ", category='" + category + '\'' +
-               ", price=" + price +
-               ", stockQuantity=" + stockQuantity +
-               ", available=" + available +
-               ", description='" + description + '\'' +
-               ", rating=" + rating +
-               '}';
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", category='" + category + '\'' +
+                ", price=" + price +
+                ", stockQuantity=" + stockQuantity +
+                ", available=" + available +
+                ", description='" + description + '\'' +
+                ", rating=" + rating +
+                '}';
     }
 }

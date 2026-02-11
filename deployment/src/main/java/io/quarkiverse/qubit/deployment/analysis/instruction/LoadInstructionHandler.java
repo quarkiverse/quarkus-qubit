@@ -1,5 +1,16 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
+import static org.objectweb.asm.Opcodes.*;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
+import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.FieldInsnNode;
+import org.objectweb.asm.tree.VarInsnNode;
+
+import io.quarkiverse.qubit.Group;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityFieldAccess;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityParameter;
@@ -10,19 +21,9 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupParameter;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType;
-import io.quarkiverse.qubit.Group;
 import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
 import io.quarkiverse.qubit.deployment.util.DescriptorParser;
 import io.quarkiverse.qubit.deployment.util.TypeConverter;
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.FieldInsnNode;
-import org.objectweb.asm.tree.VarInsnNode;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-
-import static org.objectweb.asm.Opcodes.*;
 
 /**
  * Handles load instructions: ALOAD, primitives, GETFIELD.
@@ -33,8 +34,7 @@ public enum LoadInstructionHandler implements InstructionHandler {
 
     /** Opcodes handled by this handler for O(1) dispatch. */
     private static final Set<Integer> SUPPORTED_OPCODES = Set.of(
-            ALOAD, ILOAD, LLOAD, FLOAD, DLOAD, GETFIELD, GETSTATIC
-    );
+            ALOAD, ILOAD, LLOAD, FLOAD, DLOAD, GETFIELD, GETSTATIC);
 
     @Override
     public Set<Integer> supportedOpcodes() {
@@ -126,8 +126,8 @@ public enum LoadInstructionHandler implements InstructionHandler {
      * <p>
      * Common patterns:
      * <ul>
-     *   <li>Enum comparison: {@code o.status == OrderStatus.DELIVERED}</li>
-     *   <li>Static constants: {@code Product.MAX_PRICE}</li>
+     * <li>Enum comparison: {@code o.status == OrderStatus.DELIVERED}</li>
+     * <li>Static constants: {@code Product.MAX_PRICE}</li>
      * </ul>
      * <p>
      * The value is wrapped in a Constant expression for JPQL generation.
@@ -152,6 +152,7 @@ public enum LoadInstructionHandler implements InstructionHandler {
      * mode (join queries) to track entity position.
      * <p>
      * Bytecode patterns:
+     *
      * <pre>
      * // Single field access: p.age
      * ALOAD 0              // Stack: [Parameter]

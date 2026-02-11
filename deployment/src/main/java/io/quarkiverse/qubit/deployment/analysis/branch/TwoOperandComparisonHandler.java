@@ -1,24 +1,26 @@
 package io.quarkiverse.qubit.deployment.analysis.branch;
 
+import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
+import static org.objectweb.asm.Opcodes.*;
+
+import java.util.Deque;
+
+import org.objectweb.asm.tree.JumpInsnNode;
+
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.common.BytecodeValidator;
 import io.quarkiverse.qubit.deployment.common.OpcodeOperatorMapper;
 import io.quarkus.logging.Log;
-import org.objectweb.asm.tree.JumpInsnNode;
-
-import java.util.Deque;
-
-import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
-import static org.objectweb.asm.Opcodes.*;
 
 /**
  * Handles two-operand comparison instructions (IF_ICMP*, IF_ACMP*).
  *
- * <p>Supported opcodes:
+ * <p>
+ * Supported opcodes:
  * <ul>
- *   <li>IF_ICMPGT, IF_ICMPGE, IF_ICMPLT, IF_ICMPLE - Integer comparisons</li>
- *   <li>IF_ICMPEQ, IF_ICMPNE - Integer equality</li>
- *   <li>IF_ACMPEQ, IF_ACMPNE - Reference equality</li>
+ * <li>IF_ICMPGT, IF_ICMPGE, IF_ICMPLT, IF_ICMPLE - Integer comparisons</li>
+ * <li>IF_ICMPEQ, IF_ICMPNE - Integer equality</li>
+ * <li>IF_ACMPEQ, IF_ACMPNE - Reference equality</li>
  * </ul>
  */
 public class TwoOperandComparisonHandler implements BranchHandler {
@@ -29,9 +31,9 @@ public class TwoOperandComparisonHandler implements BranchHandler {
     public boolean canHandle(JumpInsnNode jumpInsn) {
         int opcode = jumpInsn.getOpcode();
         return opcode == IF_ICMPGT || opcode == IF_ICMPGE ||
-               opcode == IF_ICMPLT || opcode == IF_ICMPLE ||
-               opcode == IF_ICMPEQ || opcode == IF_ICMPNE ||
-               opcode == IF_ACMPEQ || opcode == IF_ACMPNE;
+                opcode == IF_ICMPLT || opcode == IF_ICMPLE ||
+                opcode == IF_ICMPEQ || opcode == IF_ICMPNE ||
+                opcode == IF_ACMPEQ || opcode == IF_ACMPNE;
     }
 
     @Override

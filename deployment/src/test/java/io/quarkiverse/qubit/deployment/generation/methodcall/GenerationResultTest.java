@@ -1,12 +1,13 @@
 package io.quarkiverse.qubit.deployment.generation.methodcall;
 
-import io.quarkus.gizmo2.Const;
-import io.quarkus.gizmo2.Expr;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import io.quarkus.gizmo2.Const;
+import io.quarkus.gizmo2.Expr;
 
 /**
  * Unit tests for {@link GenerationResult} sealed interface and its implementations.

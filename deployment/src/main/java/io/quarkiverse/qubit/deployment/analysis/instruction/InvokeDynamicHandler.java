@@ -1,23 +1,24 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.util.DescriptorParser;
-import io.quarkus.logging.Log;
-import org.objectweb.asm.Handle;
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.InvokeDynamicInsnNode;
-import org.objectweb.asm.tree.MethodNode;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.add;
 import static io.quarkiverse.qubit.deployment.util.DescriptorParser.returnsType;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JVM_JAVA_LANG_INVOKE_LAMBDA_METAFACTORY;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JVM_JAVA_LANG_INVOKE_STRING_CONCAT_FACTORY;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_SPEC_INTERNAL_NAME;
 import static org.objectweb.asm.Opcodes.INVOKEDYNAMIC;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
+import org.objectweb.asm.Handle;
+import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.InvokeDynamicInsnNode;
+import org.objectweb.asm.tree.MethodNode;
+
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.util.DescriptorParser;
+import io.quarkus.logging.Log;
 
 /**
  * Handles INVOKEDYNAMIC: Java 9+ StringConcatFactory string concatenation and nested QuerySpec lambdas.
@@ -83,7 +84,7 @@ public enum InvokeDynamicHandler implements InstructionHandler {
             case QUERY_SPEC_LAMBDA -> handleNestedLambda(indy, ctx);
             case UNHANDLED -> {
                 Log.tracef("INVOKEDYNAMIC not handled: %s (bsm=%s)", indy.name,
-                           indy.bsm != null ? indy.bsm.getOwner() : "null");
+                        indy.bsm != null ? indy.bsm.getOwner() : "null");
                 yield false;
             }
         };

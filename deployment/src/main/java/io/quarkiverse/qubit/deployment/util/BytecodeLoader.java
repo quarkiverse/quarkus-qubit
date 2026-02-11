@@ -1,10 +1,5 @@
 package io.quarkiverse.qubit.deployment.util;
 
-import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
-import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
-import io.quarkus.deployment.builditem.ApplicationArchivesBuildItem;
-import io.quarkus.logging.Log;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -12,6 +7,11 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+
+import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
+import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
+import io.quarkus.deployment.builditem.ApplicationArchivesBuildItem;
+import io.quarkus.logging.Log;
 
 /** Loads class bytecode from application archives (user classes) or classloader (library classes). */
 public final class BytecodeLoader {
@@ -35,7 +35,7 @@ public final class BytecodeLoader {
 
     /** Loads class bytecode with optional metrics collection, using cache to avoid repeated disk reads. */
     public static byte[] loadClassBytecode(String className, ApplicationArchivesBuildItem applicationArchives,
-                                           BuildMetricsCollector metricsCollector) {
+            BuildMetricsCollector metricsCollector) {
         if (metricsCollector != null) {
             metricsCollector.incrementTotalBytecodeLoads();
         }

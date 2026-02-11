@@ -1,10 +1,6 @@
 package io.quarkiverse.qubit.runtime.internal;
 
-import io.quarkus.arc.Arc;
-import io.quarkus.arc.ArcContainer;
-import io.quarkus.arc.InstanceHandle;
-import jakarta.persistence.NoResultException;
-import jakarta.persistence.NonUniqueResultException;
+import static java.util.stream.Collectors.joining;
 
 import java.io.Serializable;
 import java.lang.invoke.SerializedLambda;
@@ -15,7 +11,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static java.util.stream.Collectors.joining;
+import jakarta.persistence.NoResultException;
+import jakarta.persistence.NonUniqueResultException;
+
+import io.quarkus.arc.Arc;
+import io.quarkus.arc.ArcContainer;
+import io.quarkus.arc.InstanceHandle;
 
 /**
  * Utility class for lambda reflection operations.
@@ -91,9 +92,9 @@ public final class LambdaReflectionUtils {
 
             throw new IllegalStateException(
                     "Could not determine call site. Scanned " + frameList.size() +
-                    " frames (limit: " + MAX_STACK_FRAMES + ")." +
-                    " This may indicate the query was called from a generated class or via reflection." +
-                    " First frames examined:" + scannedFrames);
+                            " frames (limit: " + MAX_STACK_FRAMES + ")." +
+                            " This may indicate the query was called from a generated class or via reflection." +
+                            " First frames examined:" + scannedFrames);
         });
     }
 
@@ -109,8 +110,8 @@ public final class LambdaReflectionUtils {
 
         // Skip fluent API methods
         if (QubitConstants.FLUENT_INTERMEDIATE_METHODS.contains(methodName) ||
-            QubitConstants.FLUENT_TERMINAL_METHODS.contains(methodName) ||
-            additionalFilterMethods.contains(methodName)) {
+                QubitConstants.FLUENT_TERMINAL_METHODS.contains(methodName) ||
+                additionalFilterMethods.contains(methodName)) {
             return false;
         }
 
@@ -145,9 +146,9 @@ public final class LambdaReflectionUtils {
         if (!(lambdaInstance instanceof Serializable)) {
             throw new IllegalStateException(String.format(
                     "Lambda class %s does not implement Serializable. " +
-                    "This is a Qubit configuration error - all QuerySpec, BiQuerySpec, and GroupQuerySpec " +
-                    "functional interfaces must extend Serializable to enable lambda method name extraction. " +
-                    "This is required for unique call site ID generation.",
+                            "This is a Qubit configuration error - all QuerySpec, BiQuerySpec, and GroupQuerySpec " +
+                            "functional interfaces must extend Serializable to enable lambda method name extraction. " +
+                            "This is required for unique call site ID generation.",
                     lambdaClass.getName()));
         }
 
@@ -163,7 +164,7 @@ public final class LambdaReflectionUtils {
             // writeReplace returned something other than SerializedLambda
             throw new IllegalStateException(String.format(
                     "Lambda class %s.writeReplace() returned %s instead of SerializedLambda. " +
-                    "This is unexpected - the lambda may be using a non-standard implementation.",
+                            "This is unexpected - the lambda may be using a non-standard implementation.",
                     lambdaClass.getName(),
                     serializedForm != null ? serializedForm.getClass().getName() : "null"));
 
@@ -171,9 +172,9 @@ public final class LambdaReflectionUtils {
             // Lambda doesn't have writeReplace method
             throw new IllegalStateException(String.format(
                     "Lambda class %s does not have writeReplace() method. " +
-                    "In native image mode, ensure reachability-metadata.json registers this method. " +
-                    "Check that QubitNativeImageProcessor is generating proper reflection configuration. " +
-                    "Lambda interface type: %s",
+                            "In native image mode, ensure reachability-metadata.json registers this method. " +
+                            "Check that QubitNativeImageProcessor is generating proper reflection configuration. " +
+                            "Lambda interface type: %s",
                     lambdaClass.getName(),
                     getLambdaInterfaceType(lambdaClass)), e);
 
@@ -185,8 +186,8 @@ public final class LambdaReflectionUtils {
             // Any other reflection error
             throw new IllegalStateException(String.format(
                     "Failed to extract lambda method name from %s via SerializedLambda. " +
-                    "Cause: %s: %s. " +
-                    "This may indicate a security manager restriction or native image reflection issue.",
+                            "Cause: %s: %s. " +
+                            "This may indicate a security manager restriction or native image reflection issue.",
                     lambdaClass.getName(),
                     e.getClass().getSimpleName(),
                     e.getMessage()), e);
@@ -199,7 +200,8 @@ public final class LambdaReflectionUtils {
         if (interfaces.length > 0) {
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < interfaces.length; i++) {
-                if (i > 0) sb.append(", ");
+                if (i > 0)
+                    sb.append(", ");
                 sb.append(interfaces[i].getName());
             }
             return sb.toString();
@@ -210,8 +212,7 @@ public final class LambdaReflectionUtils {
     // ========== CDI Lookup Utilities ==========
 
     /** Cached registry (Issue #17 fix: prevents InstanceHandle leaks). */
-    private static final AtomicReference<QueryExecutorRegistry> CACHED_REGISTRY =
-            new AtomicReference<>();
+    private static final AtomicReference<QueryExecutorRegistry> CACHED_REGISTRY = new AtomicReference<>();
 
     private static final Object REGISTRY_LOCK = new Object();
 
@@ -238,9 +239,9 @@ public final class LambdaReflectionUtils {
             if (container == null) {
                 throw new IllegalStateException(
                         "Arc CDI container not initialized. " +
-                        "Ensure this code runs within a Quarkus application context. " +
-                        "This error typically occurs when running outside the Quarkus lifecycle " +
-                        "(e.g., in unit tests without @QuarkusTest, or in background threads started before CDI initialization).");
+                                "Ensure this code runs within a Quarkus application context. " +
+                                "This error typically occurs when running outside the Quarkus lifecycle " +
+                                "(e.g., in unit tests without @QuarkusTest, or in background threads started before CDI initialization).");
             }
 
             // Use try-with-resources to ensure InstanceHandle is closed
@@ -249,10 +250,11 @@ public final class LambdaReflectionUtils {
                 if (!handle.isAvailable()) {
                     throw new IllegalStateException(
                             "QueryExecutorRegistry not available in CDI context. " +
-                            "This typically indicates: " +
-                            "(1) Build-time query executor generation failed - check build logs for QubitProcessor errors, " +
-                            "(2) The registry bean was not properly initialized, or " +
-                            "(3) The application is running in a non-CDI context.");
+                                    "This typically indicates: " +
+                                    "(1) Build-time query executor generation failed - check build logs for QubitProcessor errors, "
+                                    +
+                                    "(2) The registry bean was not properly initialized, or " +
+                                    "(3) The application is running in a non-CDI context.");
                 }
 
                 // Cache and return the instance
@@ -274,7 +276,7 @@ public final class LambdaReflectionUtils {
 
     /** Extracts captured variables from lambda list with per-lambda validation. */
     public static int extractFromLambdas(List<?> lambdas, String lambdaType, String callSiteId,
-                                          List<Object> destination, int remainingCount) {
+            List<Object> destination, int remainingCount) {
         for (Object lambda : lambdas) {
             if (remainingCount == 0) {
                 break;
@@ -286,7 +288,7 @@ public final class LambdaReflectionUtils {
 
     /** Extracts captured variables from single lambda with validation. */
     public static int extractFromSingleLambda(Object lambda, String lambdaType, String callSiteId,
-                                               List<Object> destination, int remainingCount) {
+            List<Object> destination, int remainingCount) {
         int capturedCount = countCapturedFields(lambda);
         if (capturedCount > 0) {
             Object[] values = CapturedVariableExtractor.extract(lambda, capturedCount);
@@ -295,7 +297,7 @@ public final class LambdaReflectionUtils {
             if (values.length != capturedCount) {
                 throw new IllegalStateException(String.format(
                         "Captured variable extraction mismatch for %s in %s: " +
-                        "expected %d values but extractor returned %d.",
+                                "expected %d values but extractor returned %d.",
                         lambdaType, callSiteId, capturedCount, values.length));
             }
 

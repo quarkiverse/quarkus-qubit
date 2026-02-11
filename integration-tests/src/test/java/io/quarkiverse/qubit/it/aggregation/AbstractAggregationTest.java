@@ -134,7 +134,8 @@ public abstract class AbstractAggregationTest {
 
     @Test
     void minAgeWithMultiplePredicates() {
-        Integer minAge = personOps().where((Person p) -> p.active).where((Person p) -> p.age > 25).min((Person p) -> p.age).getSingleResult();
+        Integer minAge = personOps().where((Person p) -> p.active).where((Person p) -> p.age > 25).min((Person p) -> p.age)
+                .getSingleResult();
 
         // Active + age > 25: John (30), Alice (35), Charlie (28)
         assertThat(minAge).isEqualTo(28); // Charlie
@@ -142,7 +143,8 @@ public abstract class AbstractAggregationTest {
 
     @Test
     void maxAgeWithMultiplePredicates() {
-        Integer maxAge = personOps().where((Person p) -> p.active).where((Person p) -> p.salary > 60000.0).max((Person p) -> p.age).getSingleResult();
+        Integer maxAge = personOps().where((Person p) -> p.active).where((Person p) -> p.salary > 60000.0)
+                .max((Person p) -> p.age).getSingleResult();
 
         // Active + salary > 60K: John (30, 75K), Alice (35, 90K), Jane (25, 65K)
         assertThat(maxAge).isEqualTo(35); // Alice
@@ -150,7 +152,8 @@ public abstract class AbstractAggregationTest {
 
     @Test
     void avgAgeWithMultiplePredicates() {
-        Double avgAge = personOps().where((Person p) -> p.active).where((Person p) -> p.age >= 30).avg((Person p) -> p.age).getSingleResult();
+        Double avgAge = personOps().where((Person p) -> p.active).where((Person p) -> p.age >= 30).avg((Person p) -> p.age)
+                .getSingleResult();
 
         // Active + age >= 30: John (30), Alice (35)
         // Average: (30 + 35) / 2 = 32.5
@@ -159,7 +162,8 @@ public abstract class AbstractAggregationTest {
 
     @Test
     void sumIntegerAgeWithMultiplePredicates() {
-        Long sumAge = personOps().where((Person p) -> p.active).where((Person p) -> p.age < 35).sumInteger((Person p) -> p.age).getSingleResult();
+        Long sumAge = personOps().where((Person p) -> p.active).where((Person p) -> p.age < 35).sumInteger((Person p) -> p.age)
+                .getSingleResult();
 
         // Active + age < 35: John (30), Jane (25), Charlie (28)
         // Sum: 30 + 25 + 28 = 83
@@ -168,7 +172,8 @@ public abstract class AbstractAggregationTest {
 
     @Test
     void sumLongEmployeeIdWithMultiplePredicates() {
-        Long sumEmployeeId = personOps().where((Person p) -> p.active).where((Person p) -> p.employeeId > 1000002L).sumLong((Person p) -> p.employeeId).getSingleResult();
+        Long sumEmployeeId = personOps().where((Person p) -> p.active).where((Person p) -> p.employeeId > 1000002L)
+                .sumLong((Person p) -> p.employeeId).getSingleResult();
 
         // Active + employeeId > 1000002: Alice (1000004), Charlie (1000005)
         // Sum: 1000004 + 1000005 = 2000009
@@ -177,7 +182,8 @@ public abstract class AbstractAggregationTest {
 
     @Test
     void sumDoubleSalaryWithMultiplePredicates() {
-        Double sumSalary = personOps().where((Person p) -> p.active).where((Person p) -> p.salary >= 65000.0).sumDouble((Person p) -> p.salary).getSingleResult();
+        Double sumSalary = personOps().where((Person p) -> p.active).where((Person p) -> p.salary >= 65000.0)
+                .sumDouble((Person p) -> p.salary).getSingleResult();
 
         // Active + salary >= 65K: John (75K), Jane (65K), Alice (90K)
         // Sum: 75000 + 65000 + 90000 = 230000
@@ -193,8 +199,8 @@ public abstract class AbstractAggregationTest {
         Double avgHeight = personOps().avg((Person p) -> p.height).getSingleResult();
 
         // Heights: 1.75 (John), 1.68 (Jane), 1.82 (Bob), 1.65 (Alice), 1.78 (Charlie)
-        assertThat(minHeight).isEqualTo(1.65f);  // Alice
-        assertThat(maxHeight).isEqualTo(1.82f);  // Bob
+        assertThat(minHeight).isEqualTo(1.65f); // Alice
+        assertThat(maxHeight).isEqualTo(1.82f); // Bob
         // Average: (1.75 + 1.68 + 1.82 + 1.65 + 1.78) / 5 = 8.68 / 5 = 1.736
         assertThat(avgHeight).isCloseTo(1.736, within(0.001));
     }

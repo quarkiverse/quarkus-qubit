@@ -1,27 +1,27 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.InsnList;
-import org.objectweb.asm.tree.JumpInsnNode;
-import org.objectweb.asm.tree.LabelNode;
-
-import io.quarkus.logging.Log;
+import static io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer.LabelClassification.FALSE_SINK;
+import static io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer.LabelClassification.INTERMEDIATE;
+import static io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer.LabelClassification.TRUE_SINK;
+import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.CONDITIONAL_JUMP_LOOKAHEAD_LIMIT;
+import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.LABEL_CLASSIFICATION_LOOKAHEAD_LIMIT;
+import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.LABEL_TRACE_DEPTH_LIMIT;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.unexpectedLabelClassification;
+import static org.objectweb.asm.Opcodes.GOTO;
+import static org.objectweb.asm.Opcodes.ICONST_0;
+import static org.objectweb.asm.Opcodes.ICONST_1;
 
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.CONDITIONAL_JUMP_LOOKAHEAD_LIMIT;
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.unexpectedLabelClassification;
-import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.LABEL_CLASSIFICATION_LOOKAHEAD_LIMIT;
-import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.LABEL_TRACE_DEPTH_LIMIT;
-import static io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer.LabelClassification.FALSE_SINK;
-import static io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer.LabelClassification.INTERMEDIATE;
-import static io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer.LabelClassification.TRUE_SINK;
-import static org.objectweb.asm.Opcodes.GOTO;
-import static org.objectweb.asm.Opcodes.ICONST_0;
-import static org.objectweb.asm.Opcodes.ICONST_1;
+import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.InsnList;
+import org.objectweb.asm.tree.JumpInsnNode;
+import org.objectweb.asm.tree.LabelNode;
+
+import io.quarkus.logging.Log;
 
 /**
  * Analyzes control flow patterns to reconstruct boolean expressions from bytecode branches.
@@ -69,7 +69,8 @@ public final class ControlFlowAnalyzer {
     }
 
     /** Classifies label by examining following instructions. Returns null if not determined. */
-    private LabelClassification classifyLabel(LabelNode labelNode, InsnList instructions, int labelIndex, int instructionCount) {
+    private LabelClassification classifyLabel(LabelNode labelNode, InsnList instructions, int labelIndex,
+            int instructionCount) {
         int limit = Math.min(labelIndex + LABEL_CLASSIFICATION_LOOKAHEAD_LIMIT, instructionCount);
 
         for (int j = labelIndex + 1; j < limit; j++) {
@@ -79,13 +80,13 @@ public final class ControlFlowAnalyzer {
             LabelClassification classification = classifyIconstInstruction(opcode);
             if (classification != null) {
                 Log.debugf("Classified label %s as %s (offset %d)",
-                          formatLabelForLogging(labelNode), classification.getDisplayName(), j - labelIndex);
+                        formatLabelForLogging(labelNode), classification.getDisplayName(), j - labelIndex);
                 return classification;
             }
 
             if (opcode != -1) {
                 Log.debugf("Classified label %s as %s (next opcode: %d at offset %d)",
-                          formatLabelForLogging(labelNode), INTERMEDIATE.getDisplayName(), opcode, j - labelIndex);
+                        formatLabelForLogging(labelNode), INTERMEDIATE.getDisplayName(), opcode, j - labelIndex);
                 return INTERMEDIATE;
             }
         }
@@ -95,13 +96,12 @@ public final class ControlFlowAnalyzer {
 
     /** Maps labels to their boolean destination values. */
     public Map<LabelNode, Boolean> traceLabelDestinations(InsnList instructions,
-                                                          Map<LabelNode, LabelClassification> classifications) {
+            Map<LabelNode, LabelClassification> classifications) {
         Map<LabelNode, Integer> labelToIndex = buildLabelToIndexMap(instructions);
         Map<LabelNode, Boolean> labelToValue = new HashMap<>();
 
-        classifications.forEach((label, classification) ->
-            resolveLabelValue(label, classification, instructions, labelToIndex, classifications, labelToValue)
-        );
+        classifications.forEach((label, classification) -> resolveLabelValue(label, classification, instructions, labelToIndex,
+                classifications, labelToValue));
 
         return labelToValue;
     }
@@ -145,13 +145,13 @@ public final class ControlFlowAnalyzer {
             Map<LabelNode, Boolean> labelToValue) {
 
         LabelClassification destination = traceLabelDestination(
-            label, instructions, labelToIndex, classifications, new HashSet<>());
+                label, instructions, labelToIndex, classifications, new HashSet<>());
 
         // Handle null destination separately (cannot be traced)
         if (destination == null) {
             Log.debugf("Could not trace label %s to %s/%s",
-                      formatLabelForLogging(label),
-                      TRUE_SINK.getDisplayName(), FALSE_SINK.getDisplayName());
+                    formatLabelForLogging(label),
+                    TRUE_SINK.getDisplayName(), FALSE_SINK.getDisplayName());
             return;
         }
 
@@ -160,16 +160,16 @@ public final class ControlFlowAnalyzer {
             case TRUE_SINK -> {
                 labelToValue.put(label, true);
                 Log.debugf("Traced intermediate label %s -> %s",
-                          formatLabelForLogging(label), TRUE_SINK.getDisplayName());
+                        formatLabelForLogging(label), TRUE_SINK.getDisplayName());
             }
             case FALSE_SINK -> {
                 labelToValue.put(label, false);
                 Log.debugf("Traced intermediate label %s -> %s",
-                          formatLabelForLogging(label), FALSE_SINK.getDisplayName());
+                        formatLabelForLogging(label), FALSE_SINK.getDisplayName());
             }
             case INTERMEDIATE -> Log.debugf("Could not trace label %s to %s/%s",
-                      formatLabelForLogging(label),
-                      TRUE_SINK.getDisplayName(), FALSE_SINK.getDisplayName());
+                    formatLabelForLogging(label),
+                    TRUE_SINK.getDisplayName(), FALSE_SINK.getDisplayName());
         }
     }
 

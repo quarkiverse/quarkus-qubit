@@ -1,14 +1,15 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
-import io.quarkus.logging.Log;
-import org.objectweb.asm.Handle;
-import org.objectweb.asm.tree.*;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
+import org.objectweb.asm.Handle;
+import org.objectweb.asm.tree.*;
+
+import io.quarkus.logging.Log;
 
 /**
  * Extracts fluent API pipelines by scanning backwards from terminal operations.
@@ -20,8 +21,7 @@ public class StreamPipelineAnalyzer {
             String operationName,
             String lambdaMethodName,
             String lambdaMethodDescriptor,
-            int instructionIndex
-    ) {
+            int instructionIndex) {
         @Override
         public String toString() {
             return operationName + "(lambda=" + lambdaMethodName + ")";
@@ -34,8 +34,7 @@ public class StreamPipelineAnalyzer {
             String methodName,
             String terminalOperation,
             List<PipelineOperation> operations,
-            int lineNumber
-    ) {
+            int lineNumber) {
         public int operationCount() {
             return operations.size();
         }

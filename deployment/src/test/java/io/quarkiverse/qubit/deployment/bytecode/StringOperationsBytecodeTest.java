@@ -1,20 +1,22 @@
 package io.quarkiverse.qubit.deployment.bytecode;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.stream.Stream;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /**
  * Bytecode analysis tests for String operations.
  * Tests lambda bytecode parsing without executing queries.
  *
- * <p>This class uses JUnit 5 parameterized tests to consolidate repetitive
+ * <p>
+ * This class uses JUnit 5 parameterized tests to consolidate repetitive
  * test patterns, reducing code duplication while maintaining full coverage.
  */
 class StringOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
@@ -29,8 +31,7 @@ class StringOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         return Stream.of(
                 Arguments.of("stringStartsWith", "startsWith", "firstName", "J"),
                 Arguments.of("stringEndsWith", "endsWith", "email", "@example.com"),
-                Arguments.of("stringContains", "contains", "email", "john")
-        );
+                Arguments.of("stringContains", "contains", "email", "john"));
     }
 
     /**
@@ -41,8 +42,7 @@ class StringOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         return Stream.of(
                 Arguments.of("stringToLowerCase", "toLowerCase", "firstName", "john"),
                 Arguments.of("stringToUpperCase", "toUpperCase", "firstName", "JANE"),
-                Arguments.of("stringTrim", "trim", "email", "david.miller@example.com")
-        );
+                Arguments.of("stringTrim", "trim", "email", "david.miller@example.com"));
     }
 
     // ==================== PARAMETERIZED TESTS ====================
@@ -50,7 +50,7 @@ class StringOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
     @ParameterizedTest(name = "{0}: {2}.{1}(\"{3}\")")
     @MethodSource("stringPredicateMethods")
     void stringPredicateMethod(String lambdaMethodName, String expectedMethodName,
-                               String expectedFieldName, String expectedArgument) {
+            String expectedFieldName, String expectedArgument) {
         LambdaExpression expr = analyzeLambda(lambdaMethodName);
 
         assertMethodCall(expr, expectedMethodName);
@@ -63,7 +63,7 @@ class StringOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
     @ParameterizedTest(name = "{0}: {2}.{1}().equals(\"{3}\")")
     @MethodSource("stringTransformMethods")
     void stringTransformMethod(String lambdaMethodName, String expectedMethodName,
-                               String expectedFieldName, String expectedConstant) {
+            String expectedFieldName, String expectedConstant) {
         LambdaExpression expr = analyzeLambda(lambdaMethodName);
 
         assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.EQ);

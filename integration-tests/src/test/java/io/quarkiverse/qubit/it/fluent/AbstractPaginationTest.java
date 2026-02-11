@@ -14,7 +14,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Abstract base class for pagination (skip/limit) operation tests.
  *
- * <p>Contains all test methods that can be run with either static entity methods
+ * <p>
+ * Contains all test methods that can be run with either static entity methods
  * or repository instance methods.
  */
 public abstract class AbstractPaginationTest {

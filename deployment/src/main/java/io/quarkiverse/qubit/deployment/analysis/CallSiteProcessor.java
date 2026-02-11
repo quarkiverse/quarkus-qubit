@@ -10,29 +10,29 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_TYPE_CO
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_TYPE_LIST;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_TYPE_PROJECTION;
 
-import io.quarkus.deployment.annotations.BuildProducer;
-import io.quarkus.deployment.builditem.ApplicationArchivesBuildItem;
-import io.quarkus.deployment.builditem.GeneratedClassBuildItem;
-import io.quarkiverse.qubit.deployment.analysis.handler.QueryAnalysisContext;
-import io.quarkiverse.qubit.deployment.analysis.handler.QueryTypeHandler;
-import io.quarkiverse.qubit.deployment.analysis.handler.QueryTypeHandlerRegistry;
-import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator.DeduplicationContext;
-import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator.DeduplicationRequest;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
-import io.quarkiverse.qubit.deployment.jfr.QubitAnalysisEvent;
-import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
-import io.quarkiverse.qubit.deployment.metrics.ExpressionTypeCounter;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import io.quarkiverse.qubit.deployment.QubitBuildTimeConfig;
 import io.quarkiverse.qubit.deployment.QubitProcessor;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
+import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator.DeduplicationContext;
+import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator.DeduplicationRequest;
+import io.quarkiverse.qubit.deployment.analysis.handler.QueryAnalysisContext;
+import io.quarkiverse.qubit.deployment.analysis.handler.QueryTypeHandler;
+import io.quarkiverse.qubit.deployment.analysis.handler.QueryTypeHandlerRegistry;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
 import io.quarkiverse.qubit.deployment.generation.QueryExecutorClassGenerator;
+import io.quarkiverse.qubit.deployment.jfr.QubitAnalysisEvent;
+import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
+import io.quarkiverse.qubit.deployment.metrics.ExpressionTypeCounter;
 import io.quarkiverse.qubit.deployment.util.BytecodeLoader;
 import io.quarkiverse.qubit.deployment.util.DescriptorParser;
+import io.quarkus.deployment.annotations.BuildProducer;
+import io.quarkus.deployment.builditem.ApplicationArchivesBuildItem;
+import io.quarkus.deployment.builditem.GeneratedClassBuildItem;
 import io.quarkus.logging.Log;
-
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Processes lambda call sites: analyzes bytecode, deduplicates, generates executors.
@@ -154,7 +154,8 @@ public class CallSiteProcessor {
         }
 
         // Create analysis context with shared deduplicator and metrics collector
-        QueryAnalysisContext context = QueryAnalysisContext.of(classBytes, callSite, bytecodeAnalyzer, deduplicator, metricsCollector);
+        QueryAnalysisContext context = QueryAnalysisContext.of(classBytes, callSite, bytecodeAnalyzer, deduplicator,
+                metricsCollector);
 
         // Check early deduplication before expensive analysis
         EarlyDedupResult bytecodeSignature = computeAndCheckEarlyDedup(callSite);
@@ -181,7 +182,8 @@ public class CallSiteProcessor {
         }
 
         // Handle the outcome, passing bytecode signature for registration
-        AnalysisOutcome result = handleAnalysisOutcome(outcome, callSite, callSiteId, bytecodeSignature.signature(), queryType, processingContext);
+        AnalysisOutcome result = handleAnalysisOutcome(outcome, callSite, callSiteId, bytecodeSignature.signature(), queryType,
+                processingContext);
 
         // Complete JFR event based on outcome
         completeJfrEvent(jfrEvent, result, queryType);
@@ -193,18 +195,19 @@ public class CallSiteProcessor {
     private void completeJfrEvent(QubitAnalysisEvent event, AnalysisOutcome outcome, String queryType) {
         switch (outcome) {
             case AnalysisOutcome.Success success ->
-                    event.complete(queryType, true, false, success.lambdaHash());
+                event.complete(queryType, true, false, success.lambdaHash());
             case AnalysisOutcome.EarlyDeduplicated dedup ->
-                    event.complete(queryType, true, true, dedup.lambdaHash());
+                event.complete(queryType, true, true, dedup.lambdaHash());
             case AnalysisOutcome.UnsupportedPattern _ ->
-                    event.complete(queryType, false, false, null);
+                event.complete(queryType, false, false, null);
             case AnalysisOutcome.AnalysisError _ ->
-                    event.fail("Analysis error");
+                event.fail("Analysis error");
         }
     }
 
     /** Result of early deduplication check: signature is always set, outcome is non-null on cache hit. */
-    private record EarlyDedupResult(String signature, LambdaDeduplicator.CachedAnalysisResult outcome) {}
+    private record EarlyDedupResult(String signature, LambdaDeduplicator.CachedAnalysisResult outcome) {
+    }
 
     /** Computes bytecode signature and checks early dedup cache. */
     private EarlyDedupResult computeAndCheckEarlyDedup(InvokeDynamicScanner.LambdaCallSite callSite) {
@@ -235,7 +238,7 @@ public class CallSiteProcessor {
 
         return switch (outcome) {
             case AnalysisOutcome.Success success ->
-                    handleSuccessOutcome(success, callSite, callSiteId, bytecodeSignature, queryType, ctx);
+                handleSuccessOutcome(success, callSite, callSiteId, bytecodeSignature, queryType, ctx);
 
             case AnalysisOutcome.UnsupportedPattern unsupported -> {
                 Log.debugf("Skipping unsupported pattern at %s: %s",
@@ -289,7 +292,7 @@ public class CallSiteProcessor {
             if (metricsCollector != null) {
                 metricsCollector.incrementDuplicateCount();
             }
-            return success;  // Deduplicated, no generation needed
+            return success; // Deduplicated, no generation needed
         }
 
         // Build executor class name
@@ -412,7 +415,9 @@ public class CallSiteProcessor {
         }
     }
 
-    /** Registers a duplicate call site detected by bytecode signature pre-grouping. Returns false if fallback analysis needed. */
+    /**
+     * Registers a duplicate call site detected by bytecode signature pre-grouping. Returns false if fallback analysis needed.
+     */
     public boolean registerEarlyDeduplicated(
             InvokeDynamicScanner.LambdaCallSite duplicate,
             InvokeDynamicScanner.LambdaCallSite representative,
@@ -524,13 +529,13 @@ public class CallSiteProcessor {
     private String extractEntityClassName(InvokeDynamicScanner.LambdaCallSite callSite, LambdaAnalysisResult result) {
         return switch (result) {
             case LambdaAnalysisResult.GroupQueryResult _ ->
-                    DescriptorParser.getEntityClassName(callSite.groupByLambdaDescriptor());
+                DescriptorParser.getEntityClassName(callSite.groupByLambdaDescriptor());
             case LambdaAnalysisResult.JoinQueryResult _ ->
-                    DescriptorParser.getEntityClassName(callSite.joinRelationshipLambdaDescriptor());
+                DescriptorParser.getEntityClassName(callSite.joinRelationshipLambdaDescriptor());
             case LambdaAnalysisResult.AggregationQueryResult _ ->
-                    DescriptorParser.getEntityClassName(getEntityDescriptor(callSite));
+                DescriptorParser.getEntityClassName(getEntityDescriptor(callSite));
             case LambdaAnalysisResult.SimpleQueryResult _ ->
-                    DescriptorParser.getEntityClassName(getEntityDescriptor(callSite));
+                DescriptorParser.getEntityClassName(getEntityDescriptor(callSite));
         };
     }
 
@@ -714,7 +719,8 @@ public class CallSiteProcessor {
 
         if (ctx.loggingConfig().logGeneratedClasses()) {
             String joinTypeDesc = (join.joinType() == InvokeDynamicScanner.JoinType.LEFT)
-                    ? "LEFT JOIN" : "INNER JOIN";
+                    ? "LEFT JOIN"
+                    : "INNER JOIN";
             String queryTypeDesc;
             if (ctx.isCountQuery()) {
                 queryTypeDesc = joinTypeDesc + " COUNT";
@@ -827,7 +833,7 @@ public class CallSiteProcessor {
 
         // Aggregation queries have priority in description
         if (isAggregationQuery && aggregationType != null) {
-            String typeDesc = aggregationType;  // "MIN", "MAX", "AVG", etc.
+            String typeDesc = aggregationType; // "MIN", "MAX", "AVG", etc.
             if (predicateExpression != null) {
                 typeDesc += "+WHERE";
             }
@@ -861,7 +867,8 @@ public class CallSiteProcessor {
     }
 
     /** First sort expression for DevUI display. */
-    private record SortDisplayInfo(LambdaExpression sortKey, boolean descending) {}
+    private record SortDisplayInfo(LambdaExpression sortKey, boolean descending) {
+    }
 
     /** Counts expression types from analysis result for metrics. */
     private void countExpressionTypes(LambdaAnalysisResult result, BuildMetricsCollector collector) {
@@ -904,7 +911,8 @@ public class CallSiteProcessor {
     private record LambdaAnalysis(
             LambdaAnalysisResult result,
             String callSiteId,
-            String lambdaHash) {}
+            String lambdaHash) {
+    }
 
     /** Consolidates executor generation parameters into a single context object. */
     private record ExecutorRegistrationContext(

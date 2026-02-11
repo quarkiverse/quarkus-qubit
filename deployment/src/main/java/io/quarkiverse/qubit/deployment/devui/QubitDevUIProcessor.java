@@ -5,13 +5,13 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_ID_SEPA
 
 import java.util.List;
 
+import io.quarkiverse.qubit.deployment.QubitProcessor.QueryTransformationBuildItem;
 import io.quarkiverse.qubit.deployment.util.ClassNameUtils;
 import io.quarkus.deployment.IsDevelopment;
 import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.devui.spi.page.CardPageBuildItem;
 import io.quarkus.devui.spi.page.Page;
-import io.quarkiverse.qubit.deployment.QubitProcessor.QueryTransformationBuildItem;
 
 /** DevUI processor for Qubit extension. */
 public class QubitDevUIProcessor {
@@ -53,7 +53,7 @@ public class QubitDevUIProcessor {
                     transformation.getJoinRelationshipExpression(),
                     transformation.getPredicateExpression(),
                     transformation.getProjectionExpression(),
-                    false,  // isLeftJoin - default to INNER JOIN for now
+                    false, // isLeftJoin - default to INNER JOIN for now
                     transformation.isCountQuery());
         } else {
             jpql = JpqlGenerator.generateJpql(
@@ -70,7 +70,7 @@ public class QubitDevUIProcessor {
         String projectionSource;
         if (transformation.isJoinQuery()) {
             // Use bi-entity generator with entity variable names (e.g., "(p, j) -> ...")
-            String firstParam = "p";  // Primary entity
+            String firstParam = "p"; // Primary entity
             String secondParam = "j"; // Joined entity
             predicateSource = JavaSourceGenerator.generateBiEntityJavaSource(
                     transformation.getPredicateExpression(), firstParam, secondParam);

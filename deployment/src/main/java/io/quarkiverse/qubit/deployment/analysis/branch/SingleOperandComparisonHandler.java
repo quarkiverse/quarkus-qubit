@@ -1,34 +1,37 @@
 package io.quarkiverse.qubit.deployment.analysis.branch;
 
+import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
+import static org.objectweb.asm.Opcodes.*;
+
+import java.util.Deque;
+
+import org.objectweb.asm.tree.JumpInsnNode;
+
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.common.BytecodeValidator;
 import io.quarkiverse.qubit.deployment.common.OpcodeOperatorMapper;
 import io.quarkiverse.qubit.deployment.common.PatternDetector;
 import io.quarkus.logging.Log;
-import org.objectweb.asm.tree.JumpInsnNode;
-
-import java.util.Deque;
-
-import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
-import static org.objectweb.asm.Opcodes.*;
 
 /**
  * Handles single-operand comparison instructions (IFLE, IFLT, IFGE, IFGT).
  *
- * <p>These instructions compare a single value on the stack against zero:
+ * <p>
+ * These instructions compare a single value on the stack against zero:
  * <ul>
- *   <li>IFLE - if value <= 0, jump</li>
- *   <li>IFLT - if value < 0, jump</li>
- *   <li>IFGE - if value >= 0, jump</li>
- *   <li>IFGT - if value > 0, jump</li>
+ * <li>IFLE - if value <= 0, jump</li>
+ * <li>IFLT - if value < 0, jump</li>
+ * <li>IFGE - if value >= 0, jump</li>
+ * <li>IFGT - if value > 0, jump</li>
  * </ul>
  *
- * <p>Handles special patterns:
+ * <p>
+ * Handles special patterns:
  * <ul>
- *   <li>Arithmetic comparison pattern (ISUB/LSUB followed by comparison)</li>
- *   <li>Double comparison pattern (DCMPL/DCMPG followed by comparison)</li>
- *   <li>CompareTo pattern (compareTo() call followed by comparison)</li>
- *   <li>Plain comparison (value compared to 0)</li>
+ * <li>Arithmetic comparison pattern (ISUB/LSUB followed by comparison)</li>
+ * <li>Double comparison pattern (DCMPL/DCMPG followed by comparison)</li>
+ * <li>CompareTo pattern (compareTo() call followed by comparison)</li>
+ * <li>Plain comparison (value compared to 0)</li>
  * </ul>
  */
 public class SingleOperandComparisonHandler implements BranchHandler {
@@ -68,7 +71,8 @@ public class SingleOperandComparisonHandler implements BranchHandler {
             }
             case COMPARE_TO -> {
                 // CompareTo pattern: a.compareTo(b) → comparison
-                LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) BytecodeValidator.popSafe(stack, INSTRUCTION_NAME + "-CompareTo");
+                LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) BytecodeValidator.popSafe(stack,
+                        INSTRUCTION_NAME + "-CompareTo");
                 left = methodCall.target();
                 right = methodCall.arguments().getFirst();
             }

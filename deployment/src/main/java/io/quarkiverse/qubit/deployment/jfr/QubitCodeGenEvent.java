@@ -14,7 +14,7 @@ import jdk.jfr.StackTrace;
  */
 @Name("io.quarkiverse.qubit.CodeGen")
 @Label("Qubit Code Generation")
-@Category({"Qubit", "CodeGen"})
+@Category({ "Qubit", "CodeGen" })
 @Description("Query executor code generation timing")
 @StackTrace(false)
 public class QubitCodeGenEvent extends Event {
@@ -45,7 +45,8 @@ public class QubitCodeGenEvent extends Event {
     public static QubitCodeGenEvent start(String lambdaHash, String queryType) {
         QubitCodeGenEvent event = new QubitCodeGenEvent();
         event.lambdaHash = lambdaHash != null && lambdaHash.length() > 8
-                ? lambdaHash.substring(0, 8) : lambdaHash;
+                ? lambdaHash.substring(0, 8)
+                : lambdaHash;
         event.queryType = queryType;
         event.begin();
         return event;

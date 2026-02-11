@@ -38,7 +38,8 @@ public record QueryExecutionPlan(
         private Integer limitValue;
         private int capturedVarCount;
 
-        private Builder() {}
+        private Builder() {
+        }
 
         public Builder lambdaHash(String lambdaHash) {
             this.lambdaHash = lambdaHash;

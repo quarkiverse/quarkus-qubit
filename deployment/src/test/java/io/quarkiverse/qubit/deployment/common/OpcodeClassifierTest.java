@@ -1,18 +1,19 @@
 package io.quarkiverse.qubit.deployment.common;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.objectweb.asm.Opcodes.*;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.objectweb.asm.Opcodes.*;
-
 /**
  * Unit tests for {@link OpcodeClassifier}.
  *
- * <p>Tests the opcode classification methods for arithmetic, logical, comparison,
+ * <p>
+ * Tests the opcode classification methods for arithmetic, logical, comparison,
  * branch, invoke, conversion, and constant instructions.
  */
 class OpcodeClassifierTest {
@@ -24,7 +25,7 @@ class OpcodeClassifierTest {
     class IsArithmeticOpcodeTests {
 
         @ParameterizedTest
-        @ValueSource(ints = {IADD, LADD, FADD, DADD})
+        @ValueSource(ints = { IADD, LADD, FADD, DADD })
         void addOpcodes_areArithmetic(int opcode) {
             assertThat(OpcodeClassifier.isArithmeticOpcode(opcode))
                     .as("ADD opcode %d should be arithmetic", opcode)
@@ -32,7 +33,7 @@ class OpcodeClassifierTest {
         }
 
         @ParameterizedTest
-        @ValueSource(ints = {ISUB, LSUB, FSUB, DSUB})
+        @ValueSource(ints = { ISUB, LSUB, FSUB, DSUB })
         void subOpcodes_areArithmetic(int opcode) {
             assertThat(OpcodeClassifier.isArithmeticOpcode(opcode))
                     .as("SUB opcode %d should be arithmetic", opcode)
@@ -40,7 +41,7 @@ class OpcodeClassifierTest {
         }
 
         @ParameterizedTest
-        @ValueSource(ints = {IMUL, LMUL, FMUL, DMUL})
+        @ValueSource(ints = { IMUL, LMUL, FMUL, DMUL })
         void mulOpcodes_areArithmetic(int opcode) {
             assertThat(OpcodeClassifier.isArithmeticOpcode(opcode))
                     .as("MUL opcode %d should be arithmetic", opcode)
@@ -48,7 +49,7 @@ class OpcodeClassifierTest {
         }
 
         @ParameterizedTest
-        @ValueSource(ints = {IDIV, LDIV, FDIV, DDIV})
+        @ValueSource(ints = { IDIV, LDIV, FDIV, DDIV })
         void divOpcodes_areArithmetic(int opcode) {
             assertThat(OpcodeClassifier.isArithmeticOpcode(opcode))
                     .as("DIV opcode %d should be arithmetic", opcode)
@@ -56,7 +57,7 @@ class OpcodeClassifierTest {
         }
 
         @ParameterizedTest
-        @ValueSource(ints = {IREM, LREM, FREM, DREM})
+        @ValueSource(ints = { IREM, LREM, FREM, DREM })
         void remOpcodes_areArithmetic(int opcode) {
             assertThat(OpcodeClassifier.isArithmeticOpcode(opcode))
                     .as("REM opcode %d should be arithmetic", opcode)
@@ -260,7 +261,7 @@ class OpcodeClassifierTest {
     class IsBranchOpcodeTests {
 
         @ParameterizedTest
-        @ValueSource(ints = {IFEQ, IFNE, IFLT, IFGE, IFGT, IFLE})
+        @ValueSource(ints = { IFEQ, IFNE, IFLT, IFGE, IFGT, IFLE })
         void ifOpcodes_areBranch(int opcode) {
             assertThat(OpcodeClassifier.isBranchOpcode(opcode))
                     .as("IF opcode %d should be branch", opcode)
@@ -268,7 +269,7 @@ class OpcodeClassifierTest {
         }
 
         @ParameterizedTest
-        @ValueSource(ints = {IF_ICMPEQ, IF_ICMPNE, IF_ICMPLT, IF_ICMPGE, IF_ICMPGT, IF_ICMPLE})
+        @ValueSource(ints = { IF_ICMPEQ, IF_ICMPNE, IF_ICMPLT, IF_ICMPGE, IF_ICMPGT, IF_ICMPLE })
         void ifIcmpOpcodes_areBranch(int opcode) {
             assertThat(OpcodeClassifier.isBranchOpcode(opcode))
                     .as("IF_ICMP opcode %d should be branch", opcode)
@@ -383,7 +384,7 @@ class OpcodeClassifierTest {
     class IsTypeConversionOpcodeTests {
 
         @ParameterizedTest
-        @ValueSource(ints = {I2L, I2F, I2D})
+        @ValueSource(ints = { I2L, I2F, I2D })
         void intConversions_areTypeConversion(int opcode) {
             assertThat(OpcodeClassifier.isTypeConversionOpcode(opcode))
                     .as("Int conversion opcode %d should be type conversion", opcode)
@@ -391,7 +392,7 @@ class OpcodeClassifierTest {
         }
 
         @ParameterizedTest
-        @ValueSource(ints = {L2I, L2F, L2D})
+        @ValueSource(ints = { L2I, L2F, L2D })
         void longConversions_areTypeConversion(int opcode) {
             assertThat(OpcodeClassifier.isTypeConversionOpcode(opcode))
                     .as("Long conversion opcode %d should be type conversion", opcode)
@@ -399,7 +400,7 @@ class OpcodeClassifierTest {
         }
 
         @ParameterizedTest
-        @ValueSource(ints = {F2I, F2L, F2D})
+        @ValueSource(ints = { F2I, F2L, F2D })
         void floatConversions_areTypeConversion(int opcode) {
             assertThat(OpcodeClassifier.isTypeConversionOpcode(opcode))
                     .as("Float conversion opcode %d should be type conversion", opcode)
@@ -407,7 +408,7 @@ class OpcodeClassifierTest {
         }
 
         @ParameterizedTest
-        @ValueSource(ints = {D2I, D2L, D2F})
+        @ValueSource(ints = { D2I, D2L, D2F })
         void doubleConversions_areTypeConversion(int opcode) {
             assertThat(OpcodeClassifier.isTypeConversionOpcode(opcode))
                     .as("Double conversion opcode %d should be type conversion", opcode)
@@ -457,7 +458,7 @@ class OpcodeClassifierTest {
         }
 
         @ParameterizedTest
-        @ValueSource(ints = {ICONST_M1, ICONST_0, ICONST_1, ICONST_2, ICONST_3, ICONST_4, ICONST_5})
+        @ValueSource(ints = { ICONST_M1, ICONST_0, ICONST_1, ICONST_2, ICONST_3, ICONST_4, ICONST_5 })
         void iconstOpcodes_areConstant(int opcode) {
             assertThat(OpcodeClassifier.isConstantOpcode(opcode))
                     .as("ICONST opcode %d should be constant", opcode)
@@ -465,7 +466,7 @@ class OpcodeClassifierTest {
         }
 
         @ParameterizedTest
-        @ValueSource(ints = {FCONST_0, FCONST_1, FCONST_2})
+        @ValueSource(ints = { FCONST_0, FCONST_1, FCONST_2 })
         void fconstOpcodes_areConstant(int opcode) {
             assertThat(OpcodeClassifier.isConstantOpcode(opcode))
                     .as("FCONST opcode %d should be constant", opcode)
@@ -473,7 +474,7 @@ class OpcodeClassifierTest {
         }
 
         @ParameterizedTest
-        @ValueSource(ints = {LCONST_0, LCONST_1})
+        @ValueSource(ints = { LCONST_0, LCONST_1 })
         void lconstOpcodes_areConstant(int opcode) {
             assertThat(OpcodeClassifier.isConstantOpcode(opcode))
                     .as("LCONST opcode %d should be constant", opcode)
@@ -481,7 +482,7 @@ class OpcodeClassifierTest {
         }
 
         @ParameterizedTest
-        @ValueSource(ints = {DCONST_0, DCONST_1})
+        @ValueSource(ints = { DCONST_0, DCONST_1 })
         void dconstOpcodes_areConstant(int opcode) {
             assertThat(OpcodeClassifier.isConstantOpcode(opcode))
                     .as("DCONST opcode %d should be constant", opcode)
@@ -503,7 +504,7 @@ class OpcodeClassifierTest {
     class IsIntConstantOpcodeTests {
 
         @ParameterizedTest
-        @ValueSource(ints = {ICONST_M1, ICONST_0, ICONST_1, ICONST_2, ICONST_3, ICONST_4, ICONST_5})
+        @ValueSource(ints = { ICONST_M1, ICONST_0, ICONST_1, ICONST_2, ICONST_3, ICONST_4, ICONST_5 })
         void validIntConstants_areIntConstant(int opcode) {
             assertThat(OpcodeClassifier.isIntConstantOpcode(opcode))
                     .as("ICONST opcode %d should be int constant", opcode)
@@ -540,7 +541,7 @@ class OpcodeClassifierTest {
     class IsFloatConstantOpcodeTests {
 
         @ParameterizedTest
-        @ValueSource(ints = {FCONST_0, FCONST_1, FCONST_2})
+        @ValueSource(ints = { FCONST_0, FCONST_1, FCONST_2 })
         void validFloatConstants_areFloatConstant(int opcode) {
             assertThat(OpcodeClassifier.isFloatConstantOpcode(opcode))
                     .as("FCONST opcode %d should be float constant", opcode)
@@ -569,7 +570,7 @@ class OpcodeClassifierTest {
     class IsLongConstantOpcodeTests {
 
         @ParameterizedTest
-        @ValueSource(ints = {LCONST_0, LCONST_1})
+        @ValueSource(ints = { LCONST_0, LCONST_1 })
         void validLongConstants_areLongConstant(int opcode) {
             assertThat(OpcodeClassifier.isLongConstantOpcode(opcode))
                     .as("LCONST opcode %d should be long constant", opcode)
@@ -598,7 +599,7 @@ class OpcodeClassifierTest {
     class IsDoubleConstantOpcodeTests {
 
         @ParameterizedTest
-        @ValueSource(ints = {DCONST_0, DCONST_1})
+        @ValueSource(ints = { DCONST_0, DCONST_1 })
         void validDoubleConstants_areDoubleConstant(int opcode) {
             assertThat(OpcodeClassifier.isDoubleConstantOpcode(opcode))
                     .as("DCONST opcode %d should be double constant", opcode)

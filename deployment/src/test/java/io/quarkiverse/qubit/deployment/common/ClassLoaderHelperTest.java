@@ -1,18 +1,20 @@
 package io.quarkiverse.qubit.deployment.common;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant;
+import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.Type;
 
-import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
-import static org.assertj.core.api.Assertions.assertThat;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant;
 
 /**
  * Tests for {@link ClassLoaderHelper}.
  *
- * <p>Tests class loading utilities for build-time bytecode analysis.
+ * <p>
+ * Tests class loading utilities for build-time bytecode analysis.
  */
 class ClassLoaderHelperTest {
 
@@ -103,8 +105,7 @@ class ClassLoaderHelperTest {
                     .as("Primitive array descriptor should return class or null")
                     .satisfiesAnyOf(
                             r -> assertThat(r).isEqualTo(int[].class),
-                            r -> assertThat(r).isNull()
-                    );
+                            r -> assertThat(r).isNull());
         }
     }
 

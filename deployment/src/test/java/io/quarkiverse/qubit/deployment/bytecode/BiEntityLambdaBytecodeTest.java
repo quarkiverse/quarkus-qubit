@@ -1,11 +1,9 @@
 package io.quarkiverse.qubit.deployment.bytecode;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityFieldAccess;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.UnaryOp;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.stream.Stream;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -13,18 +11,23 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityFieldAccess;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.UnaryOp;
 
 /**
  * Bytecode analysis tests for bi-entity lambda expressions (BiQuerySpec).
  *
- * <p>Tests lambda bytecode parsing for join query predicates and projections
+ * <p>
+ * Tests lambda bytecode parsing for join query predicates and projections
  * without executing queries. Verifies that bi-entity lambdas are correctly
  * analyzed and produce the appropriate BiEntity AST nodes.
  *
- * <p>Uses pre-compiled lambda sources from {@link io.quarkiverse.qubit.deployment.testutil.BiEntityLambdaTestSources}
+ * <p>
+ * Uses pre-compiled lambda sources from {@link io.quarkiverse.qubit.deployment.testutil.BiEntityLambdaTestSources}
  * for reliable bytecode generation and analysis.
  */
 @DisplayName("BiEntityLambdaBytecodeTest")
@@ -71,8 +74,7 @@ class BiEntityLambdaBytecodeTest extends PrecompiledBiEntityLambdaAnalyzer {
                 // Projections
                 Arguments.of("projectJoinedEntityField", EntityPosition.SECOND, "number"),
                 Arguments.of("projectSourceEntityField", EntityPosition.FIRST, "firstName"),
-                Arguments.of("projectSourceEntityIntField", EntityPosition.FIRST, "age")
-        );
+                Arguments.of("projectSourceEntityIntField", EntityPosition.FIRST, "age"));
     }
 
     // ==================== FIELD COMPARISON WITH CONSTANT ====================
@@ -85,7 +87,7 @@ class BiEntityLambdaBytecodeTest extends PrecompiledBiEntityLambdaAnalyzer {
         @MethodSource("io.quarkiverse.qubit.deployment.bytecode.BiEntityLambdaBytecodeTest#fieldComparisonCases")
         @DisplayName("returns BinaryOp with field and constant")
         void fieldComparison(String methodName, EntityPosition expectedPosition,
-                             String expectedField, BinaryOp.Operator expectedOp, Object expectedConstant) {
+                String expectedField, BinaryOp.Operator expectedOp, Object expectedConstant) {
             LambdaExpression expr = analyzeBiEntityLambda(methodName);
 
             assertBinaryOp(expr, expectedOp);
@@ -104,8 +106,7 @@ class BiEntityLambdaBytecodeTest extends PrecompiledBiEntityLambdaAnalyzer {
         return Stream.of(
                 Arguments.of("joinedEntityFieldEquals", EntityPosition.SECOND, "type", BinaryOp.Operator.EQ, "mobile"),
                 Arguments.of("sourceEntityFieldEquals", EntityPosition.FIRST, "firstName", BinaryOp.Operator.EQ, "John"),
-                Arguments.of("sourceEntityIntegerComparison", EntityPosition.FIRST, "age", BinaryOp.Operator.GT, 30)
-        );
+                Arguments.of("sourceEntityIntegerComparison", EntityPosition.FIRST, "age", BinaryOp.Operator.GT, 30));
     }
 
     // ==================== STRING METHOD CALLS ====================
@@ -118,7 +119,7 @@ class BiEntityLambdaBytecodeTest extends PrecompiledBiEntityLambdaAnalyzer {
         @MethodSource("io.quarkiverse.qubit.deployment.bytecode.BiEntityLambdaBytecodeTest#stringMethodCases")
         @DisplayName("returns MethodCall on BiEntityFieldAccess")
         void stringMethod(String lambdaName, EntityPosition expectedPosition,
-                          String expectedField, String expectedMethod, String expectedArg) {
+                String expectedField, String expectedMethod, String expectedArg) {
             LambdaExpression expr = analyzeBiEntityLambda(lambdaName);
 
             assertMethodCall(expr, expectedMethod);
@@ -138,8 +139,7 @@ class BiEntityLambdaBytecodeTest extends PrecompiledBiEntityLambdaAnalyzer {
         return Stream.of(
                 Arguments.of("joinedEntityStartsWith", EntityPosition.SECOND, "number", "startsWith", "555"),
                 Arguments.of("joinedEntityContains", EntityPosition.SECOND, "number", "contains", "01"),
-                Arguments.of("joinedEntityEndsWith", EntityPosition.SECOND, "number", "endsWith", "00")
-        );
+                Arguments.of("joinedEntityEndsWith", EntityPosition.SECOND, "number", "endsWith", "00"));
     }
 
     // ==================== PREDICATES ON BOTH ENTITIES ====================
@@ -259,7 +259,7 @@ class BiEntityLambdaBytecodeTest extends PrecompiledBiEntityLambdaAnalyzer {
     }
 
     private void assertFieldComparison(LambdaExpression expr, EntityPosition position,
-                                        String fieldName, BinaryOp.Operator op, Object constant) {
+            String fieldName, BinaryOp.Operator op, Object constant) {
         assertThat(expr).isInstanceOf(BinaryOp.class);
         BinaryOp binOp = (BinaryOp) expr;
         assertThat(binOp.operator()).isEqualTo(op);

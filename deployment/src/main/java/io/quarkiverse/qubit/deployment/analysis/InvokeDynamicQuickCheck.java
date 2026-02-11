@@ -7,7 +7,8 @@ import java.util.Arrays;
  * Checks class bytecode for CONSTANT_InvokeDynamic (tag 18) AND Qubit API references
  * in the constant pool. Both must be present for a class to potentially contain Qubit queries.
  *
- * <p>Returns true conservatively on any parse error (never false negatives).
+ * <p>
+ * Returns true conservatively on any parse error (never false negatives).
  */
 public final class InvokeDynamicQuickCheck {
 
@@ -46,8 +47,10 @@ public final class InvokeDynamicQuickCheck {
         while (index < cpCount && pos < data.length) {
             int tag = data[pos] & 0xFF;
             pos = advancePastEntry(data, pos + 1, tag, flags);
-            if (pos < 0) return true;       // parse error — conservative
-            if (flags[0] && flags[1]) return true; // both found — early exit
+            if (pos < 0)
+                return true; // parse error — conservative
+            if (flags[0] && flags[1])
+                return true; // both found — early exit
             index += (tag == 5 || tag == 6) ? 2 : 1;
         }
         // Truncated CP → conservative; complete scan with no match → skip
@@ -79,12 +82,12 @@ public final class InvokeDynamicQuickCheck {
     /** Returns payload size for a constant pool entry tag, or -1 for unknown tags. */
     private static int entryPayloadSize(int tag) {
         return switch (tag) {
-            case 3, 4 -> 4;                       // Integer, Float
-            case 5, 6 -> 8;                        // Long, Double
-            case 7, 8, 16, 19, 20 -> 2;            // Class, String, MethodType, Module, Package
-            case 9, 10, 11, 12 -> 4;                // Fieldref, Methodref, InterfaceMethodref, NameAndType
-            case 15 -> 3;                           // MethodHandle
-            case 17 -> 4;                           // Dynamic
+            case 3, 4 -> 4; // Integer, Float
+            case 5, 6 -> 8; // Long, Double
+            case 7, 8, 16, 19, 20 -> 2; // Class, String, MethodType, Module, Package
+            case 9, 10, 11, 12 -> 4; // Fieldref, Methodref, InterfaceMethodref, NameAndType
+            case 15 -> 3; // MethodHandle
+            case 17 -> 4; // Dynamic
             default -> -1;
         };
     }

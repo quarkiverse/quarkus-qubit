@@ -1,6 +1,13 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import static io.quarkiverse.qubit.deployment.analysis.instruction.InvokeDynamicHandler.IndyCategory;
+import static io.quarkiverse.qubit.deployment.analysis.instruction.InvokeDynamicHandler.IndyCategory.*;
+import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
+import static io.quarkiverse.qubit.deployment.testutil.fixtures.AnalysisContextFixtures.contextFor;
+import static io.quarkiverse.qubit.deployment.testutil.fixtures.AsmFixtures.testMethod;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.objectweb.asm.Opcodes.*;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -9,18 +16,13 @@ import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.InvokeDynamicInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
-import static io.quarkiverse.qubit.deployment.analysis.instruction.InvokeDynamicHandler.IndyCategory;
-import static io.quarkiverse.qubit.deployment.analysis.instruction.InvokeDynamicHandler.IndyCategory.*;
-import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
-import static io.quarkiverse.qubit.deployment.testutil.fixtures.AsmFixtures.testMethod;
-import static io.quarkiverse.qubit.deployment.testutil.fixtures.AnalysisContextFixtures.contextFor;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.objectweb.asm.Opcodes.*;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /**
  * Tests for {@link InvokeDynamicHandler}.
  *
- * <p>Tests Java 9+ string concatenation via StringConcatFactory and nested lambda detection.
+ * <p>
+ * Tests Java 9+ string concatenation via StringConcatFactory and nested lambda detection.
  */
 class InvokeDynamicHandlerTest {
 
@@ -157,7 +159,8 @@ class InvokeDynamicHandlerTest {
         void handle_stringConcat_withNullRecipe_returnsFalse() {
             // bsmArgs is null
             Handle bsm = new Handle(H_INVOKESTATIC, STRING_CONCAT_FACTORY, "makeConcatWithConstants",
-                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;", false);
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;",
+                    false);
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("makeConcatWithConstants",
                     "(Ljava/lang/String;)Ljava/lang/String;", bsm);
 
@@ -170,7 +173,8 @@ class InvokeDynamicHandlerTest {
         void handle_stringConcat_withEmptyBsmArgs_returnsFalse() {
             // bsmArgs is empty array
             Handle bsm = new Handle(H_INVOKESTATIC, STRING_CONCAT_FACTORY, "makeConcatWithConstants",
-                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;", false);
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;",
+                    false);
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("makeConcatWithConstants",
                     "(Ljava/lang/String;)Ljava/lang/String;", bsm, new Object[0]);
 
@@ -183,7 +187,8 @@ class InvokeDynamicHandlerTest {
         void handle_stringConcat_withNonStringRecipe_returnsFalse() {
             // Recipe is not a String type
             Handle bsm = new Handle(H_INVOKESTATIC, STRING_CONCAT_FACTORY, "makeConcatWithConstants",
-                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;", false);
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;",
+                    false);
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("makeConcatWithConstants",
                     "(Ljava/lang/String;)Ljava/lang/String;", bsm, Integer.valueOf(123));
 
@@ -245,7 +250,8 @@ class InvokeDynamicHandlerTest {
         void handle_lambdaMetafactory_withNonQuerySpecReturn_returnsFalse() {
             // LambdaMetafactory with non-QuerySpec return type
             Handle bsm = new Handle(H_INVOKESTATIC, LAMBDA_METAFACTORY, "metafactory",
-                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;",
+                    false);
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("apply",
                     "()Ljava/util/function/Function;", bsm);
 
@@ -258,7 +264,8 @@ class InvokeDynamicHandlerTest {
         void handle_lambdaMetafactory_withQuerySpecReturn_butNullBsmArgs_returnsFalse() {
             // LambdaMetafactory with QuerySpec but no bsmArgs
             Handle bsm = new Handle(H_INVOKESTATIC, LAMBDA_METAFACTORY, "metafactory",
-                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;",
+                    false);
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("apply",
                     "()Lio/quarkiverse/qubit/QuerySpec;", bsm);
 
@@ -271,7 +278,8 @@ class InvokeDynamicHandlerTest {
         void handle_lambdaMetafactory_withQuerySpecReturn_butInsufficientBsmArgs_returnsFalse() {
             // LambdaMetafactory with QuerySpec but only 1 bsmArg (needs 2)
             Handle bsm = new Handle(H_INVOKESTATIC, LAMBDA_METAFACTORY, "metafactory",
-                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;",
+                    false);
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("apply",
                     "()Lio/quarkiverse/qubit/QuerySpec;", bsm, "onlyOneArg");
 
@@ -284,7 +292,8 @@ class InvokeDynamicHandlerTest {
         void handle_lambdaMetafactory_withQuerySpecReturn_butNonHandleBsmArg_returnsFalse() {
             // LambdaMetafactory with QuerySpec but bsmArgs[1] is not a Handle
             Handle bsm = new Handle(H_INVOKESTATIC, LAMBDA_METAFACTORY, "metafactory",
-                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;",
+                    false);
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("apply",
                     "()Lio/quarkiverse/qubit/QuerySpec;", bsm, "arg0", "notAHandle");
 
@@ -297,7 +306,8 @@ class InvokeDynamicHandlerTest {
         void handle_lambdaMetafactory_withCapturedVariables_popsFromStack() {
             // LambdaMetafactory with captured variables (desc has args)
             Handle bsm = new Handle(H_INVOKESTATIC, LAMBDA_METAFACTORY, "metafactory",
-                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;",
+                    false);
             Handle implHandle = new Handle(H_INVOKESTATIC, "TestClass", "lambda$test$0",
                     "(LPerson;LPerson;)Z", false);
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("apply",
@@ -319,7 +329,8 @@ class InvokeDynamicHandlerTest {
         void handle_lambdaMetafactory_withMultipleCapturedVariables_popsAllFromStack() {
             // LambdaMetafactory with multiple captured variables
             Handle bsm = new Handle(H_INVOKESTATIC, LAMBDA_METAFACTORY, "metafactory",
-                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;",
+                    false);
             Handle implHandle = new Handle(H_INVOKESTATIC, "TestClass", "lambda$test$0",
                     "(LPerson;LPerson;)Z", false);
             // Two captured variables: (LPerson;LString;)QuerySpec;
@@ -349,7 +360,8 @@ class InvokeDynamicHandlerTest {
         void handle_nonStringConcatNonLambdaFactory_returnsFalse() {
             // Some other bootstrap method
             Handle bsm = new Handle(H_INVOKESTATIC, "com/example/MyBootstrap", "bootstrap",
-                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;",
+                    false);
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("myDynamicCall",
                     "()Ljava/lang/Object;", bsm);
 
@@ -554,7 +566,8 @@ class InvokeDynamicHandlerTest {
         void handle_lambdaMetafactory_returnsFalse_neverTrue() {
             // Verifies handleNestedLambda always returns false
             Handle bsm = new Handle(H_INVOKESTATIC, LAMBDA_METAFACTORY, "metafactory",
-                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;",
+                    false);
             Handle implHandle = new Handle(H_INVOKESTATIC, "TestClass", "lambda$test$0",
                     "(LPerson;)Z", false);
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("apply",
@@ -595,7 +608,8 @@ class InvokeDynamicHandlerTest {
         void isQuerySpecLambda_withFunctionReturnType_returnsFalse() {
             // LambdaMetafactory that returns Function, not QuerySpec
             Handle bsm = new Handle(H_INVOKESTATIC, LAMBDA_METAFACTORY, "metafactory",
-                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;",
+                    false);
             Handle implHandle = new Handle(H_INVOKESTATIC, "TestClass", "lambda$0",
                     "(Ljava/lang/Object;)Ljava/lang/Object;", false);
             // Return type is Function, not QuerySpec
@@ -615,7 +629,8 @@ class InvokeDynamicHandlerTest {
         void isQuerySpecLambda_withPredicateReturnType_returnsFalse() {
             // LambdaMetafactory that returns Predicate, not QuerySpec
             Handle bsm = new Handle(H_INVOKESTATIC, LAMBDA_METAFACTORY, "metafactory",
-                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;",
+                    false);
             Handle implHandle = new Handle(H_INVOKESTATIC, "TestClass", "lambda$0",
                     "(Ljava/lang/Object;)Z", false);
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("test",
@@ -654,7 +669,8 @@ class InvokeDynamicHandlerTest {
         @Test
         void extractRecipe_withNullBsmArgs_returnsNull() {
             Handle bsm = new Handle(H_INVOKESTATIC, STRING_CONCAT_FACTORY, "makeConcatWithConstants",
-                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;", false);
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;",
+                    false);
             // bsmArgs is null (not passed to constructor explicitly)
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("makeConcatWithConstants",
                     "(Ljava/lang/String;)Ljava/lang/String;", bsm);
@@ -729,7 +745,8 @@ class InvokeDynamicHandlerTest {
         @Test
         void categorize_lambdaMetafactoryWithQuerySpecReturn_returnsQuerySpecLambda() {
             Handle bsm = new Handle(H_INVOKESTATIC, LAMBDA_METAFACTORY, "metafactory",
-                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;",
+                    false);
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("apply",
                     QUERY_SPEC_RETURN, bsm);
 
@@ -743,7 +760,8 @@ class InvokeDynamicHandlerTest {
         @Test
         void categorize_lambdaMetafactoryWithFunctionReturn_returnsUnhandled() {
             Handle bsm = new Handle(H_INVOKESTATIC, LAMBDA_METAFACTORY, "metafactory",
-                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;",
+                    false);
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("apply",
                     FUNCTION_RETURN, bsm);
 
@@ -757,7 +775,8 @@ class InvokeDynamicHandlerTest {
         @Test
         void categorize_lambdaMetafactoryWithPredicateReturn_returnsUnhandled() {
             Handle bsm = new Handle(H_INVOKESTATIC, LAMBDA_METAFACTORY, "metafactory",
-                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;",
+                    false);
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("test",
                     PREDICATE_RETURN, bsm);
 
@@ -783,7 +802,8 @@ class InvokeDynamicHandlerTest {
         @Test
         void categorize_unknownBootstrapMethod_returnsUnhandled() {
             Handle bsm = new Handle(H_INVOKESTATIC, "com/example/CustomFactory", "bootstrap",
-                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;",
+                    false);
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("customCall",
                     "()Ljava/lang/Object;", bsm);
 
@@ -811,7 +831,8 @@ class InvokeDynamicHandlerTest {
         void categorize_lambdaMetafactoryWithCapturedVars_stillQuerySpecLambda() {
             // Lambda with captured variables: (LPerson;)QuerySpec
             Handle bsm = new Handle(H_INVOKESTATIC, LAMBDA_METAFACTORY, "metafactory",
-                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;",
+                    false);
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("apply",
                     "(LPerson;)Lio/quarkiverse/qubit/QuerySpec;", bsm);
 
@@ -826,7 +847,8 @@ class InvokeDynamicHandlerTest {
         void categorize_lambdaMetafactoryWithSubquerySpec_returnsQuerySpecLambda() {
             // SubquerySpec also implements QuerySpec - test the return type check
             Handle bsm = new Handle(H_INVOKESTATIC, LAMBDA_METAFACTORY, "metafactory",
-                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;",
+                    false);
             // Uses QuerySpec in the return type
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("apply",
                     "()Lio/quarkiverse/qubit/QuerySpec;", bsm);
@@ -843,7 +865,8 @@ class InvokeDynamicHandlerTest {
             Handle bsm = new Handle(H_INVOKESTATIC,
                     new String("java/lang/invoke/StringConcatFactory"), // new String to avoid interning
                     "makeConcatWithConstants",
-                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;", false);
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;",
+                    false);
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("makeConcatWithConstants",
                     "(Ljava/lang/String;)Ljava/lang/String;", bsm, "test");
 
@@ -860,7 +883,8 @@ class InvokeDynamicHandlerTest {
             Handle bsm = new Handle(H_INVOKESTATIC,
                     new String("java/lang/invoke/LambdaMetafactory"), // new String to avoid interning
                     "metafactory",
-                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;", false);
+                    "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;",
+                    false);
             InvokeDynamicInsnNode indy = new InvokeDynamicInsnNode("apply",
                     QUERY_SPEC_RETURN, bsm);
 
@@ -888,7 +912,8 @@ class InvokeDynamicHandlerTest {
      */
     private InvokeDynamicInsnNode createStringConcatIndy(String recipe) {
         Handle bsm = new Handle(H_INVOKESTATIC, STRING_CONCAT_FACTORY, "makeConcatWithConstants",
-                "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;", false);
+                "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;",
+                false);
         return new InvokeDynamicInsnNode("makeConcatWithConstants",
                 "(Ljava/lang/String;)Ljava/lang/String;", bsm, recipe);
     }

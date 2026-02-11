@@ -1,15 +1,16 @@
 package io.quarkiverse.qubit.deployment.analysis.handler;
 
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaCallSite;
-import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
-import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator;
-import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
-import org.jspecify.annotations.Nullable;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.CALL_SITE_ID_NULL;
 
 import java.util.Arrays;
 import java.util.Objects;
 
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.CALL_SITE_ID_NULL;
+import org.jspecify.annotations.Nullable;
+
+import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaCallSite;
+import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
+import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator;
+import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
 
 /**
  * Context for query-level lambda bytecode analysis.
@@ -21,8 +22,7 @@ public record QueryAnalysisContext(
         String callSiteId,
         LambdaBytecodeAnalyzer bytecodeAnalyzer,
         LambdaDeduplicator deduplicator,
-        @Nullable BuildMetricsCollector metricsCollector
-) {
+        @Nullable BuildMetricsCollector metricsCollector) {
 
     public QueryAnalysisContext {
         Objects.requireNonNull(classBytes, "Class bytes cannot be null");
@@ -68,18 +68,17 @@ public record QueryAnalysisContext(
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof QueryAnalysisContext(
-                var thatClassBytes, var thatCallSite, var thatCallSiteId,
-                var thatBytecodeAnalyzer, var thatDeduplicator, var thatMetricsCollector))) {
+        if (this == o)
+            return true;
+        if (!(o instanceof QueryAnalysisContext(var thatClassBytes, var thatCallSite, var thatCallSiteId, var thatBytecodeAnalyzer, var thatDeduplicator, var thatMetricsCollector))) {
             return false;
         }
         return Arrays.equals(classBytes, thatClassBytes) &&
-               Objects.equals(callSite, thatCallSite) &&
-               Objects.equals(callSiteId, thatCallSiteId) &&
-               Objects.equals(bytecodeAnalyzer, thatBytecodeAnalyzer) &&
-               Objects.equals(deduplicator, thatDeduplicator) &&
-               Objects.equals(metricsCollector, thatMetricsCollector);
+                Objects.equals(callSite, thatCallSite) &&
+                Objects.equals(callSiteId, thatCallSiteId) &&
+                Objects.equals(bytecodeAnalyzer, thatBytecodeAnalyzer) &&
+                Objects.equals(deduplicator, thatDeduplicator) &&
+                Objects.equals(metricsCollector, thatMetricsCollector);
     }
 
     @Override
@@ -92,11 +91,11 @@ public record QueryAnalysisContext(
     @Override
     public String toString() {
         return "QueryAnalysisContext[" +
-               "classBytes=" + classBytes.length + " bytes, " +
-               "callSite=" + callSite + ", " +
-               "callSiteId=" + callSiteId + ", " +
-               "bytecodeAnalyzer=" + bytecodeAnalyzer + ", " +
-               "deduplicator=" + deduplicator + ", " +
-               "metricsCollector=" + metricsCollector + ']';
+                "classBytes=" + classBytes.length + " bytes, " +
+                "callSite=" + callSite + ", " +
+                "callSiteId=" + callSiteId + ", " +
+                "bytecodeAnalyzer=" + bytecodeAnalyzer + ", " +
+                "deduplicator=" + deduplicator + ", " +
+                "metricsCollector=" + metricsCollector + ']';
     }
 }

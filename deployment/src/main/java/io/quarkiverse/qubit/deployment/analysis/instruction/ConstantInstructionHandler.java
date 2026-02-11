@@ -1,19 +1,20 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.common.OpcodeClassifier;
-import io.quarkus.logging.Log;
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.IntInsnNode;
-import org.objectweb.asm.tree.LdcInsnNode;
-
-import java.util.Set;
-
 import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.DESC_BOOLEAN_VALUE_OF;
 import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.LOOKAHEAD_WINDOW_SIZE;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JVM_JAVA_LANG_BOOLEAN;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_VALUE_OF;
 import static org.objectweb.asm.Opcodes.*;
+
+import java.util.Set;
+
+import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.IntInsnNode;
+import org.objectweb.asm.tree.LdcInsnNode;
+
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.common.OpcodeClassifier;
+import io.quarkus.logging.Log;
 
 /**
  * Handles constant load instructions with special ICONST_0/1 post-branch handling.
@@ -36,8 +37,7 @@ public enum ConstantInstructionHandler implements InstructionHandler {
             // Push byte/short immediate
             BIPUSH, SIPUSH,
             // Load constant from pool
-            LDC
-    );
+            LDC);
 
     @Override
     public Set<Integer> supportedOpcodes() {
@@ -199,8 +199,8 @@ public enum ConstantInstructionHandler implements InstructionHandler {
     private boolean isBooleanValueOfCall(AbstractInsnNode insn) {
         if (insn.getOpcode() == INVOKESTATIC && insn instanceof org.objectweb.asm.tree.MethodInsnNode methodInsn) {
             return methodInsn.owner.equals(JVM_JAVA_LANG_BOOLEAN) &&
-                   methodInsn.name.equals(METHOD_VALUE_OF) &&
-                   methodInsn.desc.equals(DESC_BOOLEAN_VALUE_OF);
+                    methodInsn.name.equals(METHOD_VALUE_OF) &&
+                    methodInsn.desc.equals(DESC_BOOLEAN_VALUE_OF);
         }
         return false;
     }

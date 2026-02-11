@@ -1,15 +1,13 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.InExpression;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.MemberOfExpression;
-import io.quarkiverse.qubit.deployment.util.DescriptorParser;
-import io.quarkiverse.qubit.deployment.util.TypeConverter;
-import io.quarkus.logging.Log;
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.MethodInsnNode;
-
-import io.quarkiverse.qubit.deployment.analysis.instruction.AnalysisContext.PopPairResult;
+import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.eq;
+import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.*;
+import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.extractFieldName;
+import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.isGetterMethodName;
+import static io.quarkiverse.qubit.deployment.common.PatternDetector.isEntityFieldExpression;
+import static io.quarkiverse.qubit.deployment.util.DescriptorParser.returnsIntType;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
+import static org.objectweb.asm.Opcodes.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -21,14 +19,16 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 
-import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.eq;
-import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.*;
-import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.extractFieldName;
-import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.isGetterMethodName;
-import static io.quarkiverse.qubit.deployment.common.PatternDetector.isEntityFieldExpression;
-import static io.quarkiverse.qubit.deployment.util.DescriptorParser.returnsIntType;
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
-import static org.objectweb.asm.Opcodes.*;
+import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.MethodInsnNode;
+
+import io.quarkiverse.qubit.deployment.analysis.instruction.AnalysisContext.PopPairResult;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.InExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.MemberOfExpression;
+import io.quarkiverse.qubit.deployment.util.DescriptorParser;
+import io.quarkiverse.qubit.deployment.util.TypeConverter;
+import io.quarkus.logging.Log;
 
 /**
  * Handles method invocations: INVOKEVIRTUAL (equals, String, compareTo, BigDecimal, temporal, getters),
@@ -41,8 +41,7 @@ public enum MethodInvocationHandler implements InstructionHandler {
 
     /** Opcodes handled by this handler for O(1) dispatch. */
     private static final Set<Integer> SUPPORTED_OPCODES = Set.of(
-            INVOKEVIRTUAL, INVOKESTATIC, INVOKESPECIAL, INVOKEINTERFACE
-    );
+            INVOKEVIRTUAL, INVOKESTATIC, INVOKESPECIAL, INVOKEINTERFACE);
 
     private final SubqueryAnalyzer subqueryAnalyzer = new SubqueryAnalyzer();
     private final GroupMethodAnalyzer groupMethodAnalyzer = new GroupMethodAnalyzer();
@@ -57,10 +56,9 @@ public enum MethodInvocationHandler implements InstructionHandler {
      * Used to dispatch temporal accessor methods without duplicating method lists.
      */
     private static final Map<String, Set<String>> TEMPORAL_ACCESSOR_METHODS_BY_TYPE = Map.of(
-        JVM_JAVA_TIME_LOCAL_DATE, LOCAL_DATE_ACCESSOR_METHODS,
-        JVM_JAVA_TIME_LOCAL_DATE_TIME, LOCAL_DATE_TIME_ACCESSOR_METHODS,
-        JVM_JAVA_TIME_LOCAL_TIME, LOCAL_TIME_ACCESSOR_METHODS
-    );
+            JVM_JAVA_TIME_LOCAL_DATE, LOCAL_DATE_ACCESSOR_METHODS,
+            JVM_JAVA_TIME_LOCAL_DATE_TIME, LOCAL_DATE_TIME_ACCESSOR_METHODS,
+            JVM_JAVA_TIME_LOCAL_TIME, LOCAL_TIME_ACCESSOR_METHODS);
 
     /**
      * Specification for temporal factory method constant folding.
@@ -77,22 +75,21 @@ public enum MethodInvocationHandler implements InstructionHandler {
      * Data-driven approach eliminates repetitive handleTemporalFactoryMethod calls.
      */
     private static final List<TemporalFactorySpec> TEMPORAL_FACTORY_SPECS = List.of(
-        // LocalDate.of(year, month, day)
-        new TemporalFactorySpec(LocalDate.class, 3,
-            args -> LocalDate.of(args[0], args[1], args[2])),
-        // LocalDateTime.of(year, month, day, hour, minute)
-        new TemporalFactorySpec(LocalDateTime.class, 5,
-            args -> LocalDateTime.of(args[0], args[1], args[2], args[3], args[4])),
-        // LocalDateTime.of(year, month, day, hour, minute, second)
-        new TemporalFactorySpec(LocalDateTime.class, 6,
-            args -> LocalDateTime.of(args[0], args[1], args[2], args[3], args[4], args[5])),
-        // LocalTime.of(hour, minute)
-        new TemporalFactorySpec(LocalTime.class, 2,
-            args -> LocalTime.of(args[0], args[1])),
-        // LocalTime.of(hour, minute, second)
-        new TemporalFactorySpec(LocalTime.class, 3,
-            args -> LocalTime.of(args[0], args[1], args[2]))
-    );
+            // LocalDate.of(year, month, day)
+            new TemporalFactorySpec(LocalDate.class, 3,
+                    args -> LocalDate.of(args[0], args[1], args[2])),
+            // LocalDateTime.of(year, month, day, hour, minute)
+            new TemporalFactorySpec(LocalDateTime.class, 5,
+                    args -> LocalDateTime.of(args[0], args[1], args[2], args[3], args[4])),
+            // LocalDateTime.of(year, month, day, hour, minute, second)
+            new TemporalFactorySpec(LocalDateTime.class, 6,
+                    args -> LocalDateTime.of(args[0], args[1], args[2], args[3], args[4], args[5])),
+            // LocalTime.of(hour, minute)
+            new TemporalFactorySpec(LocalTime.class, 2,
+                    args -> LocalTime.of(args[0], args[1])),
+            // LocalTime.of(hour, minute, second)
+            new TemporalFactorySpec(LocalTime.class, 3,
+                    args -> LocalTime.of(args[0], args[1], args[2])));
 
     /** Virtual method categories, checked in priority order. */
     public enum VirtualMethodCategory {
@@ -187,12 +184,15 @@ public enum MethodInvocationHandler implements InstructionHandler {
             case BIG_DECIMAL_ARITHMETIC -> handleBigDecimalMethods(ctx, methodInsn);
             case TEMPORAL_METHOD -> handleTemporalMethods(ctx, methodInsn);
             case GETTER -> handleGetterMethod(ctx, methodInsn);
-            case UNHANDLED -> { /* no-op */ }
+            case UNHANDLED -> {
+                /* no-op */ }
         }
     }
 
-    /** Handles INVOKESTATIC: skips auto-boxing valueOf, handles temporal factory methods with constant folding,
-     *  and handles Subqueries.subquery() factory method for subquery builder pattern. */
+    /**
+     * Handles INVOKESTATIC: skips auto-boxing valueOf, handles temporal factory methods with constant folding,
+     * and handles Subqueries.subquery() factory method for subquery builder pattern.
+     */
     private void handleInvokeStatic(AnalysisContext ctx, MethodInsnNode staticInsn) {
         // Skip auto-boxing valueOf calls (Boolean, Integer, Long, Double, Float, Short, Byte)
         // These are identity wrappers that don't affect query semantics
@@ -272,8 +272,8 @@ public enum MethodInvocationHandler implements InstructionHandler {
 
     private boolean isCollectionContainsCall(MethodInsnNode methodInsn) {
         return methodInsn.name.equals(METHOD_CONTAINS) &&
-               methodInsn.desc.equals(DESC_OBJECT_TO_BOOLEAN) &&
-               COLLECTION_INTERFACE_OWNERS.contains(methodInsn.owner);
+                methodInsn.desc.equals(DESC_OBJECT_TO_BOOLEAN) &&
+                COLLECTION_INTERFACE_OWNERS.contains(methodInsn.owner);
     }
 
     /** Distinguishes IN clause (captured collection) from MEMBER OF (entity collection field). */
@@ -283,8 +283,8 @@ public enum MethodInvocationHandler implements InstructionHandler {
             return;
         }
 
-        LambdaExpression argument = pair.right();  // The contains() argument (was on top)
-        LambdaExpression target = pair.left();     // The collection (target of contains())
+        LambdaExpression argument = pair.right(); // The contains() argument (was on top)
+        LambdaExpression target = pair.left(); // The collection (target of contains())
 
         // Determine if this is IN clause or MEMBER OF pattern
         if (isInClausePattern(target, argument)) {
@@ -301,8 +301,7 @@ public enum MethodInvocationHandler implements InstructionHandler {
                     target,
                     METHOD_CONTAINS,
                     List.of(argument),
-                    boolean.class
-            ));
+                    boolean.class));
         }
     }
 
@@ -328,7 +327,7 @@ public enum MethodInvocationHandler implements InstructionHandler {
 
         // Argument must be a constant or captured variable (the value to check)
         boolean argumentIsValue = argument instanceof LambdaExpression.Constant ||
-                                  argument instanceof LambdaExpression.CapturedVariable;
+                argument instanceof LambdaExpression.CapturedVariable;
 
         return targetIsEntityField && argumentIsValue;
     }
@@ -350,7 +349,7 @@ public enum MethodInvocationHandler implements InstructionHandler {
 
     private boolean isBigDecimalArithmeticCall(MethodInsnNode methodInsn) {
         return methodInsn.owner.equals(JVM_JAVA_MATH_BIG_DECIMAL) &&
-               methodInsn.desc.equals(DESC_BIG_DECIMAL_ARITHMETIC);
+                methodInsn.desc.equals(DESC_BIG_DECIMAL_ARITHMETIC);
     }
 
     private boolean isGetterMethodCall(MethodInsnNode methodInsn) {
@@ -377,19 +376,20 @@ public enum MethodInvocationHandler implements InstructionHandler {
             case METHOD_SUBSTRING ->
                 handleSubstringMethod(ctx, methodInsn);
 
-            default -> { /* No action for unrecognized String methods */ }
+            default -> {
+                /* No action for unrecognized String methods */ }
         }
     }
 
     private void handleSingleArgumentStringMethod(AnalysisContext ctx, MethodInsnNode methodInsn,
-                                                   String expectedDescriptor, Class<?> returnType) {
+            String expectedDescriptor, Class<?> returnType) {
         if (methodInsn.desc.equals(expectedDescriptor)) {
             handleSingleArgumentMethodCall(ctx, methodInsn.name, returnType);
         }
     }
 
     private void handleNoArgumentStringMethod(AnalysisContext ctx, MethodInsnNode methodInsn,
-                                              String expectedDescriptor, Class<?> returnType) {
+            String expectedDescriptor, Class<?> returnType) {
         if (methodInsn.desc.equals(expectedDescriptor)) {
             handleNoArgumentMethodCall(ctx, methodInsn.name, returnType);
         }
@@ -397,7 +397,7 @@ public enum MethodInvocationHandler implements InstructionHandler {
 
     private void handleSubstringMethod(AnalysisContext ctx, MethodInsnNode methodInsn) {
         if (methodInsn.desc.equals(DESC_INT_TO_STRING) ||
-            methodInsn.desc.equals(DESC_TWO_INTS_TO_STRING)) {
+                methodInsn.desc.equals(DESC_TWO_INTS_TO_STRING)) {
             int argCount = methodInsn.desc.equals(DESC_INT_TO_STRING) ? 1 : 2;
             if (ctx.getStackSize() >= argCount + 1) {
                 List<LambdaExpression> arguments = new ArrayList<>();
@@ -414,7 +414,8 @@ public enum MethodInvocationHandler implements InstructionHandler {
         switch (methodInsn.name) {
             case METHOD_ADD, METHOD_SUBTRACT, METHOD_MULTIPLY, METHOD_DIVIDE ->
                 handleSingleArgumentMethodCall(ctx, methodInsn.name, BigDecimal.class);
-            default -> { /* no-op */ }
+            default -> {
+                /* no-op */ }
         }
     }
 
@@ -433,11 +434,10 @@ public enum MethodInvocationHandler implements InstructionHandler {
         if (!ctx.isStackEmpty()) {
             LambdaExpression target = ctx.pop();
             ctx.push(new LambdaExpression.MethodCall(
-                target,
-                methodInsn.name,
-                List.of(),
-                int.class
-            ));
+                    target,
+                    methodInsn.name,
+                    List.of(),
+                    int.class));
         }
     }
 
@@ -464,11 +464,10 @@ public enum MethodInvocationHandler implements InstructionHandler {
         if (!ctx.isStackEmpty()) {
             LambdaExpression target = ctx.pop();
             ctx.push(new LambdaExpression.MethodCall(
-                target,
-                methodName,
-                List.of(),
-                returnType
-            ));
+                    target,
+                    methodName,
+                    List.of(),
+                    returnType));
         }
     }
 
@@ -476,16 +475,16 @@ public enum MethodInvocationHandler implements InstructionHandler {
         PopPairResult pair = ctx.popPair();
         if (pair != null) {
             ctx.push(new LambdaExpression.MethodCall(
-                pair.left(),   // The object calling the method (was second-to-top)
-                methodName,
-                List.of(pair.right()),  // The method argument (was on top)
-                returnType
-            ));
+                    pair.left(), // The object calling the method (was second-to-top)
+                    methodName,
+                    List.of(pair.right()), // The method argument (was on top)
+                    returnType));
         }
     }
 
     /**
      * Temporal factory methods with constant folding: evaluates at analysis time if all args constant.
+     *
      * @return true if this spec matched and was handled, false otherwise
      */
     private boolean handleTemporalFactoryMethod(
@@ -520,7 +519,7 @@ public enum MethodInvocationHandler implements InstructionHandler {
                 return true;
             } catch (Exception e) {
                 Log.debugf("Failed to evaluate constant temporal value, will create method call instead: %s",
-                           e.getMessage());
+                        e.getMessage());
             }
         }
 
@@ -542,17 +541,17 @@ public enum MethodInvocationHandler implements InstructionHandler {
     }
 
     private boolean isBigDecimalStringConstruction(MethodInsnNode specialInsn, int argCount,
-                                                    List<LambdaExpression> args) {
+            List<LambdaExpression> args) {
         return specialInsn.owner.equals(JVM_JAVA_MATH_BIG_DECIMAL) &&
-               argCount == 1 &&
-               !args.isEmpty() &&
-               args.getFirst() instanceof LambdaExpression.Constant constant &&
-               constant.value() instanceof String;
+                argCount == 1 &&
+                !args.isEmpty() &&
+                args.getFirst() instanceof LambdaExpression.Constant constant &&
+                constant.value() instanceof String;
     }
 
     /** Folds BigDecimal(String) to constant at build time; falls back to constructor call. */
     private void handleBigDecimalConstantFolding(AnalysisContext ctx, List<LambdaExpression> args,
-                                                  String stringValue, String owner) {
+            String stringValue, String owner) {
         try {
             BigDecimal value = new BigDecimal(stringValue);
             ctx.push(new LambdaExpression.Constant(value, BigDecimal.class));
@@ -570,8 +569,7 @@ public enum MethodInvocationHandler implements InstructionHandler {
     private static final Set<String> BOXING_OWNERS = Set.of(
             "java/lang/Boolean", "java/lang/Integer", "java/lang/Long",
             "java/lang/Double", "java/lang/Float", "java/lang/Short",
-            "java/lang/Byte", "java/lang/Character"
-    );
+            "java/lang/Byte", "java/lang/Character");
 
     /** Returns true if this INVOKESTATIC is an auto-boxing valueOf call. */
     private static boolean isBoxingCall(MethodInsnNode staticInsn) {

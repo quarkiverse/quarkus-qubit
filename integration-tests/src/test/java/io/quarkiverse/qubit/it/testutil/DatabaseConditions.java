@@ -14,20 +14,25 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  * Custom JUnit 5 conditions for database-specific test execution.
  * Use these annotations to conditionally run tests based on the current database.
  *
- * <p>Example usage:</p>
- * <pre>{@code
- * @Test
- * @PostgreSQLOnly(reason = "Tests PostgreSQL-specific JSONB functionality")
+ * <p>
+ * Example usage:
+ * </p>
+ *
+ * <pre>
+ * {@code
+ * &#64;Test
+ * &#64;PostgreSQLOnly(reason = "Tests PostgreSQL-specific JSONB functionality")
  * void testPostgreSQLJsonOperations() {
  *     // PostgreSQL-specific test
  * }
  *
- * @Test
+ * &#64;Test
  * @NotH2(reason = "H2 doesn't support this SQL syntax")
  * void testComplexSQLFeature() {
  *     // Test that doesn't work on H2
  * }
- * }</pre>
+ * }
+ * </pre>
  */
 public class DatabaseConditions {
 
@@ -38,7 +43,7 @@ public class DatabaseConditions {
     /**
      * Annotation to run a test only on PostgreSQL.
      */
-    @Target({ElementType.TYPE, ElementType.METHOD})
+    @Target({ ElementType.TYPE, ElementType.METHOD })
     @Retention(RetentionPolicy.RUNTIME)
     @ExtendWith(PostgreSQLOnlyCondition.class)
     public @interface PostgreSQLOnly {
@@ -48,7 +53,7 @@ public class DatabaseConditions {
     /**
      * Annotation to run a test only on MySQL.
      */
-    @Target({ElementType.TYPE, ElementType.METHOD})
+    @Target({ ElementType.TYPE, ElementType.METHOD })
     @Retention(RetentionPolicy.RUNTIME)
     @ExtendWith(MySQLOnlyCondition.class)
     public @interface MySQLOnly {
@@ -58,7 +63,7 @@ public class DatabaseConditions {
     /**
      * Annotation to run a test only on MySQL or MariaDB (MySQL family).
      */
-    @Target({ElementType.TYPE, ElementType.METHOD})
+    @Target({ ElementType.TYPE, ElementType.METHOD })
     @Retention(RetentionPolicy.RUNTIME)
     @ExtendWith(MySQLFamilyOnlyCondition.class)
     public @interface MySQLFamilyOnly {
@@ -68,7 +73,7 @@ public class DatabaseConditions {
     /**
      * Annotation to run a test only on Oracle.
      */
-    @Target({ElementType.TYPE, ElementType.METHOD})
+    @Target({ ElementType.TYPE, ElementType.METHOD })
     @Retention(RetentionPolicy.RUNTIME)
     @ExtendWith(OracleOnlyCondition.class)
     public @interface OracleOnly {
@@ -78,7 +83,7 @@ public class DatabaseConditions {
     /**
      * Annotation to skip a test on H2 (H2 has limitations).
      */
-    @Target({ElementType.TYPE, ElementType.METHOD})
+    @Target({ ElementType.TYPE, ElementType.METHOD })
     @Retention(RetentionPolicy.RUNTIME)
     @ExtendWith(NotH2Condition.class)
     public @interface NotH2 {
@@ -88,7 +93,7 @@ public class DatabaseConditions {
     /**
      * Annotation to run a test only on databases that support native compilation.
      */
-    @Target({ElementType.TYPE, ElementType.METHOD})
+    @Target({ ElementType.TYPE, ElementType.METHOD })
     @Retention(RetentionPolicy.RUNTIME)
     @ExtendWith(SupportsNativeCondition.class)
     public @interface RequiresNativeSupport {

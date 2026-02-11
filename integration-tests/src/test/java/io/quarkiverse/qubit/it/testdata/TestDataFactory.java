@@ -158,40 +158,40 @@ public class TestDataFactory {
         Person john = createJohnDoe();
         john.department = engineering;
         john.persist();
-        addPhonesTo(john, new String[][]{
-            {"555-0101", "mobile", "true"},
-            {"555-0102", "work", "false"}
+        addPhonesTo(john, new String[][] {
+                { "555-0101", "mobile", "true" },
+                { "555-0102", "work", "false" }
         });
 
         Person jane = createJaneSmith();
         jane.department = sales;
         jane.persist();
-        addPhonesTo(jane, new String[][]{
-            {"555-0201", "mobile", "true"}
+        addPhonesTo(jane, new String[][] {
+                { "555-0201", "mobile", "true" }
         });
 
         Person bob = createBobJohnson();
         bob.department = hr;
         bob.persist();
-        addPhonesTo(bob, new String[][]{
-            {"555-0301", "mobile", "true"},
-            {"555-0302", "home", "false"},
-            {"555-0303", "work", "false"}
+        addPhonesTo(bob, new String[][] {
+                { "555-0301", "mobile", "true" },
+                { "555-0302", "home", "false" },
+                { "555-0303", "work", "false" }
         });
 
         Person alice = createAliceWilliams();
         alice.department = engineering;
         alice.persist();
-        addPhonesTo(alice, new String[][]{
-            {"555-0401", "mobile", "true"},
-            {"555-0402", "work", "false"}
+        addPhonesTo(alice, new String[][] {
+                { "555-0401", "mobile", "true" },
+                { "555-0402", "work", "false" }
         });
 
         Person charlie = createCharlieBrown();
         charlie.department = sales;
         charlie.persist();
-        addPhonesTo(charlie, new String[][]{
-            {"555-0501", "mobile", "true"}
+        addPhonesTo(charlie, new String[][] {
+                { "555-0501", "mobile", "true" }
         });
     }
 

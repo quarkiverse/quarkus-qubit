@@ -4,8 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Optional;
 
-import io.quarkiverse.qubit.deployment.generation.MethodDescriptors;
-import io.quarkus.gizmo2.desc.MethodDesc;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -13,15 +11,19 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import io.quarkiverse.qubit.deployment.generation.MethodDescriptors;
+import io.quarkus.gizmo2.desc.MethodDesc;
+
 /**
  * Unit tests for {@link TemporalAccessorMethod} enum.
  *
- * <p>These tests ensure complete mutation coverage by testing:
+ * <p>
+ * These tests ensure complete mutation coverage by testing:
  * <ul>
- *   <li>{@link TemporalAccessorMethod#getJavaMethod()} for all enum values</li>
- *   <li>{@link TemporalAccessorMethod#getMethodDesc()} for all enum values</li>
- *   <li>{@link TemporalAccessorMethod#fromJavaMethod(String)} with null, valid, and invalid inputs</li>
- *   <li>{@link TemporalAccessorMethod#isTemporalAccessor(String)} for both true and false paths</li>
+ * <li>{@link TemporalAccessorMethod#getJavaMethod()} for all enum values</li>
+ * <li>{@link TemporalAccessorMethod#getMethodDesc()} for all enum values</li>
+ * <li>{@link TemporalAccessorMethod#fromJavaMethod(String)} with null, valid, and invalid inputs</li>
+ * <li>{@link TemporalAccessorMethod#isTemporalAccessor(String)} for both true and false paths</li>
  * </ul>
  */
 @DisplayName("TemporalAccessorMethod")
@@ -37,12 +39,12 @@ class TemporalAccessorMethodTest {
 
         @ParameterizedTest(name = "{0} should return \"{1}\"")
         @CsvSource({
-            "GET_YEAR, getYear",
-            "GET_MONTH_VALUE, getMonthValue",
-            "GET_DAY_OF_MONTH, getDayOfMonth",
-            "GET_HOUR, getHour",
-            "GET_MINUTE, getMinute",
-            "GET_SECOND, getSecond"
+                "GET_YEAR, getYear",
+                "GET_MONTH_VALUE, getMonthValue",
+                "GET_DAY_OF_MONTH, getDayOfMonth",
+                "GET_HOUR, getHour",
+                "GET_MINUTE, getMinute",
+                "GET_SECOND, getSecond"
         })
         void shouldReturnCorrectJavaMethodName(TemporalAccessorMethod method, String expectedJavaMethod) {
             assertThat(method.getJavaMethod())
@@ -156,12 +158,12 @@ class TemporalAccessorMethodTest {
 
         @ParameterizedTest(name = "fromJavaMethod(\"{0}\") should return {1}")
         @CsvSource({
-            "getYear, GET_YEAR",
-            "getMonthValue, GET_MONTH_VALUE",
-            "getDayOfMonth, GET_DAY_OF_MONTH",
-            "getHour, GET_HOUR",
-            "getMinute, GET_MINUTE",
-            "getSecond, GET_SECOND"
+                "getYear, GET_YEAR",
+                "getMonthValue, GET_MONTH_VALUE",
+                "getDayOfMonth, GET_DAY_OF_MONTH",
+                "getHour, GET_HOUR",
+                "getMinute, GET_MINUTE",
+                "getSecond, GET_SECOND"
         })
         void shouldReturnCorrectEnumValueForValidMethodName(String methodName, TemporalAccessorMethod expected) {
             Optional<TemporalAccessorMethod> result = TemporalAccessorMethod.fromJavaMethod(methodName);
@@ -174,13 +176,13 @@ class TemporalAccessorMethodTest {
 
         @ParameterizedTest(name = "fromJavaMethod(\"{0}\") should return empty")
         @ValueSource(strings = {
-            "invalidMethod",
-            "getYEAR",  // case-sensitive
-            "GETYEAR",
-            "get_year",
-            "year",
-            "",
-            "   "
+                "invalidMethod",
+                "getYEAR", // case-sensitive
+                "GETYEAR",
+                "get_year",
+                "year",
+                "",
+                "   "
         })
         void shouldReturnEmptyForInvalidMethodName(String methodName) {
             Optional<TemporalAccessorMethod> result = TemporalAccessorMethod.fromJavaMethod(methodName);
@@ -201,12 +203,12 @@ class TemporalAccessorMethodTest {
 
         @ParameterizedTest(name = "isTemporalAccessor(\"{0}\") should return true")
         @ValueSource(strings = {
-            "getYear",
-            "getMonthValue",
-            "getDayOfMonth",
-            "getHour",
-            "getMinute",
-            "getSecond"
+                "getYear",
+                "getMonthValue",
+                "getDayOfMonth",
+                "getHour",
+                "getMinute",
+                "getSecond"
         })
         void shouldReturnTrueForValidTemporalAccessorMethods(String methodName) {
             boolean result = TemporalAccessorMethod.isTemporalAccessor(methodName);
@@ -218,13 +220,13 @@ class TemporalAccessorMethodTest {
 
         @ParameterizedTest(name = "isTemporalAccessor(\"{0}\") should return false")
         @ValueSource(strings = {
-            "invalidMethod",
-            "toString",
-            "hashCode",
-            "equals",
-            "getTime",  // not a supported method
-            "getDate",  // not a supported method
-            ""
+                "invalidMethod",
+                "toString",
+                "hashCode",
+                "equals",
+                "getTime", // not a supported method
+                "getDate", // not a supported method
+                ""
         })
         void shouldReturnFalseForInvalidMethods(String methodName) {
             boolean result = TemporalAccessorMethod.isTemporalAccessor(methodName);

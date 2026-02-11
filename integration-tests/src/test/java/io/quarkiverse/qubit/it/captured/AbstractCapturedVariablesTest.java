@@ -17,19 +17,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Abstract base class for captured variables tests.
  *
- * <p>Captured variables are variables from the enclosing scope that are used
+ * <p>
+ * Captured variables are variables from the enclosing scope that are used
  * inside the lambda expression. For example:
+ *
  * <pre>{@code
  * int minAge = 30;
  * List<Person> results = ops.where(p -> p.age > minAge).toList();
  * }</pre>
  *
- * <p>The {@code minAge} variable is "captured" by the lambda and must be
+ * <p>
+ * The {@code minAge} variable is "captured" by the lambda and must be
  * extracted at runtime and passed to the generated query executor.
  */
 public abstract class AbstractCapturedVariablesTest {
 
     protected abstract PersonQueryOperations personOps();
+
     protected abstract ProductQueryOperations productOps();
 
     @BeforeEach
@@ -150,15 +154,14 @@ public abstract class AbstractCapturedVariablesTest {
         int minAge = 25;
         double minSalary = 60000.0;
         String lastName = "Smith";
-        var results = personOps().where((Person p) ->
-            p.age >= minAge && p.salary >= minSalary && p.lastName.equals(lastName)
-        ).toList();
+        var results = personOps().where((Person p) -> p.age >= minAge && p.salary >= minSalary && p.lastName.equals(lastName))
+                .toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
                 .allMatch(p -> p.getAge() >= minAge &&
-                              p.getSalary() >= minSalary &&
-                              p.getLastName().equals(lastName));
+                        p.getSalary() >= minSalary &&
+                        p.getLastName().equals(lastName));
     }
 
     // ========== Arithmetic Operations with Captured Variables ==========
@@ -186,9 +189,8 @@ public abstract class AbstractCapturedVariablesTest {
     @Test
     void capturedVariable_BigDecimal_arithmetic() {
         BigDecimal adjustment = new BigDecimal("100");
-        var results = productOps().where((Product p) ->
-            p.price.subtract(adjustment).compareTo(new BigDecimal("700")) > 0
-        ).toList();
+        var results = productOps().where((Product p) -> p.price.subtract(adjustment).compareTo(new BigDecimal("700")) > 0)
+                .toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -257,10 +259,8 @@ public abstract class AbstractCapturedVariablesTest {
         String firstName1 = "Alice";
         String firstName2 = "Bob";
 
-        var results = personOps().where((Person p) ->
-            (p.age >= minAge && p.salary >= minSalary) ||
-            (p.firstName.equals(firstName1) || p.firstName.equals(firstName2))
-        ).toList();
+        var results = personOps().where((Person p) -> (p.age >= minAge && p.salary >= minSalary) ||
+                (p.firstName.equals(firstName1) || p.firstName.equals(firstName2))).toList();
 
         assertThat(results).hasSizeGreaterThan(0);
 
@@ -320,9 +320,7 @@ public abstract class AbstractCapturedVariablesTest {
     @Test
     void capturedVariable_usedMultipleTimes() {
         int threshold = 30;
-        var results = personOps().where((Person p) ->
-            p.age > threshold && p.age < threshold + 20
-        ).toList();
+        var results = personOps().where((Person p) -> p.age > threshold && p.age < threshold + 20).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -379,8 +377,7 @@ public abstract class AbstractCapturedVariablesTest {
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
-                .allMatch(p ->
-                        p.getAge() > minAge && p.getAge() < maxAge &&
+                .allMatch(p -> p.getAge() > minAge && p.getAge() < maxAge &&
                         p.getSalary() > minSalary && p.getSalary() < maxSalary);
     }
 
@@ -399,8 +396,7 @@ public abstract class AbstractCapturedVariablesTest {
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
-                .allMatch(p ->
-                        p.getAge() > minAge &&
+                .allMatch(p -> p.getAge() > minAge &&
                         p.getLastName().equals(targetLastName) &&
                         p.isActive() == activeStatus);
     }
@@ -412,7 +408,7 @@ public abstract class AbstractCapturedVariablesTest {
         int minAge = 25;
 
         var results = personOps().where((Person p) -> p.age > minAge)
-                .where((Person p) -> p.active)  // No captured variables
+                .where((Person p) -> p.active) // No captured variables
                 .toList();
 
         assertThat(results)
@@ -447,7 +443,7 @@ public abstract class AbstractCapturedVariablesTest {
     void multipleWhere_withCapturedVariables_getSingleResult() {
         // Use unique email to ensure single result
         String uniqueEmail = "alice.williams@example.com";
-        int minAge = 20;  // Captured variable in first predicate
+        int minAge = 20; // Captured variable in first predicate
 
         Person result = personOps().where((Person p) -> p.age > minAge)
                 .where((Person p) -> p.email.equals(uniqueEmail))

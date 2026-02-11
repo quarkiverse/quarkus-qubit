@@ -1,27 +1,31 @@
 package io.quarkiverse.qubit.deployment.bytecode;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.math.BigDecimal;
+import java.util.stream.Stream;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.math.BigDecimal;
-import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /**
  * Bytecode analysis tests for comparison operations (>, <, >=, <=, !=).
  * Tests lambda bytecode parsing without executing queries.
  *
- * <p>Mirrors the test patterns from ComparisonTest integration tests,
+ * <p>
+ * Mirrors the test patterns from ComparisonTest integration tests,
  * but focuses on verifying correct bytecode analysis and AST generation.
  *
- * <p>Uses pre-compiled lambda sources from {@link LambdaTestSources} for
+ * <p>
+ * Uses pre-compiled lambda sources from {@link LambdaTestSources} for
  * reliable bytecode generation and analysis.
  *
- * <p>This class uses JUnit 5 parameterized tests to consolidate repetitive
+ * <p>
+ * This class uses JUnit 5 parameterized tests to consolidate repetitive
  * test patterns, reducing code duplication while maintaining full coverage.
  */
 class ComparisonOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
@@ -60,8 +64,7 @@ class ComparisonOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
                 Arguments.of("doubleGreaterThanOrEqual", LambdaExpression.BinaryOp.Operator.GE, "salary", 75000.0),
                 Arguments.of("doubleLessThan", LambdaExpression.BinaryOp.Operator.LT, "salary", 80000.0),
                 Arguments.of("doubleLessThanOrEqual", LambdaExpression.BinaryOp.Operator.LE, "salary", 75000.0),
-                Arguments.of("doubleNotEquals", LambdaExpression.BinaryOp.Operator.NE, "salary", 75000.0)
-        );
+                Arguments.of("doubleNotEquals", LambdaExpression.BinaryOp.Operator.NE, "salary", 75000.0));
     }
 
     /**
@@ -71,10 +74,11 @@ class ComparisonOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
     static Stream<Arguments> bigDecimalComparisons() {
         return Stream.of(
                 Arguments.of("bigDecimalGreaterThan", LambdaExpression.BinaryOp.Operator.GT, "price", new BigDecimal("500")),
-                Arguments.of("bigDecimalGreaterThanOrEqual", LambdaExpression.BinaryOp.Operator.GE, "price", new BigDecimal("500")),
+                Arguments.of("bigDecimalGreaterThanOrEqual", LambdaExpression.BinaryOp.Operator.GE, "price",
+                        new BigDecimal("500")),
                 Arguments.of("bigDecimalLessThan", LambdaExpression.BinaryOp.Operator.LT, "price", new BigDecimal("1000")),
-                Arguments.of("bigDecimalLessThanOrEqual", LambdaExpression.BinaryOp.Operator.LE, "price", new BigDecimal("300"))
-        );
+                Arguments.of("bigDecimalLessThanOrEqual", LambdaExpression.BinaryOp.Operator.LE, "price",
+                        new BigDecimal("300")));
     }
 
     /**
@@ -88,8 +92,7 @@ class ComparisonOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
                 Arguments.of("localDateTimeAfter", "isAfter", "createdAt"),
                 Arguments.of("localDateTimeBefore", "isBefore", "createdAt"),
                 Arguments.of("localTimeAfter", "isAfter", "startTime"),
-                Arguments.of("localTimeBefore", "isBefore", "startTime")
-        );
+                Arguments.of("localTimeBefore", "isBefore", "startTime"));
     }
 
     /**
@@ -101,8 +104,8 @@ class ComparisonOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
                 Arguments.of("integerRangeQuery", LambdaExpression.BinaryOp.Operator.GE, LambdaExpression.BinaryOp.Operator.LE),
                 Arguments.of("longRangeQuery", LambdaExpression.BinaryOp.Operator.GE, LambdaExpression.BinaryOp.Operator.LE),
                 Arguments.of("floatRangeQuery", LambdaExpression.BinaryOp.Operator.GE, LambdaExpression.BinaryOp.Operator.LE),
-                Arguments.of("bigDecimalRangeQuery", LambdaExpression.BinaryOp.Operator.GE, LambdaExpression.BinaryOp.Operator.LE)
-        );
+                Arguments.of("bigDecimalRangeQuery", LambdaExpression.BinaryOp.Operator.GE,
+                        LambdaExpression.BinaryOp.Operator.LE));
     }
 
     // ==================== PARAMETERIZED TESTS ====================
@@ -212,8 +215,7 @@ class ComparisonOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
                 Arguments.of("boxedIntegerFieldGreaterThanOrEqual", LambdaExpression.BinaryOp.Operator.GE),
                 Arguments.of("boxedIntegerFieldLessThan", LambdaExpression.BinaryOp.Operator.LT),
                 Arguments.of("boxedIntegerFieldEquals", LambdaExpression.BinaryOp.Operator.EQ),
-                Arguments.of("boxedIntegerFieldNotEquals", LambdaExpression.BinaryOp.Operator.NE)
-        );
+                Arguments.of("boxedIntegerFieldNotEquals", LambdaExpression.BinaryOp.Operator.NE));
     }
 
     @ParameterizedTest(name = "{0}: age {1} minAge")

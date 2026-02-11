@@ -1,19 +1,23 @@
 package io.quarkiverse.qubit.deployment.criteria;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import java.util.stream.Stream;
+
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.stream.Stream;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /**
  * Criteria query generation tests for comparison operations (>, <, >=, <=, !=).
  *
- * <p>These tests verify that lambda expressions with comparison operations
+ * <p>
+ * These tests verify that lambda expressions with comparison operations
  * are correctly transformed into JPA Criteria API predicate building code.
  *
- * <p>Test Pattern:
+ * <p>
+ * Test Pattern:
+ *
  * <pre>
  * Lambda: p -> p.age > 30
  *   ↓
@@ -24,7 +28,8 @@ import java.util.stream.Stream;
  * Verify: Generation succeeds without errors
  * </pre>
  *
- * <p>This class uses JUnit 5 parameterized tests to consolidate repetitive
+ * <p>
+ * This class uses JUnit 5 parameterized tests to consolidate repetitive
  * test patterns, reducing code duplication while maintaining full coverage.
  */
 class ComparisonOperationsCriteriaTest extends CriteriaQueryTestBase {
@@ -78,8 +83,7 @@ class ComparisonOperationsCriteriaTest extends CriteriaQueryTestBase {
                 Arguments.of("localDateTimeAfter", "greaterThan"),
                 Arguments.of("localDateTimeBefore", "lessThan"),
                 Arguments.of("localTimeAfter", "greaterThan"),
-                Arguments.of("localTimeBefore", "lessThan")
-        );
+                Arguments.of("localTimeBefore", "lessThan"));
     }
 
     /**
@@ -91,8 +95,7 @@ class ComparisonOperationsCriteriaTest extends CriteriaQueryTestBase {
                 Arguments.of("integerRangeQuery"),
                 Arguments.of("longRangeQuery"),
                 Arguments.of("floatRangeQuery"),
-                Arguments.of("bigDecimalRangeQuery")
-        );
+                Arguments.of("bigDecimalRangeQuery"));
     }
 
     // ==================== PARAMETERIZED TESTS ====================

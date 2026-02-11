@@ -1,12 +1,12 @@
 package io.quarkiverse.qubit.deployment.generation.methodcall;
 
-import io.quarkus.gizmo2.Expr;
-import io.quarkus.gizmo2.creator.BlockCreator;
+import java.util.Objects;
+
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionBuilderRegistry;
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionGeneratorHelper;
-
-import java.util.Objects;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.creator.BlockCreator;
 
 /**
  * Context for method call handling in single-entity queries.
@@ -21,8 +21,7 @@ public record MethodCallContext(
         Expr root,
         Expr capturedValues,
         ExpressionBuilderRegistry builderRegistry,
-        ExpressionGeneratorHelper helper
-) implements MethodCallDispatchContext {
+        ExpressionGeneratorHelper helper) implements MethodCallDispatchContext {
 
     public MethodCallContext {
         Objects.requireNonNull(bc, "bc cannot be null");

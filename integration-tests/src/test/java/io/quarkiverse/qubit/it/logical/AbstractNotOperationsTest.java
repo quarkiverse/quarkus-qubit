@@ -14,12 +14,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Abstract base class for NOT logical operation tests.
  *
- * <p>Contains all test methods that can be run with either static entity methods
+ * <p>
+ * Contains all test methods that can be run with either static entity methods
  * or repository instance methods.
  */
 public abstract class AbstractNotOperationsTest {
 
     protected abstract PersonQueryOperations personOps();
+
     protected abstract ProductQueryOperations productOps();
 
     @BeforeEach
@@ -58,9 +60,7 @@ public abstract class AbstractNotOperationsTest {
 
     @Test
     void notWithComplexOrAnd() {
-        var results = personOps().where((Person p) ->
-                !(p.age < 28 || p.age > 42) && p.active
-        ).toList();
+        var results = personOps().where((Person p) -> !(p.age < 28 || p.age > 42) && p.active).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)

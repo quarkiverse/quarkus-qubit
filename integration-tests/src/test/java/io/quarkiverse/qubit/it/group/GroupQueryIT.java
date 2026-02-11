@@ -19,9 +19,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests grouping operations using the fluent API.
  * The test data creates 5 persons in 3 departments:
  * <ul>
- *   <li>Engineering: John (salary 75000), Alice (salary 90000) -> 2 persons, avg 82500</li>
- *   <li>Sales: Jane (salary 65000), Charlie (salary 55000) -> 2 persons, avg 60000</li>
- *   <li>Human Resources: Bob (salary 85000) -> 1 person, avg 85000</li>
+ * <li>Engineering: John (salary 75000), Alice (salary 90000) -> 2 persons, avg 82500</li>
+ * <li>Sales: Jane (salary 65000), Charlie (salary 55000) -> 2 persons, avg 60000</li>
+ * <li>Human Resources: Bob (salary 85000) -> 1 person, avg 85000</li>
  * </ul>
  * <p>
  * Iteration 7: Grouping / GROUP BY implementation.
@@ -78,15 +78,18 @@ class GroupQueryIT {
                 .containsExactlyInAnyOrder("Engineering", "Sales", "Human Resources");
 
         // Engineering: John, Alice = 2
-        assertThat(stats.stream().filter(s -> s.getDepartmentName().equals("Engineering")).findFirst().orElseThrow().getEmployeeCount())
+        assertThat(stats.stream().filter(s -> s.getDepartmentName().equals("Engineering")).findFirst().orElseThrow()
+                .getEmployeeCount())
                 .isEqualTo(2);
 
         // Sales: Jane, Charlie = 2
-        assertThat(stats.stream().filter(s -> s.getDepartmentName().equals("Sales")).findFirst().orElseThrow().getEmployeeCount())
+        assertThat(
+                stats.stream().filter(s -> s.getDepartmentName().equals("Sales")).findFirst().orElseThrow().getEmployeeCount())
                 .isEqualTo(2);
 
         // HR: Bob = 1
-        assertThat(stats.stream().filter(s -> s.getDepartmentName().equals("Human Resources")).findFirst().orElseThrow().getEmployeeCount())
+        assertThat(stats.stream().filter(s -> s.getDepartmentName().equals("Human Resources")).findFirst().orElseThrow()
+                .getEmployeeCount())
                 .isEqualTo(1);
     }
 
@@ -124,9 +127,9 @@ class GroupQueryIT {
     void groupByWithMinReturnsCorrectMinimums() {
         // Group by department.name and find min salary
         List<Object[]> stats = Person.groupBy((Person p) -> p.department.name)
-                .select((Group<Person, String> g) -> new Object[]{
+                .select((Group<Person, String> g) -> new Object[] {
                         g.key(),
-                        g.min((Person p) -> p.salary)})
+                        g.min((Person p) -> p.salary) })
                 .toList();
 
         assertThat(stats).hasSize(3);
@@ -151,9 +154,9 @@ class GroupQueryIT {
     void groupByWithMaxReturnsCorrectMaximums() {
         // Group by department.name and find max salary
         List<Object[]> stats = Person.groupBy((Person p) -> p.department.name)
-                .select((Group<Person, String> g) -> new Object[]{
+                .select((Group<Person, String> g) -> new Object[] {
                         g.key(),
-                        g.max((Person p) -> p.salary)})
+                        g.max((Person p) -> p.salary) })
                 .toList();
 
         assertThat(stats).hasSize(3);

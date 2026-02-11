@@ -1,12 +1,12 @@
 package io.quarkiverse.qubit;
 
-import io.quarkus.hibernate.orm.panache.PanacheEntity;
-import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
-import io.quarkus.panache.common.impl.GenerateBridge;
-
 import static io.quarkus.hibernate.orm.panache.common.runtime.AbstractJpaOperations.implementationInjectionMissing;
 
 import java.util.Collection;
+
+import io.quarkus.hibernate.orm.panache.PanacheEntity;
+import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
+import io.quarkus.panache.common.impl.GenerateBridge;
 
 /**
  * Repository interface with fluent API query methods extending PanacheRepositoryBase.
@@ -15,6 +15,7 @@ import java.util.Collection;
  * All query operations are analyzed at build time and translated to JPA Criteria Queries.
  * <p>
  * <strong>Example usage:</strong>
+ *
  * <pre>{@code
  * @ApplicationScoped
  * public class PersonRepository implements QubitRepository<Person, Long> {
@@ -98,6 +99,7 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * <strong>Generated at build time</strong> via bytecode enhancement.
      * <p>
      * Example:
+     *
      * <pre>{@code
      * // Find minimum age
      * Integer minAge = personRepository.min(p -> p.age).getSingleResult();
@@ -124,6 +126,7 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * <strong>Generated at build time</strong> via bytecode enhancement.
      * <p>
      * Example:
+     *
      * <pre>{@code
      * // Find maximum age
      * Integer maxAge = personRepository.max(p -> p.age).getSingleResult();
@@ -150,6 +153,7 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * <strong>Generated at build time</strong> via bytecode enhancement.
      * <p>
      * Example:
+     *
      * <pre>{@code
      * // Calculate average age
      * Double avgAge = personRepository.avg(p -> p.age).getSingleResult();
@@ -175,6 +179,7 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * <strong>Generated at build time</strong> via bytecode enhancement.
      * <p>
      * Example:
+     *
      * <pre>{@code
      * // Sum all ages
      * Long totalAge = personRepository.sumInteger(p -> p.age).getSingleResult();
@@ -200,6 +205,7 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * <strong>Generated at build time</strong> via bytecode enhancement.
      * <p>
      * Example:
+     *
      * <pre>{@code
      * // Sum all employee IDs
      * Long totalEmployeeId = personRepository.sumLong(p -> p.employeeId).getSingleResult();
@@ -225,6 +231,7 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * <strong>Generated at build time</strong> via bytecode enhancement.
      * <p>
      * Example:
+     *
      * <pre>{@code
      * // Sum all salaries
      * Double totalSalary = personRepository.sumDouble(p -> p.salary).getSingleResult();
@@ -253,18 +260,19 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * <strong>Generated at build time</strong> via bytecode enhancement.
      * <p>
      * Example:
+     *
      * <pre>{@code
      * // Find persons with mobile phones (excludes persons without phones)
      * List<Person> peopleWithMobilePhones = personRepository
-     *     .join((Person p) -> p.phones)
-     *     .where((Person p, Phone ph) -> ph.type.equals("mobile"))
-     *     .toList();
+     *         .join((Person p) -> p.phones)
+     *         .where((Person p, Phone ph) -> ph.type.equals("mobile"))
+     *         .toList();
      *
      * // Project both entities to DTO
      * List<PersonPhoneDTO> dtos = personRepository
-     *     .join((Person p) -> p.phones)
-     *     .select((Person p, Phone ph) -> new PersonPhoneDTO(p.firstName, ph.number))
-     *     .toList();
+     *         .join((Person p) -> p.phones)
+     *         .select((Person p, Phone ph) -> new PersonPhoneDTO(p.firstName, ph.number))
+     *         .toList();
      * }</pre>
      *
      * @param <R> the joined entity type
@@ -286,17 +294,18 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * <strong>Generated at build time</strong> via bytecode enhancement.
      * <p>
      * Example:
+     *
      * <pre>{@code
      * // Find all persons, including those without phones
      * List<Person> allPeopleWithPhoneInfo = personRepository
-     *     .leftJoin((Person p) -> p.phones)
-     *     .toList();
+     *         .leftJoin((Person p) -> p.phones)
+     *         .toList();
      *
      * // Filter with null handling
      * List<Person> peopleWithOptionalPhone = personRepository
-     *     .leftJoin((Person p) -> p.phones)
-     *     .where((Person p, Phone ph) -> ph == null || ph.type.equals("mobile"))
-     *     .toList();
+     *         .leftJoin((Person p) -> p.phones)
+     *         .where((Person p, Phone ph) -> ph == null || ph.type.equals("mobile"))
+     *         .toList();
      * }</pre>
      *
      * @param <R> the joined entity type

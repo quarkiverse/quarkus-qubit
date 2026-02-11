@@ -1,8 +1,8 @@
 package io.quarkiverse.qubit.deployment.generation.methodcall;
 
-import io.quarkus.gizmo2.Expr;
-
 import java.util.Optional;
+
+import io.quarkus.gizmo2.Expr;
 
 /**
  * Chain of Responsibility handler for method call → JPA expression generation.

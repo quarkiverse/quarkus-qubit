@@ -1,14 +1,16 @@
 package io.quarkiverse.qubit.deployment.criteria;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+
 /**
  * Criteria query generation tests for NOT logical operations (!).
  *
- * <p>This class uses JUnit 5 parameterized tests to consolidate repetitive
+ * <p>
+ * This class uses JUnit 5 parameterized tests to consolidate repetitive
  * test patterns, reducing code duplication while maintaining full coverage.
  */
 class NotOperationsCriteriaTest extends CriteriaQueryTestBase {
@@ -18,7 +20,7 @@ class NotOperationsCriteriaTest extends CriteriaQueryTestBase {
      * Complex NOT expressions may compile to inverted conditions, not not().
      */
     @ParameterizedTest(name = "{0} → success")
-    @ValueSource(strings = {"notWithComplexOrAnd", "stringNotEquals", "doubleNegation"})
+    @ValueSource(strings = { "notWithComplexOrAnd", "stringNotEquals", "doubleNegation" })
     void notOperationSucceeds(String lambdaMethodName) {
         LambdaExpression expr = analyzeLambda(lambdaMethodName);
         assertCriteriaGenerationSucceeds(expr);

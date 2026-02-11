@@ -1,8 +1,12 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition;
-import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
+import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.util.ArrayList;
+import java.util.List;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -11,17 +15,15 @@ import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodNode;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition;
+import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
 
 /**
  * Unit tests for {@link AnalysisContext}.
  *
- * <p>Tests stack operations, entity parameter handling, array creation tracking,
+ * <p>
+ * Tests stack operations, entity parameter handling, array creation tracking,
  * variable name lookup, method finding, and control flow management.
  */
 class AnalysisContextTest {
@@ -414,8 +416,7 @@ class AnalysisContextTest {
 
             var support = new AnalysisContext.NestedLambdaSupport(
                     List.of(nestedMethod),
-                    (m, i) -> null
-            );
+                    (m, i) -> null);
             context = new AnalysisContext(testMethod, 0, true, support);
 
             var result = context.findMethod("lambda$0", "(Ljava/lang/Object;)Ljava/lang/String;");
@@ -431,8 +432,7 @@ class AnalysisContextTest {
 
             var support = new AnalysisContext.NestedLambdaSupport(
                     List.of(nestedMethod),
-                    (m, i) -> null
-            );
+                    (m, i) -> null);
             context = new AnalysisContext(testMethod, 0, true, support);
 
             var result = context.findMethod("lambda$1", "(Ljava/lang/Object;)Ljava/lang/String;");
@@ -448,8 +448,7 @@ class AnalysisContextTest {
 
             var support = new AnalysisContext.NestedLambdaSupport(
                     List.of(nestedMethod),
-                    (m, i) -> null
-            );
+                    (m, i) -> null);
             context = new AnalysisContext(testMethod, 0, true, support);
 
             var result = context.findMethod("lambda$0", "(I)Ljava/lang/String;");
@@ -473,8 +472,7 @@ class AnalysisContextTest {
 
             var support = new AnalysisContext.NestedLambdaSupport(
                     List.of(method1, method2, method3),
-                    (m, i) -> null
-            );
+                    (m, i) -> null);
             context = new AnalysisContext(testMethod, 0, true, support);
 
             // Find method2 by exact name AND descriptor match
@@ -554,8 +552,7 @@ class AnalysisContextTest {
         void groupContextConstructor_setsGroupMode() {
             var support = new AnalysisContext.NestedLambdaSupport(
                     List.of(),
-                    (m, i) -> null
-            );
+                    (m, i) -> null);
             context = new AnalysisContext(testMethod, 0, support);
 
             assertThat(context.isGroupContextMode()).isTrue();
@@ -566,8 +563,7 @@ class AnalysisContextTest {
         void biEntityWithNestedSupport_setBothModesCorrectly() {
             var support = new AnalysisContext.NestedLambdaSupport(
                     List.of(),
-                    (m, i) -> null
-            );
+                    (m, i) -> null);
             context = new AnalysisContext(testMethod, 0, 1, support);
 
             assertThat(context.isBiEntityMode()).isTrue();
@@ -631,8 +627,7 @@ class AnalysisContextTest {
 
             var support = new AnalysisContext.NestedLambdaSupport(
                     List.of(nestedMethod),
-                    (m, i) -> expectedResult
-            );
+                    (m, i) -> expectedResult);
             context = new AnalysisContext(testMethod, 0, true, support);
 
             var result = context.analyzeNestedLambda(nestedMethod, 0);

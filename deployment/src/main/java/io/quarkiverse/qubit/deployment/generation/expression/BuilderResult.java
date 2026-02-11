@@ -2,10 +2,10 @@ package io.quarkiverse.qubit.deployment.generation.expression;
 
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.CANNOT_GET_VALUE_FROM_NOT_APPLICABLE;
 
-import io.quarkus.gizmo2.Expr;
-
 import java.util.Objects;
 import java.util.Optional;
+
+import io.quarkus.gizmo2.Expr;
 
 /**
  * Sealed result type for expression builder operations.
@@ -27,7 +27,8 @@ public sealed interface BuilderResult permits
     }
 
     /** Builder doesn't handle this operation - try next in chain. */
-    record NotApplicable() implements BuilderResult {}
+    record NotApplicable() implements BuilderResult {
+    }
 
     /** Returns true if this result is a Success. */
     default boolean isSuccess() {
@@ -39,7 +40,7 @@ public sealed interface BuilderResult permits
         return switch (this) {
             case Success(var value) -> value;
             case NotApplicable _ ->
-                    throw new IllegalStateException(CANNOT_GET_VALUE_FROM_NOT_APPLICABLE);
+                throw new IllegalStateException(CANNOT_GET_VALUE_FROM_NOT_APPLICABLE);
         };
     }
 

@@ -70,14 +70,13 @@ class SubqueryInnerClassIT {
         // Above average: Alice (90000), Bob (75000), Diana (85000)
 
         List<TestPerson> aboveAvg = TestPerson.where(
-            (TestPerson p) -> p.salary > subquery(TestPerson.class).avg(q -> q.salary)
-        ).toList();
+                (TestPerson p) -> p.salary > subquery(TestPerson.class).avg(q -> q.salary)).toList();
 
         assertThat(aboveAvg)
-            .as("Should find people earning above average salary")
-            .hasSize(3)
-            .extracting(p -> p.name)
-            .containsExactlyInAnyOrder("Alice", "Bob", "Diana");
+                .as("Should find people earning above average salary")
+                .hasSize(3)
+                .extracting(p -> p.name)
+                .containsExactlyInAnyOrder("Alice", "Bob", "Diana");
     }
 
     @Test
@@ -88,8 +87,7 @@ class SubqueryInnerClassIT {
         // All individual salaries are less than total sum
 
         List<TestPerson> belowTotal = TestPerson.where(
-            (TestPerson p) -> p.salary < subquery(TestPerson.class).sum(q -> q.salary)
-        ).toList();
+                (TestPerson p) -> p.salary < subquery(TestPerson.class).sum(q -> q.salary)).toList();
 
         assertThat(belowTotal).hasSize(5);
     }
@@ -103,15 +101,15 @@ class SubqueryInnerClassIT {
         // Active above active average: Alice (90000), Diana (85000)
 
         List<TestPerson> activeAboveActiveAvg = TestPerson.where(
-            (TestPerson p) -> p.active && p.salary > subquery(TestPerson.class)
-                .where(q -> q.active)
-                .avg(q -> q.salary)
-        ).toList();
+                (TestPerson p) -> p.active && p.salary > subquery(TestPerson.class)
+                        .where(q -> q.active)
+                        .avg(q -> q.salary))
+                .toList();
 
         assertThat(activeAboveActiveAvg)
-            .hasSize(2)
-            .extracting(p -> p.name)
-            .containsExactlyInAnyOrder("Alice", "Diana");
+                .hasSize(2)
+                .extracting(p -> p.name)
+                .containsExactlyInAnyOrder("Alice", "Diana");
     }
 
     @Test
@@ -122,8 +120,7 @@ class SubqueryInnerClassIT {
         // Ages greater than count: Alice (35), Charlie (42), Diana (31), Bob (28), Eve (26)
 
         List<TestPerson> olderThanCount = TestPerson.where(
-            (TestPerson p) -> (long) p.age > subquery(TestPerson.class).count()
-        ).toList();
+                (TestPerson p) -> (long) p.age > subquery(TestPerson.class).count()).toList();
 
         assertThat(olderThanCount).hasSize(5);
     }
@@ -135,13 +132,12 @@ class SubqueryInnerClassIT {
         // Max salary: 90000 (Alice)
 
         List<TestPerson> maxSalaryPerson = TestPerson.where(
-            (TestPerson p) -> p.salary.equals(subquery(TestPerson.class).max(q -> q.salary))
-        ).toList();
+                (TestPerson p) -> p.salary.equals(subquery(TestPerson.class).max(q -> q.salary))).toList();
 
         assertThat(maxSalaryPerson)
-            .hasSize(1)
-            .extracting(p -> p.name)
-            .containsExactly("Alice");
+                .hasSize(1)
+                .extracting(p -> p.name)
+                .containsExactly("Alice");
     }
 
     @Test
@@ -151,12 +147,11 @@ class SubqueryInnerClassIT {
         // Min salary: 55000 (Eve)
 
         List<TestPerson> minSalaryPerson = TestPerson.where(
-            (TestPerson p) -> p.salary.equals(subquery(TestPerson.class).min(q -> q.salary))
-        ).toList();
+                (TestPerson p) -> p.salary.equals(subquery(TestPerson.class).min(q -> q.salary))).toList();
 
         assertThat(minSalaryPerson)
-            .hasSize(1)
-            .extracting(p -> p.name)
-            .containsExactly("Eve");
+                .hasSize(1)
+                .extracting(p -> p.name)
+                .containsExactly("Eve");
     }
 }

@@ -1,9 +1,5 @@
 package io.quarkiverse.qubit.deployment.devui;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.*;
-import io.quarkiverse.qubit.deployment.util.ClassNameUtils;
-
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isLogicalOperation;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_CONTAINS;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_ENDS_WITH;
@@ -25,6 +21,10 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_TRIM;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.STRING_CONCAT;
 
 import java.util.stream.Collectors;
+
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.*;
+import io.quarkiverse.qubit.deployment.util.ClassNameUtils;
 
 /** Generates pseudo-JPQL strings from LambdaExpression AST for DevUI display. */
 public final class JpqlGenerator {
@@ -126,7 +126,7 @@ public final class JpqlGenerator {
         String joinType = isLeftJoin ? "LEFT JOIN" : "JOIN";
         String joinPath = extractJoinPath(joinRelationshipExpression);
         jpql.append(" ").append(joinType).append(" ").append(ENTITY_ALIAS).append(".").append(joinPath)
-            .append(" ").append(joinAlias);
+                .append(" ").append(joinAlias);
 
         // WHERE clause
         if (predicateExpression != null) {
@@ -156,11 +156,12 @@ public final class JpqlGenerator {
         return switch (expr) {
             case FieldAccess fieldAccess -> ENTITY_ALIAS + "." + fieldAccess.fieldName();
             case BiEntityFieldAccess biField ->
-                    (biField.entityPosition() == LambdaExpression.EntityPosition.FIRST ? ENTITY_ALIAS : joinAlias)
-                    + "." + biField.fieldName();
+                (biField.entityPosition() == LambdaExpression.EntityPosition.FIRST ? ENTITY_ALIAS : joinAlias)
+                        + "." + biField.fieldName();
             case BiEntityPathExpression biPath -> {
                 String alias = biPath.entityPosition() == LambdaExpression.EntityPosition.FIRST
-                        ? ENTITY_ALIAS : joinAlias;
+                        ? ENTITY_ALIAS
+                        : joinAlias;
                 yield alias + "." + biPath.toPath();
             }
             case BinaryOp binOp -> {
@@ -230,7 +231,7 @@ public final class JpqlGenerator {
             case PathExpression pathExpr -> pathExpressionToJpql(pathExpr);
             case Constant constant -> constantToJpql(constant);
             case CapturedVariable captured -> ":" + captured.displayName();
-            case Parameter _-> ENTITY_ALIAS;
+            case Parameter _ -> ENTITY_ALIAS;
             case NullLiteral _ -> "NULL";
             case MethodCall methodCall -> methodCallToJpql(methodCall);
             case InExpression inExpr -> inExpressionToJpql(inExpr);
@@ -262,8 +263,7 @@ public final class JpqlGenerator {
 
     /** Gets first argument as JPQL, or "?" if none. */
     private static String firstArgOrPlaceholder(MethodCall methodCall) {
-        return methodCall.arguments().isEmpty() ? "?" :
-                expressionToJpql(methodCall.arguments().getFirst());
+        return methodCall.arguments().isEmpty() ? "?" : expressionToJpql(methodCall.arguments().getFirst());
     }
 
     private static String binaryOpToJpql(BinaryOp binaryOp) {
@@ -311,7 +311,7 @@ public final class JpqlGenerator {
     private static String constantToJpql(Constant constant) {
         return switch (constant.value()) {
             case null -> "NULL";
-            case String s -> "'" + s.replace("'", "''") + "'";  // Escape single quotes per SQL/JPQL standard
+            case String s -> "'" + s.replace("'", "''") + "'"; // Escape single quotes per SQL/JPQL standard
             case Boolean b -> b.toString().toUpperCase();
             case Enum<?> e -> "'" + e.name() + "'";
             default -> String.valueOf(constant.value());
@@ -444,8 +444,7 @@ public final class JpqlGenerator {
     }
 
     private static String groupAggregationToJpql(GroupAggregation groupAgg) {
-        String field = groupAgg.fieldExpression() != null ?
-                expressionToJpql(groupAgg.fieldExpression()) : ENTITY_ALIAS;
+        String field = groupAgg.fieldExpression() != null ? expressionToJpql(groupAgg.fieldExpression()) : ENTITY_ALIAS;
 
         return switch (groupAgg.aggregationType()) {
             case COUNT -> JPQL_COUNT + field + ")";
@@ -462,8 +461,7 @@ public final class JpqlGenerator {
         String entityName = scalarSub.entityClassName() != null
                 ? ClassNameUtils.extractSimpleName(scalarSub.entityClassName())
                 : scalarSub.entityClass().getSimpleName();
-        String field = scalarSub.fieldExpression() != null ?
-                expressionToJpql(scalarSub.fieldExpression()) : "s";
+        String field = scalarSub.fieldExpression() != null ? expressionToJpql(scalarSub.fieldExpression()) : "s";
 
         String aggFunc = switch (scalarSub.aggregationType()) {
             case AVG -> "AVG";

@@ -1,11 +1,11 @@
 package io.quarkiverse.qubit.deployment.util;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Error path tests for DescriptorParser.
@@ -22,8 +22,7 @@ class DescriptorParserErrorTest {
         @DisplayName("J1: next() throws IllegalStateException when exhausted")
         void parseNext_exhausted_throws() {
             // Given: a descriptor with one parameter, already consumed
-            DescriptorParser.ParameterIterator iterator =
-                    new DescriptorParser.ParameterIterator("(I)V");
+            DescriptorParser.ParameterIterator iterator = new DescriptorParser.ParameterIterator("(I)V");
 
             // Consume the only parameter
             assertThat(iterator.hasNext()).isTrue();
@@ -40,8 +39,7 @@ class DescriptorParserErrorTest {
         @DisplayName("next() throws on empty descriptor")
         void next_onEmptyDescriptor_throws() {
             // Given: descriptor with no parameters
-            DescriptorParser.ParameterIterator iterator =
-                    new DescriptorParser.ParameterIterator("()V");
+            DescriptorParser.ParameterIterator iterator = new DescriptorParser.ParameterIterator("()V");
 
             // When/Then
             assertThat(iterator.hasNext()).isFalse();
@@ -54,8 +52,7 @@ class DescriptorParserErrorTest {
         @DisplayName("next() throws after consuming all parameters in multi-param descriptor")
         void next_afterConsumingAllParams_throws() {
             // Given: descriptor with multiple parameters
-            DescriptorParser.ParameterIterator iterator =
-                    new DescriptorParser.ParameterIterator("(IJD)V");
+            DescriptorParser.ParameterIterator iterator = new DescriptorParser.ParameterIterator("(IJD)V");
 
             // Consume all 3 parameters (int, long, double)
             iterator.next(); // I (int)
@@ -77,8 +74,7 @@ class DescriptorParserErrorTest {
         @Test
         @DisplayName("hasNext returns false for null descriptor")
         void hasNext_withNullDescriptor_returnsFalse() {
-            DescriptorParser.ParameterIterator iterator =
-                    new DescriptorParser.ParameterIterator(null);
+            DescriptorParser.ParameterIterator iterator = new DescriptorParser.ParameterIterator(null);
 
             assertThat(iterator.hasNext()).isFalse();
         }
@@ -87,8 +83,7 @@ class DescriptorParserErrorTest {
         @DisplayName("hasNext returns false for descriptor without opening paren")
         void hasNext_withoutOpeningParen_startsAtPositionZero() {
             // Non-standard descriptor (no opening paren)
-            DescriptorParser.ParameterIterator iterator =
-                    new DescriptorParser.ParameterIterator("I)V");
+            DescriptorParser.ParameterIterator iterator = new DescriptorParser.ParameterIterator("I)V");
 
             // Position starts at 0, so 'I' is treated as a parameter
             assertThat(iterator.hasNext()).isTrue();
@@ -99,8 +94,7 @@ class DescriptorParserErrorTest {
         @Test
         @DisplayName("next() on null descriptor after hasNext check throws")
         void next_onNullDescriptor_throws() {
-            DescriptorParser.ParameterIterator iterator =
-                    new DescriptorParser.ParameterIterator(null);
+            DescriptorParser.ParameterIterator iterator = new DescriptorParser.ParameterIterator(null);
 
             assertThatThrownBy(iterator::next)
                     .isInstanceOf(IllegalStateException.class)

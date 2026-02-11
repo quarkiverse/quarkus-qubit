@@ -3,15 +3,15 @@ package io.quarkiverse.qubit.runtime.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.NonUniqueResultException;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Unit tests for {@link ImmutableResultStream}.

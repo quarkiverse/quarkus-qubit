@@ -2,9 +2,9 @@ package io.quarkiverse.qubit.deployment.generation.methodcall;
 
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.STRING_PATTERN_METHOD_NAMES;
 
-import io.quarkus.gizmo2.Expr;
-
 import java.util.Optional;
+
+import io.quarkus.gizmo2.Expr;
 
 /**
  * Handles startsWith/endsWith/contains as LIKE patterns via StringExpressionBuilder.

@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public abstract class AbstractCountQueryTest {
 
     protected abstract PersonQueryOperations personOps();
+
     protected abstract ProductQueryOperations productOps();
 
     @BeforeEach
@@ -44,9 +45,7 @@ public abstract class AbstractCountQueryTest {
 
     @Test
     void countWithNestedExpression() {
-        long count = personOps().where((Person p) ->
-                (p.age >= 28 && p.age <= 35) || p.salary > 85000
-        ).count();
+        long count = personOps().where((Person p) -> (p.age >= 28 && p.age <= 35) || p.salary > 85000).count();
 
         assertThat(count).isGreaterThan(0);
     }
@@ -69,9 +68,7 @@ public abstract class AbstractCountQueryTest {
 
     @Test
     void productCountByPriceRange() {
-        long count = productOps().where((Product p) ->
-                p.price.compareTo(new BigDecimal("300")) > 0
-        ).count();
+        long count = productOps().where((Product p) -> p.price.compareTo(new BigDecimal("300")) > 0).count();
 
         assertThat(count).isGreaterThan(0);
     }

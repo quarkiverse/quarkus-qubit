@@ -1,11 +1,5 @@
 package io.quarkiverse.qubit.deployment.analysis.branch;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.common.BytecodeValidator;
-import io.quarkiverse.qubit.deployment.common.PatternDetector;
-import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
-import io.quarkus.logging.Log;
-
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.eq;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.UnaryOp.Operator.NOT;
 import static java.lang.Boolean.TRUE;
@@ -13,10 +7,17 @@ import static java.lang.Boolean.TRUE;
 import java.util.Deque;
 import java.util.Optional;
 
+import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.common.BytecodeValidator;
+import io.quarkiverse.qubit.deployment.common.PatternDetector;
+import io.quarkus.logging.Log;
+
 /**
  * Base class for IFEQ/IFNE instruction handlers.
  *
- * <p>Consolidates the common switch-based pattern handling used by both handlers,
+ * <p>
+ * Consolidates the common switch-based pattern handling used by both handlers,
  * delegating opcode-specific expression creation to abstract methods.
  */
 public abstract class AbstractZeroEqualityBranchHandler implements BranchHandler {
@@ -64,9 +65,7 @@ public abstract class AbstractZeroEqualityBranchHandler implements BranchHandler
         }
 
         // Don't wrap predicates with == true
-        return isPredicateExpression(fieldAccess) ?
-                fieldAccess :
-                eq(fieldAccess, LambdaExpression.Constant.TRUE);
+        return isPredicateExpression(fieldAccess) ? fieldAccess : eq(fieldAccess, LambdaExpression.Constant.TRUE);
     }
 
     @Override

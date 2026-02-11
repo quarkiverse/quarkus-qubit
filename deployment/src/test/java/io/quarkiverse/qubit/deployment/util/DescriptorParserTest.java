@@ -1,5 +1,12 @@
 package io.quarkiverse.qubit.deployment.util;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Stream;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -9,29 +16,22 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 /**
  * Unit tests for {@link DescriptorParser}.
  * <p>
  * Tests JVM method descriptor parsing with special attention to:
  * <ul>
- *   <li>Wide types (long/double) that occupy 2 slots instead of 1</li>
- *   <li>Object references and arrays</li>
- *   <li>Mixed parameter combinations</li>
- *   <li>Bi-entity and group query descriptors</li>
+ * <li>Wide types (long/double) that occupy 2 slots instead of 1</li>
+ * <li>Object references and arrays</li>
+ * <li>Mixed parameter combinations</li>
+ * <li>Bi-entity and group query descriptors</li>
  * </ul>
  * <p>
  * JVM Type Descriptors:
  * <ul>
- *   <li>B = byte, C = char, D = double, F = float</li>
- *   <li>I = int, J = long, S = short, Z = boolean</li>
- *   <li>L...;= reference type, [ = array</li>
+ * <li>B = byte, C = char, D = double, F = float</li>
+ * <li>I = int, J = long, S = short, Z = boolean</li>
+ * <li>L...;= reference type, [ = array</li>
  * </ul>
  */
 class DescriptorParserTest {
@@ -64,8 +64,7 @@ class DescriptorParserTest {
                 Arguments.of("(Ljava/lang/String;Lio/quarkiverse/qubit/runtime/Person;)V", 1, "Fully qualified class names"),
                 Arguments.of("(LOuterClass$InnerClass;LPerson;)V", 1, "Inner class references"),
                 Arguments.of("(LPerson;)V", 0, "Single parameter returns slot 0"),
-                Arguments.of("(Ljava/lang/String;IJLio/quarkiverse/qubit/model/Person;)Z", 4, "Complex real-world descriptor")
-        );
+                Arguments.of("(Ljava/lang/String;IJLio/quarkiverse/qubit/model/Person;)Z", 4, "Complex real-world descriptor"));
     }
 
     /** Test data for countMethodArguments tests. */
@@ -80,8 +79,7 @@ class DescriptorParserTest {
                 Arguments.of("([ILjava/lang/String;)V", 2),
                 Arguments.of("([[I)V", 1),
                 Arguments.of("([I[Ljava/lang/String;[[D)V", 3),
-                Arguments.of("(I[IJ[Ljava/lang/String;)V", 4)
-        );
+                Arguments.of("(I[IJ[Ljava/lang/String;)V", 4));
     }
 
     /** Test data for slotIndexToParameterIndex tests. */
@@ -107,8 +105,7 @@ class DescriptorParserTest {
                 Arguments.of("(J[ILjava/lang/String;)V", 3, 2),
                 Arguments.of("(I)V", 1000, -1),
                 Arguments.of("(IJ)V", 5, -1),
-                Arguments.of("()V", 0, -1)
-        );
+                Arguments.of("()V", 0, -1));
     }
 
     /** Test data for getParameterType primitive tests. */
@@ -129,21 +126,20 @@ class DescriptorParserTest {
                 Arguments.of("([I)V", 0, Object.class),
                 Arguments.of("([[IJLjava/lang/String;)V", 0, Object.class),
                 Arguments.of("([[IJLjava/lang/String;)V", 1, long.class),
-                Arguments.of("([[IJLjava/lang/String;)V", 2, String.class)
-        );
+                Arguments.of("([[IJLjava/lang/String;)V", 2, String.class));
     }
 
     /** Test data for calculateBiEntityParameterSlotIndices tests. */
     static Stream<Arguments> biEntitySlotIndicesTestData() {
         return Stream.of(
-                Arguments.of("(JDLPerson;LPhone;)V", new int[]{4, 5}, "Mixed wide types before bi-entity"),
-                Arguments.of("(LPerson;LPhone;)Z", new int[]{0, 1}, "Simple bi-entity without captured variables"),
-                Arguments.of("(ILPerson;LPhone;)Z", new int[]{1, 2}, "Bi-entity with primitive captured variable"),
+                Arguments.of("(JDLPerson;LPhone;)V", new int[] { 4, 5 }, "Mixed wide types before bi-entity"),
+                Arguments.of("(LPerson;LPhone;)Z", new int[] { 0, 1 }, "Simple bi-entity without captured variables"),
+                Arguments.of("(ILPerson;LPhone;)Z", new int[] { 1, 2 }, "Bi-entity with primitive captured variable"),
                 Arguments.of("(LPerson;)Z", null, "Single parameter returns null"),
-                Arguments.of("([ILPerson;LPhone;)Z", new int[]{1, 2}, "Bi-entity with array captured variable"),
-                Arguments.of("([[ILPerson;LPhone;)Z", new int[]{1, 2}, "Bi-entity with multi-dim array captured"),
-                Arguments.of("([I[Ljava/lang/String;LPerson;LPhone;)Z", new int[]{2, 3}, "Bi-entity with multiple arrays captured")
-        );
+                Arguments.of("([ILPerson;LPhone;)Z", new int[] { 1, 2 }, "Bi-entity with array captured variable"),
+                Arguments.of("([[ILPerson;LPhone;)Z", new int[] { 1, 2 }, "Bi-entity with multi-dim array captured"),
+                Arguments.of("([I[Ljava/lang/String;LPerson;LPhone;)Z", new int[] { 2, 3 },
+                        "Bi-entity with multiple arrays captured"));
     }
 
     /** Test data for getReturnTypeDescriptor tests. */
@@ -158,8 +154,7 @@ class DescriptorParserTest {
                 Arguments.of("()Z", "Z"),
                 Arguments.of(null, ""),
                 Arguments.of("(I", ""),
-                Arguments.of("(I)", "")
-        );
+                Arguments.of("(I)", ""));
     }
 
     /** Test data for returnsBooleanType tests. */
@@ -169,8 +164,7 @@ class DescriptorParserTest {
                 Arguments.of("(I)Ljava/lang/Boolean;", true),
                 Arguments.of("(I)I", false),
                 Arguments.of("(I)Ljava/lang/String;", false),
-                Arguments.of("(I)V", false)
-        );
+                Arguments.of("(I)V", false));
     }
 
     /** Test data for returnsIntType tests. */
@@ -179,8 +173,7 @@ class DescriptorParserTest {
                 Arguments.of("(Ljava/lang/String;)I", true),
                 Arguments.of("(Ljava/lang/String;)J", false),
                 Arguments.of("(I)Ljava/lang/Integer;", false),
-                Arguments.of("(I)V", false)
-        );
+                Arguments.of("(I)V", false));
     }
 
     /** Test data for returnsType tests. */
@@ -189,8 +182,7 @@ class DescriptorParserTest {
                 Arguments.of("(I)Ljava/lang/String;", "java/lang/String", true),
                 Arguments.of("(I)Ljava/lang/String;", "java/lang/Integer", false),
                 Arguments.of("(I)I", "java/lang/Integer", false),
-                Arguments.of("(I)Lio/quarkiverse/qubit/Person;", "io/quarkiverse/qubit/Person", true)
-        );
+                Arguments.of("(I)Lio/quarkiverse/qubit/Person;", "io/quarkiverse/qubit/Person", true));
     }
 
     /** Test data for returnTypeContains tests. */
@@ -199,8 +191,7 @@ class DescriptorParserTest {
                 Arguments.of("(I)Ljava/lang/String;", "String", true),
                 Arguments.of("(I)Ljava/lang/String;", "java/lang", true),
                 Arguments.of("(I)Ljava/lang/String;", "Integer", false),
-                Arguments.of("(I)I", "Integer", false)
-        );
+                Arguments.of("(I)I", "Integer", false));
     }
 
     /** Test data for getEntityClassName tests. */
@@ -210,8 +201,7 @@ class DescriptorParserTest {
                 Arguments.of("(ILjava/lang/Person;)Z", "java.lang.Person"),
                 Arguments.of("()V", "java.lang.Object"),
                 Arguments.of("(Lio/quarkiverse/qubit/model/Person;)Z", "io.quarkiverse.qubit.model.Person"),
-                Arguments.of("(I)V", "int")
-        );
+                Arguments.of("(I)V", "int"));
     }
 
     /** Test data for getParameterTypeName tests. */
@@ -220,8 +210,7 @@ class DescriptorParserTest {
                 Arguments.of("(Ljava/lang/String;I)V", 0, "java.lang.String"),
                 Arguments.of("(Ljava/lang/String;I)V", 1, "int"),
                 Arguments.of("(I)V", 99, "java.lang.Object"),
-                Arguments.of("([I)V", 0, "java.lang.Object")
-        );
+                Arguments.of("([I)V", 0, "java.lang.Object"));
     }
 
     /** Test data for getParameterTypeName all primitives. */
@@ -234,8 +223,7 @@ class DescriptorParserTest {
                 Arguments.of("(ZBCSIJFD)V", 4, "int"),
                 Arguments.of("(ZBCSIJFD)V", 5, "long"),
                 Arguments.of("(ZBCSIJFD)V", 6, "float"),
-                Arguments.of("(ZBCSIJFD)V", 7, "double")
-        );
+                Arguments.of("(ZBCSIJFD)V", 7, "double"));
     }
 
     /** Test data for getEntityClass tests. */
@@ -244,8 +232,7 @@ class DescriptorParserTest {
                 Arguments.of("()V", Object.class),
                 Arguments.of("(Ljava/lang/String;)V", String.class),
                 Arguments.of("(I)V", int.class),
-                Arguments.of("(Lcom/unknown/NonExistent;)V", Object.class)
-        );
+                Arguments.of("(Lcom/unknown/NonExistent;)V", Object.class));
     }
 
     // ==================== PARAMETERIZED TESTS ====================
@@ -527,7 +514,7 @@ class DescriptorParserTest {
         })
         @DisplayName("Iterator returns correct type descriptors for arrays")
         void parameterIterator_withArrays_returnsCorrectTypeDescriptors(String descriptor,
-                                                                        String expectedFirst, String expectedSecond) {
+                String expectedFirst, String expectedSecond) {
             DescriptorParser.ParameterIterator iter = new DescriptorParser.ParameterIterator(descriptor);
             List<String> typeDescriptors = new ArrayList<>();
             while (iter.hasNext()) {

@@ -11,6 +11,7 @@ import jakarta.enterprise.context.ApplicationScoped;
  * variant of Qubit's lambda-based query capabilities.
  * <p>
  * <strong>Example usage:</strong>
+ *
  * <pre>{@code
  * @Inject
  * PersonRepository personRepository;

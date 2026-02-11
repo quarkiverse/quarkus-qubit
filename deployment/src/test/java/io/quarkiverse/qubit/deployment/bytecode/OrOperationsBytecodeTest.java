@@ -1,11 +1,12 @@
 package io.quarkiverse.qubit.deployment.bytecode;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /**
  * Bytecode analysis tests for OR logical operations (||).
@@ -50,7 +51,7 @@ class OrOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
     }
 
     @ParameterizedTest(name = "{0} → OR chain")
-    @ValueSource(strings = {"threeWayOr", "fourWayOr"})
+    @ValueSource(strings = { "threeWayOr", "fourWayOr" })
     void orChain(String lambdaMethodName) {
         LambdaExpression expr = analyzeLambda(lambdaMethodName);
 

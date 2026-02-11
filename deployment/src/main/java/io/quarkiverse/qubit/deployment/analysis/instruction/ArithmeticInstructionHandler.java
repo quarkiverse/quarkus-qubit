@@ -1,16 +1,17 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
+import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.*;
+import static org.objectweb.asm.Opcodes.*;
+
+import java.util.Set;
+
+import org.objectweb.asm.tree.AbstractInsnNode;
+
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
 import io.quarkiverse.qubit.deployment.common.BytecodeValidator;
 import io.quarkiverse.qubit.deployment.common.OpcodeClassifier;
 import io.quarkiverse.qubit.deployment.common.OpcodeNames;
-import org.objectweb.asm.tree.AbstractInsnNode;
-
-import java.util.Set;
-
-import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.*;
-import static org.objectweb.asm.Opcodes.*;
 
 /**
  * Handles arithmetic, logical, and comparison operations.
@@ -29,8 +30,7 @@ public enum ArithmeticInstructionHandler implements InstructionHandler {
             // Logical: AND, OR, XOR
             IAND, IOR, IXOR,
             // Comparison: CMP for long, float, double
-            LCMP, FCMPL, FCMPG, DCMPL, DCMPG
-    );
+            LCMP, FCMPL, FCMPG, DCMPL, DCMPG);
 
     @Override
     public Set<Integer> supportedOpcodes() {

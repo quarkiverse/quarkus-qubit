@@ -1,6 +1,13 @@
 package io.quarkiverse.qubit.deployment.analysis.branch;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
+import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.AND;
+import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.OR;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.Optional;
+import java.util.stream.Stream;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -8,21 +15,17 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.Optional;
-import java.util.stream.Stream;
-
-import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
-import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.AND;
-import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.OR;
-import static org.assertj.core.api.Assertions.assertThat;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /**
  * Unit tests for BranchState sealed interface and state machine transitions.
  *
- * <p>Tests verify the immutable state machine logic for AND/OR combination
+ * <p>
+ * Tests verify the immutable state machine logic for AND/OR combination
  * during branch instruction analysis.
  *
- * <p>Note: This test class uses the package-private {@link BranchStateTestingAPI} interface
+ * <p>
+ * Note: This test class uses the package-private {@link BranchStateTestingAPI} interface
  * to test the state machine logic in isolation.
  */
 @DisplayName("BranchState")
@@ -30,19 +33,13 @@ class BranchStateTest {
 
     // ==================== Test Fixtures ====================
 
-    private static final LambdaExpression.Constant TRUE_CONST =
-            new LambdaExpression.Constant(true, boolean.class);
-    private static final LambdaExpression.Constant FALSE_CONST =
-            new LambdaExpression.Constant(false, boolean.class);
-    private static final LambdaExpression.Constant INT_CONST =
-            new LambdaExpression.Constant(1, int.class);
+    private static final LambdaExpression.Constant TRUE_CONST = new LambdaExpression.Constant(true, boolean.class);
+    private static final LambdaExpression.Constant FALSE_CONST = new LambdaExpression.Constant(false, boolean.class);
+    private static final LambdaExpression.Constant INT_CONST = new LambdaExpression.Constant(1, int.class);
 
-    private static final LambdaExpression.BinaryOp OR_EXPR =
-            LambdaExpression.BinaryOp.or(TRUE_CONST, FALSE_CONST);
-    private static final LambdaExpression.BinaryOp AND_EXPR =
-            LambdaExpression.BinaryOp.and(TRUE_CONST, FALSE_CONST);
-    private static final LambdaExpression.BinaryOp EQ_EXPR =
-            LambdaExpression.BinaryOp.eq(INT_CONST, INT_CONST);
+    private static final LambdaExpression.BinaryOp OR_EXPR = LambdaExpression.BinaryOp.or(TRUE_CONST, FALSE_CONST);
+    private static final LambdaExpression.BinaryOp AND_EXPR = LambdaExpression.BinaryOp.and(TRUE_CONST, FALSE_CONST);
+    private static final LambdaExpression.BinaryOp EQ_EXPR = LambdaExpression.BinaryOp.eq(INT_CONST, INT_CONST);
 
     // ==================== Initial State Tests ====================
 
@@ -82,8 +79,7 @@ class BranchStateTest {
     static Stream<Arguments> initialTransitions() {
         return Stream.of(
                 Arguments.of(true, BranchState.OrMode.class),
-                Arguments.of(false, BranchState.AndMode.class)
-        );
+                Arguments.of(false, BranchState.AndMode.class));
     }
 
     // ==================== AND Mode Tests ====================
@@ -104,7 +100,7 @@ class BranchStateTest {
         @MethodSource("io.quarkiverse.qubit.deployment.analysis.branch.BranchStateTest#andModeTransitions")
         @DisplayName("transitions correctly")
         void transitionsCorrectly(Optional<Boolean> history, boolean jumpTarget,
-                                  Class<? extends BranchState> expectedType) {
+                Class<? extends BranchState> expectedType) {
             BranchState next = new BranchState.AndMode(history, false).transition(jumpTarget, false);
             assertThat(next).isInstanceOf(expectedType);
         }
@@ -145,12 +141,12 @@ class BranchStateTest {
     static Stream<Arguments> andModeDetermineOperator() {
         return Stream.of(
                 // (history, jumpTarget, expectedOperator)
-                Arguments.of(Optional.empty(), false, AND),        // noHistory
-                Arguments.of(Optional.of(false), false, AND),      // bothFalse
-                Arguments.of(Optional.of(false), true, AND),       // previousFalseCurrentTrue
-                Arguments.of(Optional.of(true), true, OR),         // bothTrue
-                Arguments.of(Optional.of(true), false, AND),       // previousTrueCurrentFalse
-                Arguments.of(Optional.empty(), true, AND)          // emptyHistoryCurrentTrue
+                Arguments.of(Optional.empty(), false, AND), // noHistory
+                Arguments.of(Optional.of(false), false, AND), // bothFalse
+                Arguments.of(Optional.of(false), true, AND), // previousFalseCurrentTrue
+                Arguments.of(Optional.of(true), true, OR), // bothTrue
+                Arguments.of(Optional.of(true), false, AND), // previousTrueCurrentFalse
+                Arguments.of(Optional.empty(), true, AND) // emptyHistoryCurrentTrue
         );
     }
 
@@ -158,8 +154,7 @@ class BranchStateTest {
         return Stream.of(
                 Arguments.of(Optional.of(false), true, BranchState.OrMode.class),
                 Arguments.of(Optional.of(false), false, BranchState.AndMode.class),
-                Arguments.of(Optional.of(true), false, BranchState.AndMode.class)
-        );
+                Arguments.of(Optional.of(true), false, BranchState.AndMode.class));
     }
 
     static Stream<Arguments> andModeCompletingWithStack() {
@@ -169,8 +164,7 @@ class BranchStateTest {
                 Arguments.of("AND expression", AND_EXPR, OR),
                 Arguments.of("EQ expression", EQ_EXPR, AND),
                 Arguments.of("constant", TRUE_CONST, AND),
-                Arguments.of("field access", new LambdaExpression.FieldAccess("name", String.class), AND)
-        );
+                Arguments.of("field access", new LambdaExpression.FieldAccess("name", String.class), AND));
     }
 
     static Stream<Arguments> nestedOrExpressions() {
@@ -179,8 +173,7 @@ class BranchStateTest {
                 Arguments.of("left", LambdaExpression.BinaryOp.and(nestedOr, INT_CONST)),
                 Arguments.of("right", LambdaExpression.BinaryOp.and(INT_CONST, nestedOr)),
                 Arguments.of("deep left", LambdaExpression.BinaryOp.and(
-                        LambdaExpression.BinaryOp.and(nestedOr, INT_CONST), INT_CONST))
-        );
+                        LambdaExpression.BinaryOp.and(nestedOr, INT_CONST), INT_CONST)));
     }
 
     // ==================== OR Mode Tests ====================
@@ -201,7 +194,7 @@ class BranchStateTest {
         @MethodSource("io.quarkiverse.qubit.deployment.analysis.branch.BranchStateTest#orModeTransitions")
         @DisplayName("transitions correctly")
         void transitionsCorrectly(Optional<Boolean> history, boolean jumpTarget,
-                                  Class<? extends BranchState> expectedType) {
+                Class<? extends BranchState> expectedType) {
             BranchState next = new BranchState.OrMode(history, false).transition(jumpTarget, false);
             assertThat(next).isInstanceOf(expectedType);
         }
@@ -219,7 +212,7 @@ class BranchStateTest {
         @MethodSource("io.quarkiverse.qubit.deployment.analysis.branch.BranchStateTest#orModeWithStack")
         @DisplayName("determineCombineOperator with stack context")
         void determineCombineOperatorWithStack(boolean jumpTarget, String stackDesc,
-                                               LambdaExpression stackTop, Operator expected) {
+                LambdaExpression stackTop, Operator expected) {
             BranchState.OrMode orMode = new BranchState.OrMode(Optional.of(true), false);
             assertThat(orMode.determineCombineOperator(jumpTarget, stackTop)).isEqualTo(expected);
         }
@@ -234,11 +227,11 @@ class BranchStateTest {
 
     static Stream<Arguments> orModeDetermineOperator() {
         return Stream.of(
-                Arguments.of(Optional.empty(), true, OR),          // noHistory
-                Arguments.of(Optional.of(true), true, OR),         // bothTrue
-                Arguments.of(Optional.of(false), false, OR),       // bothFalse
-                Arguments.of(Optional.of(true), false, OR),        // previousTrueCurrentFalse
-                Arguments.of(Optional.of(false), true, OR)         // previousFalseCurrentTrue
+                Arguments.of(Optional.empty(), true, OR), // noHistory
+                Arguments.of(Optional.of(true), true, OR), // bothTrue
+                Arguments.of(Optional.of(false), false, OR), // bothFalse
+                Arguments.of(Optional.of(true), false, OR), // previousTrueCurrentFalse
+                Arguments.of(Optional.of(false), true, OR) // previousFalseCurrentTrue
         );
     }
 
@@ -246,8 +239,7 @@ class BranchStateTest {
         return Stream.of(
                 Arguments.of(Optional.of(false), false, BranchState.AndMode.class),
                 Arguments.of(Optional.of(true), false, BranchState.OrMode.class),
-                Arguments.of(Optional.of(true), true, BranchState.OrMode.class)
-        );
+                Arguments.of(Optional.of(true), true, BranchState.OrMode.class));
     }
 
     static Stream<Arguments> orModeWithStack() {
@@ -256,8 +248,7 @@ class BranchStateTest {
                 Arguments.of(true, "AND expression", AND_EXPR, OR),
                 Arguments.of(true, "null", null, OR),
                 Arguments.of(true, "constant", TRUE_CONST, OR),
-                Arguments.of(false, "OR expression", OR_EXPR, OR)
-        );
+                Arguments.of(false, "OR expression", OR_EXPR, OR));
     }
 
     // ==================== getLastJumpTarget Tests ====================
@@ -282,8 +273,7 @@ class BranchStateTest {
                 Arguments.of("AndMode(false)", new BranchState.AndMode(Optional.of(false), false), Optional.of(false)),
                 Arguments.of("OrMode(empty)", new BranchState.OrMode(Optional.empty(), false), Optional.empty()),
                 Arguments.of("OrMode(true)", new BranchState.OrMode(Optional.of(true), false), Optional.of(true)),
-                Arguments.of("OrMode(false)", new BranchState.OrMode(Optional.of(false), false), Optional.of(false))
-        );
+                Arguments.of("OrMode(false)", new BranchState.OrMode(Optional.of(false), false), Optional.of(false)));
     }
 
     // ==================== afterCombination Tests ====================
@@ -296,7 +286,7 @@ class BranchStateTest {
         @MethodSource("io.quarkiverse.qubit.deployment.analysis.branch.BranchStateTest#andModeAfterCombinationCases")
         @DisplayName("transitions correctly")
         void transitionsCorrectly(boolean currentJump, Optional<Boolean> prevJump,
-                                  Operator usedOp, boolean shouldTransition) {
+                Operator usedOp, boolean shouldTransition) {
             BranchState.AndMode andMode = new BranchState.AndMode(Optional.of(false), false);
             BranchState result = andMode.afterCombination(currentJump, prevJump, usedOp);
 
@@ -318,11 +308,11 @@ class BranchStateTest {
     static Stream<Arguments> andModeAfterCombinationCases() {
         return Stream.of(
                 // (currentJump, prevJump, usedOp, shouldTransition)
-                Arguments.of(true, Optional.of(false), AND, true),    // completing AND group
-                Arguments.of(false, Optional.of(false), AND, false),  // not completing
-                Arguments.of(true, Optional.of(true), AND, false),    // prev was true
-                Arguments.of(true, Optional.empty(), AND, false),     // no prev
-                Arguments.of(true, Optional.of(false), OR, false)     // used OR, not AND
+                Arguments.of(true, Optional.of(false), AND, true), // completing AND group
+                Arguments.of(false, Optional.of(false), AND, false), // not completing
+                Arguments.of(true, Optional.of(true), AND, false), // prev was true
+                Arguments.of(true, Optional.empty(), AND, false), // no prev
+                Arguments.of(true, Optional.of(false), OR, false) // used OR, not AND
         );
     }
 

@@ -1,17 +1,14 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityFieldAccess;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityParameter;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityPathExpression;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.CorrelatedVariable;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.FieldAccess;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupParameter;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.Parameter;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathExpression;
-import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
+import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
+import static io.quarkiverse.qubit.deployment.testutil.fixtures.AnalysisContextFixtures.contextFor;
+import static io.quarkiverse.qubit.deployment.testutil.fixtures.AsmFixtures.testMethod;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.objectweb.asm.Opcodes.*;
+
+import java.util.stream.Stream;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -24,19 +21,24 @@ import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
-import java.util.stream.Stream;
-
-import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
-import static io.quarkiverse.qubit.deployment.testutil.fixtures.AsmFixtures.testMethod;
-import static io.quarkiverse.qubit.deployment.testutil.fixtures.AnalysisContextFixtures.contextFor;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.objectweb.asm.Opcodes.*;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityFieldAccess;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityParameter;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityPathExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.CorrelatedVariable;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.FieldAccess;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupParameter;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.Parameter;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathExpression;
+import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
 
 /**
  * Unit tests for {@link LoadInstructionHandler}.
  *
- * <p>Tests load instructions: ALOAD, primitives (ILOAD, LLOAD, FLOAD, DLOAD), and GETFIELD.
+ * <p>
+ * Tests load instructions: ALOAD, primitives (ILOAD, LLOAD, FLOAD, DLOAD), and GETFIELD.
  * Covers single-entity, bi-entity (join), and group context modes.
  */
 class LoadInstructionHandlerTest {
@@ -234,10 +236,8 @@ class LoadInstructionHandlerTest {
             var existingPath = new PathExpression(
                     java.util.List.of(
                             new LambdaExpression.PathSegment("owner", Object.class, LambdaExpression.RelationType.FIELD),
-                            new LambdaExpression.PathSegment("department", Object.class, LambdaExpression.RelationType.FIELD)
-                    ),
-                    Object.class
-            );
+                            new LambdaExpression.PathSegment("department", Object.class, LambdaExpression.RelationType.FIELD)),
+                    Object.class);
             context.push(existingPath);
 
             var insn = new FieldInsnNode(GETFIELD, "com/example/Department", "name", "Ljava/lang/String;");
@@ -285,11 +285,9 @@ class LoadInstructionHandlerTest {
         void getfield_extendingBiEntityPath_addsSegment() {
             var existingPath = new BiEntityPathExpression(
                     java.util.List.of(
-                            new LambdaExpression.PathSegment("owner", Object.class, LambdaExpression.RelationType.FIELD)
-                    ),
+                            new LambdaExpression.PathSegment("owner", Object.class, LambdaExpression.RelationType.FIELD)),
                     Object.class,
-                    EntityPosition.FIRST
-            );
+                    EntityPosition.FIRST);
             context.push(existingPath);
 
             var insn = new FieldInsnNode(GETFIELD, "com/example/Person", "name", "Ljava/lang/String;");
@@ -335,10 +333,8 @@ class LoadInstructionHandlerTest {
         void getfield_fromCorrelatedWithPath_extendsExistingPath() {
             var existingPath = new PathExpression(
                     java.util.List.of(
-                            new LambdaExpression.PathSegment("owner", Object.class, LambdaExpression.RelationType.FIELD)
-                    ),
-                    Object.class
-            );
+                            new LambdaExpression.PathSegment("owner", Object.class, LambdaExpression.RelationType.FIELD)),
+                    Object.class);
             context.push(new CorrelatedVariable(existingPath, 0, Object.class));
 
             var insn = new FieldInsnNode(GETFIELD, "com/example/Person", "name", "Ljava/lang/String;");
@@ -431,16 +427,14 @@ class LoadInstructionHandlerTest {
                 Arguments.of("ILOAD", ILOAD),
                 Arguments.of("LLOAD", LLOAD),
                 Arguments.of("FLOAD", FLOAD),
-                Arguments.of("DLOAD", DLOAD)
-        );
+                Arguments.of("DLOAD", DLOAD));
     }
 
     /** Opcodes that the handler cannot handle. */
     static Stream<Arguments> unhandledOpcodes() {
         return Stream.of(
                 Arguments.of("ASTORE", ASTORE),
-                Arguments.of("ISTORE", ISTORE)
-        );
+                Arguments.of("ISTORE", ISTORE));
     }
 
     /** Primitive load test cases: name, opcode, descriptor suffix, expected type. */
@@ -449,7 +443,6 @@ class LoadInstructionHandlerTest {
                 Arguments.of("ILOAD", ILOAD, "I", int.class),
                 Arguments.of("LLOAD", LLOAD, "J", long.class),
                 Arguments.of("FLOAD", FLOAD, "F", float.class),
-                Arguments.of("DLOAD", DLOAD, "D", double.class)
-        );
+                Arguments.of("DLOAD", DLOAD, "D", double.class));
     }
 }

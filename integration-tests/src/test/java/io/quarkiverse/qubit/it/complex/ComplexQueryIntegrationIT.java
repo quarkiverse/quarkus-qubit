@@ -23,18 +23,18 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>
  * This test class covers end-to-end tests for:
  * <ul>
- *   <li>Complex nested subqueries (EXISTS, NOT EXISTS, IN, NOT IN)</li>
- *   <li>Multi-level relationship navigation</li>
- *   <li>Combined group/having/select operations</li>
- *   <li>Multiple subqueries in same predicate</li>
- *   <li>Full query pipeline: pre-filter + group + having + sort + pagination</li>
+ * <li>Complex nested subqueries (EXISTS, NOT EXISTS, IN, NOT IN)</li>
+ * <li>Multi-level relationship navigation</li>
+ * <li>Combined group/having/select operations</li>
+ * <li>Multiple subqueries in same predicate</li>
+ * <li>Full query pipeline: pre-filter + group + having + sort + pagination</li>
  * </ul>
  * <p>
  * Test data (via createPersonsWithPhones):
  * <ul>
- *   <li>Engineering (budget 500000): John (salary 75000, 2 phones), Alice (salary 90000, 2 phones)</li>
- *   <li>Sales (budget 300000): Jane (salary 65000, 1 phone), Charlie (salary 55000, 1 phone)</li>
- *   <li>Human Resources (budget 150000): Bob (salary 85000, inactive, 3 phones)</li>
+ * <li>Engineering (budget 500000): John (salary 75000, 2 phones), Alice (salary 90000, 2 phones)</li>
+ * <li>Sales (budget 300000): Jane (salary 65000, 1 phone), Charlie (salary 55000, 1 phone)</li>
+ * <li>Human Resources (budget 150000): Bob (salary 85000, inactive, 3 phones)</li>
  * </ul>
  */
 @QuarkusTest
@@ -61,9 +61,8 @@ class ComplexQueryIntegrationIT {
             // John, Bob, and Alice have work phones
             List<Person> personsWithWorkPhone = Person.where(
                     (Person p) -> subquery(Phone.class).exists(
-                            ph -> ph.owner.id.equals(p.id) && ph.type.equals("work")
-                    )
-            ).toList();
+                            ph -> ph.owner.id.equals(p.id) && ph.type.equals("work")))
+                    .toList();
 
             assertThat(personsWithWorkPhone)
                     .hasSize(3)
@@ -77,9 +76,8 @@ class ComplexQueryIntegrationIT {
             // Only Bob has a home phone
             List<Person> personsWithHomePhone = Person.where(
                     (Person p) -> subquery(Phone.class).exists(
-                            ph -> ph.owner.id.equals(p.id) && ph.type.equals("home")
-                    )
-            ).toList();
+                            ph -> ph.owner.id.equals(p.id) && ph.type.equals("home")))
+                    .toList();
 
             assertThat(personsWithHomePhone)
                     .hasSize(1)
@@ -94,9 +92,8 @@ class ComplexQueryIntegrationIT {
             // Bob is inactive
             List<Person> activeWithPhones = Person.where(
                     (Person p) -> p.active && subquery(Phone.class).exists(
-                            ph -> ph.owner.id.equals(p.id)
-                    )
-            ).toList();
+                            ph -> ph.owner.id.equals(p.id)))
+                    .toList();
 
             assertThat(activeWithPhones)
                     .hasSize(4)
@@ -115,9 +112,8 @@ class ComplexQueryIntegrationIT {
             // Jane and Charlie don't have work phones
             List<Person> personsWithoutWorkPhone = Person.where(
                     (Person p) -> subquery(Phone.class).notExists(
-                            ph -> ph.owner.id.equals(p.id) && ph.type.equals("work")
-                    )
-            ).toList();
+                            ph -> ph.owner.id.equals(p.id) && ph.type.equals("work")))
+                    .toList();
 
             assertThat(personsWithoutWorkPhone)
                     .hasSize(2)
@@ -131,9 +127,8 @@ class ComplexQueryIntegrationIT {
             // Everyone except Bob doesn't have a home phone
             List<Person> personsWithoutHomePhone = Person.where(
                     (Person p) -> subquery(Phone.class).notExists(
-                            ph -> ph.owner.id.equals(p.id) && ph.type.equals("home")
-                    )
-            ).toList();
+                            ph -> ph.owner.id.equals(p.id) && ph.type.equals("home")))
+                    .toList();
 
             assertThat(personsWithoutHomePhone)
                     .hasSize(4)
@@ -159,9 +154,8 @@ class ComplexQueryIntegrationIT {
                     (Person p) -> subquery(Department.class).in(
                             p.department.id,
                             d -> d.id,
-                            d -> d.budget > 200000
-                    )
-            ).toList();
+                            d -> d.budget > 200000))
+                    .toList();
 
             assertThat(personsInRichDepts)
                     .hasSize(4)
@@ -178,9 +172,8 @@ class ComplexQueryIntegrationIT {
                     (Person p) -> subquery(Department.class).in(
                             p.department.id,
                             d -> d.id,
-                            d -> d.budget > 400000
-                    )
-            ).toList();
+                            d -> d.budget > 400000))
+                    .toList();
 
             assertThat(personsInRichDepts)
                     .hasSize(2)
@@ -202,9 +195,8 @@ class ComplexQueryIntegrationIT {
                     (Person p) -> subquery(Department.class).notIn(
                             p.department.id,
                             d -> d.id,
-                            d -> d.budget > 200000
-                    )
-            ).toList();
+                            d -> d.budget > 200000))
+                    .toList();
 
             assertThat(personsNotInRichDepts)
                     .hasSize(1)
@@ -229,8 +221,8 @@ class ComplexQueryIntegrationIT {
             // Above 74000 but below 90000: John (75000), Bob (85000)
             List<Person> betweenAvgAndMax = Person.where(
                     (Person p) -> p.salary > subquery(Person.class).avg(q -> q.salary)
-                            && p.salary < subquery(Person.class).max(q -> q.salary)
-            ).toList();
+                            && p.salary < subquery(Person.class).max(q -> q.salary))
+                    .toList();
 
             assertThat(betweenAvgAndMax)
                     .hasSize(2)
@@ -246,9 +238,8 @@ class ComplexQueryIntegrationIT {
             List<Person> aboveMinWithWorkPhone = Person.where(
                     (Person p) -> p.salary > subquery(Person.class).min(q -> q.salary)
                             && subquery(Phone.class).exists(
-                            ph -> ph.owner.id.equals(p.id) && ph.type.equals("work")
-                    )
-            ).toList();
+                                    ph -> ph.owner.id.equals(p.id) && ph.type.equals("work")))
+                    .toList();
 
             assertThat(aboveMinWithWorkPhone)
                     .hasSize(3)
@@ -265,9 +256,9 @@ class ComplexQueryIntegrationIT {
             List<Person> activeAboveActiveAvg = Person.where(
                     (Person p) -> p.active
                             && p.salary > subquery(Person.class)
-                            .where(q -> q.active)
-                            .avg(q -> q.salary)
-            ).toList();
+                                    .where(q -> q.active)
+                                    .avg(q -> q.salary))
+                    .toList();
 
             assertThat(activeAboveActiveAvg)
                     .hasSize(2)
@@ -289,8 +280,7 @@ class ComplexQueryIntegrationIT {
         void findPhonesInEngineeringDepartment() {
             // Phone -> owner (Person) -> department (Department) -> name
             List<Phone> engineeringPhones = Phone.where(
-                    (Phone ph) -> ph.owner.department.name.equals("Engineering")
-            ).toList();
+                    (Phone ph) -> ph.owner.department.name.equals("Engineering")).toList();
 
             // John has 2 phones, Alice has 2 phones = 4 phones total in Engineering
             assertThat(engineeringPhones).hasSize(4);
@@ -304,8 +294,8 @@ class ComplexQueryIntegrationIT {
             // Sales (300000): no work phones for Jane or Charlie
             List<Phone> workPhonesHighBudget = Phone.where(
                     (Phone ph) -> ph.type.equals("work")
-                            && ph.owner.department.budget > 200000
-            ).toList();
+                            && ph.owner.department.budget > 200000)
+                    .toList();
 
             // John's work phone + Alice's work phone + Bob's work phone (HR budget is 150000, so excluded)
             // Wait, HR budget is 150000 which is < 200000, so Bob's work phone is excluded
@@ -320,8 +310,7 @@ class ComplexQueryIntegrationIT {
             // Active persons older than 30: Alice (35)
             // John is 30 (not > 30), Bob is 45 but inactive
             List<Phone> phones = Phone.where(
-                    (Phone ph) -> ph.owner.active && ph.owner.age > 30
-            ).toList();
+                    (Phone ph) -> ph.owner.active && ph.owner.age > 30).toList();
 
             // Alice has 2 phones
             assertThat(phones).hasSize(2);
@@ -390,7 +379,7 @@ class ComplexQueryIntegrationIT {
         void complexSelectWithMultipleAggregations() {
             // Select department name, count, avg, min, and max salary
             List<Object[]> stats = Person.groupBy((Person p) -> p.department.name)
-                    .select((Group<Person, String> g) -> new Object[]{
+                    .select((Group<Person, String> g) -> new Object[] {
                             g.key(),
                             g.count(),
                             g.avg((Person p) -> p.salary),
@@ -424,8 +413,7 @@ class ComplexQueryIntegrationIT {
                     .select((Group<Person, String> g) -> new DepartmentStatsDTO(
                             g.key(),
                             g.count(),
-                            g.avg((Person p) -> p.salary)
-                    ))
+                            g.avg((Person p) -> p.salary)))
                     .limit(2)
                     .toList();
 
@@ -478,8 +466,7 @@ class ComplexQueryIntegrationIT {
             // Average: 74000
             // Above average: John (75000), Bob (85000), Alice (90000)
             var phones = Person.join((Person p) -> p.phones)
-                    .where((Person p, Phone ph) ->
-                            p.salary > subquery(Person.class).avg(q -> q.salary))
+                    .where((Person p, Phone ph) -> p.salary > subquery(Person.class).avg(q -> q.salary))
                     .selectJoined()
                     .toList();
 
@@ -492,11 +479,9 @@ class ComplexQueryIntegrationIT {
         void joinWithExistsSubquery() {
             // Find mobile phones of persons who also have work phones
             var mobileOfPersonsWithWork = Person.join((Person p) -> p.phones)
-                    .where((Person p, Phone ph) ->
-                            ph.type.equals("mobile") &&
-                                    subquery(Phone.class).exists(
-                                            ph2 -> ph2.owner.id.equals(p.id) && ph2.type.equals("work")
-                                    ))
+                    .where((Person p, Phone ph) -> ph.type.equals("mobile") &&
+                            subquery(Phone.class).exists(
+                                    ph2 -> ph2.owner.id.equals(p.id) && ph2.type.equals("work")))
                     .selectJoined()
                     .toList();
 
@@ -522,8 +507,8 @@ class ComplexQueryIntegrationIT {
             List<Person> result = Person.where(
                     (Person p) -> p.salary > subquery(Person.class)
                             .where(q -> !q.active && q.salary > 100000)
-                            .avg(q -> q.salary)
-            ).toList();
+                            .avg(q -> q.salary))
+                    .toList();
 
             // When subquery returns null (no matching rows), comparison returns false for all
             assertThat(result).isEmpty();
@@ -545,12 +530,10 @@ class ComplexQueryIntegrationIT {
         void chainedWhereWithSubqueries() {
             // Multiple where() calls combined
             List<Person> result = Person.where(
-                            (Person p) -> p.salary > subquery(Person.class).min(q -> q.salary)
-                    ).where(
-                            (Person p) -> p.salary < subquery(Person.class).max(q -> q.salary)
-                    ).where(
-                            (Person p) -> p.active
-                    )
+                    (Person p) -> p.salary > subquery(Person.class).min(q -> q.salary)).where(
+                            (Person p) -> p.salary < subquery(Person.class).max(q -> q.salary))
+                    .where(
+                            (Person p) -> p.active)
                     .toList();
 
             // Active persons between min (55000) and max (90000): John (75000), Jane (65000)

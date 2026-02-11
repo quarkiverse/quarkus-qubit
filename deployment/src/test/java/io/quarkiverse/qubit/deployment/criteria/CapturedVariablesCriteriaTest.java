@@ -1,26 +1,32 @@
 package io.quarkiverse.qubit.deployment.criteria;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+
 /**
  * Criteria query generation tests for lambda expressions with captured variables.
  *
- * <p>Captured variables are variables from the enclosing scope that are used
+ * <p>
+ * Captured variables are variables from the enclosing scope that are used
  * inside a lambda expression. These tests verify that captured variables are
  * correctly translated to JPA Criteria API parameters.
  *
- * <p>Example:
+ * <p>
+ * Example:
+ *
  * <pre>{@code
  * String searchName = "John";
  * List<Person> results = Person.where(p -> p.firstName.equals(searchName)).toList();
  * }</pre>
  *
- * <p>In the generated Criteria query, {@code searchName} should become a parameter.
+ * <p>
+ * In the generated Criteria query, {@code searchName} should become a parameter.
  *
- * <p>This class uses JUnit 5 parameterized tests to consolidate repetitive
+ * <p>
+ * This class uses JUnit 5 parameterized tests to consolidate repetitive
  * test patterns, reducing code duplication while maintaining full coverage.
  */
 class CapturedVariablesCriteriaTest extends CriteriaQueryTestBase {

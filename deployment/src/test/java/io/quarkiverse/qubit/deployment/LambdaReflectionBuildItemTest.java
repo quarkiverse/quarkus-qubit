@@ -73,7 +73,7 @@ class LambdaReflectionBuildItemTest {
 
             assertThat(result).isEqualTo(
                     "LambdaReflectionBuildItem{com.example.MyClass.findUsers, " +
-                    "interface=io.quarkiverse.qubit.QuerySpec, capturedVars=2}");
+                            "interface=io.quarkiverse.qubit.QuerySpec, capturedVars=2}");
         }
     }
 }

@@ -14,10 +14,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Abstract base class for String operation tests.
  *
- * <p>Contains all test methods that can be run with either static entity methods
+ * <p>
+ * Contains all test methods that can be run with either static entity methods
  * or repository instance methods. Subclasses provide the appropriate query operations.
  *
- * <p>This eliminates duplication between StringOperationsTest and RepositoryStringOperationsTest.
+ * <p>
+ * This eliminates duplication between StringOperationsTest and RepositoryStringOperationsTest.
  */
 public abstract class AbstractStringOperationsTest {
 
@@ -131,9 +133,7 @@ public abstract class AbstractStringOperationsTest {
 
     @Test
     void stringMethodChaining() {
-        var results = personOps().where((Person p) ->
-                p.email.toLowerCase().contains("example")
-        ).toList();
+        var results = personOps().where((Person p) -> p.email.toLowerCase().contains("example")).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -142,15 +142,14 @@ public abstract class AbstractStringOperationsTest {
 
     @Test
     void stringComplexConditions() {
-        var results = personOps().where((Person p) ->
-                p.email != null && p.email.contains("@") && p.email.endsWith(".com")
-        ).toList();
+        var results = personOps().where((Person p) -> p.email != null && p.email.contains("@") && p.email.endsWith(".com"))
+                .toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
                 .allMatch(p -> p.getEmail() != null &&
-                              p.getEmail().contains("@") &&
-                              p.getEmail().endsWith(".com"));
+                        p.getEmail().contains("@") &&
+                        p.getEmail().endsWith(".com"));
     }
 
     @Test

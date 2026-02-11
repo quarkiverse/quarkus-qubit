@@ -6,10 +6,10 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NO
 
 import org.jspecify.annotations.Nullable;
 
-import io.quarkus.gizmo2.Expr;
-import io.quarkus.gizmo2.creator.BlockCreator;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.creator.BlockCreator;
 
 /**
  * Shared expression generation methods for BiEntityExpressionBuilder and GroupExpressionBuilder.
@@ -48,14 +48,16 @@ public interface ExpressionGeneratorHelper {
     Expr generateStringConcatenation(BlockCreator bc, Expr cb, Expr left, Expr right);
 
     /** Generates JPA Expression from lambda expression. Returns null if expression is null. */
-    @Nullable Expr generateExpressionAsJpaExpression(BlockCreator bc, @Nullable LambdaExpression expression,
+    @Nullable
+    Expr generateExpressionAsJpaExpression(BlockCreator bc, @Nullable LambdaExpression expression,
             Expr cb, Expr root, Expr capturedValues);
 
     /**
      * Generates bytecode for lambda expression, returning raw values or JPA expressions.
      * Returns null if expression is null.
      */
-    @Nullable Expr generateExpression(BlockCreator bc, @Nullable LambdaExpression expression,
+    @Nullable
+    Expr generateExpression(BlockCreator bc, @Nullable LambdaExpression expression,
             Expr cb, Expr root, Expr capturedValues);
 
     // ========== Captured Variable Utilities ==========

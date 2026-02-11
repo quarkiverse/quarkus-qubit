@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public abstract class AbstractEqualityTest {
 
     protected abstract PersonQueryOperations personOps();
+
     protected abstract ProductQueryOperations productOps();
 
     @BeforeEach

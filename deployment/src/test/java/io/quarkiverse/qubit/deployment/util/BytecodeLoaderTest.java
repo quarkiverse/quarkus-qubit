@@ -1,10 +1,15 @@
 package io.quarkiverse.qubit.deployment.util;
 
-import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
-import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
-import io.quarkus.deployment.ApplicationArchive;
-import io.quarkus.deployment.builditem.ApplicationArchivesBuildItem;
-import io.quarkus.paths.PathList;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Set;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -14,20 +19,17 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Set;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
+import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
+import io.quarkus.deployment.ApplicationArchive;
+import io.quarkus.deployment.builditem.ApplicationArchivesBuildItem;
+import io.quarkus.paths.PathList;
 
 /**
  * Tests for {@link BytecodeLoader}.
  *
- * <p>Tests bytecode loading from classloader fallback path.
+ * <p>
+ * Tests bytecode loading from classloader fallback path.
  */
 class BytecodeLoaderTest {
 
@@ -162,7 +164,7 @@ class BytecodeLoaderTest {
 
             byte[] customContent = new byte[] {
                     (byte) 0xCA, (byte) 0xFE, (byte) 0xBA, (byte) 0xBE,
-                    0x11, 0x22, 0x33, 0x44  // custom bytes to identify
+                    0x11, 0x22, 0x33, 0x44 // custom bytes to identify
             };
             Files.write(classFile, customContent);
 

@@ -1,5 +1,10 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
+import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.objectweb.asm.Opcodes.*;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -8,11 +13,6 @@ import org.objectweb.asm.Handle;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InvokeDynamicInsnNode;
 import org.objectweb.asm.tree.MethodNode;
-
-import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.objectweb.asm.Opcodes.*;
 
 /**
  * Error path tests for {@link InvokeDynamicHandler}.

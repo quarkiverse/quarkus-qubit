@@ -12,7 +12,7 @@ import jdk.jfr.Name;
  */
 @Name("io.quarkiverse.qubit.ClassScan")
 @Label("Qubit Class Scan")
-@Category({"Qubit", "Build", "Scanning"})
+@Category({ "Qubit", "Build", "Scanning" })
 @Description("Individual class scanning event during lambda discovery phase")
 public class QubitScanEvent extends Event {
 

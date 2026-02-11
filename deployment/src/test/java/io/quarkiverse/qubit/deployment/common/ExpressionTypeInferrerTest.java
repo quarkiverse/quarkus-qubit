@@ -1,24 +1,26 @@
 package io.quarkiverse.qubit.deployment.common;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.*;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.LocalDate;
 import java.util.List;
 
-import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.*;
 
 /**
  * Tests for {@link ExpressionTypeInferrer}.
  *
- * <p>Tests type inference utilities for lambda expressions.
+ * <p>
+ * Tests type inference utilities for lambda expressions.
  */
 class ExpressionTypeInferrerTest {
 
@@ -662,7 +664,7 @@ class ExpressionTypeInferrerTest {
         }
 
         @ParameterizedTest
-        @ValueSource(strings = {"getId", "getCount", "getTotal", "getValue"})
+        @ValueSource(strings = { "getId", "getCount", "getTotal", "getValue" })
         void extractFieldName_withVariousGetters_extractsCorrectly(String methodName) {
             String expectedField = Character.toLowerCase(methodName.charAt(3)) +
                     methodName.substring(4);
@@ -673,7 +675,7 @@ class ExpressionTypeInferrerTest {
         }
 
         @ParameterizedTest
-        @ValueSource(strings = {"isEnabled", "isValid", "isOpen", "isClosed"})
+        @ValueSource(strings = { "isEnabled", "isValid", "isOpen", "isClosed" })
         void extractFieldName_withVariousIsPrefixes_extractsCorrectly(String methodName) {
             String expectedField = Character.toLowerCase(methodName.charAt(2)) +
                     methodName.substring(3);

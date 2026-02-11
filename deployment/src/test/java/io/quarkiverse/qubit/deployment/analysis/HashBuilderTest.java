@@ -1,14 +1,15 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
-import io.quarkiverse.qubit.SortDirection;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+
+import io.quarkiverse.qubit.SortDirection;
+import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /**
  * Unit tests for {@link HashBuilder}.

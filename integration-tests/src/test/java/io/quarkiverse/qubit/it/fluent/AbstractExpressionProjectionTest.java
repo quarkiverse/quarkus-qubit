@@ -15,10 +15,12 @@ import static org.assertj.core.api.Assertions.within;
 /**
  * Abstract base class for expression projection tests.
  *
- * <p>Validates projection of computed expressions including arithmetic operations
+ * <p>
+ * Validates projection of computed expressions including arithmetic operations
  * and string concatenation.
  *
- * <p>Examples:
+ * <p>
+ * Examples:
  * <ul>
  * <li>Arithmetic: {@code Person.select(p -> p.salary * 1.1).toList()}</li>
  * <li>String concat: {@code Person.select(p -> p.firstName + " " + p.lastName).toList()}</li>
@@ -28,6 +30,7 @@ import static org.assertj.core.api.Assertions.within;
 public abstract class AbstractExpressionProjectionTest {
 
     protected abstract PersonQueryOperations personOps();
+
     protected abstract ProductQueryOperations productOps();
 
     @BeforeEach
@@ -112,8 +115,7 @@ public abstract class AbstractExpressionProjectionTest {
                         s -> assertThat(s).isCloseTo(71500.0, within(0.01)),
                         s -> assertThat(s).isCloseTo(93500.0, within(0.01)),
                         s -> assertThat(s).isCloseTo(99000.0, within(0.01)),
-                        s -> assertThat(s).isCloseTo(60500.0, within(0.01))
-                );
+                        s -> assertThat(s).isCloseTo(60500.0, within(0.01)));
     }
 
     @Test
@@ -201,9 +203,7 @@ public abstract class AbstractExpressionProjectionTest {
 
     @Test
     void selectStringConcat_multipleStrings() {
-        var formattedNames = personOps().select((Person p) ->
-                p.lastName + ", " + p.firstName + " (" + p.email + ")"
-        ).toList();
+        var formattedNames = personOps().select((Person p) -> p.lastName + ", " + p.firstName + " (" + p.email + ")").toList();
 
         assertThat(formattedNames)
                 .hasSize(5)
@@ -220,8 +220,8 @@ public abstract class AbstractExpressionProjectionTest {
     @Test
     void whereActive_selectSalaryRaise() {
         var raisedSalaries = personOps().where((Person p) -> p.active)
-                                   .select((Person p) -> p.salary * 1.15)
-                                   .toList();
+                .select((Person p) -> p.salary * 1.15)
+                .toList();
 
         // Active persons: John($75K), Jane($65K), Alice($90K), Charlie($55K)
         // Expected (15% raise): $86250, $74750, $103500, $63250
@@ -232,15 +232,14 @@ public abstract class AbstractExpressionProjectionTest {
                         s -> assertThat(s).isCloseTo(86250.0, within(0.01)),
                         s -> assertThat(s).isCloseTo(74750.0, within(0.01)),
                         s -> assertThat(s).isCloseTo(103500.0, within(0.01)),
-                        s -> assertThat(s).isCloseTo(63250.0, within(0.01))
-                );
+                        s -> assertThat(s).isCloseTo(63250.0, within(0.01)));
     }
 
     @Test
     void whereAgeLessThan30_selectFullName() {
         var youngPeopleNames = personOps().where((Person p) -> p.age < 30)
-                                     .select((Person p) -> p.firstName + " " + p.lastName)
-                                     .toList();
+                .select((Person p) -> p.firstName + " " + p.lastName)
+                .toList();
 
         // age < 30 → Jane(25), Charlie(28)
         assertThat(youngPeopleNames)
@@ -251,8 +250,8 @@ public abstract class AbstractExpressionProjectionTest {
     @Test
     void whereSalaryGreaterThan70K_selectAgeDoubled() {
         var highEarnersAges = personOps().where((Person p) -> p.salary > 70000.0)
-                                    .select((Person p) -> p.age * 2)
-                                    .toList();
+                .select((Person p) -> p.age * 2)
+                .toList();
 
         // salary > $70K → John(30), Bob(45), Alice(35)
         // Expected ages doubled: 60, 90, 70
@@ -264,8 +263,8 @@ public abstract class AbstractExpressionProjectionTest {
     @Test
     void whereInactive_selectFullNameWithStatus() {
         var inactivePeople = personOps().where((Person p) -> !p.active)
-                                   .select((Person p) -> p.firstName + " " + p.lastName + " (INACTIVE)")
-                                   .toList();
+                .select((Person p) -> p.firstName + " " + p.lastName + " (INACTIVE)")
+                .toList();
 
         // inactive → Bob
         assertThat(inactivePeople)
@@ -315,8 +314,8 @@ public abstract class AbstractExpressionProjectionTest {
     @Test
     void productWhereAvailable_selectDiscountedStock() {
         var discountedStock = productOps().where((Product p) -> p.available)
-                                     .select((Product p) -> p.stockQuantity - 5)
-                                     .toList();
+                .select((Product p) -> p.stockQuantity - 5)
+                .toList();
 
         // Available products: Laptop(50), Smartphone(100), Desk Chair(25), Monitor(30)
         // Expected stock after 5-unit reduction: 45, 95, 20, 25
@@ -327,9 +326,7 @@ public abstract class AbstractExpressionProjectionTest {
 
     @Test
     void productSelect_nameWithCategory() {
-        var productDescriptions = productOps().select((Product p) ->
-                p.name + " [" + p.category + "]"
-        ).toList();
+        var productDescriptions = productOps().select((Product p) -> p.name + " [" + p.category + "]").toList();
 
         assertThat(productDescriptions)
                 .hasSize(5)
@@ -346,8 +343,8 @@ public abstract class AbstractExpressionProjectionTest {
     @Test
     void whereNoMatches_selectExpression_returnsEmptyList() {
         var results = personOps().where((Person p) -> p.age > 100)
-                            .select((Person p) -> p.age * 2)
-                            .toList();
+                .select((Person p) -> p.age * 2)
+                .toList();
 
         assertThat(results).isEmpty();
     }

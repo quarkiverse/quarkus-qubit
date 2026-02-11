@@ -18,15 +18,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Property-based integration tests for sorting operations.
  *
- * <p>This class uses parameterized tests to verify ordering invariants
+ * <p>
+ * This class uses parameterized tests to verify ordering invariants
  * that must hold for various sort configurations.
  *
- * <p><strong>Properties Tested:</strong>
+ * <p>
+ * <strong>Properties Tested:</strong>
  * <ul>
- *   <li><strong>Total ordering</strong>: Every adjacent pair is ordered correctly</li>
- *   <li><strong>Completeness</strong>: Sort contains all original elements</li>
- *   <li><strong>Idempotence</strong>: Sorting twice produces same result as sorting once</li>
- *   <li><strong>Reversal</strong>: Descending order is exact reverse of ascending</li>
+ * <li><strong>Total ordering</strong>: Every adjacent pair is ordered correctly</li>
+ * <li><strong>Completeness</strong>: Sort contains all original elements</li>
+ * <li><strong>Idempotence</strong>: Sorting twice produces same result as sorting once</li>
+ * <li><strong>Reversal</strong>: Descending order is exact reverse of ascending</li>
  * </ul>
  *
  * @see io.quarkiverse.qubit.it.fluent.SortingTest
@@ -212,7 +214,7 @@ class SortingPropertyIT {
     // ======================================================================
 
     @ParameterizedTest(name = "skip({0}) maintains sort ordering")
-    @ValueSource(ints = {0, 1, 2, 3, 4})
+    @ValueSource(ints = { 0, 1, 2, 3, 4 })
     @Transactional
     void sortWithSkipMaintainsOrdering(int skipAmount) {
         List<Person> sorted = Person.sortedBy((Person p) -> p.age)
@@ -227,7 +229,7 @@ class SortingPropertyIT {
     }
 
     @ParameterizedTest(name = "limit({0}) maintains sort ordering")
-    @ValueSource(ints = {1, 2, 3, 4, 5, 6})
+    @ValueSource(ints = { 1, 2, 3, 4, 5, 6 })
     @Transactional
     void sortWithLimitMaintainsOrdering(int limitAmount) {
         List<Person> sorted = Person.sortedBy((Person p) -> p.age)
@@ -244,7 +246,7 @@ class SortingPropertyIT {
     @Test
     @Transactional
     void sortWithSkipLimitMaintainsOrdering() {
-        int[][] testCases = {{0, 3}, {1, 2}, {2, 3}, {0, 4}};
+        int[][] testCases = { { 0, 3 }, { 1, 2 }, { 2, 3 }, { 0, 4 } };
 
         for (int[] testCase : testCases) {
             int skipAmount = testCase[0];

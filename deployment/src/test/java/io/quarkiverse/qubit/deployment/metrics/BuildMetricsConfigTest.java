@@ -1,9 +1,11 @@
 package io.quarkiverse.qubit.deployment.metrics;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.Test;
+
 import io.smallrye.config.SmallRyeConfig;
 import io.smallrye.config.SmallRyeConfigBuilder;
-import org.junit.jupiter.api.Test;
-import static org.assertj.core.api.Assertions.assertThat;
 
 class BuildMetricsConfigTest {
 
@@ -91,13 +93,40 @@ class BuildMetricsConfigTest {
     /** Creates config with specific level for testing level helper methods. */
     private BuildMetricsConfig createConfig(String level) {
         return new BuildMetricsConfig() {
-            @Override public boolean enabled() { return false; }
-            @Override public String outputPath() { return "path"; }
-            @Override public String level() { return level; }
-            @Override public boolean flameGraph() { return false; }
-            @Override public String flameGraphPath() { return "fg"; }
-            @Override public int maxHistogramSamples() { return 10000; }
-            @Override public int topClassCount() { return 10; }
+            @Override
+            public boolean enabled() {
+                return false;
+            }
+
+            @Override
+            public String outputPath() {
+                return "path";
+            }
+
+            @Override
+            public String level() {
+                return level;
+            }
+
+            @Override
+            public boolean flameGraph() {
+                return false;
+            }
+
+            @Override
+            public String flameGraphPath() {
+                return "fg";
+            }
+
+            @Override
+            public int maxHistogramSamples() {
+                return 10000;
+            }
+
+            @Override
+            public int topClassCount() {
+                return 10;
+            }
         };
     }
 }

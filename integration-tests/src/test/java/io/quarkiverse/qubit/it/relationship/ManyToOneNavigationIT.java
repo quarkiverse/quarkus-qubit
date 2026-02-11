@@ -19,24 +19,24 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests the PathExpression functionality that allows navigation through
  * relationships at multiple levels:
  * <ul>
- *   <li>Two-level: {@code phone.owner.firstName}</li>
- *   <li>Three-level: {@code phone.owner.department.name}</li>
+ * <li>Two-level: {@code phone.owner.firstName}</li>
+ * <li>Three-level: {@code phone.owner.department.name}</li>
  * </ul>
  * <p>
  * Test data setup:
  * <ul>
- *   <li>John Doe: 2 phones (555-0101 mobile, 555-0102 work), Department: Engineering</li>
- *   <li>Jane Smith: 1 phone (555-0201 mobile), Department: Sales</li>
- *   <li>Bob Johnson: 3 phones (555-0301 mobile, 555-0302 home, 555-0303 work), Department: Human Resources</li>
- *   <li>Alice Williams: 2 phones (555-0401 mobile, 555-0402 work), Department: Engineering</li>
- *   <li>Charlie Brown: 1 phone (555-0501 mobile), Department: Sales</li>
+ * <li>John Doe: 2 phones (555-0101 mobile, 555-0102 work), Department: Engineering</li>
+ * <li>Jane Smith: 1 phone (555-0201 mobile), Department: Sales</li>
+ * <li>Bob Johnson: 3 phones (555-0301 mobile, 555-0302 home, 555-0303 work), Department: Human Resources</li>
+ * <li>Alice Williams: 2 phones (555-0401 mobile, 555-0402 work), Department: Engineering</li>
+ * <li>Charlie Brown: 1 phone (555-0501 mobile), Department: Sales</li>
  * </ul>
  * <p>
  * Departments:
  * <ul>
- *   <li>Engineering: code=ENG, budget=500000</li>
- *   <li>Sales: code=SLS, budget=300000</li>
- *   <li>Human Resources: code=HR, budget=150000</li>
+ * <li>Engineering: code=ENG, budget=500000</li>
+ * <li>Sales: code=SLS, budget=300000</li>
+ * <li>Human Resources: code=HR, budget=150000</li>
  * </ul>
  */
 @QuarkusTest
@@ -54,9 +54,7 @@ class ManyToOneNavigationIT {
     @Test
     void whereByOwnerFirstName() {
         // Navigate through @ManyToOne: phone.owner.firstName
-        List<Phone> phones = Phone.where((Phone ph) ->
-            ph.owner.firstName.equals("John")
-        ).toList();
+        List<Phone> phones = Phone.where((Phone ph) -> ph.owner.firstName.equals("John")).toList();
 
         assertThat(phones)
                 .hasSize(2) // John has 2 phones
@@ -66,9 +64,7 @@ class ManyToOneNavigationIT {
     @Test
     void whereByOwnerLastName() {
         // Navigate through @ManyToOne: phone.owner.lastName
-        List<Phone> phones = Phone.where((Phone ph) ->
-            ph.owner.lastName.equals("Johnson")
-        ).toList();
+        List<Phone> phones = Phone.where((Phone ph) -> ph.owner.lastName.equals("Johnson")).toList();
 
         assertThat(phones)
                 .hasSize(3) // Bob Johnson has 3 phones
@@ -78,9 +74,7 @@ class ManyToOneNavigationIT {
     @Test
     void whereByOwnerAge() {
         // Navigate through @ManyToOne: phone.owner.age
-        List<Phone> phones = Phone.where((Phone ph) ->
-            ph.owner.age >= 40
-        ).toList();
+        List<Phone> phones = Phone.where((Phone ph) -> ph.owner.age >= 40).toList();
 
         assertThat(phones)
                 .hasSizeGreaterThan(0)
@@ -90,9 +84,7 @@ class ManyToOneNavigationIT {
     @Test
     void whereByOwnerActive() {
         // Navigate through @ManyToOne: phone.owner.active
-        List<Phone> phones = Phone.where((Phone ph) ->
-            ph.owner.active
-        ).toList();
+        List<Phone> phones = Phone.where((Phone ph) -> ph.owner.active).toList();
 
         assertThat(phones)
                 .hasSizeGreaterThan(0)
@@ -102,9 +94,7 @@ class ManyToOneNavigationIT {
     @Test
     void whereByOwnerInactive() {
         // Navigate through @ManyToOne: phone.owner.active == false
-        List<Phone> phones = Phone.where((Phone ph) ->
-            !ph.owner.active
-        ).toList();
+        List<Phone> phones = Phone.where((Phone ph) -> !ph.owner.active).toList();
 
         // Bob Johnson is inactive (active = false)
         assertThat(phones)
@@ -115,9 +105,7 @@ class ManyToOneNavigationIT {
     @Test
     void whereByOwnerNumericComparison() {
         // Navigate through @ManyToOne with numeric comparison: phone.owner.age > 35
-        List<Phone> phones = Phone.where((Phone ph) ->
-            ph.owner.age > 35
-        ).toList();
+        List<Phone> phones = Phone.where((Phone ph) -> ph.owner.age > 35).toList();
 
         assertThat(phones)
                 .hasSizeGreaterThan(0)
@@ -128,9 +116,7 @@ class ManyToOneNavigationIT {
     void whereByOwnerEmail() {
         // Navigate through @ManyToOne with String pattern: phone.owner.email
         // Note: "john" appears in both john.doe@example.com AND bob.johnson@example.com
-        List<Phone> phones = Phone.where((Phone ph) ->
-            ph.owner.email.contains("john")
-        ).toList();
+        List<Phone> phones = Phone.where((Phone ph) -> ph.owner.email.contains("john")).toList();
 
         assertThat(phones)
                 .hasSize(5) // John Doe (2 phones) + Bob Johnson (3 phones) both contain "john"
@@ -140,9 +126,7 @@ class ManyToOneNavigationIT {
     @Test
     void whereByOwnerEmailStartsWith() {
         // Navigate through @ManyToOne with String startsWith: phone.owner.email
-        List<Phone> phones = Phone.where((Phone ph) ->
-            ph.owner.email.startsWith("jane")
-        ).toList();
+        List<Phone> phones = Phone.where((Phone ph) -> ph.owner.email.startsWith("jane")).toList();
 
         assertThat(phones)
                 .hasSize(1) // Jane Smith has 1 phone
@@ -154,9 +138,7 @@ class ManyToOneNavigationIT {
     @Test
     void whereCombinedLocalAndRelationship() {
         // Combine local field and relationship navigation
-        List<Phone> phones = Phone.where((Phone ph) ->
-            ph.type.equals("mobile") && ph.owner.firstName.equals("John")
-        ).toList();
+        List<Phone> phones = Phone.where((Phone ph) -> ph.type.equals("mobile") && ph.owner.firstName.equals("John")).toList();
 
         assertThat(phones)
                 .hasSize(1) // John's mobile phone
@@ -167,9 +149,8 @@ class ManyToOneNavigationIT {
     @Test
     void whereCombinedMultipleRelationshipFields() {
         // Multiple relationship field accesses in same predicate
-        List<Phone> phones = Phone.where((Phone ph) ->
-            ph.owner.firstName.equals("Bob") && ph.owner.lastName.equals("Johnson")
-        ).toList();
+        List<Phone> phones = Phone.where((Phone ph) -> ph.owner.firstName.equals("Bob") && ph.owner.lastName.equals("Johnson"))
+                .toList();
 
         assertThat(phones)
                 .hasSize(3) // Bob Johnson has 3 phones
@@ -180,23 +161,19 @@ class ManyToOneNavigationIT {
     @Test
     void whereOrConditionWithRelationship() {
         // OR condition with relationship navigation
-        List<Phone> phones = Phone.where((Phone ph) ->
-            ph.owner.firstName.equals("John") || ph.owner.firstName.equals("Jane")
-        ).toList();
+        List<Phone> phones = Phone.where((Phone ph) -> ph.owner.firstName.equals("John") || ph.owner.firstName.equals("Jane"))
+                .toList();
 
         assertThat(phones)
                 .hasSize(3) // John has 2, Jane has 1
-                .allMatch(ph ->
-                    ph.getOwner().getFirstName().equals("John") ||
-                    ph.getOwner().getFirstName().equals("Jane"));
+                .allMatch(ph -> ph.getOwner().getFirstName().equals("John") ||
+                        ph.getOwner().getFirstName().equals("Jane"));
     }
 
     @Test
     void whereComparisonWithRelationship() {
         // Comparison operators with relationship navigation
-        List<Phone> phones = Phone.where((Phone ph) ->
-            ph.owner.age > 30 && ph.owner.age < 50
-        ).toList();
+        List<Phone> phones = Phone.where((Phone ph) -> ph.owner.age > 30 && ph.owner.age < 50).toList();
 
         assertThat(phones)
                 .hasSizeGreaterThan(0)
@@ -208,9 +185,7 @@ class ManyToOneNavigationIT {
     @Test
     void selectOwnerFirstName() {
         // Project relationship field: phone.owner.firstName
-        List<String> ownerNames = Phone.select((Phone ph) ->
-            ph.owner.firstName
-        ).toList();
+        List<String> ownerNames = Phone.select((Phone ph) -> ph.owner.firstName).toList();
 
         assertThat(ownerNames)
                 .hasSize(9) // Total 9 phones
@@ -220,9 +195,7 @@ class ManyToOneNavigationIT {
     @Test
     void selectOwnerLastName() {
         // Project relationship field: phone.owner.lastName
-        List<String> lastNames = Phone.select((Phone ph) ->
-            ph.owner.lastName
-        ).toList();
+        List<String> lastNames = Phone.select((Phone ph) -> ph.owner.lastName).toList();
 
         assertThat(lastNames)
                 .hasSize(9) // Total 9 phones
@@ -232,9 +205,7 @@ class ManyToOneNavigationIT {
     @Test
     void selectOwnerAge() {
         // Project numeric relationship field: phone.owner.age
-        List<Integer> ages = Phone.select((Phone ph) ->
-            ph.owner.age
-        ).toList();
+        List<Integer> ages = Phone.select((Phone ph) -> ph.owner.age).toList();
 
         assertThat(ages)
                 .hasSize(9)
@@ -244,9 +215,7 @@ class ManyToOneNavigationIT {
     @Test
     void selectOwnerEmail() {
         // Project String relationship field: phone.owner.email
-        List<String> emails = Phone.select((Phone ph) ->
-            ph.owner.email
-        ).toList();
+        List<String> emails = Phone.select((Phone ph) -> ph.owner.email).toList();
 
         assertThat(emails)
                 .hasSize(9)
@@ -283,9 +252,7 @@ class ManyToOneNavigationIT {
     @Test
     void sortByOwnerFirstName() {
         // Sort by relationship field: phone.owner.firstName
-        List<Phone> phones = Phone.sortedBy((Phone ph) ->
-            ph.owner.firstName
-        ).toList();
+        List<Phone> phones = Phone.sortedBy((Phone ph) -> ph.owner.firstName).toList();
 
         assertThat(phones)
                 .hasSize(9)
@@ -295,9 +262,7 @@ class ManyToOneNavigationIT {
     @Test
     void sortByOwnerLastName() {
         // Sort by relationship field: phone.owner.lastName
-        List<Phone> phones = Phone.sortedBy((Phone ph) ->
-            ph.owner.lastName
-        ).toList();
+        List<Phone> phones = Phone.sortedBy((Phone ph) -> ph.owner.lastName).toList();
 
         assertThat(phones)
                 .hasSize(9)
@@ -307,9 +272,7 @@ class ManyToOneNavigationIT {
     @Test
     void sortByOwnerAge() {
         // Sort by numeric relationship field: phone.owner.age
-        List<Phone> phones = Phone.sortedBy((Phone ph) ->
-            ph.owner.age
-        ).toList();
+        List<Phone> phones = Phone.sortedBy((Phone ph) -> ph.owner.age).toList();
 
         assertThat(phones)
                 .hasSize(9)
@@ -319,22 +282,18 @@ class ManyToOneNavigationIT {
     @Test
     void sortDescendingByOwnerAge() {
         // Sort descending by relationship field: phone.owner.age
-        List<Phone> phones = Phone.sortedDescendingBy((Phone ph) ->
-            ph.owner.age
-        ).toList();
+        List<Phone> phones = Phone.sortedDescendingBy((Phone ph) -> ph.owner.age).toList();
 
         assertThat(phones)
                 .hasSize(9)
                 .isSortedAccordingTo(Comparator.comparing(
-                    (Phone ph) -> ph.getOwner().getAge()).reversed());
+                        (Phone ph) -> ph.getOwner().getAge()).reversed());
     }
 
     @Test
     void sortByOwnerSalary() {
         // Sort by Double relationship field: phone.owner.salary
-        List<Phone> phones = Phone.sortedBy((Phone ph) ->
-            ph.owner.salary
-        ).toList();
+        List<Phone> phones = Phone.sortedBy((Phone ph) -> ph.owner.salary).toList();
 
         assertThat(phones)
                 .hasSize(9)
@@ -359,9 +318,7 @@ class ManyToOneNavigationIT {
     @Test
     void countByOwnerFirstName() {
         // Count with relationship navigation
-        long count = Phone.where((Phone ph) ->
-            ph.owner.firstName.equals("Bob")
-        ).count();
+        long count = Phone.where((Phone ph) -> ph.owner.firstName.equals("Bob")).count();
 
         assertThat(count).isEqualTo(3); // Bob has 3 phones
     }
@@ -369,9 +326,7 @@ class ManyToOneNavigationIT {
     @Test
     void existsByOwnerFirstName() {
         // Exists with relationship navigation
-        boolean exists = Phone.where((Phone ph) ->
-            ph.owner.firstName.equals("John")
-        ).exists();
+        boolean exists = Phone.where((Phone ph) -> ph.owner.firstName.equals("John")).exists();
 
         assertThat(exists).isTrue();
     }
@@ -379,9 +334,7 @@ class ManyToOneNavigationIT {
     @Test
     void notExistsByOwnerFirstName() {
         // Not exists with relationship navigation
-        boolean exists = Phone.where((Phone ph) ->
-            ph.owner.firstName.equals("NonExistent")
-        ).exists();
+        boolean exists = Phone.where((Phone ph) -> ph.owner.firstName.equals("NonExistent")).exists();
 
         assertThat(exists).isFalse();
     }
@@ -475,9 +428,7 @@ class ManyToOneNavigationIT {
     @Test
     void whereByOwnerDepartmentName() {
         // Three-level navigation: phone.owner.department.name
-        List<Phone> phones = Phone.where((Phone ph) ->
-            ph.owner.department.name.equals("Engineering")
-        ).toList();
+        List<Phone> phones = Phone.where((Phone ph) -> ph.owner.department.name.equals("Engineering")).toList();
 
         // John (2 phones) + Alice (2 phones) = 4 phones in Engineering
         assertThat(phones)
@@ -488,9 +439,7 @@ class ManyToOneNavigationIT {
     @Test
     void whereByOwnerDepartmentCode() {
         // Three-level navigation: phone.owner.department.code
-        List<Phone> phones = Phone.where((Phone ph) ->
-            ph.owner.department.code.equals("SLS")
-        ).toList();
+        List<Phone> phones = Phone.where((Phone ph) -> ph.owner.department.code.equals("SLS")).toList();
 
         // Jane (1 phone) + Charlie (1 phone) = 2 phones in Sales
         assertThat(phones)
@@ -501,9 +450,7 @@ class ManyToOneNavigationIT {
     @Test
     void whereByOwnerDepartmentBudget() {
         // Three-level navigation: phone.owner.department.budget
-        List<Phone> phones = Phone.where((Phone ph) ->
-            ph.owner.department.budget >= 300000
-        ).toList();
+        List<Phone> phones = Phone.where((Phone ph) -> ph.owner.department.budget >= 300000).toList();
 
         // Engineering (500k): 4 phones, Sales (300k): 2 phones = 6 phones
         assertThat(phones)
@@ -514,9 +461,7 @@ class ManyToOneNavigationIT {
     @Test
     void whereByOwnerDepartmentBudgetLessThan() {
         // Three-level navigation: phone.owner.department.budget < threshold
-        List<Phone> phones = Phone.where((Phone ph) ->
-            ph.owner.department.budget < 200000
-        ).toList();
+        List<Phone> phones = Phone.where((Phone ph) -> ph.owner.department.budget < 200000).toList();
 
         // HR (150k): Bob has 3 phones
         assertThat(phones)
@@ -527,9 +472,7 @@ class ManyToOneNavigationIT {
     @Test
     void whereByOwnerDepartmentNameStartsWith() {
         // Three-level navigation with string operations: phone.owner.department.name.startsWith()
-        List<Phone> phones = Phone.where((Phone ph) ->
-            ph.owner.department.name.startsWith("Human")
-        ).toList();
+        List<Phone> phones = Phone.where((Phone ph) -> ph.owner.department.name.startsWith("Human")).toList();
 
         // Bob in HR has 3 phones
         assertThat(phones)
@@ -540,9 +483,7 @@ class ManyToOneNavigationIT {
     @Test
     void whereByOwnerDepartmentNameContains() {
         // Three-level navigation with string operations: phone.owner.department.name.contains()
-        List<Phone> phones = Phone.where((Phone ph) ->
-            ph.owner.department.name.contains("Sales")
-        ).toList();
+        List<Phone> phones = Phone.where((Phone ph) -> ph.owner.department.name.contains("Sales")).toList();
 
         // Jane + Charlie in Sales = 2 phones
         assertThat(phones)
@@ -553,9 +494,7 @@ class ManyToOneNavigationIT {
     @Test
     void selectOwnerDepartmentName() {
         // Three-level projection: phone.owner.department.name
-        List<String> departmentNames = Phone.select((Phone ph) ->
-            ph.owner.department.name
-        ).toList();
+        List<String> departmentNames = Phone.select((Phone ph) -> ph.owner.department.name).toList();
 
         assertThat(departmentNames)
                 .hasSize(9) // Total 9 phones
@@ -565,9 +504,7 @@ class ManyToOneNavigationIT {
     @Test
     void selectOwnerDepartmentCode() {
         // Three-level projection: phone.owner.department.code
-        List<String> departmentCodes = Phone.select((Phone ph) ->
-            ph.owner.department.code
-        ).toList();
+        List<String> departmentCodes = Phone.select((Phone ph) -> ph.owner.department.code).toList();
 
         assertThat(departmentCodes)
                 .hasSize(9)
@@ -577,9 +514,7 @@ class ManyToOneNavigationIT {
     @Test
     void selectOwnerDepartmentBudget() {
         // Three-level projection: phone.owner.department.budget
-        List<Integer> budgets = Phone.select((Phone ph) ->
-            ph.owner.department.budget
-        ).toList();
+        List<Integer> budgets = Phone.select((Phone ph) -> ph.owner.department.budget).toList();
 
         assertThat(budgets)
                 .hasSize(9)
@@ -615,61 +550,51 @@ class ManyToOneNavigationIT {
     @Test
     void sortByOwnerDepartmentName() {
         // Three-level sort: sortedBy(phone.owner.department.name)
-        List<Phone> phones = Phone.sortedBy((Phone ph) ->
-            ph.owner.department.name
-        ).toList();
+        List<Phone> phones = Phone.sortedBy((Phone ph) -> ph.owner.department.name).toList();
 
         assertThat(phones)
                 .hasSize(9)
                 .isSortedAccordingTo(Comparator.comparing(
-                    ph -> ph.getOwner().getDepartment().getName()));
+                        ph -> ph.getOwner().getDepartment().getName()));
     }
 
     @Test
     void sortByOwnerDepartmentCode() {
         // Three-level sort: sortedBy(phone.owner.department.code)
-        List<Phone> phones = Phone.sortedBy((Phone ph) ->
-            ph.owner.department.code
-        ).toList();
+        List<Phone> phones = Phone.sortedBy((Phone ph) -> ph.owner.department.code).toList();
 
         assertThat(phones)
                 .hasSize(9)
                 .isSortedAccordingTo(Comparator.comparing(
-                    ph -> ph.getOwner().getDepartment().getCode()));
+                        ph -> ph.getOwner().getDepartment().getCode()));
     }
 
     @Test
     void sortByOwnerDepartmentBudget() {
         // Three-level sort: sortedBy(phone.owner.department.budget)
-        List<Phone> phones = Phone.sortedBy((Phone ph) ->
-            ph.owner.department.budget
-        ).toList();
+        List<Phone> phones = Phone.sortedBy((Phone ph) -> ph.owner.department.budget).toList();
 
         assertThat(phones)
                 .hasSize(9)
                 .isSortedAccordingTo(Comparator.comparing(
-                    ph -> ph.getOwner().getDepartment().getBudget()));
+                        ph -> ph.getOwner().getDepartment().getBudget()));
     }
 
     @Test
     void sortDescendingByOwnerDepartmentBudget() {
         // Three-level sort descending: sortedDescendingBy(phone.owner.department.budget)
-        List<Phone> phones = Phone.sortedDescendingBy((Phone ph) ->
-            ph.owner.department.budget
-        ).toList();
+        List<Phone> phones = Phone.sortedDescendingBy((Phone ph) -> ph.owner.department.budget).toList();
 
         assertThat(phones)
                 .hasSize(9)
                 .isSortedAccordingTo(Comparator.comparing(
-                    (Phone ph) -> ph.getOwner().getDepartment().getBudget()).reversed());
+                        (Phone ph) -> ph.getOwner().getDepartment().getBudget()).reversed());
     }
 
     @Test
     void countByOwnerDepartmentName() {
         // Three-level count: count where phone.owner.department.name = 'Engineering'
-        long count = Phone.where((Phone ph) ->
-            ph.owner.department.name.equals("Engineering")
-        ).count();
+        long count = Phone.where((Phone ph) -> ph.owner.department.name.equals("Engineering")).count();
 
         // John (2) + Alice (2) = 4 phones in Engineering
         assertThat(count).isEqualTo(4);
@@ -678,9 +603,7 @@ class ManyToOneNavigationIT {
     @Test
     void existsByOwnerDepartmentCode() {
         // Three-level exists: exists where phone.owner.department.code = 'HR'
-        boolean exists = Phone.where((Phone ph) ->
-            ph.owner.department.code.equals("HR")
-        ).exists();
+        boolean exists = Phone.where((Phone ph) -> ph.owner.department.code.equals("HR")).exists();
 
         assertThat(exists).isTrue();
     }
@@ -688,9 +611,7 @@ class ManyToOneNavigationIT {
     @Test
     void notExistsByOwnerDepartmentCode() {
         // Three-level not exists: not exists where phone.owner.department.code = 'INVALID'
-        boolean exists = Phone.where((Phone ph) ->
-            ph.owner.department.code.equals("INVALID")
-        ).exists();
+        boolean exists = Phone.where((Phone ph) -> ph.owner.department.code.equals("INVALID")).exists();
 
         assertThat(exists).isFalse();
     }
@@ -700,9 +621,9 @@ class ManyToOneNavigationIT {
     @Test
     void combinedTwoAndThreeLevelWhereConditions() {
         // Combine two-level and three-level navigation in same predicate
-        List<Phone> phones = Phone.where((Phone ph) ->
-            ph.owner.firstName.equals("John") && ph.owner.department.name.equals("Engineering")
-        ).toList();
+        List<Phone> phones = Phone
+                .where((Phone ph) -> ph.owner.firstName.equals("John") && ph.owner.department.name.equals("Engineering"))
+                .toList();
 
         assertThat(phones)
                 .hasSize(2) // John's 2 phones
@@ -713,11 +634,9 @@ class ManyToOneNavigationIT {
     @Test
     void combinedLocalTwoAndThreeLevelConditions() {
         // Combine local, two-level, and three-level in same predicate
-        List<Phone> phones = Phone.where((Phone ph) ->
-            ph.type.equals("mobile") &&
-            ph.owner.active &&
-            ph.owner.department.budget > 200000
-        ).toList();
+        List<Phone> phones = Phone.where((Phone ph) -> ph.type.equals("mobile") &&
+                ph.owner.active &&
+                ph.owner.department.budget > 200000).toList();
 
         // Mobile phones of active users in departments with budget > 200k
         assertThat(phones)
@@ -758,11 +677,9 @@ class ManyToOneNavigationIT {
     void complexThreeLevelQuery() {
         // Complex query: mobile phones of active users in Engineering, sorted by owner name
         List<Phone> phones = Phone
-                .where((Phone ph) ->
-                    ph.type.equals("mobile") &&
-                    ph.owner.active &&
-                    ph.owner.department.name.equals("Engineering")
-                )
+                .where((Phone ph) -> ph.type.equals("mobile") &&
+                        ph.owner.active &&
+                        ph.owner.department.name.equals("Engineering"))
                 .sortedBy((Phone ph) -> ph.owner.firstName)
                 .toList();
 
@@ -803,10 +720,8 @@ class ManyToOneNavigationIT {
     @Test
     void orConditionWithThreeLevelNavigation() {
         // OR condition with three-level navigation
-        List<Phone> phones = Phone.where((Phone ph) ->
-            ph.owner.department.name.equals("Engineering") ||
-            ph.owner.department.name.equals("Sales")
-        ).toList();
+        List<Phone> phones = Phone.where((Phone ph) -> ph.owner.department.name.equals("Engineering") ||
+                ph.owner.department.name.equals("Sales")).toList();
 
         // Engineering: 4 phones, Sales: 2 phones = 6 phones
         assertThat(phones)

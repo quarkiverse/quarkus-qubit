@@ -7,17 +7,17 @@
  *
  * <h2>Key Types</h2>
  * <ul>
- *   <li>{@link BranchCoordinator} - Coordinates branch analysis
- *   <li>{@link BranchState} - Tracks branch analysis state
- *   <li>{@link BranchHandler} - Interface for branch instruction handlers
- *   <li>{@link SingleOperandComparisonHandler} - Handles single-operand comparisons
- *   <li>{@link TwoOperandComparisonHandler} - Handles two-operand comparisons
+ * <li>{@link BranchCoordinator} - Coordinates branch analysis
+ * <li>{@link BranchState} - Tracks branch analysis state
+ * <li>{@link BranchHandler} - Interface for branch instruction handlers
+ * <li>{@link SingleOperandComparisonHandler} - Handles single-operand comparisons
+ * <li>{@link TwoOperandComparisonHandler} - Handles two-operand comparisons
  * </ul>
  *
  * <h2>Dependencies</h2>
  * <ul>
- *   <li>{@code ast} - For AST node types
- *   <li>{@code common} - For shared utilities
+ * <li>{@code ast} - For AST node types
+ * <li>{@code common} - For shared utilities
  * </ul>
  *
  * @since 1.0

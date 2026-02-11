@@ -1,5 +1,7 @@
 package io.quarkiverse.qubit.deployment.generation.methodcall;
 
+import java.util.Objects;
+
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityFieldAccess;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityPathExpression;
@@ -10,8 +12,6 @@ import io.quarkiverse.qubit.deployment.generation.expression.ExpressionBuilderRe
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionGeneratorHelper;
 import io.quarkus.gizmo2.Expr;
 import io.quarkus.gizmo2.creator.BlockCreator;
-
-import java.util.Objects;
 
 /**
  * Context for method call handling in bi-entity (join) queries with two entity handles.
@@ -24,8 +24,7 @@ public record BiEntityMethodCallContext(
         Expr join,
         Expr capturedValues,
         ExpressionBuilderRegistry builderRegistry,
-        ExpressionGeneratorHelper helper
-) implements MethodCallDispatchContext {
+        ExpressionGeneratorHelper helper) implements MethodCallDispatchContext {
 
     public BiEntityMethodCallContext {
         Objects.requireNonNull(bc, "bc cannot be null");

@@ -1,12 +1,13 @@
 package io.quarkiverse.qubit.deployment.analysis.branch;
 
-import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import java.util.Deque;
+import java.util.Map;
+
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
 
-import java.util.Deque;
-import java.util.Map;
+import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /** Parameter object for branch instruction handling context. */
 public record BranchContext(

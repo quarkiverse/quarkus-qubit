@@ -14,9 +14,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Abstract base class for findFirst() SQL LIMIT optimization tests.
  *
- * <p>Ensures findFirst() applies LIMIT 1 at SQL level, not Java level.
+ * <p>
+ * Ensures findFirst() applies LIMIT 1 at SQL level, not Java level.
  *
- * <p>Tests verify:
+ * <p>
+ * Tests verify:
  * <ul>
  * <li>findFirst() without explicit limit applies LIMIT 1 optimization</li>
  * <li>findFirst() with limit(N>1) overrides to LIMIT 1</li>

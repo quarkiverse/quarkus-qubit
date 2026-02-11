@@ -1,13 +1,14 @@
 package io.quarkiverse.qubit.deployment.common;
 
-import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer.LabelClassification;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.Opcodes;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer.LabelClassification;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
 
 /**
  * Unit tests for {@link OpcodeOperatorMapper}.

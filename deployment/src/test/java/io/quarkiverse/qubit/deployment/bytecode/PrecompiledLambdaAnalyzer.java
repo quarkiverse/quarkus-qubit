@@ -1,19 +1,22 @@
 package io.quarkiverse.qubit.deployment.bytecode;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
-import io.quarkiverse.qubit.deployment.testutil.AbstractLambdaAnalyzer;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_SPEC_DESCRIPTOR;
+
 import org.objectweb.asm.Handle;
 
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_SPEC_DESCRIPTOR;
+import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.testutil.AbstractLambdaAnalyzer;
 
 /**
  * Base class for bytecode analysis tests using pre-compiled lambda sources.
  *
- * <p>This analyzer loads the LambdaTestSources class and extracts
+ * <p>
+ * This analyzer loads the LambdaTestSources class and extracts
  * lambda expressions from its pre-compiled methods for analysis.
  *
- * <p>Extends {@link AbstractLambdaAnalyzer} to share common infrastructure
+ * <p>
+ * Extends {@link AbstractLambdaAnalyzer} to share common infrastructure
  * with other analyzer base classes.
  */
 public abstract class PrecompiledLambdaAnalyzer extends AbstractLambdaAnalyzer {

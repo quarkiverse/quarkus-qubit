@@ -1,14 +1,14 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.and;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.CANNOT_COMBINE_EMPTY_PREDICATE_LIST;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.and;
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.CANNOT_COMBINE_EMPTY_PREDICATE_LIST;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /** Captured variable operations: counting, collecting indices, renumbering, validation. */
 public final class CapturedVariableHelper {
@@ -78,11 +78,16 @@ public final class CapturedVariableHelper {
             }
 
             // No captured variables (separate cases for exhaustiveness)
-            case LambdaExpression.PathExpression _ -> { /* no-op */ }
-            case LambdaExpression.BiEntityFieldAccess _ -> { /* no-op */ }
-            case LambdaExpression.BiEntityPathExpression _ -> { /* no-op */ }
-            case LambdaExpression.BiEntityParameter _ -> { /* no-op */ }
-            default -> { /* no-op */ }
+            case LambdaExpression.PathExpression _ -> {
+                /* no-op */ }
+            case LambdaExpression.BiEntityFieldAccess _ -> {
+                /* no-op */ }
+            case LambdaExpression.BiEntityPathExpression _ -> {
+                /* no-op */ }
+            case LambdaExpression.BiEntityParameter _ -> {
+                /* no-op */ }
+            default -> {
+                /* no-op */ }
         }
     }
 
@@ -201,7 +206,7 @@ public final class CapturedVariableHelper {
         if (expectedCount == 0) {
             throw new IllegalStateException(String.format(
                     "Expression contains %d captured variable(s) but expectedCount=0. " +
-                    "This indicates a mismatch between bytecode analysis and captured variable counting.",
+                            "This indicates a mismatch between bytecode analysis and captured variable counting.",
                     capturedIndices.size()));
         }
 
@@ -211,8 +216,8 @@ public final class CapturedVariableHelper {
             if (index >= expectedCount) {
                 throw new IllegalStateException(String.format(
                         "CapturedVariable index %d is out of bounds (expectedCount=%d). " +
-                        "This indicates a mismatch between bytecode analysis and captured variable counting. " +
-                        "The generated code would fail with ArrayIndexOutOfBoundsException at runtime.",
+                                "This indicates a mismatch between bytecode analysis and captured variable counting. " +
+                                "The generated code would fail with ArrayIndexOutOfBoundsException at runtime.",
                         index, expectedCount));
             }
         }

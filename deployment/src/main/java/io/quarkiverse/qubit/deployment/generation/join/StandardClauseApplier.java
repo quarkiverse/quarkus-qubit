@@ -5,14 +5,15 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CQ_WH
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.TQ_SET_FIRST_RESULT;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.TQ_SET_MAX_RESULTS;
 
+import java.util.List;
+import java.util.Objects;
+
+import jakarta.persistence.criteria.Predicate;
+
 import io.quarkiverse.qubit.deployment.generation.CriteriaExpressionGenerator;
 import io.quarkiverse.qubit.deployment.generation.GizmoHelper;
 import io.quarkus.gizmo2.Expr;
 import io.quarkus.gizmo2.creator.BlockCreator;
-import jakarta.persistence.criteria.Predicate;
-
-import java.util.List;
-import java.util.Objects;
 
 /**
  * Standard implementation generating JPA Criteria API clause bytecode. Thread-safe.

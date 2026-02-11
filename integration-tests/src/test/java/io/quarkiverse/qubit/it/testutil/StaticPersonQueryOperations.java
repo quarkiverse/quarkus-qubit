@@ -10,7 +10,8 @@ import java.util.Collection;
 /**
  * Implementation of {@link PersonQueryOperations} using static entity methods.
  *
- * <p>Delegates all operations to {@code Person.where()}, {@code Person.select()}, etc.
+ * <p>
+ * Delegates all operations to {@code Person.where()}, {@code Person.select()}, etc.
  */
 public class StaticPersonQueryOperations implements PersonQueryOperations {
 

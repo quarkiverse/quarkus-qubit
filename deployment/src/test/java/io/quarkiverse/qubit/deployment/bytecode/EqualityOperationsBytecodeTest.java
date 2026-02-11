@@ -1,18 +1,20 @@
 package io.quarkiverse.qubit.deployment.bytecode;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import java.util.stream.Stream;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.stream.Stream;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /**
  * Bytecode analysis tests for equality operations (==, equals(), isEqual()).
  * Tests lambda bytecode parsing without executing queries.
  *
- * <p>This class uses JUnit 5 parameterized tests to consolidate repetitive
+ * <p>
+ * This class uses JUnit 5 parameterized tests to consolidate repetitive
  * test patterns, reducing code duplication while maintaining full coverage.
  */
 class EqualityOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
@@ -29,8 +31,7 @@ class EqualityOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
                 Arguments.of("integerEquality", "age", 30),
                 Arguments.of("longEquality", "employeeId", 1000001L),
                 Arguments.of("floatEquality", "height", 1.75f),
-                Arguments.of("doubleEquality", "salary", 75000.0)
-        );
+                Arguments.of("doubleEquality", "salary", 75000.0));
     }
 
     /**
@@ -40,8 +41,7 @@ class EqualityOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
     static Stream<Arguments> temporalEqualities() {
         return Stream.of(
                 Arguments.of("localDateEquality", "birthDate"),
-                Arguments.of("localDateTimeEquality", "createdAt")
-        );
+                Arguments.of("localDateTimeEquality", "createdAt"));
     }
 
     // ==================== PARAMETERIZED TESTS ====================

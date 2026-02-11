@@ -7,10 +7,11 @@ import io.quarkus.gizmo2.creator.BlockCreator;
  * Sealed interface for bi-entity (join) query context.
  * Provides common accessors for expression generation parameters.
  *
- * <p>Two implementations exist:
+ * <p>
+ * Two implementations exist:
  * <ul>
- *   <li>{@link BiEntityBaseContext} - for non-subquery methods (no query handle)</li>
- *   <li>{@link BiEntitySubqueryContext} - for subquery methods (includes query handle)</li>
+ * <li>{@link BiEntityBaseContext} - for non-subquery methods (no query handle)</li>
+ * <li>{@link BiEntitySubqueryContext} - for subquery methods (includes query handle)</li>
  * </ul>
  */
 public sealed interface BiEntityContext permits BiEntityBaseContext, BiEntitySubqueryContext {

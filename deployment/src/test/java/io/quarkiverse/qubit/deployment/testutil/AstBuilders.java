@@ -1,27 +1,33 @@
 package io.quarkiverse.qubit.deployment.testutil;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-
 import java.util.ArrayList;
 import java.util.List;
+
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /**
  * Test utility class providing fluent factory methods for building AST nodes.
  *
- * <p>This builder simplifies test setup code by reducing the verbosity of constructing
+ * <p>
+ * This builder simplifies test setup code by reducing the verbosity of constructing
  * {@link LambdaExpression} AST nodes. Instead of:
+ *
  * <pre>{@code
  * var left = new LambdaExpression.Constant(10, Integer.class);
  * var right = new LambdaExpression.Constant(20, Integer.class);
  * var binOp = new LambdaExpression.BinaryOp(left, Operator.EQ, right);
  * }</pre>
  *
- * <p>You can write:
+ * <p>
+ * You can write:
+ *
  * <pre>{@code
  * var binOp = eq(constant(10), constant(20));
  * }</pre>
  *
- * <p><strong>Usage Pattern:</strong> Static import all methods for cleaner test code:
+ * <p>
+ * <strong>Usage Pattern:</strong> Static import all methods for cleaner test code:
+ *
  * <pre>{@code
  * import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
  * }</pre>
@@ -293,7 +299,9 @@ public final class AstBuilders {
     /**
      * Starts building a method call with fluent syntax.
      *
-     * <p>Example usage:
+     * <p>
+     * Example usage:
+     *
      * <pre>{@code
      * var call = call("getValue").on(captured(0, Object.class)).returns(Object.class).build();
      * }</pre>

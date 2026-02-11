@@ -1,12 +1,13 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
-import org.objectweb.asm.tree.AbstractInsnNode;
+import static org.objectweb.asm.Opcodes.*;
 
 import java.util.Set;
 
-import static org.objectweb.asm.Opcodes.*;
+import org.objectweb.asm.tree.AbstractInsnNode;
+
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
 
 /**
  * Handles primitive type conversion instructions with constant folding optimization.
@@ -19,8 +20,7 @@ public enum TypeConversionHandler implements InstructionHandler {
             I2L, I2F, I2D,
             L2I, L2F, L2D,
             F2I, F2L, F2D,
-            D2I, D2L, D2F
-    );
+            D2I, D2L, D2F);
 
     @Override
     public Set<Integer> supportedOpcodes() {
@@ -87,5 +87,6 @@ public enum TypeConversionHandler implements InstructionHandler {
     }
 
     /** Type conversion metadata. */
-    private record TypeConversionInfo(Class<?> sourceType, Class<?> targetType) {}
+    private record TypeConversionInfo(Class<?> sourceType, Class<?> targetType) {
+    }
 }

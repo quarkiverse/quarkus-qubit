@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public abstract class AbstractRelationshipNavigationTest {
 
     protected abstract PhoneQueryOperations phoneOps();
+
     protected abstract TagQueryOperations tagOps();
 
     @BeforeEach

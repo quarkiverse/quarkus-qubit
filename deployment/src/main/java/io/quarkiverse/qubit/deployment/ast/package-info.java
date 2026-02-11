@@ -8,17 +8,17 @@
  *
  * <h2>Key Types</h2>
  * <ul>
- *   <li>{@link LambdaExpression} - Sealed interface for all expression types
- *   <li>{@link LambdaExpression.BinaryOp} - Binary operations (AND, OR, EQ, etc.)
- *   <li>{@link LambdaExpression.FieldAccess} - Entity field access
- *   <li>{@link LambdaExpression.PathExpression} - Relationship navigation
+ * <li>{@link LambdaExpression} - Sealed interface for all expression types
+ * <li>{@link LambdaExpression.BinaryOp} - Binary operations (AND, OR, EQ, etc.)
+ * <li>{@link LambdaExpression.FieldAccess} - Entity field access
+ * <li>{@link LambdaExpression.PathExpression} - Relationship navigation
  * </ul>
  *
  * <h2>Design Decisions</h2>
  * <ul>
- *   <li>Sealed interface ensures exhaustive pattern matching
- *   <li>Records provide immutability and value semantics
- *   <li>Factory methods for common construction patterns
+ * <li>Sealed interface ensures exhaustive pattern matching
+ * <li>Records provide immutability and value semantics
+ * <li>Factory methods for common construction patterns
  * </ul>
  *
  * <h2>Dependencies</h2>

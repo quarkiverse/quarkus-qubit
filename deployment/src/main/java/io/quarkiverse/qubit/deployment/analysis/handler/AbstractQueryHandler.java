@@ -1,17 +1,17 @@
 package io.quarkiverse.qubit.deployment.analysis.handler;
 
-import io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome;
-import io.quarkiverse.qubit.deployment.analysis.CapturedVariableHelper;
-import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult;
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaPair;
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.SortLambda;
-import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkus.logging.Log;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
+
+import io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome;
+import io.quarkiverse.qubit.deployment.analysis.CapturedVariableHelper;
+import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaPair;
+import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.SortLambda;
+import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult;
+import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkus.logging.Log;
 
 /**
  * Base class for query handlers with shared lambda analysis utilities.

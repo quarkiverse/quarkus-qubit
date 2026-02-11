@@ -1,10 +1,11 @@
 package io.quarkiverse.qubit.deployment;
 
-import io.quarkus.logging.Log;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_ENTITY_INTERNAL_NAME;
+
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Type;
 
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_ENTITY_INTERNAL_NAME;
+import io.quarkus.logging.Log;
 
 /**
  * Injects static query methods into QubitEntity subclasses.
@@ -28,7 +29,7 @@ public class QubitEntityOperationGenerationVisitor extends ClassVisitor {
 
     @Override
     public void visit(int version, int access, String name, String signature,
-                      String superName, String[] interfaces) {
+            String superName, String[] interfaces) {
 
         if (QUBIT_ENTITY_INTERNAL_NAME.equals(superName)) {
             extendsQubitEntity = true;

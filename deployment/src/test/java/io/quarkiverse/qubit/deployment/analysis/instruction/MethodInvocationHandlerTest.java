@@ -1,8 +1,16 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition;
-import io.quarkiverse.qubit.deployment.analysis.instruction.MethodInvocationHandler.VirtualMethodCategory;
+import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
+import static io.quarkiverse.qubit.deployment.testutil.fixtures.AnalysisContextFixtures.contextFor;
+import static io.quarkiverse.qubit.deployment.testutil.fixtures.AsmFixtures.testMethod;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.objectweb.asm.Opcodes.*;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.stream.Stream;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -14,21 +22,15 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.stream.Stream;
-
-import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
-import static io.quarkiverse.qubit.deployment.testutil.fixtures.AsmFixtures.testMethod;
-import static io.quarkiverse.qubit.deployment.testutil.fixtures.AnalysisContextFixtures.contextFor;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.objectweb.asm.Opcodes.*;
+import io.quarkiverse.qubit.deployment.analysis.instruction.MethodInvocationHandler.VirtualMethodCategory;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition;
 
 /**
  * Unit tests for {@link MethodInvocationHandler}.
  *
- * <p>Tests the method invocation handling for various bytecode patterns
+ * <p>
+ * Tests the method invocation handling for various bytecode patterns
  * including equals, compareTo, BigDecimal operations, temporal methods, and collection operations.
  */
 class MethodInvocationHandlerTest {
@@ -64,7 +66,7 @@ class MethodInvocationHandlerTest {
                 "com/example/Entity, doSomething, (I)V, UNHANDLED"
         })
         void categorize_returnsExpectedCategory(String owner, String methodName, String descriptor,
-                                                 VirtualMethodCategory expected) {
+                VirtualMethodCategory expected) {
             var methodInsn = createMethodInsn(INVOKEVIRTUAL, owner, methodName, descriptor);
 
             var category = VirtualMethodCategory.categorize(methodInsn, handler);
@@ -111,7 +113,8 @@ class MethodInvocationHandlerTest {
         void nonMethodInstruction_cannotHandle() {
             // Use GETFIELD opcode which is NOT a method invocation
             // This kills the NO_COVERAGE mutation that replaces return with true
-            var fieldInsn = new org.objectweb.asm.tree.FieldInsnNode(GETFIELD, "com/example/Entity", "name", "Ljava/lang/String;");
+            var fieldInsn = new org.objectweb.asm.tree.FieldInsnNode(GETFIELD, "com/example/Entity", "name",
+                    "Ljava/lang/String;");
 
             assertThat(handler.canHandle(fieldInsn)).isFalse();
         }
@@ -819,7 +822,7 @@ class MethodInvocationHandlerTest {
                 "java/time/LocalTime, time, getMinute, java.time.LocalTime"
         })
         void temporalAccessor_validMethod_createsMethodCall(String owner, String fieldName, String methodName,
-                                                             String fieldTypeStr) throws ClassNotFoundException {
+                String fieldTypeStr) throws ClassNotFoundException {
             Class<?> fieldType = Class.forName(fieldTypeStr);
             context.push(field(fieldName, fieldType));
 
@@ -978,7 +981,7 @@ class MethodInvocationHandlerTest {
         @ParameterizedTest(name = "String.{0}() produces '{0}' method call (no-arg)")
         @MethodSource("noArgStringMutationKillingTestCases")
         void noArgStringMethod_producesCorrectMethodCall(String methodName, String descriptor,
-                                                          String returnTypeStr, String[] excludedMethods) {
+                String returnTypeStr, String[] excludedMethods) {
             context.push(field("name", String.class));
 
             var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", methodName, descriptor);
@@ -1000,18 +1003,17 @@ class MethodInvocationHandlerTest {
 
         static Stream<Arguments> noArgStringMutationKillingTestCases() {
             return Stream.of(
-                    Arguments.of("length", "()I", "int", new String[]{"isEmpty"}),
-                    Arguments.of("isEmpty", "()Z", "boolean", new String[]{"length"}),
-                    Arguments.of("toLowerCase", "()Ljava/lang/String;", "String", new String[]{"toUpperCase", "trim"}),
-                    Arguments.of("toUpperCase", "()Ljava/lang/String;", "String", new String[]{"toLowerCase", "trim"}),
-                    Arguments.of("trim", "()Ljava/lang/String;", "String", new String[]{"toLowerCase", "toUpperCase"})
-            );
+                    Arguments.of("length", "()I", "int", new String[] { "isEmpty" }),
+                    Arguments.of("isEmpty", "()Z", "boolean", new String[] { "length" }),
+                    Arguments.of("toLowerCase", "()Ljava/lang/String;", "String", new String[] { "toUpperCase", "trim" }),
+                    Arguments.of("toUpperCase", "()Ljava/lang/String;", "String", new String[] { "toLowerCase", "trim" }),
+                    Arguments.of("trim", "()Ljava/lang/String;", "String", new String[] { "toLowerCase", "toUpperCase" }));
         }
 
         @ParameterizedTest(name = "String.{0}() produces '{0}' method call (one-arg)")
         @MethodSource("oneArgStringMutationKillingTestCases")
         void oneArgStringMethod_producesCorrectMethodCall(String methodName, String descriptor,
-                                                           String[] excludedMethods) {
+                String[] excludedMethods) {
             context.push(field("name", String.class));
             context.push(constant("arg"));
 
@@ -1033,10 +1035,9 @@ class MethodInvocationHandlerTest {
 
         static Stream<Arguments> oneArgStringMutationKillingTestCases() {
             return Stream.of(
-                    Arguments.of("startsWith", "(Ljava/lang/String;)Z", new String[]{"endsWith", "contains"}),
-                    Arguments.of("endsWith", "(Ljava/lang/String;)Z", new String[]{"startsWith", "contains"}),
-                    Arguments.of("contains", "(Ljava/lang/CharSequence;)Z", new String[]{})
-            );
+                    Arguments.of("startsWith", "(Ljava/lang/String;)Z", new String[] { "endsWith", "contains" }),
+                    Arguments.of("endsWith", "(Ljava/lang/String;)Z", new String[] { "startsWith", "contains" }),
+                    Arguments.of("contains", "(Ljava/lang/CharSequence;)Z", new String[] {}));
         }
 
         @Test
@@ -1098,11 +1099,10 @@ class MethodInvocationHandlerTest {
 
         static Stream<Arguments> bigDecimalMutationKillingTestCases() {
             return Stream.of(
-                    Arguments.of("add", new String[]{"subtract", "multiply", "divide"}),
-                    Arguments.of("subtract", new String[]{"add", "multiply", "divide"}),
-                    Arguments.of("multiply", new String[]{"add", "subtract", "divide"}),
-                    Arguments.of("divide", new String[]{"add", "subtract", "multiply"})
-            );
+                    Arguments.of("add", new String[] { "subtract", "multiply", "divide" }),
+                    Arguments.of("subtract", new String[] { "add", "multiply", "divide" }),
+                    Arguments.of("multiply", new String[] { "add", "subtract", "divide" }),
+                    Arguments.of("divide", new String[] { "add", "subtract", "multiply" }));
         }
 
         @Test
@@ -1144,7 +1144,7 @@ class MethodInvocationHandlerTest {
         @ParameterizedTest(name = "booleanValueOf with {1}.{2}{3} must not match")
         @MethodSource("booleanValueOfWrongParameterTestCases")
         void booleanValueOf_wrongParameter_mustNotMatch(Object pushedValue, String owner,
-                                                         String methodName, String descriptor) {
+                String methodName, String descriptor) {
             context.push(constant(pushedValue));
             int initialSize = context.getStackSize();
 
@@ -1158,8 +1158,7 @@ class MethodInvocationHandlerTest {
             return Stream.of(
                     Arguments.of(true, "java/lang/Integer", "valueOf", "(Z)Ljava/lang/Boolean;"),
                     Arguments.of(true, "java/lang/Boolean", "parseBoolean", "(Z)Ljava/lang/Boolean;"),
-                    Arguments.of("true", "java/lang/Boolean", "valueOf", "(Ljava/lang/String;)Ljava/lang/Boolean;")
-            );
+                    Arguments.of("true", "java/lang/Boolean", "valueOf", "(Ljava/lang/String;)Ljava/lang/Boolean;"));
         }
     }
 
@@ -1178,7 +1177,7 @@ class MethodInvocationHandlerTest {
                 "java/time/LocalTime, getSecond, time, java.time.LocalTime"
         })
         void temporalAccessor_isValidAccessor(String owner, String methodName, String fieldName,
-                                               String fieldTypeStr) throws ClassNotFoundException {
+                String fieldTypeStr) throws ClassNotFoundException {
             Class<?> fieldType = Class.forName(fieldTypeStr);
             context.push(field(fieldName, fieldType));
 
@@ -1647,7 +1646,7 @@ class MethodInvocationHandlerTest {
 
         @Test
         void localDateOf_oneNonConstant_createsMethodCall() {
-            context.push(field("year", int.class));  // Non-constant
+            context.push(field("year", int.class)); // Non-constant
             context.push(constant(6));
             context.push(constant(15));
 
@@ -1758,8 +1757,8 @@ class MethodInvocationHandlerTest {
         @ParameterizedTest(name = "{0}.{1} → {3} (not {4})")
         @MethodSource("categoryMutationTestCases")
         void categorize_returnsExpectedAndNotOthers(String owner, String methodName, String descriptor,
-                                                     VirtualMethodCategory expected,
-                                                     VirtualMethodCategory[] unexpected) {
+                VirtualMethodCategory expected,
+                VirtualMethodCategory[] unexpected) {
             var insn = createMethodInsn(INVOKEVIRTUAL, owner, methodName, descriptor);
 
             var category = VirtualMethodCategory.categorize(insn, handler);
@@ -1776,36 +1775,35 @@ class MethodInvocationHandlerTest {
             return Stream.of(
                     Arguments.of("java/lang/Object", "equals", "(Ljava/lang/Object;)Z",
                             VirtualMethodCategory.EQUALS,
-                            new VirtualMethodCategory[]{VirtualMethodCategory.STRING_METHOD,
-                                    VirtualMethodCategory.GETTER, VirtualMethodCategory.COMPARE_TO}),
+                            new VirtualMethodCategory[] { VirtualMethodCategory.STRING_METHOD,
+                                    VirtualMethodCategory.GETTER, VirtualMethodCategory.COMPARE_TO }),
                     Arguments.of("java/lang/Integer", "compareTo", "(Ljava/lang/Integer;)I",
                             VirtualMethodCategory.COMPARE_TO,
-                            new VirtualMethodCategory[]{VirtualMethodCategory.EQUALS,
-                                    VirtualMethodCategory.BIG_DECIMAL_ARITHMETIC}),
+                            new VirtualMethodCategory[] { VirtualMethodCategory.EQUALS,
+                                    VirtualMethodCategory.BIG_DECIMAL_ARITHMETIC }),
                     Arguments.of("java/math/BigDecimal", "add", "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;",
                             VirtualMethodCategory.BIG_DECIMAL_ARITHMETIC,
-                            new VirtualMethodCategory[]{VirtualMethodCategory.COMPARE_TO,
-                                    VirtualMethodCategory.STRING_METHOD}),
+                            new VirtualMethodCategory[] { VirtualMethodCategory.COMPARE_TO,
+                                    VirtualMethodCategory.STRING_METHOD }),
                     Arguments.of("java/time/LocalDate", "getYear", "()I",
                             VirtualMethodCategory.TEMPORAL_METHOD,
-                            new VirtualMethodCategory[]{VirtualMethodCategory.GETTER,
-                                    VirtualMethodCategory.STRING_METHOD}),
+                            new VirtualMethodCategory[] { VirtualMethodCategory.GETTER,
+                                    VirtualMethodCategory.STRING_METHOD }),
                     Arguments.of("com/example/Entity", "getName", "()Ljava/lang/String;",
                             VirtualMethodCategory.GETTER,
-                            new VirtualMethodCategory[]{VirtualMethodCategory.STRING_METHOD,
-                                    VirtualMethodCategory.TEMPORAL_METHOD}),
+                            new VirtualMethodCategory[] { VirtualMethodCategory.STRING_METHOD,
+                                    VirtualMethodCategory.TEMPORAL_METHOD }),
                     Arguments.of("com/example/Entity", "isActive", "()Z",
                             VirtualMethodCategory.GETTER,
-                            new VirtualMethodCategory[]{VirtualMethodCategory.UNHANDLED}),
+                            new VirtualMethodCategory[] { VirtualMethodCategory.UNHANDLED }),
                     Arguments.of("java/lang/String", "length", "()I",
                             VirtualMethodCategory.STRING_METHOD,
-                            new VirtualMethodCategory[]{VirtualMethodCategory.GETTER,
-                                    VirtualMethodCategory.TEMPORAL_METHOD}),
+                            new VirtualMethodCategory[] { VirtualMethodCategory.GETTER,
+                                    VirtualMethodCategory.TEMPORAL_METHOD }),
                     Arguments.of("com/example/Custom", "doSomething", "(I)V",
                             VirtualMethodCategory.UNHANDLED,
-                            new VirtualMethodCategory[]{VirtualMethodCategory.GETTER,
-                                    VirtualMethodCategory.STRING_METHOD})
-            );
+                            new VirtualMethodCategory[] { VirtualMethodCategory.GETTER,
+                                    VirtualMethodCategory.STRING_METHOD }));
         }
     }
 

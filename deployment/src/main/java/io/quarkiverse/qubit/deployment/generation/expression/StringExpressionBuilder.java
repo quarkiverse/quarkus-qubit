@@ -18,26 +18,28 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.STRING_UTILIT
 
 import java.util.List;
 
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.generation.MethodDescriptors;
 import io.quarkus.gizmo2.Const;
 import io.quarkus.gizmo2.Expr;
 import io.quarkus.gizmo2.LocalVar;
 import io.quarkus.gizmo2.creator.BlockCreator;
 import io.quarkus.gizmo2.desc.MethodDesc;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.generation.MethodDescriptors;
 
 /**
  * Builds JPA Criteria API expressions for String operations.
  *
- * <p>Supported operations:
+ * <p>
+ * Supported operations:
  * <ul>
- *   <li><b>Transformations:</b> toLowerCase(), toUpperCase(), trim()</li>
- *   <li><b>Pattern Matching:</b> startsWith(), endsWith(), contains() → LIKE</li>
- *   <li><b>Substring:</b> substring(start), substring(start, end) with 0-to-1 index conversion</li>
- *   <li><b>Utility:</b> equals(), length(), isEmpty()</li>
+ * <li><b>Transformations:</b> toLowerCase(), toUpperCase(), trim()</li>
+ * <li><b>Pattern Matching:</b> startsWith(), endsWith(), contains() → LIKE</li>
+ * <li><b>Substring:</b> substring(start), substring(start, end) with 0-to-1 index conversion</li>
+ * <li><b>Utility:</b> equals(), length(), isEmpty()</li>
  * </ul>
  *
- * <p><b>Note:</b> Java's substring() uses 0-based indexing, but JPA uses 1-based.
+ * <p>
+ * <b>Note:</b> Java's substring() uses 0-based indexing, but JPA uses 1-based.
  * This builder automatically adds 1 to the start index.
  */
 public enum StringExpressionBuilder implements ExpressionBuilder {
@@ -65,10 +67,10 @@ public enum StringExpressionBuilder implements ExpressionBuilder {
 
     /** Categories of string operations. */
     public enum StringOperationType {
-        TRANSFORMATION,  // toLowerCase, toUpperCase, trim
-        PATTERN,         // startsWith, endsWith, contains
-        SUBSTRING,       // substring
-        UTILITY          // equals, length, isEmpty
+        TRANSFORMATION, // toLowerCase, toUpperCase, trim
+        PATTERN, // startsWith, endsWith, contains
+        SUBSTRING, // substring
+        UTILITY // equals, length, isEmpty
     }
 
     /** Generates bytecode for String transformations: toLowerCase, toUpperCase, trim. */

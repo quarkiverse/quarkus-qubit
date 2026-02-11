@@ -1,19 +1,22 @@
 package io.quarkiverse.qubit.deployment.bytecode;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.*;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.*;
 
 /**
  * Tests bytecode analysis for subquery lambdas.
  *
- * <p>Iteration 8: Subqueries - bytecode analysis verification.
+ * <p>
+ * Iteration 8: Subqueries - bytecode analysis verification.
  *
- * <p>These tests verify that lambdas containing Subqueries.* calls are correctly
+ * <p>
+ * These tests verify that lambdas containing Subqueries.* calls are correctly
  * analyzed into ScalarSubquery, ExistsSubquery, and InSubquery AST nodes.
  */
 class SubqueryLambdaBytecodeTest extends PrecompiledSubqueryLambdaAnalyzer {

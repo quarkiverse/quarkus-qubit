@@ -108,10 +108,14 @@ public final class MemoryEstimator {
     }
 
     private static int getPrimitiveSize(Class<?> type) {
-        if (type == boolean.class || type == byte.class) return 1;
-        if (type == char.class || type == short.class) return 2;
-        if (type == int.class || type == float.class) return 4;
-        if (type == long.class || type == double.class) return 8;
+        if (type == boolean.class || type == byte.class)
+            return 1;
+        if (type == char.class || type == short.class)
+            return 2;
+        if (type == int.class || type == float.class)
+            return 4;
+        if (type == long.class || type == double.class)
+            return 8;
         return 4; // Default
     }
 

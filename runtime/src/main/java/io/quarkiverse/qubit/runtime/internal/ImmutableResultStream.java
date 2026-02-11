@@ -4,15 +4,15 @@ import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.requir
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.validateLimitCount;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.validateSkipCount;
 
-import io.quarkiverse.qubit.GroupStream;
-import io.quarkiverse.qubit.JoinStream;
-import io.quarkiverse.qubit.QuerySpec;
-import io.quarkiverse.qubit.QubitStream;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+
+import io.quarkiverse.qubit.GroupStream;
+import io.quarkiverse.qubit.JoinStream;
+import io.quarkiverse.qubit.QubitStream;
+import io.quarkiverse.qubit.QuerySpec;
 
 /**
  * Immutable QubitStream wrapping pre-computed projection results.

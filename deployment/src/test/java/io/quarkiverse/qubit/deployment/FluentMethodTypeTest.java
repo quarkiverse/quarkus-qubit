@@ -1,5 +1,10 @@
 package io.quarkiverse.qubit.deployment;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.Optional;
+import java.util.stream.Stream;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -9,11 +14,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
-
-import java.util.Optional;
-import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Unit tests for {@link FluentMethodType}.
@@ -37,8 +37,7 @@ class FluentMethodTypeTest {
                 Arguments.of("avg", FluentMethodType.AVG),
                 Arguments.of("sumInteger", FluentMethodType.SUM_INTEGER),
                 Arguments.of("sumLong", FluentMethodType.SUM_LONG),
-                Arguments.of("sumDouble", FluentMethodType.SUM_DOUBLE)
-        );
+                Arguments.of("sumDouble", FluentMethodType.SUM_DOUBLE));
     }
 
     /** FluentMethodType to MethodCategory mappings for category tests. */
@@ -53,8 +52,7 @@ class FluentMethodTypeTest {
                 Arguments.of(FluentMethodType.AVG, FluentMethodType.MethodCategory.AGGREGATION),
                 Arguments.of(FluentMethodType.SUM_INTEGER, FluentMethodType.MethodCategory.AGGREGATION),
                 Arguments.of(FluentMethodType.SUM_LONG, FluentMethodType.MethodCategory.AGGREGATION),
-                Arguments.of(FluentMethodType.SUM_DOUBLE, FluentMethodType.MethodCategory.AGGREGATION)
-        );
+                Arguments.of(FluentMethodType.SUM_DOUBLE, FluentMethodType.MethodCategory.AGGREGATION));
     }
 
     // ========== fromMethodName Tests ==========
@@ -75,7 +73,7 @@ class FluentMethodTypeTest {
 
         @ParameterizedTest
         @NullAndEmptySource
-        @ValueSource(strings = {"unknown", "UNKNOWN", "Where", "WHERE", "find", "query", " where"})
+        @ValueSource(strings = { "unknown", "UNKNOWN", "Where", "WHERE", "find", "query", " where" })
         @DisplayName("Returns empty for unknown or invalid method names")
         void fromMethodName_unknownOrInvalid_returnsEmpty(String methodName) {
             Optional<FluentMethodType> result = FluentMethodType.fromMethodName(methodName);
@@ -120,14 +118,14 @@ class FluentMethodTypeTest {
         }
 
         @ParameterizedTest
-        @EnumSource(value = FluentMethodType.class, names = {"MIN", "MAX", "AVG", "SUM_INTEGER", "SUM_LONG", "SUM_DOUBLE"})
+        @EnumSource(value = FluentMethodType.class, names = { "MIN", "MAX", "AVG", "SUM_INTEGER", "SUM_LONG", "SUM_DOUBLE" })
         @DisplayName("isAggregation returns true for aggregation methods")
         void isAggregation_forAggregationMethods_returnsTrue(FluentMethodType type) {
             assertThat(type.isAggregation()).isTrue();
         }
 
         @ParameterizedTest
-        @EnumSource(value = FluentMethodType.class, names = {"WHERE", "SELECT", "SORTED_BY", "SORTED_DESCENDING_BY"})
+        @EnumSource(value = FluentMethodType.class, names = { "WHERE", "SELECT", "SORTED_BY", "SORTED_DESCENDING_BY" })
         @DisplayName("isAggregation returns false for non-aggregation methods")
         void isAggregation_forNonAggregationMethods_returnsFalse(FluentMethodType type) {
             assertThat(type.isAggregation()).isFalse();
@@ -159,8 +157,7 @@ class FluentMethodTypeTest {
                             FluentMethodType.AVG,
                             FluentMethodType.SUM_INTEGER,
                             FluentMethodType.SUM_LONG,
-                            FluentMethodType.SUM_DOUBLE
-                    );
+                            FluentMethodType.SUM_DOUBLE);
         }
 
         @Test
@@ -169,8 +166,7 @@ class FluentMethodTypeTest {
             assertThat(FluentMethodType.SORTING)
                     .containsExactlyInAnyOrder(
                             FluentMethodType.SORTED_BY,
-                            FluentMethodType.SORTED_DESCENDING_BY
-                    );
+                            FluentMethodType.SORTED_DESCENDING_BY);
         }
 
         @Test
@@ -221,8 +217,7 @@ class FluentMethodTypeTest {
                             FluentMethodType.MethodCategory.PREDICATE,
                             FluentMethodType.MethodCategory.PROJECTION,
                             FluentMethodType.MethodCategory.SORTING,
-                            FluentMethodType.MethodCategory.AGGREGATION
-                    );
+                            FluentMethodType.MethodCategory.AGGREGATION);
         }
 
         @Test

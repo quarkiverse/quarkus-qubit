@@ -20,16 +20,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Property-based integration tests for filter (where) operations.
  *
- * <p>This class uses parameterized tests to verify predicate satisfaction
+ * <p>
+ * This class uses parameterized tests to verify predicate satisfaction
  * invariants that must hold for various filter combinations.
  *
- * <p><strong>Properties Tested:</strong>
+ * <p>
+ * <strong>Properties Tested:</strong>
  * <ul>
- *   <li><strong>Predicate satisfaction</strong>: All results satisfy the filter</li>
- *   <li><strong>Subset property</strong>: Filtered set is subset of unfiltered</li>
- *   <li><strong>Conjunction</strong>: AND-combined filters produce intersection</li>
- *   <li><strong>Monotonicity</strong>: Adding filters never increases result count</li>
- *   <li><strong>Impossible filter</strong>: Contradictory filters return empty</li>
+ * <li><strong>Predicate satisfaction</strong>: All results satisfy the filter</li>
+ * <li><strong>Subset property</strong>: Filtered set is subset of unfiltered</li>
+ * <li><strong>Conjunction</strong>: AND-combined filters produce intersection</li>
+ * <li><strong>Monotonicity</strong>: Adding filters never increases result count</li>
+ * <li><strong>Impossible filter</strong>: Contradictory filters return empty</li>
  * </ul>
  *
  * @see io.quarkiverse.qubit.it.fluent.BasicQueryTest
@@ -62,7 +64,7 @@ class FilterPropertyIT {
     }
 
     @ParameterizedTest(name = "all results satisfy age > {0} filter")
-    @ValueSource(ints = {20, 25, 30, 35, 40, 45, 50})
+    @ValueSource(ints = { 20, 25, 30, 35, 40, 45, 50 })
     @Transactional
     void allResultsSatisfyAgeComparisonFilter(int ageThreshold) {
         List<Person> filtered = Person.where((Person p) -> p.age > ageThreshold).toList();
@@ -73,7 +75,7 @@ class FilterPropertyIT {
     }
 
     @ParameterizedTest(name = "all results satisfy salary > {0} filter")
-    @ValueSource(ints = {50000, 60000, 70000, 80000, 90000})
+    @ValueSource(ints = { 50000, 60000, 70000, 80000, 90000 })
     @Transactional
     void allResultsSatisfySalaryFilter(int salaryThreshold) {
         List<Person> filtered = Person.where((Person p) -> p.salary > (double) salaryThreshold).toList();
@@ -254,7 +256,7 @@ class FilterPropertyIT {
     @Test
     @Transactional
     void filterWithPaginationSatisfiesPredicate() {
-        int[][] testCases = {{0, 2}, {1, 2}, {2, 3}, {0, 4}};
+        int[][] testCases = { { 0, 2 }, { 1, 2 }, { 2, 3 }, { 0, 4 } };
 
         for (int[] testCase : testCases) {
             int skip = testCase[0];
@@ -304,7 +306,7 @@ class FilterPropertyIT {
     }
 
     @ParameterizedTest(name = "product price filter with threshold {0}")
-    @ValueSource(ints = {50, 100, 200, 300, 500})
+    @ValueSource(ints = { 50, 100, 200, 300, 500 })
     @Transactional
     void productPriceFilterWithThreshold(int priceThreshold) {
         BigDecimal threshold = new BigDecimal(priceThreshold);
@@ -316,7 +318,7 @@ class FilterPropertyIT {
     }
 
     @ParameterizedTest(name = "product stock filter with min stock {0}")
-    @ValueSource(ints = {0, 10, 25, 50})
+    @ValueSource(ints = { 0, 10, 25, 50 })
     @Transactional
     void productStockFilterAllResultsSufficient(int minStock) {
         List<Product> filtered = Product.where((Product p) -> p.stockQuantity >= minStock).toList();

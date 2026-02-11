@@ -12,7 +12,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 /**
  * Unit tests for {@link ExpressionBuilderRegistry}.
  *
- * <p>This class uses JUnit 5 parameterized tests to consolidate repetitive
+ * <p>
+ * This class uses JUnit 5 parameterized tests to consolidate repetitive
  * test patterns, reducing code duplication while maintaining full coverage.
  */
 @DisplayName("ExpressionBuilderRegistry")

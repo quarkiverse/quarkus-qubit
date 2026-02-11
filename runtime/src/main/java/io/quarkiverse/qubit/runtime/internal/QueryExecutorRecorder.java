@@ -1,12 +1,12 @@
 package io.quarkiverse.qubit.runtime.internal;
 
-import io.quarkiverse.qubit.QueryExecutorRegistrationException;
-
-import io.quarkus.runtime.annotations.Recorder;
-import org.jboss.logging.Logger;
-
 import java.util.List;
 import java.util.function.Consumer;
+
+import org.jboss.logging.Logger;
+
+import io.quarkiverse.qubit.QueryExecutorRegistrationException;
+import io.quarkus.runtime.annotations.Recorder;
 
 /**
  * Registers build-time generated query executors during static initialization.
@@ -21,7 +21,8 @@ public class QueryExecutorRecorder {
      */
     public void registerListExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
         registerExecutor(callSiteId, executorClassName, capturedVarCount, "list",
-            (QueryExecutor<List<?>> executor) -> QueryExecutorRegistry.registerListExecutor(callSiteId, executor, capturedVarCount));
+                (QueryExecutor<List<?>> executor) -> QueryExecutorRegistry.registerListExecutor(callSiteId, executor,
+                        capturedVarCount));
     }
 
     /**
@@ -29,7 +30,8 @@ public class QueryExecutorRecorder {
      */
     public void registerCountExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
         registerExecutor(callSiteId, executorClassName, capturedVarCount, "count",
-            (QueryExecutor<Long> executor) -> QueryExecutorRegistry.registerCountExecutor(callSiteId, executor, capturedVarCount));
+                (QueryExecutor<Long> executor) -> QueryExecutorRegistry.registerCountExecutor(callSiteId, executor,
+                        capturedVarCount));
     }
 
     /**
@@ -38,7 +40,8 @@ public class QueryExecutorRecorder {
      */
     public void registerAggregationExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
         registerExecutor(callSiteId, executorClassName, capturedVarCount, "aggregation",
-            (QueryExecutor<Object> executor) -> QueryExecutorRegistry.registerAggregationExecutor(callSiteId, executor, capturedVarCount));
+                (QueryExecutor<Object> executor) -> QueryExecutorRegistry.registerAggregationExecutor(callSiteId, executor,
+                        capturedVarCount));
     }
 
     /**
@@ -46,7 +49,8 @@ public class QueryExecutorRecorder {
      */
     public void registerJoinListExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
         registerExecutor(callSiteId, executorClassName, capturedVarCount, "join-list",
-            (QueryExecutor<List<?>> executor) -> QueryExecutorRegistry.registerJoinListExecutor(callSiteId, executor, capturedVarCount));
+                (QueryExecutor<List<?>> executor) -> QueryExecutorRegistry.registerJoinListExecutor(callSiteId, executor,
+                        capturedVarCount));
     }
 
     /**
@@ -54,7 +58,8 @@ public class QueryExecutorRecorder {
      */
     public void registerJoinCountExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
         registerExecutor(callSiteId, executorClassName, capturedVarCount, "join-count",
-            (QueryExecutor<Long> executor) -> QueryExecutorRegistry.registerJoinCountExecutor(callSiteId, executor, capturedVarCount));
+                (QueryExecutor<Long> executor) -> QueryExecutorRegistry.registerJoinCountExecutor(callSiteId, executor,
+                        capturedVarCount));
     }
 
     /**
@@ -63,7 +68,8 @@ public class QueryExecutorRecorder {
      */
     public void registerJoinSelectJoinedExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
         registerExecutor(callSiteId, executorClassName, capturedVarCount, "join-selectJoined",
-            (QueryExecutor<List<?>> executor) -> QueryExecutorRegistry.registerJoinSelectJoinedExecutor(callSiteId, executor, capturedVarCount));
+                (QueryExecutor<List<?>> executor) -> QueryExecutorRegistry.registerJoinSelectJoinedExecutor(callSiteId,
+                        executor, capturedVarCount));
     }
 
     /**
@@ -72,7 +78,8 @@ public class QueryExecutorRecorder {
      */
     public void registerJoinProjectionExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
         registerExecutor(callSiteId, executorClassName, capturedVarCount, "join-projection",
-            (QueryExecutor<List<?>> executor) -> QueryExecutorRegistry.registerJoinProjectionExecutor(callSiteId, executor, capturedVarCount));
+                (QueryExecutor<List<?>> executor) -> QueryExecutorRegistry.registerJoinProjectionExecutor(callSiteId, executor,
+                        capturedVarCount));
     }
 
     /**
@@ -80,7 +87,8 @@ public class QueryExecutorRecorder {
      */
     public void registerGroupListExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
         registerExecutor(callSiteId, executorClassName, capturedVarCount, "group-list",
-            (QueryExecutor<List<?>> executor) -> QueryExecutorRegistry.registerGroupListExecutor(callSiteId, executor, capturedVarCount));
+                (QueryExecutor<List<?>> executor) -> QueryExecutorRegistry.registerGroupListExecutor(callSiteId, executor,
+                        capturedVarCount));
     }
 
     /**
@@ -88,7 +96,8 @@ public class QueryExecutorRecorder {
      */
     public void registerGroupCountExecutor(String callSiteId, String executorClassName, int capturedVarCount) {
         registerExecutor(callSiteId, executorClassName, capturedVarCount, "group-count",
-            (QueryExecutor<Long> executor) -> QueryExecutorRegistry.registerGroupCountExecutor(callSiteId, executor, capturedVarCount));
+                (QueryExecutor<Long> executor) -> QueryExecutorRegistry.registerGroupCountExecutor(callSiteId, executor,
+                        capturedVarCount));
     }
 
     /**
@@ -118,7 +127,7 @@ public class QueryExecutorRecorder {
 
         try {
             LOG.debugf("Registering %s executor: %s -> %s (captured vars: %d)",
-                       executorType, callSiteId, executorClassName, capturedVarCount);
+                    executorType, callSiteId, executorClassName, capturedVarCount);
 
             Class<?> executorClass = Thread.currentThread()
                     .getContextClassLoader()
@@ -136,7 +145,8 @@ public class QueryExecutorRecorder {
             LOG.errorf(e, "Failed to register %s executor for call site: %s", executorType, callSiteId);
             throw new QueryExecutorRegistrationException(
                     "Failed to register " + executorType + " executor: " + callSiteId +
-                    " (executor class: " + executorClassName + ")", e);
+                            " (executor class: " + executorClassName + ")",
+                    e);
         }
     }
 }

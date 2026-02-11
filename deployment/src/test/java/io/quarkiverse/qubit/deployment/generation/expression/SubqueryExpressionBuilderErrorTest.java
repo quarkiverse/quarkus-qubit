@@ -10,10 +10,12 @@ import org.junit.jupiter.api.Test;
 /**
  * Tests for error paths in SubqueryExpressionBuilder.
  *
- * <p>These tests verify that the builder correctly validates null inputs
+ * <p>
+ * These tests verify that the builder correctly validates null inputs
  * and throws appropriate exceptions with descriptive messages.
  *
- * <p>Note: buildFieldPath null expression and handleAggregation unexpected type
+ * <p>
+ * Note: buildFieldPath null expression and handleAggregation unexpected type
  * are internal methods that are harder to test directly. They are covered through the
  * public API null checks.
  */
@@ -39,7 +41,7 @@ class SubqueryExpressionBuilderErrorTest {
                     null, // cb
                     null, // query
                     null, // outerRoot
-                    null  // capturedValues
+                    null // capturedValues
             ))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("ScalarSubquery cannot be null");
@@ -59,7 +61,7 @@ class SubqueryExpressionBuilderErrorTest {
                     null, // cb
                     null, // query
                     null, // outerRoot
-                    null  // capturedValues
+                    null // capturedValues
             ))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("ExistsSubquery cannot be null");
@@ -79,7 +81,7 @@ class SubqueryExpressionBuilderErrorTest {
                     null, // cb
                     null, // query
                     null, // outerRoot
-                    null  // capturedValues
+                    null // capturedValues
             ))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("InSubquery cannot be null");

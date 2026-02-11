@@ -28,9 +28,8 @@ public final class QubitConstants {
     public static final String METHOD_SUM_DOUBLE = "sumDouble";
 
     public static final Set<String> AGGREGATION_METHOD_NAMES = Set.of(
-        METHOD_MIN, METHOD_MAX, METHOD_AVG,
-        METHOD_SUM_INTEGER, METHOD_SUM_LONG, METHOD_SUM_DOUBLE
-    );
+            METHOD_MIN, METHOD_MAX, METHOD_AVG,
+            METHOD_SUM_INTEGER, METHOD_SUM_LONG, METHOD_SUM_DOUBLE);
 
     // Fluent API - Terminal operations (instance methods on QubitStream)
     public static final String METHOD_TO_LIST = "toList";
@@ -41,24 +40,21 @@ public final class QubitConstants {
 
     // All fluent API entry points (static methods)
     public static final Set<String> FLUENT_ENTRY_POINT_METHODS = Set.of(
-        METHOD_WHERE, METHOD_SELECT, METHOD_SORTED_BY, METHOD_SORTED_DESCENDING_BY,
-        METHOD_MIN, METHOD_MAX, METHOD_AVG,
-        METHOD_SUM_INTEGER, METHOD_SUM_LONG, METHOD_SUM_DOUBLE
-    );
+            METHOD_WHERE, METHOD_SELECT, METHOD_SORTED_BY, METHOD_SORTED_DESCENDING_BY,
+            METHOD_MIN, METHOD_MAX, METHOD_AVG,
+            METHOD_SUM_INTEGER, METHOD_SUM_LONG, METHOD_SUM_DOUBLE);
 
     // All fluent API intermediate operations
     public static final Set<String> FLUENT_INTERMEDIATE_METHODS = Set.of(
-        METHOD_WHERE, METHOD_SELECT, METHOD_SORTED_BY, METHOD_SORTED_DESCENDING_BY,
-        METHOD_SKIP, METHOD_LIMIT, METHOD_DISTINCT,
-        METHOD_MIN, METHOD_MAX, METHOD_AVG,
-        METHOD_SUM_INTEGER, METHOD_SUM_LONG, METHOD_SUM_DOUBLE
-    );
+            METHOD_WHERE, METHOD_SELECT, METHOD_SORTED_BY, METHOD_SORTED_DESCENDING_BY,
+            METHOD_SKIP, METHOD_LIMIT, METHOD_DISTINCT,
+            METHOD_MIN, METHOD_MAX, METHOD_AVG,
+            METHOD_SUM_INTEGER, METHOD_SUM_LONG, METHOD_SUM_DOUBLE);
 
     // All fluent API terminal operations
     public static final Set<String> FLUENT_TERMINAL_METHODS = Set.of(
-        METHOD_TO_LIST, METHOD_COUNT, METHOD_EXISTS,
-        METHOD_GET_SINGLE_RESULT, METHOD_FIND_FIRST
-    );
+            METHOD_TO_LIST, METHOD_COUNT, METHOD_EXISTS,
+            METHOD_GET_SINGLE_RESULT, METHOD_FIND_FIRST);
 
     // Join method names
     public static final String METHOD_JOIN = "join";
@@ -68,14 +64,12 @@ public final class QubitConstants {
     public static final String METHOD_SELECT_JOINED = "selectJoined";
 
     public static final Set<String> JOIN_ENTRY_METHODS = Set.of(
-        METHOD_JOIN, METHOD_LEFT_JOIN
-    );
+            METHOD_JOIN, METHOD_LEFT_JOIN);
 
     // All join methods (for stack walking filter)
     public static final Set<String> JOIN_METHODS = Set.of(
-        METHOD_JOIN, METHOD_LEFT_JOIN, METHOD_ON,
-        METHOD_SELECT_SOURCE, METHOD_SELECT_JOINED
-    );
+            METHOD_JOIN, METHOD_LEFT_JOIN, METHOD_ON,
+            METHOD_SELECT_SOURCE, METHOD_SELECT_JOINED);
 
     // Group method names
     public static final String METHOD_GROUP_BY = "groupBy";
@@ -89,8 +83,7 @@ public final class QubitConstants {
 
     // All group methods (for stack walking filter)
     public static final Set<String> GROUP_METHODS = Set.of(
-        METHOD_GROUP_BY, METHOD_HAVING, METHOD_SELECT_KEY
-    );
+            METHOD_GROUP_BY, METHOD_HAVING, METHOD_SELECT_KEY);
 
     // Group interface internal name
     public static final String GROUP_INTERNAL_NAME = "io/quarkiverse/qubit/Group";
@@ -108,9 +101,8 @@ public final class QubitConstants {
 
     // All subquery methods (for stack walking filter)
     public static final Set<String> SUBQUERY_METHODS = Set.of(
-        SUBQUERY_AVG, SUBQUERY_SUM, SUBQUERY_MIN, SUBQUERY_MAX, SUBQUERY_COUNT,
-        SUBQUERY_EXISTS, SUBQUERY_NOT_EXISTS, SUBQUERY_IN, SUBQUERY_NOT_IN
-    );
+            SUBQUERY_AVG, SUBQUERY_SUM, SUBQUERY_MIN, SUBQUERY_MAX, SUBQUERY_COUNT,
+            SUBQUERY_EXISTS, SUBQUERY_NOT_EXISTS, SUBQUERY_IN, SUBQUERY_NOT_IN);
 
     // Subqueries utility class internal name
     public static final String SUBQUERIES_INTERNAL_NAME = "io/quarkiverse/qubit/Subqueries";
@@ -128,8 +120,7 @@ public final class QubitConstants {
     public static final String METHOD_IS_EQUAL = "isEqual";
 
     public static final Set<String> TEMPORAL_COMPARISON_METHOD_NAMES = Set.of(
-        METHOD_IS_AFTER, METHOD_IS_BEFORE, METHOD_IS_EQUAL
-    );
+            METHOD_IS_AFTER, METHOD_IS_BEFORE, METHOD_IS_EQUAL);
 
     // Extension capability name for interoperability with other extensions
     public static final String QUBIT_CAPABILITY = "io.quarkiverse.qubit";
@@ -170,16 +161,14 @@ public final class QubitConstants {
     public static final String METHOD_DIVIDE = "divide";
 
     public static final Set<String> BIG_DECIMAL_ARITHMETIC_METHODS = Set.of(
-        METHOD_ADD, METHOD_SUBTRACT, METHOD_MULTIPLY, METHOD_DIVIDE
-    );
+            METHOD_ADD, METHOD_SUBTRACT, METHOD_MULTIPLY, METHOD_DIVIDE);
 
     public static final String METHOD_STARTS_WITH = "startsWith";
     public static final String METHOD_ENDS_WITH = "endsWith";
     public static final String METHOD_CONTAINS = "contains";
 
     public static final Set<String> STRING_PATTERN_METHOD_NAMES = Set.of(
-        METHOD_STARTS_WITH, METHOD_ENDS_WITH, METHOD_CONTAINS
-    );
+            METHOD_STARTS_WITH, METHOD_ENDS_WITH, METHOD_CONTAINS);
 
     public static final String METHOD_TO_LOWER_CASE = "toLowerCase";
     public static final String METHOD_TO_UPPER_CASE = "toUpperCase";
@@ -192,12 +181,10 @@ public final class QubitConstants {
     public static final String METHOD_SUBSTRING = "substring";
 
     public static final Set<String> STRING_TRANSFORMATION_METHODS = Set.of(
-        METHOD_TO_LOWER_CASE, METHOD_TO_UPPER_CASE, METHOD_TRIM
-    );
+            METHOD_TO_LOWER_CASE, METHOD_TO_UPPER_CASE, METHOD_TRIM);
 
     public static final Set<String> STRING_UTILITY_METHODS = Set.of(
-        METHOD_EQUALS, METHOD_LENGTH, METHOD_IS_EMPTY, METHOD_IS_BLANK
-    );
+            METHOD_EQUALS, METHOD_LENGTH, METHOD_IS_EMPTY, METHOD_IS_BLANK);
     public static final String METHOD_GET_YEAR = "getYear";
     public static final String METHOD_GET_MONTH_VALUE = "getMonthValue";
     public static final String METHOD_GET_DAY_OF_MONTH = "getDayOfMonth";
@@ -206,17 +193,14 @@ public final class QubitConstants {
     public static final String METHOD_GET_SECOND = "getSecond";
 
     public static final Set<String> LOCAL_DATE_ACCESSOR_METHODS = Set.of(
-        METHOD_GET_YEAR, METHOD_GET_MONTH_VALUE, METHOD_GET_DAY_OF_MONTH
-    );
+            METHOD_GET_YEAR, METHOD_GET_MONTH_VALUE, METHOD_GET_DAY_OF_MONTH);
 
     public static final Set<String> LOCAL_DATE_TIME_ACCESSOR_METHODS = Set.of(
-        METHOD_GET_YEAR, METHOD_GET_MONTH_VALUE, METHOD_GET_DAY_OF_MONTH,
-        METHOD_GET_HOUR, METHOD_GET_MINUTE, METHOD_GET_SECOND
-    );
+            METHOD_GET_YEAR, METHOD_GET_MONTH_VALUE, METHOD_GET_DAY_OF_MONTH,
+            METHOD_GET_HOUR, METHOD_GET_MINUTE, METHOD_GET_SECOND);
 
     public static final Set<String> LOCAL_TIME_ACCESSOR_METHODS = Set.of(
-        METHOD_GET_HOUR, METHOD_GET_MINUTE, METHOD_GET_SECOND
-    );
+            METHOD_GET_HOUR, METHOD_GET_MINUTE, METHOD_GET_SECOND);
 
     public static final String METHOD_COMPARE_TO = "compareTo";
     public static final String METHOD_VALUE_OF = "valueOf";
@@ -309,7 +293,7 @@ public final class QubitConstants {
     public static final String CONSTRUCTOR = "<init>";
 
     // Captured variable field name patterns (compiler-specific)
-    public static final String CAPTURED_VAR_PREFIX_JAVAC = "arg$";   // javac: arg$1, arg$2, ...
+    public static final String CAPTURED_VAR_PREFIX_JAVAC = "arg$"; // javac: arg$1, arg$2, ...
     public static final String CAPTURED_VAR_PREFIX_ECLIPSE = "val$"; // Eclipse: val$1, val$2, ...
 
     // JVM Internal Class Names (slash-separated for ASM bytecode analysis)
@@ -350,8 +334,7 @@ public final class QubitConstants {
             JVM_JAVA_UTIL_LINKED_LIST,
             JVM_JAVA_UTIL_HASH_SET,
             JVM_JAVA_UTIL_TREE_SET,
-            JVM_JAVA_UTIL_LINKED_HASH_SET
-    );
+            JVM_JAVA_UTIL_LINKED_HASH_SET);
 
     // Aggregation type identifiers for build-time to runtime communication
     public static final String AGG_TYPE_MIN = "MIN";
@@ -363,8 +346,7 @@ public final class QubitConstants {
 
     public static final Set<String> AGGREGATION_TYPES = Set.of(
             AGG_TYPE_MIN, AGG_TYPE_MAX, AGG_TYPE_AVG,
-            AGG_TYPE_SUM_INTEGER, AGG_TYPE_SUM_LONG, AGG_TYPE_SUM_DOUBLE
-    );
+            AGG_TYPE_SUM_INTEGER, AGG_TYPE_SUM_LONG, AGG_TYPE_SUM_DOUBLE);
 
     // Query type identifiers for hash computation and deduplication
     public static final String QUERY_TYPE_LIST = "LIST";
@@ -373,24 +355,18 @@ public final class QubitConstants {
     public static final String QUERY_TYPE_COMBINED = "COMBINED";
 
     // JVM Bootstrap Method Factory Class Names
-    public static final String JVM_JAVA_LANG_INVOKE_STRING_CONCAT_FACTORY =
-            "java/lang/invoke/StringConcatFactory";
-    public static final String JVM_JAVA_LANG_INVOKE_LAMBDA_METAFACTORY =
-            "java/lang/invoke/LambdaMetafactory";
+    public static final String JVM_JAVA_LANG_INVOKE_STRING_CONCAT_FACTORY = "java/lang/invoke/StringConcatFactory";
+    public static final String JVM_JAVA_LANG_INVOKE_LAMBDA_METAFACTORY = "java/lang/invoke/LambdaMetafactory";
 
     // Qubit Runtime Implementation Class Names
-    public static final String QUBIT_STREAM_IMPL_INTERNAL_NAME =
-            "io/quarkiverse/qubit/runtime/internal/QubitStreamImpl";
-    public static final String JOIN_STREAM_IMPL_INTERNAL_NAME =
-            "io/quarkiverse/qubit/runtime/internal/JoinStreamImpl";
-    public static final String JOIN_TYPE_INTERNAL_NAME =
-            "io/quarkiverse/qubit/JoinType";
-    public static final String JOIN_TYPE_DESCRIPTOR =
-            "Lio/quarkiverse/qubit/JoinType;";
+    public static final String QUBIT_STREAM_IMPL_INTERNAL_NAME = "io/quarkiverse/qubit/runtime/internal/QubitStreamImpl";
+    public static final String JOIN_STREAM_IMPL_INTERNAL_NAME = "io/quarkiverse/qubit/runtime/internal/JoinStreamImpl";
+    public static final String JOIN_TYPE_INTERNAL_NAME = "io/quarkiverse/qubit/JoinType";
+    public static final String JOIN_TYPE_DESCRIPTOR = "Lio/quarkiverse/qubit/JoinType;";
 
     // Lambda Hash Constants
     public static final int HASH_CHARS_FOR_CLASS_NAME = 16; // 64 bits entropy for class names
-    public static final int HASH_CHARS_FOR_LOG = 8;         // Compact identifier for logs
-    public static final char QUERY_ID_SEPARATOR = '#';      // Class#method$lambda$1
+    public static final int HASH_CHARS_FOR_LOG = 8; // Compact identifier for logs
+    public static final char QUERY_ID_SEPARATOR = '#'; // Class#method$lambda$1
     public static final char LAMBDA_SUFFIX_MARKER = '$';
 }

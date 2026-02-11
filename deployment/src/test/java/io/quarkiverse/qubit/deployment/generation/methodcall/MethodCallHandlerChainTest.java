@@ -1,10 +1,10 @@
 package io.quarkiverse.qubit.deployment.generation.methodcall;
 
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 /**
  * Tests for {@link MethodCallHandlerChain} handler ordering validation.
@@ -25,14 +25,13 @@ class MethodCallHandlerChainTest {
     void constructor_rejectsMisorderedHandlers() {
         // GetterMethodHandler (FALLBACK) placed before TemporalAccessorHandler (DELEGATING)
         List<MethodCallHandler> misordered = List.of(
-                GetterMethodHandler.INSTANCE,        // FALLBACK - should be last
-                TemporalAccessorHandler.INSTANCE     // DELEGATING - should come before FALLBACK
+                GetterMethodHandler.INSTANCE, // FALLBACK - should be last
+                TemporalAccessorHandler.INSTANCE // DELEGATING - should come before FALLBACK
         );
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> new MethodCallHandlerChain(misordered)
-        );
+                () -> new MethodCallHandlerChain(misordered));
 
         assertTrue(exception.getMessage().contains("Handler ordering violation"));
         assertTrue(exception.getMessage().contains("TemporalAccessorHandler"));
@@ -43,10 +42,10 @@ class MethodCallHandlerChainTest {
     void constructor_acceptsCorrectlyOrderedHandlers() {
         // Subset of handlers in correct priority order
         List<MethodCallHandler> correctOrder = List.of(
-                TemporalComparisonHandler.INSTANCE,   // FAST_REJECT
-                StringLikePatternHandler.INSTANCE,    // FAST_REJECT
-                TemporalAccessorHandler.INSTANCE,     // DELEGATING
-                GetterMethodHandler.INSTANCE          // FALLBACK
+                TemporalComparisonHandler.INSTANCE, // FAST_REJECT
+                StringLikePatternHandler.INSTANCE, // FAST_REJECT
+                TemporalAccessorHandler.INSTANCE, // DELEGATING
+                GetterMethodHandler.INSTANCE // FALLBACK
         );
 
         // Should not throw
@@ -104,6 +103,6 @@ class MethodCallHandlerChainTest {
 
         assertSame(GetterMethodHandler.INSTANCE, lastHandler,
                 "GetterMethodHandler must be the last handler to avoid intercepting " +
-                "temporal accessor methods like getYear() and utility methods like isEmpty()");
+                        "temporal accessor methods like getYear() and utility methods like isEmpty()");
     }
 }

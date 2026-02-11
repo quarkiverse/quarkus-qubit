@@ -2,9 +2,9 @@ package io.quarkiverse.qubit.deployment.generation.methodcall;
 
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_EQUALS;
 
-import io.quarkus.gizmo2.Expr;
-
 import java.util.Optional;
+
+import io.quarkus.gizmo2.Expr;
 
 /**
  * Handles equals/isEmpty/isBlank/length via StringExpressionBuilder.

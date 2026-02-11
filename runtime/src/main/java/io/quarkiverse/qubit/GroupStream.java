@@ -4,11 +4,12 @@ import java.util.List;
 
 /**
  * Fluent query builder for GROUP BY operations with HAVING and aggregations.
+ *
  * <pre>{@code
  * Person.groupBy(p -> p.department)
- *       .having(g -> g.count() > 5)
- *       .select(g -> new DeptStats(g.key(), g.count(), g.avg(p -> p.salary)))
- *       .toList();
+ *         .having(g -> g.count() > 5)
+ *         .select(g -> new DeptStats(g.key(), g.count(), g.avg(p -> p.salary)))
+ *         .toList();
  * }</pre>
  *
  * @param <T> the entity type being grouped
@@ -41,12 +42,14 @@ public interface GroupStream<T, K> {
 
     /**
      * Skips the first {@code n} groups (SQL OFFSET).
+     *
      * @throws IllegalArgumentException if {@code n < 0}
      */
     GroupStream<T, K> skip(int n);
 
     /**
      * Limits results to {@code n} groups (SQL LIMIT).
+     *
      * @throws IllegalArgumentException if {@code n < 0}
      */
     GroupStream<T, K> limit(int n);

@@ -1,13 +1,15 @@
 package io.quarkiverse.qubit.deployment.testutil.fixtures;
 
-import io.quarkiverse.qubit.deployment.analysis.branch.BranchState;
-
 import java.util.Optional;
+
+import io.quarkiverse.qubit.deployment.analysis.branch.BranchState;
 
 /**
  * Pre-configured BranchState fixtures for testing.
  *
- * <p>Usage:
+ * <p>
+ * Usage:
+ *
  * <pre>{@code
  * import static ...fixtures.BranchStateFixtures.*;
  *
@@ -18,7 +20,8 @@ import java.util.Optional;
  */
 public final class BranchStateFixtures {
 
-    private BranchStateFixtures() {}
+    private BranchStateFixtures() {
+    }
 
     // ==================== Initial State ====================
 

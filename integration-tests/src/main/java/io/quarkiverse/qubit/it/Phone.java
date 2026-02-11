@@ -9,7 +9,8 @@ import java.util.Objects;
 /**
  * Phone entity for testing one-to-many relationships.
  *
- * <p>This entity extends {@link QubitEntity} to gain lambda-based
+ * <p>
+ * This entity extends {@link QubitEntity} to gain lambda-based
  * query methods including relationship navigation.
  */
 @Entity
@@ -50,12 +51,14 @@ public class Phone extends QubitEntity {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Phone phone)) return false;
+        if (this == o)
+            return true;
+        if (!(o instanceof Phone phone))
+            return false;
         return isPrimaryPhone == phone.isPrimaryPhone &&
-               Objects.equals(id, phone.id) &&
-               Objects.equals(number, phone.number) &&
-               Objects.equals(type, phone.type);
+                Objects.equals(id, phone.id) &&
+                Objects.equals(number, phone.number) &&
+                Objects.equals(type, phone.type);
     }
 
     @Override
@@ -66,10 +69,10 @@ public class Phone extends QubitEntity {
     @Override
     public String toString() {
         return "Phone{" +
-               "id=" + id +
-               ", number='" + number + '\'' +
-               ", type='" + type + '\'' +
-               ", isPrimaryPhone=" + isPrimaryPhone +
-               '}';
+                "id=" + id +
+                ", number='" + number + '\'' +
+                ", type='" + type + '\'' +
+                ", isPrimaryPhone=" + isPrimaryPhone +
+                '}';
     }
 }

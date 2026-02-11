@@ -1,17 +1,18 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
+
+import java.util.function.Function;
+
+import org.objectweb.asm.tree.MethodInsnNode;
+
+import io.quarkiverse.qubit.deployment.analysis.instruction.AnalysisContext.PopPairResult;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupAggregation;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupKeyReference;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupParameter;
-import io.quarkiverse.qubit.deployment.analysis.instruction.AnalysisContext.PopPairResult;
 import io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer;
 import io.quarkus.logging.Log;
-import org.objectweb.asm.tree.MethodInsnNode;
-
-import java.util.function.Function;
-
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
 
 /** Analyzes Group interface method calls: key(), count(), avg(), min(), max(), sum*(). */
 public class GroupMethodAnalyzer {
@@ -70,8 +71,8 @@ public class GroupMethodAnalyzer {
             return;
         }
 
-        LambdaExpression fieldArg = pair.right();  // The field extractor (was on top)
-        LambdaExpression target = pair.left();     // The Group parameter
+        LambdaExpression fieldArg = pair.right(); // The field extractor (was on top)
+        LambdaExpression target = pair.left(); // The Group parameter
 
         if (target instanceof GroupParameter) {
             ctx.push(GroupAggregation.countDistinct(fieldArg));
@@ -105,8 +106,8 @@ public class GroupMethodAnalyzer {
             return;
         }
 
-        LambdaExpression fieldArg = pair.right();  // The field extractor (was on top)
-        LambdaExpression target = pair.left();     // The Group parameter
+        LambdaExpression fieldArg = pair.right(); // The field extractor (was on top)
+        LambdaExpression target = pair.left(); // The Group parameter
 
         if (target instanceof GroupParameter) {
             // Determine result type from field expression

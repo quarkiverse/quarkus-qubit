@@ -14,9 +14,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Abstract base class for distinct() operation combination tests.
  *
- * <p>Covers all missing distinct-related operation combinations identified in the coverage matrix.
+ * <p>
+ * Covers all missing distinct-related operation combinations identified in the coverage matrix.
  *
- * <p>Test coverage (13 tests):
+ * <p>
+ * Test coverage (13 tests):
  * <ul>
  * <li>distinct → count (1 test)</li>
  * <li>where + distinct → toList (2 tests)</li>

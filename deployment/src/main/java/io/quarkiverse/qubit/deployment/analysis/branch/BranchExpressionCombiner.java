@@ -1,35 +1,38 @@
 package io.quarkiverse.qubit.deployment.analysis.branch;
 
-import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.common.BytecodeValidator;
-import io.quarkus.logging.Log;
-import org.jspecify.annotations.Nullable;
-
-import java.util.Deque;
-import java.util.Optional;
-
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
-import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.AND;
-import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.OR;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.and;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.or;
+import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.AND;
+import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.OR;
 import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.isBooleanType;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 
+import java.util.Deque;
+import java.util.Optional;
+
+import org.jspecify.annotations.Nullable;
+
+import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.common.BytecodeValidator;
+import io.quarkus.logging.Log;
+
 /**
  * Encapsulates expression combination logic for branch analysis.
  *
- * <p>Extracted from BranchHandler default methods to follow composition over inheritance.
+ * <p>
+ * Extracted from BranchHandler default methods to follow composition over inheritance.
  * This class is stateless and all methods are static for easy testability.
  *
- * <p>Responsibilities:
+ * <p>
+ * Responsibilities:
  * <ul>
- *   <li>Combining expressions with AND/OR operators</li>
- *   <li>Fixing operator precedence in combined expressions</li>
- *   <li>Adjusting combine operators based on label semantics</li>
- *   <li>Determining jump-to-true semantics</li>
+ * <li>Combining expressions with AND/OR operators</li>
+ * <li>Fixing operator precedence in combined expressions</li>
+ * <li>Adjusting combine operators based on label semantics</li>
+ * <li>Determining jump-to-true semantics</li>
  * </ul>
  */
 public final class BranchExpressionCombiner {
@@ -53,7 +56,8 @@ public final class BranchExpressionCombiner {
             @Nullable LambdaExpression stackTop,
             ControlFlowAnalyzer.LabelClassification jumpLabelClass,
             boolean completingAndGroup,
-            boolean startingNewOrGroup) {}
+            boolean startingNewOrGroup) {
+    }
 
     /**
      * Parameter object for {@link #processAndCombineBranch}.
@@ -65,12 +69,14 @@ public final class BranchExpressionCombiner {
             boolean sameLabel,
             boolean completingAndGroup,
             boolean startingNewOrGroup,
-            boolean jumpToTrue) {}
+            boolean jumpToTrue) {
+    }
 
     /**
      * Combines expressions and restructures to fix precedence if needed.
      *
-     * <p>When combining ((a OR b) AND c) OR d, restructures to (a OR b) AND (c OR d)
+     * <p>
+     * When combining ((a OR b) AND c) OR d, restructures to (a OR b) AND (c OR d)
      * to maintain proper grouping.
      *
      * @param combineOp operator to combine with (AND or OR)
@@ -91,10 +97,10 @@ public final class BranchExpressionCombiner {
         // Should be: (a OR b) AND (c OR d) to maintain proper grouping
         // ONLY restructure if X is itself an OR expression
         if (combineOp == OR &&
-            previousCondition instanceof LambdaExpression.BinaryOp(var x, var prevOp, var y) &&
-            prevOp == AND &&
-            x instanceof LambdaExpression.BinaryOp(_, var xOp, _) &&
-            xOp == OR) {
+                previousCondition instanceof LambdaExpression.BinaryOp(var x, var prevOp, var y) &&
+                prevOp == AND &&
+                x instanceof LambdaExpression.BinaryOp(_, var xOp, _) &&
+                xOp == OR) {
 
             // Restructure: ((a OR b) AND c) OR d → (a OR b) AND (c OR d)
             // x = (a OR b), y = c, newExpression = d
@@ -124,7 +130,8 @@ public final class BranchExpressionCombiner {
     /**
      * Adjusts combine operator based on label semantics.
      *
-     * <p>Same-label to FALSE_SINK uses AND; TRUE_SINK/INTERMEDIATE uses OR.
+     * <p>
+     * Same-label to FALSE_SINK uses AND; TRUE_SINK/INTERMEDIATE uses OR.
      *
      * @param combineOp initial combine operator
      * @param sameLabel true if jumping to same label as previous instruction
@@ -148,7 +155,7 @@ public final class BranchExpressionCombiner {
             if (jumpLabelClass == ControlFlowAnalyzer.LabelClassification.FALSE_SINK) {
                 combineOp = AND;
             } else if (jumpLabelClass == ControlFlowAnalyzer.LabelClassification.INTERMEDIATE ||
-                       jumpLabelClass == ControlFlowAnalyzer.LabelClassification.TRUE_SINK) {
+                    jumpLabelClass == ControlFlowAnalyzer.LabelClassification.TRUE_SINK) {
                 combineOp = OR;
             }
         }
@@ -295,7 +302,7 @@ public final class BranchExpressionCombiner {
         // OrMode deferral: (A && B) || (C && D) - wait for AND group to complete
         if (shouldDeferOrCombination(state, combineOp, jumpTarget, sameLabel, stackTop)) {
             Log.debugf("%s: Starting new AND group in OrMode, deferring OR combination", instructionName);
-            combineOp = null;  // Don't combine yet
+            combineOp = null; // Don't combine yet
         }
 
         if (combineOp != null && !stack.isEmpty() && isPredicateExpression(stack.peek())) {

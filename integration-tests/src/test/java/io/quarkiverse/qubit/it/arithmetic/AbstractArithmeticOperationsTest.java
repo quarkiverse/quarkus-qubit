@@ -12,7 +12,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Abstract base class for arithmetic operation tests.
  *
- * <p>Contains all test methods that can be run with either static entity methods
+ * <p>
+ * Contains all test methods that can be run with either static entity methods
  * or repository instance methods.
  */
 public abstract class AbstractArithmeticOperationsTest {
@@ -195,9 +196,7 @@ public abstract class AbstractArithmeticOperationsTest {
     // Field-field arithmetic expressions
     @Test
     void longFieldFieldAddition() {
-        var results = personOps().where((Person p) ->
-                p.employeeId + p.employeeId > 2000000L
-        ).toList();
+        var results = personOps().where((Person p) -> p.employeeId + p.employeeId > 2000000L).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -206,9 +205,7 @@ public abstract class AbstractArithmeticOperationsTest {
 
     @Test
     void longFieldFieldSubtraction() {
-        var results = personOps().where((Person p) ->
-                p.employeeId - p.employeeId == 0L
-        ).toList();
+        var results = personOps().where((Person p) -> p.employeeId - p.employeeId == 0L).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -217,9 +214,7 @@ public abstract class AbstractArithmeticOperationsTest {
 
     @Test
     void longFieldFieldMultiplication() {
-        var results = personOps().where((Person p) ->
-                p.employeeId * p.employeeId > 1000000000000L
-        ).toList();
+        var results = personOps().where((Person p) -> p.employeeId * p.employeeId > 1000000000000L).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
@@ -228,9 +223,7 @@ public abstract class AbstractArithmeticOperationsTest {
 
     @Test
     void longFieldFieldDivision() {
-        var results = personOps().where((Person p) ->
-                p.employeeId / p.employeeId == 1L
-        ).toList();
+        var results = personOps().where((Person p) -> p.employeeId / p.employeeId == 1L).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)

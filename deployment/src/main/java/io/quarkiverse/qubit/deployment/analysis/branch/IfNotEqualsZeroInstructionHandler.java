@@ -1,26 +1,29 @@
 package io.quarkiverse.qubit.deployment.analysis.branch;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import org.objectweb.asm.tree.JumpInsnNode;
-
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.eq;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant.ZERO_INT;
 import static java.lang.Boolean.FALSE;
 import static org.objectweb.asm.Opcodes.IFNE;
 
+import org.objectweb.asm.tree.JumpInsnNode;
+
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+
 /**
  * Handles IFNE (if not equals zero, jump) bytecode instruction.
  *
- * <p>The IFNE instruction pops a value from the stack and jumps if the value is not equal to zero.
+ * <p>
+ * The IFNE instruction pops a value from the stack and jumps if the value is not equal to zero.
  * This handler transforms these bytecode patterns into high-level lambda expressions.
  *
- * <p>Supports multiple patterns via {@link AbstractZeroEqualityBranchHandler}:
+ * <p>
+ * Supports multiple patterns via {@link AbstractZeroEqualityBranchHandler}:
  * <ul>
- *   <li>Arithmetic comparison pattern (ISUB/LSUB followed by IFNE)</li>
- *   <li>Double comparison pattern (DCMPL/DCMPG followed by IFNE)</li>
- *   <li>CompareTo pattern (compareTo() call followed by IFNE)</li>
- *   <li>Arithmetic pattern (arithmetic operation followed by IFNE)</li>
- *   <li>Boolean field pattern (boolean field access followed by IFNE)</li>
+ * <li>Arithmetic comparison pattern (ISUB/LSUB followed by IFNE)</li>
+ * <li>Double comparison pattern (DCMPL/DCMPG followed by IFNE)</li>
+ * <li>CompareTo pattern (compareTo() call followed by IFNE)</li>
+ * <li>Arithmetic pattern (arithmetic operation followed by IFNE)</li>
+ * <li>Boolean field pattern (boolean field access followed by IFNE)</li>
  * </ul>
  */
 public class IfNotEqualsZeroInstructionHandler extends AbstractZeroEqualityBranchHandler {

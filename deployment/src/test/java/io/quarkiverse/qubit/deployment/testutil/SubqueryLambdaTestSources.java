@@ -1,22 +1,27 @@
 package io.quarkiverse.qubit.deployment.testutil;
 
-import io.quarkiverse.qubit.QuerySpec;
 import static io.quarkiverse.qubit.Subqueries.*;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+
+import io.quarkiverse.qubit.QuerySpec;
 
 /**
  * Source class containing pre-compiled subquery lambda expressions for bytecode analysis testing.
  *
- * <p>Each method in this class contains a lambda that uses Subqueries.* methods.
+ * <p>
+ * Each method in this class contains a lambda that uses Subqueries.* methods.
  * The bytecode analysis tests will load this compiled class and analyze the
  * synthetic lambda methods to verify correct subquery AST generation.
  *
- * <p><strong>Pattern</strong>: Each method returns a QuerySpec that will never be
+ * <p>
+ * <strong>Pattern</strong>: Each method returns a QuerySpec that will never be
  * executed - it's purely for bytecode generation. The method names match the
  * test names for easy mapping.
  *
- * <p>Iteration 8: Subqueries with fluent builder pattern - bytecode analysis verification.
+ * <p>
+ * Iteration 8: Subqueries with fluent builder pattern - bytecode analysis verification.
  */
 public class SubqueryLambdaTestSources {
 

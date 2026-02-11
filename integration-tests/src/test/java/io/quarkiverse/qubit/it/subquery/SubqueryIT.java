@@ -23,9 +23,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>
  * Test data (via createPersonsWithPhones):
  * <ul>
- *   <li>Engineering: John (salary 75000), Alice (salary 90000) -> avg 82500</li>
- *   <li>Sales: Jane (salary 65000), Charlie (salary 55000) -> avg 60000</li>
- *   <li>Human Resources: Bob (salary 85000) -> avg 85000</li>
+ * <li>Engineering: John (salary 75000), Alice (salary 90000) -> avg 82500</li>
+ * <li>Sales: Jane (salary 65000), Charlie (salary 55000) -> avg 60000</li>
+ * <li>Human Resources: Bob (salary 85000) -> avg 85000</li>
  * </ul>
  * <p>
  * Iteration 8: Subqueries implementation with fluent builder pattern.
@@ -52,8 +52,7 @@ class SubqueryIT {
             // Average salary: (75000 + 65000 + 85000 + 90000 + 55000) / 5 = 74000
             // Above average: John (75000), Bob (85000), Alice (90000)
             List<Person> aboveAverage = Person.where(
-                    (Person p) -> p.salary > subquery(Person.class).avg(q -> q.salary)
-            ).toList();
+                    (Person p) -> p.salary > subquery(Person.class).avg(q -> q.salary)).toList();
 
             assertThat(aboveAverage)
                     .hasSize(3)
@@ -66,8 +65,7 @@ class SubqueryIT {
         void findPersonsBelowAverageSalary() {
             // Below 74000: Jane (65000), Charlie (55000)
             List<Person> belowAverage = Person.where(
-                    (Person p) -> p.salary < subquery(Person.class).avg(q -> q.salary)
-            ).toList();
+                    (Person p) -> p.salary < subquery(Person.class).avg(q -> q.salary)).toList();
 
             assertThat(belowAverage)
                     .hasSize(2)
@@ -85,8 +83,7 @@ class SubqueryIT {
         void findPersonWithMaxSalary() {
             // Alice has max salary (90000)
             List<Person> maxSalaryPerson = Person.where(
-                    (Person p) -> p.salary.equals(subquery(Person.class).max(q -> q.salary))
-            ).toList();
+                    (Person p) -> p.salary.equals(subquery(Person.class).max(q -> q.salary))).toList();
 
             assertThat(maxSalaryPerson)
                     .hasSize(1)
@@ -99,8 +96,7 @@ class SubqueryIT {
         void findPersonsBelowMaxSalary() {
             // Everyone except Alice
             List<Person> belowMax = Person.where(
-                    (Person p) -> p.salary < subquery(Person.class).max(q -> q.salary)
-            ).toList();
+                    (Person p) -> p.salary < subquery(Person.class).max(q -> q.salary)).toList();
 
             assertThat(belowMax)
                     .hasSize(4)
@@ -118,8 +114,7 @@ class SubqueryIT {
         void findPersonWithMinSalary() {
             // Charlie has min salary (55000)
             List<Person> minSalaryPerson = Person.where(
-                    (Person p) -> p.salary.equals(subquery(Person.class).min(q -> q.salary))
-            ).toList();
+                    (Person p) -> p.salary.equals(subquery(Person.class).min(q -> q.salary))).toList();
 
             assertThat(minSalaryPerson)
                     .hasSize(1)
@@ -132,8 +127,7 @@ class SubqueryIT {
         void findPersonsAboveMinSalary() {
             // Everyone except Charlie
             List<Person> aboveMin = Person.where(
-                    (Person p) -> p.salary > subquery(Person.class).min(q -> q.salary)
-            ).toList();
+                    (Person p) -> p.salary > subquery(Person.class).min(q -> q.salary)).toList();
 
             assertThat(aboveMin)
                     .hasSize(4)
@@ -152,8 +146,7 @@ class SubqueryIT {
             // Count is 5, ages are: John (30), Jane (25), Bob (45), Alice (35), Charlie (28)
             // Older than 5: all of them
             List<Person> older = Person.where(
-                    (Person p) -> (long) p.age > subquery(Person.class).count()
-            ).toList();
+                    (Person p) -> (long) p.age > subquery(Person.class).count()).toList();
 
             assertThat(older).hasSize(5);
         }
@@ -170,8 +163,7 @@ class SubqueryIT {
             // Departments: Engineering (500000), Sales (300000), HR (200000)
             // Above total salary: Engineering (500000)
             List<Department> richDepts = Department.where(
-                    (Department d) -> d.budget > subquery(Person.class).sum(p -> p.salary)
-            ).toList();
+                    (Department d) -> d.budget > subquery(Person.class).sum(p -> p.salary)).toList();
 
             assertThat(richDepts)
                     .hasSize(1)
@@ -186,8 +178,7 @@ class SubqueryIT {
             // Each individual salary is less than total sum
             // All 5 people have salary < 370000
             List<Person> belowTotalSum = Person.where(
-                    (Person p) -> p.salary < subquery(Person.class).sum(q -> q.salary)
-            ).toList();
+                    (Person p) -> p.salary < subquery(Person.class).sum(q -> q.salary)).toList();
 
             assertThat(belowTotalSum).hasSize(5);
         }
@@ -203,8 +194,7 @@ class SubqueryIT {
             // Active and above 74000: John (75000), Alice (90000)
             // Bob is inactive
             List<Person> activeAboveAvg = Person.where(
-                    (Person p) -> p.active && p.salary > subquery(Person.class).avg(q -> q.salary)
-            ).toList();
+                    (Person p) -> p.active && p.salary > subquery(Person.class).avg(q -> q.salary)).toList();
 
             assertThat(activeAboveAvg)
                     .hasSize(2)
@@ -229,8 +219,8 @@ class SubqueryIT {
             List<Person> aboveActiveAvg = Person.where(
                     (Person p) -> p.active && p.salary > subquery(Person.class)
                             .where(q -> q.active)
-                            .avg(q -> q.salary)
-            ).toList();
+                            .avg(q -> q.salary))
+                    .toList();
 
             assertThat(aboveActiveAvg)
                     .hasSize(2)
@@ -247,9 +237,8 @@ class SubqueryIT {
                     (Person p) -> p.salary.equals(
                             subquery(Person.class)
                                     .where(q -> q.department.name.equals("Engineering"))
-                                    .max(q -> q.salary)
-                    )
-            ).toList();
+                                    .max(q -> q.salary)))
+                    .toList();
 
             assertThat(engineeringMax)
                     .hasSize(1)
@@ -266,9 +255,8 @@ class SubqueryIT {
                     (Person p) -> p.salary.equals(
                             subquery(Person.class)
                                     .where(q -> q.active)
-                                    .min(q -> q.salary)
-                    )
-            ).toList();
+                                    .min(q -> q.salary)))
+                    .toList();
 
             assertThat(minActivePersons)
                     .hasSize(1)
@@ -286,8 +274,8 @@ class SubqueryIT {
             List<Department> deptAboveActiveSum = Department.where(
                     (Department d) -> d.budget > subquery(Person.class)
                             .where(p -> p.active)
-                            .sum(p -> p.salary)
-            ).toList();
+                            .sum(p -> p.salary))
+                    .toList();
 
             assertThat(deptAboveActiveSum)
                     .hasSize(2)
@@ -304,8 +292,8 @@ class SubqueryIT {
             List<Person> olderThanDeptCount = Person.where(
                     (Person p) -> (long) p.age > subquery(Person.class)
                             .where(q -> q.department.name.equals("Engineering"))
-                            .count()
-            ).toList();
+                            .count())
+                    .toList();
 
             assertThat(olderThanDeptCount)
                     .hasSize(5)
@@ -325,8 +313,8 @@ class SubqueryIT {
                             p.salary > subquery(Person.class)
                                     .where(q -> q.active)
                                     .where(q -> q.department.name.equals("Sales"))
-                                    .avg(q -> q.salary)
-            ).toList();
+                                    .avg(q -> q.salary))
+                    .toList();
 
             assertThat(aboveActiveSalesAvg)
                     .hasSize(1)
@@ -343,15 +331,14 @@ class SubqueryIT {
 
             // Above overall average: John, Bob, Alice (3 people)
             List<Person> aboveOverallAvg = Person.where(
-                    (Person p) -> p.salary > subquery(Person.class).avg(q -> q.salary)
-            ).toList();
+                    (Person p) -> p.salary > subquery(Person.class).avg(q -> q.salary)).toList();
 
             // Above active average: John, Alice (2 people) - Bob is inactive
             List<Person> aboveActiveAvg = Person.where(
                     (Person p) -> p.active && p.salary > subquery(Person.class)
                             .where(q -> q.active)
-                            .avg(q -> q.salary)
-            ).toList();
+                            .avg(q -> q.salary))
+                    .toList();
 
             assertThat(aboveOverallAvg).hasSize(3);
             assertThat(aboveActiveAvg).hasSize(2);

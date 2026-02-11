@@ -1,11 +1,11 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.CALL_SITE_ID_NULL;
+import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.LAMBDA_HASH_NULL;
+
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
-
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.CALL_SITE_ID_NULL;
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.LAMBDA_HASH_NULL;
 
 /**
  * Sealed result type for lambda analysis: Success, UnsupportedPattern, or AnalysisError.
@@ -59,8 +59,7 @@ public sealed interface AnalysisOutcome {
     record EarlyDeduplicated(
             String callSiteId,
             String lambdaHash,
-            String executorClassName
-    ) implements AnalysisOutcome {
+            String executorClassName) implements AnalysisOutcome {
 
         public EarlyDeduplicated {
             Objects.requireNonNull(callSiteId, CALL_SITE_ID_NULL);
@@ -70,7 +69,7 @@ public sealed interface AnalysisOutcome {
 
         @Override
         public boolean isSuccess() {
-            return true;  // Early deduplication is a successful outcome
+            return true; // Early deduplication is a successful outcome
         }
     }
 
@@ -78,8 +77,7 @@ public sealed interface AnalysisOutcome {
     record Success(
             LambdaAnalysisResult result,
             String callSiteId,
-            String lambdaHash
-    ) implements AnalysisOutcome {
+            String lambdaHash) implements AnalysisOutcome {
 
         public Success {
             Objects.requireNonNull(result, "Result cannot be null");
@@ -95,8 +93,7 @@ public sealed interface AnalysisOutcome {
     record UnsupportedPattern(
             String reason,
             String callSiteId,
-            PatternType patternType
-    ) implements AnalysisOutcome {
+            PatternType patternType) implements AnalysisOutcome {
 
         /** Classification of unsupported patterns for analytics and debugging. */
         public enum PatternType {
@@ -151,8 +148,7 @@ public sealed interface AnalysisOutcome {
     record AnalysisError(
             Exception cause,
             String callSiteId,
-            String context
-    ) implements AnalysisOutcome {
+            String context) implements AnalysisOutcome {
 
         public AnalysisError {
             Objects.requireNonNull(cause, "Cause cannot be null");

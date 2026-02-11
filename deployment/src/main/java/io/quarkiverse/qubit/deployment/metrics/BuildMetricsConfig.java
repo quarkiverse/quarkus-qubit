@@ -6,7 +6,8 @@ import io.smallrye.config.WithDefault;
  * Configuration for build-time performance metrics collection.
  * Nested under quarkus.qubit.metrics in QubitBuildTimeConfig.
  *
- * <p>Levels: basic (phase timing), detailed (+cache/query breakdown), full (+histograms).
+ * <p>
+ * Levels: basic (phase timing), detailed (+cache/query breakdown), full (+histograms).
  * Outputs JSON and optional flame graph format.
  */
 public interface BuildMetricsConfig {

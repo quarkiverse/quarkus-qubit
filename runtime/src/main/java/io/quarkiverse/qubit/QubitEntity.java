@@ -2,8 +2,9 @@ package io.quarkiverse.qubit;
 
 import java.util.Collection;
 
-import io.quarkus.hibernate.orm.panache.PanacheEntity;
 import jakarta.persistence.MappedSuperclass;
+
+import io.quarkus.hibernate.orm.panache.PanacheEntity;
 
 /**
  * Optional ActiveRecord base class for fluent, type-safe lambda-based queries.
@@ -15,16 +16,17 @@ import jakarta.persistence.MappedSuperclass;
  * <p>
  * <strong>Entry points for query composition:</strong>
  * <ul>
- *   <li>{@link #where(QuerySpec)} - Start with filtering</li>
- *   <li>{@link #select(QuerySpec)} - Start with projection</li>
- *   <li>{@link #sortedBy(QuerySpec)} - Start with sorting (ascending)</li>
- *   <li>{@link #sortedDescendingBy(QuerySpec)} - Start with sorting (descending)</li>
+ * <li>{@link #where(QuerySpec)} - Start with filtering</li>
+ * <li>{@link #select(QuerySpec)} - Start with projection</li>
+ * <li>{@link #sortedBy(QuerySpec)} - Start with sorting (ascending)</li>
+ * <li>{@link #sortedDescendingBy(QuerySpec)} - Start with sorting (descending)</li>
  * </ul>
  * <p>
  * <strong>Note:</strong> For counting all entities or finding all entities, use the inherited
  * Panache methods {@code count()} and {@code findAll()} from {@code PanacheEntityBase}.
  * <p>
  * <strong>Example usage:</strong>
+ *
  * <pre>{@code
  * @Entity
  * public class Person extends QubitEntity {
@@ -39,11 +41,11 @@ import jakarta.persistence.MappedSuperclass;
  *
  * // Complex composition
  * List<String> topCities = Person.where(p -> p.active && p.salary > 100000)
- *                                .select(p -> p.city)
- *                                .distinct()
- *                                .sortedBy(city -> city)
- *                                .limit(10)
- *                                .toList();
+ *         .select(p -> p.city)
+ *         .distinct()
+ *         .sortedBy(city -> city)
+ *         .limit(10)
+ *         .toList();
  *
  * // Aggregation
  * long activeCount = Person.where(p -> p.active).count();
@@ -71,14 +73,15 @@ public abstract class QubitEntity extends PanacheEntity {
      * replace this method body in each entity subclass with the actual query execution code.
      * <p>
      * Example:
+     *
      * <pre>{@code
      * // Simple filter
      * List<Person> adults = Person.where(p -> p.age >= 18).toList();
      *
      * // Multiple conditions
      * List<Person> results = Person.where(p -> p.age > 25)
-     *                              .where(p -> p.active)
-     *                              .toList();
+     *         .where(p -> p.active)
+     *         .toList();
      * }</pre>
      *
      * @param <T> the entity type
@@ -89,8 +92,8 @@ public abstract class QubitEntity extends PanacheEntity {
     public static <T extends QubitEntity> QubitStream<T> where(QuerySpec<T, Boolean> spec) {
         throw new IllegalStateException(
                 "This method is normally automatically overridden in subclasses at build time. " +
-                "Did you forget to annotate your entity with @Entity? " +
-                "Or is the Qubit build-time processor not properly configured?");
+                        "Did you forget to annotate your entity with @Entity? " +
+                        "Or is the Qubit build-time processor not properly configured?");
     }
 
     /**
@@ -103,6 +106,7 @@ public abstract class QubitEntity extends PanacheEntity {
      * replace this method body in each entity subclass with the actual query execution code.
      * <p>
      * Example:
+     *
      * <pre>{@code
      * // Select single field
      * List<String> names = Person.select(p -> p.firstName).toList();
@@ -123,8 +127,8 @@ public abstract class QubitEntity extends PanacheEntity {
     public static <T extends QubitEntity, R> QubitStream<R> select(QuerySpec<T, R> mapper) {
         throw new IllegalStateException(
                 "This method is normally automatically overridden in subclasses at build time. " +
-                "Did you forget to annotate your entity with @Entity? " +
-                "Or is the Qubit build-time processor not properly configured?");
+                        "Did you forget to annotate your entity with @Entity? " +
+                        "Or is the Qubit build-time processor not properly configured?");
     }
 
     /**
@@ -137,14 +141,15 @@ public abstract class QubitEntity extends PanacheEntity {
      * replace this method body in each entity subclass with the actual query execution code.
      * <p>
      * Example:
+     *
      * <pre>{@code
      * // Single-level sort
      * List<Person> byAge = Person.sortedBy(p -> p.age).toList();
      *
      * // Multi-level sort (last call wins)
-     * List<Person> sorted = Person.sortedBy(p -> p.firstName)  // Secondary
-     *                             .sortedBy(p -> p.lastName)   // Primary
-     *                             .toList();
+     * List<Person> sorted = Person.sortedBy(p -> p.firstName) // Secondary
+     *         .sortedBy(p -> p.lastName) // Primary
+     *         .toList();
      * }</pre>
      *
      * @param <T> the entity type
@@ -157,8 +162,8 @@ public abstract class QubitEntity extends PanacheEntity {
             QuerySpec<T, K> keyExtractor) {
         throw new IllegalStateException(
                 "This method is normally automatically overridden in subclasses at build time. " +
-                "Did you forget to annotate your entity with @Entity? " +
-                "Or is the Qubit build-time processor not properly configured?");
+                        "Did you forget to annotate your entity with @Entity? " +
+                        "Or is the Qubit build-time processor not properly configured?");
     }
 
     /**
@@ -170,14 +175,15 @@ public abstract class QubitEntity extends PanacheEntity {
      * replace this method body in each entity subclass with the actual query execution code.
      * <p>
      * Example:
+     *
      * <pre>{@code
      * // Descending sort
      * List<Person> oldestFirst = Person.sortedDescendingBy(p -> p.age).toList();
      *
      * // Top 5 by salary
      * List<Person> top5 = Person.sortedDescendingBy(p -> p.salary)
-     *                           .limit(5)
-     *                           .toList();
+     *         .limit(5)
+     *         .toList();
      * }</pre>
      *
      * @param <T> the entity type
@@ -190,8 +196,8 @@ public abstract class QubitEntity extends PanacheEntity {
             QuerySpec<T, K> keyExtractor) {
         throw new IllegalStateException(
                 "This method is normally automatically overridden in subclasses at build time. " +
-                "Did you forget to annotate your entity with @Entity? " +
-                "Or is the Qubit build-time processor not properly configured?");
+                        "Did you forget to annotate your entity with @Entity? " +
+                        "Or is the Qubit build-time processor not properly configured?");
     }
 
     // ========== Aggregation Operations ==========
@@ -206,14 +212,15 @@ public abstract class QubitEntity extends PanacheEntity {
      * replace this method body in each entity subclass with the actual query execution code.
      * <p>
      * Example:
+     *
      * <pre>{@code
      * // Minimum age across all persons
      * Integer minAge = Person.min(p -> p.age).getSingleResult();
      *
      * // Minimum salary for active employees
      * Double minActiveSalary = Person.where(p -> p.active)
-     *                                .min(p -> p.salary)
-     *                                .getSingleResult();
+     *         .min(p -> p.salary)
+     *         .getSingleResult();
      * }</pre>
      *
      * @param <T> the entity type
@@ -225,8 +232,8 @@ public abstract class QubitEntity extends PanacheEntity {
     public static <T extends QubitEntity, K extends Comparable<K>> QubitStream<K> min(QuerySpec<T, K> mapper) {
         throw new IllegalStateException(
                 "This method is normally automatically overridden in subclasses at build time. " +
-                "Did you forget to annotate your entity with @Entity? " +
-                "Or is the Qubit build-time processor not properly configured?");
+                        "Did you forget to annotate your entity with @Entity? " +
+                        "Or is the Qubit build-time processor not properly configured?");
     }
 
     /**
@@ -239,14 +246,15 @@ public abstract class QubitEntity extends PanacheEntity {
      * replace this method body in each entity subclass with the actual query execution code.
      * <p>
      * Example:
+     *
      * <pre>{@code
      * // Maximum age across all persons
      * Integer maxAge = Person.max(p -> p.age).getSingleResult();
      *
      * // Maximum salary for active employees
      * Double maxActiveSalary = Person.where(p -> p.active)
-     *                                .max(p -> p.salary)
-     *                                .getSingleResult();
+     *         .max(p -> p.salary)
+     *         .getSingleResult();
      * }</pre>
      *
      * @param <T> the entity type
@@ -258,8 +266,8 @@ public abstract class QubitEntity extends PanacheEntity {
     public static <T extends QubitEntity, K extends Comparable<K>> QubitStream<K> max(QuerySpec<T, K> mapper) {
         throw new IllegalStateException(
                 "This method is normally automatically overridden in subclasses at build time. " +
-                "Did you forget to annotate your entity with @Entity? " +
-                "Or is the Qubit build-time processor not properly configured?");
+                        "Did you forget to annotate your entity with @Entity? " +
+                        "Or is the Qubit build-time processor not properly configured?");
     }
 
     /**
@@ -272,14 +280,15 @@ public abstract class QubitEntity extends PanacheEntity {
      * replace this method body in each entity subclass with the actual query execution code.
      * <p>
      * Example:
+     *
      * <pre>{@code
      * // Average age across all persons
      * Double avgAge = Person.avg(p -> p.age).getSingleResult();
      *
      * // Average salary for active employees
      * Double avgActiveSalary = Person.where(p -> p.active)
-     *                                .avg(p -> p.salary)
-     *                                .getSingleResult();
+     *         .avg(p -> p.salary)
+     *         .getSingleResult();
      * }</pre>
      *
      * @param <T> the entity type
@@ -290,8 +299,8 @@ public abstract class QubitEntity extends PanacheEntity {
     public static <T extends QubitEntity> QubitStream<Double> avg(QuerySpec<T, ? extends Number> mapper) {
         throw new IllegalStateException(
                 "This method is normally automatically overridden in subclasses at build time. " +
-                "Did you forget to annotate your entity with @Entity? " +
-                "Or is the Qubit build-time processor not properly configured?");
+                        "Did you forget to annotate your entity with @Entity? " +
+                        "Or is the Qubit build-time processor not properly configured?");
     }
 
     /**
@@ -304,14 +313,15 @@ public abstract class QubitEntity extends PanacheEntity {
      * replace this method body in each entity subclass with the actual query execution code.
      * <p>
      * Example:
+     *
      * <pre>{@code
      * // Total age of all persons
      * Long totalAge = Person.sumInteger(p -> p.age).getSingleResult();
      *
      * // Total age of active persons
      * Long totalActiveAge = Person.where(p -> p.active)
-     *                             .sumInteger(p -> p.age)
-     *                             .getSingleResult();
+     *         .sumInteger(p -> p.age)
+     *         .getSingleResult();
      * }</pre>
      *
      * @param <T> the entity type
@@ -322,8 +332,8 @@ public abstract class QubitEntity extends PanacheEntity {
     public static <T extends QubitEntity> QubitStream<Long> sumInteger(QuerySpec<T, Integer> mapper) {
         throw new IllegalStateException(
                 "This method is normally automatically overridden in subclasses at build time. " +
-                "Did you forget to annotate your entity with @Entity? " +
-                "Or is the Qubit build-time processor not properly configured?");
+                        "Did you forget to annotate your entity with @Entity? " +
+                        "Or is the Qubit build-time processor not properly configured?");
     }
 
     /**
@@ -336,14 +346,15 @@ public abstract class QubitEntity extends PanacheEntity {
      * replace this method body in each entity subclass with the actual query execution code.
      * <p>
      * Example:
+     *
      * <pre>{@code
      * // Total employee IDs (hypothetical use case)
      * Long totalIds = Person.sumLong(p -> p.employeeId).getSingleResult();
      *
      * // Total IDs for active employees
      * Long totalActiveIds = Person.where(p -> p.active)
-     *                             .sumLong(p -> p.employeeId)
-     *                             .getSingleResult();
+     *         .sumLong(p -> p.employeeId)
+     *         .getSingleResult();
      * }</pre>
      *
      * @param <T> the entity type
@@ -354,8 +365,8 @@ public abstract class QubitEntity extends PanacheEntity {
     public static <T extends QubitEntity> QubitStream<Long> sumLong(QuerySpec<T, Long> mapper) {
         throw new IllegalStateException(
                 "This method is normally automatically overridden in subclasses at build time. " +
-                "Did you forget to annotate your entity with @Entity? " +
-                "Or is the Qubit build-time processor not properly configured?");
+                        "Did you forget to annotate your entity with @Entity? " +
+                        "Or is the Qubit build-time processor not properly configured?");
     }
 
     /**
@@ -368,14 +379,15 @@ public abstract class QubitEntity extends PanacheEntity {
      * replace this method body in each entity subclass with the actual query execution code.
      * <p>
      * Example:
+     *
      * <pre>{@code
      * // Total salary of all persons
      * Double totalSalary = Person.sumDouble(p -> p.salary).getSingleResult();
      *
      * // Total salary of active employees
      * Double totalActiveSalary = Person.where(p -> p.active)
-     *                                  .sumDouble(p -> p.salary)
-     *                                  .getSingleResult();
+     *         .sumDouble(p -> p.salary)
+     *         .getSingleResult();
      * }</pre>
      *
      * @param <T> the entity type
@@ -386,8 +398,8 @@ public abstract class QubitEntity extends PanacheEntity {
     public static <T extends QubitEntity> QubitStream<Double> sumDouble(QuerySpec<T, Double> mapper) {
         throw new IllegalStateException(
                 "This method is normally automatically overridden in subclasses at build time. " +
-                "Did you forget to annotate your entity with @Entity? " +
-                "Or is the Qubit build-time processor not properly configured?");
+                        "Did you forget to annotate your entity with @Entity? " +
+                        "Or is the Qubit build-time processor not properly configured?");
     }
 
     // ========== Join Operations ==========
@@ -402,18 +414,19 @@ public abstract class QubitEntity extends PanacheEntity {
      * replace this method body in each entity subclass with the actual query execution code.
      * <p>
      * Example:
+     *
      * <pre>{@code
      * // Find persons with mobile phones (inner join - excludes persons without phones)
      * List<Person> peopleWithMobilePhones = Person
-     *     .join((Person p) -> p.phones)
-     *     .where((Person p, Phone ph) -> ph.type.equals("mobile"))
-     *     .toList();
+     *         .join((Person p) -> p.phones)
+     *         .where((Person p, Phone ph) -> ph.type.equals("mobile"))
+     *         .toList();
      *
      * // Project both entities
      * List<PersonPhoneDTO> dtos = Person
-     *     .join((Person p) -> p.phones)
-     *     .select((Person p, Phone ph) -> new PersonPhoneDTO(p.firstName, ph.number))
-     *     .toList();
+     *         .join((Person p) -> p.phones)
+     *         .select((Person p, Phone ph) -> new PersonPhoneDTO(p.firstName, ph.number))
+     *         .toList();
      * }</pre>
      *
      * @param <T> the source entity type
@@ -426,8 +439,8 @@ public abstract class QubitEntity extends PanacheEntity {
             QuerySpec<T, Collection<R>> relationship) {
         throw new IllegalStateException(
                 "This method is normally automatically overridden in subclasses at build time. " +
-                "Did you forget to annotate your entity with @Entity? " +
-                "Or is the Qubit build-time processor not properly configured?");
+                        "Did you forget to annotate your entity with @Entity? " +
+                        "Or is the Qubit build-time processor not properly configured?");
     }
 
     /**
@@ -440,17 +453,18 @@ public abstract class QubitEntity extends PanacheEntity {
      * replace this method body in each entity subclass with the actual query execution code.
      * <p>
      * Example:
+     *
      * <pre>{@code
      * // Find all persons, including those without phones
      * List<Person> allPeopleWithPhoneInfo = Person
-     *     .leftJoin((Person p) -> p.phones)
-     *     .toList();
+     *         .leftJoin((Person p) -> p.phones)
+     *         .toList();
      *
      * // Filter with null handling for left join
      * List<Person> peopleWithOptionalPhone = Person
-     *     .leftJoin((Person p) -> p.phones)
-     *     .where((Person p, Phone ph) -> ph == null || ph.type.equals("mobile"))
-     *     .toList();
+     *         .leftJoin((Person p) -> p.phones)
+     *         .where((Person p, Phone ph) -> ph == null || ph.type.equals("mobile"))
+     *         .toList();
      * }</pre>
      *
      * @param <T> the source entity type
@@ -463,8 +477,8 @@ public abstract class QubitEntity extends PanacheEntity {
             QuerySpec<T, Collection<R>> relationship) {
         throw new IllegalStateException(
                 "This method is normally automatically overridden in subclasses at build time. " +
-                "Did you forget to annotate your entity with @Entity? " +
-                "Or is the Qubit build-time processor not properly configured?");
+                        "Did you forget to annotate your entity with @Entity? " +
+                        "Or is the Qubit build-time processor not properly configured?");
     }
 
     // ========== Grouping Operations ==========
@@ -479,38 +493,38 @@ public abstract class QubitEntity extends PanacheEntity {
      * replace this method body in each entity subclass with the actual query execution code.
      * <p>
      * Example:
+     *
      * <pre>{@code
      * // Group by department and count employees
      * List<DeptCount> counts = Person
-     *     .groupBy((Person p) -> p.department.name)
-     *     .select((Group<Person, String> g) -> new DeptCount(g.key(), g.count()))
-     *     .toList();
+     *         .groupBy((Person p) -> p.department.name)
+     *         .select((Group<Person, String> g) -> new DeptCount(g.key(), g.count()))
+     *         .toList();
      *
      * // Group with HAVING clause
      * List<String> largeDepts = Person
-     *     .groupBy((Person p) -> p.department.name)
-     *     .having((Group<Person, String> g) -> g.count() > 5)
-     *     .selectKey()
-     *     .toList();
+     *         .groupBy((Person p) -> p.department.name)
+     *         .having((Group<Person, String> g) -> g.count() > 5)
+     *         .selectKey()
+     *         .toList();
      *
      * // Group with multiple aggregations
      * List<DeptStats> stats = Person
-     *     .groupBy((Person p) -> p.department.name)
-     *     .select((Group<Person, String> g) -> new DeptStats(
-     *         g.key(),
-     *         g.count(),
-     *         g.avg((Person p) -> p.salary),
-     *         g.min((Person p) -> p.salary),
-     *         g.max((Person p) -> p.salary)
-     *     ))
-     *     .toList();
+     *         .groupBy((Person p) -> p.department.name)
+     *         .select((Group<Person, String> g) -> new DeptStats(
+     *                 g.key(),
+     *                 g.count(),
+     *                 g.avg((Person p) -> p.salary),
+     *                 g.min((Person p) -> p.salary),
+     *                 g.max((Person p) -> p.salary)))
+     *         .toList();
      *
      * // Pre-filter before grouping
      * List<DeptCount> activeCounts = Person
-     *     .where((Person p) -> p.active)
-     *     .groupBy((Person p) -> p.department.name)
-     *     .select((Group<Person, String> g) -> new DeptCount(g.key(), g.count()))
-     *     .toList();
+     *         .where((Person p) -> p.active)
+     *         .groupBy((Person p) -> p.department.name)
+     *         .select((Group<Person, String> g) -> new DeptCount(g.key(), g.count()))
+     *         .toList();
      * }</pre>
      *
      * @param <T> the entity type
@@ -522,7 +536,7 @@ public abstract class QubitEntity extends PanacheEntity {
     public static <T extends QubitEntity, K> GroupStream<T, K> groupBy(QuerySpec<T, K> keyExtractor) {
         throw new IllegalStateException(
                 "This method is normally automatically overridden in subclasses at build time. " +
-                "Did you forget to annotate your entity with @Entity? " +
-                "Or is the Qubit build-time processor not properly configured?");
+                        "Did you forget to annotate your entity with @Entity? " +
+                        "Or is the Qubit build-time processor not properly configured?");
     }
 }

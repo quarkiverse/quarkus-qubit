@@ -19,7 +19,8 @@ import java.util.concurrent.atomic.LongAdder;
 /**
  * Thread-safe build-time performance metrics for Qubit processing phases.
  *
- * <p>Collects phase timing, granular operations, query type breakdown, cache hit rates,
+ * <p>
+ * Collects phase timing, granular operations, query type breakdown, cache hit rates,
  * memory usage, thread utilization, and latency histograms. Outputs JSON and flame graph formats.
  */
 public class BuildMetricsCollector {
@@ -450,7 +451,8 @@ public class BuildMetricsCollector {
 
     /** Calculates percentile from a sorted list. */
     private long percentile(List<Long> sorted, double p) {
-        if (sorted.isEmpty()) return 0;
+        if (sorted.isEmpty())
+            return 0;
         int index = (int) Math.ceil(p / 100.0 * sorted.size()) - 1;
         return sorted.get(Math.clamp(index, 0, sorted.size() - 1));
     }
@@ -602,7 +604,8 @@ public class BuildMetricsCollector {
         json.append("  \"phases\": {\n");
         boolean first = true;
         for (Map.Entry<String, Long> entry : phaseDurations.entrySet()) {
-            if (!first) json.append(",\n");
+            if (!first)
+                json.append(",\n");
             json.append("    \"").append(entry.getKey()).append("\": ").append(entry.getValue());
             first = false;
         }
@@ -620,7 +623,8 @@ public class BuildMetricsCollector {
         json.append("    \"total_bytecode_loads\": ").append(totalBytecodeLoads.get()).append(",\n");
         json.append("    \"duplicate_count\": ").append(duplicateCount.get()).append(",\n");
         json.append("    \"early_deduplication_hits\": ").append(earlyDeduplicationHits.get()).append(",\n");
-        json.append("    \"early_deduplication_check_time_nanos\": ").append(earlyDeduplicationCheckTimeNanos.get()).append(",\n");
+        json.append("    \"early_deduplication_check_time_nanos\": ").append(earlyDeduplicationCheckTimeNanos.get())
+                .append(",\n");
         // Pre-filter and quick check optimization metrics
         json.append("    \"classes_scanned\": ").append(classesScanned.get()).append(",\n");
         json.append("    \"jandex_pre_filter_skips\": ").append(jandexPreFilterSkips.get()).append(",\n");
@@ -635,7 +639,8 @@ public class BuildMetricsCollector {
         json.append("  \"query_types\": {\n");
         boolean first = true;
         for (Map.Entry<String, LongAdder> entry : queryTypeCount.entrySet()) {
-            if (!first) json.append(",\n");
+            if (!first)
+                json.append(",\n");
             String type = entry.getKey();
             json.append("    \"").append(type).append("\": {\n");
             json.append("      \"count\": ").append(entry.getValue().sum()).append(",\n");
@@ -653,7 +658,8 @@ public class BuildMetricsCollector {
         json.append("  \"expression_types\": {\n");
         boolean first = true;
         for (Map.Entry<String, LongAdder> entry : expressionTypeCount.entrySet()) {
-            if (!first) json.append(",\n");
+            if (!first)
+                json.append(",\n");
             String type = entry.getKey();
             json.append("    \"").append(type).append("\": {\n");
             json.append("      \"count\": ").append(entry.getValue().sum()).append(",\n");
@@ -685,7 +691,8 @@ public class BuildMetricsCollector {
         json.append("    \"distribution\": {\n");
         boolean first = true;
         for (Map.Entry<Long, LongAdder> entry : perThreadTaskCount.entrySet()) {
-            if (!first) json.append(",\n");
+            if (!first)
+                json.append(",\n");
             Long threadId = entry.getKey();
             json.append("      \"").append(threadId).append("\": {\n");
             json.append("        \"tasks\": ").append(entry.getValue().sum()).append(",\n");
@@ -723,7 +730,8 @@ public class BuildMetricsCollector {
                 .toList();
         boolean first = true;
         for (Map.Entry<String, Long> entry : topClasses) {
-            if (!first) json.append(",\n");
+            if (!first)
+                json.append(",\n");
             json.append("    {\"class\": \"").append(entry.getKey())
                     .append("\", \"time_nanos\": ").append(entry.getValue())
                     .append(", \"lambdas\": ");
@@ -738,7 +746,8 @@ public class BuildMetricsCollector {
         json.append("  \"failed_classes\": [");
         boolean first = true;
         for (String className : failedClasses) {
-            if (!first) json.append(", ");
+            if (!first)
+                json.append(", ");
             json.append("\"").append(className).append("\"");
             first = false;
         }

@@ -38,7 +38,7 @@ public final class DescriptorParser {
     }
 
     /** Returns slot indices for both entity parameters in bi-entity lambda. */
-    public static int [] calculateBiEntityParameterSlotIndices(String descriptor) {
+    public static int[] calculateBiEntityParameterSlotIndices(String descriptor) {
         int paramCount = countMethodArguments(descriptor);
         if (paramCount < 2) {
             return null;
@@ -106,7 +106,8 @@ public final class DescriptorParser {
     }
 
     /** Type info for a method parameter (internal). */
-    private record ParameterTypeInfo(char typeChar, String typeDescriptor) {}
+    private record ParameterTypeInfo(char typeChar, String typeDescriptor) {
+    }
 
     /** Finds type info for parameter at index. */
     @org.jspecify.annotations.Nullable
@@ -213,8 +214,8 @@ public final class DescriptorParser {
 
         public boolean hasNext() {
             return descriptor != null &&
-                   position < descriptor.length() &&
-                   descriptor.charAt(position) != ')';
+                    position < descriptor.length() &&
+                    descriptor.charAt(position) != ')';
         }
 
         public void next() {

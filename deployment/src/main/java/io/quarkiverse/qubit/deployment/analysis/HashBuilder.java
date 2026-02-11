@@ -1,13 +1,13 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_TYPE_COUNT;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_TYPE_LIST;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_TYPE_COUNT;
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_TYPE_LIST;
+import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /** Fluent builder for constructing query hash strings. */
 public final class HashBuilder {

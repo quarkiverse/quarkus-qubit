@@ -1,10 +1,6 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
-import io.quarkus.logging.Log;
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.InsnList;
-import org.objectweb.asm.tree.JumpInsnNode;
-import org.objectweb.asm.tree.LabelNode;
+import static org.objectweb.asm.Opcodes.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -12,12 +8,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.objectweb.asm.Opcodes.*;
+import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.InsnList;
+import org.objectweb.asm.tree.JumpInsnNode;
+import org.objectweb.asm.tree.LabelNode;
+
+import io.quarkus.logging.Log;
 
 /**
  * Detects ternary conditional expression patterns in bytecode.
  *
- * <p>Java compiles ternary expressions ({@code condition ? trueExpr : falseExpr}) into:
+ * <p>
+ * Java compiles ternary expressions ({@code condition ? trueExpr : falseExpr}) into:
+ *
  * <pre>
  * [condition evaluation]
  * IF_* L_FALSE           // Jump to false branch if condition is false
@@ -29,7 +32,8 @@ import static org.objectweb.asm.Opcodes.*;
  * [result on stack]
  * </pre>
  *
- * <p>This is distinct from boolean expressions which end with ICONST_0/ICONST_1.
+ * <p>
+ * This is distinct from boolean expressions which end with ICONST_0/ICONST_1.
  */
 public final class TernaryPatternDetector {
 
@@ -46,8 +50,7 @@ public final class TernaryPatternDetector {
             int mergeIndex,
             JumpInsnNode conditionJump,
             LabelNode falseBranchLabel,
-            LabelNode mergeLabel
-    ) {
+            LabelNode mergeLabel) {
         /** Returns the end index (exclusive) of the entire ternary pattern. */
         public int patternEndIndex() {
             return mergeIndex;
@@ -139,8 +142,7 @@ public final class TernaryPatternDetector {
                 mergeIndex,
                 condJump,
                 falseBranchLabel,
-                mergeLabel
-        ));
+                mergeLabel));
     }
 
     /**
@@ -173,7 +175,8 @@ public final class TernaryPatternDetector {
     private static boolean isBooleanPattern(InsnList instructions, int gotoIndex) {
         for (int i = gotoIndex - 1; i >= 0; i--) {
             int opcode = instructions.get(i).getOpcode();
-            if (opcode == -1) continue;
+            if (opcode == -1)
+                continue;
             return opcode == ICONST_0 || opcode == ICONST_1;
         }
         return false;
@@ -202,10 +205,10 @@ public final class TernaryPatternDetector {
         }
         int opcode = insn.getOpcode();
         return opcode == IFEQ || opcode == IFNE || opcode == IFLT || opcode == IFGE ||
-               opcode == IFGT || opcode == IFLE || opcode == IF_ICMPEQ || opcode == IF_ICMPNE ||
-               opcode == IF_ICMPLT || opcode == IF_ICMPGE || opcode == IF_ICMPGT ||
-               opcode == IF_ICMPLE || opcode == IF_ACMPEQ || opcode == IF_ACMPNE ||
-               opcode == IFNULL || opcode == IFNONNULL;
+                opcode == IFGT || opcode == IFLE || opcode == IF_ICMPEQ || opcode == IF_ICMPNE ||
+                opcode == IF_ICMPLT || opcode == IF_ICMPGE || opcode == IF_ICMPGT ||
+                opcode == IF_ICMPLE || opcode == IF_ACMPEQ || opcode == IF_ACMPNE ||
+                opcode == IFNULL || opcode == IFNONNULL;
     }
 
     /**
@@ -242,7 +245,7 @@ public final class TernaryPatternDetector {
     public static boolean isWithinPattern(List<TernaryPattern> patterns, int instructionIndex) {
         for (TernaryPattern pattern : patterns) {
             if (instructionIndex >= pattern.conditionJumpIndex() &&
-                instructionIndex < pattern.patternEndIndex()) {
+                    instructionIndex < pattern.patternEndIndex()) {
                 return true;
             }
         }

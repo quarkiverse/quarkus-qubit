@@ -1,11 +1,11 @@
 package io.quarkiverse.qubit.deployment;
 
+import java.util.function.BiFunction;
+
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Opcodes;
 
 import io.quarkus.logging.Log;
-
-import java.util.function.BiFunction;
 
 /**
  * Injects static query methods into QubitEntity subclasses (ActiveRecord pattern).

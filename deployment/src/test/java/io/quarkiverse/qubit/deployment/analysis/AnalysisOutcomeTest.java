@@ -1,13 +1,13 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 
 /**
  * Unit tests for {@link AnalysisOutcome} sealed interface and its implementations.
@@ -113,11 +113,13 @@ class AnalysisOutcomeTest {
         @Test
         void unsupportedPattern_createsUnsupportedOutcome() {
             AnalysisOutcome.UnsupportedPattern unsupported = new AnalysisOutcome.UnsupportedPattern(
-                    "Lambda too complex", TEST_CALL_SITE_ID, AnalysisOutcome.UnsupportedPattern.PatternType.UNRECOGNIZED_BYTECODE);
+                    "Lambda too complex", TEST_CALL_SITE_ID,
+                    AnalysisOutcome.UnsupportedPattern.PatternType.UNRECOGNIZED_BYTECODE);
 
             assertThat(unsupported.reason()).isEqualTo("Lambda too complex");
             assertThat(unsupported.callSiteId()).isEqualTo(TEST_CALL_SITE_ID);
-            assertThat(unsupported.patternType()).isEqualTo(AnalysisOutcome.UnsupportedPattern.PatternType.UNRECOGNIZED_BYTECODE);
+            assertThat(unsupported.patternType())
+                    .isEqualTo(AnalysisOutcome.UnsupportedPattern.PatternType.UNRECOGNIZED_BYTECODE);
         }
 
         @Test
@@ -179,7 +181,8 @@ class AnalysisOutcomeTest {
 
         @Test
         void unsupportedPattern_lambdaNotFound_createsCorrectPatternType() {
-            AnalysisOutcome.UnsupportedPattern unsupported = AnalysisOutcome.UnsupportedPattern.lambdaNotFound("lambda$test$0", TEST_CALL_SITE_ID);
+            AnalysisOutcome.UnsupportedPattern unsupported = AnalysisOutcome.UnsupportedPattern.lambdaNotFound("lambda$test$0",
+                    TEST_CALL_SITE_ID);
 
             assertThat(unsupported.patternType()).isEqualTo(AnalysisOutcome.UnsupportedPattern.PatternType.LAMBDA_NOT_FOUND);
             assertThat(unsupported.reason()).contains("lambda$test$0");
@@ -187,9 +190,11 @@ class AnalysisOutcomeTest {
 
         @Test
         void unsupportedPattern_missingRequiredLambda_createsCorrectPatternType() {
-            AnalysisOutcome.UnsupportedPattern unsupported = AnalysisOutcome.UnsupportedPattern.missingRequiredLambda("groupBy key", TEST_CALL_SITE_ID);
+            AnalysisOutcome.UnsupportedPattern unsupported = AnalysisOutcome.UnsupportedPattern
+                    .missingRequiredLambda("groupBy key", TEST_CALL_SITE_ID);
 
-            assertThat(unsupported.patternType()).isEqualTo(AnalysisOutcome.UnsupportedPattern.PatternType.MISSING_REQUIRED_LAMBDA);
+            assertThat(unsupported.patternType())
+                    .isEqualTo(AnalysisOutcome.UnsupportedPattern.PatternType.MISSING_REQUIRED_LAMBDA);
             assertThat(unsupported.reason()).contains("groupBy key");
         }
 
@@ -212,7 +217,8 @@ class AnalysisOutcomeTest {
         @Test
         void analysisError_createsErrorOutcome() {
             RuntimeException cause = new RuntimeException("Analysis failed");
-            AnalysisOutcome.AnalysisError error = new AnalysisOutcome.AnalysisError(cause, TEST_CALL_SITE_ID, "processing where clause");
+            AnalysisOutcome.AnalysisError error = new AnalysisOutcome.AnalysisError(cause, TEST_CALL_SITE_ID,
+                    "processing where clause");
 
             assertThat(error.cause()).isEqualTo(cause);
             assertThat(error.callSiteId()).isEqualTo(TEST_CALL_SITE_ID);
@@ -274,7 +280,8 @@ class AnalysisOutcomeTest {
         void analysisError_withContext_createsWithContext() {
             RuntimeException cause = new RuntimeException("error");
 
-            AnalysisOutcome.AnalysisError error = AnalysisOutcome.AnalysisError.withContext(cause, TEST_CALL_SITE_ID, "context info");
+            AnalysisOutcome.AnalysisError error = AnalysisOutcome.AnalysisError.withContext(cause, TEST_CALL_SITE_ID,
+                    "context info");
 
             assertThat(error.context()).isEqualTo("context info");
         }
@@ -282,7 +289,8 @@ class AnalysisOutcomeTest {
         @Test
         void analysisError_formattedMessage_withContext() {
             RuntimeException cause = new RuntimeException("NullPointerException");
-            AnalysisOutcome.AnalysisError error = new AnalysisOutcome.AnalysisError(cause, TEST_CALL_SITE_ID, "processing where clause");
+            AnalysisOutcome.AnalysisError error = new AnalysisOutcome.AnalysisError(cause, TEST_CALL_SITE_ID,
+                    "processing where clause");
 
             String message = error.formattedMessage();
 
@@ -343,8 +351,7 @@ class AnalysisOutcomeTest {
             String folded = success.fold(
                     s -> "success:" + s.lambdaHash(),
                     u -> "unsupported:" + u.reason(),
-                    e -> "error:" + e.cause().getMessage()
-            );
+                    e -> "error:" + e.cause().getMessage());
 
             assertThat(folded).isEqualTo("success:" + TEST_LAMBDA_HASH);
         }
@@ -357,8 +364,7 @@ class AnalysisOutcomeTest {
             String folded = unsupported.fold(
                     s -> "success",
                     u -> "unsupported:" + u.reason(),
-                    e -> "error"
-            );
+                    e -> "error");
 
             assertThat(folded).isEqualTo("unsupported:complex lambda");
         }
@@ -371,8 +377,7 @@ class AnalysisOutcomeTest {
             String folded = error.fold(
                     s -> "success",
                     u -> "unsupported",
-                    e -> "error:" + e.cause().getMessage()
-            );
+                    e -> "error:" + e.cause().getMessage());
 
             assertThat(folded).isEqualTo("error:boom");
         }

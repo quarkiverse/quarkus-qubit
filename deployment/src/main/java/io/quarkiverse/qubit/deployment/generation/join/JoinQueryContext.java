@@ -1,13 +1,13 @@
 package io.quarkiverse.qubit.deployment.generation.join;
 
+import java.util.List;
+import java.util.Objects;
+
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkus.gizmo2.Expr;
 import io.quarkus.gizmo2.creator.BlockCreator;
-
-import java.util.List;
-import java.util.Objects;
 
 /**
  * Immutable context consolidating all parameters for join query bytecode generation.
@@ -23,8 +23,7 @@ public record JoinQueryContext(
         Expr capturedValues,
         Expr offset,
         Expr limit,
-        Expr distinct
-) {
+        Expr distinct) {
 
     public JoinQueryContext {
         Objects.requireNonNull(bc, "bc cannot be null");

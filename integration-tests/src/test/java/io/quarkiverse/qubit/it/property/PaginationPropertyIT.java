@@ -18,17 +18,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Property-based integration tests for pagination operations.
  *
- * <p>This class uses parameterized tests to verify mathematical invariants
+ * <p>
+ * This class uses parameterized tests to verify mathematical invariants
  * that must hold for various skip/limit combinations.
  *
- * <p><strong>Properties Tested:</strong>
+ * <p>
+ * <strong>Properties Tested:</strong>
  * <ul>
- *   <li><strong>Skip invariants</strong>: skip(0) returns all, skip(n) returns size-n</li>
- *   <li><strong>Limit invariants</strong>: limit(n) returns at most n results</li>
- *   <li><strong>Combined invariants</strong>: skip(a).limit(b) returns min(b, max(0, total-a))</li>
- *   <li><strong>Ordering preservation</strong>: pagination preserves sort order</li>
- *   <li><strong>No overlap property</strong>: adjacent pages have no common elements</li>
- *   <li><strong>Complete coverage property</strong>: all pages combined equal total</li>
+ * <li><strong>Skip invariants</strong>: skip(0) returns all, skip(n) returns size-n</li>
+ * <li><strong>Limit invariants</strong>: limit(n) returns at most n results</li>
+ * <li><strong>Combined invariants</strong>: skip(a).limit(b) returns min(b, max(0, total-a))</li>
+ * <li><strong>Ordering preservation</strong>: pagination preserves sort order</li>
+ * <li><strong>No overlap property</strong>: adjacent pages have no common elements</li>
+ * <li><strong>Complete coverage property</strong>: all pages combined equal total</li>
  * </ul>
  *
  * @see io.quarkiverse.qubit.it.fluent.PaginationTest
@@ -62,7 +64,7 @@ class PaginationPropertyIT {
     }
 
     @ParameterizedTest(name = "skip({0}) returns correct count")
-    @ValueSource(ints = {0, 1, 2, 3, 4, 5, 6, 7, 10})
+    @ValueSource(ints = { 0, 1, 2, 3, 4, 5, 6, 7, 10 })
     @Transactional
     void skipNReturnsCorrectCount(int skipAmount) {
         List<Person> all = Person.sortedBy((Person p) -> p.id).toList();
@@ -75,7 +77,7 @@ class PaginationPropertyIT {
     }
 
     @ParameterizedTest(name = "skip({0}) returns last (total - {0}) elements")
-    @ValueSource(ints = {0, 1, 2, 3, 4, 5})
+    @ValueSource(ints = { 0, 1, 2, 3, 4, 5 })
     @Transactional
     void skipNReturnsLastElements(int skipAmount) {
         List<Person> all = Person.sortedBy((Person p) -> p.id).toList();
@@ -93,7 +95,7 @@ class PaginationPropertyIT {
     // ======================================================================
 
     @ParameterizedTest(name = "limit({0}) returns at most {0} results")
-    @ValueSource(ints = {1, 2, 3, 4, 5, 10, 20})
+    @ValueSource(ints = { 1, 2, 3, 4, 5, 10, 20 })
     @Transactional
     void limitNReturnsAtMostN(int limitAmount) {
         List<Person> limited = Person.sortedBy((Person p) -> p.id).limit(limitAmount).toList();
@@ -104,7 +106,7 @@ class PaginationPropertyIT {
     }
 
     @ParameterizedTest(name = "limit({0}) returns min({0}, total) results")
-    @ValueSource(ints = {1, 2, 3, 4, 5, 10, 20})
+    @ValueSource(ints = { 1, 2, 3, 4, 5, 10, 20 })
     @Transactional
     void limitNReturnsMinOfNAndTotal(int limitAmount) {
         List<Person> all = Person.sortedBy((Person p) -> p.id).toList();
@@ -117,7 +119,7 @@ class PaginationPropertyIT {
     }
 
     @ParameterizedTest(name = "limit({0}) returns first {0} elements")
-    @ValueSource(ints = {1, 2, 3, 4, 5})
+    @ValueSource(ints = { 1, 2, 3, 4, 5 })
     @Transactional
     void limitNReturnsFirstElements(int limitAmount) {
         List<Person> all = Person.sortedBy((Person p) -> p.id).toList();
@@ -137,7 +139,7 @@ class PaginationPropertyIT {
     @Test
     @Transactional
     void skipAndLimitReturnCorrectCount() {
-        int[][] testCases = {{0, 2}, {1, 2}, {2, 3}, {3, 2}, {5, 3}, {10, 2}};
+        int[][] testCases = { { 0, 2 }, { 1, 2 }, { 2, 3 }, { 3, 2 }, { 5, 3 }, { 10, 2 } };
 
         for (int[] testCase : testCases) {
             int skipAmount = testCase[0];
@@ -160,7 +162,7 @@ class PaginationPropertyIT {
     @Test
     @Transactional
     void skipAndLimitReturnCorrectWindow() {
-        int[][] testCases = {{0, 2}, {1, 2}, {2, 2}, {0, 4}, {1, 3}};
+        int[][] testCases = { { 0, 2 }, { 1, 2 }, { 2, 2 }, { 0, 4 }, { 1, 3 } };
 
         for (int[] testCase : testCases) {
             int skipAmount = testCase[0];
@@ -187,7 +189,7 @@ class PaginationPropertyIT {
     // ======================================================================
 
     @ParameterizedTest(name = "adjacent pages (size={0}) have no common elements")
-    @ValueSource(ints = {1, 2, 3})
+    @ValueSource(ints = { 1, 2, 3 })
     @Transactional
     void adjacentPagesNoOverlap(int pageSize) {
         List<Person> page1 = Person.sortedBy((Person p) -> p.id)
@@ -213,7 +215,7 @@ class PaginationPropertyIT {
     // ======================================================================
 
     @ParameterizedTest(name = "all pages (size={0}) combined equal total results")
-    @ValueSource(ints = {1, 2, 3, 4})
+    @ValueSource(ints = { 1, 2, 3, 4 })
     @Transactional
     void allPagesCombinedEqualTotal(int pageSize) {
         List<Person> all = Person.sortedBy((Person p) -> p.id).toList();
@@ -249,7 +251,7 @@ class PaginationPropertyIT {
     // ======================================================================
 
     @ParameterizedTest(name = "skip({0}) preserves sort order")
-    @ValueSource(ints = {0, 1, 2, 3, 4})
+    @ValueSource(ints = { 0, 1, 2, 3, 4 })
     @Transactional
     void skipPreservesSortOrder(int skipAmount) {
         List<Person> skipped = Person.sortedBy((Person p) -> p.id).skip(skipAmount).toList();
@@ -262,7 +264,7 @@ class PaginationPropertyIT {
     }
 
     @ParameterizedTest(name = "limit({0}) preserves sort order")
-    @ValueSource(ints = {1, 2, 3, 4, 5, 6})
+    @ValueSource(ints = { 1, 2, 3, 4, 5, 6 })
     @Transactional
     void limitPreservesSortOrder(int limitAmount) {
         List<Person> limited = Person.sortedBy((Person p) -> p.id).limit(limitAmount).toList();
@@ -277,7 +279,7 @@ class PaginationPropertyIT {
     @Test
     @Transactional
     void skipLimitPreservesDescendingOrder() {
-        int[][] testCases = {{0, 3}, {1, 2}, {2, 3}, {0, 4}};
+        int[][] testCases = { { 0, 3 }, { 1, 2 }, { 2, 3 }, { 0, 4 } };
 
         for (int[] testCase : testCases) {
             int skipAmount = testCase[0];
@@ -303,7 +305,7 @@ class PaginationPropertyIT {
     @Test
     @Transactional
     void paginationRespectsFilter() {
-        int[][] testCases = {{0, 2}, {1, 2}, {2, 3}, {0, 4}};
+        int[][] testCases = { { 0, 2 }, { 1, 2 }, { 2, 3 }, { 0, 4 } };
 
         for (int[] testCase : testCases) {
             int skipAmount = testCase[0];
@@ -324,7 +326,7 @@ class PaginationPropertyIT {
     @Test
     @Transactional
     void paginationWithFilterReturnsCorrectCount() {
-        int[][] testCases = {{0, 2}, {1, 2}, {2, 3}, {3, 2}, {5, 2}};
+        int[][] testCases = { { 0, 2 }, { 1, 2 }, { 2, 3 }, { 3, 2 }, { 5, 2 } };
 
         for (int[] testCase : testCases) {
             int skipAmount = testCase[0];

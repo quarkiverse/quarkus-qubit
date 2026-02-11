@@ -1,13 +1,13 @@
 package io.quarkiverse.qubit.deployment;
 
-import io.quarkiverse.qubit.deployment.metrics.BuildMetricsConfig;
-import io.smallrye.config.ConfigMapping;
-import io.smallrye.config.WithDefault;
-import io.quarkus.runtime.annotations.ConfigPhase;
-import io.quarkus.runtime.annotations.ConfigRoot;
-
 import java.util.List;
 import java.util.Optional;
+
+import io.quarkiverse.qubit.deployment.metrics.BuildMetricsConfig;
+import io.quarkus.runtime.annotations.ConfigPhase;
+import io.quarkus.runtime.annotations.ConfigRoot;
+import io.smallrye.config.ConfigMapping;
+import io.smallrye.config.WithDefault;
 
 /** Build-time configuration for the Qubit extension. */
 @ConfigMapping(prefix = "quarkus.qubit")

@@ -1,35 +1,38 @@
 package io.quarkiverse.qubit.deployment.generation.expression;
 
-import io.quarkus.gizmo2.Expr;
-import io.quarkus.gizmo2.LocalVar;
-import io.quarkus.gizmo2.creator.BlockCreator;
-import io.quarkus.gizmo2.desc.MethodDesc;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.generation.MethodDescriptors;
-import org.hibernate.query.criteria.HibernateCriteriaBuilder;
-
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_IS_AFTER;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_IS_BEFORE;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_IS_EQUAL;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.TEMPORAL_COMPARISON_METHOD_NAMES;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+
+import org.hibernate.query.criteria.HibernateCriteriaBuilder;
+
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.generation.MethodDescriptors;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.LocalVar;
+import io.quarkus.gizmo2.creator.BlockCreator;
+import io.quarkus.gizmo2.desc.MethodDesc;
+
 /**
  * Builds JPA Criteria API expressions for temporal (date/time) operations.
  *
- * <p>Supported operations:
+ * <p>
+ * Supported operations:
  *
  * <ul>
- *   <li><b>Accessor Functions:</b> getYear(), getMonthValue(), getDayOfMonth(),
- *       getHour(), getMinute(), getSecond() → SQL YEAR, MONTH, DAY, HOUR, MINUTE, SECOND</li>
- *   <li><b>Comparisons:</b> isAfter() → greaterThan(), isBefore() → lessThan(),
- *       isEqual() → equal()</li>
+ * <li><b>Accessor Functions:</b> getYear(), getMonthValue(), getDayOfMonth(),
+ * getHour(), getMinute(), getSecond() → SQL YEAR, MONTH, DAY, HOUR, MINUTE, SECOND</li>
+ * <li><b>Comparisons:</b> isAfter() → greaterThan(), isBefore() → lessThan(),
+ * isEqual() → equal()</li>
  * </ul>
  *
- * <p><b>Supported Types:</b> LocalDate, LocalDateTime, LocalTime
+ * <p>
+ * <b>Supported Types:</b> LocalDate, LocalDateTime, LocalTime
  */
 public enum TemporalExpressionBuilder implements ExpressionBuilder {
     INSTANCE;
@@ -42,8 +45,8 @@ public enum TemporalExpressionBuilder implements ExpressionBuilder {
     /** Checks if the type is LocalDate, LocalDateTime, or LocalTime. */
     public static boolean isSupportedTemporalType(Class<?> type) {
         return type == LocalDate.class ||
-               type == LocalDateTime.class ||
-               type == LocalTime.class;
+                type == LocalDateTime.class ||
+                type == LocalTime.class;
     }
 
     /**

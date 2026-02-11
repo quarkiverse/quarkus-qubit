@@ -2,8 +2,7 @@ package io.quarkiverse.qubit.deployment.generation.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.generation.expression.StringExpressionBuilder.StringOperationType;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -12,12 +11,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import java.util.List;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.generation.expression.StringExpressionBuilder.StringOperationType;
 
 /**
  * Unit tests for {@link StringExpressionBuilder}.
  *
- * <p>The bytecode generation methods ({@code buildStringTransformation},
+ * <p>
+ * The bytecode generation methods ({@code buildStringTransformation},
  * {@code buildStringPattern}, {@code buildStringSubstring}, {@code buildStringUtility})
  * require integration tests with Quarkus Gizmo framework and are tested via
  * {@code StringOperationsCriteriaTest} and {@code StringOperationsBytecodeTest}.
@@ -119,10 +120,10 @@ class StringExpressionBuilderTest {
     private LambdaExpression.MethodCall createMethodCall(String methodName) {
         // Use a minimal MethodCall with null target (not used by getOperationType)
         return new LambdaExpression.MethodCall(
-                null,                    // target (not used)
-                methodName,              // methodName
-                List.of(),               // arguments (not used)
-                String.class             // returnType (not used)
+                null, // target (not used)
+                methodName, // methodName
+                List.of(), // arguments (not used)
+                String.class // returnType (not used)
         );
     }
 }

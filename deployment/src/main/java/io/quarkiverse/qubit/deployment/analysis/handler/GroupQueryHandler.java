@@ -1,5 +1,7 @@
 package io.quarkiverse.qubit.deployment.analysis.handler;
 
+import java.util.List;
+
 import io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome;
 import io.quarkiverse.qubit.deployment.analysis.CapturedVariableHelper;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaCallSite;
@@ -9,8 +11,6 @@ import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpress
 import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
 import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-
-import java.util.List;
 
 /**
  * Handler for GROUP BY queries with HAVING, SELECT, and SORT.

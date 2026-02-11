@@ -1,25 +1,27 @@
 package io.quarkiverse.qubit.deployment.ast;
 
+import static org.assertj.core.api.Assertions.*;
+
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.*;
 import io.quarkiverse.qubit.deployment.testutil.AstArbitraries;
 import net.jqwik.api.*;
 
-import static org.assertj.core.api.Assertions.*;
-
 /**
  * Property-based tests for AST factory methods.
  *
- * <p>This class verifies that factory methods on AST node types produce
+ * <p>
+ * This class verifies that factory methods on AST node types produce
  * correct results equivalent to direct constructor calls. Property-based
  * testing ensures these equivalences hold for ANY valid input.
  *
- * <p><strong>Properties Tested:</strong>
+ * <p>
+ * <strong>Properties Tested:</strong>
  * <ul>
- *   <li><strong>BinaryOp factory methods</strong>: Equivalence to constructor,
- *       correct operator assignment</li>
- *   <li><strong>UnaryOp factory methods</strong>: Equivalence to constructor</li>
- *   <li><strong>PathExpression factory methods</strong>: Correct segment construction</li>
- *   <li><strong>InExpression factory methods</strong>: Negation handling</li>
+ * <li><strong>BinaryOp factory methods</strong>: Equivalence to constructor,
+ * correct operator assignment</li>
+ * <li><strong>UnaryOp factory methods</strong>: Equivalence to constructor</li>
+ * <li><strong>PathExpression factory methods</strong>: Correct segment construction</li>
+ * <li><strong>InExpression factory methods</strong>: Negation handling</li>
  * </ul>
  *
  * @see LambdaExpression

@@ -7,15 +7,15 @@
  *
  * <h2>Key Types</h2>
  * <ul>
- *   <li>{@link PatternDetector} - Detects bytecode patterns
- *   <li>{@link BytecodeValidator} - Validates bytecode structures
- *   <li>{@link BytecodeAnalysisException} - Exception for analysis errors
- *   <li>{@link BytecodeAnalysisConstants} - Constants used in analysis
+ * <li>{@link PatternDetector} - Detects bytecode patterns
+ * <li>{@link BytecodeValidator} - Validates bytecode structures
+ * <li>{@link BytecodeAnalysisException} - Exception for analysis errors
+ * <li>{@link BytecodeAnalysisConstants} - Constants used in analysis
  * </ul>
  *
  * <h2>Dependencies</h2>
  * <ul>
- *   <li>{@code ast} - For AST node types
+ * <li>{@code ast} - For AST node types
  * </ul>
  *
  * @since 1.0

@@ -1,15 +1,16 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.util.List;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
-import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /**
  * Error path tests for CapturedVariableHelper.
@@ -302,8 +303,7 @@ class CapturedVariableHelperErrorTest {
             LambdaExpression.CapturedVariable cap5 = new LambdaExpression.CapturedVariable(5, Integer.class);
 
             // First expression is valid, second is out of bounds
-            assertThatThrownBy(() ->
-                    CapturedVariableHelper.validateCapturedVariableIndices(2, cap0, cap5))
+            assertThatThrownBy(() -> CapturedVariableHelper.validateCapturedVariableIndices(2, cap0, cap5))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("out of bounds");
         }

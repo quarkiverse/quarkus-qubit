@@ -15,7 +15,7 @@ import jdk.jfr.StackTrace;
  */
 @Name("io.quarkiverse.qubit.Analysis")
 @Label("Qubit Analysis")
-@Category({"Qubit", "Analysis"})
+@Category({ "Qubit", "Analysis" })
 @Description("Individual lambda bytecode analysis timing")
 @StackTrace(false)
 public class QubitAnalysisEvent extends Event {
@@ -63,7 +63,8 @@ public class QubitAnalysisEvent extends Event {
         this.success = success;
         this.deduplicated = deduplicated;
         this.lambdaHash = lambdaHash != null && lambdaHash.length() > 8
-                ? lambdaHash.substring(0, 8) : lambdaHash;
+                ? lambdaHash.substring(0, 8)
+                : lambdaHash;
         this.end();
         this.commit();
     }

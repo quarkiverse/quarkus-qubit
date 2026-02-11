@@ -1,11 +1,11 @@
 package io.quarkiverse.qubit.deployment.generation.methodcall;
 
+import java.util.Collection;
+
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionBuilderRegistry;
 import io.quarkus.gizmo2.Expr;
 import io.quarkus.gizmo2.creator.BlockCreator;
-
-import java.util.Collection;
 
 /**
  * Polymorphic context interface for method call dispatching.

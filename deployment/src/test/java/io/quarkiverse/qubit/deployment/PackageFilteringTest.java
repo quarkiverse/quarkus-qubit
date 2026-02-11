@@ -1,17 +1,17 @@
 package io.quarkiverse.qubit.deployment;
 
-import org.jboss.jandex.ClassInfo;
-import org.jboss.jandex.DotName;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import org.jboss.jandex.ClassInfo;
+import org.jboss.jandex.DotName;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 
 /**
  * Tests for package filtering logic in QubitProcessor.
@@ -121,7 +121,7 @@ class PackageFilteringTest {
             QubitBuildTimeConfig.ScanningConfig config = createScanningConfig(
                     List.of("java.", "jakarta."),
                     Optional.empty(),
-                    true);  // scanTestClasses = true
+                    true); // scanTestClasses = true
 
             assertTrue(isNotExcludedClass("com.example.it.MyIntegrationTest", config));
             assertTrue(isNotExcludedClass("io.quarkus.it.ExampleTest", config));
@@ -144,7 +144,7 @@ class PackageFilteringTest {
             QubitBuildTimeConfig.ScanningConfig config = createScanningConfig(
                     List.of("java.", "jakarta."),
                     Optional.empty(),
-                    false);  // scanTestClasses = false
+                    false); // scanTestClasses = false
 
             assertFalse(isNotExcludedClass("com.example.it.MyIntegrationTest", config));
             assertFalse(isNotExcludedClass("com.example.test.MyTest", config));
@@ -212,7 +212,8 @@ class PackageFilteringTest {
         ClassInfo classInfo = mock(ClassInfo.class);
         when(classInfo.name()).thenReturn(DotName.createSimple(className));
 
-        Method method = QubitProcessor.class.getDeclaredMethod("isNotExcludedClass", ClassInfo.class, QubitBuildTimeConfig.ScanningConfig.class);
+        Method method = QubitProcessor.class.getDeclaredMethod("isNotExcludedClass", ClassInfo.class,
+                QubitBuildTimeConfig.ScanningConfig.class);
         method.setAccessible(true);
         return (Boolean) method.invoke(processor, classInfo, config);
     }

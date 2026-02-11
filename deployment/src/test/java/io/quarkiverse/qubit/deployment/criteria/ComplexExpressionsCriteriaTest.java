@@ -1,7 +1,8 @@
 package io.quarkiverse.qubit.deployment.criteria;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import org.junit.jupiter.api.Test;
+
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /**
  * Criteria query generation tests for complex nested expressions.

@@ -7,18 +7,18 @@
  *
  * <h2>Key Types</h2>
  * <ul>
- *   <li>{@link ExpressionBuilder} - Marker interface for expression builders
- *   <li>{@link ExpressionBuilderRegistry} - Registry for expression builders
- *   <li>{@link ArithmeticExpressionBuilder} - Handles arithmetic operations
- *   <li>{@link StringExpressionBuilder} - Handles string method expressions
- *   <li>{@link TemporalExpressionBuilder} - Handles date/time expressions
- *   <li>{@link SubqueryExpressionBuilder} - Handles subquery expressions
+ * <li>{@link ExpressionBuilder} - Marker interface for expression builders
+ * <li>{@link ExpressionBuilderRegistry} - Registry for expression builders
+ * <li>{@link ArithmeticExpressionBuilder} - Handles arithmetic operations
+ * <li>{@link StringExpressionBuilder} - Handles string method expressions
+ * <li>{@link TemporalExpressionBuilder} - Handles date/time expressions
+ * <li>{@link SubqueryExpressionBuilder} - Handles subquery expressions
  * </ul>
  *
  * <h2>Dependencies</h2>
  * <ul>
- *   <li>{@code ast} - For AST node types
- *   <li>{@code common} - For shared utilities
+ * <li>{@code ast} - For AST node types
+ * <li>{@code common} - For shared utilities
  * </ul>
  *
  * @since 1.0

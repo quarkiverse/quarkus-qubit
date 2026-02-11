@@ -21,7 +21,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * Sealed AST for parsed lambda expressions.
  *
- * <p><b>Why sealed?</b> Exhaustive switch expressions, controlled hierarchy, JVM optimization.
+ * <p>
+ * <b>Why sealed?</b> Exhaustive switch expressions, controlled hierarchy, JVM optimization.
  * <b>Why records?</b> Immutability, structural equality, pattern matching decomposition.
  *
  * <pre>
@@ -45,8 +46,8 @@ public sealed interface LambdaExpression {
 
     /** Extracts field name, throwing if not available. */
     default String getFieldNameOrThrow() {
-        return getFieldName().orElseThrow(() ->
-            new IllegalArgumentException("Cannot extract field name from expression: " + this));
+        return getFieldName()
+                .orElseThrow(() -> new IllegalArgumentException("Cannot extract field name from expression: " + this));
     }
 
     // ========== Core Expressions ==========
@@ -55,9 +56,19 @@ public sealed interface LambdaExpression {
     record BinaryOp(LambdaExpression left, Operator operator, LambdaExpression right) implements LambdaExpression {
         /** Binary operation types with symbols. */
         public enum Operator {
-            EQ("=="), NE("!="), LT("<"), LE("<="), GT(">"), GE(">="),
-            AND("&&"), OR("||"),
-            ADD("+"), SUB("-"), MUL("*"), DIV("/"), MOD("%");
+            EQ("=="),
+            NE("!="),
+            LT("<"),
+            LE("<="),
+            GT(">"),
+            GE(">="),
+            AND("&&"),
+            OR("||"),
+            ADD("+"),
+            SUB("-"),
+            MUL("*"),
+            DIV("/"),
+            MOD("%");
 
             private final String symbol;
 
@@ -203,7 +214,7 @@ public sealed interface LambdaExpression {
             if (index < 0) {
                 throw new IllegalArgumentException(
                         "CapturedVariable index must be non-negative, got: " + index +
-                        ". This may indicate a lambda local variable was incorrectly identified as a captured variable.");
+                                ". This may indicate a lambda local variable was incorrectly identified as a captured variable.");
             }
             Objects.requireNonNull(type, "Type cannot be null");
         }
@@ -291,7 +302,11 @@ public sealed interface LambdaExpression {
 
     /** Relationship type - determines whether path segment requires JPA join. */
     enum RelationType {
-        FIELD, MANY_TO_ONE, ONE_TO_ONE, ONE_TO_MANY, MANY_TO_MANY
+        FIELD,
+        MANY_TO_ONE,
+        ONE_TO_ONE,
+        ONE_TO_MANY,
+        MANY_TO_MANY
     }
 
     /** A segment in a path expression representing a single navigation step. */
@@ -372,9 +387,9 @@ public sealed interface LambdaExpression {
          * This helper method provides consistent validation across all path-based
          * expression types, ensuring:
          * <ul>
-         *   <li>Segments list is not null</li>
-         *   <li>Segments list is not empty</li>
-         *   <li>Returns a defensive immutable copy</li>
+         * <li>Segments list is not null</li>
+         * <li>Segments list is not empty</li>
+         * <li>Returns a defensive immutable copy</li>
          * </ul>
          *
          * @param segments the segments to validate
@@ -398,6 +413,7 @@ public sealed interface LambdaExpression {
      * {@code phone.owner.department.name}.
      * <p>
      * Example:
+     *
      * <pre>
      * Phone.where(p -> p.owner.firstName.equals("John"))
      * → PathExpression([
@@ -481,6 +497,7 @@ public sealed interface LambdaExpression {
      * {@code cb.in(root.get("field")).value(v1).value(v2)...}.
      * <p>
      * Example:
+     *
      * <pre>
      * List&lt;String&gt; cities = List.of("NYC", "LA", "Chicago");
      * Person.where(p -&gt; cities.contains(p.city))
@@ -529,6 +546,7 @@ public sealed interface LambdaExpression {
      * {@code WHERE value MEMBER OF collectionField} or JPA {@code cb.isMember(value, collection)}.
      * <p>
      * Example:
+     *
      * <pre>
      * // Assuming Person has @ElementCollection Set&lt;String&gt; roles
      * Person.where(p -&gt; p.roles.contains("admin"))
@@ -603,6 +621,7 @@ public sealed interface LambdaExpression {
      * the parameter represents, enabling correct JPA alias generation.
      * <p>
      * Example:
+     *
      * <pre>
      * // Lambda: (Person p, Phone ph) -> ph.type.equals("mobile")
      * // Parameter 'ph' is:
@@ -651,6 +670,7 @@ public sealed interface LambdaExpression {
      * {@code joinAlias.get("field")}.
      * <p>
      * Example:
+     *
      * <pre>
      * // Lambda: (Person p, Phone ph) -> ph.type.equals("mobile")
      * // Field 'type' from 'ph' is:
@@ -722,6 +742,7 @@ public sealed interface LambdaExpression {
      * Extends PathExpression to track which entity the path starts from in a join.
      * <p>
      * Example:
+     *
      * <pre>
      * // Lambda: (Person p, Phone ph) -> ph.owner.firstName.equals("John")
      * // Path from 'ph' is:
@@ -791,6 +812,7 @@ public sealed interface LambdaExpression {
      * This captures the grouping key expression from the original groupBy() call.
      * <p>
      * Example:
+     *
      * <pre>
      * // Lambda: .select((Group&lt;Person, String&gt; g) -> g.key())
      * // → GroupKeyReference(keyExpression, String.class)
@@ -799,7 +821,7 @@ public sealed interface LambdaExpression {
      * </pre>
      *
      * @param keyExpression The expression used for grouping (from groupBy() lambda), may be null
-     *                      when analyzed in isolation (resolved at code generation time)
+     *        when analyzed in isolation (resolved at code generation time)
      * @param resultType The type of the grouping key
      */
     record GroupKeyReference(
@@ -842,6 +864,7 @@ public sealed interface LambdaExpression {
      * {@code g.count()}, {@code g.avg(p -> p.salary)}, etc.
      * <p>
      * Example:
+     *
      * <pre>
      * // Lambda: .select((Group&lt;Person, String&gt; g) -> g.count())
      * // → GroupAggregation(COUNT, null, long.class)
@@ -940,6 +963,7 @@ public sealed interface LambdaExpression {
      * Used as the target for method calls like {@code g.key()}, {@code g.count()}.
      * <p>
      * Example:
+     *
      * <pre>
      * // Lambda: (Group&lt;Person, String&gt; g) -> g.count()
      * // The 'g' is represented as:
@@ -1041,10 +1065,9 @@ public sealed interface LambdaExpression {
 
             // Combine with existing predicate using AND
             LambdaExpression combinedPredicate = new BinaryOp(
-                this.predicate,
-                BinaryOp.Operator.AND,
-                newPredicate
-            );
+                    this.predicate,
+                    BinaryOp.Operator.AND,
+                    newPredicate);
             return new SubqueryBuilderReference(entityClass, entityClassName, combinedPredicate);
         }
 
@@ -1063,6 +1086,7 @@ public sealed interface LambdaExpression {
      * Used for comparisons like {@code p.salary > subquery(Person.class).avg(q -> q.salary)}.
      * <p>
      * Example:
+     *
      * <pre>
      * // Fluent API: p -> p.salary > subquery(Person.class).avg(q -> q.salary)
      * // → BinaryOp(FieldAccess("salary"), GT, ScalarSubquery(AVG, Person.class, FieldAccess("salary"), null))
@@ -1108,21 +1132,24 @@ public sealed interface LambdaExpression {
         /**
          * Creates a SUM subquery.
          */
-        public static ScalarSubquery sum(Class<?> entityClass, LambdaExpression field, LambdaExpression predicate, Class<?> resultType) {
+        public static ScalarSubquery sum(Class<?> entityClass, LambdaExpression field, LambdaExpression predicate,
+                Class<?> resultType) {
             return new ScalarSubquery(SubqueryAggregationType.SUM, entityClass, null, field, predicate, resultType);
         }
 
         /**
          * Creates a MIN subquery.
          */
-        public static ScalarSubquery min(Class<?> entityClass, LambdaExpression field, LambdaExpression predicate, Class<?> resultType) {
+        public static ScalarSubquery min(Class<?> entityClass, LambdaExpression field, LambdaExpression predicate,
+                Class<?> resultType) {
             return new ScalarSubquery(SubqueryAggregationType.MIN, entityClass, null, field, predicate, resultType);
         }
 
         /**
          * Creates a MAX subquery.
          */
-        public static ScalarSubquery max(Class<?> entityClass, LambdaExpression field, LambdaExpression predicate, Class<?> resultType) {
+        public static ScalarSubquery max(Class<?> entityClass, LambdaExpression field, LambdaExpression predicate,
+                Class<?> resultType) {
             return new ScalarSubquery(SubqueryAggregationType.MAX, entityClass, null, field, predicate, resultType);
         }
 
@@ -1155,6 +1182,7 @@ public sealed interface LambdaExpression {
      * Used for predicates like {@code subquery(Phone.class).exists(ph -> ph.owner.id == p.id)}.
      * <p>
      * Example:
+     *
      * <pre>
      * // Fluent API: p -> subquery(Phone.class).exists(ph -> ph.owner.id.equals(p.id))
      * // → ExistsSubquery(Phone.class, BinaryOp(PathExpression(...), EQ, CorrelatedVariable(...)), false)
@@ -1206,6 +1234,7 @@ public sealed interface LambdaExpression {
      * Used for predicates like {@code subquery(Department.class).in(p.department.name, d -> d.name, d -> d.budget > 1000000)}.
      * <p>
      * Example:
+     *
      * <pre>
      * // Fluent API: p -> subquery(Department.class).in(p.department.name, d -> d.name, d -> d.budget > 1000000)
      * // → InSubquery(PathExpression("department.name"), Department.class, FieldAccess("name"), predicate, false)
@@ -1245,7 +1274,7 @@ public sealed interface LambdaExpression {
          * Creates an IN subquery.
          */
         public static InSubquery in(LambdaExpression field, Class<?> entityClass,
-                                     LambdaExpression selectExpr, LambdaExpression predicate) {
+                LambdaExpression selectExpr, LambdaExpression predicate) {
             return new InSubquery(field, entityClass, null, selectExpr, predicate, false);
         }
 
@@ -1253,7 +1282,7 @@ public sealed interface LambdaExpression {
          * Creates a NOT IN subquery.
          */
         public static InSubquery notIn(LambdaExpression field, Class<?> entityClass,
-                                        LambdaExpression selectExpr, LambdaExpression predicate) {
+                LambdaExpression selectExpr, LambdaExpression predicate) {
             return new InSubquery(field, entityClass, null, selectExpr, predicate, true);
         }
 
@@ -1272,6 +1301,7 @@ public sealed interface LambdaExpression {
      * This enables the subquery to access the outer query's root entity.
      * <p>
      * Example:
+     *
      * <pre>
      * // Fluent API: p -> subquery(Phone.class).exists(ph -> ph.owner.id.equals(p.id))
      * // The 'p.id' inside the inner lambda is:

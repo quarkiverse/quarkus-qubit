@@ -18,12 +18,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Abstract base class for simple field projection tests.
  *
- * <p>Contains all test methods that can be run with either static entity methods
+ * <p>
+ * Contains all test methods that can be run with either static entity methods
  * or repository instance methods.
  */
 public abstract class AbstractProjectionTest {
 
     protected abstract PersonQueryOperations personOps();
+
     protected abstract ProductQueryOperations productOps();
 
     @BeforeEach
@@ -131,10 +133,10 @@ public abstract class AbstractProjectionTest {
         assertThat(birthDates)
                 .hasSize(5)
                 .containsExactlyInAnyOrder(
-                        LocalDate.of(1993, 5, 15),  // John
-                        LocalDate.of(1998, 8, 22),  // Jane
-                        LocalDate.of(1978, 3, 10),  // Bob
-                        LocalDate.of(1988, 11, 5),  // Alice
+                        LocalDate.of(1993, 5, 15), // John
+                        LocalDate.of(1998, 8, 22), // Jane
+                        LocalDate.of(1978, 3, 10), // Bob
+                        LocalDate.of(1988, 11, 5), // Alice
                         LocalDate.of(1995, 7, 18)); // Charlie
     }
 
@@ -147,11 +149,11 @@ public abstract class AbstractProjectionTest {
         assertThat(prices)
                 .hasSize(5)
                 .containsExactlyInAnyOrder(
-                        new BigDecimal("1299.99"),  // Laptop
-                        new BigDecimal("899.99"),   // Smartphone
-                        new BigDecimal("299.99"),   // Desk Chair
-                        new BigDecimal("89.99"),    // Coffee Maker
-                        new BigDecimal("399.99"));  // Monitor
+                        new BigDecimal("1299.99"), // Laptop
+                        new BigDecimal("899.99"), // Smartphone
+                        new BigDecimal("299.99"), // Desk Chair
+                        new BigDecimal("89.99"), // Coffee Maker
+                        new BigDecimal("399.99")); // Monitor
     }
 
     // ========== Verify Result Count Matches Entity Count ==========

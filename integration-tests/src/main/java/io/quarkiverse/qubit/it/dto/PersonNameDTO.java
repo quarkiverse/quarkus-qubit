@@ -27,10 +27,12 @@ public class PersonNameDTO {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof PersonNameDTO that)) return false;
+        if (this == o)
+            return true;
+        if (!(o instanceof PersonNameDTO that))
+            return false;
         return Objects.equals(firstName, that.firstName) &&
-               Objects.equals(lastName, that.lastName);
+                Objects.equals(lastName, that.lastName);
     }
 
     @Override

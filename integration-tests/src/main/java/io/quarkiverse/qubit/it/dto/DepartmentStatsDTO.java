@@ -42,11 +42,13 @@ public class DepartmentStatsDTO {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof DepartmentStatsDTO that)) return false;
+        if (this == o)
+            return true;
+        if (!(o instanceof DepartmentStatsDTO that))
+            return false;
         return employeeCount == that.employeeCount &&
-               Objects.equals(departmentName, that.departmentName) &&
-               Objects.equals(averageSalary, that.averageSalary);
+                Objects.equals(departmentName, that.departmentName) &&
+                Objects.equals(averageSalary, that.averageSalary);
     }
 
     @Override
@@ -57,9 +59,9 @@ public class DepartmentStatsDTO {
     @Override
     public String toString() {
         return "DepartmentStatsDTO{" +
-               "departmentName='" + departmentName + '\'' +
-               ", employeeCount=" + employeeCount +
-               ", averageSalary=" + averageSalary +
-               '}';
+                "departmentName='" + departmentName + '\'' +
+                ", employeeCount=" + employeeCount +
+                ", averageSalary=" + averageSalary +
+                '}';
     }
 }

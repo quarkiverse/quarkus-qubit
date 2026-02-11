@@ -31,13 +31,11 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.PATH_
 
 import java.util.Objects;
 
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Selection;
+
 import org.jspecify.annotations.Nullable;
 
-import io.quarkus.gizmo2.Const;
-import io.quarkus.gizmo2.Expr;
-import io.quarkus.gizmo2.LocalVar;
-import io.quarkus.gizmo2.creator.BlockCreator;
-import io.quarkus.gizmo2.desc.MethodDesc;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.ExistsSubquery;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.InExpression;
@@ -53,13 +51,17 @@ import io.quarkiverse.qubit.deployment.generation.expression.ExpressionGenerator
 import io.quarkiverse.qubit.deployment.generation.methodcall.GenerationResult;
 import io.quarkiverse.qubit.deployment.generation.methodcall.MethodCallHandlerChain;
 import io.quarkiverse.qubit.deployment.util.TypeConverter;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Selection;
+import io.quarkus.gizmo2.Const;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.LocalVar;
+import io.quarkus.gizmo2.creator.BlockCreator;
+import io.quarkus.gizmo2.desc.MethodDesc;
 
 /**
  * Converts lambda expression AST into JPA Criteria API bytecode using Gizmo 2.
  *
- * <p>Implements ExpressionGeneratorHelper to provide common generation methods
+ * <p>
+ * Implements ExpressionGeneratorHelper to provide common generation methods
  * to specialized builders (BiEntityExpressionBuilder, GroupExpressionBuilder).
  */
 public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
@@ -450,7 +452,8 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
             case BOOLEAN_FIELD_CONSTANT -> generateBooleanFieldConstantPredicate(bc, binOp, cb, root, capturedValues);
 
-            case BOOLEAN_FIELD_CAPTURED_VARIABLE -> generateBooleanFieldCapturedVariablePredicate(bc, binOp, cb, root, capturedValues);
+            case BOOLEAN_FIELD_CAPTURED_VARIABLE ->
+                generateBooleanFieldCapturedVariablePredicate(bc, binOp, cb, root, capturedValues);
 
             case COMPARE_TO_EQUALITY -> {
                 // compareTo equality can return null if constant is not 0/false/true
@@ -543,7 +546,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         LambdaExpression.Constant constant = (LambdaExpression.Constant) binOp.right();
 
         boolean isEqualityCheck = constant.value().equals(0) ||
-                                  (constant.value() instanceof Boolean && constant.value().equals(false));
+                (constant.value() instanceof Boolean && constant.value().equals(false));
         boolean isInequalityCheck = (constant.value() instanceof Boolean && constant.value().equals(true));
 
         if (isEqualityCheck || isInequalityCheck) {
@@ -616,6 +619,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
     /**
      * Generates JPA expression for method call using handler chain.
+     *
      * @throws UnsupportedExpressionException if the method call is not supported
      */
     public Expr generateMethodCall(
@@ -756,7 +760,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             case LambdaExpression.FieldAccess field -> field.fieldType() == String.class;
             case LambdaExpression.Constant constant -> constant.value() instanceof String;
             case LambdaExpression.CapturedVariable capturedVar -> capturedVar.type() == String.class;
-            case LambdaExpression.BinaryOp binOp -> isStringConcatenation(binOp);  // Recursive: concatenation of concatenations
+            case LambdaExpression.BinaryOp binOp -> isStringConcatenation(binOp); // Recursive: concatenation of concatenations
             case null, default -> false;
         };
     }
@@ -929,7 +933,8 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             Expr groupKeyExpr,
             Expr capturedValues) {
 
-        return builderRegistry.groupBuilder().generateGroupPredicate(bc, expression, cb, root, groupKeyExpr, capturedValues, this);
+        return builderRegistry.groupBuilder().generateGroupPredicate(bc, expression, cb, root, groupKeyExpr, capturedValues,
+                this);
     }
 
     /** Generates JPA Expression for GROUP BY SELECT clause. */
@@ -941,7 +946,8 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             Expr groupKeyExpr,
             Expr capturedValues) {
 
-        return builderRegistry.groupBuilder().generateGroupSelectExpression(bc, expression, cb, root, groupKeyExpr, capturedValues, this);
+        return builderRegistry.groupBuilder().generateGroupSelectExpression(bc, expression, cb, root, groupKeyExpr,
+                capturedValues, this);
     }
 
     /** Generates JPA Expression for group ORDER BY clause. */
@@ -953,7 +959,8 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             Expr groupKeyExpr,
             Expr capturedValues) {
 
-        return builderRegistry.groupBuilder().generateGroupSortExpression(bc, expression, cb, root, groupKeyExpr, capturedValues, this);
+        return builderRegistry.groupBuilder().generateGroupSortExpression(bc, expression, cb, root, groupKeyExpr,
+                capturedValues, this);
     }
 
     /** Generates JPA multiselect array for Object[] projections in group context. */
@@ -965,6 +972,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             Expr groupKeyExpr,
             Expr capturedValues) {
 
-        return builderRegistry.groupBuilder().generateGroupArraySelections(bc, arrayCreation, cb, root, groupKeyExpr, capturedValues, this);
+        return builderRegistry.groupBuilder().generateGroupArraySelections(bc, arrayCreation, cb, root, groupKeyExpr,
+                capturedValues, this);
     }
 }

@@ -1,13 +1,13 @@
 package io.quarkiverse.qubit.deployment.devui;
 
+import static io.quarkiverse.qubit.deployment.common.PatternDetector.isLogicalOperation;
+
+import java.util.stream.Collectors;
+
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.*;
 import io.quarkiverse.qubit.deployment.util.ClassNameUtils;
 import io.quarkiverse.qubit.deployment.util.TypeConverter;
-
-import static io.quarkiverse.qubit.deployment.common.PatternDetector.isLogicalOperation;
-
-import java.util.stream.Collectors;
 
 /** Generates Java-like source code from LambdaExpression AST for DevUI display. */
 public final class JavaSourceGenerator {
@@ -31,13 +31,13 @@ public final class JavaSourceGenerator {
 
     /** Generates bi-entity lambda expression string for join queries. */
     public static String generateBiEntityJavaSource(LambdaExpression expression,
-                                                     String firstParam,
-                                                     String secondParam) {
+            String firstParam,
+            String secondParam) {
         if (expression == null) {
             return null;
         }
         return "(" + firstParam + ", " + secondParam + ") -> " +
-               biEntityExpressionToJava(expression, firstParam, secondParam);
+                biEntityExpressionToJava(expression, firstParam, secondParam);
     }
 
     /** Generates group lambda expression string (e.g., "g -> g.count() > 5"). */
@@ -101,8 +101,8 @@ public final class JavaSourceGenerator {
 
     /** Converts bi-entity LambdaExpression to Java string. */
     private static String biEntityExpressionToJava(LambdaExpression expr,
-                                                    String firstParam,
-                                                    String secondParam) {
+            String firstParam,
+            String secondParam) {
         if (expr == null) {
             return "?";
         }
@@ -203,16 +203,19 @@ public final class JavaSourceGenerator {
     /** Checks if expression is a boolean constant. */
     private static boolean isBooleanConstant(LambdaExpression expr) {
         return expr instanceof Constant constant &&
-               (constant == Constant.TRUE || constant == Constant.FALSE ||
-                Boolean.TRUE.equals(constant.value()) || Boolean.FALSE.equals(constant.value()));
+                (constant == Constant.TRUE || constant == Constant.FALSE ||
+                        Boolean.TRUE.equals(constant.value()) || Boolean.FALSE.equals(constant.value()));
     }
 
     /** Gets boolean value from constant expression. */
     private static Boolean getBooleanValue(LambdaExpression expr) {
         if (expr instanceof Constant constant) {
-            if (constant == Constant.TRUE) return true;
-            if (constant == Constant.FALSE) return false;
-            if (constant.value() instanceof Boolean b) return b;
+            if (constant == Constant.TRUE)
+                return true;
+            if (constant == Constant.FALSE)
+                return false;
+            if (constant.value() instanceof Boolean b)
+                return b;
         }
         return null;
     }
@@ -274,8 +277,7 @@ public final class JavaSourceGenerator {
     }
 
     private static String methodCallToJava(MethodCall methodCall, String param) {
-        String target = methodCall.target() != null ?
-                expressionToJava(methodCall.target(), param) : "";
+        String target = methodCall.target() != null ? expressionToJava(methodCall.target(), param) : "";
         String args = methodCall.arguments().stream()
                 .map(arg -> expressionToJava(arg, param))
                 .collect(Collectors.joining(", "));
@@ -283,10 +285,10 @@ public final class JavaSourceGenerator {
     }
 
     private static String biEntityMethodCallToJava(MethodCall methodCall,
-                                                    String firstParam,
-                                                    String secondParam) {
-        String target = methodCall.target() != null ?
-                biEntityExpressionToJava(methodCall.target(), firstParam, secondParam) : "";
+            String firstParam,
+            String secondParam) {
+        String target = methodCall.target() != null ? biEntityExpressionToJava(methodCall.target(), firstParam, secondParam)
+                : "";
         String args = methodCall.arguments().stream()
                 .map(arg -> biEntityExpressionToJava(arg, firstParam, secondParam))
                 .collect(Collectors.joining(", "));
@@ -344,28 +346,27 @@ public final class JavaSourceGenerator {
     }
 
     private static String biEntityFieldToJava(BiEntityFieldAccess biField,
-                                               String firstParam,
-                                               String secondParam) {
+            String firstParam,
+            String secondParam) {
         String alias = biField.entityPosition().selectAlias(firstParam, secondParam);
         return alias + "." + biField.fieldName();
     }
 
     private static String biEntityPathToJava(BiEntityPathExpression biPath,
-                                              String firstParam,
-                                              String secondParam) {
+            String firstParam,
+            String secondParam) {
         String alias = biPath.entityPosition().selectAlias(firstParam, secondParam);
         return alias + "." + biPath.toPath();
     }
 
     private static String biEntityParamToJava(BiEntityParameter biParam,
-                                               String firstParam,
-                                               String secondParam) {
+            String firstParam,
+            String secondParam) {
         return biParam.position().selectAlias(firstParam, secondParam);
     }
 
     private static String groupAggregationToJava(GroupAggregation groupAgg) {
-        String field = groupAgg.fieldExpression() != null ?
-                expressionToJava(groupAgg.fieldExpression(), "e") : "";
+        String field = groupAgg.fieldExpression() != null ? expressionToJava(groupAgg.fieldExpression(), "e") : "";
 
         return switch (groupAgg.aggregationType()) {
             case COUNT -> "g.count()";
@@ -384,8 +385,7 @@ public final class JavaSourceGenerator {
         String entityName = scalarSub.entityClassName() != null
                 ? ClassNameUtils.extractSimpleName(scalarSub.entityClassName())
                 : scalarSub.entityClass().getSimpleName();
-        String field = scalarSub.fieldExpression() != null ?
-                expressionToJava(scalarSub.fieldExpression(), "s") : "";
+        String field = scalarSub.fieldExpression() != null ? expressionToJava(scalarSub.fieldExpression(), "s") : "";
 
         String aggMethod = switch (scalarSub.aggregationType()) {
             case AVG -> "avg";

@@ -18,10 +18,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * Abstract base class for getSingleResult() and findFirst() terminal operation tests.
  *
- * <p>Contains all test methods that can be run with either static entity methods
+ * <p>
+ * Contains all test methods that can be run with either static entity methods
  * or repository instance methods.
  *
- * <p>Tests single-result query patterns.
+ * <p>
+ * Tests single-result query patterns.
  */
 public abstract class AbstractSingleResultTest {
 
@@ -54,10 +56,8 @@ public abstract class AbstractSingleResultTest {
     @Test
     @Transactional
     void getSingleResult_noMatch_throwsNoResultException() {
-        assertThatThrownBy(() ->
-                personOps().where((Person p) -> p.email.equals("nonexistent@example.com"))
-                        .getSingleResult()
-        )
+        assertThatThrownBy(() -> personOps().where((Person p) -> p.email.equals("nonexistent@example.com"))
+                .getSingleResult())
                 .isInstanceOf(NoResultException.class)
                 .hasMessageContaining("expected exactly one result but found none");
     }
@@ -66,9 +66,7 @@ public abstract class AbstractSingleResultTest {
     @Transactional
     void getSingleResult_multipleMatches_throwsNonUniqueResultException() {
         // Query for all active people (assuming multiple exist in standard data)
-        assertThatThrownBy(() ->
-                personOps().where((Person p) -> p.active).getSingleResult()
-        )
+        assertThatThrownBy(() -> personOps().where((Person p) -> p.active).getSingleResult())
                 .isInstanceOf(NonUniqueResultException.class)
                 .hasMessageContaining("expected exactly one result but found");
     }

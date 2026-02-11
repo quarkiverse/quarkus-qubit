@@ -29,7 +29,8 @@ import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer.LabelClassif
 /**
  * Maps bytecode comparison opcodes to Operator enum values with inversion support (GT↔LE, GE↔LT, EQ↔NE).
  *
- * <p>Uses data-driven registries to consolidate opcode-to-operator mappings,
+ * <p>
+ * Uses data-driven registries to consolidate opcode-to-operator mappings,
  * eliminating duplicated switch expressions.
  */
 public final class OpcodeOperatorMapper {
@@ -64,10 +65,10 @@ public final class OpcodeOperatorMapper {
     static {
         // Single-operand: compare stack top with zero
         Map<Integer, OpcodeSpec> single = new HashMap<>();
-        single.put(IFLE, new OpcodeSpec(LE, GT, false));  // Often negated comparison
-        single.put(IFLT, new OpcodeSpec(LT, GE, true));   // Direct strict comparison
-        single.put(IFGE, new OpcodeSpec(GE, LT, false));  // Often negated comparison
-        single.put(IFGT, new OpcodeSpec(GT, LE, true));   // Direct strict comparison
+        single.put(IFLE, new OpcodeSpec(LE, GT, false)); // Often negated comparison
+        single.put(IFLT, new OpcodeSpec(LT, GE, true)); // Direct strict comparison
+        single.put(IFGE, new OpcodeSpec(GE, LT, false)); // Often negated comparison
+        single.put(IFGT, new OpcodeSpec(GT, LE, true)); // Direct strict comparison
         SINGLE_OPERAND_SPECS = Map.copyOf(single);
 
         // Two-operand: compare two stack values

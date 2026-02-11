@@ -1,22 +1,24 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType;
-import io.quarkiverse.qubit.deployment.analysis.RelationshipMetadataExtractor.EntityRelationshipInfo;
-import io.quarkiverse.qubit.deployment.analysis.RelationshipMetadataExtractor.FieldRelationship;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.io.InputStream;
+
 import org.jboss.jandex.Index;
 import org.jboss.jandex.Indexer;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.io.InputStream;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import io.quarkiverse.qubit.deployment.analysis.RelationshipMetadataExtractor.EntityRelationshipInfo;
+import io.quarkiverse.qubit.deployment.analysis.RelationshipMetadataExtractor.FieldRelationship;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType;
 
 /**
  * Unit tests for RelationshipMetadataExtractor.
  *
- * <p>These tests verify that JPA relationship annotations are correctly
+ * <p>
+ * These tests verify that JPA relationship annotations are correctly
  * extracted from entity classes using Jandex.
  */
 class RelationshipMetadataExtractorTest {
@@ -25,14 +27,10 @@ class RelationshipMetadataExtractorTest {
     private static RelationshipMetadataExtractor extractor;
 
     // Test entity class names from FluentApiTestSources
-    private static final String TEST_ORDER_CLASS =
-            "io.quarkiverse.qubit.deployment.testutil.FluentApiTestSources$TestOrder";
-    private static final String TEST_CUSTOMER_CLASS =
-            "io.quarkiverse.qubit.deployment.testutil.FluentApiTestSources$TestCustomer";
-    private static final String TEST_ORDER_ITEM_CLASS =
-            "io.quarkiverse.qubit.deployment.testutil.FluentApiTestSources$TestOrderItem";
-    private static final String TEST_EMPLOYEE_CLASS =
-            "io.quarkiverse.qubit.deployment.testutil.FluentApiTestSources$TestEmployee";
+    private static final String TEST_ORDER_CLASS = "io.quarkiverse.qubit.deployment.testutil.FluentApiTestSources$TestOrder";
+    private static final String TEST_CUSTOMER_CLASS = "io.quarkiverse.qubit.deployment.testutil.FluentApiTestSources$TestCustomer";
+    private static final String TEST_ORDER_ITEM_CLASS = "io.quarkiverse.qubit.deployment.testutil.FluentApiTestSources$TestOrderItem";
+    private static final String TEST_EMPLOYEE_CLASS = "io.quarkiverse.qubit.deployment.testutil.FluentApiTestSources$TestEmployee";
 
     @BeforeAll
     static void buildIndex() throws Exception {

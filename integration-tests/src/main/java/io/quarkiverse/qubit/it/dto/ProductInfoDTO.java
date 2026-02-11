@@ -34,11 +34,13 @@ public class ProductInfoDTO {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof ProductInfoDTO that)) return false;
+        if (this == o)
+            return true;
+        if (!(o instanceof ProductInfoDTO that))
+            return false;
         return Objects.equals(name, that.name) &&
-               Objects.equals(price, that.price) &&
-               Objects.equals(category, that.category);
+                Objects.equals(price, that.price) &&
+                Objects.equals(category, that.category);
     }
 
     @Override

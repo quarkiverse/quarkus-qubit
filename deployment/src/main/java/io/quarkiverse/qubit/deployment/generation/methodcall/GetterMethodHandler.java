@@ -3,10 +3,10 @@ package io.quarkiverse.qubit.deployment.generation.methodcall;
 import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.extractFieldName;
 import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.isGetterMethodName;
 
+import java.util.Optional;
+
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkus.gizmo2.Expr;
-
-import java.util.Optional;
 
 /**
  * Fallback handler: converts getter calls (getXxx, isXxx) to field access.

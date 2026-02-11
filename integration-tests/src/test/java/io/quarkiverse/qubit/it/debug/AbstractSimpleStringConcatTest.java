@@ -12,9 +12,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Abstract base class for debug tests covering string concatenation edge cases.
  *
- * <p>Minimal test suite to debug string concatenation and basic projection behavior.
+ * <p>
+ * Minimal test suite to debug string concatenation and basic projection behavior.
  *
- * <p>Tests cover:
+ * <p>
+ * Tests cover:
  * <ul>
  * <li>Simple field projection (baseline)</li>
  * <li>Two-field string concatenation</li>

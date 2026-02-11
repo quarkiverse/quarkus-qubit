@@ -1,10 +1,11 @@
 package io.quarkiverse.qubit.deployment.common;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkus.logging.Log;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.objectweb.asm.Type;
 
-import java.util.concurrent.ConcurrentHashMap;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkus.logging.Log;
 
 /**
  * Build-time class loading utilities.
@@ -19,7 +20,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class ClassLoaderHelper {
 
-    private ClassLoaderHelper() {}
+    private ClassLoaderHelper() {
+    }
 
     /** Cache for loaded classes to avoid repeated Class.forName() calls. */
     private static final ConcurrentHashMap<String, Class<?>> CLASS_CACHE = new ConcurrentHashMap<>();
@@ -43,8 +45,8 @@ public final class ClassLoaderHelper {
 
         // Try to load and cache
         ClassLoader[] loaders = {
-            Thread.currentThread().getContextClassLoader(),
-            ClassLoaderHelper.class.getClassLoader()
+                Thread.currentThread().getContextClassLoader(),
+                ClassLoaderHelper.class.getClassLoader()
         };
 
         for (ClassLoader loader : loaders) {

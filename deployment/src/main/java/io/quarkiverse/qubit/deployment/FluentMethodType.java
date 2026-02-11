@@ -1,11 +1,5 @@
 package io.quarkiverse.qubit.deployment;
 
-import org.objectweb.asm.Type;
-
-import java.util.EnumSet;
-import java.util.Optional;
-import java.util.Set;
-
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_AVG;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_MAX;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_MIN;
@@ -16,6 +10,12 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUM_DO
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUM_INTEGER;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUM_LONG;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_WHERE;
+
+import java.util.EnumSet;
+import java.util.Optional;
+import java.util.Set;
+
+import org.objectweb.asm.Type;
 
 /** Fluent API method types with factory methods for FluentMethodConfig creation. */
 public enum FluentMethodType {
@@ -134,9 +134,9 @@ public enum FluentMethodType {
 
     /** Semantic grouping: PREDICATE (filtering), PROJECTION (transform), SORTING, AGGREGATION. */
     public enum MethodCategory {
-        PREDICATE,   // Filtering methods (where)
-        PROJECTION,  // Transform result type (select)
-        SORTING,     // Order results (sortedBy, sortedDescendingBy)
-        AGGREGATION  // Compute aggregate values (min, max, avg, sum*)
+        PREDICATE, // Filtering methods (where)
+        PROJECTION, // Transform result type (select)
+        SORTING, // Order results (sortedBy, sortedDescendingBy)
+        AGGREGATION // Compute aggregate values (min, max, avg, sum*)
     }
 }

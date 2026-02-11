@@ -8,6 +8,7 @@ package io.quarkiverse.qubit;
  * are <strong>bytecode markers</strong> analyzed at build time, never called at runtime.
  * <p>
  * Usage:
+ *
  * <pre>{@code
  * import static io.quarkiverse.qubit.Subqueries.*;
  *
@@ -50,7 +51,7 @@ public final class SubqueryBuilder<T> {
     public SubqueryBuilder<T> where(QuerySpec<T, Boolean> predicate) {
         throw new UnsupportedOperationException(
                 "SubqueryBuilder.where() should never be called at runtime. " +
-                "This method exists only for bytecode analysis at build time.");
+                        "This method exists only for bytecode analysis at build time.");
     }
 
     // ========== Scalar Aggregation Subqueries ==========
@@ -65,7 +66,7 @@ public final class SubqueryBuilder<T> {
     public <N extends Number> Double avg(QuerySpec<T, N> selector) {
         throw new UnsupportedOperationException(
                 "SubqueryBuilder.avg() should never be called at runtime. " +
-                "This method exists only for bytecode analysis at build time.");
+                        "This method exists only for bytecode analysis at build time.");
     }
 
     /**
@@ -78,7 +79,7 @@ public final class SubqueryBuilder<T> {
     public <N extends Number> N sum(QuerySpec<T, N> selector) {
         throw new UnsupportedOperationException(
                 "SubqueryBuilder.sum() should never be called at runtime. " +
-                "This method exists only for bytecode analysis at build time.");
+                        "This method exists only for bytecode analysis at build time.");
     }
 
     /**
@@ -91,7 +92,7 @@ public final class SubqueryBuilder<T> {
     public <C extends Comparable<? super C>> C min(QuerySpec<T, C> selector) {
         throw new UnsupportedOperationException(
                 "SubqueryBuilder.min() should never be called at runtime. " +
-                "This method exists only for bytecode analysis at build time.");
+                        "This method exists only for bytecode analysis at build time.");
     }
 
     /**
@@ -104,7 +105,7 @@ public final class SubqueryBuilder<T> {
     public <C extends Comparable<? super C>> C max(QuerySpec<T, C> selector) {
         throw new UnsupportedOperationException(
                 "SubqueryBuilder.max() should never be called at runtime. " +
-                "This method exists only for bytecode analysis at build time.");
+                        "This method exists only for bytecode analysis at build time.");
     }
 
     /**
@@ -116,7 +117,7 @@ public final class SubqueryBuilder<T> {
     public Long count(QuerySpec<T, Boolean> predicate) {
         throw new UnsupportedOperationException(
                 "SubqueryBuilder.count() should never be called at runtime. " +
-                "This method exists only for bytecode analysis at build time.");
+                        "This method exists only for bytecode analysis at build time.");
     }
 
     /**
@@ -127,7 +128,7 @@ public final class SubqueryBuilder<T> {
     public Long count() {
         throw new UnsupportedOperationException(
                 "SubqueryBuilder.count() should never be called at runtime. " +
-                "This method exists only for bytecode analysis at build time.");
+                        "This method exists only for bytecode analysis at build time.");
     }
 
     // ========== Exists Subqueries ==========
@@ -141,7 +142,7 @@ public final class SubqueryBuilder<T> {
     public boolean exists(QuerySpec<T, Boolean> predicate) {
         throw new UnsupportedOperationException(
                 "SubqueryBuilder.exists() should never be called at runtime. " +
-                "This method exists only for bytecode analysis at build time.");
+                        "This method exists only for bytecode analysis at build time.");
     }
 
     /**
@@ -153,7 +154,7 @@ public final class SubqueryBuilder<T> {
     public boolean notExists(QuerySpec<T, Boolean> predicate) {
         throw new UnsupportedOperationException(
                 "SubqueryBuilder.notExists() should never be called at runtime. " +
-                "This method exists only for bytecode analysis at build time.");
+                        "This method exists only for bytecode analysis at build time.");
     }
 
     // ========== In Subqueries ==========
@@ -171,7 +172,7 @@ public final class SubqueryBuilder<T> {
     public <R> boolean in(R field, QuerySpec<T, R> selector, QuerySpec<T, Boolean> predicate) {
         throw new UnsupportedOperationException(
                 "SubqueryBuilder.in() should never be called at runtime. " +
-                "This method exists only for bytecode analysis at build time.");
+                        "This method exists only for bytecode analysis at build time.");
     }
 
     /**
@@ -185,7 +186,7 @@ public final class SubqueryBuilder<T> {
     public <R> boolean in(R field, QuerySpec<T, R> selector) {
         throw new UnsupportedOperationException(
                 "SubqueryBuilder.in() should never be called at runtime. " +
-                "This method exists only for bytecode analysis at build time.");
+                        "This method exists only for bytecode analysis at build time.");
     }
 
     /**
@@ -201,7 +202,7 @@ public final class SubqueryBuilder<T> {
     public <R> boolean notIn(R field, QuerySpec<T, R> selector, QuerySpec<T, Boolean> predicate) {
         throw new UnsupportedOperationException(
                 "SubqueryBuilder.notIn() should never be called at runtime. " +
-                "This method exists only for bytecode analysis at build time.");
+                        "This method exists only for bytecode analysis at build time.");
     }
 
     /**
@@ -216,7 +217,7 @@ public final class SubqueryBuilder<T> {
     public <R> boolean notIn(R field, QuerySpec<T, R> selector) {
         throw new UnsupportedOperationException(
                 "SubqueryBuilder.notIn() should never be called at runtime. " +
-                "This method exists only for bytecode analysis at build time.");
+                        "This method exists only for bytecode analysis at build time.");
     }
 
     // ========== Package-Private Accessors ==========

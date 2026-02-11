@@ -15,9 +15,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Abstract base class for complex operation combinations tests.
  *
- * <p>Covers all remaining missing operation combinations identified in the coverage matrix.
+ * <p>
+ * Covers all remaining missing operation combinations identified in the coverage matrix.
  *
- * <p>Test coverage (8 tests):
+ * <p>
+ * Test coverage (8 tests):
  * <ul>
  * <li>skip → count (1 test)</li>
  * <li>sortedDescendingBy + limit → toList (1 test)</li>

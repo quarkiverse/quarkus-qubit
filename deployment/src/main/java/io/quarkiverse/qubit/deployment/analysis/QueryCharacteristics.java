@@ -10,8 +10,7 @@ public record QueryCharacteristics(
         boolean isJoinQuery,
         boolean isSelectJoined,
         boolean isJoinProjection,
-        boolean isGroupQuery
-) {
+        boolean isGroupQuery) {
 
     public static QueryCharacteristics forList() {
         return new QueryCharacteristics(false, false, false, false, false, false);
@@ -58,7 +57,6 @@ public record QueryCharacteristics(
                 callSite.isJoinQuery(),
                 callSite.isSelectJoinedQuery(),
                 callSite.isJoinProjectionQuery(),
-                isGroupQuery
-        );
+                isGroupQuery);
     }
 }

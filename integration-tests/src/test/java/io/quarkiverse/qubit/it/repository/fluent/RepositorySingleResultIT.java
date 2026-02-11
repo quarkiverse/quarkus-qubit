@@ -10,7 +10,8 @@ import jakarta.inject.Inject;
 /**
  * Repository pattern tests for getSingleResult() and findFirst() terminal operations.
  *
- * <p>Tests single-result query patterns using repository pattern.
+ * <p>
+ * Tests single-result query patterns using repository pattern.
  */
 @QuarkusTest
 class RepositorySingleResultIT extends AbstractSingleResultTest {

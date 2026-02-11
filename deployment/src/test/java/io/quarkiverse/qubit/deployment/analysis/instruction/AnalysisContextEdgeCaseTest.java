@@ -1,19 +1,20 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
+import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.util.ArrayList;
+import java.util.List;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.MethodNode;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
 
 /**
  * Edge case tests for AnalysisContext.
@@ -378,8 +379,7 @@ class AnalysisContextEdgeCaseTest {
 
             var nestedSupport = new AnalysisContext.NestedLambdaSupport(
                     List.of(groupMethod),
-                    (m, i) -> constant(1)
-            );
+                    (m, i) -> constant(1));
             groupContext = new AnalysisContext(groupMethod, 0, nestedSupport);
         }
 

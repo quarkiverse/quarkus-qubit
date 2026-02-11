@@ -11,6 +11,7 @@ import io.quarkus.builder.item.MultiBuildItem;
  * reflection configuration can be generated.
  * <p>
  * The generated reflect-config.json uses the GraalVM lambda syntax:
+ *
  * <pre>
  * {
  *   "type": {
@@ -39,7 +40,7 @@ public final class LambdaReflectionBuildItem extends MultiBuildItem {
      * @param capturedVarCount the number of captured variables in the lambda
      */
     public LambdaReflectionBuildItem(String declaringClass, String methodName,
-                                      String interfaceType, int capturedVarCount) {
+            String interfaceType, int capturedVarCount) {
         this.declaringClass = declaringClass;
         this.methodName = methodName;
         this.interfaceType = interfaceType;

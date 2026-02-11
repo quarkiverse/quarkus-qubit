@@ -12,7 +12,8 @@ import java.util.Objects;
 /**
  * Department entity for testing multi-level relationship navigation.
  *
- * <p>This entity extends {@link QubitEntity} to gain lambda-based
+ * <p>
+ * This entity extends {@link QubitEntity} to gain lambda-based
  * query methods. Enables three-level navigation tests like:
  * {@code phone.owner.department.name}
  */
@@ -23,7 +24,7 @@ public class Department extends QubitEntity {
     public String code;
     public int budget;
 
-    @JsonIgnore  // Prevent circular reference in JSON serialization
+    @JsonIgnore // Prevent circular reference in JSON serialization
     @OneToMany(mappedBy = "department")
     public List<Person> employees = new ArrayList<>();
 
@@ -54,12 +55,14 @@ public class Department extends QubitEntity {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Department dept)) return false;
+        if (this == o)
+            return true;
+        if (!(o instanceof Department dept))
+            return false;
         return budget == dept.budget &&
-               Objects.equals(id, dept.id) &&
-               Objects.equals(name, dept.name) &&
-               Objects.equals(code, dept.code);
+                Objects.equals(id, dept.id) &&
+                Objects.equals(name, dept.name) &&
+                Objects.equals(code, dept.code);
     }
 
     @Override
@@ -70,10 +73,10 @@ public class Department extends QubitEntity {
     @Override
     public String toString() {
         return "Department{" +
-               "id=" + id +
-               ", name='" + name + '\'' +
-               ", code='" + code + '\'' +
-               ", budget=" + budget +
-               '}';
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", code='" + code + '\'' +
+                ", budget=" + budget +
+                '}';
     }
 }

@@ -1,8 +1,8 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
-import org.objectweb.asm.tree.AbstractInsnNode;
-
 import java.util.Set;
+
+import org.objectweb.asm.tree.AbstractInsnNode;
 
 /**
  * Strategy interface for handling bytecode instructions during lambda analysis.

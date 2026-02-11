@@ -1,14 +1,17 @@
 package io.quarkiverse.qubit.deployment.testutil.fixtures;
 
-import io.quarkiverse.qubit.deployment.analysis.instruction.AnalysisContext;
+import static io.quarkiverse.qubit.deployment.testutil.fixtures.AsmFixtures.testMethod;
+
 import org.objectweb.asm.tree.MethodNode;
 
-import static io.quarkiverse.qubit.deployment.testutil.fixtures.AsmFixtures.testMethod;
+import io.quarkiverse.qubit.deployment.analysis.instruction.AnalysisContext;
 
 /**
  * Fluent builders for AnalysisContext test fixtures.
  *
- * <p>Usage:
+ * <p>
+ * Usage:
+ *
  * <pre>{@code
  * import static ...fixtures.AnalysisContextFixtures.*;
  *
@@ -18,7 +21,8 @@ import static io.quarkiverse.qubit.deployment.testutil.fixtures.AsmFixtures.test
  */
 public final class AnalysisContextFixtures {
 
-    private AnalysisContextFixtures() {}
+    private AnalysisContextFixtures() {
+    }
 
     /** Creates a simple single-entity AnalysisContext with default method. */
     public static AnalysisContext simpleContext() {

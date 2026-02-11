@@ -34,9 +34,7 @@ public abstract class AbstractInClauseTest {
     void inClause_withStringList() {
         List<String> targetNames = List.of("John", "Jane", "Alice");
 
-        List<Person> results = personOps().where((Person p) ->
-            targetNames.contains(p.firstName)
-        ).toList();
+        List<Person> results = personOps().where((Person p) -> targetNames.contains(p.firstName)).toList();
 
         assertThat(results)
                 .hasSize(3)
@@ -47,9 +45,7 @@ public abstract class AbstractInClauseTest {
     void inClause_withStringListSingleMatch() {
         List<String> targetNames = List.of("John", "NotExisting");
 
-        List<Person> results = personOps().where((Person p) ->
-            targetNames.contains(p.firstName)
-        ).toList();
+        List<Person> results = personOps().where((Person p) -> targetNames.contains(p.firstName)).toList();
 
         assertThat(results)
                 .hasSize(1)
@@ -60,9 +56,7 @@ public abstract class AbstractInClauseTest {
     void inClause_withEmptyList() {
         List<String> emptyList = List.of();
 
-        List<Person> results = personOps().where((Person p) ->
-            emptyList.contains(p.firstName)
-        ).toList();
+        List<Person> results = personOps().where((Person p) -> emptyList.contains(p.firstName)).toList();
 
         assertThat(results).isEmpty();
     }
@@ -71,9 +65,7 @@ public abstract class AbstractInClauseTest {
     void inClause_withLastName() {
         List<String> lastNames = List.of("Doe", "Smith", "Brown");
 
-        List<Person> results = personOps().where((Person p) ->
-            lastNames.contains(p.lastName)
-        ).toList();
+        List<Person> results = personOps().where((Person p) -> lastNames.contains(p.lastName)).toList();
 
         assertThat(results)
                 .hasSize(3)
@@ -86,9 +78,7 @@ public abstract class AbstractInClauseTest {
     void inClause_withIntegerList() {
         List<Integer> targetAges = List.of(30, 25, 35);
 
-        List<Person> results = personOps().where((Person p) ->
-            targetAges.contains(p.age)
-        ).toList();
+        List<Person> results = personOps().where((Person p) -> targetAges.contains(p.age)).toList();
 
         assertThat(results)
                 .hasSize(3)
@@ -99,9 +89,7 @@ public abstract class AbstractInClauseTest {
     void inClause_withIntegerListNoMatch() {
         List<Integer> targetAges = List.of(100, 200, 300);
 
-        List<Person> results = personOps().where((Person p) ->
-            targetAges.contains(p.age)
-        ).toList();
+        List<Person> results = personOps().where((Person p) -> targetAges.contains(p.age)).toList();
 
         assertThat(results).isEmpty();
     }
@@ -112,9 +100,7 @@ public abstract class AbstractInClauseTest {
     void inClause_withStringSet() {
         Set<String> targetNames = Set.of("John", "Jane");
 
-        List<Person> results = personOps().where((Person p) ->
-            targetNames.contains(p.firstName)
-        ).toList();
+        List<Person> results = personOps().where((Person p) -> targetNames.contains(p.firstName)).toList();
 
         assertThat(results)
                 .hasSize(2)
@@ -125,9 +111,7 @@ public abstract class AbstractInClauseTest {
     void inClause_withIntegerSet() {
         Set<Integer> targetAges = Set.of(30, 45);
 
-        List<Person> results = personOps().where((Person p) ->
-            targetAges.contains(p.age)
-        ).toList();
+        List<Person> results = personOps().where((Person p) -> targetAges.contains(p.age)).toList();
 
         assertThat(results)
                 .hasSize(2)
@@ -140,9 +124,7 @@ public abstract class AbstractInClauseTest {
     void inClause_combinedWithAnd() {
         List<String> targetNames = List.of("John", "Jane", "Bob");
 
-        List<Person> results = personOps().where((Person p) ->
-            targetNames.contains(p.firstName) && p.active
-        ).toList();
+        List<Person> results = personOps().where((Person p) -> targetNames.contains(p.firstName) && p.active).toList();
 
         assertThat(results)
                 .hasSize(2)
@@ -153,9 +135,7 @@ public abstract class AbstractInClauseTest {
     void inClause_combinedWithOr() {
         List<String> targetNames = List.of("John", "Jane");
 
-        List<Person> results = personOps().where((Person p) ->
-            targetNames.contains(p.firstName) || p.age > 40
-        ).toList();
+        List<Person> results = personOps().where((Person p) -> targetNames.contains(p.firstName) || p.age > 40).toList();
 
         assertThat(results)
                 .hasSize(3)
@@ -166,9 +146,7 @@ public abstract class AbstractInClauseTest {
     void inClause_combinedWithComparison() {
         List<String> targetNames = List.of("John", "Jane", "Alice", "Bob");
 
-        List<Person> results = personOps().where((Person p) ->
-            targetNames.contains(p.firstName) && p.age >= 30
-        ).toList();
+        List<Person> results = personOps().where((Person p) -> targetNames.contains(p.firstName) && p.age >= 30).toList();
 
         assertThat(results)
                 .hasSize(3)
@@ -248,9 +226,7 @@ public abstract class AbstractInClauseTest {
     void inClause_withCount() {
         List<String> targetNames = List.of("John", "Jane", "Alice");
 
-        long count = personOps().where((Person p) ->
-            targetNames.contains(p.firstName)
-        ).count();
+        long count = personOps().where((Person p) -> targetNames.contains(p.firstName)).count();
 
         assertThat(count).isEqualTo(3);
     }
@@ -259,9 +235,7 @@ public abstract class AbstractInClauseTest {
     void inClause_withExists() {
         List<String> targetNames = List.of("John", "NotExisting");
 
-        boolean exists = personOps().where((Person p) ->
-            targetNames.contains(p.firstName)
-        ).exists();
+        boolean exists = personOps().where((Person p) -> targetNames.contains(p.firstName)).exists();
 
         assertThat(exists).isTrue();
     }
@@ -270,9 +244,7 @@ public abstract class AbstractInClauseTest {
     void inClause_withExistsNoMatch() {
         List<String> targetNames = List.of("NotExisting", "AlsoNotExisting");
 
-        boolean exists = personOps().where((Person p) ->
-            targetNames.contains(p.firstName)
-        ).exists();
+        boolean exists = personOps().where((Person p) -> targetNames.contains(p.firstName)).exists();
 
         assertThat(exists).isFalse();
     }
@@ -329,23 +301,20 @@ public abstract class AbstractInClauseTest {
         List<String> firstNames = List.of("John", "Jane", "Alice");
         List<String> lastNames = List.of("Doe", "Williams");
 
-        List<Person> results = personOps().where((Person p) ->
-            firstNames.contains(p.firstName) && lastNames.contains(p.lastName)
-        ).toList();
+        List<Person> results = personOps()
+                .where((Person p) -> firstNames.contains(p.firstName) && lastNames.contains(p.lastName)).toList();
 
         assertThat(results)
                 .hasSize(2)
                 .allMatch(p -> firstNames.contains(p.getFirstName()) &&
-                               lastNames.contains(p.getLastName()));
+                        lastNames.contains(p.getLastName()));
     }
 
     @Test
     void inClause_withEmailField() {
         List<String> targetEmails = List.of("john.doe@example.com", "jane.smith@example.com");
 
-        List<Person> results = personOps().where((Person p) ->
-            targetEmails.contains(p.email)
-        ).toList();
+        List<Person> results = personOps().where((Person p) -> targetEmails.contains(p.email)).toList();
 
         assertThat(results)
                 .hasSize(2)

@@ -1,5 +1,7 @@
 package io.quarkiverse.qubit.deployment.analysis.handler;
 
+import java.util.List;
+
 import io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaCallSite;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult;
@@ -7,8 +9,6 @@ import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.JoinQueryRe
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-
-import java.util.List;
 
 /** Handler for join queries: inner/left join with bi-entity operations. */
 public final class JoinQueryHandler extends AbstractQueryHandler {

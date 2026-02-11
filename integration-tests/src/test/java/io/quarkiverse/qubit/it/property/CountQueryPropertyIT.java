@@ -17,16 +17,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Property-based integration tests for count query operations.
  *
- * <p>This class uses parameterized tests to verify count invariants
+ * <p>
+ * This class uses parameterized tests to verify count invariants
  * that must hold for various query configurations.
  *
- * <p><strong>Properties Tested:</strong>
+ * <p>
+ * <strong>Properties Tested:</strong>
  * <ul>
- *   <li><strong>Count-list consistency</strong>: count() == toList().size()</li>
- *   <li><strong>Non-negativity</strong>: count() >= 0</li>
- *   <li><strong>Filter monotonicity</strong>: count(filter1 AND filter2) <= count(filter1)</li>
- *   <li><strong>Pagination independence</strong>: count ignores skip/limit</li>
- *   <li><strong>Sort independence</strong>: count ignores sortedBy</li>
+ * <li><strong>Count-list consistency</strong>: count() == toList().size()</li>
+ * <li><strong>Non-negativity</strong>: count() >= 0</li>
+ * <li><strong>Filter monotonicity</strong>: count(filter1 AND filter2) <= count(filter1)</li>
+ * <li><strong>Pagination independence</strong>: count ignores skip/limit</li>
+ * <li><strong>Sort independence</strong>: count ignores sortedBy</li>
  * </ul>
  *
  * @see io.quarkiverse.qubit.it.fluent.BasicQueryTest
@@ -145,7 +147,7 @@ class CountQueryPropertyIT {
     // ======================================================================
 
     @ParameterizedTest(name = "count ignores skip({0})")
-    @ValueSource(ints = {0, 1, 2, 5, 10})
+    @ValueSource(ints = { 0, 1, 2, 5, 10 })
     @Transactional
     void countIgnoresSkip(int skipAmount) {
         long countWithoutSkip = Person.where((Person p) -> p.active).count();
@@ -157,7 +159,7 @@ class CountQueryPropertyIT {
     }
 
     @ParameterizedTest(name = "count ignores limit({0})")
-    @ValueSource(ints = {1, 2, 5, 10})
+    @ValueSource(ints = { 1, 2, 5, 10 })
     @Transactional
     void countIgnoresLimit(int limitAmount) {
         long countWithoutLimit = Person.where((Person p) -> p.active).count();
@@ -171,7 +173,7 @@ class CountQueryPropertyIT {
     @Test
     @Transactional
     void countIgnoresSkipAndLimit() {
-        int[][] testCases = {{0, 2}, {1, 2}, {2, 3}, {5, 5}};
+        int[][] testCases = { { 0, 2 }, { 1, 2 }, { 2, 3 }, { 5, 5 } };
 
         for (int[] testCase : testCases) {
             int skipAmount = testCase[0];
@@ -217,7 +219,7 @@ class CountQueryPropertyIT {
     // ======================================================================
 
     @ParameterizedTest(name = "count with age > {0} matches list size")
-    @ValueSource(ints = {20, 25, 30, 35, 40, 45, 50})
+    @ValueSource(ints = { 20, 25, 30, 35, 40, 45, 50 })
     @Transactional
     void countWithAgeThresholdMatchesListSize(int ageThreshold) {
         long count = Person.where((Person p) -> p.age > ageThreshold).count();
@@ -229,7 +231,7 @@ class CountQueryPropertyIT {
     }
 
     @ParameterizedTest(name = "count with salary > {0} matches list size")
-    @ValueSource(ints = {50000, 60000, 70000, 80000, 90000})
+    @ValueSource(ints = { 50000, 60000, 70000, 80000, 90000 })
     @Transactional
     void countWithSalaryThresholdMatchesListSize(int salaryThreshold) {
         long count = Person.where((Person p) -> p.salary > (double) salaryThreshold).count();
@@ -299,7 +301,7 @@ class CountQueryPropertyIT {
     }
 
     @ParameterizedTest(name = "product count with stock >= {0}")
-    @ValueSource(ints = {0, 10, 25, 50, 100})
+    @ValueSource(ints = { 0, 10, 25, 50, 100 })
     @Transactional
     void productCountWithStockThreshold(int minStock) {
         long count = Product.where((Product p) -> p.stockQuantity >= minStock).count();

@@ -1,14 +1,16 @@
 package io.quarkiverse.qubit.deployment.criteria;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+
 /**
  * Criteria query generation tests for equality operations (==, equals(), isEqual()).
  *
- * <p>This class uses JUnit 5 parameterized tests to consolidate repetitive
+ * <p>
+ * This class uses JUnit 5 parameterized tests to consolidate repetitive
  * test patterns, reducing code duplication while maintaining full coverage.
  */
 class EqualityOperationsCriteriaTest extends CriteriaQueryTestBase {

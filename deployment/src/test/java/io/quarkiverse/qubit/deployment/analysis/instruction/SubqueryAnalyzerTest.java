@@ -1,11 +1,10 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.ExistsSubquery;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.InSubquery;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.ScalarSubquery;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.SubqueryAggregationType;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.SubqueryBuilderReference;
+import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.objectweb.asm.Opcodes.*;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -14,19 +13,22 @@ import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
-import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.objectweb.asm.Opcodes.*;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.ExistsSubquery;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.InSubquery;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.ScalarSubquery;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.SubqueryAggregationType;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.SubqueryBuilderReference;
 
 /**
  * Tests for {@link SubqueryAnalyzer}.
  *
- * <p>Tests subquery-related bytecode instruction handling includings
+ * <p>
+ * Tests subquery-related bytecode instruction handling includings
  * <ul>
- *   <li>Subqueries.subquery() factory method</li>
- *   <li>SubqueryBuilder.* methods (avg, sum, min, max, count, exists, in)</li>
- *   <li>Error paths for unexpected methods, empty stacks, wrong types</li>
+ * <li>Subqueries.subquery() factory method</li>
+ * <li>SubqueryBuilder.* methods (avg, sum, min, max, count, exists, in)</li>
+ * <li>Error paths for unexpected methods, empty stacks, wrong types</li>
  * </ul>
  */
 @DisplayName("SubqueryAnalyzer Tests")
@@ -682,9 +684,9 @@ class SubqueryAnalyzerTest {
         @DisplayName("Wrong type with args causes restoration - line 74: ctx.push(arg)")
         void handleSubqueryBuilderMethod_wrongTypeWithMultipleArgs_restoresAllArgs() {
             // Push wrong type as builder reference, then push multiple args
-            context.push(field("name", String.class));  // Wrong type - not SubqueryBuilderReference
-            context.push(field("departmentId", Long.class));  // arg 1
-            context.push(field("id", Long.class));  // arg 2
+            context.push(field("name", String.class)); // Wrong type - not SubqueryBuilderReference
+            context.push(field("departmentId", Long.class)); // arg 1
+            context.push(field("id", Long.class)); // arg 2
             MethodInsnNode methodInsn = createSubqueryBuilderMethodInsn(SUBQUERY_IN,
                     "(Ljava/util/function/Function;Ljava/util/function/Function;)Z");
 
@@ -709,8 +711,8 @@ class SubqueryAnalyzerTest {
         @Test
         @DisplayName("Wrong type with single arg causes restoration")
         void handleSubqueryBuilderMethod_wrongTypeWithSingleArg_restoresArg() {
-            context.push(constant(42));  // Wrong type - Constant instead of SubqueryBuilderReference
-            context.push(field("salary", Double.class));  // single arg
+            context.push(constant(42)); // Wrong type - Constant instead of SubqueryBuilderReference
+            context.push(field("salary", Double.class)); // single arg
             MethodInsnNode methodInsn = createSubqueryBuilderMethodInsn(SUBQUERY_AVG,
                     "(Ljava/util/function/Function;)D");
 
@@ -724,10 +726,10 @@ class SubqueryAnalyzerTest {
         @Test
         @DisplayName("Wrong type with three args causes restoration - for in() with predicate")
         void handleSubqueryBuilderMethod_wrongTypeWithThreeArgs_restoresAllThreeArgs() {
-            context.push(eq(field("active", Boolean.class), constant(true)));  // Wrong type
-            context.push(field("departmentId", Long.class));  // arg 1
-            context.push(field("id", Long.class));  // arg 2
-            context.push(eq(field("status", String.class), constant("ACTIVE")));  // arg 3 (predicate)
+            context.push(eq(field("active", Boolean.class), constant(true))); // Wrong type
+            context.push(field("departmentId", Long.class)); // arg 1
+            context.push(field("id", Long.class)); // arg 2
+            context.push(eq(field("status", String.class), constant("ACTIVE"))); // arg 3 (predicate)
             MethodInsnNode methodInsn = createSubqueryBuilderMethodInsn(SUBQUERY_IN,
                     "(Ljava/util/function/Function;Ljava/util/function/Function;Ljava/util/function/Predicate;)Z");
 
@@ -747,7 +749,7 @@ class SubqueryAnalyzerTest {
         @DisplayName("AVG uses Double.class result type - mutation: if wrong case matches, result type would differ")
         void handleSubqueryBuilderMethod_avg_specificallyUsesDoubleResultType() {
             context.push(new SubqueryBuilderReference(Person.class, "Person"));
-            context.push(field("age", Integer.class));  // Integer field
+            context.push(field("age", Integer.class)); // Integer field
             MethodInsnNode methodInsn = createSubqueryBuilderMethodInsn(SUBQUERY_AVG,
                     "(Ljava/util/function/Function;)D");
 
@@ -773,7 +775,7 @@ class SubqueryAnalyzerTest {
         @DisplayName("SUM uses inferred result type, not Double - mutation: if AVG case matches, would use Double")
         void handleSubqueryBuilderMethod_sum_usesInferredResultType() {
             context.push(new SubqueryBuilderReference(Person.class, "Person"));
-            context.push(field("salary", Double.class));  // Double field
+            context.push(field("salary", Double.class)); // Double field
             MethodInsnNode methodInsn = createSubqueryBuilderMethodInsn(SUBQUERY_SUM,
                     "(Ljava/util/function/Function;)Ljava/lang/Number;");
 
@@ -998,7 +1000,7 @@ class SubqueryAnalyzerTest {
             context.push(new SubqueryBuilderReference(Person.class, "Person"));
             // No args pushed
             MethodInsnNode methodInsn = createSubqueryBuilderMethodInsn(METHOD_WHERE,
-                    "()" + SUBQUERY_BUILDER_DESCRIPTOR);  // 0-arg descriptor
+                    "()" + SUBQUERY_BUILDER_DESCRIPTOR); // 0-arg descriptor
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
@@ -1161,7 +1163,7 @@ class SubqueryAnalyzerTest {
             context.push(field("departmentId", Long.class));
             context.push(field("id", Long.class));
             context.push(eq(field("active", Boolean.class), constant(true)));
-            context.push(gt(field("age", Integer.class), constant(18)));  // 4th arg - too many
+            context.push(gt(field("age", Integer.class), constant(18))); // 4th arg - too many
             MethodInsnNode methodInsn = createSubqueryBuilderMethodInsn(SUBQUERY_IN,
                     "(Ljava/util/function/Function;Ljava/util/function/Function;Ljava/util/function/Predicate;Ljava/util/function/Predicate;)Z");
 
@@ -1214,7 +1216,7 @@ class SubqueryAnalyzerTest {
         @DisplayName("SUM infers Integer type from Integer selector - mutation: if AVG case matches, would use Double")
         void handleBuilderScalarSubquery_sum_infersIntegerFromIntegerSelector() {
             context.push(new SubqueryBuilderReference(Person.class, "Person"));
-            context.push(field("age", Integer.class));  // Integer selector
+            context.push(field("age", Integer.class)); // Integer selector
             MethodInsnNode methodInsn = createSubqueryBuilderMethodInsn(SUBQUERY_SUM,
                     "(Ljava/util/function/Function;)Ljava/lang/Number;");
 
@@ -1230,7 +1232,7 @@ class SubqueryAnalyzerTest {
         @DisplayName("MIN infers Long type from Long selector")
         void handleBuilderScalarSubquery_min_infersLongFromLongSelector() {
             context.push(new SubqueryBuilderReference(Person.class, "Person"));
-            context.push(field("departmentId", Long.class));  // Long selector
+            context.push(field("departmentId", Long.class)); // Long selector
             MethodInsnNode methodInsn = createSubqueryBuilderMethodInsn(SUBQUERY_MIN,
                     "(Ljava/util/function/Function;)Ljava/lang/Comparable;");
 
@@ -1246,7 +1248,7 @@ class SubqueryAnalyzerTest {
         @DisplayName("MAX infers BigDecimal type from BigDecimal selector")
         void handleBuilderScalarSubquery_max_infersBigDecimalFromBigDecimalSelector() {
             context.push(new SubqueryBuilderReference(Person.class, "Person"));
-            context.push(field("balance", java.math.BigDecimal.class));  // BigDecimal selector
+            context.push(field("balance", java.math.BigDecimal.class)); // BigDecimal selector
             MethodInsnNode methodInsn = createSubqueryBuilderMethodInsn(SUBQUERY_MAX,
                     "(Ljava/util/function/Function;)Ljava/lang/Comparable;");
 
@@ -1262,7 +1264,7 @@ class SubqueryAnalyzerTest {
         @DisplayName("AVG always returns Double regardless of Integer selector")
         void handleBuilderScalarSubquery_avg_alwaysReturnsDouble() {
             context.push(new SubqueryBuilderReference(Person.class, "Person"));
-            context.push(field("count", Long.class));  // Long selector
+            context.push(field("count", Long.class)); // Long selector
             MethodInsnNode methodInsn = createSubqueryBuilderMethodInsn(SUBQUERY_AVG,
                     "(Ljava/util/function/Function;)D");
 

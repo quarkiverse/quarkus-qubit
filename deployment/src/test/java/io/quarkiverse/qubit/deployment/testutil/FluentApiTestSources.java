@@ -1,22 +1,25 @@
 package io.quarkiverse.qubit.deployment.testutil;
 
-import io.quarkiverse.qubit.QubitEntity;
+import java.util.List;
+import java.util.Set;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 
-import java.util.List;
-import java.util.Set;
+import io.quarkiverse.qubit.QubitEntity;
 
 /**
  * Source class containing fluent API calls for InvokeDynamicScanner testing.
  *
- * <p>Each method in this class contains a fluent API call pattern that will be
+ * <p>
+ * Each method in this class contains a fluent API call pattern that will be
  * compiled by javac into invokedynamic bytecode followed by terminal method calls.
  * The InvokeDynamicScanner tests will load this compiled class and verify that
  * call sites are correctly detected.
  *
- * <p><strong>Pattern</strong>: Each method uses the QubitEntity fluent API with
+ * <p>
+ * <strong>Pattern</strong>: Each method uses the QubitEntity fluent API with
  * terminal operations like toList(), count(), exists(), etc.
  */
 public class FluentApiTestSources {

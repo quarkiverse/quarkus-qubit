@@ -2,6 +2,8 @@ package io.quarkiverse.qubit.deployment.analysis.handler;
 
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SELECT;
 
+import java.util.List;
+
 import io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaCallSite;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult;
@@ -9,8 +11,6 @@ import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SimpleQuery
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-
-import java.util.List;
 
 /** Handler for simple queries: WHERE, SELECT, sorting, and combinations. */
 public final class SimpleQueryHandler extends AbstractQueryHandler {
@@ -35,8 +35,8 @@ public final class SimpleQueryHandler extends AbstractQueryHandler {
     public boolean canHandle(LambdaCallSite callSite) {
         // Simple handler is the default - handles anything not handled by others
         return !callSite.isGroupQuery() &&
-               !callSite.isJoinQuery() &&
-               !callSite.isAggregationQuery();
+                !callSite.isJoinQuery() &&
+                !callSite.isAggregationQuery();
     }
 
     @Override

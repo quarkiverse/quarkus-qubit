@@ -17,11 +17,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests join operations between Person and Phone entities using the fluent API.
  * The test data creates 5 persons with phones:
  * <ul>
- *   <li>John: 2 phones (mobile, work)</li>
- *   <li>Jane: 1 phone (mobile)</li>
- *   <li>Bob: 3 phones (mobile, home, work)</li>
- *   <li>Alice: 2 phones (mobile, work)</li>
- *   <li>Charlie: 1 phone (mobile)</li>
+ * <li>John: 2 phones (mobile, work)</li>
+ * <li>Jane: 1 phone (mobile)</li>
+ * <li>Bob: 3 phones (mobile, home, work)</li>
+ * <li>Alice: 2 phones (mobile, work)</li>
+ * <li>Charlie: 1 phone (mobile)</li>
  * </ul>
  */
 public abstract class AbstractJoinQueryTest {

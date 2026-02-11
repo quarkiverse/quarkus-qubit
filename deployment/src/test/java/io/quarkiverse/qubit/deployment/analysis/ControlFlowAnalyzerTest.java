@@ -1,6 +1,11 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
-import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer.LabelClassification;
+import static io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer.LabelClassification.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.objectweb.asm.Opcodes.*;
+
+import java.util.Map;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -9,16 +14,13 @@ import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
 
-import java.util.Map;
-
-import static io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer.LabelClassification.*;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.objectweb.asm.Opcodes.*;
+import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer.LabelClassification;
 
 /**
  * Tests for {@link ControlFlowAnalyzer}.
  *
- * <p>Tests control flow pattern analysis for reconstructing boolean expressions
+ * <p>
+ * Tests control flow pattern analysis for reconstructing boolean expressions
  * from bytecode branches.
  */
 class ControlFlowAnalyzerTest {
@@ -108,7 +110,7 @@ class ControlFlowAnalyzerTest {
             InsnList instructions = new InsnList();
             LabelNode label = new LabelNode();
             instructions.add(label);
-            instructions.add(new InsnNode(ALOAD));  // Not ICONST_0 or ICONST_1
+            instructions.add(new InsnNode(ALOAD)); // Not ICONST_0 or ICONST_1
             instructions.add(new InsnNode(ARETURN));
 
             Map<LabelNode, LabelClassification> result = analyzer.classifyLabels(instructions);
@@ -165,7 +167,7 @@ class ControlFlowAnalyzerTest {
             LabelNode label1 = new LabelNode();
             LabelNode label2 = new LabelNode();
             instructions.add(label1);
-            instructions.add(label2);  // Label has opcode -1
+            instructions.add(label2); // Label has opcode -1
             instructions.add(new InsnNode(ICONST_1));
             instructions.add(new InsnNode(IRETURN));
 
@@ -284,7 +286,7 @@ class ControlFlowAnalyzerTest {
             LabelNode targetLabel = new LabelNode();
 
             instructions.add(condLabel);
-            instructions.add(new JumpInsnNode(IFEQ, targetLabel));  // Conditional jump
+            instructions.add(new JumpInsnNode(IFEQ, targetLabel)); // Conditional jump
             instructions.add(new InsnNode(ICONST_1));
             instructions.add(new InsnNode(IRETURN));
             instructions.add(targetLabel);
@@ -309,7 +311,7 @@ class ControlFlowAnalyzerTest {
             LabelNode trueLabel = new LabelNode();
 
             instructions.add(startLabel);
-            instructions.add(new JumpInsnNode(IFNE, trueLabel));  // Conditional jump
+            instructions.add(new JumpInsnNode(IFNE, trueLabel)); // Conditional jump
             instructions.add(new InsnNode(ICONST_0));
             instructions.add(new InsnNode(IRETURN));
             instructions.add(trueLabel);
@@ -402,8 +404,8 @@ class ControlFlowAnalyzerTest {
             LabelNode gotoTarget = new LabelNode();
 
             instructions.add(startLabel);
-            instructions.add(new JumpInsnNode(IFEQ, condTarget));  // Conditional jump
-            instructions.add(new JumpInsnNode(GOTO, gotoTarget));  // Subsequent GOTO
+            instructions.add(new JumpInsnNode(IFEQ, condTarget)); // Conditional jump
+            instructions.add(new JumpInsnNode(GOTO, gotoTarget)); // Subsequent GOTO
             instructions.add(condTarget);
             instructions.add(new InsnNode(ICONST_0));
             instructions.add(new InsnNode(IRETURN));
@@ -431,8 +433,8 @@ class ControlFlowAnalyzerTest {
             LabelNode condTarget = new LabelNode();
 
             instructions.add(startLabel);
-            instructions.add(new JumpInsnNode(IFEQ, condTarget));  // Conditional jump
-            instructions.add(new InsnNode(ICONST_1));  // No GOTO, just ICONST
+            instructions.add(new JumpInsnNode(IFEQ, condTarget)); // Conditional jump
+            instructions.add(new InsnNode(ICONST_1)); // No GOTO, just ICONST
             instructions.add(new InsnNode(IRETURN));
             instructions.add(condTarget);
             instructions.add(new InsnNode(ICONST_0));
@@ -461,7 +463,7 @@ class ControlFlowAnalyzerTest {
             LabelNode targetLabel = new LabelNode();
 
             instructions.add(startLabel);
-            instructions.add(new JumpInsnNode(GOTO, targetLabel));  // GOTO to distant label
+            instructions.add(new JumpInsnNode(GOTO, targetLabel)); // GOTO to distant label
             // Add intermediate labels (opcode -1, skipped in loops)
             for (int i = 0; i < 5; i++) {
                 instructions.add(new LabelNode());
@@ -560,7 +562,7 @@ class ControlFlowAnalyzerTest {
             LabelNode selfRefLabel = new LabelNode();
 
             instructions.add(selfRefLabel);
-            instructions.add(new JumpInsnNode(GOTO, selfRefLabel));  // Self-reference
+            instructions.add(new JumpInsnNode(GOTO, selfRefLabel)); // Self-reference
 
             Map<LabelNode, LabelClassification> classifications = analyzer.classifyLabels(instructions);
             Map<LabelNode, Boolean> destinations = analyzer.traceLabelDestinations(instructions, classifications);
@@ -581,10 +583,10 @@ class ControlFlowAnalyzerTest {
             LabelNode filler1 = new LabelNode();
             LabelNode filler2 = new LabelNode();
 
-            instructions.add(label);        // index 0
-            instructions.add(filler1);      // index 1 (opcode -1, skipped)
-            instructions.add(filler2);      // index 2 (opcode -1, skipped)
-            instructions.add(new InsnNode(ICONST_1));  // index 3, offset = 3
+            instructions.add(label); // index 0
+            instructions.add(filler1); // index 1 (opcode -1, skipped)
+            instructions.add(filler2); // index 2 (opcode -1, skipped)
+            instructions.add(new InsnNode(ICONST_1)); // index 3, offset = 3
             instructions.add(new InsnNode(IRETURN));
 
             Map<LabelNode, LabelClassification> result = analyzer.classifyLabels(instructions);
@@ -606,9 +608,9 @@ class ControlFlowAnalyzerTest {
             LabelNode gotoTarget = new LabelNode();
 
             instructions.add(startLabel);
-            instructions.add(new JumpInsnNode(IFEQ, condTarget));  // Conditional jump at index 1
-            instructions.add(fillerLabel);  // Label at index 2 (opcode -1, skipped)
-            instructions.add(new JumpInsnNode(GOTO, gotoTarget));  // GOTO at index 3
+            instructions.add(new JumpInsnNode(IFEQ, condTarget)); // Conditional jump at index 1
+            instructions.add(fillerLabel); // Label at index 2 (opcode -1, skipped)
+            instructions.add(new JumpInsnNode(GOTO, gotoTarget)); // GOTO at index 3
             instructions.add(condTarget);
             instructions.add(new InsnNode(ICONST_0));
             instructions.add(new InsnNode(IRETURN));
@@ -633,7 +635,7 @@ class ControlFlowAnalyzerTest {
 
             instructions.add(startLabel);
             instructions.add(new JumpInsnNode(IFEQ, condTarget));
-            instructions.add(new InsnNode(ALOAD));  // Not a GOTO, triggers break
+            instructions.add(new InsnNode(ALOAD)); // Not a GOTO, triggers break
             instructions.add(new InsnNode(ARETURN));
             instructions.add(condTarget);
             instructions.add(new InsnNode(ICONST_0));

@@ -33,11 +33,13 @@ public class PersonBasicDTO {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof PersonBasicDTO that)) return false;
+        if (this == o)
+            return true;
+        if (!(o instanceof PersonBasicDTO that))
+            return false;
         return Objects.equals(firstName, that.firstName) &&
-               Objects.equals(lastName, that.lastName) &&
-               Objects.equals(email, that.email);
+                Objects.equals(lastName, that.lastName) &&
+                Objects.equals(email, that.email);
     }
 
     @Override

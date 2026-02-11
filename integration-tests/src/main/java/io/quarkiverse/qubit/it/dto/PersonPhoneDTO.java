@@ -30,10 +30,12 @@ public class PersonPhoneDTO {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof PersonPhoneDTO that)) return false;
+        if (this == o)
+            return true;
+        if (!(o instanceof PersonPhoneDTO that))
+            return false;
         return Objects.equals(personName, that.personName) &&
-               Objects.equals(phoneNumber, that.phoneNumber);
+                Objects.equals(phoneNumber, that.phoneNumber);
     }
 
     @Override

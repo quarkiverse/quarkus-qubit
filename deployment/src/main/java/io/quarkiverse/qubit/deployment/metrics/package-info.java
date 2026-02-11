@@ -3,8 +3,8 @@
  *
  * <h2>Key Types</h2>
  * <ul>
- *   <li>{@link BuildMetricsCollector} - Collects timing and counts
- *   <li>{@link BuildMetricsConfig} - Configuration interface
+ * <li>{@link BuildMetricsCollector} - Collects timing and counts
+ * <li>{@link BuildMetricsConfig} - Configuration interface
  * </ul>
  *
  * @since 1.0

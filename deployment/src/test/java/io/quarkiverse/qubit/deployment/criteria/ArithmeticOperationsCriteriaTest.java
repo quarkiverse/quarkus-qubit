@@ -1,16 +1,18 @@
 package io.quarkiverse.qubit.deployment.criteria;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import java.util.stream.Stream;
+
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.stream.Stream;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /**
  * Criteria query generation tests for arithmetic operations (+, -, *, /, %).
  *
- * <p>This class uses JUnit 5 parameterized tests to consolidate repetitive
+ * <p>
+ * This class uses JUnit 5 parameterized tests to consolidate repetitive
  * test patterns, reducing code duplication while maintaining full coverage.
  */
 class ArithmeticOperationsCriteriaTest extends CriteriaQueryTestBase {
@@ -51,8 +53,7 @@ class ArithmeticOperationsCriteriaTest extends CriteriaQueryTestBase {
 
                 // Field-field arithmetic
                 Arguments.of("longFieldFieldAddition", "sum"),
-                Arguments.of("longFieldFieldSubtraction", "diff")
-        );
+                Arguments.of("longFieldFieldSubtraction", "diff"));
     }
 
     // ==================== PARAMETERIZED TESTS ====================

@@ -1,18 +1,20 @@
 package io.quarkiverse.qubit.deployment.testutil.fixtures;
 
+import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
+import static org.objectweb.asm.Opcodes.ACC_STATIC;
+
+import java.util.ArrayList;
+
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.MethodNode;
 
-import java.util.ArrayList;
-
-import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
-import static org.objectweb.asm.Opcodes.ACC_STATIC;
-
 /**
  * Fluent builders for ASM ClassNode and MethodNode test fixtures.
  *
- * <p>Usage:
+ * <p>
+ * Usage:
+ *
  * <pre>{@code
  * import static ...fixtures.AsmFixtures.*;
  *
@@ -23,7 +25,8 @@ import static org.objectweb.asm.Opcodes.ACC_STATIC;
  */
 public final class AsmFixtures {
 
-    private AsmFixtures() {}
+    private AsmFixtures() {
+    }
 
     /** Creates a default test method builder. */
     public static MethodNodeBuilder testMethod() {

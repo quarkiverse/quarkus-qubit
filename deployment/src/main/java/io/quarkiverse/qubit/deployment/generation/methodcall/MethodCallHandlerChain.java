@@ -1,13 +1,13 @@
 package io.quarkiverse.qubit.deployment.generation.methodcall;
 
+import java.util.List;
+import java.util.Optional;
+
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionBuilderRegistry;
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionGeneratorHelper;
 import io.quarkus.gizmo2.Expr;
 import io.quarkus.gizmo2.creator.BlockCreator;
-
-import java.util.List;
-import java.util.Optional;
 
 /**
  * Chain of Responsibility coordinator for method call → JPA expression generation.
@@ -42,7 +42,7 @@ public final class MethodCallHandlerChain {
             if (previousPriority != null && currentPriority.ordinal() < previousPriority.ordinal()) {
                 throw new IllegalArgumentException(String.format(
                         "Handler ordering violation: %s (priority=%s) must not follow %s (priority=%s). " +
-                        "Handlers must be ordered by priority: FAST_REJECT < DELEGATING < FALLBACK.",
+                                "Handlers must be ordered by priority: FAST_REJECT < DELEGATING < FALLBACK.",
                         handler.getClass().getSimpleName(),
                         currentPriority,
                         previousHandler.getClass().getSimpleName(),
@@ -63,18 +63,18 @@ public final class MethodCallHandlerChain {
     public static List<MethodCallHandler> createDefaultHandlers() {
         return List.of(
                 // FAST_REJECT priority - Set-based method name rejection
-                TemporalComparisonHandler.INSTANCE,   // isBefore, isAfter, isEqual
-                StringLikePatternHandler.INSTANCE,    // startsWith, endsWith, contains
+                TemporalComparisonHandler.INSTANCE, // isBefore, isAfter, isEqual
+                StringLikePatternHandler.INSTANCE, // startsWith, endsWith, contains
                 BigDecimalArithmeticHandler.INSTANCE, // add, subtract, multiply, divide
-                StringSubstringHandler.INSTANCE,      // substring
+                StringSubstringHandler.INSTANCE, // substring
 
                 // DELEGATING priority - delegate to expression builders
-                TemporalAccessorHandler.INSTANCE,     // getYear, getMonth, getDayOfMonth
+                TemporalAccessorHandler.INSTANCE, // getYear, getMonth, getDayOfMonth
                 StringTransformationHandler.INSTANCE, // toUpperCase, toLowerCase, trim
-                StringUtilityHandler.INSTANCE,        // equals, isEmpty, isBlank, length
+                StringUtilityHandler.INSTANCE, // equals, isEmpty, isBlank, length
 
                 // FALLBACK priority - broad getter pattern matching (MUST be last)
-                GetterMethodHandler.INSTANCE          // getXxx, isXxx → field access
+                GetterMethodHandler.INSTANCE // getXxx, isXxx → field access
         );
     }
 

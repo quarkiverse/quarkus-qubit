@@ -33,11 +33,13 @@ public class PersonSummaryDTO {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof PersonSummaryDTO that)) return false;
+        if (this == o)
+            return true;
+        if (!(o instanceof PersonSummaryDTO that))
+            return false;
         return age == that.age &&
-               Objects.equals(firstName, that.firstName) &&
-               Objects.equals(salary, that.salary);
+                Objects.equals(firstName, that.firstName) &&
+                Objects.equals(salary, that.salary);
     }
 
     @Override

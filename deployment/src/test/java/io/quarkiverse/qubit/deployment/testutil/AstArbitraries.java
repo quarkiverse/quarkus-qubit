@@ -1,20 +1,23 @@
 package io.quarkiverse.qubit.deployment.testutil;
 
+import java.math.BigDecimal;
+import java.util.List;
+
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.*;
 import net.jqwik.api.*;
 
-import java.math.BigDecimal;
-import java.util.List;
-
 /**
  * Custom jqwik Arbitraries for generating random AST nodes.
  *
- * <p>This class provides generators for property-based testing of AST transformations
+ * <p>
+ * This class provides generators for property-based testing of AST transformations
  * and operations. The generators produce bounded expression trees to avoid infinite
  * recursion while still providing meaningful test coverage.
  *
- * <p><strong>Usage:</strong>
+ * <p>
+ * <strong>Usage:</strong>
+ *
  * <pre>{@code
  * @Property
  * void someProperty(@ForAll("leafExpressions") LambdaExpression expr) {
@@ -22,7 +25,8 @@ import java.util.List;
  * }
  * }</pre>
  *
- * <p><strong>Design Rationale:</strong>
+ * <p>
+ * <strong>Design Rationale:</strong>
  * Property-based testing generates many random inputs to verify invariants that should
  * hold for ANY valid input. This complements example-based tests by finding edge cases
  * that might not be manually specified.
@@ -90,8 +94,7 @@ public class AstArbitraries {
                 // Boolean constants
                 Arbitraries.of(Constant.TRUE, Constant.FALSE),
                 // Null constants
-                types().map(t -> new Constant(null, t))
-        );
+                types().map(t -> new Constant(null, t)));
     }
 
     /**
@@ -111,8 +114,7 @@ public class AstArbitraries {
     public static Arbitrary<CapturedVariable> capturedVariables() {
         return Combinators.combine(
                 Arbitraries.integers().between(0, 9),
-                types()
-        ).as(CapturedVariable::new);
+                types()).as(CapturedVariable::new);
     }
 
     /**
@@ -123,8 +125,7 @@ public class AstArbitraries {
         return Combinators.combine(
                 fieldNames(),
                 types(),
-                Arbitraries.integers().between(0, 5)
-        ).as(Parameter::new);
+                Arbitraries.integers().between(0, 5)).as(Parameter::new);
     }
 
     /**
@@ -145,8 +146,7 @@ public class AstArbitraries {
                 fieldAccesses().map(f -> f),
                 capturedVariables().map(c -> c),
                 parameters().map(p -> p),
-                nullLiterals().map(n -> n)
-        );
+                nullLiterals().map(n -> n));
     }
 
     // ======================================================================
@@ -169,8 +169,7 @@ public class AstArbitraries {
         return Arbitraries.of(
                 BinaryOp.Operator.EQ, BinaryOp.Operator.NE,
                 BinaryOp.Operator.LT, BinaryOp.Operator.LE,
-                BinaryOp.Operator.GT, BinaryOp.Operator.GE
-        );
+                BinaryOp.Operator.GT, BinaryOp.Operator.GE);
     }
 
     /**
@@ -189,8 +188,7 @@ public class AstArbitraries {
         return Arbitraries.of(
                 BinaryOp.Operator.ADD, BinaryOp.Operator.SUB,
                 BinaryOp.Operator.MUL, BinaryOp.Operator.DIV,
-                BinaryOp.Operator.MOD
-        );
+                BinaryOp.Operator.MOD);
     }
 
     /**
@@ -213,8 +211,7 @@ public class AstArbitraries {
         return Combinators.combine(
                 leafExpressions(),
                 binaryOperators(),
-                leafExpressions()
-        ).as(BinaryOp::new);
+                leafExpressions()).as(BinaryOp::new);
     }
 
     /**
@@ -224,8 +221,7 @@ public class AstArbitraries {
     public static Arbitrary<UnaryOp> shallowUnaryOps() {
         return Combinators.combine(
                 unaryOperators(),
-                leafExpressions()
-        ).as(UnaryOp::new);
+                leafExpressions()).as(UnaryOp::new);
     }
 
     /**
@@ -236,8 +232,7 @@ public class AstArbitraries {
         return Combinators.combine(
                 leafExpressions(),
                 fieldNames(),
-                types()
-        ).as((target, name, returnType) -> new MethodCall(target, name, List.of(), returnType));
+                types()).as((target, name, returnType) -> new MethodCall(target, name, List.of(), returnType));
     }
 
     /**
@@ -249,8 +244,7 @@ public class AstArbitraries {
                 leafExpressions(),
                 shallowBinaryOps().map(b -> b),
                 shallowUnaryOps().map(u -> u),
-                shallowMethodCalls().map(m -> m)
-        );
+                shallowMethodCalls().map(m -> m));
     }
 
     /**
@@ -261,8 +255,7 @@ public class AstArbitraries {
         return Combinators.combine(
                 depth1Expressions(),
                 binaryOperators(),
-                depth1Expressions()
-        ).as(BinaryOp::new);
+                depth1Expressions()).as(BinaryOp::new);
     }
 
     /**
@@ -272,8 +265,7 @@ public class AstArbitraries {
     public static Arbitrary<LambdaExpression> depth2Expressions() {
         return Arbitraries.oneOf(
                 depth1Expressions(),
-                depth2BinaryOps().map(b -> b)
-        );
+                depth2BinaryOps().map(b -> b));
     }
 
     /**
@@ -289,14 +281,12 @@ public class AstArbitraries {
                 Combinators.combine(
                         capturedVariables().map(c -> (LambdaExpression) c),
                         comparisonOperators(),
-                        constants().map(c -> (LambdaExpression) c)
-                ).as(BinaryOp::new),
+                        constants().map(c -> (LambdaExpression) c)).as(BinaryOp::new),
                 // Captured variable as method target
                 Combinators.combine(
                         capturedVariables().map(c -> (LambdaExpression) c),
                         fieldNames(),
-                        types()
-                ).as((target, name, returnType) -> new MethodCall(target, name, List.of(), returnType)),
+                        types()).as((target, name, returnType) -> new MethodCall(target, name, List.of(), returnType)),
                 // Multiple captured variables in binary op
                 Combinators.combine(
                         capturedVariables().map(c -> (LambdaExpression) c),
@@ -304,10 +294,8 @@ public class AstArbitraries {
                         Combinators.combine(
                                 capturedVariables().map(c -> (LambdaExpression) c),
                                 comparisonOperators(),
-                                constants().map(c -> (LambdaExpression) c)
-                        ).as(BinaryOp::new).map(b -> (LambdaExpression) b)
-                ).as(BinaryOp::new)
-        );
+                                constants().map(c -> (LambdaExpression) c)).as(BinaryOp::new).map(b -> (LambdaExpression) b))
+                        .as(BinaryOp::new));
     }
 
     /**
@@ -321,17 +309,14 @@ public class AstArbitraries {
                 Combinators.combine(
                         fieldAccesses().map(f -> (LambdaExpression) f),
                         comparisonOperators(),
-                        constants().map(c -> (LambdaExpression) c)
-                ).as(BinaryOp::new),
+                        constants().map(c -> (LambdaExpression) c)).as(BinaryOp::new),
                 // Captured variable comparison
                 Combinators.combine(
                         fieldAccesses().map(f -> (LambdaExpression) f),
                         comparisonOperators(),
-                        capturedVariables().map(c -> (LambdaExpression) c)
-                ).as(BinaryOp::new),
+                        capturedVariables().map(c -> (LambdaExpression) c)).as(BinaryOp::new),
                 // Boolean field
-                fieldNames().map(n -> new FieldAccess(n, Boolean.class))
-        );
+                fieldNames().map(n -> new FieldAccess(n, Boolean.class)));
     }
 
     // ======================================================================

@@ -1,8 +1,9 @@
 package io.quarkiverse.qubit.deployment.criteria;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /**
  * Criteria query generation tests for AND logical operations (&&).

@@ -1,34 +1,37 @@
 package io.quarkiverse.qubit.runtime.internal;
 
-import io.quarkiverse.qubit.CapturedVariableExtractionException;
-import io.quarkiverse.qubit.FieldNamingStrategy;
-
-import org.jboss.logging.Logger;
-
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.jboss.logging.Logger;
+
+import io.quarkiverse.qubit.CapturedVariableExtractionException;
+import io.quarkiverse.qubit.FieldNamingStrategy;
+
 /**
  * Extracts captured variable values from lambda instances via reflection.
  * Uses multiple field naming strategies to support different Java compilers:
  * <ul>
- *   <li><b>javac:</b> arg$1, arg$2, ... (Oracle/OpenJDK)</li>
- *   <li><b>Eclipse JDT:</b> val$1, val$2, ...</li>
- *   <li><b>GraalVM:</b> arg0, arg1, ...</li>
+ * <li><b>javac:</b> arg$1, arg$2, ... (Oracle/OpenJDK)</li>
+ * <li><b>Eclipse JDT:</b> val$1, val$2, ...</li>
+ * <li><b>GraalVM:</b> arg0, arg1, ...</li>
  * </ul>
  *
- * <p><strong>Important:</strong> Index-based field extraction is intentionally NOT supported
+ * <p>
+ * <strong>Important:</strong> Index-based field extraction is intentionally NOT supported
  * because {@link Class#getDeclaredFields()} does not guarantee field ordering. Using it would
  * cause silent data corruption when captured variables are extracted in the wrong order.
  *
- * <p><strong>Native Image Requirement:</strong> GraalVM/Mandrel 25 or later is required for native builds.
+ * <p>
+ * <strong>Native Image Requirement:</strong> GraalVM/Mandrel 25 or later is required for native builds.
  * This version introduced lambda reflection support, allowing captured variables to be accessed via reflection.
  * Earlier versions do not support reflection on lambda-proxy class fields.
  *
- * @see <a href="https://www.graalvm.org/latest/reference-manual/native-image/dynamic-features/Reflection/">GraalVM Reflection Documentation</a>
+ * @see <a href="https://www.graalvm.org/latest/reference-manual/native-image/dynamic-features/Reflection/">GraalVM Reflection
+ *      Documentation</a>
  */
 public final class CapturedVariableExtractor {
 
@@ -42,8 +45,7 @@ public final class CapturedVariableExtractor {
             new FieldNamingStrategy.JavacStrategy(),
             new FieldNamingStrategy.EclipseStrategy(),
             new FieldNamingStrategy.GraalVMStrategy(),
-            new FieldNamingStrategy.IndexBasedStrategy()
-    );
+            new FieldNamingStrategy.IndexBasedStrategy());
 
     private CapturedVariableExtractor() {
     }
@@ -89,7 +91,7 @@ public final class CapturedVariableExtractor {
 
         } catch (IllegalAccessException | NoSuchFieldException e) {
             throw new CapturedVariableExtractionException("Failed to extract captured variables from " +
-                                      lambdaInstance.getClass().getName(), e);
+                    lambdaInstance.getClass().getName(), e);
         }
     }
 
@@ -115,12 +117,13 @@ public final class CapturedVariableExtractor {
                             See: https://www.graalvm.org/latest/reference-manual/native-image/metadata/""",
                             i, lambdaClass.getName()));
                 }
-                throw new NoSuchFieldException(String.format("""
-                        Could not find captured variable at index %d in lambda class %s. \
-                        Your Java compiler uses an unsupported field naming convention. \
-                        Supported compilers: Oracle/OpenJDK javac (arg$N), Eclipse JDT (val$N), GraalVM (argN). \
-                        Available fields in lambda: [%s]. \
-                        To fix: (1) Use a supported compiler, or (2) File an issue to add support for your compiler's naming convention.""",
+                throw new NoSuchFieldException(String.format(
+                        """
+                                Could not find captured variable at index %d in lambda class %s. \
+                                Your Java compiler uses an unsupported field naming convention. \
+                                Supported compilers: Oracle/OpenJDK javac (arg$N), Eclipse JDT (val$N), GraalVM (argN). \
+                                Available fields in lambda: [%s]. \
+                                To fix: (1) Use a supported compiler, or (2) File an issue to add support for your compiler's naming convention.""",
                         i, lambdaClass.getName(), availableFields));
             }
             fields[i] = field;
@@ -159,7 +162,8 @@ public final class CapturedVariableExtractor {
 
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < allFields.length; i++) {
-            if (i > 0) sb.append(", ");
+            if (i > 0)
+                sb.append(", ");
             sb.append(allFields[i].getName());
             sb.append(" (").append(allFields[i].getType().getSimpleName()).append(")");
         }

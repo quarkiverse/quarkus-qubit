@@ -1,14 +1,15 @@
 package io.quarkiverse.qubit.deployment;
 
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaCallSite;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.util.List;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.assertThatCode;
+import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaCallSite;
 
 /**
  * Tests for duplicate call site ID detection in QubitProcessor.
@@ -31,37 +32,37 @@ class QubitProcessorCallSiteValidationTest {
      */
     private LambdaCallSite createCallSite(String className, String methodName, int lineNumber) {
         return new LambdaCallSite(
-                className,              // ownerClassName
-                methodName,             // methodName
-                "lambda$0",             // lambdaMethodName
+                className, // ownerClassName
+                methodName, // methodName
+                "lambda$0", // lambdaMethodName
                 "(Ljava/lang/Object;)Z", // lambdaMethodDescriptor
-                "where",                // fluentMethodName
-                "toList",               // targetMethodName
-                lineNumber,             // lineNumber
-                100,                    // terminalInsnIndex
-                null,                   // projectionLambdaMethodName
-                null,                   // projectionLambdaMethodDescriptor
-                null,                   // predicateLambdas
-                null,                   // sortLambdas
-                null,                   // aggregationLambdaMethodName
-                null,                   // aggregationLambdaMethodDescriptor
-                null,                   // joinType
-                null,                   // joinRelationshipLambdaMethodName
-                null,                   // joinRelationshipLambdaDescriptor
-                null,                   // biEntityPredicateLambdas
-                false,                  // isSelectJoined
-                null,                   // biEntityProjectionLambdaMethodName
-                null,                   // biEntityProjectionLambdaDescriptor
-                false,                  // isGroupQuery
-                null,                   // groupByLambdaMethodName
-                null,                   // groupByLambdaDescriptor
-                null,                   // havingLambdas
-                null,                   // groupSelectLambdas
-                null,                   // groupSortLambdas
-                false,                  // isGroupSelectKey
-                false,                  // hasDistinct
-                null,                   // skipValue
-                null                    // limitValue
+                "where", // fluentMethodName
+                "toList", // targetMethodName
+                lineNumber, // lineNumber
+                100, // terminalInsnIndex
+                null, // projectionLambdaMethodName
+                null, // projectionLambdaMethodDescriptor
+                null, // predicateLambdas
+                null, // sortLambdas
+                null, // aggregationLambdaMethodName
+                null, // aggregationLambdaMethodDescriptor
+                null, // joinType
+                null, // joinRelationshipLambdaMethodName
+                null, // joinRelationshipLambdaDescriptor
+                null, // biEntityPredicateLambdas
+                false, // isSelectJoined
+                null, // biEntityProjectionLambdaMethodName
+                null, // biEntityProjectionLambdaDescriptor
+                false, // isGroupQuery
+                null, // groupByLambdaMethodName
+                null, // groupByLambdaDescriptor
+                null, // havingLambdas
+                null, // groupSelectLambdas
+                null, // groupSortLambdas
+                false, // isGroupSelectKey
+                false, // hasDistinct
+                null, // skipValue
+                null // limitValue
         );
     }
 

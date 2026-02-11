@@ -17,6 +17,19 @@
 
     <name>Quarkus - Qubit - Parent</name>
     <description>Quarkus extension for lambda-based Panache queries with build-time Criteria Query transformation</description>
+    <url>https://github.com/quarkiverse/quarkus-qubit</url>
+
+    <issueManagement>
+        <system>GitHub</system>
+        <url>https://github.com/quarkiverse/quarkus-qubit/issues/</url>
+    </issueManagement>
+
+    <scm>
+        <connection>scm:git:git@github.com:quarkiverse/quarkus-qubit.git</connection>
+        <developerConnection>scm:git:git@github.com:quarkiverse/quarkus-qubit.git</developerConnection>
+        <url>https://github.com/quarkiverse/quarkus-qubit</url>
+        <tag>HEAD</tag>
+    </scm>
 
     <properties>
         <!-- Override quarkiverse-parent default Java version -->
@@ -27,9 +40,6 @@
 
         <!-- Plugin versions (override quarkiverse-parent where needed) -->
         <surefire-plugin.version>3.5.4</surefire-plugin.version>
-
-        <!-- Skip formatter plugin from quarkiverse-parent (not needed for this project) -->
-        <format.skip>true</format.skip>
 
         <!-- JaCoCo version for code coverage -->
         <jacoco.version>0.8.14</jacoco.version>
@@ -66,18 +76,13 @@
     </dependencies>
 
     <build>
-        <!-- Override quarkiverse-parent plugins that are not needed -->
         <plugins>
-            <plugin>
-                <groupId>net.revelc.code.formatter</groupId>
-                <artifactId>formatter-maven-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>format-sources</id>
-                        <phase>none</phase>
-                    </execution>
-                </executions>
-            </plugin>
+            <!--
+                Disable impsort from quarkiverse-parent: JavaParser (used by impsort) cannot
+                parse record deconstruction patterns (JEP 440), type patterns in switch (JEP 441),
+                or unnamed patterns (JEP 456) used throughout this codebase.
+                Re-enable once JavaParser supports these Java 21+ features.
+            -->
             <plugin>
                 <groupId>net.revelc.code</groupId>
                 <artifactId>impsort-maven-plugin</artifactId>

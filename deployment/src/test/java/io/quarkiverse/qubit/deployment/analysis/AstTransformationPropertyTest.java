@@ -1,33 +1,35 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
+import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
+import static org.assertj.core.api.Assertions.*;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.*;
 import io.quarkiverse.qubit.deployment.testutil.AstArbitraries;
 import net.jqwik.api.*;
 import net.jqwik.api.constraints.IntRange;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
-import static org.assertj.core.api.Assertions.*;
-
 /**
  * Property-based tests for AST transformation operations.
  *
- * <p>This class uses jqwik to verify invariants that must hold for ANY valid input,
+ * <p>
+ * This class uses jqwik to verify invariants that must hold for ANY valid input,
  * not just specific examples. Property-based testing complements example-based tests
  * by generating many random inputs to find edge cases.
  *
- * <p><strong>Properties Tested:</strong>
+ * <p>
+ * <strong>Properties Tested:</strong>
  * <ul>
- *   <li><strong>renumberCapturedVariables</strong>: Identity, null safety, offset accumulation,
- *       structure preservation, index transformation</li>
- *   <li><strong>collectCapturedVariableIndices</strong>: Null safety, determinism,
- *       captured variable detection, leaf type behavior</li>
- *   <li><strong>combinePredicatesWithAnd</strong>: Single element identity, structure,
- *       empty list exception</li>
+ * <li><strong>renumberCapturedVariables</strong>: Identity, null safety, offset accumulation,
+ * structure preservation, index transformation</li>
+ * <li><strong>collectCapturedVariableIndices</strong>: Null safety, determinism,
+ * captured variable detection, leaf type behavior</li>
+ * <li><strong>combinePredicatesWithAnd</strong>: Single element identity, structure,
+ * empty list exception</li>
  * </ul>
  *
  * @see CapturedVariableHelper

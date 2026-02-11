@@ -12,9 +12,8 @@ public class PerformanceTestProfile implements QuarkusTestProfile {
     @Override
     public Map<String, String> getConfigOverrides() {
         return Map.of(
-            "quarkus.qubit.metrics.enabled", "true",
-            "quarkus.qubit.metrics.output-path", "target/qubit-build-metrics.json"
-        );
+                "quarkus.qubit.metrics.enabled", "true",
+                "quarkus.qubit.metrics.output-path", "target/qubit-build-metrics.json");
     }
 
     @Override

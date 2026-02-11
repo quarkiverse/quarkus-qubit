@@ -14,10 +14,12 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
 /**
  * Tests for error paths in expression builders.
  *
- * <p>These tests verify that expression builders correctly reject invalid operators
+ * <p>
+ * These tests verify that expression builders correctly reject invalid operators
  * and throw appropriate exceptions with descriptive messages.
  *
- * <p>Key insight: The switch statements in these builders validate the operator BEFORE
+ * <p>
+ * Key insight: The switch statements in these builders validate the operator BEFORE
  * attempting to use the Gizmo MethodCreator, so we can test with null parameters for
  * method, cb, left, and right.
  */
@@ -36,7 +38,7 @@ class ExpressionBuilderErrorTest {
 
         @ParameterizedTest
         @DisplayName("buildComparisonOperation rejects arithmetic operators")
-        @EnumSource(value = Operator.class, names = {"ADD", "SUB", "MUL", "DIV", "MOD"})
+        @EnumSource(value = Operator.class, names = { "ADD", "SUB", "MUL", "DIV", "MOD" })
         void buildComparison_arithmeticOperator_throws(Operator operator) {
             assertThatThrownBy(() -> builder.buildComparisonOperation(null, operator, null, null, null))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -46,7 +48,7 @@ class ExpressionBuilderErrorTest {
 
         @ParameterizedTest
         @DisplayName("buildComparisonOperation rejects logical operators")
-        @EnumSource(value = Operator.class, names = {"AND", "OR"})
+        @EnumSource(value = Operator.class, names = { "AND", "OR" })
         void buildComparison_logicalOperator_throws(Operator operator) {
             assertThatThrownBy(() -> builder.buildComparisonOperation(null, operator, null, null, null))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -62,7 +64,7 @@ class ExpressionBuilderErrorTest {
             // but that's a different error (NullPointerException from Gizmo).
             // We verify here that the operator validation passes.
 
-            Operator[] comparisonOps = {Operator.EQ, Operator.NE, Operator.GT, Operator.GE, Operator.LT, Operator.LE};
+            Operator[] comparisonOps = { Operator.EQ, Operator.NE, Operator.GT, Operator.GE, Operator.LT, Operator.LE };
             for (Operator op : comparisonOps) {
                 // This should throw NPE from Gizmo, not IllegalArgumentException
                 assertThatThrownBy(() -> builder.buildComparisonOperation(null, op, null, null, null))
@@ -84,7 +86,7 @@ class ExpressionBuilderErrorTest {
 
         @ParameterizedTest
         @DisplayName("buildArithmeticOperation rejects comparison operators")
-        @EnumSource(value = Operator.class, names = {"EQ", "NE", "LT", "LE", "GT", "GE"})
+        @EnumSource(value = Operator.class, names = { "EQ", "NE", "LT", "LE", "GT", "GE" })
         void buildArithmetic_comparisonOperator_throws(Operator operator) {
             assertThatThrownBy(() -> builder.buildArithmeticOperation(null, operator, null, null, null))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -94,7 +96,7 @@ class ExpressionBuilderErrorTest {
 
         @ParameterizedTest
         @DisplayName("buildArithmeticOperation rejects logical operators")
-        @EnumSource(value = Operator.class, names = {"AND", "OR"})
+        @EnumSource(value = Operator.class, names = { "AND", "OR" })
         void buildArithmetic_logicalOperator_throws(Operator operator) {
             assertThatThrownBy(() -> builder.buildArithmeticOperation(null, operator, null, null, null))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -110,7 +112,7 @@ class ExpressionBuilderErrorTest {
             // but that's a different error (NullPointerException from Gizmo).
             // We verify here that the operator validation passes.
 
-            Operator[] arithmeticOps = {Operator.ADD, Operator.SUB, Operator.MUL, Operator.DIV, Operator.MOD};
+            Operator[] arithmeticOps = { Operator.ADD, Operator.SUB, Operator.MUL, Operator.DIV, Operator.MOD };
             for (Operator op : arithmeticOps) {
                 // This should throw NPE from Gizmo, not IllegalArgumentException
                 assertThatThrownBy(() -> builder.buildArithmeticOperation(null, op, null, null, null))

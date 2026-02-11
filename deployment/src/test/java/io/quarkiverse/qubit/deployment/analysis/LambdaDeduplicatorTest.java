@@ -1,25 +1,27 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
-import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.SortDirection;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.List;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import io.quarkiverse.qubit.SortDirection;
+import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /**
  * Unit tests for {@link LambdaDeduplicator} hash computation methods.
  *
- * <p>Tests verify that:
+ * <p>
+ * Tests verify that:
  * <ul>
- *   <li>Same expressions produce same hash</li>
- *   <li>Different expressions produce different hashes</li>
- *   <li>Query type flags affect hash</li>
- *   <li>Executor registration and deduplication work correctly</li>
+ * <li>Same expressions produce same hash</li>
+ * <li>Different expressions produce different hashes</li>
+ * <li>Query type flags affect hash</li>
+ * <li>Executor registration and deduplication work correctly</li>
  * </ul>
  */
 class LambdaDeduplicatorTest {

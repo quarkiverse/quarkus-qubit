@@ -32,7 +32,7 @@ public class BytecodeAnalysisException extends RuntimeException {
     public static BytecodeAnalysisException unexpectedOpcode(String handlerContext, int opcode) {
         return new BytecodeAnalysisException(
                 String.format("Unexpected opcode in %s: %d (0x%02X). " +
-                                "This may indicate unsupported bytecode or a lambda expression that cannot be analyzed.",
+                        "This may indicate unsupported bytecode or a lambda expression that cannot be analyzed.",
                         handlerContext, opcode, opcode));
     }
 
@@ -100,12 +100,14 @@ public class BytecodeAnalysisException extends RuntimeException {
             hasContent = true;
         }
         if (methodName != null) {
-            if (hasContent) sb.append(", ");
+            if (hasContent)
+                sb.append(", ");
             sb.append("method=").append(methodName);
             hasContent = true;
         }
         if (descriptor != null) {
-            if (hasContent) sb.append(", ");
+            if (hasContent)
+                sb.append(", ");
             sb.append("descriptor=").append(descriptor);
         }
         sb.append("]");

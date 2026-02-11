@@ -13,7 +13,8 @@ import jakarta.inject.Inject;
 /**
  * Repository pattern tests for combined where() + select() queries.
  *
- * <p>Validates combining filter predicates with field projections using repository pattern.
+ * <p>
+ * Validates combining filter predicates with field projections using repository pattern.
  */
 @QuarkusTest
 class RepositoryWhereSelectIT extends AbstractWhereSelectTest {

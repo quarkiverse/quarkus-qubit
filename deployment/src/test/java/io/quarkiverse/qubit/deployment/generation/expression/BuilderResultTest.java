@@ -3,11 +3,12 @@ package io.quarkiverse.qubit.deployment.generation.expression;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.quarkus.gizmo2.Const;
-import io.quarkus.gizmo2.Expr;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+
+import io.quarkus.gizmo2.Const;
+import io.quarkus.gizmo2.Expr;
 
 /**
  * Unit tests for {@link BuilderResult} sealed interface.

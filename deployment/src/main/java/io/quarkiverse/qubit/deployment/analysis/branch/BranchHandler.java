@@ -1,18 +1,19 @@
 package io.quarkiverse.qubit.deployment.analysis.branch;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
-import org.objectweb.asm.tree.JumpInsnNode;
-
 import java.util.function.IntPredicate;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
 import org.jspecify.annotations.Nullable;
+import org.objectweb.asm.tree.JumpInsnNode;
+
+import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
 
 /**
  * Strategy interface for handling branch instructions.
  *
- * <p>Handlers return new immutable {@link BranchState} rather than mutating input.
+ * <p>
+ * Handlers return new immutable {@link BranchState} rather than mutating input.
  * Expression combination logic is delegated to {@link BranchExpressionCombiner}
  * following composition over inheritance.
  */

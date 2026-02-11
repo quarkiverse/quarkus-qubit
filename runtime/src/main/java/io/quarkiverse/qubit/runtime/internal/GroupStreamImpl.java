@@ -8,15 +8,15 @@ import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.requir
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.validateLimitCount;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.validateSkipCount;
 
-import io.quarkiverse.qubit.GroupQuerySpec;
-import io.quarkiverse.qubit.GroupStream;
-import io.quarkiverse.qubit.QuerySpec;
-import io.quarkiverse.qubit.QubitStream;
-import io.quarkiverse.qubit.SortDirection;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+
+import io.quarkiverse.qubit.GroupQuerySpec;
+import io.quarkiverse.qubit.GroupStream;
+import io.quarkiverse.qubit.QubitStream;
+import io.quarkiverse.qubit.QuerySpec;
+import io.quarkiverse.qubit.SortDirection;
 
 /**
  * Default implementation of {@link GroupStream} using JPA Criteria Queries.
@@ -203,19 +203,23 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
     // ========== Stream Derivation Helpers ==========
 
     private GroupStreamImpl<T, K> withHavingConditions(List<GroupQuerySpec<T, K, Boolean>> havingConditions) {
-        return new GroupStreamImpl<>(entityClass, keyExtractor, predicates, havingConditions, selector, sortOrders, offset, limit);
+        return new GroupStreamImpl<>(entityClass, keyExtractor, predicates, havingConditions, selector, sortOrders, offset,
+                limit);
     }
 
     private GroupStreamImpl<T, K> withSortOrders(List<GroupSortOrder<T, K>> sortOrders) {
-        return new GroupStreamImpl<>(entityClass, keyExtractor, predicates, havingConditions, selector, sortOrders, offset, limit);
+        return new GroupStreamImpl<>(entityClass, keyExtractor, predicates, havingConditions, selector, sortOrders, offset,
+                limit);
     }
 
     private GroupStreamImpl<T, K> withOffset(Integer offset) {
-        return new GroupStreamImpl<>(entityClass, keyExtractor, predicates, havingConditions, selector, sortOrders, offset, limit);
+        return new GroupStreamImpl<>(entityClass, keyExtractor, predicates, havingConditions, selector, sortOrders, offset,
+                limit);
     }
 
     private GroupStreamImpl<T, K> withLimit(Integer limit) {
-        return new GroupStreamImpl<>(entityClass, keyExtractor, predicates, havingConditions, selector, sortOrders, offset, limit);
+        return new GroupStreamImpl<>(entityClass, keyExtractor, predicates, havingConditions, selector, sortOrders, offset,
+                limit);
     }
 
     // ========== Call Site Resolution Helpers ==========
@@ -225,10 +229,10 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
      * <p>
      * Priority order (matching build-time InvokeDynamicScanner.getPrimaryLambdaMethodName):
      * <ol>
-     *   <li>First predicate (WHERE clause before grouping)</li>
-     *   <li>groupBy key extractor</li>
-     *   <li>First having condition</li>
-     *   <li>Selector (select projection)</li>
+     * <li>First predicate (WHERE clause before grouping)</li>
+     * <li>groupBy key extractor</li>
+     * <li>First having condition</li>
+     * <li>Selector (select projection)</li>
      * </ol>
      *
      * @return the primary lambda, or null if no lambdas are present

@@ -1,5 +1,8 @@
 package io.quarkiverse.qubit.deployment;
 
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+
 import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.builditem.GeneratedResourceBuildItem;
@@ -7,18 +10,14 @@ import io.quarkus.deployment.builditem.nativeimage.ReflectiveClassBuildItem;
 import io.quarkus.deployment.pkg.steps.NativeOrNativeSourcesBuild;
 import io.quarkus.logging.Log;
 
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-
 /**
  * Generates GraalVM native image metadata for lambda reflection.
  * Uses GraalVM 25+ reachability-metadata.json format. Earlier versions don't support lambda reflection.
  */
-@SuppressWarnings("deprecation")  // NativeOrNativeSourcesBuild is deprecated but still recommended
+@SuppressWarnings("deprecation") // NativeOrNativeSourcesBuild is deprecated but still recommended
 public class QubitNativeImageProcessor {
 
-    private static final String QUBIT_REACHABILITY_METADATA_PATH =
-            "META-INF/native-image/io.quarkiverse.qubit/quarkus-qubit/reachability-metadata.json";
+    private static final String QUBIT_REACHABILITY_METADATA_PATH = "META-INF/native-image/io.quarkiverse.qubit/quarkus-qubit/reachability-metadata.json";
 
     private static final String QUERY_SPEC_CLASS = "io.quarkiverse.qubit.QuerySpec";
     private static final String BI_QUERY_SPEC_CLASS = "io.quarkiverse.qubit.BiQuerySpec";
@@ -47,9 +46,9 @@ public class QubitNativeImageProcessor {
             if (parts.length < QUERY_ID_MIN_PARTS) {
                 throw new IllegalStateException(String.format(
                         "Invalid queryId format: '%s' (expected %d parts separated by ':' but got %d).%n" +
-                        "Expected format: 'ownerClassName:methodName:lineNumber:lambdaMethodName'.%n" +
-                        "This indicates a bug in build-time query analysis.%n" +
-                        "Please report this issue with the full stack trace.",
+                                "Expected format: 'ownerClassName:methodName:lineNumber:lambdaMethodName'.%n" +
+                                "This indicates a bug in build-time query analysis.%n" +
+                                "Please report this issue with the full stack trace.",
                         queryId, QUERY_ID_MIN_PARTS, parts.length));
             }
 

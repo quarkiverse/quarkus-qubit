@@ -33,12 +33,14 @@ public interface QubitStream<T> {
 
     /**
      * Skips the first {@code n} results (SQL OFFSET).
+     *
      * @throws IllegalArgumentException if {@code n < 0}
      */
     QubitStream<T> skip(int n);
 
     /**
      * Limits results to {@code n} items (SQL LIMIT).
+     *
      * @throws IllegalArgumentException if {@code n < 0}
      */
     QubitStream<T> limit(int n);

@@ -1,10 +1,5 @@
 package io.quarkiverse.qubit.deployment;
 
-import org.objectweb.asm.ClassVisitor;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
-
 import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.DESC_CLASS_CONSTRUCTOR;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.CONSTRUCTOR;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.DESC_QUERY_SPEC_TO_GROUP_STREAM;
@@ -26,6 +21,11 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_WHERE;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_STREAM_IMPL_INTERNAL_NAME;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_STREAM_INTERNAL_NAME;
 
+import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
+
 /**
  * Generates fluent API entry point methods for QubitEntity and QubitRepository.
  */
@@ -39,6 +39,7 @@ public final class QubitBytecodeGenerator {
      * Generates fluent API entry point method that returns QubitStreamImpl.
      * <p>
      * Generated code pattern for entry points:
+     *
      * <pre>{@code
      * public static QubitStream<Person> where(QuerySpec<Person, Boolean> spec) {
      *     return new QubitStreamImpl<>(Person.class).where(spec);
@@ -79,7 +80,7 @@ public final class QubitBytecodeGenerator {
                 Opcodes.INVOKEINTERFACE,
                 QUBIT_STREAM_INTERNAL_NAME,
                 config.methodName(),
-                config.methodDescriptor(),  // Use descriptor from config (not hardcoded)
+                config.methodDescriptor(), // Use descriptor from config (not hardcoded)
                 true);
 
         mv.visitInsn(config.returnOpcode());
@@ -94,6 +95,7 @@ public final class QubitBytecodeGenerator {
      * Generates join entry point method that returns JoinStream.
      * <p>
      * Generated code pattern for join entry points:
+     *
      * <pre>{@code
      * public static <R> JoinStream<Person, R> join(QuerySpec<Person, Collection<R>> spec) {
      *     return new QubitStreamImpl<>(Person.class).join(spec);
@@ -156,8 +158,7 @@ public final class QubitBytecodeGenerator {
             String methodName,
             String methodDescriptor,
             String genericSignature,
-            Type entityType
-    ) {
+            Type entityType) {
         /**
          * Creates config for join() method.
          * Signature: <R> JoinStream<T, R> join(QuerySpec<T, Collection<R>> relationship)
@@ -173,8 +174,7 @@ public final class QubitBytecodeGenerator {
                     METHOD_JOIN,
                     DESC_QUERY_SPEC_TO_JOIN_STREAM,
                     genericSignature,
-                    entityType
-            );
+                    entityType);
         }
 
         /**
@@ -191,8 +191,7 @@ public final class QubitBytecodeGenerator {
                     METHOD_LEFT_JOIN,
                     DESC_QUERY_SPEC_TO_JOIN_STREAM,
                     genericSignature,
-                    entityType
-            );
+                    entityType);
         }
     }
 
@@ -200,6 +199,7 @@ public final class QubitBytecodeGenerator {
      * Generates groupBy entry point method that returns GroupStream.
      * <p>
      * Generated code pattern for groupBy entry point:
+     *
      * <pre>{@code
      * public static <K> GroupStream<Person, K> groupBy(QuerySpec<Person, K> keyExtractor) {
      *     return new QubitStreamImpl<>(Person.class).groupBy(keyExtractor);
@@ -262,8 +262,7 @@ public final class QubitBytecodeGenerator {
             String methodName,
             String methodDescriptor,
             String genericSignature,
-            Type entityType
-    ) {
+            Type entityType) {
         /**
          * Creates config for groupBy() method.
          * Signature: <K> GroupStream<T, K> groupBy(QuerySpec<T, K> keyExtractor)
@@ -279,8 +278,7 @@ public final class QubitBytecodeGenerator {
                     METHOD_GROUP_BY,
                     DESC_QUERY_SPEC_TO_GROUP_STREAM,
                     genericSignature,
-                    entityType
-            );
+                    entityType);
         }
     }
 
@@ -295,8 +293,7 @@ public final class QubitBytecodeGenerator {
             int returnOpcode,
             Type entityType,
             int maxStack,
-            int maxLocals
-    ) {
+            int maxLocals) {
         /**
          * Creates config for where() method.
          */
@@ -311,8 +308,8 @@ public final class QubitBytecodeGenerator {
                     genericSignature,
                     Opcodes.ARETURN,
                     entityType,
-                    3,  // max stack: NEW, DUP, LDC
-                    1   // max locals: QuerySpec parameter
+                    3, // max stack: NEW, DUP, LDC
+                    1 // max locals: QuerySpec parameter
             );
         }
 
@@ -331,8 +328,7 @@ public final class QubitBytecodeGenerator {
                     Opcodes.ARETURN,
                     entityType,
                     3,
-                    1
-            );
+                    1);
         }
 
         /**
@@ -350,8 +346,7 @@ public final class QubitBytecodeGenerator {
                     Opcodes.ARETURN,
                     entityType,
                     3,
-                    1
-            );
+                    1);
         }
 
         /**
@@ -369,8 +364,7 @@ public final class QubitBytecodeGenerator {
                     Opcodes.ARETURN,
                     entityType,
                     3,
-                    1
-            );
+                    1);
         }
 
         // Aggregation methods - these now return QubitStream (intermediate operations)
@@ -386,13 +380,12 @@ public final class QubitBytecodeGenerator {
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
                     METHOD_MIN,
-                    DESC_QUERY_SPEC_TO_STREAM,  // Returns QubitStream
+                    DESC_QUERY_SPEC_TO_STREAM, // Returns QubitStream
                     genericSignature,
                     Opcodes.ARETURN,
                     entityType,
                     3,
-                    1
-            );
+                    1);
         }
 
         /**
@@ -406,13 +399,12 @@ public final class QubitBytecodeGenerator {
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
                     METHOD_MAX,
-                    DESC_QUERY_SPEC_TO_STREAM,  // Returns QubitStream
+                    DESC_QUERY_SPEC_TO_STREAM, // Returns QubitStream
                     genericSignature,
                     Opcodes.ARETURN,
                     entityType,
                     3,
-                    1
-            );
+                    1);
         }
 
         /**
@@ -426,13 +418,12 @@ public final class QubitBytecodeGenerator {
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
                     METHOD_AVG,
-                    DESC_QUERY_SPEC_TO_STREAM,  // Returns QubitStream
+                    DESC_QUERY_SPEC_TO_STREAM, // Returns QubitStream
                     genericSignature,
                     Opcodes.ARETURN,
                     entityType,
                     3,
-                    1
-            );
+                    1);
         }
 
         /**
@@ -446,13 +437,12 @@ public final class QubitBytecodeGenerator {
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
                     METHOD_SUM_INTEGER,
-                    DESC_QUERY_SPEC_TO_STREAM,  // Returns QubitStream
+                    DESC_QUERY_SPEC_TO_STREAM, // Returns QubitStream
                     genericSignature,
-                    Opcodes.ARETURN,  // object reference return
+                    Opcodes.ARETURN, // object reference return
                     entityType,
                     3,
-                    1
-            );
+                    1);
         }
 
         /**
@@ -466,13 +456,12 @@ public final class QubitBytecodeGenerator {
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
                     METHOD_SUM_LONG,
-                    DESC_QUERY_SPEC_TO_STREAM,  // Returns QubitStream
+                    DESC_QUERY_SPEC_TO_STREAM, // Returns QubitStream
                     genericSignature,
-                    Opcodes.ARETURN,  // object reference return
+                    Opcodes.ARETURN, // object reference return
                     entityType,
                     3,
-                    1
-            );
+                    1);
         }
 
         /**
@@ -486,13 +475,12 @@ public final class QubitBytecodeGenerator {
             return new FluentMethodConfig(
                     Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
                     METHOD_SUM_DOUBLE,
-                    DESC_QUERY_SPEC_TO_STREAM,  // Returns QubitStream
+                    DESC_QUERY_SPEC_TO_STREAM, // Returns QubitStream
                     genericSignature,
-                    Opcodes.ARETURN,  // object reference return
+                    Opcodes.ARETURN, // object reference return
                     entityType,
                     3,
-                    1
-            );
+                    1);
         }
     }
 }

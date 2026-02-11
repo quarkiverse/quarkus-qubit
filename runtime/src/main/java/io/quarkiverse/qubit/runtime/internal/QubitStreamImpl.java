@@ -8,19 +8,19 @@ import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.requir
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.validateLimitCount;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.validateSkipCount;
 
-import io.quarkiverse.qubit.GroupStream;
-import io.quarkiverse.qubit.JoinStream;
-import io.quarkiverse.qubit.JoinType;
-import io.quarkiverse.qubit.QuerySpec;
-import io.quarkiverse.qubit.QubitStream;
-import io.quarkiverse.qubit.SortDirection;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+
+import io.quarkiverse.qubit.GroupStream;
+import io.quarkiverse.qubit.JoinStream;
+import io.quarkiverse.qubit.JoinType;
+import io.quarkiverse.qubit.QubitStream;
+import io.quarkiverse.qubit.QuerySpec;
+import io.quarkiverse.qubit.SortDirection;
 
 /**
  * Default implementation of {@link QubitStream} using JPA Criteria Queries.
@@ -31,10 +31,10 @@ import java.util.Set;
  * <p>
  * <strong>Design principles:</strong>
  * <ul>
- *   <li><strong>Immutability</strong>: Each intermediate operation returns a new instance</li>
- *   <li><strong>Build-time optimization</strong>: In production, this class is replaced with
- *       build-time generated executors for zero runtime overhead</li>
- *   <li><strong>Type safety</strong>: Generic parameters track type transformations through pipeline</li>
+ * <li><strong>Immutability</strong>: Each intermediate operation returns a new instance</li>
+ * <li><strong>Build-time optimization</strong>: In production, this class is replaced with
+ * build-time generated executors for zero runtime overhead</li>
+ * <li><strong>Type safety</strong>: Generic parameters track type transformations through pipeline</li>
  * </ul>
  *
  * @param <T> the type of elements in this stream
@@ -325,8 +325,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
                 limit,
                 distinct,
                 aggregationType,
-                aggregationMapper
-        );
+                aggregationMapper);
     }
 
     /**
@@ -381,8 +380,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
                 limit,
                 distinct,
                 type,
-                mapper
-        );
+                mapper);
     }
 
     // =============================================================================================
@@ -394,10 +392,10 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
      * <p>
      * Priority order (matching build-time InvokeDynamicScanner.getPrimaryLambdaMethodName):
      * <ol>
-     *   <li>First predicate (most queries have a where clause)</li>
-     *   <li>Selector (for projection-only queries)</li>
-     *   <li>Aggregation mapper (for aggregation queries)</li>
-     *   <li>First sort key extractor (for sort-only queries)</li>
+     * <li>First predicate (most queries have a where clause)</li>
+     * <li>Selector (for projection-only queries)</li>
+     * <li>Aggregation mapper (for aggregation queries)</li>
+     * <li>First sort key extractor (for sort-only queries)</li>
      * </ol>
      *
      * @return the primary lambda, or null if no lambdas are present
@@ -466,8 +464,8 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
                 if (predicateValues.length != predicateCapturedCount) {
                     throw new IllegalStateException(String.format(
                             "Captured variable extraction mismatch for predicate in %s: " +
-                            "expected %d values from predicate fields but extractor returned %d. " +
-                            "This may indicate a compiler/runtime field naming inconsistency.",
+                                    "expected %d values from predicate fields but extractor returned %d. " +
+                                    "This may indicate a compiler/runtime field naming inconsistency.",
                             callSiteId, predicateCapturedCount, predicateValues.length));
                 }
 

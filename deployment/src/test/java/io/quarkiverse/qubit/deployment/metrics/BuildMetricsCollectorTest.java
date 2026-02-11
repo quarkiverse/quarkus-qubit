@@ -1,11 +1,12 @@
 package io.quarkiverse.qubit.deployment.metrics;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class BuildMetricsCollectorTest {
 
@@ -21,7 +22,7 @@ class BuildMetricsCollectorTest {
         collector.endPhase("lambda_discovery");
 
         assertThat(collector.getPhaseDuration("lambda_discovery"))
-            .isGreaterThanOrEqualTo(0L);
+                .isGreaterThanOrEqualTo(0L);
     }
 
     @Test
@@ -51,7 +52,7 @@ class BuildMetricsCollectorTest {
 
         assertThat(content)
                 .contains("\"SIMPLE\"")
-                .contains("\"count\": 2")  // SIMPLE recorded twice
+                .contains("\"count\": 2") // SIMPLE recorded twice
                 .contains("\"JOIN\"")
                 .contains("\"analysis_time_nanos\": 1000")
                 .contains("\"codegen_time_nanos\": 500");
@@ -94,8 +95,8 @@ class BuildMetricsCollectorTest {
                 .contains("\"top_classes_by_time\"")
                 .contains("com.example.Entity1")
                 .contains("com.example.Entity2")
-                .contains("\"time_nanos\": 2000")  // Entity2 has higher time
-                .contains("\"lambdas\": 3");       // Entity1 lambda count
+                .contains("\"time_nanos\": 2000") // Entity2 has higher time
+                .contains("\"lambdas\": 3"); // Entity1 lambda count
     }
 
     @Test
@@ -224,7 +225,7 @@ class BuildMetricsCollectorTest {
         collector.startPhase("analysis");
         collector.endPhase("analysis");
         collector.addQueryTypeAnalysisTime("SIMPLE", 1_000_000); // 1ms
-        collector.addQueryTypeCodeGenTime("SIMPLE", 500_000);    // 0.5ms
+        collector.addQueryTypeCodeGenTime("SIMPLE", 500_000); // 0.5ms
 
         Path outputPath = tempDir.resolve("flamegraph.collapsed");
         collector.writeFlameGraph(outputPath);

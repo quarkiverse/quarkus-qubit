@@ -15,7 +15,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Abstract base class for findFirst() edge case tests verifying return logic correctness.
  *
- * <p>Tests that isEmpty() check is necessary even with limit(1) optimization.
+ * <p>
+ * Tests that isEmpty() check is necessary even with limit(1) optimization.
  */
 public abstract class AbstractFindFirstEdgeCaseTest {
 

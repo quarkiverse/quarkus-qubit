@@ -74,9 +74,7 @@ public class ProductResource {
     public List<Product> getPriceBetween(@PathParam("min") String min, @PathParam("max") String max) {
         BigDecimal minPrice = new BigDecimal(min);
         BigDecimal maxPrice = new BigDecimal(max);
-        return Product.where((Product p) ->
-            p.price.compareTo(minPrice) >= 0 && p.price.compareTo(maxPrice) <= 0
-        ).toList();
+        return Product.where((Product p) -> p.price.compareTo(minPrice) >= 0 && p.price.compareTo(maxPrice) <= 0).toList();
     }
 
     // =============================================================================================
@@ -108,9 +106,7 @@ public class ProductResource {
     @GET
     @Path("/available-or-low-price")
     public List<Product> getAvailableOrLowPrice() {
-        return Product.where((Product p) ->
-            p.available || p.price.compareTo(new BigDecimal("100")) < 0
-        ).toList();
+        return Product.where((Product p) -> p.available || p.price.compareTo(new BigDecimal("100")) < 0).toList();
     }
 
     // =============================================================================================

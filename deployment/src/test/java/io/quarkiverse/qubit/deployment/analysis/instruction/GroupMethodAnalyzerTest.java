@@ -1,10 +1,11 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupAggregation;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupAggregationType;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupKeyReference;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupParameter;
-import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
+import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.objectweb.asm.Opcodes.*;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -12,16 +13,17 @@ import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
-import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.objectweb.asm.Opcodes.*;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupAggregation;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupAggregationType;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupKeyReference;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupParameter;
+import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
 
 /**
  * Tests for {@link GroupMethodAnalyzer}.
  *
- * <p>Tests GROUP BY query handling with Group interface methods like g.key(), g.count(),
+ * <p>
+ * Tests GROUP BY query handling with Group interface methods like g.key(), g.count(),
  * g.avg(), g.min(), g.max(), etc.
  */
 class GroupMethodAnalyzerTest {

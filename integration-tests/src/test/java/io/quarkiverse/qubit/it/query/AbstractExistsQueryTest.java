@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public abstract class AbstractExistsQueryTest {
 
     protected abstract PersonQueryOperations personOps();
+
     protected abstract ProductQueryOperations productOps();
 
     @BeforeEach
@@ -44,19 +45,15 @@ public abstract class AbstractExistsQueryTest {
 
     @Test
     void existsWithAnd() {
-        boolean exists = personOps().where((Person p) ->
-                p.firstName.equals("Bob") && !p.active
-        ).exists();
+        boolean exists = personOps().where((Person p) -> p.firstName.equals("Bob") && !p.active).exists();
 
         assertThat(exists).isTrue();
     }
 
     @Test
     void existsWithComplexExpression() {
-        boolean exists = personOps().where((Person p) ->
-                p.active && p.salary > 85000.0 && p.height != null &&
-                p.height > 1.60f && p.email.contains("@example.com")
-        ).exists();
+        boolean exists = personOps().where((Person p) -> p.active && p.salary > 85000.0 && p.height != null &&
+                p.height > 1.60f && p.email.contains("@example.com")).exists();
 
         assertThat(exists).isTrue();
     }
@@ -77,11 +74,9 @@ public abstract class AbstractExistsQueryTest {
 
     @Test
     void productExistsWithComplexExpression() {
-        boolean exists = productOps().where((Product p) ->
-                p.category.equals("Electronics") &&
+        boolean exists = productOps().where((Product p) -> p.category.equals("Electronics") &&
                 p.price.compareTo(new BigDecimal("1000")) > 0 &&
-                p.available
-        ).exists();
+                p.available).exists();
 
         assertThat(exists).isTrue(); // Laptop is > $1000
     }

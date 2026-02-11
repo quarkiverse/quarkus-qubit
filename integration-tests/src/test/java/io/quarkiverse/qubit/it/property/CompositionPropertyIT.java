@@ -21,15 +21,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Property-based integration tests for query composition operations.
  *
- * <p>This class uses parameterized tests to verify composition invariants
+ * <p>
+ * This class uses parameterized tests to verify composition invariants
  * when multiple query operations are combined.
  *
- * <p><strong>Properties Tested:</strong>
+ * <p>
+ * <strong>Properties Tested:</strong>
  * <ul>
- *   <li><strong>Filter-first property</strong>: Filtering happens before pagination</li>
- *   <li><strong>Sort-pagination consistency</strong>: Sorting is applied before pagination</li>
- *   <li><strong>Projection transparency</strong>: Projection doesn't affect filter/sort semantics</li>
- *   <li><strong>Terminal operation finality</strong>: count() and toList() are terminal</li>
+ * <li><strong>Filter-first property</strong>: Filtering happens before pagination</li>
+ * <li><strong>Sort-pagination consistency</strong>: Sorting is applied before pagination</li>
+ * <li><strong>Projection transparency</strong>: Projection doesn't affect filter/sort semantics</li>
+ * <li><strong>Terminal operation finality</strong>: count() and toList() are terminal</li>
  * </ul>
  *
  * @see io.quarkiverse.qubit.it.fluent.ComplexCombinationsTest
@@ -53,7 +55,7 @@ class CompositionPropertyIT {
     // ======================================================================
 
     @ParameterizedTest(name = "filter applied before skip({0})")
-    @ValueSource(ints = {0, 1, 2, 3})
+    @ValueSource(ints = { 0, 1, 2, 3 })
     @Transactional
     void filterAppliedBeforeSkip(int skipAmount) {
         List<Person> filtered = Person.where((Person p) -> p.active)
@@ -76,7 +78,7 @@ class CompositionPropertyIT {
     }
 
     @ParameterizedTest(name = "filter applied before limit({0})")
-    @ValueSource(ints = {1, 2, 3, 5})
+    @ValueSource(ints = { 1, 2, 3, 5 })
     @Transactional
     void filterAppliedBeforeLimit(int limitAmount) {
         List<Person> filtered = Person.where((Person p) -> p.active).toList();
@@ -100,7 +102,7 @@ class CompositionPropertyIT {
     // ======================================================================
 
     @ParameterizedTest(name = "sort applied before pagination (pageSize={0})")
-    @ValueSource(ints = {1, 2, 3, 4})
+    @ValueSource(ints = { 1, 2, 3, 4 })
     @Transactional
     void sortAppliedBeforePagination(int pageSize) {
         List<Person> firstPage = Person.sortedBy((Person p) -> p.age)
@@ -117,7 +119,7 @@ class CompositionPropertyIT {
     }
 
     @ParameterizedTest(name = "descending sort before pagination (pageSize={0})")
-    @ValueSource(ints = {1, 2, 3, 4})
+    @ValueSource(ints = { 1, 2, 3, 4 })
     @Transactional
     void descendingSortBeforePagination(int pageSize) {
         List<Person> firstPage = Person.sortedDescendingBy((Person p) -> p.age)
@@ -185,7 +187,7 @@ class CompositionPropertyIT {
     @Test
     @Transactional
     void fullPipelineMaintainsAllInvariants() {
-        int[][] testCases = {{0, 2}, {1, 2}, {2, 3}};
+        int[][] testCases = { { 0, 2 }, { 1, 2 }, { 2, 3 } };
 
         for (int[] testCase : testCases) {
             int skipAmount = testCase[0];
@@ -216,7 +218,7 @@ class CompositionPropertyIT {
     @Test
     @Transactional
     void fullPipelineWithProjectionAllInvariantsHold() {
-        int[][] testCases = {{0, 2}, {1, 2}, {2, 3}};
+        int[][] testCases = { { 0, 2 }, { 1, 2 }, { 2, 3 } };
 
         for (int[] testCase : testCases) {
             int skipAmount = testCase[0];
@@ -308,7 +310,7 @@ class CompositionPropertyIT {
     // ======================================================================
 
     @ParameterizedTest(name = "product: filter + sort + limit({0}) maintains invariants")
-    @ValueSource(ints = {1, 2, 3, 4})
+    @ValueSource(ints = { 1, 2, 3, 4 })
     @Transactional
     void productFilterSortLimitMaintainsInvariants(int limitAmount) {
         List<Product> results = Product.where((Product p) -> p.available)

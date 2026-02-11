@@ -22,5 +22,5 @@ public interface QueryExecutor<R> {
      * @return query result
      */
     R execute(EntityManager entityManager, Class<?> entityClass, Object[] capturedValues,
-              Integer offset, Integer limit, Boolean distinct);
+            Integer offset, Integer limit, Boolean distinct);
 }

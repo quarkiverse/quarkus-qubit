@@ -55,9 +55,8 @@ class RelationshipNavigationIT extends AbstractRelationshipNavigationTest {
         var adults = Person.where((Person p) -> p.age >= 30).toList();
         assertThat(adults).hasSizeGreaterThan(0);
 
-        var premiumProducts = Product.where((Product p) ->
-                p.price.compareTo(new BigDecimal("500")) > 0 && p.available
-        ).toList();
+        var premiumProducts = Product.where((Product p) -> p.price.compareTo(new BigDecimal("500")) > 0 && p.available)
+                .toList();
         assertThat(premiumProducts).hasSizeGreaterThan(0);
 
         var primaryPhones = Phone.where((Phone ph) -> ph.isPrimaryPhone).toList();

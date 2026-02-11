@@ -11,7 +11,8 @@ import java.util.Collection;
 /**
  * Implementation of {@link PersonQueryOperations} using repository instance methods.
  *
- * <p>Delegates all operations to the injected {@link PersonRepository}.
+ * <p>
+ * Delegates all operations to the injected {@link PersonRepository}.
  */
 public class RepositoryPersonQueryOperations implements PersonQueryOperations {
 

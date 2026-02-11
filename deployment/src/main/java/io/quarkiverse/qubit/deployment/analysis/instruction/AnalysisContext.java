@@ -1,18 +1,5 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
-import io.quarkiverse.qubit.deployment.analysis.TernaryPatternDetector;
-import io.quarkiverse.qubit.deployment.analysis.TernaryPatternDetector.TernaryPattern;
-import io.quarkiverse.qubit.deployment.analysis.branch.BranchCoordinator;
-import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
-
-import org.jspecify.annotations.Nullable;
-import org.objectweb.asm.tree.InsnList;
-import org.objectweb.asm.tree.LabelNode;
-import org.objectweb.asm.tree.LocalVariableNode;
-import org.objectweb.asm.tree.MethodNode;
-
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -20,6 +7,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiFunction;
+
+import org.jspecify.annotations.Nullable;
+import org.objectweb.asm.tree.InsnList;
+import org.objectweb.asm.tree.LabelNode;
+import org.objectweb.asm.tree.LocalVariableNode;
+import org.objectweb.asm.tree.MethodNode;
+
+import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
+import io.quarkiverse.qubit.deployment.analysis.TernaryPatternDetector;
+import io.quarkiverse.qubit.deployment.analysis.TernaryPatternDetector.TernaryPattern;
+import io.quarkiverse.qubit.deployment.analysis.branch.BranchCoordinator;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
 
 /**
  * Parameter object for lambda bytecode analysis, avoiding 10+ method parameters.
@@ -111,20 +111,20 @@ public class AnalysisContext {
 
     /** Creates context for single-entity lambda with nested support. */
     public AnalysisContext(MethodNode method, int entityParameterIndex,
-                           boolean groupContextMode, NestedLambdaSupport nestedLambdaSupport) {
+            boolean groupContextMode, NestedLambdaSupport nestedLambdaSupport) {
         this(method, entityParameterIndex, -1, false, groupContextMode, nestedLambdaSupport);
     }
 
     /** Creates context for bi-entity lambda with nested support. */
     public AnalysisContext(MethodNode method, int firstEntityParameterIndex,
-                           int secondEntityParameterIndex, NestedLambdaSupport nestedLambdaSupport) {
+            int secondEntityParameterIndex, NestedLambdaSupport nestedLambdaSupport) {
         this(method, firstEntityParameterIndex, secondEntityParameterIndex, true, false, nestedLambdaSupport);
     }
 
     /** Internal constructor for all cases. */
     private AnalysisContext(MethodNode method, int entityParameterIndex,
-                            int secondEntityParameterIndex, boolean biEntityMode,
-                            boolean groupContextMode, NestedLambdaSupport nestedLambdaSupport) {
+            int secondEntityParameterIndex, boolean biEntityMode,
+            boolean groupContextMode, NestedLambdaSupport nestedLambdaSupport) {
         this.method = method;
         this.entityParameterIndex = entityParameterIndex;
         this.secondEntityParameterIndex = secondEntityParameterIndex;
@@ -186,7 +186,8 @@ public class AnalysisContext {
     }
 
     /** Result of popPair(): left (second-to-top), right (top). */
-    public record PopPairResult(LambdaExpression left, LambdaExpression right) {}
+    public record PopPairResult(LambdaExpression left, LambdaExpression right) {
+    }
 
     /** Pops N expressions in reverse stack order (first was deepest). */
     public List<LambdaExpression> popN(int n) {

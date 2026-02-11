@@ -1,23 +1,25 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.*;
-import io.quarkiverse.qubit.SortDirection;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+
+import io.quarkiverse.qubit.SortDirection;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.*;
 
 /**
  * Tests for {@link CapturedVariableHelper}.
  *
- * <p>Tests captured variable operations: counting, collecting indices,
+ * <p>
+ * Tests captured variable operations: counting, collecting indices,
  * renumbering, and predicate combination.
  */
 class CapturedVariableHelperTest {

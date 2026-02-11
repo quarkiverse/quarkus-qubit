@@ -4,24 +4,23 @@ import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.COUNT_SHO
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.unexpectedGroupAggregationType;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isLogicalOperation;
 import static io.quarkiverse.qubit.deployment.generation.GizmoHelper.buildConstructorExpression;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CASE_OTHERWISE_EXPR;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CASE_WHEN_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_AVG;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_COUNT;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_COUNT_DISTINCT;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_MAX;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_MIN;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_SELECT_CASE;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_SUM;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_SUM_AS_DOUBLE;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_SUM_AS_LONG;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_TUPLE;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_SELECT_CASE;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CASE_WHEN_EXPR;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CASE_OTHERWISE_EXPR;
+
+import jakarta.persistence.criteria.Selection;
 
 import org.jspecify.annotations.Nullable;
 
-import io.quarkus.gizmo2.Expr;
-import io.quarkus.gizmo2.LocalVar;
-import io.quarkus.gizmo2.creator.BlockCreator;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupAggregation;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupAggregationType;
@@ -29,7 +28,9 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupKeyReference;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathExpression;
 import io.quarkiverse.qubit.deployment.common.PatternDetector;
 import io.quarkiverse.qubit.deployment.generation.UnsupportedExpressionException;
-import jakarta.persistence.criteria.Selection;
+import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.LocalVar;
+import io.quarkus.gizmo2.creator.BlockCreator;
 
 /** Builds JPA Criteria expressions for GROUP BY queries. */
 public enum GroupExpressionBuilder implements ExpressionBuilder {

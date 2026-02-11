@@ -1,25 +1,27 @@
 package io.quarkiverse.qubit.deployment.analysis.branch;
 
-import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.*;
+import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
 import java.util.Optional;
 
-import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.*;
-import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+
+import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
 
 /**
  * Unit tests for {@link BranchExpressionCombiner}.
  *
- * <p>Tests the static utility methods for expression combination, restructuring,
+ * <p>
+ * Tests the static utility methods for expression combination, restructuring,
  * and operator adjustment in branch analysis.
  */
 class BranchExpressionCombinerTest {
@@ -159,10 +161,8 @@ class BranchExpressionCombinerTest {
                     new LambdaExpression.ArrayCreation(
                             "java.lang.String",
                             List.of(constant("A"), constant("B")),
-                            Object[].class
-                    ),
-                    false
-            );
+                            Object[].class),
+                    false);
 
             assertThat(BranchExpressionCombiner.isPredicateExpression(expr))
                     .as("InExpression should be a predicate expression")
@@ -174,8 +174,7 @@ class BranchExpressionCombinerTest {
             var expr = new LambdaExpression.MemberOfExpression(
                     field("item", Object.class),
                     field("collection", List.class),
-                    false
-            );
+                    false);
 
             assertThat(BranchExpressionCombiner.isPredicateExpression(expr))
                     .as("MemberOfExpression should be a predicate expression")
@@ -228,11 +227,10 @@ class BranchExpressionCombinerTest {
         @Test
         void sameLabelWithFalseSink_overridesToAnd() {
             Operator result = BranchExpressionCombiner.adjustCombineOperator(
-                    OR,  // initial operator
+                    OR, // initial operator
                     true, // sameLabel
                     ControlFlowAnalyzer.LabelClassification.FALSE_SINK,
-                    false, false, true
-            );
+                    false, false, true);
 
             assertThat(result)
                     .as("Same label to FALSE_SINK should override to AND")
@@ -242,11 +240,10 @@ class BranchExpressionCombinerTest {
         @Test
         void sameLabelWithTrueSink_overridesToOr() {
             Operator result = BranchExpressionCombiner.adjustCombineOperator(
-                    AND,  // initial operator
+                    AND, // initial operator
                     true, // sameLabel
                     ControlFlowAnalyzer.LabelClassification.TRUE_SINK,
-                    false, false, true
-            );
+                    false, false, true);
 
             assertThat(result)
                     .as("Same label to TRUE_SINK should override to OR")
@@ -256,11 +253,10 @@ class BranchExpressionCombinerTest {
         @Test
         void sameLabelWithIntermediate_overridesToOr() {
             Operator result = BranchExpressionCombiner.adjustCombineOperator(
-                    AND,  // initial operator
+                    AND, // initial operator
                     true, // sameLabel
                     ControlFlowAnalyzer.LabelClassification.INTERMEDIATE,
-                    false, false, true
-            );
+                    false, false, true);
 
             assertThat(result)
                     .as("Same label to INTERMEDIATE should override to OR")
@@ -273,8 +269,7 @@ class BranchExpressionCombinerTest {
                     AND,
                     false, // NOT same label
                     ControlFlowAnalyzer.LabelClassification.FALSE_SINK,
-                    false, false, true
-            );
+                    false, false, true);
 
             assertThat(result)
                     .as("Not same label should keep original operator")
@@ -288,8 +283,8 @@ class BranchExpressionCombinerTest {
                     false,
                     ControlFlowAnalyzer.LabelClassification.TRUE_SINK,
                     false, // NOT completing AND group
-                    true,  // starting new OR group
-                    true   // has predicate on stack
+                    true, // starting new OR group
+                    true // has predicate on stack
             );
 
             assertThat(result)
@@ -300,12 +295,12 @@ class BranchExpressionCombinerTest {
         @Test
         void completingAndGroupWithPredicateOnStack_forcesAnd() {
             Operator result = BranchExpressionCombiner.adjustCombineOperator(
-                    OR,  // original
+                    OR, // original
                     false,
                     ControlFlowAnalyzer.LabelClassification.TRUE_SINK,
-                    true,  // completing AND group
+                    true, // completing AND group
                     false, // NOT starting new OR group
-                    true   // has predicate on stack
+                    true // has predicate on stack
             );
 
             assertThat(result)
@@ -319,8 +314,7 @@ class BranchExpressionCombinerTest {
                     null,
                     true,
                     ControlFlowAnalyzer.LabelClassification.FALSE_SINK,
-                    false, false, true
-            );
+                    false, false, true);
 
             assertThat(result)
                     .as("Null combineOp should stay null (no override)")
@@ -341,8 +335,7 @@ class BranchExpressionCombinerTest {
                     true,
                     ControlFlowAnalyzer.LabelClassification.FALSE_SINK,
                     0,
-                    opcode -> false
-            );
+                    opcode -> false);
 
             assertThat(result)
                     .as("Explicit TRUE jump target should return true")
@@ -355,8 +348,7 @@ class BranchExpressionCombinerTest {
                     false,
                     ControlFlowAnalyzer.LabelClassification.TRUE_SINK,
                     0,
-                    opcode -> true
-            );
+                    opcode -> true);
 
             assertThat(result)
                     .as("Explicit FALSE jump target should return false")
@@ -369,7 +361,7 @@ class BranchExpressionCombinerTest {
                     null,
                     ControlFlowAnalyzer.LabelClassification.INTERMEDIATE,
                     42,
-                    opcode -> opcode == 42  // success opcode
+                    opcode -> opcode == 42 // success opcode
             );
 
             assertThat(result)
@@ -383,7 +375,7 @@ class BranchExpressionCombinerTest {
                     null,
                     ControlFlowAnalyzer.LabelClassification.INTERMEDIATE,
                     99,
-                    opcode -> opcode == 42  // 99 is NOT success opcode
+                    opcode -> opcode == 42 // 99 is NOT success opcode
             );
 
             assertThat(result)
@@ -397,7 +389,7 @@ class BranchExpressionCombinerTest {
                     null,
                     ControlFlowAnalyzer.LabelClassification.FALSE_SINK,
                     42,
-                    opcode -> true  // predicate would say true, but not INTERMEDIATE
+                    opcode -> true // predicate would say true, but not INTERMEDIATE
             );
 
             assertThat(result)
@@ -411,8 +403,7 @@ class BranchExpressionCombinerTest {
                     null,
                     ControlFlowAnalyzer.LabelClassification.TRUE_SINK,
                     0,
-                    opcode -> true
-            );
+                    opcode -> true);
 
             assertThat(result)
                     .as("TRUE_SINK with null target should return false (only INTERMEDIATE uses opcode)")
@@ -506,9 +497,9 @@ class BranchExpressionCombinerTest {
             // Should trigger post-AND-group merge: (A && B) || (C && D)
             Deque<LambdaExpression> stack = new ArrayDeque<>();
             var aAndB = and(eq(field("a", int.class), constant(1)),
-                            eq(field("b", int.class), constant(2)));
+                    eq(field("b", int.class), constant(2)));
             var cAndD = and(eq(field("c", int.class), constant(3)),
-                            eq(field("d", int.class), constant(4)));
+                    eq(field("d", int.class), constant(4)));
             stack.push(aAndB);
             stack.push(cAndD);
 
@@ -516,7 +507,7 @@ class BranchExpressionCombinerTest {
             var ctx = createContext("TEST",
                     new BranchState.OrMode(Optional.of(true), false),
                     new BranchState.OrMode(Optional.of(true), false),
-                    AND, null, Optional.of(true), true, cAndD,  // sameLabel=true for merge trigger
+                    AND, null, Optional.of(true), true, cAndD, // sameLabel=true for merge trigger
                     ControlFlowAnalyzer.LabelClassification.FALSE_SINK, false, false);
 
             BranchExpressionCombiner.performCombination(stack, expression, ctx);
@@ -555,7 +546,7 @@ class BranchExpressionCombinerTest {
             var ctx = createContext("TEST",
                     new BranchState.OrMode(Optional.of(true), false),
                     new BranchState.OrMode(Optional.of(true), false),
-                    OR, true, Optional.of(true), false, aOrB,  // jumpTarget=true, not false
+                    OR, true, Optional.of(true), false, aOrB, // jumpTarget=true, not false
                     ControlFlowAnalyzer.LabelClassification.TRUE_SINK, false, false);
 
             BranchExpressionCombiner.performCombination(stack, expression, ctx);
@@ -571,7 +562,7 @@ class BranchExpressionCombinerTest {
             // Test the boundary condition: stack.size() >= 2 check in post-merge
             Deque<LambdaExpression> stack = new ArrayDeque<>();
             var aAndB = and(eq(field("a", int.class), constant(1)),
-                            eq(field("b", int.class), constant(2)));
+                    eq(field("b", int.class), constant(2)));
             stack.push(aAndB);
             // Only ONE element on stack
 
@@ -579,7 +570,7 @@ class BranchExpressionCombinerTest {
             var ctx = createContext("TEST",
                     new BranchState.OrMode(Optional.of(true), false),
                     new BranchState.OrMode(Optional.of(true), false),
-                    AND, null, Optional.of(true), true, aAndB,  // sameLabel=true
+                    AND, null, Optional.of(true), true, aAndB, // sameLabel=true
                     ControlFlowAnalyzer.LabelClassification.FALSE_SINK, false, false);
 
             BranchExpressionCombiner.performCombination(stack, expression, ctx);
@@ -598,7 +589,7 @@ class BranchExpressionCombinerTest {
             var ctx = createContext("TEST",
                     new BranchState.AndMode(Optional.of(true), false),
                     new BranchState.AndMode(Optional.of(true), false),
-                    AND, true, Optional.of(true), false, previous,  // jumpTarget=true
+                    AND, true, Optional.of(true), false, previous, // jumpTarget=true
                     ControlFlowAnalyzer.LabelClassification.TRUE_SINK, false, false);
 
             BranchState result = BranchExpressionCombiner.performCombination(stack, expression, ctx);
@@ -667,11 +658,10 @@ class BranchExpressionCombinerTest {
         void sameLabelFalseSink_withOrOperator_overridesToAnd() {
             // Tests the mutation: jumpLabelClass == FALSE_SINK
             Operator result = BranchExpressionCombiner.adjustCombineOperator(
-                    OR,   // initial operator
+                    OR, // initial operator
                     true, // sameLabel
                     ControlFlowAnalyzer.LabelClassification.FALSE_SINK,
-                    false, false, false
-            );
+                    false, false, false);
 
             assertThat(result)
                     .as("sameLabel + FALSE_SINK should override OR to AND")
@@ -682,11 +672,10 @@ class BranchExpressionCombinerTest {
         void sameLabelTrueSink_withAndOperator_overridesToOr() {
             // Tests the mutation: jumpLabelClass == TRUE_SINK
             Operator result = BranchExpressionCombiner.adjustCombineOperator(
-                    AND,  // initial operator
+                    AND, // initial operator
                     true, // sameLabel
                     ControlFlowAnalyzer.LabelClassification.TRUE_SINK,
-                    false, false, false
-            );
+                    false, false, false);
 
             assertThat(result)
                     .as("sameLabel + TRUE_SINK should override AND to OR")
@@ -700,9 +689,9 @@ class BranchExpressionCombinerTest {
                     OR,
                     false,
                     ControlFlowAnalyzer.LabelClassification.TRUE_SINK,
-                    false,  // NOT completing AND group
-                    true,   // starting new OR group
-                    true    // has predicate on stack
+                    false, // NOT completing AND group
+                    true, // starting new OR group
+                    true // has predicate on stack
             );
 
             assertThat(result)
@@ -717,9 +706,9 @@ class BranchExpressionCombinerTest {
                     OR,
                     false,
                     ControlFlowAnalyzer.LabelClassification.TRUE_SINK,
-                    false,  // NOT completing AND group
-                    true,   // starting new OR group
-                    false   // NO predicate on stack
+                    false, // NOT completing AND group
+                    true, // starting new OR group
+                    false // NO predicate on stack
             );
 
             assertThat(result)
@@ -731,12 +720,12 @@ class BranchExpressionCombinerTest {
         void completingAndGroup_withPredicateOnStack_forcesAnd() {
             // Tests the mutation: completingAndGroup && hasPredicateOnStack
             Operator result = BranchExpressionCombiner.adjustCombineOperator(
-                    OR,   // original
+                    OR, // original
                     false,
                     ControlFlowAnalyzer.LabelClassification.TRUE_SINK,
-                    true,  // completing AND group
+                    true, // completing AND group
                     false, // NOT starting new OR group
-                    true   // has predicate on stack
+                    true // has predicate on stack
             );
 
             assertThat(result)
@@ -751,9 +740,9 @@ class BranchExpressionCombinerTest {
                     OR,
                     false,
                     ControlFlowAnalyzer.LabelClassification.TRUE_SINK,
-                    true,  // completing AND group
+                    true, // completing AND group
                     false, // NOT starting new OR group
-                    false  // NO predicate on stack
+                    false // NO predicate on stack
             );
 
             assertThat(result)
@@ -765,11 +754,10 @@ class BranchExpressionCombinerTest {
         void notSameLabel_withFalseSink_keepsOriginalOperator() {
             // Tests the mutation: sameLabel must be true for override
             Operator result = BranchExpressionCombiner.adjustCombineOperator(
-                    OR,    // should stay OR
+                    OR, // should stay OR
                     false, // NOT same label
                     ControlFlowAnalyzer.LabelClassification.FALSE_SINK,
-                    false, false, true
-            );
+                    false, false, true);
 
             assertThat(result)
                     .as("Not same label should NOT override operator")
@@ -783,9 +771,9 @@ class BranchExpressionCombinerTest {
                     AND,
                     false,
                     ControlFlowAnalyzer.LabelClassification.TRUE_SINK,
-                    false,  // NOT completing AND group
-                    false,  // NOT starting new OR group
-                    true    // has predicate on stack
+                    false, // NOT completing AND group
+                    false, // NOT starting new OR group
+                    true // has predicate on stack
             );
 
             assertThat(result)
@@ -807,7 +795,7 @@ class BranchExpressionCombinerTest {
                     Boolean.TRUE,
                     ControlFlowAnalyzer.LabelClassification.FALSE_SINK,
                     99,
-                    opcode -> false  // predicate doesn't matter
+                    opcode -> false // predicate doesn't matter
             );
 
             assertThat(result)
@@ -822,7 +810,7 @@ class BranchExpressionCombinerTest {
                     Boolean.FALSE,
                     ControlFlowAnalyzer.LabelClassification.TRUE_SINK,
                     99,
-                    opcode -> true  // predicate returns true but jumpTarget is explicit
+                    opcode -> true // predicate returns true but jumpTarget is explicit
             );
 
             assertThat(result)
@@ -834,10 +822,10 @@ class BranchExpressionCombinerTest {
         void nullJumpTarget_intermediate_usesPredicate_true() {
             // Tests INTERMEDIATE classification with success opcode
             boolean result = BranchExpressionCombiner.determineJumpToTrue(
-                    null,  // null forces use of predicate
+                    null, // null forces use of predicate
                     ControlFlowAnalyzer.LabelClassification.INTERMEDIATE,
                     42,
-                    opcode -> opcode == 42  // predicate returns true for 42
+                    opcode -> opcode == 42 // predicate returns true for 42
             );
 
             assertThat(result)
@@ -852,7 +840,7 @@ class BranchExpressionCombinerTest {
                     null,
                     ControlFlowAnalyzer.LabelClassification.INTERMEDIATE,
                     99,
-                    opcode -> opcode == 42  // 99 is NOT success opcode
+                    opcode -> opcode == 42 // 99 is NOT success opcode
             );
 
             assertThat(result)
@@ -867,7 +855,7 @@ class BranchExpressionCombinerTest {
                     null,
                     ControlFlowAnalyzer.LabelClassification.TRUE_SINK,
                     42,
-                    opcode -> true  // predicate returns true but not INTERMEDIATE
+                    opcode -> true // predicate returns true but not INTERMEDIATE
             );
 
             assertThat(result)
@@ -882,7 +870,7 @@ class BranchExpressionCombinerTest {
                     null,
                     ControlFlowAnalyzer.LabelClassification.FALSE_SINK,
                     42,
-                    opcode -> true  // predicate returns true but not INTERMEDIATE
+                    opcode -> true // predicate returns true but not INTERMEDIATE
             );
 
             assertThat(result)
@@ -930,7 +918,7 @@ class BranchExpressionCombinerTest {
             var ctx = createContext("TEST",
                     new BranchState.OrMode(Optional.of(true), false),
                     new BranchState.OrMode(Optional.of(true), false),
-                    OR, true, Optional.of(true), false, aAndB,  // jumpTarget=TRUE
+                    OR, true, Optional.of(true), false, aAndB, // jumpTarget=TRUE
                     ControlFlowAnalyzer.LabelClassification.TRUE_SINK, false, false);
 
             BranchExpressionCombiner.performCombination(stack, expression, ctx);
@@ -952,7 +940,7 @@ class BranchExpressionCombinerTest {
             var ctx = createContext("TEST",
                     new BranchState.OrMode(Optional.of(true), false),
                     new BranchState.OrMode(Optional.of(true), false),
-                    OR, false, Optional.of(true), true, aAndB,  // sameLabel=TRUE
+                    OR, false, Optional.of(true), true, aAndB, // sameLabel=TRUE
                     ControlFlowAnalyzer.LabelClassification.TRUE_SINK, false, false);
 
             BranchExpressionCombiner.performCombination(stack, expression, ctx);
@@ -965,7 +953,7 @@ class BranchExpressionCombinerTest {
         void orModeWithNonAndOnStack_defersNotTriggered() {
             // Tests that deferral only happens when stackTop is AND operation
             Deque<LambdaExpression> stack = new ArrayDeque<>();
-            var aOrB = or(field("a", boolean.class), field("b", boolean.class));  // OR, not AND
+            var aOrB = or(field("a", boolean.class), field("b", boolean.class)); // OR, not AND
             stack.push(aOrB);
 
             var expression = eq(field("c", int.class), constant(1));
@@ -990,7 +978,7 @@ class BranchExpressionCombinerTest {
 
             var expression = eq(field("c", int.class), constant(1));
             var ctx = createContext("TEST",
-                    new BranchState.AndMode(Optional.of(false), false),  // AndMode, not OrMode
+                    new BranchState.AndMode(Optional.of(false), false), // AndMode, not OrMode
                     new BranchState.AndMode(Optional.of(false), false),
                     OR, false, Optional.of(false), false, aAndB,
                     ControlFlowAnalyzer.LabelClassification.FALSE_SINK, false, false);
@@ -1035,7 +1023,7 @@ class BranchExpressionCombinerTest {
                     new BranchState.OrMode(Optional.of(true), false),
                     OR,
                     Boolean.FALSE,
-                    false,  // not same label
+                    false, // not same label
                     andExpr);
 
             assertThat(result)
@@ -1049,7 +1037,7 @@ class BranchExpressionCombinerTest {
             var andExpr = and(field("a", boolean.class), field("b", boolean.class));
 
             boolean result = BranchExpressionCombiner.shouldDeferOrCombination(
-                    new BranchState.AndMode(Optional.of(false), false),  // NOT OrMode
+                    new BranchState.AndMode(Optional.of(false), false), // NOT OrMode
                     OR,
                     Boolean.FALSE,
                     false,
@@ -1065,7 +1053,7 @@ class BranchExpressionCombinerTest {
             var andExpr = and(field("a", boolean.class), field("b", boolean.class));
 
             boolean result = BranchExpressionCombiner.shouldDeferOrCombination(
-                    new BranchState.Initial(),  // Initial state
+                    new BranchState.Initial(), // Initial state
                     OR,
                     Boolean.FALSE,
                     false,
@@ -1083,7 +1071,7 @@ class BranchExpressionCombinerTest {
 
             boolean result = BranchExpressionCombiner.shouldDeferOrCombination(
                     new BranchState.OrMode(Optional.of(true), false),
-                    AND,  // NOT OR
+                    AND, // NOT OR
                     Boolean.FALSE,
                     false,
                     andExpr);
@@ -1099,7 +1087,7 @@ class BranchExpressionCombinerTest {
 
             boolean result = BranchExpressionCombiner.shouldDeferOrCombination(
                     new BranchState.OrMode(Optional.of(true), false),
-                    null,  // null operator
+                    null, // null operator
                     Boolean.FALSE,
                     false,
                     andExpr);
@@ -1117,7 +1105,7 @@ class BranchExpressionCombinerTest {
             boolean result = BranchExpressionCombiner.shouldDeferOrCombination(
                     new BranchState.OrMode(Optional.of(true), false),
                     OR,
-                    Boolean.TRUE,  // NOT FALSE
+                    Boolean.TRUE, // NOT FALSE
                     false,
                     andExpr);
 
@@ -1133,7 +1121,7 @@ class BranchExpressionCombinerTest {
             boolean result = BranchExpressionCombiner.shouldDeferOrCombination(
                     new BranchState.OrMode(Optional.of(true), false),
                     OR,
-                    null,  // null jumpTarget
+                    null, // null jumpTarget
                     false,
                     andExpr);
 
@@ -1151,7 +1139,7 @@ class BranchExpressionCombinerTest {
                     new BranchState.OrMode(Optional.of(true), false),
                     OR,
                     Boolean.FALSE,
-                    true,  // sameLabel = true
+                    true, // sameLabel = true
                     andExpr);
 
             assertThat(result)
@@ -1162,7 +1150,7 @@ class BranchExpressionCombinerTest {
         @Test
         void stackTopNotBinaryOp_returnsFalse() {
             // Kills mutation: stackTop instanceof BinaryOp
-            var fieldExpr = field("a", boolean.class);  // Not BinaryOp
+            var fieldExpr = field("a", boolean.class); // Not BinaryOp
 
             boolean result = BranchExpressionCombiner.shouldDeferOrCombination(
                     new BranchState.OrMode(Optional.of(true), false),
@@ -1183,7 +1171,7 @@ class BranchExpressionCombinerTest {
                     OR,
                     Boolean.FALSE,
                     false,
-                    null);  // null stackTop
+                    null); // null stackTop
 
             assertThat(result)
                     .as("Null stackTop should return false")
@@ -1193,7 +1181,7 @@ class BranchExpressionCombinerTest {
         @Test
         void stackTopOrOperator_returnsFalse() {
             // Kills mutation: binOp.operator() == AND
-            var orExpr = or(field("a", boolean.class), field("b", boolean.class));  // OR, not AND
+            var orExpr = or(field("a", boolean.class), field("b", boolean.class)); // OR, not AND
 
             boolean result = BranchExpressionCombiner.shouldDeferOrCombination(
                     new BranchState.OrMode(Optional.of(true), false),
@@ -1235,11 +1223,11 @@ class BranchExpressionCombinerTest {
         void allConditionsTrue_returnsTrue() {
             // sameLabel + AND + OrMode + stackSize>=2 + hasPredicateOnStack
             boolean result = BranchExpressionCombiner.shouldMergeAndGroups(
-                    true,   // sameLabel
-                    AND,    // combineOp
+                    true, // sameLabel
+                    AND, // combineOp
                     new BranchState.OrMode(Optional.of(true), false),
-                    2,      // stackSize
-                    true);  // hasPredicateOnStack
+                    2, // stackSize
+                    true); // hasPredicateOnStack
 
             assertThat(result)
                     .as("All conditions true should return true")
@@ -1250,7 +1238,7 @@ class BranchExpressionCombinerTest {
         void notSameLabel_returnsFalse() {
             // Kills mutation: !sameLabel
             boolean result = BranchExpressionCombiner.shouldMergeAndGroups(
-                    false,  // NOT sameLabel
+                    false, // NOT sameLabel
                     AND,
                     new BranchState.OrMode(Optional.of(true), false),
                     2,
@@ -1266,7 +1254,7 @@ class BranchExpressionCombinerTest {
             // Kills mutation: combineOp != AND
             boolean result = BranchExpressionCombiner.shouldMergeAndGroups(
                     true,
-                    OR,  // NOT AND
+                    OR, // NOT AND
                     new BranchState.OrMode(Optional.of(true), false),
                     2,
                     true);
@@ -1280,7 +1268,7 @@ class BranchExpressionCombinerTest {
         void combineOpNull_returnsFalse() {
             boolean result = BranchExpressionCombiner.shouldMergeAndGroups(
                     true,
-                    null,  // null operator
+                    null, // null operator
                     new BranchState.OrMode(Optional.of(true), false),
                     2,
                     true);
@@ -1296,7 +1284,7 @@ class BranchExpressionCombinerTest {
             boolean result = BranchExpressionCombiner.shouldMergeAndGroups(
                     true,
                     AND,
-                    new BranchState.AndMode(Optional.of(false), false),  // NOT OrMode
+                    new BranchState.AndMode(Optional.of(false), false), // NOT OrMode
                     2,
                     true);
 
@@ -1310,7 +1298,7 @@ class BranchExpressionCombinerTest {
             boolean result = BranchExpressionCombiner.shouldMergeAndGroups(
                     true,
                     AND,
-                    new BranchState.Initial(),  // Initial state
+                    new BranchState.Initial(), // Initial state
                     2,
                     true);
 
@@ -1326,7 +1314,7 @@ class BranchExpressionCombinerTest {
                     true,
                     AND,
                     new BranchState.OrMode(Optional.of(true), false),
-                    1,  // stackSize < 2
+                    1, // stackSize < 2
                     true);
 
             assertThat(result)
@@ -1340,7 +1328,7 @@ class BranchExpressionCombinerTest {
                     true,
                     AND,
                     new BranchState.OrMode(Optional.of(true), false),
-                    0,  // empty stack
+                    0, // empty stack
                     true);
 
             assertThat(result)
@@ -1355,7 +1343,7 @@ class BranchExpressionCombinerTest {
                     true,
                     AND,
                     new BranchState.OrMode(Optional.of(true), false),
-                    2,  // exactly 2
+                    2, // exactly 2
                     true);
 
             assertThat(result)
@@ -1369,7 +1357,7 @@ class BranchExpressionCombinerTest {
                     true,
                     AND,
                     new BranchState.OrMode(Optional.of(true), false),
-                    5,  // > 2
+                    5, // > 2
                     true);
 
             assertThat(result)
@@ -1385,7 +1373,7 @@ class BranchExpressionCombinerTest {
                     AND,
                     new BranchState.OrMode(Optional.of(true), false),
                     2,
-                    false);  // NO predicate on stack
+                    false); // NO predicate on stack
 
             assertThat(result)
                     .as("No predicate on stack should return false")
@@ -1397,7 +1385,7 @@ class BranchExpressionCombinerTest {
             // EQ is not AND
             boolean result = BranchExpressionCombiner.shouldMergeAndGroups(
                     true,
-                    EQ,  // Not AND
+                    EQ, // Not AND
                     new BranchState.OrMode(Optional.of(true), false),
                     2,
                     true);
@@ -1436,7 +1424,7 @@ class BranchExpressionCombinerTest {
         @Test
         void orOperator_previousIsAnd_butLeftIsNotOr_noRestructure() {
             // Restructure requires: prevBinOp.left() is an OR expression
-            var aAndB = and(field("a", boolean.class), field("b", boolean.class));  // AND, not OR
+            var aAndB = and(field("a", boolean.class), field("b", boolean.class)); // AND, not OR
             var andC = and(aAndB, field("c", boolean.class));
             var d = field("d", boolean.class);
 
@@ -1453,7 +1441,7 @@ class BranchExpressionCombinerTest {
         @Test
         void orOperator_previousIsNotBinaryOp_noRestructure() {
             // previousCondition must be BinaryOp for restructuring
-            var simpleField = field("a", boolean.class);  // FieldAccess, not BinaryOp
+            var simpleField = field("a", boolean.class); // FieldAccess, not BinaryOp
             var b = field("b", boolean.class);
 
             var result = BranchExpressionCombiner.combineAndRestructureIfNeeded(OR, simpleField, b);
@@ -1467,7 +1455,7 @@ class BranchExpressionCombinerTest {
         void orOperator_previousIsOrNotAnd_noRestructure() {
             // prevBinOp.operator() must be AND for restructuring
             var aOrB = or(field("a", boolean.class), field("b", boolean.class));
-            var orC = or(aOrB, field("c", boolean.class));  // OR, not AND
+            var orC = or(aOrB, field("c", boolean.class)); // OR, not AND
             var d = field("d", boolean.class);
 
             var result = BranchExpressionCombiner.combineAndRestructureIfNeeded(OR, orC, d);

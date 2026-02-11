@@ -16,11 +16,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests sortedBy() and sortedDescendingBy() operations on JoinStream with bi-entity lambdas.
  * The test data creates 5 persons with phones:
  * <ul>
- *   <li>John (30): 2 phones (mobile, work)</li>
- *   <li>Jane (25): 1 phone (mobile)</li>
- *   <li>Bob (45): 3 phones (mobile, home, work)</li>
- *   <li>Alice (35): 2 phones (mobile, work)</li>
- *   <li>Charlie (28): 1 phone (mobile)</li>
+ * <li>John (30): 2 phones (mobile, work)</li>
+ * <li>Jane (25): 1 phone (mobile)</li>
+ * <li>Bob (45): 3 phones (mobile, home, work)</li>
+ * <li>Alice (35): 2 phones (mobile, work)</li>
+ * <li>Charlie (28): 1 phone (mobile)</li>
  * </ul>
  */
 public abstract class AbstractJoinSortingTest {

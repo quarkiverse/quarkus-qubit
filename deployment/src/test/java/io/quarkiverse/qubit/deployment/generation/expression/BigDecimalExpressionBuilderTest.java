@@ -2,8 +2,7 @@ package io.quarkiverse.qubit.deployment.generation.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -13,7 +12,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import java.util.List;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
 
 /**
  * Unit tests for {@link BigDecimalExpressionBuilder}.
@@ -34,10 +34,10 @@ class BigDecimalExpressionBuilderTest {
 
         @ParameterizedTest(name = "{0} should map to {1}")
         @CsvSource({
-            "add, ADD",
-            "subtract, SUB",
-            "multiply, MUL",
-            "divide, DIV"
+                "add, ADD",
+                "subtract, SUB",
+                "multiply, MUL",
+                "divide, DIV"
         })
         void shouldMapBigDecimalMethodsToOperators(String methodName, String operatorName) {
             Operator result = BigDecimalExpressionBuilder.mapMethodToOperator(methodName);
@@ -155,10 +155,10 @@ class BigDecimalExpressionBuilderTest {
      */
     private LambdaExpression.MethodCall createMethodCall(String methodName) {
         return new LambdaExpression.MethodCall(
-                null,                    // target (not used)
-                methodName,              // methodName
-                List.of(),               // arguments (not used)
-                java.math.BigDecimal.class  // returnType
+                null, // target (not used)
+                methodName, // methodName
+                List.of(), // arguments (not used)
+                java.math.BigDecimal.class // returnType
         );
     }
 }

@@ -1,8 +1,15 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
-import io.quarkiverse.qubit.deployment.common.BytecodeValidator;
+import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.objectweb.asm.Opcodes.*;
+
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.stream.Stream;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -18,15 +25,9 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.stream.Stream;
-
-import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.objectweb.asm.Opcodes.*;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
+import io.quarkiverse.qubit.deployment.common.BytecodeValidator;
 
 /**
  * Edge case tests for instruction handlers.
@@ -77,8 +78,7 @@ class HandlerEdgeCaseTest {
         static Stream<Arguments> sufficientStackCases() {
             return Stream.of(
                     Arguments.of(2, 2, "exact size"),
-                    Arguments.of(3, 2, "more than required")
-            );
+                    Arguments.of(3, 2, "more than required"));
         }
 
         @ParameterizedTest(name = "requireStackSize with {2} succeeds")
@@ -110,8 +110,7 @@ class HandlerEdgeCaseTest {
         @Test
         void requireValidOpcode_withValidOpcode_succeeds() {
             // Verify that validation succeeds by ensuring no exception is thrown
-            assertThatCode(() ->
-                    BytecodeValidator.requireValidOpcode(IADD, IADD, ISUB, IMUL))
+            assertThatCode(() -> BytecodeValidator.requireValidOpcode(IADD, IADD, ISUB, IMUL))
                     .doesNotThrowAnyException();
         }
 
@@ -151,13 +150,13 @@ class HandlerEdgeCaseTest {
         private final ArithmeticInstructionHandler handler = ArithmeticInstructionHandler.INSTANCE;
 
         @ParameterizedTest(name = "canHandle arithmetic/logical/comparison opcode {0}")
-        @ValueSource(ints = {IADD, ISUB, IMUL, IDIV, IAND, IOR, LCMP, DCMPL, DCMPG})
+        @ValueSource(ints = { IADD, ISUB, IMUL, IDIV, IAND, IOR, LCMP, DCMPL, DCMPG })
         void canHandle_withHandledOpcode_returnsTrue(int opcode) {
             assertThat(handler.canHandle(new InsnNode(opcode))).isTrue();
         }
 
         @ParameterizedTest(name = "canHandle non-arithmetic opcode {0}")
-        @ValueSource(ints = {ALOAD, IRETURN})
+        @ValueSource(ints = { ALOAD, IRETURN })
         void canHandle_withNonArithmeticOpcode_returnsFalse(int opcode) {
             assertThat(handler.canHandle(new InsnNode(opcode))).isFalse();
         }
@@ -166,8 +165,7 @@ class HandlerEdgeCaseTest {
             return Stream.of(
                     Arguments.of(IADD, "IADD", "arithmetic"),
                     Arguments.of(IAND, "IAND", "logical"),
-                    Arguments.of(LCMP, "LCMP", "comparison")
-            );
+                    Arguments.of(LCMP, "LCMP", "comparison"));
         }
 
         @ParameterizedTest(name = "{2} opcode {1} with empty stack throws")
@@ -212,7 +210,7 @@ class HandlerEdgeCaseTest {
         }
 
         @ParameterizedTest(name = "handle float/double remainder {0} succeeds")
-        @ValueSource(ints = {FREM, DREM})
+        @ValueSource(ints = { FREM, DREM })
         void handle_floatDoubleRemainder_succeeds(int opcode) {
             // Float and double modulo operations should be handled correctly
             context.push(new LambdaExpression.Constant(5.5f, float.class));
@@ -224,8 +222,7 @@ class HandlerEdgeCaseTest {
             assertThat(context.getStackSize()).isEqualTo(1);
             assertThat(context.peek())
                     .isInstanceOf(LambdaExpression.BinaryOp.class);
-            LambdaExpression.BinaryOp result =
-                    (LambdaExpression.BinaryOp) context.peek();
+            LambdaExpression.BinaryOp result = (LambdaExpression.BinaryOp) context.peek();
             assertThat(result.operator()).isEqualTo(LambdaExpression.BinaryOp.Operator.MOD);
         }
     }
@@ -238,7 +235,7 @@ class HandlerEdgeCaseTest {
         private final LoadInstructionHandler handler = LoadInstructionHandler.INSTANCE;
 
         @ParameterizedTest(name = "canHandle load opcode {0}")
-        @ValueSource(ints = {ALOAD, ILOAD, LLOAD, FLOAD, DLOAD})
+        @ValueSource(ints = { ALOAD, ILOAD, LLOAD, FLOAD, DLOAD })
         void canHandle_withLoadOpcode_returnsTrue(int opcode) {
             assertThat(handler.canHandle(new VarInsnNode(opcode, 0))).isTrue();
         }
@@ -300,10 +297,9 @@ class HandlerEdgeCaseTest {
             groupMethod.instructions = new InsnList();
 
             // Use constructor that enables groupContextMode
-            AnalysisContext.NestedLambdaSupport nestedSupport =
-                    new AnalysisContext.NestedLambdaSupport(
-                            java.util.List.of(),
-                            (method, index) -> null);
+            AnalysisContext.NestedLambdaSupport nestedSupport = new AnalysisContext.NestedLambdaSupport(
+                    java.util.List.of(),
+                    (method, index) -> null);
             AnalysisContext groupContext = new AnalysisContext(groupMethod, 0, nestedSupport);
 
             handler.handle(new VarInsnNode(ALOAD, 0), groupContext);
@@ -318,9 +314,10 @@ class HandlerEdgeCaseTest {
 
         static Stream<Arguments> biEntityModeCases() {
             return Stream.of(
-                    Arguments.of(0, "entity", io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition.FIRST, "FIRST"),
-                    Arguments.of(1, "joinedEntity", io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition.SECOND, "SECOND")
-            );
+                    Arguments.of(0, "entity", io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition.FIRST,
+                            "FIRST"),
+                    Arguments.of(1, "joinedEntity", io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition.SECOND,
+                            "SECOND"));
         }
 
         @ParameterizedTest(name = "bi-entity {3} position uses '{1}' param name")
@@ -338,8 +335,8 @@ class HandlerEdgeCaseTest {
             assertThat(biContext.getStackSize()).isEqualTo(1);
             assertThat(biContext.peek())
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityParameter.class);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityParameter biParam =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityParameter) biContext.peek();
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityParameter biParam = (io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityParameter) biContext
+                    .peek();
             assertThat(biParam.name())
                     .as("%s entity position should have '%s' param name", positionName, expectedName)
                     .isEqualTo(expectedName);
@@ -349,7 +346,7 @@ class HandlerEdgeCaseTest {
         // ==================== Primitive Load Invalid Slot Tests (kill mutation line 98) ====================
 
         @ParameterizedTest(name = "primitive load opcode {0} with invalid slot throws exception")
-        @ValueSource(ints = {ILOAD, LLOAD, FLOAD, DLOAD})
+        @ValueSource(ints = { ILOAD, LLOAD, FLOAD, DLOAD })
         void handle_primitiveLoad_withInvalidSlot_throwsException(int opcode) {
             // Method with only object parameter - primitive load on slot 99 is invalid
             assertThatThrownBy(() -> handler.handle(new VarInsnNode(opcode, 99), context))
@@ -364,8 +361,7 @@ class HandlerEdgeCaseTest {
             return Stream.of(
                     Arguments.of(LLOAD, "J", long.class, "LLOAD/long"),
                     Arguments.of(DLOAD, "D", double.class, "DLOAD/double"),
-                    Arguments.of(FLOAD, "F", float.class, "FLOAD/float")
-            );
+                    Arguments.of(FLOAD, "F", float.class, "FLOAD/float"));
         }
 
         @ParameterizedTest(name = "{3} produces correct type")
@@ -383,8 +379,8 @@ class HandlerEdgeCaseTest {
             assertThat(ctx.getStackSize()).isEqualTo(1);
             assertThat(ctx.peek())
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable.class);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable captured =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable) ctx.peek();
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable captured = (io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable) ctx
+                    .peek();
             assertThat(captured.type())
                     .as("%s should produce %s type", description, expectedType.getSimpleName())
                     .isEqualTo(expectedType);
@@ -396,8 +392,7 @@ class HandlerEdgeCaseTest {
             return Stream.of(
                     Arguments.of("I", int.class, "ILOAD/int"),
                     Arguments.of("Z", boolean.class, "ILOAD/boolean"),
-                    Arguments.of("B", byte.class, "ILOAD/byte")
-            );
+                    Arguments.of("B", byte.class, "ILOAD/byte"));
         }
 
         @ParameterizedTest(name = "{2} looks up correct type from descriptor")
@@ -412,8 +407,8 @@ class HandlerEdgeCaseTest {
             handler.handle(new VarInsnNode(ILOAD, 1), ctx);
 
             assertThat(ctx.getStackSize()).isEqualTo(1);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable captured =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable) ctx.peek();
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable captured = (io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable) ctx
+                    .peek();
             assertThat(captured.type())
                     .as("%s should look up %s from descriptor", description, expectedType.getSimpleName())
                     .isEqualTo(expectedType);
@@ -428,8 +423,8 @@ class HandlerEdgeCaseTest {
         private final ConstantInstructionHandler handler = ConstantInstructionHandler.INSTANCE;
 
         @ParameterizedTest(name = "canHandle constant opcode {0}")
-        @ValueSource(ints = {ICONST_0, ICONST_1, ICONST_2, ICONST_3, ICONST_4, ICONST_5,
-                LCONST_0, LCONST_1, FCONST_0, FCONST_1, FCONST_2, DCONST_0, DCONST_1, ACONST_NULL})
+        @ValueSource(ints = { ICONST_0, ICONST_1, ICONST_2, ICONST_3, ICONST_4, ICONST_5,
+                LCONST_0, LCONST_1, FCONST_0, FCONST_1, FCONST_2, DCONST_0, DCONST_1, ACONST_NULL })
         void canHandle_withConstantOpcode_returnsTrue(int opcode) {
             assertThat(handler.canHandle(new InsnNode(opcode)))
                     .as("Should handle opcode %d", opcode)
@@ -465,7 +460,7 @@ class HandlerEdgeCaseTest {
         // ==================== Kill mutations: lines 55, 60, 65 return false (DCONST, FCONST, LCONST) ====================
 
         @ParameterizedTest(name = "const opcode {0} does not terminate")
-        @ValueSource(ints = {DCONST_0, DCONST_1, FCONST_0, LCONST_0})
+        @ValueSource(ints = { DCONST_0, DCONST_1, FCONST_0, LCONST_0 })
         void handle_const_returnsFalse_doesNotTerminate(int opcode) {
             boolean terminated = handler.handle(new InsnNode(opcode), context);
 
@@ -475,7 +470,7 @@ class HandlerEdgeCaseTest {
         }
 
         @ParameterizedTest(name = "const opcode {0} pushes constant")
-        @ValueSource(ints = {ICONST_5, LCONST_1, FCONST_2, DCONST_1})
+        @ValueSource(ints = { ICONST_5, LCONST_1, FCONST_2, DCONST_1 })
         void handle_const_pushesConstant(int opcode) {
             handler.handle(new InsnNode(opcode), context);
 
@@ -498,7 +493,7 @@ class HandlerEdgeCaseTest {
         }
 
         @ParameterizedTest(name = "ICONST_{0} after branch pushes constant (value > 1, not boolean marker)")
-        @ValueSource(ints = {ICONST_2, ICONST_3, ICONST_4})
+        @ValueSource(ints = { ICONST_2, ICONST_3, ICONST_4 })
         void handle_iconst_afterBranch_pushesConstant_nonBooleanMarker(int opcode) {
             context.markBranchSeen();
 
@@ -509,7 +504,7 @@ class HandlerEdgeCaseTest {
         }
 
         @ParameterizedTest(name = "ICONST opcode {0} with no branch seen pushes constant")
-        @ValueSource(ints = {ICONST_0, ICONST_1})
+        @ValueSource(ints = { ICONST_0, ICONST_1 })
         void handle_iconst_noBranch_emptyInstructions_pushesConstant(int opcode) {
             // Even ICONST_0/ICONST_1 push if no branch has been seen
             boolean terminated = handler.handle(new InsnNode(opcode), context);
@@ -526,8 +521,7 @@ class HandlerEdgeCaseTest {
                     Arguments.of(ICONST_0, IRETURN, "ICONST_0 with IRETURN"),
                     Arguments.of(ICONST_1, IRETURN, "ICONST_1 with IRETURN"),
                     Arguments.of(ICONST_0, ARETURN, "ICONST_0 with ARETURN"),
-                    Arguments.of(ICONST_0, RETURN, "ICONST_0 with RETURN")
-            );
+                    Arguments.of(ICONST_0, RETURN, "ICONST_0 with RETURN"));
         }
 
         @ParameterizedTest(name = "{2} terminates")
@@ -608,10 +602,9 @@ class HandlerEdgeCaseTest {
                     Arguments.of(FCONST_1, 1.0f, "FCONST_1"),
                     Arguments.of(LCONST_0, 0L, "LCONST_0"),
                     Arguments.of(LCONST_1, 1L, "LCONST_1"),
-                    Arguments.of(ICONST_M1, -1, "ICONST_M1"),  // Bug fix: was not handled before
+                    Arguments.of(ICONST_M1, -1, "ICONST_M1"), // Bug fix: was not handled before
                     Arguments.of(ICONST_0, 0, "ICONST_0"),
-                    Arguments.of(ICONST_5, 5, "ICONST_5")
-            );
+                    Arguments.of(ICONST_5, 5, "ICONST_5"));
         }
 
         @ParameterizedTest(name = "{2} pushes {1}")
@@ -622,8 +615,8 @@ class HandlerEdgeCaseTest {
             assertThat(context.getStackSize()).isEqualTo(1);
             assertThat(context.peek())
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant.class);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant constExpr =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant constExpr = (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context
+                    .peek();
             assertThat(constExpr.value())
                     .as("%s should push %s", opcodeName, expectedValue)
                     .isEqualTo(expectedValue);
@@ -654,7 +647,8 @@ class HandlerEdgeCaseTest {
         void handle_iconst0_afterBranch_withBooleanValueOfNext_skipped() {
             // Boolean.valueOf(Z) after ICONST_0 - this is intermediate, ICONST is skipped
             testMethod.instructions.add(new InsnNode(ICONST_0));
-            testMethod.instructions.add(new MethodInsnNode(INVOKESTATIC, "java/lang/Boolean", "valueOf", "(Z)Ljava/lang/Boolean;", false));
+            testMethod.instructions
+                    .add(new MethodInsnNode(INVOKESTATIC, "java/lang/Boolean", "valueOf", "(Z)Ljava/lang/Boolean;", false));
             testMethod.instructions.add(new InsnNode(ARETURN));
             AnalysisContext ctx = new AnalysisContext(testMethod, 0);
             ctx.markBranchSeen();
@@ -688,7 +682,7 @@ class HandlerEdgeCaseTest {
         }
 
         @ParameterizedTest(name = "ICONST_0 after branch with {0} next pushes for logical")
-        @ValueSource(ints = {IOR, IAND, IXOR})
+        @ValueSource(ints = { IOR, IAND, IXOR })
         void handle_iconst0_afterBranch_withLogicalNext_pushedForLogical(int logicalOpcode) {
             testMethod.instructions.add(new InsnNode(ICONST_0));
             testMethod.instructions.add(new InsnNode(logicalOpcode));
@@ -707,10 +701,11 @@ class HandlerEdgeCaseTest {
         }
 
         @ParameterizedTest(name = "ICONST_0 after branch with {0} next pushes for branch")
-        @ValueSource(ints = {IFNULL, IFNONNULL})
+        @ValueSource(ints = { IFNULL, IFNONNULL })
         void handle_iconst0_afterBranch_withNullBranchNext_pushedForBranch(int branchOpcode) {
             testMethod.instructions.add(new InsnNode(ICONST_0));
-            testMethod.instructions.add(new org.objectweb.asm.tree.JumpInsnNode(branchOpcode, new org.objectweb.asm.tree.LabelNode()));
+            testMethod.instructions
+                    .add(new org.objectweb.asm.tree.JumpInsnNode(branchOpcode, new org.objectweb.asm.tree.LabelNode()));
             AnalysisContext ctx = new AnalysisContext(testMethod, 0);
             ctx.markBranchSeen();
             ctx.push(constant(1));
@@ -786,7 +781,7 @@ class HandlerEdgeCaseTest {
         // ==================== Kill mutations for boundary conditions ====================
 
         @ParameterizedTest(name = "canHandle non-constant opcode {0} returns false")
-        @ValueSource(ints = {ALOAD, ISTORE, POP, NOP})
+        @ValueSource(ints = { ALOAD, ISTORE, POP, NOP })
         void canHandle_withNonConstantOpcode_returnsFalse(int opcode) {
             // Opcodes outside constant range should not be handled
             assertThat(handler.canHandle(new InsnNode(opcode)))
@@ -798,7 +793,7 @@ class HandlerEdgeCaseTest {
         // These test boundary opcodes at the edges of the arithmetic and branch ranges
 
         @ParameterizedTest(name = "ICONST_0 before {1} arithmetic opcode pushes for expression")
-        @ValueSource(ints = {IADD, DREM})
+        @ValueSource(ints = { IADD, DREM })
         void handle_iconst0_afterBranch_withArithmeticBoundary_pushedForArithmetic(int opcode) {
             testMethod.instructions.add(new InsnNode(ICONST_0));
             testMethod.instructions.add(new InsnNode(opcode));
@@ -813,10 +808,11 @@ class HandlerEdgeCaseTest {
         }
 
         @ParameterizedTest(name = "ICONST_0 before branch opcode {0} pushes for branch")
-        @ValueSource(ints = {IFEQ, IF_ICMPLE})
+        @ValueSource(ints = { IFEQ, IF_ICMPLE })
         void handle_iconst0_afterBranch_withBranchBoundary_pushedForBranch(int opcode) {
             testMethod.instructions.add(new InsnNode(ICONST_0));
-            testMethod.instructions.add(new org.objectweb.asm.tree.JumpInsnNode(opcode, new org.objectweb.asm.tree.LabelNode()));
+            testMethod.instructions
+                    .add(new org.objectweb.asm.tree.JumpInsnNode(opcode, new org.objectweb.asm.tree.LabelNode()));
             AnalysisContext ctx = new AnalysisContext(testMethod, 0);
             ctx.markBranchSeen();
             ctx.push(constant(1));
@@ -835,7 +831,8 @@ class HandlerEdgeCaseTest {
             // But isFinalResult only skips labels, not Boolean.valueOf, so it returns false
             // Result: ICONST is skipped as intermediate marker, doesn't terminate
             testMethod.instructions.add(new InsnNode(ICONST_0));
-            testMethod.instructions.add(new MethodInsnNode(INVOKESTATIC, "java/lang/Boolean", "valueOf", "(Z)Ljava/lang/Boolean;", false));
+            testMethod.instructions
+                    .add(new MethodInsnNode(INVOKESTATIC, "java/lang/Boolean", "valueOf", "(Z)Ljava/lang/Boolean;", false));
             testMethod.instructions.add(new InsnNode(ARETURN));
             AnalysisContext ctx = new AnalysisContext(testMethod, 0);
             ctx.markBranchSeen();
@@ -857,7 +854,8 @@ class HandlerEdgeCaseTest {
         void handle_iconst0_afterBranch_withNonBooleanStaticMethod_pushedForInvoke() {
             // Non-Boolean.valueOf static method should push ICONST for use as argument
             testMethod.instructions.add(new InsnNode(ICONST_0));
-            testMethod.instructions.add(new MethodInsnNode(INVOKESTATIC, "java/lang/Integer", "valueOf", "(I)Ljava/lang/Integer;", false));
+            testMethod.instructions
+                    .add(new MethodInsnNode(INVOKESTATIC, "java/lang/Integer", "valueOf", "(I)Ljava/lang/Integer;", false));
             AnalysisContext ctx = new AnalysisContext(testMethod, 0);
             ctx.markBranchSeen();
             ctx.push(constant(1));
@@ -923,7 +921,7 @@ class HandlerEdgeCaseTest {
         private final TypeConversionHandler handler = TypeConversionHandler.INSTANCE;
 
         @ParameterizedTest(name = "canHandle primitive conversion opcode {0}")
-        @ValueSource(ints = {I2L, I2F, I2D, L2I, L2F, L2D, F2I, F2L, F2D, D2I, D2L, D2F})
+        @ValueSource(ints = { I2L, I2F, I2D, L2I, L2F, L2D, F2I, F2L, F2D, D2I, D2L, D2F })
         void canHandle_withPrimitiveConversions_returnsTrue(int opcode) {
             assertThat(handler.canHandle(new InsnNode(opcode)))
                     .as("Should handle primitive type conversion opcode %d", opcode)
@@ -931,7 +929,7 @@ class HandlerEdgeCaseTest {
         }
 
         @ParameterizedTest(name = "canHandle opcode {0} returns false")
-        @ValueSource(ints = {I2B, I2C, I2S, CHECKCAST, INSTANCEOF, IADD, IRETURN})
+        @ValueSource(ints = { I2B, I2C, I2S, CHECKCAST, INSTANCEOF, IADD, IRETURN })
         void canHandle_withUnhandledOpcode_returnsFalse(int opcode) {
             assertThat(handler.canHandle(new InsnNode(opcode)))
                     .as("TypeConversionHandler should not handle opcode %d", opcode)
@@ -966,8 +964,7 @@ class HandlerEdgeCaseTest {
                     // D2* conversions (double source)
                     Arguments.of(D2I, 9.99, double.class, 9, int.class, null, "D2I"),
                     Arguments.of(D2L, 9.99, double.class, 9L, long.class, null, "D2L"),
-                    Arguments.of(D2F, 9.99, double.class, 9.99f, float.class, 0.01, "D2F")
-            );
+                    Arguments.of(D2F, 9.99, double.class, 9.99f, float.class, 0.01, "D2F"));
         }
 
         @ParameterizedTest(name = "{6} folds constant correctly")
@@ -981,8 +978,8 @@ class HandlerEdgeCaseTest {
             assertThat(context.getStackSize()).isEqualTo(1);
             assertThat(context.peek())
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant.class);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result = (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context
+                    .peek();
             assertThat(result.type())
                     .as("%s should convert to %s", opcodeName, expectedType.getSimpleName())
                     .isEqualTo(expectedType);
@@ -1010,20 +1007,20 @@ class HandlerEdgeCaseTest {
                     Arguments.of(I2L, 42L, long.class, "I2L with long"),
                     Arguments.of(L2I, 42, int.class, "L2I with int"),
                     Arguments.of(F2I, 3.14, double.class, "F2I with double"),
-                    Arguments.of(D2I, 3.14f, float.class, "D2I with float")
-            );
+                    Arguments.of(D2I, 3.14f, float.class, "D2I with float"));
         }
 
         @ParameterizedTest(name = "{3} does not fold")
         @MethodSource("typeMismatchConversions")
-        void handle_conversion_withWrongSourceType_doesNotFold(int opcode, Object value, Class<?> expectedType, String description) {
+        void handle_conversion_withWrongSourceType_doesNotFold(int opcode, Object value, Class<?> expectedType,
+                String description) {
             context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant(value, expectedType));
 
             handler.handle(new InsnNode(opcode), context);
 
             assertThat(context.getStackSize()).isEqualTo(1);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context.peek();
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result = (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context
+                    .peek();
             assertThat(result.type())
                     .as("Type mismatch should not fold - original %s should remain", expectedType.getSimpleName())
                     .isEqualTo(expectedType);
@@ -1088,7 +1085,7 @@ class HandlerEdgeCaseTest {
         // ==================== canHandle Tests ====================
 
         @ParameterizedTest(name = "canHandle invoke opcode {0}")
-        @ValueSource(ints = {INVOKEVIRTUAL, INVOKESTATIC, INVOKESPECIAL, INVOKEINTERFACE})
+        @ValueSource(ints = { INVOKEVIRTUAL, INVOKESTATIC, INVOKESPECIAL, INVOKEINTERFACE })
         void canHandle_withInvokeOpcode_returnsTrue(int opcode) {
             boolean isInterface = opcode == INVOKEINTERFACE;
             MethodInsnNode methodInsn = new MethodInsnNode(opcode, "java/lang/Object", "test", "()V", isInterface);
@@ -1123,18 +1120,17 @@ class HandlerEdgeCaseTest {
                     Arguments.of("com/example/Person", "isActive", "()Z",
                             MethodInvocationHandler.VirtualMethodCategory.GETTER),
                     Arguments.of("com/example/Foo", "doSomething", "(II)V",
-                            MethodInvocationHandler.VirtualMethodCategory.UNHANDLED)
-            );
+                            MethodInvocationHandler.VirtualMethodCategory.UNHANDLED));
         }
 
         @ParameterizedTest(name = "{1} on {0} returns {3}")
         @MethodSource("methodCategoryMappings")
         void categorize_method_returnsCorrectCategory(String owner, String methodName, String descriptor,
-                                                       MethodInvocationHandler.VirtualMethodCategory expectedCategory) {
+                MethodInvocationHandler.VirtualMethodCategory expectedCategory) {
             MethodInsnNode insn = new MethodInsnNode(INVOKEVIRTUAL, owner, methodName, descriptor, false);
 
-            MethodInvocationHandler.VirtualMethodCategory category =
-                    MethodInvocationHandler.VirtualMethodCategory.categorize(insn, handler);
+            MethodInvocationHandler.VirtualMethodCategory category = MethodInvocationHandler.VirtualMethodCategory
+                    .categorize(insn, handler);
 
             assertThat(category).isEqualTo(expectedCategory);
         }
@@ -1145,7 +1141,8 @@ class HandlerEdgeCaseTest {
         void handle_booleanValueOf_skipsAndDoesNotAffectStack() {
             // Boolean.valueOf(Z) should be skipped
             context.push(constant(true));
-            MethodInsnNode booleanValueOf = new MethodInsnNode(INVOKESTATIC, "java/lang/Boolean", "valueOf", "(Z)Ljava/lang/Boolean;", false);
+            MethodInsnNode booleanValueOf = new MethodInsnNode(INVOKESTATIC, "java/lang/Boolean", "valueOf",
+                    "(Z)Ljava/lang/Boolean;", false);
 
             boolean terminated = handler.handle(booleanValueOf, context);
 
@@ -1161,7 +1158,8 @@ class HandlerEdgeCaseTest {
             context.push(constant(2024));
             context.push(constant(1));
             context.push(constant(15));
-            MethodInsnNode localDateOf = new MethodInsnNode(INVOKESTATIC, "java/time/LocalDate", "of", "(III)Ljava/time/LocalDate;", false);
+            MethodInsnNode localDateOf = new MethodInsnNode(INVOKESTATIC, "java/time/LocalDate", "of",
+                    "(III)Ljava/time/LocalDate;", false);
 
             handler.handle(localDateOf, context);
 
@@ -1175,7 +1173,8 @@ class HandlerEdgeCaseTest {
             // Push constant arguments for LocalTime.of(10, 30)
             context.push(constant(10));
             context.push(constant(30));
-            MethodInsnNode localTimeOf = new MethodInsnNode(INVOKESTATIC, "java/time/LocalTime", "of", "(II)Ljava/time/LocalTime;", false);
+            MethodInsnNode localTimeOf = new MethodInsnNode(INVOKESTATIC, "java/time/LocalTime", "of",
+                    "(II)Ljava/time/LocalTime;", false);
 
             handler.handle(localTimeOf, context);
 
@@ -1192,7 +1191,8 @@ class HandlerEdgeCaseTest {
             context.push(constant(15));
             context.push(constant(10));
             context.push(constant(30));
-            MethodInsnNode localDateTimeOf = new MethodInsnNode(INVOKESTATIC, "java/time/LocalDateTime", "of", "(IIIII)Ljava/time/LocalDateTime;", false);
+            MethodInsnNode localDateTimeOf = new MethodInsnNode(INVOKESTATIC, "java/time/LocalDateTime", "of",
+                    "(IIIII)Ljava/time/LocalDateTime;", false);
 
             handler.handle(localDateTimeOf, context);
 
@@ -1206,7 +1206,8 @@ class HandlerEdgeCaseTest {
             // Push only 2 args for LocalDate.of (which expects 3)
             context.push(constant(2024));
             context.push(constant(1));
-            MethodInsnNode localDateOf = new MethodInsnNode(INVOKESTATIC, "java/time/LocalDate", "of", "(II)Ljava/time/LocalDate;", false);
+            MethodInsnNode localDateOf = new MethodInsnNode(INVOKESTATIC, "java/time/LocalDate", "of",
+                    "(II)Ljava/time/LocalDate;", false);
 
             handler.handle(localDateOf, context);
 
@@ -1222,7 +1223,8 @@ class HandlerEdgeCaseTest {
             context.push(constant(1));
             context.push(constant(15));
             // Wrong owner - not a temporal class
-            MethodInsnNode wrongOwner = new MethodInsnNode(INVOKESTATIC, "java/time/ZonedDateTime", "of", "(III)Ljava/time/ZonedDateTime;", false);
+            MethodInsnNode wrongOwner = new MethodInsnNode(INVOKESTATIC, "java/time/ZonedDateTime", "of",
+                    "(III)Ljava/time/ZonedDateTime;", false);
 
             handler.handle(wrongOwner, context);
 
@@ -1237,7 +1239,8 @@ class HandlerEdgeCaseTest {
             context.push(constant(1));
             context.push(constant(15));
             // Wrong method name - not "of"
-            MethodInsnNode wrongMethod = new MethodInsnNode(INVOKESTATIC, "java/time/LocalDate", "parse", "(Ljava/lang/String;)Ljava/time/LocalDate;", false);
+            MethodInsnNode wrongMethod = new MethodInsnNode(INVOKESTATIC, "java/time/LocalDate", "parse",
+                    "(Ljava/lang/String;)Ljava/time/LocalDate;", false);
 
             handler.handle(wrongMethod, context);
 
@@ -1253,11 +1256,12 @@ class HandlerEdgeCaseTest {
             // Simulate: new BigDecimal("123.45")
             // Stack: [placeholder for NEW, placeholder for DUP, "123.45"]
             // discardN(2) will remove the first two elements after popping args
-            context.push(constant("new_marker"));  // Placeholder for NEW
-            context.push(constant("dup_marker"));  // Placeholder for DUP
+            context.push(constant("new_marker")); // Placeholder for NEW
+            context.push(constant("dup_marker")); // Placeholder for DUP
             context.push(constant("123.45"));
 
-            MethodInsnNode bigDecimalInit = new MethodInsnNode(INVOKESPECIAL, "java/math/BigDecimal", "<init>", "(Ljava/lang/String;)V", false);
+            MethodInsnNode bigDecimalInit = new MethodInsnNode(INVOKESPECIAL, "java/math/BigDecimal", "<init>",
+                    "(Ljava/lang/String;)V", false);
 
             handler.handle(bigDecimalInit, context);
 
@@ -1273,7 +1277,8 @@ class HandlerEdgeCaseTest {
             context.push(constant("dup_marker"));
             context.push(constant("not a number"));
 
-            MethodInsnNode bigDecimalInit = new MethodInsnNode(INVOKESPECIAL, "java/math/BigDecimal", "<init>", "(Ljava/lang/String;)V", false);
+            MethodInsnNode bigDecimalInit = new MethodInsnNode(INVOKESPECIAL, "java/math/BigDecimal", "<init>",
+                    "(Ljava/lang/String;)V", false);
 
             handler.handle(bigDecimalInit, context);
 
@@ -1289,7 +1294,8 @@ class HandlerEdgeCaseTest {
             context.push(constant("dup_marker"));
             context.push(constant("arg"));
 
-            MethodInsnNode someClassInit = new MethodInsnNode(INVOKESPECIAL, "com/example/SomeClass", "<init>", "(Ljava/lang/String;)V", false);
+            MethodInsnNode someClassInit = new MethodInsnNode(INVOKESPECIAL, "com/example/SomeClass", "<init>",
+                    "(Ljava/lang/String;)V", false);
 
             handler.handle(someClassInit, context);
 
@@ -1306,7 +1312,8 @@ class HandlerEdgeCaseTest {
             context.push(constant(1));
             context.push(constant("test"));
 
-            MethodInsnNode multiArgInit = new MethodInsnNode(INVOKESPECIAL, "com/example/SomeClass", "<init>", "(ILjava/lang/String;)V", false);
+            MethodInsnNode multiArgInit = new MethodInsnNode(INVOKESPECIAL, "com/example/SomeClass", "<init>",
+                    "(ILjava/lang/String;)V", false);
 
             handler.handle(multiArgInit, context);
 
@@ -1319,7 +1326,8 @@ class HandlerEdgeCaseTest {
         void handle_nonConstructorInvokeSpecial_doesNothing() {
             // Simulate: super.someMethod() - not a constructor
             context.push(field("name", String.class));
-            MethodInsnNode superMethod = new MethodInsnNode(INVOKESPECIAL, "java/lang/Object", "toString", "()Ljava/lang/String;", false);
+            MethodInsnNode superMethod = new MethodInsnNode(INVOKESPECIAL, "java/lang/Object", "toString",
+                    "()Ljava/lang/String;", false);
 
             handler.handle(superMethod, context);
 
@@ -1334,7 +1342,8 @@ class HandlerEdgeCaseTest {
         void handle_substringOneArg_createsMethodCall() {
             context.push(field("name", String.class));
             context.push(constant(5));
-            MethodInsnNode substringInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "substring", "(I)Ljava/lang/String;", false);
+            MethodInsnNode substringInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "substring",
+                    "(I)Ljava/lang/String;", false);
 
             handler.handle(substringInsn, context);
 
@@ -1348,7 +1357,8 @@ class HandlerEdgeCaseTest {
             context.push(field("name", String.class));
             context.push(constant(0));
             context.push(constant(5));
-            MethodInsnNode substringInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "substring", "(II)Ljava/lang/String;", false);
+            MethodInsnNode substringInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "substring",
+                    "(II)Ljava/lang/String;", false);
 
             handler.handle(substringInsn, context);
 
@@ -1361,7 +1371,8 @@ class HandlerEdgeCaseTest {
         void handle_substringInsufficientStack_doesNotThrow() {
             // Only one element when we need 2 for substring(I)
             context.push(field("name", String.class));
-            MethodInsnNode substringInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "substring", "(I)Ljava/lang/String;", false);
+            MethodInsnNode substringInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "substring",
+                    "(I)Ljava/lang/String;", false);
 
             // Should not throw, just leave stack as-is
             handler.handle(substringInsn, context);
@@ -1376,7 +1387,8 @@ class HandlerEdgeCaseTest {
             context.push(field("name", String.class));
             context.push(constant(5));
             // Wrong descriptor
-            MethodInsnNode substringWrong = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "substring", "(Ljava/lang/String;)Ljava/lang/String;", false);
+            MethodInsnNode substringWrong = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "substring",
+                    "(Ljava/lang/String;)Ljava/lang/String;", false);
 
             handler.handle(substringWrong, context);
 
@@ -1388,7 +1400,7 @@ class HandlerEdgeCaseTest {
         // ==================== BigDecimal Arithmetic Tests ====================
 
         @ParameterizedTest(name = "BigDecimal.{0} creates MethodCall")
-        @ValueSource(strings = {"add", "subtract", "multiply", "divide"})
+        @ValueSource(strings = { "add", "subtract", "multiply", "divide" })
         void handle_bigDecimalArithmetic_createsMethodCall(String methodName) {
             context.push(field("price", java.math.BigDecimal.class));
             context.push(constant(new java.math.BigDecimal("2.00")));
@@ -1407,7 +1419,8 @@ class HandlerEdgeCaseTest {
             context.push(field("price", java.math.BigDecimal.class));
             context.push(constant(new java.math.BigDecimal("2.00")));
             // negate() is not handled by BigDecimal arithmetic
-            MethodInsnNode negateInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/math/BigDecimal", "negate", "()Ljava/math/BigDecimal;", false);
+            MethodInsnNode negateInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/math/BigDecimal", "negate",
+                    "()Ljava/math/BigDecimal;", false);
 
             handler.handle(negateInsn, context);
 
@@ -1422,7 +1435,8 @@ class HandlerEdgeCaseTest {
         @Test
         void handle_getterOnEmptyStack_doesNothing() {
             // Empty stack - should not throw
-            MethodInsnNode getterInsn = new MethodInsnNode(INVOKEVIRTUAL, "com/example/Person", "getName", "()Ljava/lang/String;", false);
+            MethodInsnNode getterInsn = new MethodInsnNode(INVOKEVIRTUAL, "com/example/Person", "getName",
+                    "()Ljava/lang/String;", false);
 
             handler.handle(getterInsn, context);
 
@@ -1434,8 +1448,7 @@ class HandlerEdgeCaseTest {
         static Stream<Arguments> getterPatterns() {
             return Stream.of(
                     Arguments.of("getName", "()Ljava/lang/String;", "get-style getter"),
-                    Arguments.of("isActive", "()Z", "is-style getter")
-            );
+                    Arguments.of("isActive", "()Z", "is-style getter"));
         }
 
         @ParameterizedTest(name = "{2} creates FieldAccess")
@@ -1455,10 +1468,11 @@ class HandlerEdgeCaseTest {
         @Test
         void handle_getterWithNonGetterDescriptor_categorizedAsUnhandled() {
             // Descriptor with parameters - not a getter
-            MethodInsnNode notGetter = new MethodInsnNode(INVOKEVIRTUAL, "com/example/Person", "getName", "(I)Ljava/lang/String;", false);
+            MethodInsnNode notGetter = new MethodInsnNode(INVOKEVIRTUAL, "com/example/Person", "getName",
+                    "(I)Ljava/lang/String;", false);
 
-            MethodInvocationHandler.VirtualMethodCategory category =
-                    MethodInvocationHandler.VirtualMethodCategory.categorize(notGetter, handler);
+            MethodInvocationHandler.VirtualMethodCategory category = MethodInvocationHandler.VirtualMethodCategory
+                    .categorize(notGetter, handler);
 
             assertThat(category)
                     .as("Method with parameters is not a getter")
@@ -1476,7 +1490,8 @@ class HandlerEdgeCaseTest {
                     Object.class,
                     0,
                     io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition.FIRST));
-            MethodInsnNode getterInsn = new MethodInsnNode(INVOKEVIRTUAL, "com/example/Person", "getName", "()Ljava/lang/String;", false);
+            MethodInsnNode getterInsn = new MethodInsnNode(INVOKEVIRTUAL, "com/example/Person", "getName",
+                    "()Ljava/lang/String;", false);
 
             handler.handle(getterInsn, context);
 
@@ -1493,7 +1508,8 @@ class HandlerEdgeCaseTest {
             // Simulate calling Collection.contains() which is a group method
             context.push(field("items", java.util.Collection.class));
             context.push(param("element", Object.class, 0));
-            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z", true);
+            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains",
+                    "(Ljava/lang/Object;)Z", true);
 
             // Handler should process but may not modify stack if no group method analyzer configured
             handler.handle(containsInsn, context);
@@ -1508,7 +1524,8 @@ class HandlerEdgeCaseTest {
         void handle_booleanValueOf_wrongOwner_doesNotSkip() {
             // Boolean.valueOf with wrong owner should not be skipped
             context.push(constant(true));
-            MethodInsnNode wrongOwner = new MethodInsnNode(INVOKESTATIC, "java/lang/Integer", "valueOf", "(I)Ljava/lang/Integer;", false);
+            MethodInsnNode wrongOwner = new MethodInsnNode(INVOKESTATIC, "java/lang/Integer", "valueOf",
+                    "(I)Ljava/lang/Integer;", false);
 
             handler.handle(wrongOwner, context);
 
@@ -1520,7 +1537,8 @@ class HandlerEdgeCaseTest {
         void handle_booleanValueOf_wrongMethodName_doesNotSkip() {
             // Boolean with wrong method name should not be skipped
             context.push(constant(true));
-            MethodInsnNode wrongMethod = new MethodInsnNode(INVOKESTATIC, "java/lang/Boolean", "parseBoolean", "(Ljava/lang/String;)Z", false);
+            MethodInsnNode wrongMethod = new MethodInsnNode(INVOKESTATIC, "java/lang/Boolean", "parseBoolean",
+                    "(Ljava/lang/String;)Z", false);
 
             handler.handle(wrongMethod, context);
 
@@ -1532,7 +1550,8 @@ class HandlerEdgeCaseTest {
         void handle_booleanValueOf_wrongDescriptor_doesNotSkip() {
             // Boolean.valueOf with wrong descriptor should not be skipped
             context.push(constant("true"));
-            MethodInsnNode wrongDesc = new MethodInsnNode(INVOKESTATIC, "java/lang/Boolean", "valueOf", "(Ljava/lang/String;)Ljava/lang/Boolean;", false);
+            MethodInsnNode wrongDesc = new MethodInsnNode(INVOKESTATIC, "java/lang/Boolean", "valueOf",
+                    "(Ljava/lang/String;)Ljava/lang/Boolean;", false);
 
             handler.handle(wrongDesc, context);
 
@@ -1546,7 +1565,8 @@ class HandlerEdgeCaseTest {
         void handle_invokeSpecial_nonConstructor_withNullArgs_leavesStackUnchanged() {
             // Non-constructor INVOKESPECIAL with no proper args extraction
             context.push(field("name", String.class));
-            MethodInsnNode privateMethod = new MethodInsnNode(INVOKESPECIAL, "com/example/Parent", "privateHelper", "()V", false);
+            MethodInsnNode privateMethod = new MethodInsnNode(INVOKESPECIAL, "com/example/Parent", "privateHelper", "()V",
+                    false);
 
             handler.handle(privateMethod, context);
 
@@ -1560,9 +1580,10 @@ class HandlerEdgeCaseTest {
         @Test
         void handle_collectionContains_withCapturedVariableAndFieldAccess_createsInExpression() {
             // IN clause pattern: capturedCollection.contains(p.field)
-            context.push(captured(0, java.util.List.class));  // CapturedVariable - collection from outer scope
-            context.push(field("city", String.class));  // FieldAccess - entity field
-            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z", true);
+            context.push(captured(0, java.util.List.class)); // CapturedVariable - collection from outer scope
+            context.push(field("city", String.class)); // FieldAccess - entity field
+            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains",
+                    "(Ljava/lang/Object;)Z", true);
 
             handler.handle(containsInsn, context);
 
@@ -1575,9 +1596,10 @@ class HandlerEdgeCaseTest {
         @Test
         void handle_collectionContains_withFieldAccessAndConstant_createsMemberOfExpression() {
             // MEMBER OF pattern: p.roles.contains("admin")
-            context.push(field("roles", java.util.Set.class));  // FieldAccess - collection field on entity
-            context.push(constant("admin"));  // Constant - value to check
-            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z", true);
+            context.push(field("roles", java.util.Set.class)); // FieldAccess - collection field on entity
+            context.push(constant("admin")); // Constant - value to check
+            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains",
+                    "(Ljava/lang/Object;)Z", true);
 
             handler.handle(containsInsn, context);
 
@@ -1590,9 +1612,10 @@ class HandlerEdgeCaseTest {
         @Test
         void handle_collectionContains_withFieldAccessAndCapturedVariable_createsMemberOfExpression() {
             // MEMBER OF pattern: p.tags.contains(capturedTag)
-            context.push(field("tags", java.util.Set.class));  // FieldAccess - collection field
-            context.push(captured(0, String.class));  // CapturedVariable - value from outer scope
-            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z", true);
+            context.push(field("tags", java.util.Set.class)); // FieldAccess - collection field
+            context.push(captured(0, String.class)); // CapturedVariable - value from outer scope
+            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains",
+                    "(Ljava/lang/Object;)Z", true);
 
             handler.handle(containsInsn, context);
 
@@ -1605,9 +1628,10 @@ class HandlerEdgeCaseTest {
         @Test
         void handle_collectionContains_withNonMatchingPattern_createsMethodCall() {
             // Neither IN nor MEMBER OF pattern: constant.contains(constant)
-            context.push(constant(java.util.List.of("a", "b")));  // Constant - not CapturedVariable or FieldAccess
-            context.push(constant("x"));  // Constant
-            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z", true);
+            context.push(constant(java.util.List.of("a", "b"))); // Constant - not CapturedVariable or FieldAccess
+            context.push(constant("x")); // Constant
+            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains",
+                    "(Ljava/lang/Object;)Z", true);
 
             handler.handle(containsInsn, context);
 
@@ -1620,13 +1644,16 @@ class HandlerEdgeCaseTest {
         @Test
         void handle_collectionContains_withPathExpressionTarget_createsInExpression() {
             // IN clause with PathExpression argument
-            context.push(captured(0, java.util.List.class));  // CapturedVariable
+            context.push(captured(0, java.util.List.class)); // CapturedVariable
             context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathExpression(
                     java.util.List.of(
-                            new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment("address", Object.class, io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType.FIELD),
-                            new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment("city", String.class, io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType.FIELD)),
-                    String.class));  // PathExpression
-            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z", true);
+                            new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment("address", Object.class,
+                                    io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType.FIELD),
+                            new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment("city", String.class,
+                                    io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType.FIELD)),
+                    String.class)); // PathExpression
+            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains",
+                    "(Ljava/lang/Object;)Z", true);
 
             handler.handle(containsInsn, context);
 
@@ -1641,7 +1668,8 @@ class HandlerEdgeCaseTest {
             context.push(captured(0, java.util.List.class));
             context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityFieldAccess(
                     "city", String.class, io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition.FIRST));
-            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z", true);
+            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains",
+                    "(Ljava/lang/Object;)Z", true);
 
             handler.handle(containsInsn, context);
 
@@ -1656,10 +1684,13 @@ class HandlerEdgeCaseTest {
             context.push(captured(0, java.util.List.class));
             context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityPathExpression(
                     java.util.List.of(
-                            new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment("address", Object.class, io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType.FIELD),
-                            new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment("city", String.class, io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType.FIELD)),
+                            new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment("address", Object.class,
+                                    io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType.FIELD),
+                            new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment("city", String.class,
+                                    io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType.FIELD)),
                     String.class, io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition.SECOND));
-            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z", true);
+            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains",
+                    "(Ljava/lang/Object;)Z", true);
 
             handler.handle(containsInsn, context);
 
@@ -1673,11 +1704,14 @@ class HandlerEdgeCaseTest {
             // MEMBER OF with PathExpression target (collection field)
             context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathExpression(
                     java.util.List.of(
-                            new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment("person", Object.class, io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType.FIELD),
-                            new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment("roles", java.util.Set.class, io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType.FIELD)),
-                    java.util.Set.class));  // PathExpression target
-            context.push(constant("admin"));  // Constant value
-            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z", true);
+                            new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment("person", Object.class,
+                                    io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType.FIELD),
+                            new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment("roles", java.util.Set.class,
+                                    io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType.FIELD)),
+                    java.util.Set.class)); // PathExpression target
+            context.push(constant("admin")); // Constant value
+            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains",
+                    "(Ljava/lang/Object;)Z", true);
 
             handler.handle(containsInsn, context);
 
@@ -1692,7 +1726,8 @@ class HandlerEdgeCaseTest {
             context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityFieldAccess(
                     "roles", java.util.Set.class, io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition.FIRST));
             context.push(constant("admin"));
-            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z", true);
+            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains",
+                    "(Ljava/lang/Object;)Z", true);
 
             handler.handle(containsInsn, context);
 
@@ -1706,11 +1741,14 @@ class HandlerEdgeCaseTest {
             // MEMBER OF with BiEntityPathExpression target
             context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityPathExpression(
                     java.util.List.of(
-                            new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment("person", Object.class, io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType.FIELD),
-                            new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment("roles", java.util.Set.class, io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType.FIELD)),
+                            new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment("person", Object.class,
+                                    io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType.FIELD),
+                            new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment("roles", java.util.Set.class,
+                                    io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType.FIELD)),
                     java.util.Set.class, io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition.SECOND));
             context.push(constant("admin"));
-            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z", true);
+            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains",
+                    "(Ljava/lang/Object;)Z", true);
 
             handler.handle(containsInsn, context);
 
@@ -1725,13 +1763,13 @@ class HandlerEdgeCaseTest {
             return Stream.of(
                     Arguments.of("java/util/Collection", "add", "(Ljava/lang/Object;)Z", "wrong method name"),
                     Arguments.of("java/util/Collection", "contains", "(II)Z", "wrong descriptor"),
-                    Arguments.of("java/util/Map", "contains", "(Ljava/lang/Object;)Z", "wrong owner")
-            );
+                    Arguments.of("java/util/Map", "contains", "(Ljava/lang/Object;)Z", "wrong owner"));
         }
 
         @ParameterizedTest(name = "contains call with {3} does not create InExpression")
         @MethodSource("invalidContainsCallCases")
-        void handle_containsCall_invalid_doesNotCreateInExpression(String owner, String method, String descriptor, String description) {
+        void handle_containsCall_invalid_doesNotCreateInExpression(String owner, String method, String descriptor,
+                String description) {
             context.push(captured(0, java.util.List.class));
             context.push(field("city", String.class));
             MethodInsnNode insn = new MethodInsnNode(INVOKEINTERFACE, owner, method, descriptor, true);
@@ -1744,7 +1782,7 @@ class HandlerEdgeCaseTest {
         }
 
         @ParameterizedTest(name = "contains on {0} owner creates InExpression")
-        @ValueSource(strings = {"java/util/List", "java/util/Set", "java/util/Collection"})
+        @ValueSource(strings = { "java/util/List", "java/util/Set", "java/util/Collection" })
         void handle_containsCall_collectionOwner_createsExpression(String owner) {
             context.push(captured(0, java.util.Collection.class));
             context.push(field("city", String.class));
@@ -1760,12 +1798,13 @@ class HandlerEdgeCaseTest {
         // ==================== handleCollectionContains empty stack test (kill mutation 354) ====================
 
         @ParameterizedTest(name = "collection contains with {0} stack elements throws underflow")
-        @ValueSource(ints = {0, 1})
+        @ValueSource(ints = { 0, 1 })
         void handle_collectionContains_insufficientStack_throwsException(int stackElements) {
             for (int i = 0; i < stackElements; i++) {
                 context.push(captured(i, java.util.List.class));
             }
-            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z", true);
+            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains",
+                    "(Ljava/lang/Object;)Z", true);
 
             assertThatThrownBy(() -> handler.handle(containsInsn, context))
                     .isInstanceOf(BytecodeAnalysisException.class)
@@ -1780,7 +1819,8 @@ class HandlerEdgeCaseTest {
             context.push(constant(2024));
             context.push(constant(1));
             // Missing third argument
-            MethodInsnNode localDateOf = new MethodInsnNode(INVOKESTATIC, "java/time/LocalDate", "of", "(III)Ljava/time/LocalDate;", false);
+            MethodInsnNode localDateOf = new MethodInsnNode(INVOKESTATIC, "java/time/LocalDate", "of",
+                    "(III)Ljava/time/LocalDate;", false);
 
             handler.handle(localDateOf, context);
 
@@ -1797,7 +1837,8 @@ class HandlerEdgeCaseTest {
             context.push(constant(1));
             context.push(constant(15));
             // LocalDateTime.of(III) doesn't exist - wrong descriptor
-            MethodInsnNode localDateTimeOf = new MethodInsnNode(INVOKESTATIC, "java/time/LocalDateTime", "of", "(III)Ljava/time/LocalDateTime;", false);
+            MethodInsnNode localDateTimeOf = new MethodInsnNode(INVOKESTATIC, "java/time/LocalDateTime", "of",
+                    "(III)Ljava/time/LocalDateTime;", false);
 
             handler.handle(localDateTimeOf, context);
 
@@ -1809,9 +1850,9 @@ class HandlerEdgeCaseTest {
 
         static Stream<Arguments> temporalFactoryNonConstantCases() {
             return Stream.of(
-                    Arguments.of("java/time/LocalTime", "(II)Ljava/time/LocalTime;", new Object[]{null, 30}, "LocalTime"),
-                    Arguments.of("java/time/LocalDate", "(III)Ljava/time/LocalDate;", new Object[]{null, 1, 15}, "LocalDate")
-            );
+                    Arguments.of("java/time/LocalTime", "(II)Ljava/time/LocalTime;", new Object[] { null, 30 }, "LocalTime"),
+                    Arguments.of("java/time/LocalDate", "(III)Ljava/time/LocalDate;", new Object[] { null, 1, 15 },
+                            "LocalDate"));
         }
 
         @ParameterizedTest(name = "{3}.of with non-constant args creates MethodCall")
@@ -1843,7 +1884,8 @@ class HandlerEdgeCaseTest {
             // Only 2 elements when we need 3 for substring(II)
             context.push(field("name", String.class));
             context.push(constant(0));
-            MethodInsnNode substringInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "substring", "(II)Ljava/lang/String;", false);
+            MethodInsnNode substringInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "substring",
+                    "(II)Ljava/lang/String;", false);
 
             handler.handle(substringInsn, context);
 
@@ -1856,9 +1898,10 @@ class HandlerEdgeCaseTest {
 
         static Stream<Arguments> invokeInterfaceMethodCases() {
             return Stream.of(
-                    Arguments.of("equals", "(Ljava/lang/Object;)Z", io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.class, "BinaryOp EQ"),
-                    Arguments.of("compareTo", "(Ljava/lang/Object;)I", io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall.class, "MethodCall")
-            );
+                    Arguments.of("equals", "(Ljava/lang/Object;)Z",
+                            io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.class, "BinaryOp EQ"),
+                    Arguments.of("compareTo", "(Ljava/lang/Object;)I",
+                            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall.class, "MethodCall"));
         }
 
         @ParameterizedTest(name = "interface {0}() creates {3}")
@@ -1882,8 +1925,8 @@ class HandlerEdgeCaseTest {
         @Test
         void handle_invokeSpecial_constructorWithNoArgs_createsConstructorCall() {
             // Zero-argument constructor
-            context.push(constant("new_marker"));  // NEW
-            context.push(constant("dup_marker"));  // DUP
+            context.push(constant("new_marker")); // NEW
+            context.push(constant("dup_marker")); // DUP
             // No constructor arguments
             MethodInsnNode noArgInit = new MethodInsnNode(INVOKESPECIAL, "com/example/SimpleClass", "<init>", "()V", false);
 
@@ -1899,8 +1942,8 @@ class HandlerEdgeCaseTest {
             // BigDecimal constructor with wrong arg count (not String constructor)
             context.push(constant("new_marker"));
             context.push(constant("dup_marker"));
-            context.push(constant(123L));  // long
-            context.push(constant(2));  // scale
+            context.push(constant(123L)); // long
+            context.push(constant(2)); // scale
             MethodInsnNode bigDecimalInit = new MethodInsnNode(INVOKESPECIAL, "java/math/BigDecimal", "<init>", "(JI)V", false);
 
             handler.handle(bigDecimalInit, context);
@@ -1915,8 +1958,9 @@ class HandlerEdgeCaseTest {
             // BigDecimal(String) but arg is not a Constant
             context.push(constant("new_marker"));
             context.push(constant("dup_marker"));
-            context.push(field("priceString", String.class));  // FieldAccess, not Constant
-            MethodInsnNode bigDecimalInit = new MethodInsnNode(INVOKESPECIAL, "java/math/BigDecimal", "<init>", "(Ljava/lang/String;)V", false);
+            context.push(field("priceString", String.class)); // FieldAccess, not Constant
+            MethodInsnNode bigDecimalInit = new MethodInsnNode(INVOKESPECIAL, "java/math/BigDecimal", "<init>",
+                    "(Ljava/lang/String;)V", false);
 
             handler.handle(bigDecimalInit, context);
 
@@ -1931,7 +1975,7 @@ class HandlerEdgeCaseTest {
             // BigDecimal constructor arg is Constant but not String type
             context.push(constant("new_marker"));
             context.push(constant("dup_marker"));
-            context.push(constant(123));  // Integer constant, not String
+            context.push(constant(123)); // Integer constant, not String
             MethodInsnNode bigDecimalInit = new MethodInsnNode(INVOKESPECIAL, "java/math/BigDecimal", "<init>", "(I)V", false);
 
             handler.handle(bigDecimalInit, context);
@@ -1945,17 +1989,18 @@ class HandlerEdgeCaseTest {
         // ==================== handleStringMethods - kill method name mutations ====================
 
         @ParameterizedTest(name = "String.{0} with argument creates MethodCall")
-        @ValueSource(strings = {"startsWith", "endsWith"})
+        @ValueSource(strings = { "startsWith", "endsWith" })
         void handle_stringMethodWithArg_createsMethodCall(String methodName) {
             context.push(field("name", String.class));
             context.push(constant("test"));
-            MethodInsnNode insn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", methodName, "(Ljava/lang/String;)Z", false);
+            MethodInsnNode insn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", methodName, "(Ljava/lang/String;)Z",
+                    false);
 
             handler.handle(insn, context);
 
             assertThat(context.getStackSize()).isEqualTo(1);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call = (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context
+                    .peek();
             assertThat(call.methodName()).isEqualTo(methodName);
         }
 
@@ -1963,13 +2008,14 @@ class HandlerEdgeCaseTest {
         void handle_stringContains_createsMethodCall() {
             context.push(field("name", String.class));
             context.push(constant("test"));
-            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "contains", "(Ljava/lang/CharSequence;)Z", false);
+            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", "contains",
+                    "(Ljava/lang/CharSequence;)Z", false);
 
             handler.handle(containsInsn, context);
 
             assertThat(context.getStackSize()).isEqualTo(1);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call = (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context
+                    .peek();
             assertThat(call.methodName()).isEqualTo("contains");
         }
 
@@ -1979,8 +2025,7 @@ class HandlerEdgeCaseTest {
                     Arguments.of("isEmpty", "()Z", boolean.class),
                     Arguments.of("toLowerCase", "()Ljava/lang/String;", String.class),
                     Arguments.of("toUpperCase", "()Ljava/lang/String;", String.class),
-                    Arguments.of("trim", "()Ljava/lang/String;", String.class)
-            );
+                    Arguments.of("trim", "()Ljava/lang/String;", String.class));
         }
 
         @ParameterizedTest(name = "String.{0} creates MethodCall with {2} return type")
@@ -1992,8 +2037,8 @@ class HandlerEdgeCaseTest {
             handler.handle(insn, context);
 
             assertThat(context.getStackSize()).isEqualTo(1);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call = (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context
+                    .peek();
             assertThat(call.methodName()).isEqualTo(methodName);
             assertThat(call.returnType()).isEqualTo(returnType);
         }
@@ -2019,8 +2064,7 @@ class HandlerEdgeCaseTest {
                     Arguments.of("equals", "(Ljava/lang/Object;)Z", "java/lang/Object", 0, "empty stack"),
                     Arguments.of("equals", "(Ljava/lang/Object;)Z", "java/lang/Object", 1, "one element"),
                     Arguments.of("compareTo", "(Ljava/lang/Integer;)I", "java/lang/Integer", 0, "empty stack"),
-                    Arguments.of("compareTo", "(Ljava/lang/Integer;)I", "java/lang/Integer", 1, "one element")
-            );
+                    Arguments.of("compareTo", "(Ljava/lang/Integer;)I", "java/lang/Integer", 1, "one element"));
         }
 
         @ParameterizedTest(name = "{0} with {4} throws stack underflow")
@@ -2040,7 +2084,7 @@ class HandlerEdgeCaseTest {
         // ==================== handleNoArgumentStringMethod - descriptor mismatch ====================
 
         @ParameterizedTest(name = "String.{0} with wrong descriptor does nothing")
-        @ValueSource(strings = {"length", "isEmpty"})
+        @ValueSource(strings = { "length", "isEmpty" })
         void handle_stringMethod_wrongDescriptor_doesNothing(String methodName) {
             context.push(field("name", String.class));
             MethodInsnNode wrongInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/lang/String", methodName, "(I)I", false);
@@ -2061,8 +2105,7 @@ class HandlerEdgeCaseTest {
                     Arguments.of("java/time/LocalDate", "birthDate", java.time.LocalDate.class, "getDayOfMonth"),
                     Arguments.of("java/time/LocalTime", "startTime", java.time.LocalTime.class, "getHour"),
                     Arguments.of("java/time/LocalTime", "startTime", java.time.LocalTime.class, "getMinute"),
-                    Arguments.of("java/time/LocalDateTime", "createdAt", java.time.LocalDateTime.class, "getYear")
-            );
+                    Arguments.of("java/time/LocalDateTime", "createdAt", java.time.LocalDateTime.class, "getYear"));
         }
 
         @ParameterizedTest(name = "{0}.{3} creates MethodCall")
@@ -2074,8 +2117,8 @@ class HandlerEdgeCaseTest {
             handler.handle(insn, context);
 
             assertThat(context.getStackSize()).isEqualTo(1);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call = (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context
+                    .peek();
             assertThat(call.methodName()).isEqualTo(methodName);
         }
 
@@ -2090,17 +2133,18 @@ class HandlerEdgeCaseTest {
         }
 
         @ParameterizedTest(name = "temporal comparison {0} creates MethodCall")
-        @ValueSource(strings = {"isBefore", "isAfter", "isEqual"})
+        @ValueSource(strings = { "isBefore", "isAfter", "isEqual" })
         void handle_temporalComparison_createsMethodCall(String methodName) {
             context.push(field("date", java.time.LocalDate.class));
             context.push(constant(java.time.LocalDate.of(2024, 1, 1)));
-            MethodInsnNode insn = new MethodInsnNode(INVOKEVIRTUAL, "java/time/LocalDate", methodName, "(Ljava/time/chrono/ChronoLocalDate;)Z", false);
+            MethodInsnNode insn = new MethodInsnNode(INVOKEVIRTUAL, "java/time/LocalDate", methodName,
+                    "(Ljava/time/chrono/ChronoLocalDate;)Z", false);
 
             handler.handle(insn, context);
 
             assertThat(context.getStackSize()).isEqualTo(1);
-            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call =
-                    (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context.peek();
+            io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call = (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context
+                    .peek();
             assertThat(call.methodName()).isEqualTo(methodName);
             assertThat(call.returnType()).isEqualTo(boolean.class);
         }
@@ -2112,7 +2156,8 @@ class HandlerEdgeCaseTest {
             context.push(field("amount", java.math.BigDecimal.class));
             context.push(constant(new java.math.BigDecimal("2")));
             // remainder is not in the handled list (add, subtract, multiply, divide)
-            MethodInsnNode remainderInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/math/BigDecimal", "remainder", "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;", false);
+            MethodInsnNode remainderInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/math/BigDecimal", "remainder",
+                    "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;", false);
 
             handler.handle(remainderInsn, context);
 
@@ -2124,7 +2169,8 @@ class HandlerEdgeCaseTest {
         void handle_bigDecimalAbs_notHandled() {
             context.push(field("amount", java.math.BigDecimal.class));
             // abs() takes no args - unhandled
-            MethodInsnNode absInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/math/BigDecimal", "abs", "()Ljava/math/BigDecimal;", false);
+            MethodInsnNode absInsn = new MethodInsnNode(INVOKEVIRTUAL, "java/math/BigDecimal", "abs",
+                    "()Ljava/math/BigDecimal;", false);
 
             handler.handle(absInsn, context);
 
@@ -2152,11 +2198,15 @@ class HandlerEdgeCaseTest {
             // PathExpression target with FieldAccess value (rare but valid)
             context.push(new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathExpression(
                     java.util.List.of(
-                            new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment("user", Object.class, io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType.FIELD),
-                            new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment("permissions", java.util.Set.class, io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType.FIELD)),
+                            new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment("user", Object.class,
+                                    io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType.FIELD),
+                            new io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment("permissions",
+                                    java.util.Set.class,
+                                    io.quarkiverse.qubit.deployment.ast.LambdaExpression.RelationType.FIELD)),
                     java.util.Set.class));
-            context.push(captured(0, String.class));  // CapturedVariable
-            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z", true);
+            context.push(captured(0, String.class)); // CapturedVariable
+            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains",
+                    "(Ljava/lang/Object;)Z", true);
 
             handler.handle(containsInsn, context);
 
@@ -2167,9 +2217,10 @@ class HandlerEdgeCaseTest {
         @Test
         void handle_collectionContains_constantTargetAndFieldArg_fallsBackToMethodCall() {
             // Neither IN nor MEMBER OF: constant target (not CapturedVariable), field arg
-            context.push(constant(java.util.List.of("a", "b")));  // Constant, not CapturedVariable
-            context.push(field("status", String.class));  // FieldAccess - this is entity field
-            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z", true);
+            context.push(constant(java.util.List.of("a", "b"))); // Constant, not CapturedVariable
+            context.push(field("status", String.class)); // FieldAccess - this is entity field
+            MethodInsnNode containsInsn = new MethodInsnNode(INVOKEINTERFACE, "java/util/Collection", "contains",
+                    "(Ljava/lang/Object;)Z", true);
 
             handler.handle(containsInsn, context);
 
@@ -2235,8 +2286,7 @@ class HandlerEdgeCaseTest {
                     Arguments.of("\u007F", "\\u007f", "DEL (char 127)"),
                     Arguments.of("\u001F", "\\u001f", "unit separator (char 31)"),
                     Arguments.of("Hello\u0001World\t!", "Hello\\u0001World\\u0009!", "mixed content"),
-                    Arguments.of("", "", "empty string")
-            );
+                    Arguments.of("", "", "empty string"));
         }
 
         @ParameterizedTest(name = "escapeRecipe with {2}")
@@ -2308,7 +2358,7 @@ class HandlerEdgeCaseTest {
                             "makeConcatWithConstants",
                             "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;",
                             false),
-                    "\u0001");  // One dynamic arg but empty stack
+                    "\u0001"); // One dynamic arg but empty stack
 
             boolean terminated = handler.handle(indyInsn, context);
 
@@ -2352,7 +2402,7 @@ class HandlerEdgeCaseTest {
                             "makeConcatWithConstants",
                             "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;",
                             false),
-                    "\u0001-\u0001");  // Two dynamic args
+                    "\u0001-\u0001"); // Two dynamic args
 
             // Push two operands (in reverse order)
             context.push(field("first", String.class));
@@ -2446,7 +2496,7 @@ class HandlerEdgeCaseTest {
                             "makeConcatWithConstants",
                             "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;",
                             false),
-                    Integer.valueOf(42));  // Not a String
+                    Integer.valueOf(42)); // Not a String
 
             boolean terminated = handler.handle(indyInsn, context);
 
@@ -2472,7 +2522,7 @@ class HandlerEdgeCaseTest {
                             "makeConcatWithConstants",
                             "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;",
                             false),
-                    "\u0001-\u0001");  // Two markers
+                    "\u0001-\u0001"); // Two markers
 
             // Push only one operand
             context.push(field("first", String.class));
@@ -2495,7 +2545,7 @@ class HandlerEdgeCaseTest {
                             "makeConcatWithConstants",
                             "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;",
                             false),
-                    "\u0001\u0001");  // Two markers, no separator
+                    "\u0001\u0001"); // Two markers, no separator
 
             context.push(field("first", String.class));
             context.push(field("second", String.class));

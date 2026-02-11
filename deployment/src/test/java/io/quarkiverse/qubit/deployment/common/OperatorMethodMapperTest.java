@@ -4,12 +4,13 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
 
 /**
  * Unit tests for {@link OperatorMethodMapper}.
@@ -50,7 +51,7 @@ class OperatorMethodMapperTest {
         }
 
         @ParameterizedTest
-        @EnumSource(value = Operator.class, names = {"EQ", "NE", "GT", "GE", "LT", "LE"})
+        @EnumSource(value = Operator.class, names = { "EQ", "NE", "GT", "GE", "LT", "LE" })
         void comparisonOperator_throws(Operator operator) {
             assertThatThrownBy(() -> OperatorMethodMapper.mapArithmeticOperator(operator))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -58,7 +59,7 @@ class OperatorMethodMapperTest {
         }
 
         @ParameterizedTest
-        @EnumSource(value = Operator.class, names = {"AND", "OR"})
+        @EnumSource(value = Operator.class, names = { "AND", "OR" })
         void logicalOperator_throws(Operator operator) {
             assertThatThrownBy(() -> OperatorMethodMapper.mapArithmeticOperator(operator))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -105,7 +106,7 @@ class OperatorMethodMapperTest {
         }
 
         @ParameterizedTest
-        @EnumSource(value = Operator.class, names = {"ADD", "SUB", "MUL", "DIV", "MOD"})
+        @EnumSource(value = Operator.class, names = { "ADD", "SUB", "MUL", "DIV", "MOD" })
         void arithmeticOperator_throws(Operator operator) {
             assertThatThrownBy(() -> OperatorMethodMapper.mapComparisonOperator(operator, true))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -113,7 +114,7 @@ class OperatorMethodMapperTest {
         }
 
         @ParameterizedTest
-        @EnumSource(value = Operator.class, names = {"AND", "OR"})
+        @EnumSource(value = Operator.class, names = { "AND", "OR" })
         void logicalOperator_throws(Operator operator) {
             assertThatThrownBy(() -> OperatorMethodMapper.mapComparisonOperator(operator, true))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -163,7 +164,7 @@ class OperatorMethodMapperTest {
         }
 
         @ParameterizedTest
-        @EnumSource(value = Operator.class, names = {"ADD", "SUB", "MUL", "DIV", "MOD"})
+        @EnumSource(value = Operator.class, names = { "ADD", "SUB", "MUL", "DIV", "MOD" })
         void arithmeticOperator_throws(Operator operator) {
             assertThatThrownBy(() -> OperatorMethodMapper.mapComparisonOperator(operator, false))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -171,7 +172,7 @@ class OperatorMethodMapperTest {
         }
 
         @ParameterizedTest
-        @EnumSource(value = Operator.class, names = {"AND", "OR"})
+        @EnumSource(value = Operator.class, names = { "AND", "OR" })
         void logicalOperator_throws(Operator operator) {
             assertThatThrownBy(() -> OperatorMethodMapper.mapComparisonOperator(operator, false))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -251,19 +252,19 @@ class OperatorMethodMapperTest {
     class IsComparisonOperatorTests {
 
         @ParameterizedTest
-        @EnumSource(value = Operator.class, names = {"EQ", "NE", "GT", "GE", "LT", "LE"})
+        @EnumSource(value = Operator.class, names = { "EQ", "NE", "GT", "GE", "LT", "LE" })
         void comparisonOperators_returnTrue(Operator operator) {
             assertThat(OperatorMethodMapper.isComparisonOperator(operator)).isTrue();
         }
 
         @ParameterizedTest
-        @EnumSource(value = Operator.class, names = {"ADD", "SUB", "MUL", "DIV", "MOD"})
+        @EnumSource(value = Operator.class, names = { "ADD", "SUB", "MUL", "DIV", "MOD" })
         void arithmeticOperators_returnFalse(Operator operator) {
             assertThat(OperatorMethodMapper.isComparisonOperator(operator)).isFalse();
         }
 
         @ParameterizedTest
-        @EnumSource(value = Operator.class, names = {"AND", "OR"})
+        @EnumSource(value = Operator.class, names = { "AND", "OR" })
         void logicalOperators_returnFalse(Operator operator) {
             assertThat(OperatorMethodMapper.isComparisonOperator(operator)).isFalse();
         }
@@ -278,19 +279,19 @@ class OperatorMethodMapperTest {
     class IsArithmeticOperatorTests {
 
         @ParameterizedTest
-        @EnumSource(value = Operator.class, names = {"ADD", "SUB", "MUL", "DIV", "MOD"})
+        @EnumSource(value = Operator.class, names = { "ADD", "SUB", "MUL", "DIV", "MOD" })
         void arithmeticOperators_returnTrue(Operator operator) {
             assertThat(OperatorMethodMapper.isArithmeticOperator(operator)).isTrue();
         }
 
         @ParameterizedTest
-        @EnumSource(value = Operator.class, names = {"EQ", "NE", "GT", "GE", "LT", "LE"})
+        @EnumSource(value = Operator.class, names = { "EQ", "NE", "GT", "GE", "LT", "LE" })
         void comparisonOperators_returnFalse(Operator operator) {
             assertThat(OperatorMethodMapper.isArithmeticOperator(operator)).isFalse();
         }
 
         @ParameterizedTest
-        @EnumSource(value = Operator.class, names = {"AND", "OR"})
+        @EnumSource(value = Operator.class, names = { "AND", "OR" })
         void logicalOperators_returnFalse(Operator operator) {
             assertThat(OperatorMethodMapper.isArithmeticOperator(operator)).isFalse();
         }
@@ -305,19 +306,19 @@ class OperatorMethodMapperTest {
     class IsLogicalOperatorTests {
 
         @ParameterizedTest
-        @EnumSource(value = Operator.class, names = {"AND", "OR"})
+        @EnumSource(value = Operator.class, names = { "AND", "OR" })
         void logicalOperators_returnTrue(Operator operator) {
             assertThat(OperatorMethodMapper.isLogicalOperator(operator)).isTrue();
         }
 
         @ParameterizedTest
-        @EnumSource(value = Operator.class, names = {"EQ", "NE", "GT", "GE", "LT", "LE"})
+        @EnumSource(value = Operator.class, names = { "EQ", "NE", "GT", "GE", "LT", "LE" })
         void comparisonOperators_returnFalse(Operator operator) {
             assertThat(OperatorMethodMapper.isLogicalOperator(operator)).isFalse();
         }
 
         @ParameterizedTest
-        @EnumSource(value = Operator.class, names = {"ADD", "SUB", "MUL", "DIV", "MOD"})
+        @EnumSource(value = Operator.class, names = { "ADD", "SUB", "MUL", "DIV", "MOD" })
         void arithmeticOperators_returnFalse(Operator operator) {
             assertThat(OperatorMethodMapper.isLogicalOperator(operator)).isFalse();
         }

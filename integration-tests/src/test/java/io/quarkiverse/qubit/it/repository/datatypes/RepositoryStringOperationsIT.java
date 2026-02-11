@@ -13,7 +13,8 @@ import jakarta.inject.Inject;
 /**
  * Repository pattern tests for String operations in queries.
  *
- * <p>Extends {@link AbstractStringOperationsTest} with repository query operations.
+ * <p>
+ * Extends {@link AbstractStringOperationsTest} with repository query operations.
  */
 @QuarkusTest
 class RepositoryStringOperationsIT extends AbstractStringOperationsTest {

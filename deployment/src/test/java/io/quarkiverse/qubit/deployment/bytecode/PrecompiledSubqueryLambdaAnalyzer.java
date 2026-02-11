@@ -1,20 +1,23 @@
 package io.quarkiverse.qubit.deployment.bytecode;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
-import io.quarkiverse.qubit.deployment.testutil.AbstractLambdaAnalyzer;
-import org.objectweb.asm.Handle;
-
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_SPEC_DESCRIPTOR;
 import static org.assertj.core.api.Assertions.assertThat;
+
+import org.objectweb.asm.Handle;
+
+import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.testutil.AbstractLambdaAnalyzer;
 
 /**
  * Base class for subquery lambda bytecode analysis tests.
  *
- * <p>This analyzer loads the SubqueryLambdaTestSources class and extracts
+ * <p>
+ * This analyzer loads the SubqueryLambdaTestSources class and extracts
  * lambda expressions containing Subqueries.* calls from its pre-compiled methods.
  *
- * <p>Extends {@link AbstractLambdaAnalyzer} to share common infrastructure.
+ * <p>
+ * Extends {@link AbstractLambdaAnalyzer} to share common infrastructure.
  */
 public abstract class PrecompiledSubqueryLambdaAnalyzer extends AbstractLambdaAnalyzer {
 
@@ -54,7 +57,7 @@ public abstract class PrecompiledSubqueryLambdaAnalyzer extends AbstractLambdaAn
      * Asserts that an expression is a ScalarSubquery with the expected aggregation type.
      */
     protected void assertScalarSubquery(LambdaExpression expr,
-                                         LambdaExpression.SubqueryAggregationType expectedType) {
+            LambdaExpression.SubqueryAggregationType expectedType) {
         assertThat(expr)
                 .as("Expression should be a ScalarSubquery but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
                 .isInstanceOf(LambdaExpression.ScalarSubquery.class);
@@ -69,7 +72,8 @@ public abstract class PrecompiledSubqueryLambdaAnalyzer extends AbstractLambdaAn
      */
     protected void assertExistsSubquery(LambdaExpression expr, boolean expectedNegated) {
         assertThat(expr)
-                .as("Expression should be an ExistsSubquery but was %s", expr == null ? "null" : expr.getClass().getSimpleName())
+                .as("Expression should be an ExistsSubquery but was %s",
+                        expr == null ? "null" : expr.getClass().getSimpleName())
                 .isInstanceOf(LambdaExpression.ExistsSubquery.class);
         var subquery = (LambdaExpression.ExistsSubquery) expr;
         assertThat(subquery.negated())

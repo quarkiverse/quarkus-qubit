@@ -1,20 +1,21 @@
 package io.quarkiverse.qubit.deployment.ast;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.*;
+import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.constant;
+import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.field;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Stream;
+
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Stream;
-
-import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.constant;
-import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.field;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.*;
 
 /**
  * Edge case tests for AST node validation.
@@ -524,10 +525,8 @@ class AstNodeValidationTest {
             PathExpression multi = new PathExpression(
                     List.of(
                             new PathSegment("owner", Object.class, RelationType.MANY_TO_ONE),
-                            new PathSegment("name", String.class, RelationType.FIELD)
-                    ),
-                    String.class
-            );
+                            new PathSegment("name", String.class, RelationType.FIELD)),
+                    String.class);
             assertThat(multi.depth()).isEqualTo(2);
         }
 
@@ -536,10 +535,8 @@ class AstNodeValidationTest {
             PathExpression path = new PathExpression(
                     List.of(
                             new PathSegment("owner", Object.class, RelationType.MANY_TO_ONE),
-                            new PathSegment("firstName", String.class, RelationType.FIELD)
-                    ),
-                    String.class
-            );
+                            new PathSegment("firstName", String.class, RelationType.FIELD)),
+                    String.class);
 
             assertThat(path.finalSegment().fieldName()).isEqualTo("firstName");
         }
@@ -561,10 +558,8 @@ class AstNodeValidationTest {
             PathExpression path = new PathExpression(
                     List.of(
                             new PathSegment("owner", Object.class, RelationType.MANY_TO_ONE),
-                            new PathSegment("name", String.class, RelationType.FIELD)
-                    ),
-                    String.class
-            );
+                            new PathSegment("name", String.class, RelationType.FIELD)),
+                    String.class);
 
             assertThat(path.getFieldName()).isPresent().contains("owner");
         }
@@ -774,8 +769,7 @@ class AstNodeValidationTest {
         @Test
         void fromFirst_createsPathWithFirstPosition() {
             List<PathSegment> segments = List.of(
-                    new PathSegment("owner", Object.class, RelationType.MANY_TO_ONE)
-            );
+                    new PathSegment("owner", Object.class, RelationType.MANY_TO_ONE));
             BiEntityPathExpression path = BiEntityPathExpression.fromFirst(segments, Object.class);
             assertThat(path.isFromFirstEntity())
                     .as("FIRST position should return true for isFromFirstEntity()")
@@ -788,8 +782,7 @@ class AstNodeValidationTest {
         @Test
         void fromSecond_createsPathWithSecondPosition() {
             List<PathSegment> segments = List.of(
-                    new PathSegment("owner", Object.class, RelationType.MANY_TO_ONE)
-            );
+                    new PathSegment("owner", Object.class, RelationType.MANY_TO_ONE));
             BiEntityPathExpression path = BiEntityPathExpression.fromSecond(segments, Object.class);
             assertThat(path.isFromSecondEntity())
                     .as("SECOND position should return true for isFromSecondEntity()")
@@ -803,8 +796,7 @@ class AstNodeValidationTest {
         void getFieldName_returnsFirstSegmentFieldName() {
             List<PathSegment> segments = List.of(
                     new PathSegment("owner", Object.class, RelationType.MANY_TO_ONE),
-                    new PathSegment("name", String.class, RelationType.FIELD)
-            );
+                    new PathSegment("name", String.class, RelationType.FIELD));
             BiEntityPathExpression path = BiEntityPathExpression.fromFirst(segments, String.class);
 
             assertThat(path.getFieldName())
@@ -816,8 +808,7 @@ class AstNodeValidationTest {
         @Test
         void getFieldName_withSingleSegment_returnsFieldName() {
             List<PathSegment> segments = List.of(
-                    new PathSegment("department", Object.class, RelationType.MANY_TO_ONE)
-            );
+                    new PathSegment("department", Object.class, RelationType.MANY_TO_ONE));
             BiEntityPathExpression path = BiEntityPathExpression.fromSecond(segments, Object.class);
 
             assertThat(path.getFieldName())
@@ -1231,8 +1222,7 @@ class AstNodeValidationTest {
                 Arguments.of("sub", BinaryOp.sub(left, right), BinaryOp.Operator.SUB),
                 Arguments.of("mul", BinaryOp.mul(left, right), BinaryOp.Operator.MUL),
                 Arguments.of("div", BinaryOp.div(left, right), BinaryOp.Operator.DIV),
-                Arguments.of("mod", BinaryOp.mod(left, right), BinaryOp.Operator.MOD)
-        );
+                Arguments.of("mod", BinaryOp.mod(left, right), BinaryOp.Operator.MOD));
     }
 
     /** Test data for operator symbol verification. */
@@ -1242,8 +1232,7 @@ class AstNodeValidationTest {
                 Arguments.of(BinaryOp.Operator.NE, "!="),
                 Arguments.of(BinaryOp.Operator.AND, "&&"),
                 Arguments.of(BinaryOp.Operator.OR, "||"),
-                Arguments.of(BinaryOp.Operator.ADD, "+")
-        );
+                Arguments.of(BinaryOp.Operator.ADD, "+"));
     }
 
     @Nested

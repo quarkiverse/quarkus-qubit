@@ -1,28 +1,30 @@
 package io.quarkiverse.qubit.deployment.analysis.branch;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.objectweb.asm.tree.JumpInsnNode;
-import org.objectweb.asm.tree.LabelNode;
-
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.Map;
-
 import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.constant;
 import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.field;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.objectweb.asm.Opcodes.*;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.objectweb.asm.tree.JumpInsnNode;
+import org.objectweb.asm.tree.LabelNode;
+
+import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+
 /**
  * Unit tests for BranchHandler implementations.
  *
- * <p>Tests canHandle() methods and specific handle() edge cases
+ * <p>
+ * Tests canHandle() methods and specific handle() edge cases
  * to kill surviving mutations.
  */
 class BranchHandlerTest {
@@ -87,7 +89,8 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            BranchState result = handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
+            BranchState result = handler
+                    .handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(result).isSameAs(initialState);
         }
@@ -171,8 +174,7 @@ class BranchHandlerTest {
             // Push a previous condition
             stack.push(LambdaExpression.BinaryOp.eq(
                     field("id", int.class),
-                    constant(1)
-            ));
+                    constant(1)));
             // Push the field to check
             stack.push(field("name", String.class));
             LabelNode label = new LabelNode();
@@ -259,7 +261,8 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            BranchState result = handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
+            BranchState result = handler
+                    .handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(result)
                     .as("Empty stack should return original state")
@@ -432,8 +435,7 @@ class BranchHandlerTest {
             // Push a previous condition (BinaryOp)
             stack.push(LambdaExpression.BinaryOp.eq(
                     field("id", int.class),
-                    constant(1)
-            ));
+                    constant(1)));
             // Push value to compare
             stack.push(field("age", int.class));
 
@@ -474,7 +476,6 @@ class BranchHandlerTest {
                     .isEqualTo(LambdaExpression.BinaryOp.Operator.GT);
         }
 
-
         @Test
         void handle_withIntermediateLabelAndFalse_inverts() {
             Deque<LambdaExpression> stack = new ArrayDeque<>();
@@ -495,7 +496,6 @@ class BranchHandlerTest {
                     .as("IFGE with INTERMEDIATE→FALSE should invert to LT")
                     .isEqualTo(LambdaExpression.BinaryOp.Operator.LT);
         }
-
 
     }
 
@@ -869,8 +869,7 @@ class BranchHandlerTest {
             // Push a previous condition (BinaryOp)
             stack.push(LambdaExpression.BinaryOp.eq(
                     field("id", int.class),
-                    constant(1)
-            ));
+                    constant(1)));
             // Push values to compare
             stack.push(field("left", int.class));
             stack.push(field("right", int.class));
@@ -889,7 +888,6 @@ class BranchHandlerTest {
                     .as("Should combine into a BinaryOp")
                     .isInstanceOf(LambdaExpression.BinaryOp.class);
         }
-
 
         @Test
         void handle_withIntermediateLabelAndTrue_noInversionInInitialState() {
@@ -941,7 +939,7 @@ class BranchHandlerTest {
             Deque<LambdaExpression> stack = new ArrayDeque<>();
             LambdaExpression leftField = field("left", int.class);
             LambdaExpression rightField = field("right", int.class);
-            stack.push(leftField);  // Pushed first
+            stack.push(leftField); // Pushed first
             stack.push(rightField); // Pushed second (on top)
             LabelNode label = new LabelNode();
             JumpInsnNode jumpInsn = new JumpInsnNode(IF_ICMPGT, label);
@@ -976,8 +974,8 @@ class BranchHandlerTest {
             // Should throw BytecodeAnalysisException from requireStackSize (not from popSafe)
             // The key difference: requireStackSize(2) throws "expected 2 elements"
             // If mutation removes it, popSafe would throw "expected 1 elements" later
-            assertThatThrownBy(() ->
-                    handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false)))
+            assertThatThrownBy(() -> handler
+                    .handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false)))
                     .as("Should throw BytecodeAnalysisException with expected 2 elements (killing requireStackSize mutation)")
                     .isInstanceOf(io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException.class)
                     .hasMessageContaining("expected 2 elements");
@@ -992,8 +990,8 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            assertThatThrownBy(() ->
-                    handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false)))
+            assertThatThrownBy(() -> handler
+                    .handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false)))
                     .as("Should throw BytecodeAnalysisException for empty stack")
                     .isInstanceOf(io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException.class);
         }
@@ -1037,7 +1035,8 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            BranchState result = handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
+            BranchState result = handler
+                    .handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(result)
                     .as("Empty stack should return original state unchanged")
@@ -1050,8 +1049,7 @@ class BranchHandlerTest {
             // Simulate arithmetic result on stack
             stack.push(LambdaExpression.BinaryOp.add(
                     field("a", int.class),
-                    field("b", int.class)
-            ));
+                    field("b", int.class)));
             LabelNode label = new LabelNode();
             JumpInsnNode jumpInsn = new JumpInsnNode(IFEQ, label);
             Map<LabelNode, Boolean> labelToValue = new HashMap<>();
@@ -1078,7 +1076,7 @@ class BranchHandlerTest {
             LabelNode label = new LabelNode();
             JumpInsnNode jumpInsn = new JumpInsnNode(IFEQ, label);
             Map<LabelNode, Boolean> labelToValue = new HashMap<>();
-            labelToValue.put(label, true);  // Jump to TRUE
+            labelToValue.put(label, true); // Jump to TRUE
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
@@ -1100,7 +1098,7 @@ class BranchHandlerTest {
             LabelNode label = new LabelNode();
             JumpInsnNode jumpInsn = new JumpInsnNode(IFEQ, label);
             Map<LabelNode, Boolean> labelToValue = new HashMap<>();
-            labelToValue.put(label, false);  // Jump to FALSE
+            labelToValue.put(label, false); // Jump to FALSE
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
@@ -1165,15 +1163,14 @@ class BranchHandlerTest {
             // Push a previous BinaryOp condition
             stack.push(LambdaExpression.BinaryOp.eq(
                     field("id", int.class),
-                    constant(1)
-            ));
+                    constant(1)));
             // Push the boolean field to check
             stack.push(field("active", Boolean.class));
 
             LabelNode label = new LabelNode();
             JumpInsnNode jumpInsn = new JumpInsnNode(IFEQ, label);
             Map<LabelNode, Boolean> labelToValue = new HashMap<>();
-            labelToValue.put(label, false);  // Jump to FALSE → creates EQ true
+            labelToValue.put(label, false); // Jump to FALSE → creates EQ true
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             // Use AndMode with previous jump target to trigger combining
             BranchState andMode = new BranchState.AndMode(java.util.Optional.of(false), false);
@@ -1230,7 +1227,8 @@ class BranchHandlerTest {
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
-            BranchState result = handler.handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
+            BranchState result = handler
+                    .handle(ctx(stack, jumpInsn, labelToValue, labelClassifications, initialState, false, false, false));
 
             assertThat(result)
                     .as("Empty stack should return original state unchanged")
@@ -1243,8 +1241,7 @@ class BranchHandlerTest {
             // Simulate arithmetic result on stack
             stack.push(LambdaExpression.BinaryOp.add(
                     field("a", int.class),
-                    field("b", int.class)
-            ));
+                    field("b", int.class)));
             LabelNode label = new LabelNode();
             JumpInsnNode jumpInsn = new JumpInsnNode(IFNE, label);
             Map<LabelNode, Boolean> labelToValue = new HashMap<>();
@@ -1271,7 +1268,7 @@ class BranchHandlerTest {
             LabelNode label = new LabelNode();
             JumpInsnNode jumpInsn = new JumpInsnNode(IFNE, label);
             Map<LabelNode, Boolean> labelToValue = new HashMap<>();
-            labelToValue.put(label, true);  // Jump to TRUE
+            labelToValue.put(label, true); // Jump to TRUE
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
@@ -1293,7 +1290,7 @@ class BranchHandlerTest {
             LabelNode label = new LabelNode();
             JumpInsnNode jumpInsn = new JumpInsnNode(IFNE, label);
             Map<LabelNode, Boolean> labelToValue = new HashMap<>();
-            labelToValue.put(label, false);  // Jump to FALSE
+            labelToValue.put(label, false); // Jump to FALSE
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             BranchState initialState = new BranchState.Initial();
 
@@ -1350,8 +1347,7 @@ class BranchHandlerTest {
             // Create an EQ comparison expression
             LambdaExpression eqComparison = LambdaExpression.BinaryOp.eq(
                     field("value", int.class),
-                    constant(10)
-            );
+                    constant(10));
 
             LambdaExpression result = handler.createBooleanEvaluationExpression(eqComparison, true);
 
@@ -1366,8 +1362,7 @@ class BranchHandlerTest {
             // BinaryOp is a predicate, so it should NOT be wrapped with == true
             LambdaExpression gtComparison = LambdaExpression.BinaryOp.gt(
                     field("value", int.class),
-                    constant(10)
-            );
+                    constant(10));
 
             LambdaExpression result = handler.createBooleanEvaluationExpression(gtComparison, true);
 
@@ -1387,15 +1382,14 @@ class BranchHandlerTest {
             // Push a previous BinaryOp condition
             stack.push(LambdaExpression.BinaryOp.eq(
                     field("id", int.class),
-                    constant(1)
-            ));
+                    constant(1)));
             // Push the boolean field to check
             stack.push(field("active", Boolean.class));
 
             LabelNode label = new LabelNode();
             JumpInsnNode jumpInsn = new JumpInsnNode(IFNE, label);
             Map<LabelNode, Boolean> labelToValue = new HashMap<>();
-            labelToValue.put(label, true);  // Jump to TRUE → creates EQ true
+            labelToValue.put(label, true); // Jump to TRUE → creates EQ true
             Map<LabelNode, ControlFlowAnalyzer.LabelClassification> labelClassifications = new HashMap<>();
             // Use AndMode with previous jump target TRUE → triggers OR combining
             BranchState andMode = new BranchState.AndMode(java.util.Optional.of(true), false);

@@ -21,17 +21,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Property-based integration tests for projection (select) operations.
  *
- * <p>This class uses jqwik to verify projection invariants that must hold
+ * <p>
+ * This class uses jqwik to verify projection invariants that must hold
  * for ANY valid projection configuration, not just specific examples.
  *
- * <p><strong>Properties Tested:</strong>
+ * <p>
+ * <strong>Properties Tested:</strong>
  * <ul>
- *   <li><strong>Count preservation</strong>: projection count equals entity count</li>
- *   <li><strong>Value correctness</strong>: projected values match entity field values</li>
- *   <li><strong>Type correctness</strong>: projected values have correct type</li>
- *   <li><strong>Filter compatibility</strong>: projection works with filters</li>
- *   <li><strong>Sort compatibility</strong>: projection works with sorting</li>
- *   <li><strong>Pagination compatibility</strong>: projection works with pagination</li>
+ * <li><strong>Count preservation</strong>: projection count equals entity count</li>
+ * <li><strong>Value correctness</strong>: projected values match entity field values</li>
+ * <li><strong>Type correctness</strong>: projected values have correct type</li>
+ * <li><strong>Filter compatibility</strong>: projection works with filters</li>
+ * <li><strong>Sort compatibility</strong>: projection works with sorting</li>
+ * <li><strong>Pagination compatibility</strong>: projection works with pagination</li>
  * </ul>
  *
  * @see io.quarkiverse.qubit.it.fluent.ProjectionTest
@@ -196,7 +198,7 @@ class ProjectionPropertyIT {
     }
 
     @ParameterizedTest(name = "projection with age filter: ages > {0} satisfy predicate")
-    @ValueSource(ints = {20, 25, 30, 35, 40, 45})
+    @ValueSource(ints = { 20, 25, 30, 35, 40, 45 })
     @Transactional
     void projectionWithAgeFilterAgesSatisfyPredicate(int ageThreshold) {
         List<Integer> projectedAges = Person.where((Person p) -> p.age > ageThreshold)
@@ -245,7 +247,7 @@ class ProjectionPropertyIT {
     // ======================================================================
 
     @ParameterizedTest(name = "projection with skip({0}): returns correct count")
-    @ValueSource(ints = {0, 1, 2, 3, 4, 5})
+    @ValueSource(ints = { 0, 1, 2, 3, 4, 5 })
     @Transactional
     void projectionWithSkipReturnsCorrectCount(int skipAmount) {
         int totalCount = Person.select((Person p) -> p.firstName).toList().size();
@@ -260,7 +262,7 @@ class ProjectionPropertyIT {
     }
 
     @ParameterizedTest(name = "projection with limit({0}): returns at most limit results")
-    @ValueSource(ints = {1, 2, 3, 5, 10})
+    @ValueSource(ints = { 1, 2, 3, 5, 10 })
     @Transactional
     void projectionWithLimitReturnsAtMostLimit(int limitAmount) {
         int limitedCount = Person.select((Person p) -> p.firstName)
@@ -275,7 +277,7 @@ class ProjectionPropertyIT {
     @Test
     @Transactional
     void projectionWithSkipLimitReturnsCorrectWindow() {
-        int[][] testCases = {{0, 2}, {1, 2}, {2, 3}, {3, 2}, {4, 4}};
+        int[][] testCases = { { 0, 2 }, { 1, 2 }, { 2, 3 }, { 3, 2 }, { 4, 4 } };
 
         for (int[] testCase : testCases) {
             int skipAmount = testCase[0];
@@ -333,7 +335,7 @@ class ProjectionPropertyIT {
     @Test
     @Transactional
     void filterProjectionSortPaginationAllInvariantsHold() {
-        int[][] testCases = {{0, 2}, {1, 2}, {2, 3}, {0, 3}, {1, 1}};
+        int[][] testCases = { { 0, 2 }, { 1, 2 }, { 2, 3 }, { 0, 3 }, { 1, 1 } };
 
         for (int[] testCase : testCases) {
             int skipAmount = testCase[0];

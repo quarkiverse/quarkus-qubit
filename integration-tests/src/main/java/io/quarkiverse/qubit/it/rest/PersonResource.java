@@ -114,27 +114,21 @@ public class PersonResource {
     @Path("/complex-and")
     public List<Person> getComplexAnd() {
         // Three-condition AND: age >= 30, active, salary > 70000
-        return Person.where((Person p) ->
-            p.age >= 30 && p.active && p.salary != null && p.salary > 70000.0
-        ).toList();
+        return Person.where((Person p) -> p.age >= 30 && p.active && p.salary != null && p.salary > 70000.0).toList();
     }
 
     @GET
     @Path("/complex-or")
     public List<Person> getComplexOr() {
         // OR with multiple conditions
-        return Person.where((Person p) ->
-            p.age < 26 || p.age > 40 || !p.active
-        ).toList();
+        return Person.where((Person p) -> p.age < 26 || p.age > 40 || !p.active).toList();
     }
 
     @GET
     @Path("/complex-mixed")
     public List<Person> getComplexMixed() {
         // Mixed AND/OR: (active AND age > 30) OR salary > 80000
-        return Person.where((Person p) ->
-            (p.active && p.age > 30) || (p.salary != null && p.salary > 80000.0)
-        ).toList();
+        return Person.where((Person p) -> (p.active && p.age > 30) || (p.salary != null && p.salary > 80000.0)).toList();
     }
 
     // =============================================================================================

@@ -3,7 +3,8 @@ package io.quarkiverse.qubit.deployment.common;
 /** Centralized exception message constants for consistent error reporting. */
 public final class ExceptionMessages {
 
-    private ExceptionMessages() {}
+    private ExceptionMessages() {
+    }
 
     // ========== Required Field Validation ==========
 

@@ -1,14 +1,14 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.List;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
-
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Unit tests for {@link StreamPipelineAnalyzer}.
@@ -46,8 +46,7 @@ class StreamPipelineAnalyzerTest {
             List<StreamPipelineAnalyzer.PipelineOperation> ops = List.of(
                     new StreamPipelineAnalyzer.PipelineOperation("where", "l1", "()Z", 1),
                     new StreamPipelineAnalyzer.PipelineOperation("select", "l2", "()V", 2),
-                    new StreamPipelineAnalyzer.PipelineOperation("sortedBy", "l3", "()V", 3)
-            );
+                    new StreamPipelineAnalyzer.PipelineOperation("sortedBy", "l3", "()V", 3));
             StreamPipelineAnalyzer.StreamPipeline pipeline = new StreamPipelineAnalyzer.StreamPipeline(
                     "Test", "method", "toList", ops, 1);
 
@@ -57,8 +56,7 @@ class StreamPipelineAnalyzerTest {
         @Test
         void streamPipeline_isCountQuery_returnsTrueForCount() {
             List<StreamPipelineAnalyzer.PipelineOperation> ops = List.of(
-                    new StreamPipelineAnalyzer.PipelineOperation("where", "l1", "()Z", 1)
-            );
+                    new StreamPipelineAnalyzer.PipelineOperation("where", "l1", "()Z", 1));
             StreamPipelineAnalyzer.StreamPipeline pipeline = new StreamPipelineAnalyzer.StreamPipeline(
                     "Test", "method", "count", ops, 1);
 

@@ -1,12 +1,5 @@
 package io.quarkiverse.qubit.deployment.analysis.branch;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.common.BytecodeValidator;
-import io.quarkus.logging.Log;
-import org.objectweb.asm.tree.JumpInsnNode;
-
-import java.util.Deque;
-
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.EQ;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.NE;
@@ -14,13 +7,22 @@ import static java.lang.Boolean.TRUE;
 import static org.objectweb.asm.Opcodes.IFNONNULL;
 import static org.objectweb.asm.Opcodes.IFNULL;
 
+import java.util.Deque;
+
+import org.objectweb.asm.tree.JumpInsnNode;
+
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.common.BytecodeValidator;
+import io.quarkus.logging.Log;
+
 /**
  * Handles null reference check instructions (IFNULL, IFNONNULL).
  *
- * <p>These instructions check if a reference on the stack is null:
+ * <p>
+ * These instructions check if a reference on the stack is null:
  * <ul>
- *   <li>IFNULL - if reference == null, jump</li>
- *   <li>IFNONNULL - if reference != null, jump</li>
+ * <li>IFNULL - if reference == null, jump</li>
+ * <li>IFNONNULL - if reference != null, jump</li>
  * </ul>
  */
 public class NullCheckHandler implements BranchHandler {
@@ -58,20 +60,19 @@ public class NullCheckHandler implements BranchHandler {
 
         Operator operator;
         if (isIfNull && jumpingToTrue) {
-            operator = EQ;  // IFNULL → TRUE means "is null"
+            operator = EQ; // IFNULL → TRUE means "is null"
         } else if (isIfNull) {
-            operator = NE;  // IFNULL → FALSE means "is not null"
+            operator = NE; // IFNULL → FALSE means "is not null"
         } else if (jumpingToTrue) {
-            operator = NE;  // IFNONNULL → TRUE means "is not null"
+            operator = NE; // IFNONNULL → TRUE means "is not null"
         } else {
-            operator = EQ;  // IFNONNULL → FALSE means "is null"
+            operator = EQ; // IFNONNULL → FALSE means "is null"
         }
 
         LambdaExpression comparison = new LambdaExpression.BinaryOp(
-            fieldAccess,
-            operator,
-            nullLiteral
-        );
+                fieldAccess,
+                operator,
+                nullLiteral);
 
         Log.tracef(INSTRUCTION_NAME + ": opcode=%d, jumpTarget=%s, operator=%s, comparison=%s",
                 ctx.opcode(), jumpTarget, operator, comparison);

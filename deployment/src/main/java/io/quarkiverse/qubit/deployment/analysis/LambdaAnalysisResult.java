@@ -1,19 +1,19 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.SortDirection;
-
 import java.util.List;
+
+import io.quarkiverse.qubit.SortDirection;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /**
  * Result of lambda bytecode analysis - sealed interface with specialized result types.
  * <p>
  * Each query type has its own result record with only the relevant fields:
  * <ul>
- *   <li>{@link SimpleQueryResult}: where, select, combined, sorting-only queries</li>
- *   <li>{@link AggregationQueryResult}: min, max, avg, sum* queries</li>
- *   <li>{@link JoinQueryResult}: join, leftJoin with BiQuerySpec</li>
- *   <li>{@link GroupQueryResult}: groupBy with GroupQuerySpec</li>
+ * <li>{@link SimpleQueryResult}: where, select, combined, sorting-only queries</li>
+ * <li>{@link AggregationQueryResult}: min, max, avg, sum* queries</li>
+ * <li>{@link JoinQueryResult}: join, leftJoin with BiQuerySpec</li>
+ * <li>{@link GroupQueryResult}: groupBy with GroupQuerySpec</li>
  * </ul>
  */
 public sealed interface LambdaAnalysisResult {
@@ -29,8 +29,7 @@ public sealed interface LambdaAnalysisResult {
             LambdaExpression predicateExpression,
             LambdaExpression projectionExpression,
             List<SortExpression> sortExpressions,
-            int totalCapturedVarCount
-    ) implements LambdaAnalysisResult {
+            int totalCapturedVarCount) implements LambdaAnalysisResult {
 
         /** Creates an empty SimpleQueryResult (for early deduplication where analysis is skipped). */
         public static SimpleQueryResult empty() {
@@ -45,9 +44,9 @@ public sealed interface LambdaAnalysisResult {
     record AggregationQueryResult(
             LambdaExpression predicateExpression,
             LambdaExpression aggregationExpression,
-            String aggregationType,  // "MIN", "MAX", "AVG", "SUM_INTEGER", "SUM_LONG", "SUM_DOUBLE"
-            int totalCapturedVarCount
-    ) implements LambdaAnalysisResult {}
+            String aggregationType, // "MIN", "MAX", "AVG", "SUM_INTEGER", "SUM_LONG", "SUM_DOUBLE"
+            int totalCapturedVarCount) implements LambdaAnalysisResult {
+    }
 
     /**
      * Join queries: join, leftJoin with BiQuerySpec.
@@ -59,21 +58,21 @@ public sealed interface LambdaAnalysisResult {
             LambdaExpression biEntityProjectionExpression,
             List<SortExpression> sortExpressions,
             InvokeDynamicScanner.JoinType joinType,
-            int totalCapturedVarCount
-    ) implements LambdaAnalysisResult {}
+            int totalCapturedVarCount) implements LambdaAnalysisResult {
+    }
 
     /**
      * Group queries: groupBy with GroupQuerySpec.
      * GROUP BY with having, select, and sort in group context.
      */
     record GroupQueryResult(
-            LambdaExpression predicateExpression,  // Pre-grouping WHERE clause
+            LambdaExpression predicateExpression, // Pre-grouping WHERE clause
             LambdaExpression groupByKeyExpression,
             LambdaExpression havingExpression,
             LambdaExpression groupSelectExpression,
             List<SortExpression> groupSortExpressions,
-            int totalCapturedVarCount
-    ) implements LambdaAnalysisResult {}
+            int totalCapturedVarCount) implements LambdaAnalysisResult {
+    }
 
     /**
      * Sort expression with direction (ascending/descending).
@@ -81,5 +80,6 @@ public sealed interface LambdaAnalysisResult {
      */
     record SortExpression(
             LambdaExpression keyExtractor,
-            SortDirection direction) {}
+            SortDirection direction) {
+    }
 }

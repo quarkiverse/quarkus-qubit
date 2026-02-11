@@ -2,10 +2,10 @@ package io.quarkiverse.qubit.deployment.generation.methodcall;
 
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.BIG_DECIMAL_ARITHMETIC_METHODS;
 
+import java.util.Optional;
+
 import io.quarkiverse.qubit.deployment.generation.expression.BuilderResult;
 import io.quarkus.gizmo2.Expr;
-
-import java.util.Optional;
 
 /**
  * Handles BigDecimal add/subtract/multiply/divide via BigDecimalExpressionBuilder.

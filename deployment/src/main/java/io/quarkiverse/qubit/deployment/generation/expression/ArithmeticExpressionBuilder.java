@@ -9,13 +9,14 @@ import io.quarkus.gizmo2.desc.MethodDesc;
 /**
  * Builds JPA Criteria API expressions for arithmetic operations.
  *
- * <p>Operator mappings:
+ * <p>
+ * Operator mappings:
  * <ul>
- *   <li>ADD (+) → {@code CriteriaBuilder.sum()}</li>
- *   <li>SUB (-) → {@code CriteriaBuilder.diff()}</li>
- *   <li>MUL (*) → {@code CriteriaBuilder.prod()}</li>
- *   <li>DIV (/) → {@code CriteriaBuilder.quot()}</li>
- *   <li>MOD (%) → {@code CriteriaBuilder.mod()}</li>
+ * <li>ADD (+) → {@code CriteriaBuilder.sum()}</li>
+ * <li>SUB (-) → {@code CriteriaBuilder.diff()}</li>
+ * <li>MUL (*) → {@code CriteriaBuilder.prod()}</li>
+ * <li>DIV (/) → {@code CriteriaBuilder.quot()}</li>
+ * <li>MOD (%) → {@code CriteriaBuilder.mod()}</li>
  * </ul>
  */
 public enum ArithmeticExpressionBuilder implements ExpressionBuilder {

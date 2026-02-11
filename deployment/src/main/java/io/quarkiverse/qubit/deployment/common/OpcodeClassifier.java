@@ -7,7 +7,8 @@ import static org.objectweb.asm.Opcodes.*;
  */
 public final class OpcodeClassifier {
 
-    private OpcodeClassifier() {}
+    private OpcodeClassifier() {
+    }
 
     // ========== Arithmetic & Logical Operations ==========
 
@@ -29,8 +30,8 @@ public final class OpcodeClassifier {
     /** Checks if opcode is comparison (DCMPL, DCMPG, FCMPL, FCMPG, LCMP). */
     public static boolean isComparisonOpcode(int opcode) {
         return opcode == DCMPL || opcode == DCMPG ||
-               opcode == FCMPL || opcode == FCMPG ||
-               opcode == LCMP;
+                opcode == FCMPL || opcode == FCMPG ||
+                opcode == LCMP;
     }
 
     // ========== Branch Instructions ==========
@@ -38,7 +39,7 @@ public final class OpcodeClassifier {
     /** Checks if opcode is conditional branch (IFEQ-IF_ICMPLE, IFNULL, IFNONNULL). */
     public static boolean isBranchOpcode(int opcode) {
         return (opcode >= IFEQ && opcode <= IF_ICMPLE) ||
-               opcode == IFNULL || opcode == IFNONNULL;
+                opcode == IFNULL || opcode == IFNONNULL;
     }
 
     // ========== Method Invocations ==========
@@ -46,7 +47,7 @@ public final class OpcodeClassifier {
     /** Checks if opcode is method invocation (INVOKE*). */
     public static boolean isInvokeOpcode(int opcode) {
         return opcode == INVOKEVIRTUAL || opcode == INVOKESTATIC ||
-               opcode == INVOKESPECIAL || opcode == INVOKEINTERFACE;
+                opcode == INVOKESPECIAL || opcode == INVOKEINTERFACE;
     }
 
     // ========== Type Conversion Instructions ==========
@@ -54,9 +55,9 @@ public final class OpcodeClassifier {
     /** Checks if opcode is primitive type conversion (I2L, L2D, F2I, etc). */
     public static boolean isTypeConversionOpcode(int opcode) {
         return opcode == I2L || opcode == I2F || opcode == I2D ||
-               opcode == L2I || opcode == L2F || opcode == L2D ||
-               opcode == F2I || opcode == F2L || opcode == F2D ||
-               opcode == D2I || opcode == D2L || opcode == D2F;
+                opcode == L2I || opcode == L2F || opcode == L2D ||
+                opcode == F2I || opcode == F2L || opcode == F2D ||
+                opcode == D2I || opcode == D2L || opcode == D2F;
     }
 
     // ========== Constant Instructions ==========
@@ -64,11 +65,11 @@ public final class OpcodeClassifier {
     /** Checks if opcode is constant load (BIPUSH, SIPUSH, LDC, *CONST_*). */
     public static boolean isConstantOpcode(int opcode) {
         return opcode == BIPUSH || opcode == SIPUSH || opcode == LDC ||
-               opcode == ACONST_NULL ||
-               isIntConstantOpcode(opcode) ||
-               isFloatConstantOpcode(opcode) ||
-               isLongConstantOpcode(opcode) ||
-               isDoubleConstantOpcode(opcode);
+                opcode == ACONST_NULL ||
+                isIntConstantOpcode(opcode) ||
+                isFloatConstantOpcode(opcode) ||
+                isLongConstantOpcode(opcode) ||
+                isDoubleConstantOpcode(opcode);
     }
 
     /** Checks if opcode is ICONST_M1 to ICONST_5. */

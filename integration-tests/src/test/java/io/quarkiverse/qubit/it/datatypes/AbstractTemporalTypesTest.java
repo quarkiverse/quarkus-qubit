@@ -16,7 +16,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Abstract base class for temporal types operation tests.
  *
- * <p>Contains all test methods that can be run with either static entity methods
+ * <p>
+ * Contains all test methods that can be run with either static entity methods
  * or repository instance methods.
  */
 public abstract class AbstractTemporalTypesTest {
@@ -144,44 +145,38 @@ public abstract class AbstractTemporalTypesTest {
     // Mixed temporal types
     @Test
     void mixedTemporalTypes() {
-        var results = personOps().where((Person p) ->
-                p.birthDate.isAfter(LocalDate.of(1990, 1, 1)) &&
+        var results = personOps().where((Person p) -> p.birthDate.isAfter(LocalDate.of(1990, 1, 1)) &&
                 p.createdAt.isBefore(LocalDateTime.of(2024, 4, 1, 0, 0)) &&
-                p.startTime.isAfter(LocalTime.of(8, 0))
-        ).toList();
+                p.startTime.isAfter(LocalTime.of(8, 0))).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
                 .allMatch(p -> p.getBirthDate().isAfter(LocalDate.of(1990, 1, 1)) &&
-                              p.getCreatedAt().isBefore(LocalDateTime.of(2024, 4, 1, 0, 0)) &&
-                              p.getStartTime().isAfter(LocalTime.of(8, 0)));
+                        p.getCreatedAt().isBefore(LocalDateTime.of(2024, 4, 1, 0, 0)) &&
+                        p.getStartTime().isAfter(LocalTime.of(8, 0)));
     }
 
     @Test
     void localDateTimeWithComplexConditions() {
-        var results = personOps().where((Person p) ->
-                p.createdAt != null &&
+        var results = personOps().where((Person p) -> p.createdAt != null &&
                 p.createdAt.isAfter(LocalDateTime.of(2024, 2, 1, 0, 0)) &&
-                p.age < 40
-        ).toList();
+                p.age < 40).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
                 .allMatch(p -> p.getCreatedAt() != null &&
-                              p.getCreatedAt().isAfter(LocalDateTime.of(2024, 2, 1, 0, 0)) &&
-                              p.getAge() < 40);
+                        p.getCreatedAt().isAfter(LocalDateTime.of(2024, 2, 1, 0, 0)) &&
+                        p.getAge() < 40);
     }
 
     @Test
     void localTimeWithOrConditions() {
-        var results = personOps().where((Person p) ->
-                p.startTime.isBefore(LocalTime.of(9, 0)) ||
-                p.startTime.isAfter(LocalTime.of(9, 0))
-        ).toList();
+        var results = personOps().where((Person p) -> p.startTime.isBefore(LocalTime.of(9, 0)) ||
+                p.startTime.isAfter(LocalTime.of(9, 0))).toList();
 
         assertThat(results)
                 .hasSizeGreaterThan(0)
                 .allMatch(p -> p.getStartTime().isBefore(LocalTime.of(9, 0)) ||
-                              p.getStartTime().isAfter(LocalTime.of(9, 0)));
+                        p.getStartTime().isAfter(LocalTime.of(9, 0)));
     }
 }

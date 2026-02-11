@@ -1,22 +1,20 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.InputStream;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 
 /** Tests for constant pool-based invokedynamic + Qubit API reference detection. */
 class InvokeDynamicQuickCheckTest {
 
-    private static final String CLASS_WITH_QUBIT_LAMBDAS =
-            "io/quarkiverse/qubit/deployment/testutil/FluentApiTestSources.class";
-    private static final String CLASS_WITHOUT_LAMBDAS =
-            "io/quarkiverse/qubit/deployment/analysis/InvokeDynamicQuickCheck.class";
+    private static final String CLASS_WITH_QUBIT_LAMBDAS = "io/quarkiverse/qubit/deployment/testutil/FluentApiTestSources.class";
+    private static final String CLASS_WITHOUT_LAMBDAS = "io/quarkiverse/qubit/deployment/analysis/InvokeDynamicQuickCheck.class";
 
     private static byte[] classWithQubitLambdas;
     private static byte[] classWithoutLambdas;
@@ -166,8 +164,10 @@ class InvokeDynamicQuickCheckTest {
             dos.writeShort(65);
 
             int cpCount = 3;
-            if (includeQubitRef) cpCount++;
-            if (includeTag18) cpCount++;
+            if (includeQubitRef)
+                cpCount++;
+            if (includeTag18)
+                cpCount++;
             dos.writeShort(cpCount);
 
             // #1: CONSTANT_Utf8 "Test"
@@ -241,8 +241,13 @@ class InvokeDynamicQuickCheckTest {
             dos.writeShort(0);
             dos.writeShort(1);
 
-            dos.writeShort(0x0021); dos.writeShort(1); dos.writeShort(0);
-            dos.writeShort(0); dos.writeShort(0); dos.writeShort(0); dos.writeShort(0);
+            dos.writeShort(0x0021);
+            dos.writeShort(1);
+            dos.writeShort(0);
+            dos.writeShort(0);
+            dos.writeShort(0);
+            dos.writeShort(0);
+            dos.writeShort(0);
             dos.flush();
 
             assertThat(InvokeDynamicQuickCheck.mightContainInvokeDynamic(baos.toByteArray()))
@@ -273,8 +278,13 @@ class InvokeDynamicQuickCheckTest {
             dos.writeShort(0);
             dos.writeShort(1);
 
-            dos.writeShort(0x0021); dos.writeShort(1); dos.writeShort(0);
-            dos.writeShort(0); dos.writeShort(0); dos.writeShort(0); dos.writeShort(0);
+            dos.writeShort(0x0021);
+            dos.writeShort(1);
+            dos.writeShort(0);
+            dos.writeShort(0);
+            dos.writeShort(0);
+            dos.writeShort(0);
+            dos.writeShort(0);
             dos.flush();
 
             assertThat(InvokeDynamicQuickCheck.mightContainInvokeDynamic(baos.toByteArray()))
@@ -308,8 +318,13 @@ class InvokeDynamicQuickCheckTest {
             dos.writeShort(0);
             dos.writeShort(1);
 
-            dos.writeShort(0x0021); dos.writeShort(1); dos.writeShort(0);
-            dos.writeShort(0); dos.writeShort(0); dos.writeShort(0); dos.writeShort(0);
+            dos.writeShort(0x0021);
+            dos.writeShort(1);
+            dos.writeShort(0);
+            dos.writeShort(0);
+            dos.writeShort(0);
+            dos.writeShort(0);
+            dos.writeShort(0);
             dos.flush();
 
             assertThat(InvokeDynamicQuickCheck.mightContainInvokeDynamic(baos.toByteArray()))

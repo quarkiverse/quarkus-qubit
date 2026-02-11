@@ -5,6 +5,8 @@ import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.GENERATED
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.QUERY_ID_REQUIRED;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_ENTITY_CLASS_NAME;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_REPOSITORY_CLASS_NAME;
+
+import java.lang.reflect.Modifier;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -15,16 +17,27 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import java.lang.reflect.Modifier;
-import io.quarkiverse.qubit.deployment.jfr.QubitPhaseEvent;
-import io.quarkiverse.qubit.deployment.jfr.QubitScanEvent;
-import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicQuickCheck;
 
 import org.jboss.jandex.ClassInfo;
 import org.jboss.jandex.DotName;
 import org.jboss.jandex.IndexView;
-import io.quarkus.logging.Log;
+
+import io.quarkiverse.qubit.QubitEntity;
+import io.quarkiverse.qubit.deployment.analysis.CallSiteProcessor;
+import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicQuickCheck;
+import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner;
+import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
+import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator;
+import io.quarkiverse.qubit.deployment.analysis.QueryCharacteristics;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
+import io.quarkiverse.qubit.deployment.generation.QueryExecutorClassGenerator;
+import io.quarkiverse.qubit.deployment.jfr.QubitPhaseEvent;
+import io.quarkiverse.qubit.deployment.jfr.QubitScanEvent;
+import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
+import io.quarkiverse.qubit.deployment.util.BytecodeLoader;
+import io.quarkiverse.qubit.runtime.internal.QueryExecutorRecorder;
+import io.quarkiverse.qubit.runtime.internal.QueryExecutorRegistry;
 import io.quarkus.arc.deployment.AdditionalBeanBuildItem;
 import io.quarkus.builder.item.MultiBuildItem;
 import io.quarkus.deployment.annotations.BuildProducer;
@@ -39,18 +52,7 @@ import io.quarkus.deployment.builditem.FeatureBuildItem;
 import io.quarkus.deployment.builditem.GeneratedClassBuildItem;
 import io.quarkus.hibernate.orm.deployment.spi.AdditionalJpaModelBuildItem;
 import io.quarkus.hibernate.orm.panache.deployment.PanacheEntityClassBuildItem;
-import io.quarkiverse.qubit.runtime.internal.QueryExecutorRecorder;
-import io.quarkiverse.qubit.runtime.internal.QueryExecutorRegistry;
-import io.quarkiverse.qubit.QubitEntity;
-import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
-import io.quarkiverse.qubit.deployment.analysis.CallSiteProcessor;
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner;
-import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
-import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator;
-import io.quarkiverse.qubit.deployment.analysis.QueryCharacteristics;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.generation.QueryExecutorClassGenerator;
-import io.quarkiverse.qubit.deployment.util.BytecodeLoader;
+import io.quarkus.logging.Log;
 
 /**
  * Qubit extension build processor. Generates query executor classes at build time from lambda expressions.
@@ -227,7 +229,8 @@ public class QubitProcessor {
         // Parallel class scanning: safe because InvokeDynamicScanner.scanClass() creates
         // fresh local state per invocation and BytecodeLoader uses ConcurrentHashMap cache
         List<InvokeDynamicScanner.LambdaCallSite> allCallSites = filteredClasses.parallelStream()
-                .flatMap(classInfo -> scanClassForCallSites(classInfo, scanner, applicationArchives, config.logging(), metricsCollector).stream())
+                .flatMap(classInfo -> scanClassForCallSites(classInfo, scanner, applicationArchives, config.logging(),
+                        metricsCollector).stream())
                 .peek(c -> Log.tracef("Qubit: Found callSite %s", c.getCallSiteId()))
                 .toList();
 
@@ -383,10 +386,10 @@ public class QubitProcessor {
 
     /** Checks if class matches whitelist packages and passes test filter. */
     private boolean isIncludedByWhitelist(String className, List<String> includePackages,
-                                          QubitBuildTimeConfig.ScanningConfig scanningConfig) {
+            QubitBuildTimeConfig.ScanningConfig scanningConfig) {
         boolean matchesInclude = includePackages.stream().anyMatch(className::startsWith);
         if (!matchesInclude) {
-            return false;  // Strict whitelist: reject classes not in include list
+            return false; // Strict whitelist: reject classes not in include list
         }
         // Class matches whitelist - still apply test class filter
         return !isTestClass(className) || scanningConfig.scanTestClasses();
@@ -523,7 +526,8 @@ public class QubitProcessor {
         if (!duplicates.isEmpty()) {
             StringBuilder errorMessage = new StringBuilder();
             errorMessage.append("QUBIT BUILD ERROR: Duplicate call site IDs detected!\n\n");
-            errorMessage.append("Multiple Qubit query expressions on the same source line will cause silent data corruption.\n");
+            errorMessage
+                    .append("Multiple Qubit query expressions on the same source line will cause silent data corruption.\n");
             errorMessage.append("Each query must be on a separate line to ensure unique call site identification.\n\n");
 
             for (Map.Entry<String, List<InvokeDynamicScanner.LambdaCallSite>> duplicate : duplicates) {
@@ -894,7 +898,8 @@ public class QubitProcessor {
             private Integer skipValue;
             private Integer limitValue;
 
-            private Builder() {}
+            private Builder() {
+            }
 
             // Required field setters
 

@@ -1,26 +1,28 @@
 package io.quarkiverse.qubit.deployment.analysis.branch;
 
-import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.objectweb.asm.tree.JumpInsnNode;
-import org.objectweb.asm.tree.LabelNode;
+import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.objectweb.asm.Opcodes.*;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
 
-import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.objectweb.asm.Opcodes.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.objectweb.asm.tree.JumpInsnNode;
+import org.objectweb.asm.tree.LabelNode;
+
+import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /**
  * Tests for {@link BranchCoordinator}.
  *
- * <p>Tests the coordination of branch instruction handling using the Strategy pattern.
+ * <p>
+ * Tests the coordination of branch instruction handling using the Strategy pattern.
  */
 class BranchCoordinatorTest {
 
@@ -334,10 +336,10 @@ class BranchCoordinatorTest {
         @Test
         void processBranchInstruction_allOpcodes_areRecognized() {
             // Test each opcode type to ensure getOpcodeName returns non-empty values
-            int[] opcodes = {IFEQ, IFNE, IFLT, IFGE, IFGT, IFLE, IF_ICMPEQ, IF_ICMPNE,
-                    IF_ICMPLT, IF_ICMPGE, IF_ICMPGT, IF_ICMPLE, IF_ACMPEQ, IF_ACMPNE, IFNULL, IFNONNULL};
-            String[] expectedNames = {"IFEQ", "IFNE", "IFLT", "IFGE", "IFGT", "IFLE", "IF_ICMPEQ", "IF_ICMPNE",
-                    "IF_ICMPLT", "IF_ICMPGE", "IF_ICMPGT", "IF_ICMPLE", "IF_ACMPEQ", "IF_ACMPNE", "IFNULL", "IFNONNULL"};
+            int[] opcodes = { IFEQ, IFNE, IFLT, IFGE, IFGT, IFLE, IF_ICMPEQ, IF_ICMPNE,
+                    IF_ICMPLT, IF_ICMPGE, IF_ICMPGT, IF_ICMPLE, IF_ACMPEQ, IF_ACMPNE, IFNULL, IFNONNULL };
+            String[] expectedNames = { "IFEQ", "IFNE", "IFLT", "IFGE", "IFGT", "IFLE", "IF_ICMPEQ", "IF_ICMPNE",
+                    "IF_ICMPLT", "IF_ICMPGE", "IF_ICMPGT", "IF_ICMPLE", "IF_ACMPEQ", "IF_ACMPNE", "IFNULL", "IFNONNULL" };
 
             for (int i = 0; i < opcodes.length; i++) {
                 BranchCoordinator newCoordinator = new BranchCoordinator();
@@ -395,7 +397,7 @@ class BranchCoordinatorTest {
         @Test
         void stateTransition_handlerReturningDifferentState_updatesCoordinator() {
             // Use a comparison that will produce a comparison result
-            stack.push(constant(0));  // compareTo result
+            stack.push(constant(0)); // compareTo result
             labelToValue.put(targetLabel, false);
             labelClassifications.put(targetLabel, ControlFlowAnalyzer.LabelClassification.FALSE_SINK);
 
@@ -540,14 +542,16 @@ class BranchCoordinatorTest {
         void resetAfterProcessing_clearsLastJumpLabel() {
             // Process an instruction
             stack.push(field("active", Boolean.class));
-            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFEQ, targetLabel), labelToValue, labelClassifications);
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFEQ, targetLabel), labelToValue,
+                    labelClassifications);
 
             // Reset the coordinator
             coordinator.reset();
 
             // Process another instruction - should NOT detect sameLabel
             stack.push(field("other", Boolean.class));
-            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFEQ, targetLabel), labelToValue, labelClassifications);
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFEQ, targetLabel), labelToValue,
+                    labelClassifications);
 
             // After reset, lastJumpLabel was null, so sameLabel should be false
             assertThat(coordinator.getCurrentState())
@@ -591,32 +595,37 @@ class BranchCoordinatorTest {
 
             // IfEqualsZeroHandler
             stack.push(field("x", Boolean.class));
-            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFEQ, targetLabel), labelToValue, labelClassifications);
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFEQ, targetLabel), labelToValue,
+                    labelClassifications);
 
             coordinator.reset();
 
             // IfNotEqualsZeroHandler
             stack.push(field("x", Boolean.class));
-            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFNE, targetLabel), labelToValue, labelClassifications);
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFNE, targetLabel), labelToValue,
+                    labelClassifications);
 
             coordinator.reset();
 
             // TwoOperandComparisonHandler
             stack.push(field("a", int.class));
             stack.push(field("b", int.class));
-            coordinator.processBranchInstruction(stack, new JumpInsnNode(IF_ICMPEQ, targetLabel), labelToValue, labelClassifications);
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IF_ICMPEQ, targetLabel), labelToValue,
+                    labelClassifications);
 
             coordinator.reset();
 
             // SingleOperandComparisonHandler
             stack.push(field("x", int.class));
-            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFLT, targetLabel), labelToValue, labelClassifications);
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFLT, targetLabel), labelToValue,
+                    labelClassifications);
 
             coordinator.reset();
 
             // NullCheckHandler
             stack.push(field("obj", Object.class));
-            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFNULL, targetLabel), labelToValue, labelClassifications);
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFNULL, targetLabel), labelToValue,
+                    labelClassifications);
 
             // All handler types should have been exercised
             assertThat(coordinator.getCurrentState()).isNotNull();
@@ -634,7 +643,8 @@ class BranchCoordinatorTest {
             labelToValue.put(targetLabel, true);
 
             stack.push(field("active", Boolean.class));
-            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFEQ, targetLabel), labelToValue, labelClassifications);
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFEQ, targetLabel), labelToValue,
+                    labelClassifications);
 
             assertThat(coordinator.getCurrentState()).isNotNull();
         }
@@ -645,7 +655,8 @@ class BranchCoordinatorTest {
             labelToValue.put(targetLabel, false);
 
             stack.push(field("active", Boolean.class));
-            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFEQ, targetLabel), labelToValue, labelClassifications);
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFEQ, targetLabel), labelToValue,
+                    labelClassifications);
 
             assertThat(coordinator.getCurrentState()).isNotNull();
         }
@@ -656,7 +667,8 @@ class BranchCoordinatorTest {
             labelToValue.put(targetLabel, null);
 
             stack.push(field("active", Boolean.class));
-            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFEQ, targetLabel), labelToValue, labelClassifications);
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFEQ, targetLabel), labelToValue,
+                    labelClassifications);
 
             assertThat(coordinator.getCurrentState()).isNotNull();
         }
@@ -671,7 +683,8 @@ class BranchCoordinatorTest {
             stack.push(field("active", Boolean.class));
 
             // Should not throw NPE
-            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFEQ, unknownLabel), labelToValue, labelClassifications);
+            coordinator.processBranchInstruction(stack, new JumpInsnNode(IFEQ, unknownLabel), labelToValue,
+                    labelClassifications);
 
             assertThat(coordinator.getCurrentState()).isNotNull();
         }

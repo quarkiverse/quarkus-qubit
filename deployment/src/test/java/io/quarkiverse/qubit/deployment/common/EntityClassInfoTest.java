@@ -1,14 +1,15 @@
 package io.quarkiverse.qubit.deployment.common;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link EntityClassInfo}.
  *
- * <p>Tests entity class information record including placeholder detection
+ * <p>
+ * Tests entity class information record including placeholder detection
  * and effective class name computation.
  */
 class EntityClassInfoTest {

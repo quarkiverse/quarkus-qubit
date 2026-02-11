@@ -20,6 +20,7 @@ import io.quarkus.test.QuarkusDevModeTest;
  * because it is incompatible with QuarkusDevModeTest (both implement TestInstanceFactory).
  * <p>
  * <strong>Running these tests:</strong>
+ *
  * <pre>
  * # Run with Chromium (default, faster)
  * mvn test -Pplaywright -pl integration-tests
@@ -33,11 +34,11 @@ import io.quarkus.test.QuarkusDevModeTest;
  * <p>
  * The test verifies:
  * <ul>
- *     <li>The Qubit extension card appears in DevUI</li>
- *     <li>Lambda queries are detected and displayed</li>
- *     <li>The queries table shows correct information</li>
- *     <li>Search functionality works</li>
- *     <li>JPQL panel displays generated queries</li>
+ * <li>The Qubit extension card appears in DevUI</li>
+ * <li>Lambda queries are detected and displayed</li>
+ * <li>The queries table shows correct information</li>
+ * <li>Search functionality works</li>
+ * <li>JPQL panel displays generated queries</li>
  * </ul>
  *
  * @see DevUIBrowser

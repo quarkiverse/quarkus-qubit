@@ -1,20 +1,22 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.JoinType;
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaSpecType;
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.MethodScanState;
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.PendingLambda;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.JoinType;
+import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaSpecType;
+import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.MethodScanState;
+import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.PendingLambda;
 
 /**
  * Unit tests for {@link MethodScanState}.
  *
- * <p>Tests verify the mutable state container correctly tracks
+ * <p>
+ * Tests verify the mutable state container correctly tracks
  * all scanning context during bytecode iteration.
  */
 @DisplayName("MethodScanState")

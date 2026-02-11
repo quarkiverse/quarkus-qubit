@@ -1,21 +1,5 @@
 package io.quarkiverse.qubit.deployment;
 
-import org.jboss.jandex.ClassInfo;
-import org.jboss.jandex.DotName;
-import org.jboss.jandex.IndexView;
-import org.jboss.jandex.ParameterizedType;
-
-import io.quarkus.logging.Log;
-import org.objectweb.asm.ClassVisitor;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
-
-import static org.jboss.jandex.Type.Kind.PARAMETERIZED_TYPE;
-
-import java.util.List;
-import java.util.function.BiFunction;
-
 import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.DESC_CLASS_CONSTRUCTOR;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.CONSTRUCTOR;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.DESC_QUERY_SPEC_TO_JOIN_STREAM;
@@ -25,11 +9,26 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JOIN_TYPE_DES
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JOIN_TYPE_INTERNAL_NAME;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_JOIN;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_LEFT_JOIN;
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_SPEC_DESCRIPTOR;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_REPOSITORY_CLASS_NAME;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_REPOSITORY_INTERNAL_NAME;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_STREAM_IMPL_INTERNAL_NAME;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_STREAM_INTERNAL_NAME;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_SPEC_DESCRIPTOR;
+import static org.jboss.jandex.Type.Kind.PARAMETERIZED_TYPE;
+
+import java.util.List;
+import java.util.function.BiFunction;
+
+import org.jboss.jandex.ClassInfo;
+import org.jboss.jandex.DotName;
+import org.jboss.jandex.IndexView;
+import org.jboss.jandex.ParameterizedType;
+import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
+
+import io.quarkus.logging.Log;
 
 /**
  * Generates @GenerateBridge fluent API entry point implementations for QubitRepository beans.
@@ -63,7 +62,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
         private boolean implementsQubitRepository;
 
         public QubitRepositoryClassVisitor(int api, ClassVisitor classVisitor,
-                                            String className, IndexView indexView) {
+                String className, IndexView indexView) {
             super(api, classVisitor);
             this.indexView = indexView;
             this.className = className;
@@ -72,7 +71,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
 
         @Override
         public void visit(int version, int access, String name, String signature,
-                          String superName, String[] interfaces) {
+                String superName, String[] interfaces) {
 
             if (interfaces != null) {
                 for (String iface : interfaces) {
@@ -93,7 +92,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
 
         @Override
         public MethodVisitor visitMethod(int access, String name, String descriptor,
-                                          String signature, String[] exceptions) {
+                String signature, String[] exceptions) {
 
             MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
 
@@ -142,8 +141,8 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
 
         private boolean isGenerateBridgeMethod(String methodName) {
             return FluentMethodType.fromMethodName(methodName).isPresent() ||
-                   METHOD_JOIN.equals(methodName) ||
-                   METHOD_LEFT_JOIN.equals(methodName);
+                    METHOD_JOIN.equals(methodName) ||
+                    METHOD_LEFT_JOIN.equals(methodName);
         }
 
         /**
@@ -228,10 +227,12 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
          * These methods return JoinStream instead of QubitStream.
          *
          * Generated code equivalent:
+         *
          * <pre>{@code
          * public <R> JoinStream<E, R> join(QuerySpec<E, Collection<R>> relationship) {
          *     return new JoinStreamImpl<>(entityClass, relationship, JoinType.INNER);
          * }
+         *
          * public <R> JoinStream<E, R> leftJoin(QuerySpec<E, Collection<R>> relationship) {
          *     return new JoinStreamImpl<>(entityClass, relationship, JoinType.LEFT);
          * }
@@ -300,7 +301,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
         private final Type entityType;
 
         public BridgeMethodReplacer(int api, MethodVisitor methodVisitor,
-                                     String methodName, Type entityType) {
+                String methodName, Type entityType) {
             super(api, methodVisitor);
             this.methodName = methodName;
             this.entityType = entityType;

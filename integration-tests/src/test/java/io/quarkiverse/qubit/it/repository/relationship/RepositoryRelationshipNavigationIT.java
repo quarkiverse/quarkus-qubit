@@ -71,9 +71,8 @@ class RepositoryRelationshipNavigationIT extends AbstractRelationshipNavigationT
         var adults = personRepository.where((Person p) -> p.age >= 30).toList();
         assertThat(adults).hasSizeGreaterThan(0);
 
-        var premiumProducts = productRepository.where((Product p) ->
-                p.price.compareTo(new BigDecimal("500")) > 0 && p.available
-        ).toList();
+        var premiumProducts = productRepository
+                .where((Product p) -> p.price.compareTo(new BigDecimal("500")) > 0 && p.available).toList();
         assertThat(premiumProducts).hasSizeGreaterThan(0);
 
         var primaryPhones = phoneRepository.where((Phone ph) -> ph.isPrimaryPhone).toList();

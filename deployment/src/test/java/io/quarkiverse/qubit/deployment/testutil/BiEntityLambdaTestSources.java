@@ -1,20 +1,24 @@
 package io.quarkiverse.qubit.deployment.testutil;
 
+import jakarta.persistence.Entity;
+
 import io.quarkiverse.qubit.BiQuerySpec;
 import io.quarkiverse.qubit.QubitEntity;
-import jakarta.persistence.Entity;
 
 /**
  * Source class containing pre-compiled bi-entity lambda expressions for bytecode analysis testing.
  *
- * <p>Each method in this class contains a BiQuerySpec lambda that will be compiled
+ * <p>
+ * Each method in this class contains a BiQuerySpec lambda that will be compiled
  * by javac into invokedynamic bytecode. The bytecode analysis tests will load
  * this compiled class and analyze the synthetic lambda methods.
  *
- * <p>Bi-entity lambdas are used in join queries where predicates reference both
+ * <p>
+ * Bi-entity lambdas are used in join queries where predicates reference both
  * the source entity (first parameter) and the joined entity (second parameter).
  *
- * <p><strong>Pattern</strong>: Each method returns a BiQuerySpec that will never be
+ * <p>
+ * <strong>Pattern</strong>: Each method returns a BiQuerySpec that will never be
  * executed - it's purely for bytecode generation. The method names match the
  * test names for easy mapping.
  */

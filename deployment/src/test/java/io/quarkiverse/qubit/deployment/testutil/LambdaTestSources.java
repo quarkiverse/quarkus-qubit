@@ -1,22 +1,25 @@
 package io.quarkiverse.qubit.deployment.testutil;
 
-import io.quarkiverse.qubit.QubitEntity;
-import io.quarkiverse.qubit.QuerySpec;
-import jakarta.persistence.Entity;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
+import jakarta.persistence.Entity;
+
+import io.quarkiverse.qubit.QubitEntity;
+import io.quarkiverse.qubit.QuerySpec;
+
 /**
  * Source class containing pre-compiled lambda expressions for bytecode analysis testing.
  *
- * <p>Each method in this class contains a lambda expression that will be compiled
+ * <p>
+ * Each method in this class contains a lambda expression that will be compiled
  * by javac into invokedynamic bytecode. The bytecode analysis tests will load
  * this compiled class and analyze the synthetic lambda methods.
  *
- * <p><strong>Pattern</strong>: Each method returns a QuerySpec that will never be
+ * <p>
+ * <strong>Pattern</strong>: Each method returns a QuerySpec that will never be
  * executed - it's purely for bytecode generation. The method names match the
  * test names for easy mapping.
  */
@@ -42,7 +45,7 @@ public class LambdaTestSources {
     @Entity
     public static class TestPersonNullable extends QubitEntity {
         public Integer age;
-        public Integer minAge;  // Second Integer field for field-to-field comparisons
+        public Integer minAge; // Second Integer field for field-to-field comparisons
         public Long employeeId;
         public Float height;
         public Double salary;
@@ -215,7 +218,7 @@ public class LambdaTestSources {
 
     public static QuerySpec<TestProduct, Boolean> bigDecimalRangeQuery() {
         return p -> p.price.compareTo(new BigDecimal("800.00")) >= 0 &&
-                    p.price.compareTo(new BigDecimal("1500.00")) <= 0;
+                p.price.compareTo(new BigDecimal("1500.00")) <= 0;
     }
 
     // ==================== EQUALITY OPERATIONS ====================
@@ -369,13 +372,13 @@ public class LambdaTestSources {
 
     public static QuerySpec<TestPersonNullable, Boolean> fiveConditionAnd() {
         return p -> p.age >= 30 && p.active && p.salary != null &&
-                    p.salary > 70000.0 && p.email.contains("@");
+                p.salary > 70000.0 && p.email.contains("@");
     }
 
     public static QuerySpec<TestPersonNullable, Boolean> longAndChain() {
         return p -> p.age >= 25 && p.age <= 45 && p.active && p.salary != null &&
-                    p.salary > 60000.0 && p.email.contains("@") &&
-                    p.height != null && p.height > 1.6f;
+                p.salary > 60000.0 && p.email.contains("@") &&
+                p.height != null && p.height > 1.6f;
     }
 
     // ==================== LOGICAL OPERATIONS - OR ====================
@@ -394,7 +397,7 @@ public class LambdaTestSources {
 
     public static QuerySpec<TestPerson, Boolean> fourWayOr() {
         return p -> p.age < 27 || p.age > 43 || p.firstName.equals("Alice") ||
-                    p.email.contains("@example.com");
+                p.email.contains("@example.com");
     }
 
     // ==================== LOGICAL OPERATIONS - NOT ====================
@@ -580,7 +583,7 @@ public class LambdaTestSources {
 
     public static QuerySpec<TestPerson, Boolean> deeplyNestedMultipleOrGroups() {
         return p -> ((p.age > 25 && p.age < 40) || p.salary > 85000) &&
-                    (p.active || p.firstName.startsWith("B"));
+                (p.active || p.firstName.startsWith("B"));
     }
 
     public static QuerySpec<TestPerson, Boolean> arithmeticInOrGroups() {
@@ -601,7 +604,7 @@ public class LambdaTestSources {
 
     public static QuerySpec<TestPerson, Boolean> complexNestedConditions() {
         return p -> (p.firstName.equals("John") || p.firstName.equals("Jane")) &&
-                    p.age >= 25 && p.active;
+                p.age >= 25 && p.active;
     }
 
     // ==================== CAPTURED VARIABLES ====================

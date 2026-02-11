@@ -9,14 +9,15 @@ import io.quarkus.gizmo2.desc.MethodDesc;
 /**
  * Builds JPA Criteria API predicates for comparison operations.
  *
- * <p>Operator mappings:
+ * <p>
+ * Operator mappings:
  * <ul>
- *   <li>EQ (==) → {@code CriteriaBuilder.equal()}</li>
- *   <li>NE (!=) → {@code CriteriaBuilder.notEqual()}</li>
- *   <li>GT (>) → {@code CriteriaBuilder.greaterThan()}</li>
- *   <li>GE (>=) → {@code CriteriaBuilder.greaterThanOrEqualTo()}</li>
- *   <li>LT (<) → {@code CriteriaBuilder.lessThan()}</li>
- *   <li>LE (<=) → {@code CriteriaBuilder.lessThanOrEqualTo()}</li>
+ * <li>EQ (==) → {@code CriteriaBuilder.equal()}</li>
+ * <li>NE (!=) → {@code CriteriaBuilder.notEqual()}</li>
+ * <li>GT (>) → {@code CriteriaBuilder.greaterThan()}</li>
+ * <li>GE (>=) → {@code CriteriaBuilder.greaterThanOrEqualTo()}</li>
+ * <li>LT (<) → {@code CriteriaBuilder.lessThan()}</li>
+ * <li>LE (<=) → {@code CriteriaBuilder.lessThanOrEqualTo()}</li>
  * </ul>
  */
 public enum ComparisonExpressionBuilder implements ExpressionBuilder {

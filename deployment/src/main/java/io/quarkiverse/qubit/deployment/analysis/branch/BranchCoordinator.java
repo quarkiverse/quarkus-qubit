@@ -1,15 +1,16 @@
 package io.quarkiverse.qubit.deployment.analysis.branch;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
-import io.quarkiverse.qubit.deployment.common.OpcodeNames;
-import io.quarkus.logging.Log;
-import org.objectweb.asm.tree.JumpInsnNode;
-import org.objectweb.asm.tree.LabelNode;
-
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
+
+import org.objectweb.asm.tree.JumpInsnNode;
+import org.objectweb.asm.tree.LabelNode;
+
+import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.common.OpcodeNames;
+import io.quarkus.logging.Log;
 
 /**
  * Coordinates branch instruction handling using the Strategy pattern.
@@ -24,12 +25,11 @@ public class BranchCoordinator {
 
     public BranchCoordinator() {
         this.handlers = List.of(
-            new IfEqualsZeroInstructionHandler(),
-            new IfNotEqualsZeroInstructionHandler(),
-            new TwoOperandComparisonHandler(),
-            new SingleOperandComparisonHandler(),
-            new NullCheckHandler()
-        );
+                new IfEqualsZeroInstructionHandler(),
+                new IfNotEqualsZeroInstructionHandler(),
+                new TwoOperandComparisonHandler(),
+                new SingleOperandComparisonHandler(),
+                new NullCheckHandler());
         this.state = new BranchState.Initial();
         this.lastJumpLabel = null;
         this.lastJumpLabelClass = null;
@@ -50,16 +50,16 @@ public class BranchCoordinator {
                 boolean sameLabel = lastJumpLabel != null && lastJumpLabel == currentLabel;
 
                 // Completing AND group: INTERMEDIATE → TRUE_SINK (e.g., (A && B) || C)
-                boolean completingAndGroupFromIntermediate =
-                        lastJumpLabelClass == ControlFlowAnalyzer.LabelClassification.INTERMEDIATE &&
+                boolean completingAndGroupFromIntermediate = lastJumpLabelClass == ControlFlowAnalyzer.LabelClassification.INTERMEDIATE
+                        &&
                         currentLabelClass == ControlFlowAnalyzer.LabelClassification.TRUE_SINK;
 
                 // Starting new group: FALSE_SINK → TRUE_SINK (e.g., (A || B) && (C || D))
-                boolean startingNewGroupAfterAnd =
-                        lastJumpLabelClass == ControlFlowAnalyzer.LabelClassification.FALSE_SINK &&
+                boolean startingNewGroupAfterAnd = lastJumpLabelClass == ControlFlowAnalyzer.LabelClassification.FALSE_SINK &&
                         currentLabelClass == ControlFlowAnalyzer.LabelClassification.TRUE_SINK;
 
-                Log.tracef("Processing %s with %s (state: %s, sameLabel: %s, completingAndGroup: %s, startingNewGroupAfterAnd: %s)",
+                Log.tracef(
+                        "Processing %s with %s (state: %s, sameLabel: %s, completingAndGroup: %s, startingNewGroupAfterAnd: %s)",
                         OpcodeNames.get(jumpInsn.getOpcode()),
                         handler.getName(),
                         state.getClass().getSimpleName(),

@@ -1,15 +1,16 @@
 package io.quarkiverse.qubit.deployment.metrics;
 
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.*;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.*;
 
 class ExpressionTypeCounterTest {
 
@@ -18,8 +19,7 @@ class ExpressionTypeCounterTest {
         // p.age > 18
         LambdaExpression expr = BinaryOp.gt(
                 new FieldAccess("age", int.class),
-                new Constant(18, int.class)
-        );
+                new Constant(18, int.class));
 
         Map<String, Integer> counts = ExpressionTypeCounter.count(expr);
 
@@ -32,8 +32,7 @@ class ExpressionTypeCounterTest {
         // p.age > 18 && p.active
         LambdaExpression expr = BinaryOp.and(
                 BinaryOp.gt(new FieldAccess("age", int.class), new Constant(18, int.class)),
-                new FieldAccess("active", boolean.class)
-        );
+                new FieldAccess("active", boolean.class));
 
         Map<String, Integer> counts = ExpressionTypeCounter.count(expr);
 
@@ -47,8 +46,7 @@ class ExpressionTypeCounterTest {
         // p.price * p.quantity
         LambdaExpression expr = BinaryOp.mul(
                 new FieldAccess("price", double.class),
-                new FieldAccess("quantity", int.class)
-        );
+                new FieldAccess("quantity", int.class));
 
         Map<String, Integer> counts = ExpressionTypeCounter.count(expr);
 
@@ -74,8 +72,7 @@ class ExpressionTypeCounterTest {
                 new FieldAccess("name", String.class),
                 "equals",
                 List.of(new Constant("John", String.class)),
-                boolean.class
-        );
+                boolean.class);
 
         Map<String, Integer> counts = ExpressionTypeCounter.count(expr);
 
@@ -102,8 +99,7 @@ class ExpressionTypeCounterTest {
         // p.price > BigDecimal.ZERO
         LambdaExpression expr = BinaryOp.gt(
                 new FieldAccess("price", BigDecimal.class),
-                new Constant(BigDecimal.ZERO, BigDecimal.class)
-        );
+                new Constant(BigDecimal.ZERO, BigDecimal.class));
 
         Map<String, Integer> counts = ExpressionTypeCounter.count(expr);
 
@@ -127,8 +123,7 @@ class ExpressionTypeCounterTest {
         LambdaExpression expr = ScalarSubquery.avg(
                 Object.class,
                 new FieldAccess("salary", double.class),
-                null
-        );
+                null);
 
         Map<String, Integer> counts = ExpressionTypeCounter.count(expr);
 
@@ -140,8 +135,7 @@ class ExpressionTypeCounterTest {
     void countsExistsSubquery() {
         LambdaExpression expr = ExistsSubquery.exists(
                 Object.class,
-                BinaryOp.eq(new FieldAccess("id", long.class), new FieldAccess("ownerId", long.class))
-        );
+                BinaryOp.eq(new FieldAccess("id", long.class), new FieldAccess("ownerId", long.class)));
 
         Map<String, Integer> counts = ExpressionTypeCounter.count(expr);
 
@@ -156,10 +150,8 @@ class ExpressionTypeCounterTest {
         LambdaExpression expr = BinaryOp.or(
                 BinaryOp.and(
                         BinaryOp.gt(new FieldAccess("age", int.class), new Constant(18, int.class)),
-                        new FieldAccess("active", boolean.class)
-                ),
-                new FieldAccess("premium", boolean.class)
-        );
+                        new FieldAccess("active", boolean.class)),
+                new FieldAccess("premium", boolean.class));
 
         Map<String, Integer> counts = ExpressionTypeCounter.count(expr);
 
@@ -181,8 +173,7 @@ class ExpressionTypeCounterTest {
 
         LambdaExpression expr = BinaryOp.and(
                 BinaryOp.gt(new FieldAccess("age", int.class), new Constant(18, int.class)),
-                new FieldAccess("active", boolean.class)
-        );
+                new FieldAccess("active", boolean.class));
 
         ExpressionTypeCounter.countAndRecord(expr, collector);
 
@@ -197,8 +188,7 @@ class ExpressionTypeCounterTest {
         LambdaExpression expr = new Conditional(
                 new FieldAccess("active", boolean.class),
                 new FieldAccess("premium", double.class),
-                new FieldAccess("basic", double.class)
-        );
+                new FieldAccess("basic", double.class));
 
         Map<String, Integer> counts = ExpressionTypeCounter.count(expr);
 
@@ -212,10 +202,8 @@ class ExpressionTypeCounterTest {
                 "com.example.DTO",
                 List.of(
                         new FieldAccess("name", String.class),
-                        new FieldAccess("age", int.class)
-                ),
-                Object.class
-        );
+                        new FieldAccess("age", int.class)),
+                Object.class);
 
         Map<String, Integer> counts = ExpressionTypeCounter.count(expr);
 
@@ -227,8 +215,7 @@ class ExpressionTypeCounterTest {
         // cities.contains(p.city)
         LambdaExpression expr = InExpression.in(
                 new FieldAccess("city", String.class),
-                new CapturedVariable(0, List.class)
-        );
+                new CapturedVariable(0, List.class));
 
         Map<String, Integer> counts = ExpressionTypeCounter.count(expr);
 

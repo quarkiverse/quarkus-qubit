@@ -67,7 +67,7 @@ public final class ExpressionTypeInferrer {
             return false;
         }
         return (methodName.startsWith(PREFIX_GET) && methodName.length() > PREFIX_GET.length()) ||
-               (methodName.startsWith(PREFIX_IS) && methodName.length() > PREFIX_IS.length());
+                (methodName.startsWith(PREFIX_IS) && methodName.length() > PREFIX_IS.length());
     }
 
     /** Extracts field name from getter (getAge→age, isActive→active). */
