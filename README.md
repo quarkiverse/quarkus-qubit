@@ -42,19 +42,21 @@ public class PersonRepository implements QubitRepository<Person, Long> {
 @Inject PersonRepository personRepository;
 
 // Filtering
-List<Person> adults = personRepository.where((Person p) -> p.age >= 18).toList();
+List<Person> adults = personRepository.where(p -> p.age >= 18).toList();
 
 // Projection to DTO
 List<PersonDTO> dtos = personRepository
-    .where((Person p) -> p.active)
-    .select((Person p) -> new PersonDTO(p.firstName, p.lastName))
+    .where(p -> p.active)
+    .select(p -> new PersonDTO(p.firstName, p.lastName))
     .toList();
 
 // Aggregation
-Double avgSalary = personRepository.avg((Person p) -> p.salary).getSingleResult();
+Double avgSalary = personRepository.avg(p -> p.salary).getSingleResult();
 ```
 
 ### ActiveRecord Pattern
+
+> **Note:** The ActiveRecord pattern uses static methods, so the entity type cannot be inferred by the compiler. Explicit lambda parameter types (e.g., `(Person p)`) are required.
 
 ```java
 @Entity
@@ -73,9 +75,9 @@ List<Person> adults = Person.where((Person p) -> p.age >= 18).toList();
 
 | Operation | Example |
 |-----------|---------|
-| Filter | `.where((Person p) -> p.age >= 18)` |
-| Project | `.select((Person p) -> p.firstName)` |
-| Sort | `.sortedBy((Person p) -> p.lastName)` |
+| Filter | `.where(p -> p.age >= 18)` |
+| Project | `.select(p -> p.firstName)` |
+| Sort | `.sortedBy(p -> p.lastName)` |
 | Paginate | `.skip(10).limit(20)` |
 | Distinct | `.distinct()` |
 
@@ -94,10 +96,10 @@ List<Person> adults = Person.where((Person p) -> p.age >= 18).toList();
 Compute aggregate values across entities. Use `sumLong()` and `sumDouble()` for other numeric types.
 
 ```java
-personRepository.min((Person p) -> p.age).getSingleResult();
-personRepository.max((Person p) -> p.salary).getSingleResult();
-personRepository.avg((Person p) -> p.salary).getSingleResult();
-personRepository.sumInteger((Person p) -> p.age).getSingleResult();
+personRepository.min(p -> p.age).getSingleResult();
+personRepository.max(p -> p.salary).getSingleResult();
+personRepository.avg(p -> p.salary).getSingleResult();
+personRepository.sumInteger(p -> p.age).getSingleResult();
 ```
 
 ### Join Queries
@@ -106,14 +108,14 @@ Join related entities with access to both sides in predicates and projections.
 
 ```java
 // Inner join - excludes persons without phones
-personRepository.join((Person p) -> p.phones)
-    .where((Person p, Phone ph) -> ph.type.equals("mobile"))
-    .select((Person p, Phone ph) -> new PersonPhoneDTO(p.firstName, ph.number))
+personRepository.join(p -> p.phones)
+    .where((p, ph) -> ph.type.equals("mobile"))
+    .select((p, ph) -> new PersonPhoneDTO(p.firstName, ph.number))
     .toList();
 
 // Left join - includes persons without phones (ph may be null)
-personRepository.leftJoin((Person p) -> p.phones)
-    .where((Person p, Phone ph) -> ph == null || ph.type.equals("mobile"))
+personRepository.leftJoin(p -> p.phones)
+    .where((p, ph) -> ph == null || ph.type.equals("mobile"))
     .toList();
 ```
 
@@ -153,7 +155,7 @@ Person.where((Person p) -> subquery(Department.class)
 
 ```java
 List<String> names = List.of("John", "Jane", "Alice");
-personRepository.where((Person p) -> names.contains(p.firstName)).toList();
+personRepository.where(p -> names.contains(p.firstName)).toList();
 ```
 
 ### Supported Expressions
@@ -171,7 +173,7 @@ personRepository.where((Person p) -> names.contains(p.firstName)).toList();
 ## Requirements
 
 - Java 25+
-- Quarkus 3.29+
+- Quarkus 3.31+
 - Hibernate ORM with Panache
 - GraalVM 25+ (optional, for native compilation)
 
