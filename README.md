@@ -1,3 +1,7 @@
+[![Version](https://img.shields.io/maven-central/v/io.quarkiverse.qubit/quarkus-qubit-parent?logo=apache-maven&style=flat-square)](https://search.maven.org/artifact/io.quarkiverse.qubit/quarkus-qubit)
+[![Build](https://img.shields.io/github/actions/workflow/status/quarkiverse/quarkus-qubit/build.yml?branch=main&logo=GitHub&style=flat-square)](https://github.com/quarkiverse/quarkus-qubit/actions?query=workflow%3ABuild)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](https://opensource.org/licenses/Apache-2.0)
+
 # Quarkus Qubit
 
 A Quarkus extension that enables type-safe, lambda-based queries on Panache entities with build-time transformation to JPA Criteria Queries.
