@@ -32,7 +32,22 @@ implementation 'io.quarkiverse.qubit:quarkus-qubit:1.0.0-SNAPSHOT'
 
 ## Quick Start
 
-### Repository Pattern (Recommended)
+### ActiveRecord Pattern
+
+```java
+@Entity
+public class Person extends QubitEntity {
+    public String firstName;
+    public int age;
+    public boolean active;
+}
+
+List<Person> adults = Person.where((Person p) -> p.age >= 18).toList();
+```
+
+> **Note:** The ActiveRecord pattern uses static methods, so the entity type cannot be inferred by the compiler. Explicit lambda parameter types (e.g., `(Person p)`) are required.
+
+### Repository Pattern
 
 ```java
 @ApplicationScoped
@@ -52,21 +67,6 @@ List<PersonDTO> dtos = personRepository
 
 // Aggregation
 Double avgSalary = personRepository.avg(p -> p.salary).getSingleResult();
-```
-
-### ActiveRecord Pattern
-
-> **Note:** The ActiveRecord pattern uses static methods, so the entity type cannot be inferred by the compiler. Explicit lambda parameter types (e.g., `(Person p)`) are required.
-
-```java
-@Entity
-public class Person extends QubitEntity {
-    public String firstName;
-    public int age;
-    public boolean active;
-}
-
-List<Person> adults = Person.where((Person p) -> p.age >= 18).toList();
 ```
 
 ## Features
