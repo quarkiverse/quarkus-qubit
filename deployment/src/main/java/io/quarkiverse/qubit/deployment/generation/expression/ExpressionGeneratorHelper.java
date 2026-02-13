@@ -60,8 +60,6 @@ public interface ExpressionGeneratorHelper {
     Expr generateExpression(BlockCreator bc, @Nullable LambdaExpression expression,
             Expr cb, Expr root, Expr capturedValues);
 
-    // ========== Captured Variable Utilities ==========
-
     /** Loads captured variable from array and casts to appropriate type (raw, not JPA literal). */
     Expr loadCapturedValue(BlockCreator bc, CapturedVariable capturedVar, Expr capturedValues);
 
@@ -69,17 +67,11 @@ public interface ExpressionGeneratorHelper {
     Expr loadAndWrapCapturedValue(BlockCreator bc, Expr cb,
             CapturedVariable capturedVar, Expr capturedValues);
 
-    // ========== DTO Class Loading Utilities ==========
-
     /** Loads DTO class by internal name ("com/example/MyDto" → Class.forName). */
     Expr loadDtoClass(BlockCreator bc, String internalClassName);
 
-    // ========== Boolean Predicate Wrapping Utilities ==========
-
     /** Wraps boolean-typed path as predicate using cb.isTrue() if type is boolean. */
     Expr wrapBooleanAsPredicateIfNeeded(BlockCreator bc, Expr cb, Expr path, Class<?> type);
-
-    // ========== Correlated Variable Utilities ==========
 
     /** Generates field expression from CorrelatedVariable. Returns null if unsupported expression type. */
     default @Nullable Expr generateCorrelatedFieldExpression(
@@ -93,8 +85,6 @@ public interface ExpressionGeneratorHelper {
             default -> null;
         };
     }
-
-    // ========== Null Check Predicate Utilities ==========
 
     /** Extracts non-null expression from null comparison (x == null or null != y). */
     default LambdaExpression extractNonNullExpression(LambdaExpression.BinaryOp binOp) {
@@ -114,8 +104,6 @@ public interface ExpressionGeneratorHelper {
             return bc.invokeInterface(CB_IS_NOT_NULL, cb, expression);
         }
     }
-
-    // ========== Unary Operation Utilities ==========
 
     /** Applies unary operator to operand. Currently only NOT is supported. */
     default Expr applyUnaryOperator(

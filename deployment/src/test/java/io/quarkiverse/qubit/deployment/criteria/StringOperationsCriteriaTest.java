@@ -16,8 +16,6 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
  */
 class StringOperationsCriteriaTest extends CriteriaQueryTestBase {
 
-    // ==================== PARAMETERIZED TESTS ====================
-
     /**
      * Tests for simple string transformation methods.
      */
@@ -45,8 +43,6 @@ class StringOperationsCriteriaTest extends CriteriaQueryTestBase {
         LambdaExpression expr = analyzeLambda(lambdaMethodName);
         assertCriteriaGenerationSucceeds(expr);
     }
-
-    // ==================== PATTERN-BASED STRING OPERATIONS ====================
 
     @Test
     void stringStartsWith() {

@@ -27,8 +27,6 @@ import io.quarkiverse.qubit.deployment.common.BytecodeAnalysisException;
  */
 public class AnalysisContext {
 
-    // ==================== Nested Lambda Support Configuration ====================
-
     /** Configuration for nested lambda analysis (classMethods + analyzer function). */
     public record NestedLambdaSupport(
             List<MethodNode> classMethods,
@@ -41,8 +39,6 @@ public class AnalysisContext {
             classMethods = List.copyOf(classMethods);
         }
     }
-
-    // ==================== Core State ====================
 
     /** Evaluation stack for building lambda expression AST. */
     private final Deque<LambdaExpression> stack = new ArrayDeque<>();
@@ -92,8 +88,6 @@ public class AnalysisContext {
     /** Collected elements for pending array creation. */
     private java.util.List<LambdaExpression> pendingArrayElements = null;
 
-    // ==================== Constructors ====================
-
     /** Creates context for single-entity lambda. */
     public AnalysisContext(MethodNode method, int entityParameterIndex) {
         this(method, entityParameterIndex, -1, false, false, null);
@@ -139,8 +133,6 @@ public class AnalysisContext {
         this.labelClassifications = controlFlowAnalyzer.classifyLabels(instructions);
         this.labelToValue = controlFlowAnalyzer.traceLabelDestinations(instructions, labelClassifications);
     }
-
-    // ==================== Stack Operations ====================
 
     /** Returns the evaluation stack. */
     public Deque<LambdaExpression> getStack() {
@@ -211,8 +203,6 @@ public class AnalysisContext {
         return discarded;
     }
 
-    // ==================== Instruction Access ====================
-
     /** Returns the bytecode instruction list. */
     public InsnList getInstructions() {
         return instructions;
@@ -232,8 +222,6 @@ public class AnalysisContext {
     public void setCurrentInstructionIndex(int index) {
         this.currentInstructionIndex = index;
     }
-
-    // ==================== Control Flow ====================
 
     /** Returns label classifications map. */
     public Map<LabelNode, ControlFlowAnalyzer.LabelClassification> getLabelClassifications() {
@@ -259,8 +247,6 @@ public class AnalysisContext {
     public void markBranchSeen() {
         this.hasSeenBranch = true;
     }
-
-    // ==================== Method Metadata ====================
 
     /** Returns the method node being analyzed. */
     public MethodNode getMethod() {
@@ -301,8 +287,6 @@ public class AnalysisContext {
         return null;
     }
 
-    // ==================== Group Context ====================
-
     /** Returns true if this is a group context lambda (GroupQuerySpec). */
     public boolean isGroupContextMode() {
         return groupContextMode;
@@ -333,8 +317,6 @@ public class AnalysisContext {
         }
         return nestedLambdaSupport.analyzer().apply(nestedMethod, entityParamIndex);
     }
-
-    // ==================== Array Creation Tracking ====================
 
     /** Starts tracking array creation (called on ANEWARRAY). */
     public void startArrayCreation(String elementType) {
@@ -380,8 +362,6 @@ public class AnalysisContext {
         return result;
     }
 
-    // ==================== Variable Name Lookup ====================
-
     /** Looks up variable name from debug info (null if unavailable). */
     public @Nullable String getVariableNameForSlot(int slotIndex) {
         if (method.localVariables == null) {
@@ -396,8 +376,6 @@ public class AnalysisContext {
 
         return null;
     }
-
-    // ==================== Ternary Pattern Detection ====================
 
     /** Cached ternary patterns detected in the instruction list. */
     private List<TernaryPattern> ternaryPatterns;
@@ -419,8 +397,6 @@ public class AnalysisContext {
     public @Nullable TernaryPattern getTernaryPatternAt(int instructionIndex) {
         return TernaryPatternDetector.findPatternStartingAt(getTernaryPatterns(), instructionIndex).orElse(null);
     }
-
-    // ==================== Instruction Skip Support ====================
 
     /** Index to skip to after special pattern handling (-1 = no skip). */
     private int skipToIndex = -1;

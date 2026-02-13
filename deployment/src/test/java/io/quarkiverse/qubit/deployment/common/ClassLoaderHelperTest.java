@@ -18,8 +18,6 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant;
  */
 class ClassLoaderHelperTest {
 
-    // ==================== tryLoadClass Tests ====================
-
     @Nested
     class TryLoadClassTests {
 
@@ -108,8 +106,6 @@ class ClassLoaderHelperTest {
                             r -> assertThat(r).isNull());
         }
     }
-
-    // ==================== extractEntityClassInfo Tests ====================
 
     @Nested
     class ExtractEntityClassInfoTests {
@@ -249,8 +245,6 @@ class ClassLoaderHelperTest {
                     .isEqualTo(Object.class);
         }
     }
-
-    // ==================== isClassLoadable Tests ====================
 
     @Nested
     class IsClassLoadableTests {

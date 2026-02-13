@@ -45,8 +45,6 @@ class BytecodeLoaderTest {
         BytecodeLoader.clearCache();
     }
 
-    // ==================== loadClassBytecode from Classloader Tests ====================
-
     @Nested
     class LoadFromClassloaderTests {
 
@@ -100,8 +98,6 @@ class BytecodeLoaderTest {
                     .startsWith((byte) 0xCA, (byte) 0xFE, (byte) 0xBA, (byte) 0xBE);
         }
     }
-
-    // ==================== loadClassBytecode from Archive Tests ====================
 
     @Nested
     class LoadFromArchiveTests {
@@ -215,8 +211,6 @@ class BytecodeLoaderTest {
                     .isEqualTo(classContent);
         }
     }
-
-    // ==================== Cache Behavior Tests ====================
 
     @Nested
     class CacheBehaviorTests {

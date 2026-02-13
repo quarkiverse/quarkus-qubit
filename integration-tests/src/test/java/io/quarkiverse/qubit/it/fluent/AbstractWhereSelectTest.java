@@ -37,8 +37,6 @@ public abstract class AbstractWhereSelectTest {
         TestDataFactory.createStandardPersonsAndProducts();
     }
 
-    // ========== String Field Projection with WHERE ==========
-
     @Test
     void whereAge_selectFirstName() {
         List<String> names = personOps().where((Person p) -> p.age > 25)
@@ -79,8 +77,6 @@ public abstract class AbstractWhereSelectTest {
                 .containsExactlyInAnyOrder("Doe", "Johnson", "Williams");
     }
 
-    // ========== Integer Field Projection with WHERE ==========
-
     @Test
     void whereActive_selectAge() {
         List<Integer> ages = personOps().where((Person p) -> p.active)
@@ -92,8 +88,6 @@ public abstract class AbstractWhereSelectTest {
                 .hasSize(4)
                 .containsExactlyInAnyOrder(30, 25, 35, 28);
     }
-
-    // ========== Long Field Projection with WHERE ==========
 
     @Test
     void whereAge_selectEmployeeId() {
@@ -107,8 +101,6 @@ public abstract class AbstractWhereSelectTest {
                 .containsExactlyInAnyOrder(1000001L, 1000003L, 1000004L);
     }
 
-    // ========== Double Field Projection with WHERE ==========
-
     @Test
     void whereActive_selectSalary() {
         List<Double> salaries = personOps().where((Person p) -> p.active)
@@ -120,8 +112,6 @@ public abstract class AbstractWhereSelectTest {
                 .hasSize(4)
                 .containsExactlyInAnyOrder(75000.0, 65000.0, 90000.0, 55000.0);
     }
-
-    // ========== Float Field Projection with WHERE ==========
 
     @Test
     void whereAge_selectHeight() {
@@ -135,8 +125,6 @@ public abstract class AbstractWhereSelectTest {
                 .containsExactlyInAnyOrder(1.68f, 1.78f);
     }
 
-    // ========== Boolean Field Projection with WHERE ==========
-
     @Test
     void whereAge_selectActive() {
         List<Boolean> activeStatuses = personOps().where((Person p) -> p.age > 40)
@@ -148,8 +136,6 @@ public abstract class AbstractWhereSelectTest {
                 .hasSize(1)
                 .containsExactly(false);
     }
-
-    // ========== Complex WHERE Predicates with Projection ==========
 
     @Test
     void complexWhere_selectFirstName() {
@@ -186,8 +172,6 @@ public abstract class AbstractWhereSelectTest {
                 .hasSize(5)
                 .containsExactlyInAnyOrder(30, 25, 45, 35, 28);
     }
-
-    // ========== Product Entity Tests ==========
 
     @Test
     void whereProductAvailable_selectName() {
@@ -227,8 +211,6 @@ public abstract class AbstractWhereSelectTest {
                         new BigDecimal("899.99"),
                         new BigDecimal("399.99"));
     }
-
-    // ========== Edge Cases ==========
 
     @Test
     void whereNoMatches_selectField_returnsEmptyList() {

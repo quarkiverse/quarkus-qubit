@@ -28,8 +28,6 @@ public class TestDataFactory {
     // Cache for reusable departments
     private static final Map<String, Department> departmentCache = new HashMap<>();
 
-    // ========== Person Builders (Private) ==========
-
     private static Person createJohnDoe() {
         return new Person("John", "Doe", "john.doe@example.com", 30,
                 LocalDate.of(1993, 5, 15), true, 75000.0, 1000001L, 1.75f,
@@ -77,8 +75,6 @@ public class TestDataFactory {
                 null, false, null, null, null, null, null);
     }
 
-    // ========== Tag Helpers (Private) ==========
-
     private static Tag getOrCreateTag(String name, String color) {
         return tagCache.computeIfAbsent(name, _ -> {
             Tag tag = new Tag(name, color);
@@ -96,8 +92,6 @@ public class TestDataFactory {
         getOrCreateTag("eco-friendly", "lime");
     }
 
-    // ========== Department Helpers (Private) ==========
-
     private static Department getOrCreateDepartment(String name, String code, int budget) {
         return departmentCache.computeIfAbsent(name, _ -> {
             Department dept = new Department(name, code, budget);
@@ -113,8 +107,6 @@ public class TestDataFactory {
         getOrCreateDepartment("Marketing", "MKT", 200000);
     }
 
-    // ========== Phone Helpers (Private) ==========
-
     private static void addPhonesTo(Person person, String[][] phoneData) {
         for (String[] data : phoneData) {
             Phone phone = new Phone(data[0], data[1], Boolean.parseBoolean(data[2]), person);
@@ -122,8 +114,6 @@ public class TestDataFactory {
             person.phones.add(phone);
         }
     }
-
-    // ========== Public Factory Methods ==========
 
     /**
      * Creates and persists the standard set of 5 Person entities.

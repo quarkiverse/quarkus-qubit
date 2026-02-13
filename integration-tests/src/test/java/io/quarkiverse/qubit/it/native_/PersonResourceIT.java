@@ -14,9 +14,7 @@ import static org.hamcrest.Matchers.*;
 @QuarkusIntegrationTest
 public class PersonResourceIT {
 
-    // =============================================================================================
     // BASIC QUERIES
-    // =============================================================================================
 
     @Test
     void getAll_returnsAllPersons() {
@@ -68,9 +66,7 @@ public class PersonResourceIT {
                 .body(greaterThanOrEqualTo("1"));
     }
 
-    // =============================================================================================
     // COMPARISON OPERATIONS
-    // =============================================================================================
 
     @Test
     void getAgeGreaterThan_filtersCorrectly() {
@@ -138,9 +134,7 @@ public class PersonResourceIT {
                 .body("age", everyItem(allOf(greaterThanOrEqualTo(25), lessThanOrEqualTo(35))));
     }
 
-    // =============================================================================================
     // LOGICAL OPERATIONS
-    // =============================================================================================
 
     @Test
     void getActiveAndAgeOver_combinesConditions() {
@@ -197,9 +191,7 @@ public class PersonResourceIT {
                 .body("$", hasSize(greaterThan(0)));
     }
 
-    // =============================================================================================
     // STRING OPERATIONS
-    // =============================================================================================
 
     @Test
     void getFirstNameStartsWith_filtersCorrectly() {
@@ -234,9 +226,7 @@ public class PersonResourceIT {
                 .body("lastName", everyItem(endsWith("son")));
     }
 
-    // =============================================================================================
     // SORTING
-    // =============================================================================================
 
     @Test
     void getSortedByAge_sortsAscending() {
@@ -283,9 +273,7 @@ public class PersonResourceIT {
         }
     }
 
-    // =============================================================================================
     // PAGINATION
-    // =============================================================================================
 
     @Test
     void getPaginated_returnsCorrectPage() {
@@ -307,9 +295,7 @@ public class PersonResourceIT {
                 .body("$", hasSize(3));
     }
 
-    // =============================================================================================
     // PROJECTIONS
-    // =============================================================================================
 
     @Test
     void getFirstNames_projectsCorrectly() {
@@ -348,9 +334,7 @@ public class PersonResourceIT {
         assert uniqueCount == lastNames.size() : "Should not have duplicates";
     }
 
-    // =============================================================================================
     // AGGREGATIONS
-    // =============================================================================================
 
     @Test
     void getMinAge_returnsMinimum() {
@@ -397,9 +381,7 @@ public class PersonResourceIT {
                 .body(notNullValue());
     }
 
-    // =============================================================================================
     // CHAINED OPERATIONS
-    // =============================================================================================
 
     @Test
     void getActiveSortedByAge_combinesFilterAndSort() {
@@ -439,9 +421,7 @@ public class PersonResourceIT {
                 .body("age", everyItem(allOf(greaterThanOrEqualTo(25), lessThanOrEqualTo(35))));
     }
 
-    // =============================================================================================
     // SINGLE RESULT OPERATIONS
-    // =============================================================================================
 
     @Test
     void getFirstActive_returnsSinglePerson() {
@@ -471,10 +451,8 @@ public class PersonResourceIT {
                 .body(is("true"));
     }
 
-    // =============================================================================================
     // JOIN QUERIES - BiQuerySpec lambda native mode tests
     // Tests join operations between Person and Phone entities using bi-entity predicates
-    // =============================================================================================
 
     @Test
     void joinWithPhones_returnsPersonsWithPhones() {
@@ -610,10 +588,8 @@ public class PersonResourceIT {
                 .body("$", hasSize(lessThanOrEqualTo(2)));
     }
 
-    // =============================================================================================
     // GROUP BY QUERIES - GroupQuerySpec lambda native mode tests
     // Tests GROUP BY operations with aggregations using Group<T,K> parameter
-    // =============================================================================================
 
     @Test
     void groupByDepartment_returnsDistinctDepartments() {

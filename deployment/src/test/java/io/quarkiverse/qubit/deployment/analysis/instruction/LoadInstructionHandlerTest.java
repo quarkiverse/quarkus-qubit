@@ -53,8 +53,6 @@ class LoadInstructionHandlerTest {
         context = contextFor(testMethod, 0);
     }
 
-    // ==================== canHandle Tests ====================
-
     @Nested
     @DisplayName("canHandle")
     class CanHandleTests {
@@ -85,8 +83,6 @@ class LoadInstructionHandlerTest {
             assertThat(handler.canHandle(insn)).isFalse();
         }
     }
-
-    // ==================== handle - ALOAD Tests ====================
 
     @Nested
     @DisplayName("handle - ALOAD")
@@ -161,8 +157,6 @@ class LoadInstructionHandlerTest {
         }
     }
 
-    // ==================== handle - Primitive Load Tests ====================
-
     @Nested
     @DisplayName("handle - Primitive Loads")
     class HandlePrimitiveLoadTests {
@@ -193,8 +187,6 @@ class LoadInstructionHandlerTest {
                     .hasMessageContaining("does not correspond to a method parameter");
         }
     }
-
-    // ==================== handle - GETFIELD Tests ====================
 
     @Nested
     @DisplayName("handle - GETFIELD")
@@ -363,8 +355,6 @@ class LoadInstructionHandlerTest {
         }
     }
 
-    // ==================== handle - Return Value Tests ====================
-
     @Nested
     @DisplayName("handle - Return Value")
     class HandleReturnValueTests {
@@ -396,8 +386,6 @@ class LoadInstructionHandlerTest {
         }
     }
 
-    // ==================== Correlated Variable Edge Cases ====================
-
     @Nested
     @DisplayName("Correlated Variable Edge Cases")
     class CorrelatedVariableEdgeCaseTests {
@@ -417,8 +405,6 @@ class LoadInstructionHandlerTest {
             // Should wrap in PathExpression via default case
         }
     }
-
-    // ==================== Test Data Providers ====================
 
     /** Opcodes that the handler can handle. */
     static Stream<Arguments> handledOpcodes() {

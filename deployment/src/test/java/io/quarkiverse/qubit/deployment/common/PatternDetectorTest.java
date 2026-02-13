@@ -29,8 +29,6 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
  */
 class PatternDetectorTest {
 
-    // ==================== isBooleanFieldCapturedVariableComparison Tests ====================
-
     @Nested
     @DisplayName("isBooleanFieldCapturedVariableComparison")
     class BooleanFieldCapturedVariableComparisonTests {
@@ -96,8 +94,6 @@ class PatternDetectorTest {
         }
     }
 
-    // ==================== isEqualityOperation Tests ====================
-
     @Nested
     @DisplayName("isEqualityOperation")
     class EqualityOperationTests {
@@ -120,8 +116,6 @@ class PatternDetectorTest {
             return new BinaryOp(left, operator, right);
         }
     }
-
-    // ==================== isCompareToEqualityPattern Tests ====================
 
     @Nested
     @DisplayName("isCompareToEqualityPattern")
@@ -177,8 +171,6 @@ class PatternDetectorTest {
         }
     }
 
-    // ==================== isNullCheckPattern Tests ====================
-
     @Nested
     @DisplayName("isNullCheckPattern")
     class NullCheckPatternTests {
@@ -219,8 +211,6 @@ class PatternDetectorTest {
             assertThat(PatternDetector.isNullCheckPattern(binOp)).isFalse();
         }
     }
-
-    // ==================== isBooleanFieldConstantComparison Tests ====================
 
     @Nested
     @DisplayName("isBooleanFieldConstantComparison")
@@ -280,8 +270,6 @@ class PatternDetectorTest {
         }
     }
 
-    // ==================== isLogicalOperation Tests ====================
-
     @Nested
     @DisplayName("isLogicalOperation")
     class LogicalOperationTests {
@@ -303,8 +291,6 @@ class PatternDetectorTest {
             return new BinaryOp(left, operator, right);
         }
     }
-
-    // ==================== isArithmeticComparisonPattern Tests ====================
 
     @Nested
     @DisplayName("isArithmeticComparisonPattern")
@@ -346,8 +332,6 @@ class PatternDetectorTest {
             assertThat(PatternDetector.isArithmeticComparisonPattern(stack)).isTrue();
         }
     }
-
-    // ==================== containsSubquery Tests ====================
 
     @Nested
     @DisplayName("containsSubquery")
@@ -439,8 +423,6 @@ class PatternDetectorTest {
         }
     }
 
-    // ==================== containsScalarSubquery Tests ====================
-
     @Nested
     @DisplayName("containsScalarSubquery")
     class ContainsScalarSubqueryTests {
@@ -522,8 +504,6 @@ class PatternDetectorTest {
         }
     }
 
-    // ==================== isBooleanConstant Tests ====================
-
     @Nested
     @DisplayName("isBooleanConstant")
     class IsBooleanConstantTests {
@@ -558,8 +538,6 @@ class PatternDetectorTest {
             assertThat(PatternDetector.isBooleanConstant(expr)).isFalse();
         }
     }
-
-    // ==================== isSubqueryBooleanComparison Tests ====================
 
     @Nested
     @DisplayName("isSubqueryBooleanComparison")
@@ -614,8 +592,6 @@ class PatternDetectorTest {
         }
     }
 
-    // ==================== isNegatedSubqueryComparison Tests ====================
-
     @Nested
     @DisplayName("isNegatedSubqueryComparison")
     class IsNegatedSubqueryComparisonTests {
@@ -643,8 +619,6 @@ class PatternDetectorTest {
             assertThat(PatternDetector.isNegatedSubqueryComparison(Operator.EQ, expr)).isFalse();
         }
     }
-
-    // ==================== BranchPattern.detect Tests ====================
 
     @Nested
     @DisplayName("BranchPattern.detect")
@@ -707,8 +681,6 @@ class PatternDetectorTest {
         }
     }
 
-    // ==================== BranchPatternAnalysis.analyze Tests ====================
-
     @Nested
     @DisplayName("BranchPatternAnalysis.analyze")
     class BranchPatternAnalysisTests {
@@ -730,8 +702,6 @@ class PatternDetectorTest {
             assertThat(result.top()).isSameAs(fieldAccess);
         }
     }
-
-    // ==================== isDcmplPattern Tests ====================
 
     @Nested
     @DisplayName("isDcmplPattern")
@@ -828,8 +798,6 @@ class PatternDetectorTest {
         }
     }
 
-    // ==================== BinaryOperationCategory.categorize Tests ====================
-
     @Nested
     @DisplayName("BinaryOperationCategory.categorize")
     class BinaryOperationCategoryTests {
@@ -904,8 +872,6 @@ class PatternDetectorTest {
         }
     }
 
-    // ==================== isArithmeticExpression Tests ====================
-
     @Nested
     @DisplayName("isArithmeticExpression")
     class IsArithmeticExpressionTests {
@@ -934,8 +900,6 @@ class PatternDetectorTest {
             assertThat(PatternDetector.isArithmeticExpression(expr)).isFalse();
         }
     }
-
-    // ==================== Additional Mutation-Killing Tests ====================
 
     @Nested
     @DisplayName("Additional mutation-killing tests")

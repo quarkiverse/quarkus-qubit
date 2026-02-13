@@ -25,8 +25,6 @@ public class QueryExecutorRegistry {
 
     private static final Logger LOG = Logger.getLogger(QueryExecutorRegistry.class);
 
-    // ========== Executor Type Enum ==========
-
     /**
      * Enumeration of all query executor types with their metadata.
      * This eliminates the need for separate maps and registration methods per type.
@@ -59,8 +57,6 @@ public class QueryExecutorRegistry {
         }
     }
 
-    // ========== Executor Storage Maps ==========
-
     private static final Map<String, QueryExecutor<List<?>>> LIST_EXECUTORS = new ConcurrentHashMap<>();
     private static final Map<String, QueryExecutor<Long>> COUNT_EXECUTORS = new ConcurrentHashMap<>();
     private static final Map<String, QueryExecutor<Object>> AGGREGATION_EXECUTORS = new ConcurrentHashMap<>();
@@ -85,8 +81,6 @@ public class QueryExecutorRegistry {
 
     @Inject
     EntityManager entityManager;
-
-    // ========== Generic Registration Helper ==========
 
     /** Registers executor with write lock for atomic executor+captured-var-count update. */
     private static <T> void registerExecutor(
@@ -134,8 +128,6 @@ public class QueryExecutorRegistry {
         }
     }
 
-    // ========== Error Message Generation ==========
-
     /** Builds error message for missing executor. */
     private static String buildExecutorNotFoundError(String callSiteId, ExecutorType type, Supplier<String> registeredCounts) {
         return String.format(
@@ -171,8 +163,6 @@ public class QueryExecutorRegistry {
                             "you are within a transaction context.");
         }
     }
-
-    // ========== Standard Query Registration ==========
 
     /**
      * Registers list query executor for call site.
@@ -220,8 +210,6 @@ public class QueryExecutorRegistry {
             EXECUTOR_LOCK.readLock().unlock();
         }
     }
-
-    // ========== Standard Query Execution ==========
 
     /** Executes list query (lock held only during lookup, not DB execution). */
     @SuppressWarnings("unchecked")
@@ -283,7 +271,6 @@ public class QueryExecutorRegistry {
         return (R) executor.execute(entityManager, entityClass, capturedValues, null, null, null);
     }
 
-    // ========== Executor Count Methods ==========
     // Acquires read locks to prevent data races with clearAllExecutors() during dev mode hot reload.
 
     public static int getListExecutorCount() {
@@ -322,8 +309,6 @@ public class QueryExecutorRegistry {
         return getExecutorCount(GROUP_COUNT_EXECUTORS);
     }
 
-    // ========== Join Query Registration ==========
-
     /**
      * Registers join list query executor for call site (join() and leftJoin()).
      */
@@ -353,8 +338,6 @@ public class QueryExecutorRegistry {
             int capturedVarCount) {
         registerExecutor(callSiteId, executor, capturedVarCount, JOIN_PROJECTION_EXECUTORS, ExecutorType.JOIN_PROJECTION);
     }
-
-    // ========== Join Query Execution ==========
 
     /**
      * Executes join list query for call site, returning source entities.
@@ -442,8 +425,6 @@ public class QueryExecutorRegistry {
         return (List<S>) executor.execute(entityManager, entityClass, capturedValues, offset, limit, distinct);
     }
 
-    // ========== Group Query Registration ==========
-
     /**
      * Registers group list query executor for call site.
      */
@@ -457,8 +438,6 @@ public class QueryExecutorRegistry {
     public static void registerGroupCountExecutor(String callSiteId, QueryExecutor<Long> executor, int capturedVarCount) {
         registerExecutor(callSiteId, executor, capturedVarCount, GROUP_COUNT_EXECUTORS, ExecutorType.GROUP_COUNT);
     }
-
-    // ========== Group Query Execution ==========
 
     /**
      * Executes group list query for call site with projection.
@@ -529,8 +508,6 @@ public class QueryExecutorRegistry {
 
         return executor.execute(entityManager, entityClass, capturedValues, null, null, null);
     }
-
-    // ========== Dev Mode Support ==========
 
     /** Clears all executors (dev mode hot reload). Acquires exclusive write lock. */
     public static void clearAllExecutors() {

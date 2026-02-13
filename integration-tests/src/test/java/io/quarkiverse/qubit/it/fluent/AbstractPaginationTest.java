@@ -29,9 +29,7 @@ public abstract class AbstractPaginationTest {
         TestDataFactory.createStandardPersons();
     }
 
-    // =============================================================================================
     // SKIP TESTS
-    // =============================================================================================
 
     @Test
     @Transactional
@@ -75,9 +73,7 @@ public abstract class AbstractPaginationTest {
         assertThat(skipped).hasSize(all.size());
     }
 
-    // =============================================================================================
     // LIMIT TESTS
-    // =============================================================================================
 
     @Test
     @Transactional
@@ -111,9 +107,7 @@ public abstract class AbstractPaginationTest {
         assertThat(limited).hasSize((int) totalCount);
     }
 
-    // =============================================================================================
     // SKIP + LIMIT TESTS (Pagination)
-    // =============================================================================================
 
     @Test
     @Transactional
@@ -179,9 +173,7 @@ public abstract class AbstractPaginationTest {
         assertThat(names).hasSizeLessThanOrEqualTo(3);
     }
 
-    // =============================================================================================
     // COMPLEX COMPOSITION TESTS
-    // =============================================================================================
 
     @Test
     @Transactional

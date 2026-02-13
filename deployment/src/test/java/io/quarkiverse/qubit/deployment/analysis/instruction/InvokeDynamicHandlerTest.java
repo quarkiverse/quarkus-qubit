@@ -43,8 +43,6 @@ class InvokeDynamicHandlerTest {
         context = contextFor(testMethod, 0);
     }
 
-    // ==================== canHandle Tests ====================
-
     @Nested
     class CanHandleTests {
 
@@ -75,8 +73,6 @@ class InvokeDynamicHandlerTest {
                     .isFalse();
         }
     }
-
-    // ==================== StringConcatFactory Tests ====================
 
     @Nested
     class StringConcatenationTests {
@@ -241,8 +237,6 @@ class InvokeDynamicHandlerTest {
         }
     }
 
-    // ==================== LambdaMetafactory Tests ====================
-
     @Nested
     class LambdaMetafactoryTests {
 
@@ -351,8 +345,6 @@ class InvokeDynamicHandlerTest {
         }
     }
 
-    // ==================== Non-Handled INVOKEDYNAMIC Tests ====================
-
     @Nested
     class UnhandledInvokeDynamicTests {
 
@@ -382,8 +374,6 @@ class InvokeDynamicHandlerTest {
             assertThat(terminated).isFalse();
         }
     }
-
-    // ==================== Recipe Parsing Edge Cases ====================
 
     @Nested
     class RecipeParsingEdgeCases {
@@ -453,8 +443,6 @@ class InvokeDynamicHandlerTest {
                     .isTrue();
         }
     }
-
-    // ==================== Recipe Buffer Clearing Tests ====================
 
     @Nested
     class BufferClearingTests {
@@ -544,8 +532,6 @@ class InvokeDynamicHandlerTest {
         }
     }
 
-    // ==================== Return Value Verification Tests ====================
-
     @Nested
     class ReturnValueTests {
 
@@ -580,8 +566,6 @@ class InvokeDynamicHandlerTest {
                     .isFalse();
         }
     }
-
-    // ==================== Boolean Method Tests ====================
 
     @Nested
     class BooleanMethodTests {
@@ -643,8 +627,6 @@ class InvokeDynamicHandlerTest {
         }
     }
 
-    // ==================== Extract Recipe Edge Cases ====================
-
     @Nested
     class ExtractRecipeTests {
 
@@ -681,8 +663,6 @@ class InvokeDynamicHandlerTest {
             assertThat(context.isStackEmpty()).isTrue();
         }
     }
-
-    // ==================== Parse Recipe Boundary Tests ====================
 
     @Nested
     class ParseRecipeBoundaryTests {
@@ -725,8 +705,6 @@ class InvokeDynamicHandlerTest {
             // All 3 operands should be consumed and combined
         }
     }
-
-    // ==================== IndyCategory Categorization Tests ====================
 
     @Nested
     class IndyCategoryTests {
@@ -904,8 +882,6 @@ class InvokeDynamicHandlerTest {
                     .containsExactly(STRING_CONCAT, QUERY_SPEC_LAMBDA, UNHANDLED);
         }
     }
-
-    // ==================== Helper Methods ====================
 
     /**
      * Creates an INVOKEDYNAMIC instruction for StringConcatFactory with the given recipe.

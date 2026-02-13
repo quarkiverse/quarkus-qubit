@@ -31,8 +31,6 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
  */
 class CapturedVariablesCriteriaTest extends CriteriaQueryTestBase {
 
-    // ==================== PARAMETERIZED TESTS ====================
-
     /**
      * Tests for simple captured variable patterns (field access + comparison method).
      */
@@ -52,8 +50,6 @@ class CapturedVariablesCriteriaTest extends CriteriaQueryTestBase {
         assertFieldAccessed(structure, fieldName);
         assertCriteriaMethodCalled(structure, expectedMethod);
     }
-
-    // ==================== COMPLEX CAPTURED VARIABLE TESTS ====================
 
     @Test
     void multipleCapturedVariables() {

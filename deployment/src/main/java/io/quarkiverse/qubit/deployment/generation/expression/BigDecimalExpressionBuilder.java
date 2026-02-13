@@ -4,7 +4,6 @@ import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Oper
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.DIV;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.MUL;
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.SUB;
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.unexpectedBigDecimalMethod;
 import static io.quarkiverse.qubit.deployment.generation.expression.BuilderResult.notApplicable;
 import static io.quarkiverse.qubit.deployment.generation.expression.BuilderResult.success;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
@@ -63,7 +62,7 @@ public enum BigDecimalExpressionBuilder implements ExpressionBuilder {
 
         LambdaExpression.BinaryOp.Operator operator = mapMethodToOperator(methodCall.methodName());
         if (operator == null) {
-            throw new IllegalStateException(unexpectedBigDecimalMethod(methodCall.methodName()));
+            throw new IllegalStateException("Unexpected BigDecimal method: " + methodCall.methodName());
         }
 
         // Delegate to arithmetic builder for the actual code generation

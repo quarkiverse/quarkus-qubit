@@ -34,9 +34,7 @@ class StreamPipelineAnalyzerTest {
         methodNode.instructions = new InsnList();
     }
 
-    // ========================================================================
     // StreamPipeline Record Behavior Tests
-    // ========================================================================
 
     @Nested
     class StreamPipelineTests {
@@ -87,9 +85,7 @@ class StreamPipelineAnalyzerTest {
         }
     }
 
-    // ========================================================================
     // analyzePipeline Edge Case Tests
-    // ========================================================================
 
     @Nested
     class AnalyzePipelineEdgeCaseTests {
@@ -181,9 +177,7 @@ class StreamPipelineAnalyzerTest {
         }
     }
 
-    // ========================================================================
     // Analyzer Instance Tests
-    // ========================================================================
 
     @Nested
     class AnalyzerInstanceTests {

@@ -34,8 +34,6 @@ public abstract class AbstractJoinSortingTest {
         TestDataFactory.createPersonsWithPhones();
     }
 
-    // ========== SORTING BY SOURCE ENTITY FIELDS ==========
-
     @Test
     void sortBySourceEntityFieldAscending() {
         // Sort persons with mobile phones by age ascending
@@ -84,8 +82,6 @@ public abstract class AbstractJoinSortingTest {
                 .containsExactly("Alice", "Bob", "Charlie", "Jane", "John");
     }
 
-    // ========== SORTING BY JOINED ENTITY FIELDS ==========
-
     @Test
     void sortByJoinedEntityFieldAscending() {
         // Sort by phone number ascending for persons with work phones
@@ -132,8 +128,6 @@ public abstract class AbstractJoinSortingTest {
         assertThat(results.getFirst().firstName).isEqualTo("Bob");
     }
 
-    // ========== MULTIPLE SORT CRITERIA ==========
-
     @Test
     void sortByMultipleCriteria() {
         // Sort by type then by phone number (last call wins - type is primary)
@@ -167,8 +161,6 @@ public abstract class AbstractJoinSortingTest {
         // First results should be from Jane (age 25)
         assertThat(results.getFirst().firstName).isEqualTo("Jane");
     }
-
-    // ========== SORTING WITH PAGINATION ==========
 
     @Test
     void sortWithLimit() {
@@ -217,8 +209,6 @@ public abstract class AbstractJoinSortingTest {
                 .containsExactly("Bob", "Alice", "John");
     }
 
-    // ========== SORTING WITH DISTINCT ==========
-
     @Test
     void sortWithDistinct() {
         // Sort distinct persons by age ascending
@@ -246,8 +236,6 @@ public abstract class AbstractJoinSortingTest {
                 .extracting(p -> p.firstName)
                 .containsExactly("Bob", "Alice", "John", "Charlie", "Jane");
     }
-
-    // ========== SORTING WITH COMPLEX WHERE CLAUSES ==========
 
     @Test
     void sortWithComplexWhere() {
@@ -283,8 +271,6 @@ public abstract class AbstractJoinSortingTest {
                 .containsExactly("Alice", "John");
     }
 
-    // ========== LEFT JOIN WITH SORTING ==========
-
     @Test
     void leftJoinSortBySourceEntity() {
         // Left join sorted by source entity age
@@ -312,8 +298,6 @@ public abstract class AbstractJoinSortingTest {
                 .extracting(p -> p.firstName)
                 .containsExactly("Bob", "Alice", "John", "Charlie", "Jane");
     }
-
-    // ========== FINDERFIRST WITH SORTING ==========
 
     @Test
     void findFirstWithSort() {

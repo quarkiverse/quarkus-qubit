@@ -36,8 +36,6 @@ import org.junit.jupiter.params.provider.NullAndEmptySource;
  */
 class DescriptorParserTest {
 
-    // ==================== PARAMETERIZED TEST DATA ====================
-
     /** Test data for calculateEntityParameterSlotIndex tests. */
     static Stream<Arguments> entitySlotIndexTestData() {
         return Stream.of(
@@ -235,8 +233,6 @@ class DescriptorParserTest {
                 Arguments.of("(Lcom/unknown/NonExistent;)V", Object.class));
     }
 
-    // ==================== PARAMETERIZED TESTS ====================
-
     @ParameterizedTest(name = "{2}: {0} → slot {1}")
     @MethodSource("io.quarkiverse.qubit.deployment.util.DescriptorParserTest#entitySlotIndexTestData")
     @DisplayName("calculateEntityParameterSlotIndex returns correct slot")
@@ -341,8 +337,6 @@ class DescriptorParserTest {
         assertThat(DescriptorParser.getEntityClass(descriptor)).isEqualTo(expectedClass);
     }
 
-    // ==================== BI-ENTITY SPECIFIC TESTS ====================
-
     @Nested
     @DisplayName("Bi-Entity Specific Slot Calculations")
     class BiEntitySpecificTests {
@@ -384,8 +378,6 @@ class DescriptorParserTest {
             assertThat(DescriptorParser.calculateSecondEntityParameterSlotIndex(descriptor)).isEqualTo(expected);
         }
     }
-
-    // ==================== PARAMETER ITERATOR TESTS ====================
 
     @Nested
     @DisplayName("ParameterIterator Functionality")
@@ -500,8 +492,6 @@ class DescriptorParserTest {
         }
     }
 
-    // ==================== ARRAY TYPE ITERATOR TESTS ====================
-
     @Nested
     @DisplayName("ParameterIterator Array Handling")
     class ArrayTypeIteratorTests {
@@ -570,8 +560,6 @@ class DescriptorParserTest {
         }
     }
 
-    // ==================== BOUNDARY CONDITION TESTS ====================
-
     @Nested
     @DisplayName("Boundary Condition Tests (Mutation Killing)")
     class BoundaryConditionTests {
@@ -619,8 +607,6 @@ class DescriptorParserTest {
             assertThat(iter.hasNext()).isFalse();
         }
     }
-
-    // ==================== NULL AND MALFORMED DESCRIPTOR TESTS ====================
 
     @Nested
     @DisplayName("Null and Malformed Descriptor Handling")

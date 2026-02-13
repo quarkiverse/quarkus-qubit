@@ -36,8 +36,6 @@ public final class ImmutableResultStream<T> implements QubitStream<T> {
         this(results, "projection");
     }
 
-    // ========== Unsupported Intermediate Operations ==========
-
     @Override
     public QubitStream<T> where(QuerySpec<T, Boolean> predicate) {
         throw unsupported("filter");
@@ -103,8 +101,6 @@ public final class ImmutableResultStream<T> implements QubitStream<T> {
         throw unsupported("group");
     }
 
-    // ========== Supported Operations ==========
-
     @Override
     public QubitStream<T> skip(int n) {
         // Create independent copy to break reference chain to original list (enables GC)
@@ -132,8 +128,6 @@ public final class ImmutableResultStream<T> implements QubitStream<T> {
                 operationContext);
     }
 
-    // ========== Terminal Operations ==========
-
     @Override
     public long count() {
         return results.size();
@@ -158,8 +152,6 @@ public final class ImmutableResultStream<T> implements QubitStream<T> {
     public boolean exists() {
         return !results.isEmpty();
     }
-
-    // ========== Helper Methods ==========
 
     private UnsupportedOperationException unsupported(String operation) {
         return new UnsupportedOperationException(

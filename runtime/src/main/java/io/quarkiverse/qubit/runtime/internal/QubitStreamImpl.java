@@ -41,16 +41,12 @@ import io.quarkiverse.qubit.SortDirection;
  */
 public class QubitStreamImpl<T> implements QubitStream<T> {
 
-    // =============================================================================================
     // CONSTANTS
-    // =============================================================================================
 
     private static final String PARAM_MAPPER = "Mapper";
     private static final String PARAM_KEY_EXTRACTOR = "Key extractor";
 
-    // =============================================================================================
     // STATE FIELDS
-    // =============================================================================================
 
     private final Class<T> entityClass;
 
@@ -76,9 +72,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     /** Aggregation mapper (null if not an aggregation query). */
     private final QuerySpec<T, ?> aggregationMapper;
 
-    // =============================================================================================
     // CONSTRUCTORS
-    // =============================================================================================
 
     /**
      * Creates a new stream for the given entity class with no operations.
@@ -118,9 +112,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
         this.aggregationMapper = aggregationMapper;
     }
 
-    // =============================================================================================
     // FILTERING
-    // =============================================================================================
 
     @Override
     public QubitStream<T> where(QuerySpec<T, Boolean> predicate) {
@@ -130,9 +122,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
         return withPredicates(newPredicates);
     }
 
-    // =============================================================================================
     // PROJECTION
-    // =============================================================================================
 
     @Override
     @SuppressWarnings("unchecked")
@@ -147,9 +137,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
         return withSelector(mapper, newResultType);
     }
 
-    // =============================================================================================
     // SORTING
-    // =============================================================================================
 
     @Override
     public <K extends Comparable<K>> QubitStream<T> sortedBy(QuerySpec<T, K> keyExtractor) {
@@ -169,9 +157,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
         return withSortOrders(newSortOrders);
     }
 
-    // =============================================================================================
     // PAGINATION
-    // =============================================================================================
 
     @Override
     public QubitStream<T> skip(int n) {
@@ -183,18 +169,14 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
         return withLimit(validateLimitCount(n));
     }
 
-    // =============================================================================================
     // DISTINCT
-    // =============================================================================================
 
     @Override
     public QubitStream<T> distinct() {
         return withDistinct(true);
     }
 
-    // =============================================================================================
     // AGGREGATION OPERATIONS (Terminal)
-    // =============================================================================================
 
     @Override
     public long count() {
@@ -248,9 +230,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
         return withAggregation(AggregationType.AVG, mapper);
     }
 
-    // =============================================================================================
     // TERMINAL OPERATIONS
-    // =============================================================================================
 
     @Override
     public List<T> toList() {
@@ -296,9 +276,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
         return count() > 0;
     }
 
-    // =============================================================================================
     // INTERNAL HELPER METHODS - Stream Derivation
-    // =============================================================================================
 
     /**
      * Creates a new stream with modified predicates.
@@ -383,9 +361,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
                 mapper);
     }
 
-    // =============================================================================================
     // INTERNAL HELPER METHODS - Call Site Resolution
-    // =============================================================================================
 
     /**
      * Returns the primary lambda for call site ID uniqueness.
@@ -483,9 +459,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
         return allCapturedValues.toArray(new Object[0]);
     }
 
-    // =============================================================================================
     // JOIN OPERATIONS
-    // =============================================================================================
 
     @Override
     @SuppressWarnings("unchecked")
@@ -507,9 +481,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
         return new JoinStreamImpl<>(entityClass, joinedClass, relationship, JoinType.LEFT);
     }
 
-    // =============================================================================================
     // GROUPING OPERATIONS
-    // =============================================================================================
 
     @Override
     public <K> GroupStream<T, K> groupBy(QuerySpec<T, K> keyExtractor) {
@@ -518,9 +490,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
         return new GroupStreamImpl<>(entityClass, keyExtractor, new ArrayList<>(predicates));
     }
 
-    // =============================================================================================
     // INTERNAL CLASSES
-    // =============================================================================================
 
     /**
      * Represents a sort order specification combining a key extractor with a direction.

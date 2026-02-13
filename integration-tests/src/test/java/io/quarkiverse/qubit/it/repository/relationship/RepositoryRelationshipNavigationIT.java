@@ -49,8 +49,6 @@ class RepositoryRelationshipNavigationIT extends AbstractRelationshipNavigationT
         return new RepositoryTagQueryOperations(tagRepository);
     }
 
-    // ========== COMBINED ENTITY QUERIES ==========
-
     @Test
     void queryAllEntityTypes() {
         var activePersons = personRepository.where((Person p) -> p.active).toList();

@@ -26,8 +26,6 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
  */
 class BranchExpressionCombinerTest {
 
-    // ==================== combineAndRestructureIfNeeded Tests ====================
-
     @Nested
     @DisplayName("combineAndRestructureIfNeeded")
     class CombineAndRestructureTests {
@@ -120,8 +118,6 @@ class BranchExpressionCombinerTest {
                     .isEqualTo(AND);
         }
     }
-
-    // ==================== isPredicateExpression Tests ====================
 
     @Nested
     @DisplayName("isPredicateExpression")
@@ -217,8 +213,6 @@ class BranchExpressionCombinerTest {
                     .isFalse();
         }
     }
-
-    // ==================== adjustCombineOperator Tests ====================
 
     @Nested
     @DisplayName("adjustCombineOperator")
@@ -323,8 +317,6 @@ class BranchExpressionCombinerTest {
 
     }
 
-    // ==================== determineJumpToTrue Tests ====================
-
     @Nested
     @DisplayName("determineJumpToTrue")
     class DetermineJumpToTrueTests {
@@ -410,8 +402,6 @@ class BranchExpressionCombinerTest {
                     .isFalse();
         }
     }
-
-    // ==================== performCombination Tests ====================
 
     @Nested
     @DisplayName("performCombination")
@@ -617,8 +607,6 @@ class BranchExpressionCombinerTest {
         }
     }
 
-    // ==================== CombinationContext Record Tests ====================
-
     @Nested
     @DisplayName("CombinationContext record")
     class CombinationContextTests {
@@ -647,8 +635,6 @@ class BranchExpressionCombinerTest {
             assertThat(ctx.startingNewOrGroup()).isFalse();
         }
     }
-
-    // ==================== Additional adjustCombineOperator Edge Cases ====================
 
     @Nested
     @DisplayName("adjustCombineOperator edge cases")
@@ -782,8 +768,6 @@ class BranchExpressionCombinerTest {
         }
     }
 
-    // ==================== determineJumpToTrue Edge Cases ====================
-
     @Nested
     @DisplayName("determineJumpToTrue edge cases")
     class DetermineJumpToTrueEdgeCases {
@@ -878,8 +862,6 @@ class BranchExpressionCombinerTest {
                     .isFalse();
         }
     }
-
-    // ==================== performCombination OrMode Deferral Tests ====================
 
     @Nested
     @DisplayName("performCombination OrMode deferral")
@@ -1007,8 +989,6 @@ class BranchExpressionCombinerTest {
                     completingAndGroup, startingNewOrGroup);
         }
     }
-
-    // ==================== shouldDeferOrCombination Tests ====================
 
     @Nested
     @DisplayName("shouldDeferOrCombination")
@@ -1213,8 +1193,6 @@ class BranchExpressionCombinerTest {
         }
     }
 
-    // ==================== shouldMergeAndGroups Tests ====================
-
     @Nested
     @DisplayName("shouldMergeAndGroups")
     class ShouldMergeAndGroupsTests {
@@ -1395,8 +1373,6 @@ class BranchExpressionCombinerTest {
                     .isFalse();
         }
     }
-
-    // ==================== combineAndRestructureIfNeeded Edge Cases ====================
 
     @Nested
     @DisplayName("combineAndRestructureIfNeeded edge cases")

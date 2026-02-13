@@ -14,8 +14,6 @@ import org.junit.jupiter.api.Test;
  */
 class EntityClassInfoTest {
 
-    // ==================== Factory Method: placeholder Tests ====================
-
     @Nested
     class PlaceholderFactoryMethodTests {
 
@@ -39,8 +37,6 @@ class EntityClassInfoTest {
             assertThat(info.className()).isEqualTo("org.domain.MyEntity");
         }
     }
-
-    // ==================== isPlaceholder Tests ====================
 
     @Nested
     class IsPlaceholderTests {
@@ -81,8 +77,6 @@ class EntityClassInfoTest {
                     .isFalse();
         }
     }
-
-    // ==================== getEffectiveClassName Tests ====================
 
     @Nested
     class GetEffectiveClassNameTests {

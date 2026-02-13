@@ -18,8 +18,6 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
  */
 class NullCheckOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
 
-    // ==================== PARAMETERIZED TESTS ====================
-
     /**
      * Tests for field == null patterns across String, wrapper types, and temporal types.
      */
@@ -41,8 +39,6 @@ class NullCheckOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         assertFieldAccess(binOp.left(), expectedFieldName);
         assertNullLiteral(binOp.right());
     }
-
-    // ==================== SPECIAL CASE TESTS ====================
 
     @Test
     void stringNotNullCheck() {

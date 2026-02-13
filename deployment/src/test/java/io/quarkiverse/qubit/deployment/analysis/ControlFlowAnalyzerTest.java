@@ -32,8 +32,6 @@ class ControlFlowAnalyzerTest {
         analyzer = new ControlFlowAnalyzer();
     }
 
-    // ==================== LabelClassification Tests ====================
-
     @Nested
     class LabelClassificationEnumTests {
 
@@ -58,8 +56,6 @@ class ControlFlowAnalyzerTest {
                     .isEqualTo("INTERMEDIATE");
         }
     }
-
-    // ==================== classifyLabels Tests ====================
 
     @Nested
     class ClassifyLabelsTests {
@@ -179,8 +175,6 @@ class ControlFlowAnalyzerTest {
         }
     }
 
-    // ==================== traceLabelDestinations Tests ====================
-
     @Nested
     class TraceLabelDestinationsTests {
 
@@ -273,8 +267,6 @@ class ControlFlowAnalyzerTest {
                     .isEmpty();
         }
     }
-
-    // ==================== Edge Cases ====================
 
     @Nested
     class EdgeCaseTests {
@@ -393,8 +385,6 @@ class ControlFlowAnalyzerTest {
                     .isNull();
         }
 
-        // ==================== Kill mutations for findSubsequentGotoTarget ====================
-
         @Test
         void traceLabelDestinations_withConditionalJumpFollowedByGoto_usesGotoTarget() {
             // Test findSubsequentGotoTarget: conditional jump followed immediately by GOTO
@@ -452,8 +442,6 @@ class ControlFlowAnalyzerTest {
                     .isFalse();
         }
 
-        // ==================== Kill mutations for traceFromIndex boundary ====================
-
         @Test
         void traceLabelDestinations_withDeepTrace_tracesToSink() {
             // Test traceFromIndex depth limit check at line 273
@@ -483,8 +471,6 @@ class ControlFlowAnalyzerTest {
                     .as("Should trace through GOTO to true")
                     .isTrue();
         }
-
-        // ==================== Kill mutations for processInstruction return values ====================
 
         @Test
         void traceLabelDestinations_withIntermediateIconst0_tracesFalse() {
@@ -522,8 +508,6 @@ class ControlFlowAnalyzerTest {
                     .isEqualTo(TRUE_SINK);
         }
 
-        // ==================== Kill mutations for getDirectSinkClassification ====================
-
         @Test
         void traceLabelDestinations_withNonSinkClassification_tracesThrough() {
             // Test getDirectSinkClassification returning null for INTERMEDIATE
@@ -553,8 +537,6 @@ class ControlFlowAnalyzerTest {
                     .isTrue();
         }
 
-        // ==================== Kill mutations for traceLabelDestination visited check ====================
-
         @Test
         void traceLabelDestinations_withSelfReference_returnsNull() {
             // Test traceLabelDestination visited check (line 204)
@@ -572,8 +554,6 @@ class ControlFlowAnalyzerTest {
                     .as("Self-referencing label should return null")
                     .isNull();
         }
-
-        // ==================== Kill mutations for classifyLabel offset calculation ====================
 
         @Test
         void classifyLabels_withManyLabelsBeforeIconst_classifiesCorrectly() {
@@ -595,8 +575,6 @@ class ControlFlowAnalyzerTest {
                     .as("Label should classify based on ICONST_1 after skipping labels")
                     .isEqualTo(TRUE_SINK);
         }
-
-        // ==================== Kill mutations for findSubsequentGotoTarget with label-only gap ====================
 
         @Test
         void traceLabelDestinations_withLabelsBetweenCondAndGoto_findsGoto() {
@@ -649,8 +627,6 @@ class ControlFlowAnalyzerTest {
                     .as("Conditional target should be FALSE_SINK")
                     .isFalse();
         }
-
-        // ==================== Boundary condition tests for mutation killing ====================
 
         @Test
         void classifyLabels_atLookaheadLimit_returnsNullClassification() {

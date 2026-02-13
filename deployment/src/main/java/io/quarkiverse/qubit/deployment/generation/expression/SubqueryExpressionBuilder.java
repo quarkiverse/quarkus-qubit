@@ -2,13 +2,8 @@ package io.quarkiverse.qubit.deployment.generation.expression;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.AND;
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.COUNT_SHOULD_BE_HANDLED_ABOVE;
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.EXISTS_SUBQUERY_NULL;
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.FIELD_PATH_EXPRESSION_NULL;
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.IN_SUBQUERY_NULL;
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.MISSING_CASE_HANDLER_HINT;
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.SCALAR_SUBQUERY_NULL;
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.unexpectedAggregationType;
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.unsupportedFieldPathExpressionType;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isLogicalOperation;
 import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.isGetterMethodName;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.*;
@@ -47,7 +42,7 @@ public enum SubqueryExpressionBuilder implements ExpressionBuilder {
             Expr capturedValues) {
 
         if (scalar == null) {
-            throw new IllegalArgumentException(SCALAR_SUBQUERY_NULL);
+            throw new IllegalArgumentException("ScalarSubquery cannot be null");
         }
 
         // Determine the subquery result type based on aggregation
@@ -92,7 +87,7 @@ public enum SubqueryExpressionBuilder implements ExpressionBuilder {
             Expr capturedValues) {
 
         if (exists == null) {
-            throw new IllegalArgumentException(EXISTS_SUBQUERY_NULL);
+            throw new IllegalArgumentException("ExistsSubquery cannot be null");
         }
 
         // Create subquery: query.subquery(entityClass)
@@ -137,7 +132,7 @@ public enum SubqueryExpressionBuilder implements ExpressionBuilder {
             Expr capturedValues) {
 
         if (inSubquery == null) {
-            throw new IllegalArgumentException(IN_SUBQUERY_NULL);
+            throw new IllegalArgumentException("InSubquery cannot be null");
         }
 
         // Generate the left-hand field expression from the outer query
@@ -221,7 +216,7 @@ public enum SubqueryExpressionBuilder implements ExpressionBuilder {
 
     private Expr generateFieldPath(BlockCreator bc, LambdaExpression expr, Expr root) {
         if (expr == null) {
-            throw new IllegalArgumentException(FIELD_PATH_EXPRESSION_NULL);
+            throw new IllegalArgumentException("Field path expression cannot be null");
         }
         return switch (expr) {
             case FieldAccess field -> {
@@ -240,7 +235,8 @@ public enum SubqueryExpressionBuilder implements ExpressionBuilder {
             }
 
             default -> throw new IllegalArgumentException(
-                    unsupportedFieldPathExpressionType(expr.getClass().getSimpleName()));
+                    "Unsupported expression type for field path generation: " + expr.getClass().getSimpleName()
+                            + ". Expected FieldAccess or PathExpression.");
         };
     }
 

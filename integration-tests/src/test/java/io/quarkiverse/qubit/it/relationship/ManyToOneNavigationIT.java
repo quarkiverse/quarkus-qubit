@@ -49,8 +49,6 @@ class ManyToOneNavigationIT {
         TestDataFactory.createPersonsWithPhones();
     }
 
-    // ========== WHERE CLAUSE WITH RELATIONSHIP NAVIGATION ==========
-
     @Test
     void whereByOwnerFirstName() {
         // Navigate through @ManyToOne: phone.owner.firstName
@@ -133,8 +131,6 @@ class ManyToOneNavigationIT {
                 .allMatch(ph -> ph.getOwner().getEmail().startsWith("jane"));
     }
 
-    // ========== COMBINED CONDITIONS WITH RELATIONSHIP NAVIGATION ==========
-
     @Test
     void whereCombinedLocalAndRelationship() {
         // Combine local field and relationship navigation
@@ -179,8 +175,6 @@ class ManyToOneNavigationIT {
                 .hasSizeGreaterThan(0)
                 .allMatch(ph -> ph.getOwner().getAge() > 30 && ph.getOwner().getAge() < 50);
     }
-
-    // ========== SELECT/PROJECTION WITH RELATIONSHIP NAVIGATION ==========
 
     @Test
     void selectOwnerFirstName() {
@@ -247,8 +241,6 @@ class ManyToOneNavigationIT {
                 .hasSizeGreaterThan(0);
     }
 
-    // ========== SORTING WITH RELATIONSHIP NAVIGATION ==========
-
     @Test
     void sortByOwnerFirstName() {
         // Sort by relationship field: phone.owner.firstName
@@ -313,8 +305,6 @@ class ManyToOneNavigationIT {
                 .isSortedAccordingTo(Comparator.comparing(ph -> ph.getOwner().getFirstName()));
     }
 
-    // ========== COUNT/EXISTS WITH RELATIONSHIP NAVIGATION ==========
-
     @Test
     void countByOwnerFirstName() {
         // Count with relationship navigation
@@ -339,8 +329,6 @@ class ManyToOneNavigationIT {
         assertThat(exists).isFalse();
     }
 
-    // ========== PAGINATION WITH RELATIONSHIP NAVIGATION ==========
-
     @Test
     void paginationWithRelationshipSort() {
         // Paginate results sorted by relationship field
@@ -362,8 +350,6 @@ class ManyToOneNavigationIT {
 
         assertThat(phones).hasSize(2);
     }
-
-    // ========== DISTINCT WITH RELATIONSHIP NAVIGATION ==========
 
     @Test
     void distinctOwnerFirstNames() {
@@ -390,8 +376,6 @@ class ManyToOneNavigationIT {
                 .hasSize(5) // 5 distinct owners
                 .containsExactlyInAnyOrder("Doe", "Smith", "Johnson", "Williams", "Brown");
     }
-
-    // ========== EDGE CASES ==========
 
     @Test
     void mobilePhoneOwnersOver30() {
@@ -423,14 +407,11 @@ class ManyToOneNavigationIT {
                 .allMatch(email -> email.contains("@example.com"));
     }
 
-    // ========== THREE-LEVEL RELATIONSHIP NAVIGATION (phone.owner.department.*) ==========
-
     @Test
     void whereByOwnerDepartmentName() {
         // Three-level navigation: phone.owner.department.name
         List<Phone> phones = Phone.where((Phone ph) -> ph.owner.department.name.equals("Engineering")).toList();
 
-        // John (2 phones) + Alice (2 phones) = 4 phones in Engineering
         assertThat(phones)
                 .hasSize(4)
                 .allMatch(ph -> ph.getOwner().getDepartment().getName().equals("Engineering"));
@@ -441,7 +422,6 @@ class ManyToOneNavigationIT {
         // Three-level navigation: phone.owner.department.code
         List<Phone> phones = Phone.where((Phone ph) -> ph.owner.department.code.equals("SLS")).toList();
 
-        // Jane (1 phone) + Charlie (1 phone) = 2 phones in Sales
         assertThat(phones)
                 .hasSize(2)
                 .allMatch(ph -> ph.getOwner().getDepartment().getCode().equals("SLS"));
@@ -452,7 +432,6 @@ class ManyToOneNavigationIT {
         // Three-level navigation: phone.owner.department.budget
         List<Phone> phones = Phone.where((Phone ph) -> ph.owner.department.budget >= 300000).toList();
 
-        // Engineering (500k): 4 phones, Sales (300k): 2 phones = 6 phones
         assertThat(phones)
                 .hasSize(6)
                 .allMatch(ph -> ph.getOwner().getDepartment().getBudget() >= 300000);
@@ -616,8 +595,6 @@ class ManyToOneNavigationIT {
         assertThat(exists).isFalse();
     }
 
-    // ========== COMBINED TWO AND THREE LEVEL NAVIGATION ==========
-
     @Test
     void combinedTwoAndThreeLevelWhereConditions() {
         // Combine two-level and three-level navigation in same predicate
@@ -723,7 +700,6 @@ class ManyToOneNavigationIT {
         List<Phone> phones = Phone.where((Phone ph) -> ph.owner.department.name.equals("Engineering") ||
                 ph.owner.department.name.equals("Sales")).toList();
 
-        // Engineering: 4 phones, Sales: 2 phones = 6 phones
         assertThat(phones)
                 .hasSize(6)
                 .allMatch(ph -> {

@@ -31,9 +31,7 @@ public class BuildMetricsCollector {
     private final Map<String, Long> phaseDurations = new LinkedHashMap<>();
     private final AtomicInteger queryCount = new AtomicInteger();
 
-    // =========================================================================================
     // GRANULAR TIMING METRICS (in nanoseconds)
-    // =========================================================================================
 
     private final AtomicLong bytecodeLoadTimeNanos = new AtomicLong();
     private final AtomicLong asmParsingTimeNanos = new AtomicLong();
@@ -42,9 +40,7 @@ public class BuildMetricsCollector {
     private final AtomicLong deduplicationCheckTimeNanos = new AtomicLong();
     private final AtomicLong earlyDeduplicationCheckTimeNanos = new AtomicLong();
 
-    // =========================================================================================
     // GRANULAR COUNTING METRICS
-    // =========================================================================================
 
     private final AtomicLong uniqueClassesLoaded = new AtomicLong();
     private final AtomicLong totalBytecodeLoads = new AtomicLong();
@@ -57,9 +53,7 @@ public class BuildMetricsCollector {
     private final AtomicLong quickCheckSkips = new AtomicLong();
     private final AtomicLong quickCheckPasses = new AtomicLong();
 
-    // =========================================================================================
     // QUERY TYPE BREAKDOWN METRICS
-    // =========================================================================================
 
     /** Query counts by type (SIMPLE, JOIN, GROUP, AGGREGATION). */
     private final ConcurrentHashMap<String, LongAdder> queryTypeCount = new ConcurrentHashMap<>();
@@ -70,9 +64,7 @@ public class BuildMetricsCollector {
     /** Total code generation time by query type in nanoseconds. */
     private final ConcurrentHashMap<String, LongAdder> queryTypeCodeGenTimeNanos = new ConcurrentHashMap<>();
 
-    // =========================================================================================
     // EXPRESSION GENERATION BREAKDOWN METRICS
-    // =========================================================================================
 
     /** Expression generation counts by type. */
     private final ConcurrentHashMap<String, LongAdder> expressionTypeCount = new ConcurrentHashMap<>();
@@ -91,9 +83,7 @@ public class BuildMetricsCollector {
     public static final String EXPR_METHOD_CALL = "METHOD_CALL";
     public static final String EXPR_SUBQUERY = "SUBQUERY";
 
-    // =========================================================================================
     // PER-CLASS ANALYSIS METRICS
-    // =========================================================================================
 
     /** Analysis time per class in nanoseconds. */
     private final ConcurrentHashMap<String, LongAdder> perClassAnalysisTimeNanos = new ConcurrentHashMap<>();
@@ -104,9 +94,7 @@ public class BuildMetricsCollector {
     /** Classes where analysis failed. */
     private final Set<String> failedClasses = ConcurrentHashMap.newKeySet();
 
-    // =========================================================================================
     // CACHE EFFECTIVENESS METRICS
-    // =========================================================================================
 
     private final AtomicLong bytecodeeCacheHits = new AtomicLong();
     private final AtomicLong bytecodeCacheMisses = new AtomicLong();
@@ -115,16 +103,12 @@ public class BuildMetricsCollector {
     private final AtomicLong codeGenCacheHits = new AtomicLong();
     private final AtomicLong codeGenCacheMisses = new AtomicLong();
 
-    // =========================================================================================
     // MEMORY USAGE METRICS
-    // =========================================================================================
 
     /** Memory snapshots at key phases. */
     private final ConcurrentHashMap<String, Long> memorySnapshots = new ConcurrentHashMap<>();
 
-    // =========================================================================================
     // THREAD UTILIZATION METRICS
-    // =========================================================================================
 
     /** Unique thread IDs that performed analysis work. */
     private final Set<Long> activeThreadIds = ConcurrentHashMap.newKeySet();
@@ -135,9 +119,7 @@ public class BuildMetricsCollector {
     /** Per-thread total work time in nanoseconds. */
     private final ConcurrentHashMap<Long, LongAdder> perThreadWorkTimeNanos = new ConcurrentHashMap<>();
 
-    // =========================================================================================
     // HISTOGRAM METRICS (latency distributions)
-    // =========================================================================================
 
     /** Lambda analysis latencies in microseconds for percentile calculation. */
     private final List<Long> lambdaAnalysisLatenciesMicros = Collections.synchronizedList(new ArrayList<>());
@@ -148,17 +130,13 @@ public class BuildMetricsCollector {
     /** Maximum latencies to track (prevent memory issues). */
     private static final int MAX_HISTOGRAM_SAMPLES = 10000;
 
-    // =========================================================================================
     // ENTITY ENHANCEMENT METRICS
-    // =========================================================================================
 
     private final AtomicLong entityEnhancementTimeNanos = new AtomicLong();
     private final AtomicInteger entityClassesEnhanced = new AtomicInteger();
     private final AtomicInteger repositoriesEnhanced = new AtomicInteger();
 
-    // =========================================================================================
     // FLAME GRAPH STACKS (for async-profiler compatible output)
-    // =========================================================================================
 
     /** Flame graph stacks: stack description -> count/weight. */
     private final ConcurrentHashMap<String, LongAdder> flameGraphStacks = new ConcurrentHashMap<>();
@@ -168,9 +146,7 @@ public class BuildMetricsCollector {
         this.startHeapUsed = getHeapUsed();
     }
 
-    // =========================================================================================
     // PHASE TRACKING
-    // =========================================================================================
 
     /** Marks the start of a processing phase. */
     public synchronized void startPhase(String phase) {
@@ -194,9 +170,7 @@ public class BuildMetricsCollector {
         return phaseDurations.getOrDefault(phase, 0L);
     }
 
-    // =========================================================================================
     // QUERY COUNT
-    // =========================================================================================
 
     /** Increments the count of processed queries. */
     public void incrementQueryCount() {
@@ -208,9 +182,7 @@ public class BuildMetricsCollector {
         return queryCount.get();
     }
 
-    // =========================================================================================
     // GRANULAR TIMING METHODS
-    // =========================================================================================
 
     /** Adds time spent loading class bytecode from disk. */
     public void addBytecodeLoadTime(long nanos) {
@@ -244,9 +216,7 @@ public class BuildMetricsCollector {
         earlyDeduplicationCheckTimeNanos.addAndGet(nanos);
     }
 
-    // =========================================================================================
     // GRANULAR COUNTING METHODS
-    // =========================================================================================
 
     /** Increments the count of unique classes loaded. */
     public void incrementUniqueClassesLoaded() {
@@ -288,9 +258,7 @@ public class BuildMetricsCollector {
         quickCheckPasses.incrementAndGet();
     }
 
-    // =========================================================================================
     // QUERY TYPE BREAKDOWN
-    // =========================================================================================
 
     /** Records a query of the given type. */
     public void recordQueryType(String queryType) {
@@ -309,9 +277,7 @@ public class BuildMetricsCollector {
         addFlameGraphStack("qubit;codegen;" + queryType.toLowerCase(), nanos);
     }
 
-    // =========================================================================================
     // EXPRESSION GENERATION BREAKDOWN
-    // =========================================================================================
 
     /** Records expression generation of the given type. */
     public void recordExpressionType(String expressionType) {
@@ -324,9 +290,7 @@ public class BuildMetricsCollector {
         addFlameGraphStack("qubit;expression;" + expressionType.toLowerCase(), nanos);
     }
 
-    // =========================================================================================
     // PER-CLASS ANALYSIS
-    // =========================================================================================
 
     /** Records analysis time for a specific class. */
     public void addClassAnalysisTime(String className, long nanos) {
@@ -344,9 +308,7 @@ public class BuildMetricsCollector {
         failedClasses.add(className);
     }
 
-    // =========================================================================================
     // CACHE EFFECTIVENESS
-    // =========================================================================================
 
     /** Records a bytecode cache hit. */
     public void recordBytecodeCacheHit() {
@@ -406,9 +368,7 @@ public class BuildMetricsCollector {
         return codeGenCacheMisses.get();
     }
 
-    // =========================================================================================
     // MEMORY USAGE
-    // =========================================================================================
 
     /** Captures a memory snapshot at a named point. */
     public void captureMemorySnapshot(String name) {
@@ -421,9 +381,7 @@ public class BuildMetricsCollector {
         return runtime.totalMemory() - runtime.freeMemory();
     }
 
-    // =========================================================================================
     // THREAD UTILIZATION
-    // =========================================================================================
 
     /** Records work performed by the current thread. */
     public void recordThreadWork(long nanos) {
@@ -438,9 +396,7 @@ public class BuildMetricsCollector {
         return activeThreadIds.size();
     }
 
-    // =========================================================================================
     // HISTOGRAM SUPPORT
-    // =========================================================================================
 
     /** Adds a sample to a histogram (bounded to prevent memory issues). */
     private void addHistogramSample(List<Long> histogram, long value) {
@@ -457,9 +413,7 @@ public class BuildMetricsCollector {
         return sorted.get(Math.clamp(index, 0, sorted.size() - 1));
     }
 
-    // =========================================================================================
     // ENTITY ENHANCEMENT METRICS
-    // =========================================================================================
 
     /** Adds time spent on entity enhancement. */
     public void addEntityEnhancementTime(long nanos) {
@@ -477,9 +431,7 @@ public class BuildMetricsCollector {
         repositoriesEnhanced.incrementAndGet();
     }
 
-    // =========================================================================================
     // FLAME GRAPH SUPPORT
-    // =========================================================================================
 
     /** Adds to flame graph stack trace (collapsed format). */
     public void addFlameGraphStack(String stack, long nanos) {
@@ -490,9 +442,7 @@ public class BuildMetricsCollector {
         }
     }
 
-    // =========================================================================================
     // GETTER METHODS (primarily for testing)
-    // =========================================================================================
 
     public long getTotalBytecodeLoads() {
         return totalBytecodeLoads.get();
@@ -556,9 +506,7 @@ public class BuildMetricsCollector {
         return total > 0 ? (double) quickCheckSkips.get() / total : 0.0;
     }
 
-    // =========================================================================================
     // REPORT GENERATION
-    // =========================================================================================
 
     /** Writes comprehensive metrics report to JSON file. */
     public synchronized void writeReport(Path outputPath) throws IOException {

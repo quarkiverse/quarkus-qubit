@@ -34,8 +34,6 @@ class AnalysisContextEdgeCaseTest {
         context = new AnalysisContext(testMethod, 0);
     }
 
-    // ==================== Stack Empty State Tests ====================
-
     @Nested
     class EmptyStackTests {
 
@@ -94,8 +92,6 @@ class AnalysisContextEdgeCaseTest {
         }
     }
 
-    // ==================== Stack Single Element Tests ====================
-
     @Nested
     class SingleElementStackTests {
 
@@ -132,8 +128,6 @@ class AnalysisContextEdgeCaseTest {
             assertThat(context.isStackEmpty()).isTrue();
         }
     }
-
-    // ==================== Stack Multiple Elements Tests ====================
 
     @Nested
     class MultipleElementStackTests {
@@ -186,8 +180,6 @@ class AnalysisContextEdgeCaseTest {
         }
     }
 
-    // ==================== Array Creation Edge Cases ====================
-
     @Nested
     class ArrayCreationTests {
 
@@ -236,8 +228,6 @@ class AnalysisContextEdgeCaseTest {
             assertThat(context.getPendingArrayElementType()).isNull();
         }
     }
-
-    // ==================== Nested Lambda Support Tests ====================
 
     @Nested
     class NestedLambdaSupportTests {
@@ -288,8 +278,6 @@ class AnalysisContextEdgeCaseTest {
         }
     }
 
-    // ==================== Entity Position Tests ====================
-
     @Nested
     class EntityPositionTests {
 
@@ -316,8 +304,6 @@ class AnalysisContextEdgeCaseTest {
             assertThat(context.isEntityParameter(0)).isTrue();
         }
     }
-
-    // ==================== Bi-Entity Mode Tests ====================
 
     @Nested
     class BiEntityModeTests {
@@ -363,8 +349,6 @@ class AnalysisContextEdgeCaseTest {
         }
     }
 
-    // ==================== Group Context Mode Tests ====================
-
     @Nested
     class GroupContextModeTests {
 
@@ -394,8 +378,6 @@ class AnalysisContextEdgeCaseTest {
         }
     }
 
-    // ==================== Instruction Index Boundary Tests ====================
-
     @Nested
     class InstructionIndexTests {
 
@@ -415,8 +397,6 @@ class AnalysisContextEdgeCaseTest {
             assertThat(context.getInstructionCount()).isZero();
         }
     }
-
-    // ==================== Branch State Tests ====================
 
     @Nested
     class BranchStateTests {
@@ -439,8 +419,6 @@ class AnalysisContextEdgeCaseTest {
             assertThat(context.hasSeenBranch()).isTrue();
         }
     }
-
-    // ==================== Helper Methods ====================
 
     private void assertConstantValue(LambdaExpression expr, Object expectedValue) {
         assertThat(expr)

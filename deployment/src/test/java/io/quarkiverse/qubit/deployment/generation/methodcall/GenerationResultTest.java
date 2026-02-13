@@ -14,9 +14,7 @@ import io.quarkus.gizmo2.Expr;
  */
 class GenerationResultTest {
 
-    // ========================================================================
     // Success Tests
-    // ========================================================================
 
     @Nested
     class SuccessTests {
@@ -80,9 +78,7 @@ class GenerationResultTest {
         }
     }
 
-    // ========================================================================
     // Unsupported Tests
-    // ========================================================================
 
     @Nested
     class UnsupportedTests {

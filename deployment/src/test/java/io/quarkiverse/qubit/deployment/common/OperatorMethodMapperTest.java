@@ -17,9 +17,7 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
  */
 class OperatorMethodMapperTest {
 
-    // ========================================================================
     // mapArithmeticOperator Tests
-    // ========================================================================
 
     @Nested
     @DisplayName("mapArithmeticOperator")
@@ -67,9 +65,7 @@ class OperatorMethodMapperTest {
         }
     }
 
-    // ========================================================================
     // mapComparisonOperator Tests - Expression Variant (useExpressionVariant=true)
-    // ========================================================================
 
     @Nested
     @DisplayName("mapComparisonOperator with Expression variant")
@@ -122,9 +118,7 @@ class OperatorMethodMapperTest {
         }
     }
 
-    // ========================================================================
     // mapComparisonOperator Tests - Comparable Variant (useExpressionVariant=false)
-    // ========================================================================
 
     @Nested
     @DisplayName("mapComparisonOperator with Comparable variant")
@@ -180,9 +174,7 @@ class OperatorMethodMapperTest {
         }
     }
 
-    // ========================================================================
     // Variant Distinction Tests - Verify expression vs comparable return different descriptors
-    // ========================================================================
 
     @Nested
     @DisplayName("Expression vs Comparable variant distinction")
@@ -243,9 +235,7 @@ class OperatorMethodMapperTest {
         }
     }
 
-    // ========================================================================
     // isComparisonOperator Tests
-    // ========================================================================
 
     @Nested
     @DisplayName("isComparisonOperator")
@@ -270,9 +260,7 @@ class OperatorMethodMapperTest {
         }
     }
 
-    // ========================================================================
     // isArithmeticOperator Tests
-    // ========================================================================
 
     @Nested
     @DisplayName("isArithmeticOperator")
@@ -297,9 +285,7 @@ class OperatorMethodMapperTest {
         }
     }
 
-    // ========================================================================
     // isLogicalOperator Tests
-    // ========================================================================
 
     @Nested
     @DisplayName("isLogicalOperator")

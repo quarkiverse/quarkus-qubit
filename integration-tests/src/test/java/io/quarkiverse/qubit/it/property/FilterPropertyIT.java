@@ -49,9 +49,7 @@ class FilterPropertyIT {
         TestDataFactory.createStandardPersonsAndProducts();
     }
 
-    // ======================================================================
     // Predicate Satisfaction Properties
-    // ======================================================================
 
     @Test
     @Transactional
@@ -95,9 +93,7 @@ class FilterPropertyIT {
                 .allMatch(p -> p.available);
     }
 
-    // ======================================================================
     // Subset Property (Filtered is Subset of Unfiltered)
-    // ======================================================================
 
     @Test
     @Transactional
@@ -122,9 +118,7 @@ class FilterPropertyIT {
                 .isLessThanOrEqualTo(totalCount);
     }
 
-    // ======================================================================
     // Conjunction (AND) Properties
-    // ======================================================================
 
     @Test
     @Transactional
@@ -171,9 +165,7 @@ class FilterPropertyIT {
                 .allMatch(p -> p.active && p.age > 25 && p.salary > 60000.0);
     }
 
-    // ======================================================================
     // Monotonicity Property (More Filters = Fewer Results)
-    // ======================================================================
 
     @Test
     @Transactional
@@ -199,9 +191,7 @@ class FilterPropertyIT {
                 .isLessThanOrEqualTo(twoFilterCount);
     }
 
-    // ======================================================================
     // Impossible Filter Properties
-    // ======================================================================
 
     @Test
     @Transactional
@@ -227,9 +217,7 @@ class FilterPropertyIT {
                 .isEmpty();
     }
 
-    // ======================================================================
     // Filter with Sorting Properties
-    // ======================================================================
 
     @Test
     @Transactional
@@ -249,9 +237,7 @@ class FilterPropertyIT {
         }
     }
 
-    // ======================================================================
     // Filter with Pagination Properties
-    // ======================================================================
 
     @Test
     @Transactional
@@ -274,9 +260,7 @@ class FilterPropertyIT {
         }
     }
 
-    // ======================================================================
     // Filter with Projection Properties
-    // ======================================================================
 
     @Test
     @Transactional
@@ -291,9 +275,7 @@ class FilterPropertyIT {
                 .isEqualTo(entityCount);
     }
 
-    // ======================================================================
     // Product Entity Filter Properties
-    // ======================================================================
 
     @Test
     @Transactional

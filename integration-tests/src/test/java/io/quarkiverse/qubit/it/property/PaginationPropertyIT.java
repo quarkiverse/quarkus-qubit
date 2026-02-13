@@ -48,9 +48,7 @@ class PaginationPropertyIT {
         TestDataFactory.createAdditionalPersons(); // Creates 6 persons for better pagination testing
     }
 
-    // ======================================================================
     // Skip Invariant Properties
-    // ======================================================================
 
     @Test
     @Transactional
@@ -90,9 +88,7 @@ class PaginationPropertyIT {
         }
     }
 
-    // ======================================================================
     // Limit Invariant Properties
-    // ======================================================================
 
     @ParameterizedTest(name = "limit({0}) returns at most {0} results")
     @ValueSource(ints = { 1, 2, 3, 4, 5, 10, 20 })
@@ -132,9 +128,7 @@ class PaginationPropertyIT {
         }
     }
 
-    // ======================================================================
     // Combined Skip + Limit Properties
-    // ======================================================================
 
     @Test
     @Transactional
@@ -184,9 +178,7 @@ class PaginationPropertyIT {
         }
     }
 
-    // ======================================================================
     // No Overlap Property (Adjacent Pages)
-    // ======================================================================
 
     @ParameterizedTest(name = "adjacent pages (size={0}) have no common elements")
     @ValueSource(ints = { 1, 2, 3 })
@@ -210,9 +202,7 @@ class PaginationPropertyIT {
                 .doesNotContainAnyElementsOf(page2Ids);
     }
 
-    // ======================================================================
     // Complete Coverage Property (All Pages Combined)
-    // ======================================================================
 
     @ParameterizedTest(name = "all pages (size={0}) combined equal total results")
     @ValueSource(ints = { 1, 2, 3, 4 })
@@ -246,9 +236,7 @@ class PaginationPropertyIT {
                 .isEqualTo(all.size());
     }
 
-    // ======================================================================
     // Ordering Preservation Properties
-    // ======================================================================
 
     @ParameterizedTest(name = "skip({0}) preserves sort order")
     @ValueSource(ints = { 0, 1, 2, 3, 4 })
@@ -298,9 +286,7 @@ class PaginationPropertyIT {
         }
     }
 
-    // ======================================================================
     // Pagination with Filter Properties
-    // ======================================================================
 
     @Test
     @Transactional

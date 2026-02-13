@@ -77,8 +77,6 @@ public final class PatternDetector {
         }
     }
 
-    // ========== Binary Operation Category Detection ==========
-
     /** Binary operation categories, mutually exclusive and checked in priority order. */
     public enum BinaryOperationCategory {
         STRING_CONCATENATION, // ADD for strings (check before arithmetic)
@@ -270,8 +268,6 @@ public final class PatternDetector {
 
         return binOp.right() instanceof LambdaExpression.Constant;
     }
-
-    // ========== Subquery Pattern Detection==========
 
     /** Checks if expression contains any subquery (scalar, exists, or in). */
     public static boolean containsSubquery(LambdaExpression expr) {

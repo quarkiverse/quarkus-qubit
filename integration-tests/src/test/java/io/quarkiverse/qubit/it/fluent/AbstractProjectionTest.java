@@ -35,8 +35,6 @@ public abstract class AbstractProjectionTest {
         TestDataFactory.createStandardPersonsAndProducts();
     }
 
-    // ========== String Field Projection Tests ==========
-
     @Test
     void selectStringField_firstName() {
         List<String> firstNames = personOps().select((Person p) -> p.firstName).toList();
@@ -69,8 +67,6 @@ public abstract class AbstractProjectionTest {
                         "charlie.brown@example.com");
     }
 
-    // ========== Integer Field Projection Tests ==========
-
     @Test
     void selectIntegerField_age() {
         List<Integer> ages = personOps().select((Person p) -> p.age).toList();
@@ -79,8 +75,6 @@ public abstract class AbstractProjectionTest {
                 .hasSize(5)
                 .containsExactlyInAnyOrder(30, 25, 45, 35, 28);
     }
-
-    // ========== Long Field Projection Tests ==========
 
     @Test
     void selectLongField_employeeId() {
@@ -91,8 +85,6 @@ public abstract class AbstractProjectionTest {
                 .containsExactlyInAnyOrder(1000001L, 1000002L, 1000003L, 1000004L, 1000005L);
     }
 
-    // ========== Double Field Projection Tests ==========
-
     @Test
     void selectDoubleField_salary() {
         List<Double> salaries = personOps().select((Person p) -> p.salary).toList();
@@ -101,8 +93,6 @@ public abstract class AbstractProjectionTest {
                 .hasSize(5)
                 .containsExactlyInAnyOrder(75000.0, 65000.0, 85000.0, 90000.0, 55000.0);
     }
-
-    // ========== Float Field Projection Tests ==========
 
     @Test
     void selectFloatField_height() {
@@ -113,8 +103,6 @@ public abstract class AbstractProjectionTest {
                 .containsExactlyInAnyOrder(1.75f, 1.68f, 1.82f, 1.65f, 1.78f);
     }
 
-    // ========== Boolean Field Projection Tests ==========
-
     @Test
     void selectBooleanField_active() {
         List<Boolean> activeStatuses = personOps().select((Person p) -> p.active).toList();
@@ -123,8 +111,6 @@ public abstract class AbstractProjectionTest {
                 .hasSizeGreaterThan(0)
                 .contains(true, false); // Should have both active and inactive persons
     }
-
-    // ========== LocalDate Field Projection Tests ==========
 
     @Test
     void selectLocalDateField_birthDate() {
@@ -140,8 +126,6 @@ public abstract class AbstractProjectionTest {
                         LocalDate.of(1995, 7, 18)); // Charlie
     }
 
-    // ========== BigDecimal Field Projection Tests ==========
-
     @Test
     void selectBigDecimalField_price() {
         List<BigDecimal> prices = productOps().select((Product p) -> p.price).toList();
@@ -156,8 +140,6 @@ public abstract class AbstractProjectionTest {
                         new BigDecimal("399.99")); // Monitor
     }
 
-    // ========== Verify Result Count Matches Entity Count ==========
-
     @Test
     void selectField_resultCountMatchesEntityCount() {
         long entityCount = personOps().where((Person p) -> p.age > 0).count();
@@ -166,8 +148,6 @@ public abstract class AbstractProjectionTest {
         // All persons should have an age, so counts should match
         assertThat(ages).hasSize((int) entityCount);
     }
-
-    // ========== Comprehensive Integration Test ==========
 
     @Test
     void selectMultipleFieldTypes_allWorkCorrectly() {

@@ -51,8 +51,6 @@ public abstract class PrecompiledSubqueryLambdaAnalyzer extends AbstractLambdaAn
         }
     }
 
-    // ==================== SUBQUERY SPECIFIC ASSERTION HELPERS ====================
-
     /**
      * Asserts that an expression is a ScalarSubquery with the expected aggregation type.
      */

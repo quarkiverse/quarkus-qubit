@@ -10,8 +10,6 @@ public final class OpcodeClassifier {
     private OpcodeClassifier() {
     }
 
-    // ========== Arithmetic & Logical Operations ==========
-
     /** Checks if opcode is arithmetic (ADD, SUB, MUL, DIV, REM). Range IADD-DREM (96-115). */
     public static boolean isArithmeticOpcode(int opcode) {
         return opcode >= IADD && opcode <= DREM;
@@ -34,23 +32,17 @@ public final class OpcodeClassifier {
                 opcode == LCMP;
     }
 
-    // ========== Branch Instructions ==========
-
     /** Checks if opcode is conditional branch (IFEQ-IF_ICMPLE, IFNULL, IFNONNULL). */
     public static boolean isBranchOpcode(int opcode) {
         return (opcode >= IFEQ && opcode <= IF_ICMPLE) ||
                 opcode == IFNULL || opcode == IFNONNULL;
     }
 
-    // ========== Method Invocations ==========
-
     /** Checks if opcode is method invocation (INVOKE*). */
     public static boolean isInvokeOpcode(int opcode) {
         return opcode == INVOKEVIRTUAL || opcode == INVOKESTATIC ||
                 opcode == INVOKESPECIAL || opcode == INVOKEINTERFACE;
     }
-
-    // ========== Type Conversion Instructions ==========
 
     /** Checks if opcode is primitive type conversion (I2L, L2D, F2I, etc). */
     public static boolean isTypeConversionOpcode(int opcode) {
@@ -59,8 +51,6 @@ public final class OpcodeClassifier {
                 opcode == F2I || opcode == F2L || opcode == F2D ||
                 opcode == D2I || opcode == D2L || opcode == D2F;
     }
-
-    // ========== Constant Instructions ==========
 
     /** Checks if opcode is constant load (BIPUSH, SIPUSH, LDC, *CONST_*). */
     public static boolean isConstantOpcode(int opcode) {

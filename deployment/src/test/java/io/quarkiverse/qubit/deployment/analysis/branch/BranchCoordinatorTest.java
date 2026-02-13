@@ -43,8 +43,6 @@ class BranchCoordinatorTest {
         labelClassifications.put(targetLabel, ControlFlowAnalyzer.LabelClassification.TRUE_SINK);
     }
 
-    // ==================== Constructor Tests ====================
-
     @Nested
     class ConstructorTests {
 
@@ -57,8 +55,6 @@ class BranchCoordinatorTest {
                     .isInstanceOf(BranchState.Initial.class);
         }
     }
-
-    // ==================== processBranchInstruction Tests ====================
 
     @Nested
     class ProcessBranchInstructionTests {
@@ -250,8 +246,6 @@ class BranchCoordinatorTest {
         }
     }
 
-    // ==================== reset Tests ====================
-
     @Nested
     class ResetTests {
 
@@ -291,8 +285,6 @@ class BranchCoordinatorTest {
         }
     }
 
-    // ==================== getCurrentState Tests ====================
-
     @Nested
     class GetCurrentStateTests {
 
@@ -314,7 +306,6 @@ class BranchCoordinatorTest {
         }
     }
 
-    // ==================== getOpcodeName Tests ====================
     // Tests to kill mutation: "replaced return value with "" for getOpcodeName"
 
     @Nested
@@ -377,8 +368,6 @@ class BranchCoordinatorTest {
         }
     }
 
-    // ==================== State Transition Tests ====================
-
     @Nested
     class StateTransitionTests {
 
@@ -409,7 +398,6 @@ class BranchCoordinatorTest {
         }
     }
 
-    // ==================== Sequential Instruction Tests ====================
     // Tests targeting mutations: sameLabel, completingAndGroup, startingNewGroup
 
     @Nested
@@ -560,8 +548,6 @@ class BranchCoordinatorTest {
         }
     }
 
-    // ==================== Handler Selection Tests ====================
-
     @Nested
     class HandlerSelectionTests {
 
@@ -631,8 +617,6 @@ class BranchCoordinatorTest {
             assertThat(coordinator.getCurrentState()).isNotNull();
         }
     }
-
-    // ==================== Label Classification Tests ====================
 
     @Nested
     class LabelClassificationTests {

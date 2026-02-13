@@ -30,9 +30,7 @@ public abstract class AbstractBasicQueryTest {
         TestDataFactory.createStandardPersons();
     }
 
-    // =============================================================================================
     // COMPILATION TESTS - Verify fluent API compiles
-    // =============================================================================================
 
     @Test
     void fluent_where_returnsQubitStream() {
@@ -83,9 +81,7 @@ public abstract class AbstractBasicQueryTest {
         assertThat(stream).isNotNull();
     }
 
-    // =============================================================================================
     // EXECUTION TESTS - Basic where().toList() and where().count()
-    // =============================================================================================
 
     @Test
     @Transactional

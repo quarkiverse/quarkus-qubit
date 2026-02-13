@@ -15,9 +15,7 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
  */
 class OpcodeOperatorMapperTest {
 
-    // ========================================================================
     // mapSingleOperandOp Tests
-    // ========================================================================
 
     @Nested
     class MapSingleOperandOpTests {
@@ -78,9 +76,7 @@ class OpcodeOperatorMapperTest {
         }
     }
 
-    // ========================================================================
     // mapTwoOperandOp Tests
-    // ========================================================================
 
     @Nested
     class MapTwoOperandOpTests {
@@ -189,9 +185,7 @@ class OpcodeOperatorMapperTest {
         }
     }
 
-    // ========================================================================
     // isSuccessJumpSingleOperand Tests
-    // ========================================================================
 
     @Nested
     class IsSuccessJumpSingleOperandTests {
@@ -222,9 +216,7 @@ class OpcodeOperatorMapperTest {
         }
     }
 
-    // ========================================================================
     // isSuccessJumpTwoOperand Tests
-    // ========================================================================
 
     @Nested
     class IsSuccessJumpTwoOperandTests {
@@ -275,9 +267,7 @@ class OpcodeOperatorMapperTest {
         }
     }
 
-    // ========================================================================
     // determineSingleOperandOperator Tests
-    // ========================================================================
 
     @Nested
     class DetermineSingleOperandOperatorTests {
@@ -330,9 +320,7 @@ class OpcodeOperatorMapperTest {
         }
     }
 
-    // ========================================================================
     // determineTwoOperandOperator Tests
-    // ========================================================================
 
     @Nested
     class DetermineTwoOperandOperatorTests {

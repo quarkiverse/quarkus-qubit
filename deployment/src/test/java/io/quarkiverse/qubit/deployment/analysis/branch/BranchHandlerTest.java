@@ -43,8 +43,6 @@ class BranchHandlerTest {
                 state, sameLabel, completingAndGroup, startingNewOrGroup);
     }
 
-    // ==================== NullCheckHandler Tests ====================
-
     @Nested
     @DisplayName("NullCheckHandler")
     class NullCheckHandlerTests {
@@ -193,7 +191,6 @@ class BranchHandlerTest {
         }
     }
 
-    // ==================== SingleOperandComparisonHandler Tests ====================
     // This handler handles IFLT, IFLE, IFGT, IFGE (NOT IFEQ/IFNE)
 
     @Nested
@@ -249,8 +246,6 @@ class BranchHandlerTest {
             JumpInsnNode jumpInsn = new JumpInsnNode(IF_ICMPEQ, new LabelNode());
             assertThat(handler.canHandle(jumpInsn)).isFalse();
         }
-
-        // ========== handle() method tests to kill surviving mutations ==========
 
         @Test
         void handle_withEmptyStack_returnsOriginalState() {
@@ -499,8 +494,6 @@ class BranchHandlerTest {
 
     }
 
-    // ==================== TwoOperandComparisonHandler Tests ====================
-
     @Nested
     @DisplayName("TwoOperandComparisonHandler")
     class TwoOperandComparisonHandlerTests {
@@ -566,8 +559,6 @@ class BranchHandlerTest {
             JumpInsnNode jumpInsn = new JumpInsnNode(IFNULL, new LabelNode());
             assertThat(handler.canHandle(jumpInsn)).isFalse();
         }
-
-        // ========== handle() method tests to kill surviving mutations ==========
 
         @Test
         void handle_IF_ICMPGT_jumpToTrue_createsGTComparison() {
@@ -959,8 +950,6 @@ class BranchHandlerTest {
                     .isSameAs(rightField);
         }
 
-        // ========== Tests to kill requireStackSize mutation ==========
-
         @Test
         void handle_withInsufficientStack_throwsBytecodeAnalysisException() {
             Deque<LambdaExpression> stack = new ArrayDeque<>();
@@ -998,8 +987,6 @@ class BranchHandlerTest {
 
     }
 
-    // ==================== IfEqualsZeroInstructionHandler Tests ====================
-
     @Nested
     @DisplayName("IfEqualsZeroInstructionHandler")
     class IfEqualsZeroInstructionHandlerTests {
@@ -1023,8 +1010,6 @@ class BranchHandlerTest {
             JumpInsnNode jumpInsn = new JumpInsnNode(IFNULL, new LabelNode());
             assertThat(handler.canHandle(jumpInsn)).isFalse();
         }
-
-        // ========== handle() method tests to kill surviving mutations ==========
 
         @Test
         void handle_withEmptyStack_returnsOriginalState() {
@@ -1153,8 +1138,6 @@ class BranchHandlerTest {
                     .isInstanceOf(LambdaExpression.BinaryOp.class);
         }
 
-        // ========== Tests to kill AbstractZeroEqualityBranchHandler combining mutation ==========
-
         @Test
         void handle_withBooleanFieldAndPreviousCondition_combinesExpressions() {
             // This test kills the mutation on line 61 of AbstractZeroEqualityBranchHandler:
@@ -1190,8 +1173,6 @@ class BranchHandlerTest {
         }
     }
 
-    // ==================== IfNotEqualsZeroInstructionHandler Tests ====================
-
     @Nested
     @DisplayName("IfNotEqualsZeroInstructionHandler")
     class IfNotEqualsZeroInstructionHandlerTests {
@@ -1215,8 +1196,6 @@ class BranchHandlerTest {
             JumpInsnNode jumpInsn = new JumpInsnNode(IFNULL, new LabelNode());
             assertThat(handler.canHandle(jumpInsn)).isFalse();
         }
-
-        // ========== handle() method tests to kill surviving mutations ==========
 
         @Test
         void handle_withEmptyStack_returnsOriginalState() {
@@ -1371,8 +1350,6 @@ class BranchHandlerTest {
                     .as("BinaryOp predicates should be returned as-is, not wrapped in EQ true")
                     .isSameAs(gtComparison);
         }
-
-        // ========== Tests to kill AbstractZeroEqualityBranchHandler combining mutation ==========
 
         @Test
         void handle_withBooleanFieldAndPreviousCondition_combinesExpressions() {

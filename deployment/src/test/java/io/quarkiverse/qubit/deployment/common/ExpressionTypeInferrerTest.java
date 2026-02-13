@@ -24,8 +24,6 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.*;
  */
 class ExpressionTypeInferrerTest {
 
-    // ==================== inferFieldType (single arg) Tests ====================
-
     @Nested
     class InferFieldTypeSingleArgTests {
 
@@ -146,8 +144,6 @@ class ExpressionTypeInferrerTest {
         }
     }
 
-    // ==================== inferFieldType (with default) Tests ====================
-
     @Nested
     class InferFieldTypeWithDefaultTests {
 
@@ -217,8 +213,6 @@ class ExpressionTypeInferrerTest {
         }
     }
 
-    // ==================== isNumericType Tests ====================
-
     @Nested
     class IsNumericTypeTests {
 
@@ -277,8 +271,6 @@ class ExpressionTypeInferrerTest {
                     .isTrue();
         }
     }
-
-    // ==================== isNumericClass Tests ====================
 
     @Nested
     class IsNumericClassTests {
@@ -431,8 +423,6 @@ class ExpressionTypeInferrerTest {
         }
     }
 
-    // ==================== isComparableType Tests ====================
-
     @Nested
     class IsComparableTypeTests {
 
@@ -511,8 +501,6 @@ class ExpressionTypeInferrerTest {
         }
     }
 
-    // ==================== isBooleanType Tests ====================
-
     @Nested
     class IsBooleanTypeTests {
 
@@ -558,8 +546,6 @@ class ExpressionTypeInferrerTest {
                     .isFalse();
         }
     }
-
-    // ==================== extractFieldName Tests ====================
 
     @Nested
     class ExtractFieldNameTests {

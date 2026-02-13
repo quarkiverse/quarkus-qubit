@@ -34,8 +34,6 @@ class AggregationIT extends AbstractAggregationTest {
         TestDataFactory.createStandardPersonsAndProducts();
     }
 
-    // ========== PRODUCT AGGREGATIONS (6 tests) ==========
-
     @Test
     void productMinStockQuantity() {
         Integer minStock = Product.min((Product p) -> p.stockQuantity).getSingleResult();
@@ -55,7 +53,6 @@ class AggregationIT extends AbstractAggregationTest {
     void productAvgRating() {
         Double avgRating = Product.avg((Product p) -> p.rating).getSingleResult();
 
-        // Ratings: 4.5, 4.7, 4.2, 4.0, 4.6 → average = 22 / 5 = 4.4
         assertThat(avgRating).isEqualTo(4.4);
     }
 
@@ -63,7 +60,6 @@ class AggregationIT extends AbstractAggregationTest {
     void productSumStockQuantity() {
         Long totalStock = Product.sumInteger((Product p) -> p.stockQuantity).getSingleResult();
 
-        // Sum: 50 + 100 + 25 + 0 + 30 = 205
         assertThat(totalStock).isEqualTo(205L);
     }
 
@@ -84,8 +80,6 @@ class AggregationIT extends AbstractAggregationTest {
         // Electronics: Laptop (50), Smartphone (100), Monitor (30)
         assertThat(maxStock).isEqualTo(100); // Smartphone
     }
-
-    // ========== NULL HANDLING (3 tests) ==========
 
     @Test
     @Transactional
@@ -131,8 +125,6 @@ class AggregationIT extends AbstractAggregationTest {
 
         assertThat(sumEmployeeId).isEqualTo(5000015L);
     }
-
-    // ========== EMPTY RESULT SETS (3 tests) ==========
 
     @Test
     @Transactional

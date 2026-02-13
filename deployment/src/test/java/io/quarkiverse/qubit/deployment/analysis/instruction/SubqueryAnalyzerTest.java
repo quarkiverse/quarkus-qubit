@@ -48,8 +48,6 @@ class SubqueryAnalyzerTest {
         context = new AnalysisContext(testMethod, 0);
     }
 
-    // ==================== isSubqueriesMethodCall Tests ====================
-
     @Nested
     @DisplayName("isSubqueriesMethodCall detection")
     class IsSubqueriesMethodCallTests {
@@ -79,8 +77,6 @@ class SubqueryAnalyzerTest {
         }
     }
 
-    // ==================== isSubqueryBuilderMethodCall Tests ====================
-
     @Nested
     @DisplayName("isSubqueryBuilderMethodCall detection")
     class IsSubqueryBuilderMethodCallTests {
@@ -109,8 +105,6 @@ class SubqueryAnalyzerTest {
                     .isFalse();
         }
     }
-
-    // ==================== handleSubqueriesFactoryMethod Tests ====================
 
     @Nested
     @DisplayName("handleSubqueriesFactoryMethod")
@@ -155,8 +149,6 @@ class SubqueryAnalyzerTest {
                     .isInstanceOf(LambdaExpression.Constant.class);
         }
     }
-
-    // ==================== handleSubqueryBuilderMethod Error Path Tests ====================
 
     @Nested
     @DisplayName("handleSubqueryBuilderMethod error paths")
@@ -262,8 +254,6 @@ class SubqueryAnalyzerTest {
                     .isTrue();
         }
     }
-
-    // ==================== handleSubqueryBuilderMethod Success Path Tests ====================
 
     @Nested
     @DisplayName("handleSubqueryBuilderMethod success paths")
@@ -568,8 +558,6 @@ class SubqueryAnalyzerTest {
         }
     }
 
-    // ==================== Unknown Method Tests ====================
-
     @Nested
     @DisplayName("Unknown method handling")
     class UnknownMethodTests {
@@ -588,8 +576,6 @@ class SubqueryAnalyzerTest {
                     .isTrue();
         }
     }
-
-    // ==================== Mutation-Killing Tests ====================
 
     @Nested
     @DisplayName("Stack underflow during arg popping (kill line 56 mutation)")
@@ -992,8 +978,6 @@ class SubqueryAnalyzerTest {
     @DisplayName("Arg count boundary mutations (kill lines 100, 113, 137, 149)")
     class ArgCountBoundaryMutationTests {
 
-        // ==================== handleBuilderWhere line 100: args.size() != 1 ====================
-
         @Test
         @DisplayName("where() with 0 args returns early - mutation: replaced != 1 with false")
         void handleBuilderWhere_withZeroArgs_returnsEarly() {
@@ -1024,8 +1008,6 @@ class SubqueryAnalyzerTest {
                     .as("where() with 2 args should leave stack empty (returned early)")
                     .isTrue();
         }
-
-        // ==================== handleBuilderScalarSubquery line 113: args.size() != 1 ====================
 
         @Test
         @DisplayName("avg() with 0 args returns early")
@@ -1082,8 +1064,6 @@ class SubqueryAnalyzerTest {
                     .isTrue();
         }
 
-        // ==================== handleBuilderExistsSubquery line 137: args.size() != 1 ====================
-
         @Test
         @DisplayName("exists() with 0 args returns early")
         void handleBuilderExistsSubquery_withZeroArgs_returnsEarly() {
@@ -1125,8 +1105,6 @@ class SubqueryAnalyzerTest {
                     .as("notExists() with 0 args should leave stack empty")
                     .isTrue();
         }
-
-        // ==================== handleBuilderInSubquery line 149: args.size() < 2 || args.size() > 3 ====================
 
         @Test
         @DisplayName("in() with 0 args returns early - mutation: replaced < 2 with false")
@@ -1355,8 +1333,6 @@ class SubqueryAnalyzerTest {
                     .isEqualTo(builderPredicate);
         }
     }
-
-    // ==================== Helper Methods ====================
 
     private MethodInsnNode createSubqueriesMethodInsn(String methodName) {
         return new MethodInsnNode(INVOKESTATIC,

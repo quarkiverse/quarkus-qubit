@@ -10,9 +10,7 @@ import org.junit.jupiter.api.Test;
  */
 class BytecodeAnalysisExceptionTest {
 
-    // ========================================================================
     // Stack Operations Factory Methods
-    // ========================================================================
 
     @Nested
     class StackOperationsTests {
@@ -37,9 +35,7 @@ class BytecodeAnalysisExceptionTest {
         }
     }
 
-    // ========================================================================
     // Opcode Validation Factory Methods
-    // ========================================================================
 
     @Nested
     class OpcodeValidationTests {
@@ -89,9 +85,7 @@ class BytecodeAnalysisExceptionTest {
         }
     }
 
-    // ========================================================================
     // Unsupported Patterns Factory Methods
-    // ========================================================================
 
     @Nested
     class UnsupportedPatternsTests {
@@ -114,9 +108,7 @@ class BytecodeAnalysisExceptionTest {
         }
     }
 
-    // ========================================================================
     // Null Safety Factory Methods
-    // ========================================================================
 
     @Nested
     class NullSafetyTests {
@@ -131,9 +123,7 @@ class BytecodeAnalysisExceptionTest {
         }
     }
 
-    // ========================================================================
     // Class Loading Factory Methods
-    // ========================================================================
 
     @Nested
     class ClassLoadingTests {
@@ -155,9 +145,7 @@ class BytecodeAnalysisExceptionTest {
         }
     }
 
-    // ========================================================================
     // Lambda Resolution Factory Methods
-    // ========================================================================
 
     @Nested
     class LambdaResolutionTests {
@@ -239,9 +227,7 @@ class BytecodeAnalysisExceptionTest {
         }
     }
 
-    // ========================================================================
     // Exception Hierarchy Tests
-    // ========================================================================
 
     @Nested
     class ExceptionHierarchyTests {

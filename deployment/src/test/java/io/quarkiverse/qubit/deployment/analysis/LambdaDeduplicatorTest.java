@@ -33,9 +33,7 @@ class LambdaDeduplicatorTest {
         deduplicator = new LambdaDeduplicator();
     }
 
-    // ========================================================================
     // Helper Methods
-    // ========================================================================
 
     private LambdaExpression.FieldAccess field(String name) {
         return new LambdaExpression.FieldAccess(name, String.class);
@@ -57,9 +55,7 @@ class LambdaDeduplicatorTest {
         return new SortExpression(field(fieldName), SortDirection.DESCENDING);
     }
 
-    // ========================================================================
     // computeLambdaHash Tests
-    // ========================================================================
 
     @Nested
     class ComputeLambdaHashTests {
@@ -118,9 +114,7 @@ class LambdaDeduplicatorTest {
         }
     }
 
-    // ========================================================================
     // computeCombinedHash Tests
-    // ========================================================================
 
     @Nested
     class ComputeCombinedHashTests {
@@ -172,9 +166,7 @@ class LambdaDeduplicatorTest {
         }
     }
 
-    // ========================================================================
     // computeSortingHash Tests
-    // ========================================================================
 
     @Nested
     class ComputeSortingHashTests {
@@ -212,9 +204,7 @@ class LambdaDeduplicatorTest {
         }
     }
 
-    // ========================================================================
     // computeQueryWithSortingHash Tests
-    // ========================================================================
 
     @Nested
     class ComputeQueryWithSortingHashTests {
@@ -255,9 +245,7 @@ class LambdaDeduplicatorTest {
         }
     }
 
-    // ========================================================================
     // computeFullQueryHash Tests
-    // ========================================================================
 
     @Nested
     class ComputeFullQueryHashTests {
@@ -287,9 +275,7 @@ class LambdaDeduplicatorTest {
         }
     }
 
-    // ========================================================================
     // computeAggregationHash Tests
-    // ========================================================================
 
     @Nested
     class ComputeAggregationHashTests {
@@ -340,9 +326,7 @@ class LambdaDeduplicatorTest {
         }
     }
 
-    // ========================================================================
     // computeJoinHash Tests
-    // ========================================================================
 
     @Nested
     class ComputeJoinHashTests {
@@ -392,9 +376,7 @@ class LambdaDeduplicatorTest {
         }
     }
 
-    // ========================================================================
     // computeJoinHash with Sorting Tests
-    // ========================================================================
 
     @Nested
     class ComputeJoinHashWithSortingTests {
@@ -423,9 +405,7 @@ class LambdaDeduplicatorTest {
         }
     }
 
-    // ========================================================================
     // computeJoinHash with SelectJoined Tests
-    // ========================================================================
 
     @Nested
     class ComputeJoinHashWithSelectJoinedTests {
@@ -441,9 +421,7 @@ class LambdaDeduplicatorTest {
         }
     }
 
-    // ========================================================================
     // computeJoinHash with Projection Tests
-    // ========================================================================
 
     @Nested
     class ComputeJoinHashWithProjectionTests {
@@ -479,9 +457,7 @@ class LambdaDeduplicatorTest {
         }
     }
 
-    // ========================================================================
     // computeGroupHash Tests
-    // ========================================================================
 
     @Nested
     class ComputeGroupHashTests {
@@ -565,9 +541,7 @@ class LambdaDeduplicatorTest {
         }
     }
 
-    // ========================================================================
     // Executor Registration Tests
-    // ========================================================================
 
     @Nested
     class ExecutorRegistrationTests {

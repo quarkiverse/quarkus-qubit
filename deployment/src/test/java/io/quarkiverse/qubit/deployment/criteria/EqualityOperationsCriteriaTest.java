@@ -15,8 +15,6 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
  */
 class EqualityOperationsCriteriaTest extends CriteriaQueryTestBase {
 
-    // ==================== PARAMETERIZED TESTS ====================
-
     /**
      * Tests for simple equality operations that use cb.equal().
      */
@@ -35,8 +33,6 @@ class EqualityOperationsCriteriaTest extends CriteriaQueryTestBase {
         assertCriteriaGenerationSucceeds(expr);
         assertCriteriaMethodCalled(structure, "equal");
     }
-
-    // ==================== STRING EQUALITY WITH DETAILED ASSERTIONS ====================
 
     @Test
     void stringEquality() {
@@ -67,8 +63,6 @@ class EqualityOperationsCriteriaTest extends CriteriaQueryTestBase {
         assertFieldAccessed(structure, "price");
         assertConstantUsed(structure, "899.99");
     }
-
-    // ==================== BOOLEAN EQUALITY TESTS ====================
 
     @Test
     void booleanEqualityTrue() {

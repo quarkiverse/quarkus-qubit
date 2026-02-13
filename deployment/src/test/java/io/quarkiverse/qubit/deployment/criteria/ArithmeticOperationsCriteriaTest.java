@@ -17,8 +17,6 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
  */
 class ArithmeticOperationsCriteriaTest extends CriteriaQueryTestBase {
 
-    // ==================== PARAMETERIZED TEST DATA ====================
-
     /**
      * Test data for all arithmetic operations.
      * Each entry: lambdaMethodName, expectedCriteriaMethod
@@ -55,8 +53,6 @@ class ArithmeticOperationsCriteriaTest extends CriteriaQueryTestBase {
                 Arguments.of("longFieldFieldAddition", "sum"),
                 Arguments.of("longFieldFieldSubtraction", "diff"));
     }
-
-    // ==================== PARAMETERIZED TESTS ====================
 
     @ParameterizedTest(name = "{0} → cb.{1}()")
     @MethodSource("arithmeticOperations")

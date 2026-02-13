@@ -227,8 +227,6 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
         };
     }
 
-    // ========== Private Helper Methods ==========
-
     private Expr getBaseForEntityPosition(EntityPosition position, Expr root, Expr join) {
         return position == EntityPosition.FIRST ? root : join;
     }

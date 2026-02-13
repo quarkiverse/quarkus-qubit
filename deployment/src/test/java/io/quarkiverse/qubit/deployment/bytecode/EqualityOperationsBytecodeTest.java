@@ -19,8 +19,6 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
  */
 class EqualityOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
 
-    // ==================== PARAMETERIZED TEST DATA ====================
-
     /**
      * Test data for simple binary equality operations.
      * Each entry: lambdaMethodName, expectedFieldName, expectedConstant
@@ -44,8 +42,6 @@ class EqualityOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
                 Arguments.of("localDateTimeEquality", "createdAt"));
     }
 
-    // ==================== PARAMETERIZED TESTS ====================
-
     @ParameterizedTest(name = "{0}: {1} == {2}")
     @MethodSource("simpleEqualities")
     void simpleEquality(String lambdaMethodName, String expectedFieldName, Object expectedConstant) {
@@ -66,8 +62,6 @@ class EqualityOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) expr;
         assertFieldAccess(methodCall.target(), expectedFieldName);
     }
-
-    // ==================== SPECIAL CASE TESTS ====================
 
     @Test
     void booleanEqualityTrue() {

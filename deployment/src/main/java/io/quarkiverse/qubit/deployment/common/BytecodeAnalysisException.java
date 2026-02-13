@@ -17,16 +17,12 @@ public class BytecodeAnalysisException extends RuntimeException {
         super(message, cause);
     }
 
-    // ========== Stack Operations ==========
-
     /** Stack underflow during instruction processing. */
     public static BytecodeAnalysisException stackUnderflow(String instruction, int expected, int actual) {
         return new BytecodeAnalysisException(
                 String.format("Stack underflow processing %s: expected %d elements, found %d",
                         instruction, expected, actual));
     }
-
-    // ========== Opcode Validation ==========
 
     /** Unexpected opcode encountered in handler. */
     public static BytecodeAnalysisException unexpectedOpcode(String handlerContext, int opcode) {
@@ -45,8 +41,6 @@ public class BytecodeAnalysisException extends RuntimeException {
                 String.format("Invalid opcode: %d, expected one of [%s]", opcode, opcodeList));
     }
 
-    // ========== Unsupported Patterns ==========
-
     /** Unsupported operation or bytecode pattern. */
     public static BytecodeAnalysisException unsupported(String operation, String details) {
         return new BytecodeAnalysisException(
@@ -54,15 +48,11 @@ public class BytecodeAnalysisException extends RuntimeException {
                         operation, details));
     }
 
-    // ========== Null Safety ==========
-
     /** Unexpected null value during analysis. */
     public static BytecodeAnalysisException unexpectedNull(String context) {
         return new BytecodeAnalysisException(
                 String.format("Unexpected null value: %s", context));
     }
-
-    // ========== Class Loading ==========
 
     /** Class bytecode not found in application archives or classpath. */
     public static BytecodeAnalysisException bytecodeNotFound(String className) {
@@ -70,8 +60,6 @@ public class BytecodeAnalysisException extends RuntimeException {
                 "Could not load bytecode for class: " + className +
                         ". Ensure the class is compiled and in the application classpath.");
     }
-
-    // ========== Lambda Resolution ==========
 
     /** Lambda method not found in class. */
     public static BytecodeAnalysisException lambdaMethodNotFound(String className, String methodName, String descriptor) {

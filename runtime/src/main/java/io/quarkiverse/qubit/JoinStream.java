@@ -18,20 +18,14 @@ import java.util.Optional;
  */
 public interface JoinStream<T, R> {
 
-    // ========== Join Conditions ==========
-
     /** Adds ON clause condition (unlike WHERE, doesn't filter NULL rows in left joins). */
     JoinStream<T, R> on(BiQuerySpec<T, R, Boolean> condition);
-
-    // ========== Filtering ==========
 
     /** Filters joined results with access to both entities. Multiple calls combine with AND. */
     JoinStream<T, R> where(BiQuerySpec<T, R, Boolean> predicate);
 
     /** Filters based on only the source entity. */
     JoinStream<T, R> where(QuerySpec<T, Boolean> predicate);
-
-    // ========== Projection ==========
 
     /** Projects joined result to a new type using both entities. */
     <S> QubitStream<S> select(BiQuerySpec<T, R, S> mapper);
@@ -42,15 +36,11 @@ public interface JoinStream<T, R> {
     /** Projects to joined entity only (right side of join). */
     QubitStream<R> selectJoined();
 
-    // ========== Sorting ==========
-
     /** Sorts results ascending using a key from either entity. */
     <K extends Comparable<K>> JoinStream<T, R> sortedBy(BiQuerySpec<T, R, K> keyExtractor);
 
     /** Sorts results descending using a key from either entity. */
     <K extends Comparable<K>> JoinStream<T, R> sortedDescendingBy(BiQuerySpec<T, R, K> keyExtractor);
-
-    // ========== Pagination ==========
 
     /**
      * Skips the first {@code n} results (SQL OFFSET).
@@ -66,12 +56,8 @@ public interface JoinStream<T, R> {
      */
     JoinStream<T, R> limit(int n);
 
-    // ========== Distinct ==========
-
     /** Returns only distinct results (SQL SELECT DISTINCT). */
     JoinStream<T, R> distinct();
-
-    // ========== Terminal Operations ==========
 
     /** Executes query and returns source entities as a list. */
     List<T> toList();

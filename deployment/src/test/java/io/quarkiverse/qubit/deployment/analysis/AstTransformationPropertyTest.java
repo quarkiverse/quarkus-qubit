@@ -37,9 +37,7 @@ import net.jqwik.api.constraints.IntRange;
  */
 class AstTransformationPropertyTest {
 
-    // ======================================================================
     // renumberCapturedVariables Properties
-    // ======================================================================
 
     @Property
     @Label("renumberCapturedVariables: zero offset returns same expression")
@@ -174,9 +172,7 @@ class AstTransformationPropertyTest {
                 .isEqualTo(expectedIndices);
     }
 
-    // ======================================================================
     // collectCapturedVariableIndices Properties
-    // ======================================================================
 
     @Property
     @Label("collectCapturedVariableIndices: null input leaves set unchanged")
@@ -265,9 +261,7 @@ class AstTransformationPropertyTest {
                 .isEqualTo(indices.size());
     }
 
-    // ======================================================================
     // combinePredicatesWithAnd Properties
-    // ======================================================================
 
     @Property
     @Label("combinePredicatesWithAnd: single element returns itself")
@@ -358,9 +352,7 @@ class AstTransformationPropertyTest {
         assertThat(result3).as("First null, second non-null should return second").isSameAs(p);
     }
 
-    // ======================================================================
     // Arbitrary Providers
-    // ======================================================================
 
     @Provide
     Arbitrary<LambdaExpression> expressionsWithCapturedVariables() {

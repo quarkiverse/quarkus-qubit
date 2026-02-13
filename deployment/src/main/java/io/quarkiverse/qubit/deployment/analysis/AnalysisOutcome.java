@@ -50,8 +50,6 @@ public sealed interface AnalysisOutcome {
         };
     }
 
-    // ========== Outcome Types ==========
-
     /**
      * Early deduplication hit: analysis was skipped because an identical lambda
      * was already processed and a cached executor exists.
@@ -175,8 +173,6 @@ public sealed interface AnalysisOutcome {
                     callSiteId, cause.getMessage());
         }
     }
-
-    // ========== Factory Methods ==========
 
     /** Creates a successful outcome. */
     static Success success(LambdaAnalysisResult result, String callSiteId, String lambdaHash) {

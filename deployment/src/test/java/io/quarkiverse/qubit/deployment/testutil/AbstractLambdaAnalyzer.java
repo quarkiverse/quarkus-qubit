@@ -183,8 +183,6 @@ public abstract class AbstractLambdaAnalyzer {
         return lambdaHandle;
     }
 
-    // ==================== COMMON ASSERTION HELPERS ====================
-
     /**
      * Asserts that an expression is a binary operation with the expected operator.
      */

@@ -45,8 +45,6 @@ class MethodInvocationHandlerTest {
         context = contextFor(testMethod, 0);
     }
 
-    // ==================== VirtualMethodCategory Tests ====================
-
     @Nested
     @DisplayName("VirtualMethodCategory.categorize")
     class VirtualMethodCategoryTests {
@@ -74,8 +72,6 @@ class MethodInvocationHandlerTest {
             assertThat(category).isEqualTo(expected);
         }
     }
-
-    // ==================== canHandle Tests ====================
 
     @Nested
     @DisplayName("canHandle")
@@ -127,8 +123,6 @@ class MethodInvocationHandlerTest {
             assertThat(handler.canHandle(dynInsn)).isFalse();
         }
     }
-
-    // ==================== handle Tests - InvokeVirtual ====================
 
     @Nested
     @DisplayName("handle - INVOKEVIRTUAL")
@@ -411,8 +405,6 @@ class MethodInvocationHandlerTest {
         }
     }
 
-    // ==================== handle Tests - InvokeStatic ====================
-
     @Nested
     @DisplayName("handle - INVOKESTATIC")
     class HandleInvokeStaticTests {
@@ -494,8 +486,6 @@ class MethodInvocationHandlerTest {
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
         }
     }
-
-    // ==================== handle Tests - InvokeInterface ====================
 
     @Nested
     @DisplayName("handle - INVOKEINTERFACE")
@@ -582,8 +572,6 @@ class MethodInvocationHandlerTest {
         }
     }
 
-    // ==================== handle Tests - InvokeSpecial ====================
-
     @Nested
     @DisplayName("handle - INVOKESPECIAL")
     class HandleInvokeSpecialTests {
@@ -633,8 +621,6 @@ class MethodInvocationHandlerTest {
             assertThat(context.getStackSize()).isEqualTo(initialSize);
         }
     }
-
-    // ==================== String Method Boundary Tests ====================
 
     @Nested
     @DisplayName("String method boundary conditions")
@@ -686,8 +672,6 @@ class MethodInvocationHandlerTest {
             assertThat(context.getStackSize()).isEqualTo(2);
         }
     }
-
-    // ==================== BigDecimal Boundary Tests ====================
 
     @Nested
     @DisplayName("BigDecimal boundary conditions")
@@ -767,8 +751,6 @@ class MethodInvocationHandlerTest {
         }
     }
 
-    // ==================== Temporal Method Boundary Tests ====================
-
     @Nested
     @DisplayName("Temporal method boundary conditions")
     class TemporalMethodBoundaryTests {
@@ -837,8 +819,6 @@ class MethodInvocationHandlerTest {
         }
     }
 
-    // ==================== InvokeStatic Boundary Tests ====================
-
     @Nested
     @DisplayName("InvokeStatic boundary conditions")
     class InvokeStaticBoundaryTests {
@@ -859,8 +839,6 @@ class MethodInvocationHandlerTest {
             assertThat(context.getStackSize()).isEqualTo(1);
         }
     }
-
-    // ==================== Collection Contains Boundary Tests ====================
 
     @Nested
     @DisplayName("Collection contains boundary conditions")
@@ -897,8 +875,6 @@ class MethodInvocationHandlerTest {
         }
     }
 
-    // ==================== Equals and CompareTo Boundary Tests ====================
-
     @Nested
     @DisplayName("Equals and compareTo boundary conditions")
     class EqualsCompareTosBoundaryTests {
@@ -934,8 +910,6 @@ class MethodInvocationHandlerTest {
         }
     }
 
-    // ==================== Edge Cases ====================
-
     @Nested
     @DisplayName("Edge Cases")
     class EdgeCaseTests {
@@ -966,8 +940,6 @@ class MethodInvocationHandlerTest {
                     .hasMessageContaining("Stack underflow");
         }
     }
-
-    // ==================== Mutation Killing Tests: handleStringMethods switch branches ====================
 
     /**
      * Tests targeting surviving mutations in handleStringMethods switch branches.
@@ -1068,8 +1040,6 @@ class MethodInvocationHandlerTest {
         }
     }
 
-    // ==================== Mutation Killing Tests: handleBigDecimalMethods switch branches ====================
-
     @Nested
     @DisplayName("Mutation killing: handleBigDecimalMethods switch branches")
     class HandleBigDecimalMethodsMutationKillingTests {
@@ -1120,8 +1090,6 @@ class MethodInvocationHandlerTest {
         }
     }
 
-    // ==================== Mutation Killing Tests: handleInvokeStatic Boolean.valueOf checks ====================
-
     @Nested
     @DisplayName("Mutation killing: handleInvokeStatic Boolean.valueOf conditions")
     class HandleInvokeStaticBooleanValueOfMutationKillingTests {
@@ -1161,8 +1129,6 @@ class MethodInvocationHandlerTest {
                     Arguments.of("true", "java/lang/Boolean", "valueOf", "(Ljava/lang/String;)Ljava/lang/Boolean;"));
         }
     }
-
-    // ==================== Mutation Killing Tests: handleTemporalMethods checks ====================
 
     @Nested
     @DisplayName("Mutation killing: handleTemporalMethods accessor method checks")
@@ -1207,8 +1173,6 @@ class MethodInvocationHandlerTest {
             assertThat(result).isInstanceOf(LambdaExpression.FieldAccess.class);
         }
     }
-
-    // ==================== Mutation Killing Tests: isMemberOfPattern checks ====================
 
     @Nested
     @DisplayName("Mutation killing: isMemberOfPattern instanceof checks")
@@ -1269,8 +1233,6 @@ class MethodInvocationHandlerTest {
                     .isInstanceOf(LambdaExpression.MethodCall.class);
         }
     }
-
-    // ==================== Mutation Killing Tests: isBigDecimalStringConstruction checks ====================
 
     @Nested
     @DisplayName("Mutation killing: isBigDecimalStringConstruction checks")
@@ -1359,8 +1321,6 @@ class MethodInvocationHandlerTest {
         }
     }
 
-    // ==================== Mutation Killing Tests: handleSubstringMethod descriptor checks ====================
-
     @Nested
     @DisplayName("Mutation killing: handleSubstringMethod descriptor checks")
     class HandleSubstringMethodMutationKillingTests {
@@ -1412,8 +1372,6 @@ class MethodInvocationHandlerTest {
         }
     }
 
-    // ==================== Mutation Killing Tests: handleCollectionContains null check ====================
-
     @Nested
     @DisplayName("Mutation killing: handleCollectionContains pair null check")
     class HandleCollectionContainsNullCheckTests {
@@ -1444,8 +1402,6 @@ class MethodInvocationHandlerTest {
         }
     }
 
-    // ==================== Mutation Killing Tests: handleEqualsMethod null check ====================
-
     @Nested
     @DisplayName("Mutation killing: handleEqualsMethod pair null check")
     class HandleEqualsMethodNullCheckTests {
@@ -1463,8 +1419,6 @@ class MethodInvocationHandlerTest {
             assertThat(result).isInstanceOf(LambdaExpression.BinaryOp.class);
         }
     }
-
-    // ==================== Mutation Killing Tests: handle() return value ====================
 
     /**
      * Tests that verify handle() always returns false.
@@ -1538,8 +1492,6 @@ class MethodInvocationHandlerTest {
                     .isFalse();
         }
     }
-
-    // ==================== Mutation Killing Tests: handleSubstringMethod argCount ====================
 
     /**
      * Tests targeting MathMutator on line 364 which changes argCount + 1 to argCount - 1.
@@ -1617,8 +1569,6 @@ class MethodInvocationHandlerTest {
             assertThat(context.getStackSize()).isEqualTo(2);
         }
     }
-
-    // ==================== Mutation Killing Tests: handleInvokeStatic conditions ====================
 
     /**
      * Tests targeting EQUAL_IF mutations in handleInvokeStatic method.
@@ -1744,8 +1694,6 @@ class MethodInvocationHandlerTest {
         }
     }
 
-    // ==================== Mutation Killing Tests: VirtualMethodCategory.categorize branches ====================
-
     /**
      * Tests targeting switch case mutations in VirtualMethodCategory.categorize().
      * Verify that each category is correctly identified and no cross-contamination occurs.
@@ -1806,8 +1754,6 @@ class MethodInvocationHandlerTest {
                                     VirtualMethodCategory.STRING_METHOD }));
         }
     }
-
-    // ==================== Helper Methods ====================
 
     private MethodInsnNode createMethodInsn(int opcode, String owner, String name, String desc) {
         return new MethodInsnNode(opcode, owner, name, desc, opcode == INVOKEINTERFACE);

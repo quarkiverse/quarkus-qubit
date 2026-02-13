@@ -1,7 +1,5 @@
 package io.quarkiverse.qubit.deployment.generation.expression;
 
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.CANNOT_GET_VALUE_FROM_NOT_APPLICABLE;
-
 import java.util.Objects;
 import java.util.Optional;
 
@@ -40,7 +38,7 @@ public sealed interface BuilderResult permits
         return switch (this) {
             case Success(var value) -> value;
             case NotApplicable _ ->
-                throw new IllegalStateException(CANNOT_GET_VALUE_FROM_NOT_APPLICABLE);
+                throw new IllegalStateException("Cannot get value from NotApplicable result");
         };
     }
 

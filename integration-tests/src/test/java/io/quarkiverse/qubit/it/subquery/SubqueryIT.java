@@ -40,8 +40,6 @@ class SubqueryIT {
         TestDataFactory.createPersonsWithPhones();
     }
 
-    // ========== SCALAR AGGREGATION SUBQUERIES ==========
-
     @Nested
     @DisplayName("Scalar AVG Subqueries")
     class AvgSubqueryTests {
@@ -49,7 +47,6 @@ class SubqueryIT {
         @Test
         @DisplayName("Find persons earning above average salary")
         void findPersonsAboveAverageSalary() {
-            // Average salary: (75000 + 65000 + 85000 + 90000 + 55000) / 5 = 74000
             // Above average: John (75000), Bob (85000), Alice (90000)
             List<Person> aboveAverage = Person.where(
                     (Person p) -> p.salary > subquery(Person.class).avg(q -> q.salary)).toList();
@@ -159,7 +156,6 @@ class SubqueryIT {
         @Test
         @DisplayName("Find departments with budget greater than total salary")
         void findDepartmentsAboveTotalSalary() {
-            // Total salaries: 75000 + 65000 + 85000 + 90000 + 55000 = 370000
             // Departments: Engineering (500000), Sales (300000), HR (200000)
             // Above total salary: Engineering (500000)
             List<Department> richDepts = Department.where(
@@ -174,7 +170,6 @@ class SubqueryIT {
         @Test
         @DisplayName("Find persons with individual salary less than total")
         void findPersonsWithSalaryBelowTotal() {
-            // Sum of all salaries: 75000 + 65000 + 85000 + 90000 + 55000 = 370000
             // Each individual salary is less than total sum
             // All 5 people have salary < 370000
             List<Person> belowTotalSum = Person.where(
@@ -203,8 +198,6 @@ class SubqueryIT {
         }
     }
 
-    // ========== FILTERED SUBQUERIES (WITH .WHERE()) ==========
-
     @Nested
     @DisplayName("Filtered Subqueries")
     class FilteredSubqueryTests {
@@ -214,7 +207,6 @@ class SubqueryIT {
         void averageSalaryOfActiveEmployees() {
             // Active employees: John (75000), Jane (65000), Alice (90000), Charlie (55000)
             // Bob is inactive (85000)
-            // Active average: (75000 + 65000 + 90000 + 55000) / 4 = 71250
             // Active employees above active average: John (75000), Alice (90000)
             List<Person> aboveActiveAvg = Person.where(
                     (Person p) -> p.active && p.salary > subquery(Person.class)
@@ -305,7 +297,6 @@ class SubqueryIT {
         @DisplayName("Multiple where() calls are combined with AND")
         void multipleWhereCallsCombined() {
             // Active AND department = "Sales": Jane (65000), Charlie (55000)
-            // Average of active Sales: (65000 + 55000) / 2 = 60000
             // Active Sales people above their department average: Jane (65000)
             List<Person> aboveActiveSalesAvg = Person.where(
                     (Person p) -> p.active &&

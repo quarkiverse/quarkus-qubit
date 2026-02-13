@@ -177,7 +177,6 @@ public enum LoadInstructionHandler implements InstructionHandler {
         PathSegment newSegment = new PathSegment(fieldName, fieldType, RelationType.FIELD);
 
         switch (target) {
-            // ========== Bi-entity mode (join queries) ==========
             case BiEntityParameter(_, _, _, var position) ->
                 // First-level field access from bi-entity parameter: ph.type
                 ctx.push(new BiEntityFieldAccess(fieldName, fieldType, position));
@@ -196,7 +195,6 @@ public enum LoadInstructionHandler implements InstructionHandler {
                         fieldType,
                         entityPosition));
 
-            // ========== Single-entity mode ==========
             case LambdaExpression.Parameter _ ->
                 // First-level field access from entity parameter: p.age
                 ctx.push(new FieldAccess(fieldName, fieldType));
@@ -213,7 +211,6 @@ public enum LoadInstructionHandler implements InstructionHandler {
                         extendPath(segments, newSegment),
                         fieldType));
 
-            // ========== Subquery correlated variables ==========
             case LambdaExpression.CapturedVariable(var index, var type, _) ->
                 // Field access on captured variable → CorrelatedVariable for subquery correlation
                 ctx.push(new LambdaExpression.CorrelatedVariable(
@@ -236,8 +233,6 @@ public enum LoadInstructionHandler implements InstructionHandler {
                 ctx.push(new FieldAccess(fieldName, fieldType));
         }
     }
-
-    // ==================== Path Building Helpers ====================
 
     /** Converts a FieldAccess to a PathSegment. */
     private static PathSegment toSegment(FieldAccess field) {

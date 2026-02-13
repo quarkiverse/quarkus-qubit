@@ -3,7 +3,6 @@ package io.quarkiverse.qubit.deployment.ast;
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.AGGREGATION_TYPE_NULL;
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.ENTITY_CLASS_NULL;
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.ENTITY_POSITION_NULL;
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.ENTITY_TYPE_NULL;
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.FIELD_NAME_NULL;
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.FIELD_TYPE_NULL;
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.PARAMETER_NAME_NULL;
@@ -37,8 +36,6 @@ import org.jspecify.annotations.Nullable;
  */
 public sealed interface LambdaExpression {
 
-    // ========== Common AST Operations ==========
-
     /** Extracts field name if applicable (FieldAccess, PathExpression, BiEntity variants). */
     default Optional<String> getFieldName() {
         return Optional.empty();
@@ -49,8 +46,6 @@ public sealed interface LambdaExpression {
         return getFieldName()
                 .orElseThrow(() -> new IllegalArgumentException("Cannot extract field name from expression: " + this));
     }
-
-    // ========== Core Expressions ==========
 
     /** Binary operation (comparison, logical, or arithmetic). */
     record BinaryOp(LambdaExpression left, Operator operator, LambdaExpression right) implements LambdaExpression {
@@ -298,8 +293,6 @@ public sealed interface LambdaExpression {
         }
     }
 
-    // ========== Relationship Navigation ==========
-
     /** Relationship type - determines whether path segment requires JPA join. */
     enum RelationType {
         FIELD,
@@ -487,8 +480,6 @@ public sealed interface LambdaExpression {
         // getFieldName() inherited from SegmentBasedPath
     }
 
-    // ========== Collection Operations ==========
-
     /**
      * IN expression for collection membership testing.
      * <p>
@@ -584,8 +575,6 @@ public sealed interface LambdaExpression {
             return new MemberOfExpression(value, collectionField, true);
         }
     }
-
-    // ========== Join Queries ==========
 
     /**
      * Identifies which entity in a bi-entity lambda (BiQuerySpec).
@@ -803,8 +792,6 @@ public sealed interface LambdaExpression {
         // getFieldName() inherited from SegmentBasedPath
     }
 
-    // ========== Grouping Operations ==========
-
     /**
      * Group key reference in a GroupQuerySpec lambda.
      * <p>
@@ -986,12 +973,10 @@ public sealed interface LambdaExpression {
         public GroupParameter {
             Objects.requireNonNull(name, PARAMETER_NAME_NULL);
             Objects.requireNonNull(type, PARAMETER_TYPE_NULL);
-            Objects.requireNonNull(entityType, ENTITY_TYPE_NULL);
+            Objects.requireNonNull(entityType, "Entity type cannot be null");
             Objects.requireNonNull(keyType, "Key type cannot be null");
         }
     }
-
-    // ========== Subqueries ==========
 
     /**
      * Types of scalar aggregation subqueries.

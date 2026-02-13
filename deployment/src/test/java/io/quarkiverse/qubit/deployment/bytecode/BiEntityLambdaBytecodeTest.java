@@ -33,8 +33,6 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.UnaryOp;
 @DisplayName("BiEntityLambdaBytecodeTest")
 class BiEntityLambdaBytecodeTest extends PrecompiledBiEntityLambdaAnalyzer {
 
-    // ==================== SIMPLE FIELD ACCESS ====================
-
     @Nested
     @DisplayName("Simple Field Access")
     class SimpleFieldAccessTests {
@@ -77,8 +75,6 @@ class BiEntityLambdaBytecodeTest extends PrecompiledBiEntityLambdaAnalyzer {
                 Arguments.of("projectSourceEntityIntField", EntityPosition.FIRST, "age"));
     }
 
-    // ==================== FIELD COMPARISON WITH CONSTANT ====================
-
     @Nested
     @DisplayName("Field Comparison with Constant")
     class FieldComparisonTests {
@@ -108,8 +104,6 @@ class BiEntityLambdaBytecodeTest extends PrecompiledBiEntityLambdaAnalyzer {
                 Arguments.of("sourceEntityFieldEquals", EntityPosition.FIRST, "firstName", BinaryOp.Operator.EQ, "John"),
                 Arguments.of("sourceEntityIntegerComparison", EntityPosition.FIRST, "age", BinaryOp.Operator.GT, 30));
     }
-
-    // ==================== STRING METHOD CALLS ====================
 
     @Nested
     @DisplayName("String Method Calls")
@@ -141,8 +135,6 @@ class BiEntityLambdaBytecodeTest extends PrecompiledBiEntityLambdaAnalyzer {
                 Arguments.of("joinedEntityContains", EntityPosition.SECOND, "number", "contains", "01"),
                 Arguments.of("joinedEntityEndsWith", EntityPosition.SECOND, "number", "endsWith", "00"));
     }
-
-    // ==================== PREDICATES ON BOTH ENTITIES ====================
 
     @Nested
     @DisplayName("Predicates on Both Entities")
@@ -198,8 +190,6 @@ class BiEntityLambdaBytecodeTest extends PrecompiledBiEntityLambdaAnalyzer {
         }
     }
 
-    // ==================== CAPTURED VARIABLES ====================
-
     @Nested
     @DisplayName("Captured Variables")
     class CapturedVariableTests {
@@ -245,8 +235,6 @@ class BiEntityLambdaBytecodeTest extends PrecompiledBiEntityLambdaAnalyzer {
             assertCapturedVariable(rightBinOp.right(), 1);
         }
     }
-
-    // ==================== HELPER METHODS ====================
 
     private void assertBooleanFieldComparison(LambdaExpression expr, EntityPosition position, String fieldName) {
         assertThat(expr).isInstanceOf(BinaryOp.class);

@@ -1,7 +1,6 @@
 package io.quarkiverse.qubit.deployment.generation.expression;
 
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.COUNT_SHOULD_BE_HANDLED_ABOVE;
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.unexpectedGroupAggregationType;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isLogicalOperation;
 import static io.quarkiverse.qubit.deployment.generation.GizmoHelper.buildConstructorExpression;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CASE_OTHERWISE_EXPR;
@@ -156,8 +155,6 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
                 element -> generateGroupSelectExpression(bc, element, cb, root, groupKeyExpr, capturedValues, helper));
     }
 
-    // ========== Private Helper Methods ==========
-
     private Expr generateGroupAggregationExpression(
             BlockCreator bc,
             GroupAggregation groupAgg,
@@ -191,7 +188,7 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
             case MIN -> bc.invokeInterface(CB_MIN, cb, fieldPath);
             case MAX -> bc.invokeInterface(CB_MAX, cb, fieldPath);
             case COUNT -> throw new IllegalStateException(COUNT_SHOULD_BE_HANDLED_ABOVE);
-            default -> throw new IllegalStateException(unexpectedGroupAggregationType(aggType));
+            default -> throw new IllegalStateException("Unexpected group aggregation type: " + aggType);
         };
     }
 

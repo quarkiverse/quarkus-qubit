@@ -14,9 +14,7 @@ import static org.hamcrest.Matchers.*;
 @QuarkusIntegrationTest
 public class ProductResourceIT {
 
-    // =============================================================================================
     // BASIC QUERIES
-    // =============================================================================================
 
     @Test
     void getAll_returnsAllProducts() {
@@ -70,9 +68,7 @@ public class ProductResourceIT {
                 .body("stockQuantity", everyItem(greaterThan(0)));
     }
 
-    // =============================================================================================
     // BIGDECIMAL OPERATIONS
-    // =============================================================================================
 
     @Test
     void getPriceGreaterThan_filtersCorrectly() {
@@ -104,9 +100,7 @@ public class ProductResourceIT {
                 .body("$", hasSize(greaterThan(0)));
     }
 
-    // =============================================================================================
     // CATEGORY QUERIES
-    // =============================================================================================
 
     @Test
     void getByCategory_filtersCorrectly() {
@@ -130,9 +124,7 @@ public class ProductResourceIT {
                 .body("category", everyItem(containsString("Electro")));
     }
 
-    // =============================================================================================
     // LOGICAL OPERATIONS
-    // =============================================================================================
 
     @Test
     void getAvailableAndInStock_combinesConditions() {
@@ -156,9 +148,7 @@ public class ProductResourceIT {
                 .body("$", hasSize(greaterThan(0)));
     }
 
-    // =============================================================================================
     // SORTING
-    // =============================================================================================
 
     @Test
     void getSortedByPrice_sortsAscending() {
@@ -205,9 +195,7 @@ public class ProductResourceIT {
         }
     }
 
-    // =============================================================================================
     // PROJECTIONS
-    // =============================================================================================
 
     @Test
     void getNames_projectsCorrectly() {
@@ -235,9 +223,7 @@ public class ProductResourceIT {
         assert uniqueCount == categories.size() : "Should not have duplicates";
     }
 
-    // =============================================================================================
     // AGGREGATIONS
-    // =============================================================================================
 
     @Test
     void getMinPrice_returnsMinimum() {
@@ -275,9 +261,7 @@ public class ProductResourceIT {
                 .body(notNullValue());
     }
 
-    // =============================================================================================
     // CHAINED OPERATIONS
-    // =============================================================================================
 
     @Test
     void getAvailableSortedByPrice_combinesFilterAndSort() {
@@ -316,9 +300,7 @@ public class ProductResourceIT {
                 .body("category", everyItem(equalTo("Electronics")));
     }
 
-    // =============================================================================================
     // SINGLE RESULT OPERATIONS
-    // =============================================================================================
 
     @Test
     void getFirstAvailable_returnsSingleProduct() {

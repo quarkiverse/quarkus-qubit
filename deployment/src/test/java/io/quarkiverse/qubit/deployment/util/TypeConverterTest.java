@@ -16,8 +16,6 @@ import org.junit.jupiter.api.Test;
  */
 class TypeConverterTest {
 
-    // ==================== getBoxedType Tests ====================
-
     @Nested
     @DisplayName("getBoxedType")
     class GetBoxedTypeTests {
@@ -79,8 +77,6 @@ class TypeConverterTest {
         }
     }
 
-    // ==================== isBooleanType Tests ====================
-
     @Nested
     @DisplayName("isBooleanType")
     class IsBooleanTypeTests {
@@ -105,8 +101,6 @@ class TypeConverterTest {
             assertThat(TypeConverter.isBooleanType(String.class)).isFalse();
         }
     }
-
-    // ==================== primitiveCharToClass Tests ====================
 
     @Nested
     @DisplayName("primitiveCharToClass")
@@ -157,8 +151,6 @@ class TypeConverterTest {
             assertThat(TypeConverter.primitiveCharToClass('X')).isEqualTo(Object.class);
         }
     }
-
-    // ==================== isNumericType Tests ====================
 
     @Nested
     @DisplayName("isNumericType")
@@ -250,8 +242,6 @@ class TypeConverterTest {
         }
     }
 
-    // ==================== isTemporalType Tests ====================
-
     @Nested
     @DisplayName("isTemporalType")
     class IsTemporalTypeTests {
@@ -286,8 +276,6 @@ class TypeConverterTest {
             assertThat(TypeConverter.isTemporalType(java.time.Instant.class)).isFalse();
         }
     }
-
-    // ==================== descriptorToClass Tests ====================
 
     @Nested
     @DisplayName("descriptorToClass")
@@ -356,7 +344,6 @@ class TypeConverterTest {
             assertThat(TypeConverter.descriptorToClass("Lcom/unknown/Type;")).isEqualTo(Object.class);
         }
 
-        // ==================== Mutation killing: verify non-Object return types ====================
         // These tests kill mutations that replace equality checks with false
         // by verifying the result is NOT Object.class
 
@@ -442,7 +429,6 @@ class TypeConverterTest {
         }
     }
 
-    // ==================== isNumericType Mutation Killing Tests ====================
     // These tests specifically target mutations that replace equality with true
 
     @Nested

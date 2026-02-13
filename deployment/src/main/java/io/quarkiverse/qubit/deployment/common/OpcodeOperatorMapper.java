@@ -39,8 +39,6 @@ public final class OpcodeOperatorMapper {
         // Utility class
     }
 
-    // ========== Data-Driven Opcode Specifications ==========
-
     /**
      * Specification for a comparison opcode: maps to operators and success jump status.
      *
@@ -84,8 +82,6 @@ public final class OpcodeOperatorMapper {
         TWO_OPERAND_SPECS = Map.copyOf(two);
     }
 
-    // ========== Opcode Mapping ==========
-
     /** Maps single-operand opcodes (IFLE, IFLT, IFGE, IFGT) to operators. */
     public static Operator mapSingleOperandOp(int opcode, boolean invert) {
         OpcodeSpec spec = SINGLE_OPERAND_SPECS.get(opcode);
@@ -102,8 +98,6 @@ public final class OpcodeOperatorMapper {
         return spec != null ? spec.getOperator(invert) : EQ;
     }
 
-    // ========== Success Jump Opcode Detection ==========
-
     /** Returns true if opcode is a success/direct jump (IFLT, IFGT) vs negated (IFLE, IFGE). */
     public static boolean isSuccessJumpSingleOperand(int opcode) {
         OpcodeSpec spec = SINGLE_OPERAND_SPECS.get(opcode);
@@ -115,8 +109,6 @@ public final class OpcodeOperatorMapper {
         OpcodeSpec spec = TWO_OPERAND_SPECS.get(opcode);
         return spec != null && spec.isSuccessJump();
     }
-
-    // ========== Comparison Operator Determination ==========
 
     /** Determines operator for single-operand instructions based on jump context. */
     public static Operator determineSingleOperandOperator(

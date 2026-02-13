@@ -24,8 +24,6 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.*;
  */
 class CapturedVariableHelperTest {
 
-    // ==================== countCapturedVariables Tests ====================
-
     @Nested
     class CountCapturedVariablesTests {
 
@@ -156,8 +154,6 @@ class CapturedVariableHelperTest {
         }
     }
 
-    // ==================== countCapturedVariablesInSortExpressions Tests ====================
-
     @Nested
     class CountCapturedVariablesInSortExpressionsTests {
 
@@ -205,8 +201,6 @@ class CapturedVariableHelperTest {
                     .isEqualTo(2);
         }
     }
-
-    // ==================== collectCapturedVariableIndices Tests ====================
 
     @Nested
     class CollectCapturedVariableIndicesTests {
@@ -297,8 +291,6 @@ class CapturedVariableHelperTest {
                     .isEmpty();
         }
     }
-
-    // ==================== renumberCapturedVariables Tests ====================
 
     @Nested
     class RenumberCapturedVariablesTests {
@@ -530,8 +522,6 @@ class CapturedVariableHelperTest {
         }
     }
 
-    // ==================== combinePredicatesWithAnd (List) Tests ====================
-
     @Nested
     class CombinePredicatesListTests {
 
@@ -589,8 +579,6 @@ class CapturedVariableHelperTest {
             assertThat(innerAnd.right()).isSameAs(p2);
         }
     }
-
-    // ==================== combinePredicatesWithAnd (Two Args) Tests ====================
 
     @Nested
     class CombinePredicatesTwoArgsTests {

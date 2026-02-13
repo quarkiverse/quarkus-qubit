@@ -1,7 +1,5 @@
 package io.quarkiverse.qubit.deployment.common;
 
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.notArithmeticOperator;
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.notComparisonOperator;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.*;
 
 import java.util.EnumMap;
@@ -17,8 +15,6 @@ public final class OperatorMethodMapper {
 
     private OperatorMethodMapper() {
     }
-
-    // ========== Comparison Operator Registry ==========
 
     /** Holds both Expression-based and Comparable-based method descriptors for a comparison operator. */
     private record ComparisonSpec(MethodDesc exprVariant, MethodDesc comparableVariant) {
@@ -46,7 +42,7 @@ public final class OperatorMethodMapper {
             case MUL -> CB_PROD;
             case DIV -> CB_QUOT;
             case MOD -> CB_MOD;
-            default -> throw new IllegalArgumentException(notArithmeticOperator(operator));
+            default -> throw new IllegalArgumentException("Not an arithmetic operator: " + operator);
         };
     }
 
@@ -58,7 +54,7 @@ public final class OperatorMethodMapper {
     public static MethodDesc mapComparisonOperator(Operator operator, boolean useExpressionVariant) {
         ComparisonSpec spec = COMPARISON_SPECS.get(operator);
         if (spec == null) {
-            throw new IllegalArgumentException(notComparisonOperator(operator));
+            throw new IllegalArgumentException("Not a comparison operator: " + operator);
         }
         return useExpressionVariant ? spec.exprVariant() : spec.comparableVariant();
     }

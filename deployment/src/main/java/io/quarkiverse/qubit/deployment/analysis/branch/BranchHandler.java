@@ -36,10 +36,8 @@ public interface BranchHandler {
         return getClass().getSimpleName();
     }
 
-    // ========================================================================
     // Convenience methods delegating to BranchExpressionCombiner
     // These provide cleaner call sites in handlers
-    // ========================================================================
 
     /** Combines expressions and restructures to fix precedence if needed. */
     default LambdaExpression combineAndRestructureIfNeeded(

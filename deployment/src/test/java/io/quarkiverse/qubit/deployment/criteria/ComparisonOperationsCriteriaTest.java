@@ -34,8 +34,6 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
  */
 class ComparisonOperationsCriteriaTest extends CriteriaQueryTestBase {
 
-    // ==================== PARAMETERIZED TEST DATA ====================
-
     /**
      * Test data for all comparison operations (numeric and temporal).
      * Each entry: lambdaMethodName, expectedCriteriaMethod
@@ -97,8 +95,6 @@ class ComparisonOperationsCriteriaTest extends CriteriaQueryTestBase {
                 Arguments.of("floatRangeQuery"),
                 Arguments.of("bigDecimalRangeQuery"));
     }
-
-    // ==================== PARAMETERIZED TESTS ====================
 
     @ParameterizedTest(name = "{0} → cb.{1}()")
     @MethodSource("allComparisons")

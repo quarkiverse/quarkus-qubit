@@ -56,16 +56,12 @@ public class SubqueryLambdaTestSources {
         public Long ownerId;
     }
 
-    // ==================== SCALAR AVG SUBQUERIES ====================
-
     /**
      * AVG subquery: p.salary > subquery(Person.class).avg(q -> q.salary)
      */
     public static QuerySpec<TestPerson, Boolean> avgSubquery() {
         return p -> p.salary > subquery(TestPerson.class).avg(q -> q.salary);
     }
-
-    // ==================== SCALAR MAX SUBQUERIES ====================
 
     /**
      * MAX subquery: p.salary == subquery(Person.class).max(q -> q.salary)
@@ -74,16 +70,12 @@ public class SubqueryLambdaTestSources {
         return p -> p.salary == subquery(TestPerson.class).max(q -> q.salary);
     }
 
-    // ==================== SCALAR MIN SUBQUERIES ====================
-
     /**
      * MIN subquery: p.salary >= subquery(Person.class).min(q -> q.salary)
      */
     public static QuerySpec<TestPerson, Boolean> minSubquery() {
         return p -> p.salary >= subquery(TestPerson.class).min(q -> q.salary);
     }
-
-    // ==================== SCALAR SUM SUBQUERIES ====================
 
     /**
      * SUM subquery: p.budget > subquery(Department.class).sum(d -> d.budget)
@@ -92,16 +84,12 @@ public class SubqueryLambdaTestSources {
         return p -> p.budget > subquery(TestDepartment.class).sum(d -> d.budget);
     }
 
-    // ==================== COUNT SUBQUERIES ====================
-
     /**
      * COUNT subquery: p.age > subquery(Person.class).count()
      */
     public static QuerySpec<TestPerson, Boolean> countSubquery() {
         return p -> p.age > subquery(TestPerson.class).count();
     }
-
-    // ==================== EXISTS SUBQUERIES ====================
 
     /**
      * EXISTS subquery: subquery(Phone.class).exists(ph -> ph.ownerId == p.id)
@@ -117,8 +105,6 @@ public class SubqueryLambdaTestSources {
         return p -> subquery(TestPhone.class).notExists(ph -> ph.ownerId.equals(p.id));
     }
 
-    // ==================== IN SUBQUERIES ====================
-
     /**
      * IN subquery: subquery(Department.class).in(p.departmentId, d -> d.id)
      */
@@ -132,8 +118,6 @@ public class SubqueryLambdaTestSources {
     public static QuerySpec<TestPerson, Boolean> notInSubquery() {
         return p -> subquery(TestDepartment.class).notIn(p.departmentId, d -> d.id);
     }
-
-    // ==================== ADVANCED SUBQUERIES ====================
 
     /**
      * AVG subquery with predicate using .where() chaining

@@ -29,9 +29,7 @@ import io.quarkus.gizmo2.desc.MethodDesc;
 @DisplayName("TemporalAccessorMethod")
 class TemporalAccessorMethodTest {
 
-    // =============================================================================================
     // INSTANCE METHOD TESTS - getJavaMethod() and getMethodDesc()
-    // =============================================================================================
 
     @Nested
     @DisplayName("getJavaMethod()")
@@ -138,9 +136,7 @@ class TemporalAccessorMethodTest {
         }
     }
 
-    // =============================================================================================
     // STATIC METHOD TESTS - fromJavaMethod()
-    // =============================================================================================
 
     @Nested
     @DisplayName("fromJavaMethod()")
@@ -193,9 +189,7 @@ class TemporalAccessorMethodTest {
         }
     }
 
-    // =============================================================================================
     // STATIC METHOD TESTS - isTemporalAccessor()
-    // =============================================================================================
 
     @Nested
     @DisplayName("isTemporalAccessor()")

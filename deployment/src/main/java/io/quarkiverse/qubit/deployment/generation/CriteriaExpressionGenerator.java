@@ -1,7 +1,6 @@
 package io.quarkiverse.qubit.deployment.generation;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator.EQ;
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.expectedAndOrOperator;
 import static io.quarkiverse.qubit.deployment.common.ExpressionTypeInferrer.isBooleanType;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.BinaryOperationCategory;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.containsScalarSubquery;
@@ -675,8 +674,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         return bc.invokeInterface(CB_CONSTRUCT, cbLocal, resultClassLocal, selectionsArray);
     }
 
-    // ========== Collection Operations (IN, MEMBER OF) ==========
-
     /** Generates JPA IN predicate: cities.contains(p.city) -> root.get("city").in(cities). */
     private Expr generateInPredicate(
             BlockCreator bc,
@@ -805,7 +802,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         MethodDesc combineMethod = switch (operator) {
             case AND -> CB_AND;
             case OR -> CB_OR;
-            default -> throw new IllegalArgumentException(expectedAndOrOperator(operator));
+            default -> throw new IllegalArgumentException("Expected AND or OR operator, got: " + operator);
         };
 
         return bc.invokeInterface(combineMethod, cb, predicateArray);
@@ -816,8 +813,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
     public Expr wrapAsLiteral(BlockCreator bc, Expr cb, Expr value) {
         return bc.invokeInterface(CB_LITERAL, cb, value);
     }
-
-    // ========== Captured Variable Utilities ==========
 
     /**
      * {@inheritDoc}
@@ -865,8 +860,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         return path;
     }
 
-    // ========== Bi-Entity Expressions (Join Queries) ==========
-
     /** Generates JPA Predicate from bi-entity lambda (for join queries). */
     public Expr generateBiEntityPredicate(
             BlockCreator bc,
@@ -907,8 +900,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         return builderRegistry.biEntityBuilder().generateBiEntityExpressionAsJpaExpression(ctx, expression);
     }
 
-    // ========== Bi-Entity Projections ==========
-
     /** Generates JPA Selection from bi-entity projection. */
     public Expr generateBiEntityProjection(
             BlockCreator bc,
@@ -921,8 +912,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         var ctx = new BiEntityBaseContext(bc, cb, root, join, capturedValues, this);
         return builderRegistry.biEntityBuilder().generateBiEntityProjection(ctx, expression);
     }
-
-    // ========== Group Expressions (GROUP BY) ==========
 
     /** Generates JPA Predicate for HAVING clause in GROUP BY queries. */
     public Expr generateGroupPredicate(

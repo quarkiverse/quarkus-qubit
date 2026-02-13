@@ -44,9 +44,7 @@ public abstract class AbstractSortingTest {
         TestDataFactory.createStandardPersonsAndProducts();
     }
 
-    // =============================================================================================
     // SINGLE-LEVEL ASCENDING SORT
-    // =============================================================================================
 
     @Test
     void sortedBy_age_ascendingOrder() {
@@ -83,9 +81,7 @@ public abstract class AbstractSortingTest {
         assertThat(sorted.getLast().firstName).isEqualTo("John");
     }
 
-    // =============================================================================================
     // SINGLE-LEVEL DESCENDING SORT
-    // =============================================================================================
 
     @Test
     void sortedDescendingBy_age_descendingOrder() {
@@ -117,9 +113,7 @@ public abstract class AbstractSortingTest {
                 .isSortedAccordingTo(Comparator.comparing(Person::getFirstName).reversed());
     }
 
-    // =============================================================================================
     // MULTI-LEVEL SORTING
-    // =============================================================================================
 
     @Test
     @Transactional
@@ -207,9 +201,7 @@ public abstract class AbstractSortingTest {
                 .isSortedAccordingTo(Comparator.comparing(Person::getAge)); // Primary sort: age ascending
     }
 
-    // =============================================================================================
     // SORTING WITH FILTERING
-    // =============================================================================================
 
     @Test
     void whereAndSortedBy_filterAndSort() {
@@ -248,9 +240,7 @@ public abstract class AbstractSortingTest {
                 .isSortedAccordingTo(Comparator.comparing(Person::getAge).reversed()); // Primary sort: age descending
     }
 
-    // =============================================================================================
     // SORTING WITH PROJECTION
-    // =============================================================================================
 
     @Test
     void selectAndSortedBy_projectAndSort() {
@@ -287,9 +277,7 @@ public abstract class AbstractSortingTest {
                 .isSortedAccordingTo(Comparator.reverseOrder()); // Sorted in descending order
     }
 
-    // =============================================================================================
     // COMBINED WHERE + SELECT + SORT
-    // =============================================================================================
 
     @Test
     void whereSelectSorted_fullPipeline() {
@@ -315,9 +303,7 @@ public abstract class AbstractSortingTest {
                 .isSortedAccordingTo(Comparator.reverseOrder());
     }
 
-    // =============================================================================================
     // PRODUCT ENTITY TESTS
-    // =============================================================================================
 
     @Test
     void sortedBy_productPrice_ascendingBigDecimal() {

@@ -16,8 +16,6 @@ import io.quarkus.gizmo2.creator.BlockCreator;
  */
 public interface MethodCallDispatchContext {
 
-    // ========== Core Handles ==========
-
     /** Gizmo 2 block creator for bytecode generation. */
     BlockCreator bc();
 
@@ -26,8 +24,6 @@ public interface MethodCallDispatchContext {
 
     /** CriteriaBuilder handle. */
     Expr cb();
-
-    // ========== Expression Generation (Context-Specific) ==========
 
     /** Generates JPA Expression from the method call's target. Context determines path resolution. */
     Expr generateTargetAsJpaExpression();
@@ -41,20 +37,14 @@ public interface MethodCallDispatchContext {
     /** Generates argument bytecode, returning raw values where appropriate. */
     Expr generateArgument(LambdaExpression expression);
 
-    // ========== Field Access Generation ==========
-
     /** Generates JPA field access expression (path.get("fieldName")). */
     Expr generateFieldAccess(LambdaExpression.FieldAccess fieldAccess, Expr path);
 
     /** Returns the default root for fallback scenarios. */
     Expr defaultRoot();
 
-    // ========== Builder Registry Access ==========
-
     /** Expression builder registry for delegating to specialized builders. */
     ExpressionBuilderRegistry builderRegistry();
-
-    // ========== Convenience Methods (Default Implementations) ==========
 
     /** Returns the method name from the method call. */
     default String methodName() {
@@ -70,8 +60,6 @@ public interface MethodCallDispatchContext {
     default LambdaExpression firstArgument() {
         return hasArguments() ? methodCall().arguments().getFirst() : null;
     }
-
-    // ========== Method Name Validation Helpers ==========
 
     /** Returns true if the method name is in the collection. */
     default boolean isMethodIn(Collection<String> validMethodNames) {

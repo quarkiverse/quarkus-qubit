@@ -40,9 +40,7 @@ public final class AstBuilders {
         // Utility class - no instantiation
     }
 
-    // ======================================================================
     // LEAF EXPRESSIONS - Constants, Fields, Parameters, Captured Variables
-    // ======================================================================
 
     /**
      * Creates a constant expression with inferred type.
@@ -109,9 +107,7 @@ public final class AstBuilders {
         return new LambdaExpression.NullLiteral(expectedType);
     }
 
-    // ======================================================================
     // BINARY OPERATIONS - Comparison, Logical, and Arithmetic
-    // ======================================================================
 
     /**
      * Creates an equality comparison: left == right
@@ -204,9 +200,7 @@ public final class AstBuilders {
         return LambdaExpression.BinaryOp.mod(left, right);
     }
 
-    // ======================================================================
     // UNARY OPERATIONS
-    // ======================================================================
 
     /**
      * Creates a logical NOT: !operand
@@ -215,9 +209,7 @@ public final class AstBuilders {
         return LambdaExpression.UnaryOp.not(operand);
     }
 
-    // ======================================================================
     // TYPE OPERATIONS - Cast, InstanceOf
-    // ======================================================================
 
     /**
      * Creates a type cast expression.
@@ -241,9 +233,7 @@ public final class AstBuilders {
         return new LambdaExpression.InstanceOf(expression, targetType);
     }
 
-    // ======================================================================
     // CONDITIONAL EXPRESSION
-    // ======================================================================
 
     /**
      * Creates a ternary conditional expression: condition ? trueValue : falseValue
@@ -260,9 +250,7 @@ public final class AstBuilders {
         return new LambdaExpression.Conditional(condition, trueValue, falseValue);
     }
 
-    // ======================================================================
     // METHOD CALL - Fluent Builder
-    // ======================================================================
 
     /**
      * Creates a method call with explicit components.

@@ -10,12 +10,10 @@ import io.quarkus.gizmo2.desc.MethodDesc;
  */
 public enum TemporalAccessorMethod {
 
-    // ========== Date Methods (LocalDate, LocalDateTime) ==========
     GET_YEAR("getYear", MethodDescriptors.HCB_YEAR),
     GET_MONTH_VALUE("getMonthValue", MethodDescriptors.HCB_MONTH),
     GET_DAY_OF_MONTH("getDayOfMonth", MethodDescriptors.HCB_DAY),
 
-    // ========== Time Methods (LocalTime, LocalDateTime) ==========
     GET_HOUR("getHour", MethodDescriptors.HCB_HOUR),
     GET_MINUTE("getMinute", MethodDescriptors.HCB_MINUTE),
     GET_SECOND("getSecond", MethodDescriptors.HCB_SECOND);

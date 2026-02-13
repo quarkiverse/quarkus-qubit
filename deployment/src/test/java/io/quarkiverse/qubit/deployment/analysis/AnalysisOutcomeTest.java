@@ -17,9 +17,7 @@ class AnalysisOutcomeTest {
     private static final String TEST_CALL_SITE_ID = "com.example.Service:method:42:lambda$test$0";
     private static final String TEST_LAMBDA_HASH = "abc123def456";
 
-    // ========================================================================
     // Success Tests
-    // ========================================================================
 
     @Nested
     class SuccessTests {
@@ -103,9 +101,7 @@ class AnalysisOutcomeTest {
         }
     }
 
-    // ========================================================================
     // UnsupportedPattern Tests
-    // ========================================================================
 
     @Nested
     class UnsupportedPatternTests {
@@ -207,9 +203,7 @@ class AnalysisOutcomeTest {
         }
     }
 
-    // ========================================================================
     // AnalysisError Tests
-    // ========================================================================
 
     @Nested
     class AnalysisErrorTests {
@@ -336,9 +330,7 @@ class AnalysisOutcomeTest {
         }
     }
 
-    // ========================================================================
     // fold() Tests
-    // ========================================================================
 
     @Nested
     class FoldTests {

@@ -25,8 +25,6 @@ public final class HashBuilder {
         return new HashBuilder();
     }
 
-    // ========== Expression Components ==========
-
     public HashBuilder expression(LambdaExpression expr) {
         if (expr != null) {
             appendSeparatorIfNeeded();
@@ -74,8 +72,6 @@ public final class HashBuilder {
         }
         return this;
     }
-
-    // ========== Join Components ==========
 
     public HashBuilder join(LambdaExpression expr) {
         appendSeparatorIfNeeded();
@@ -126,8 +122,6 @@ public final class HashBuilder {
         return this;
     }
 
-    // ========== Group Components ==========
-
     public HashBuilder groupBy(LambdaExpression expr) {
         appendSeparatorIfNeeded();
         builder.append("GROUP_BY=");
@@ -153,8 +147,6 @@ public final class HashBuilder {
         return this;
     }
 
-    // ========== Query Type ==========
-
     public HashBuilder queryType(String type) {
         if (type != null) {
             appendSeparatorIfNeeded();
@@ -167,8 +159,6 @@ public final class HashBuilder {
         return queryType(isCountQuery ? QUERY_TYPE_COUNT : QUERY_TYPE_LIST);
     }
 
-    // ========== Build Methods ==========
-
     /** Returns raw hash string (before MD5). */
     public String buildString() {
         return builder.toString();
@@ -178,8 +168,6 @@ public final class HashBuilder {
     public String buildHash() {
         return computeFnv1aHash(builder.toString());
     }
-
-    // ========== Private Helpers ==========
 
     private void appendSeparatorIfNeeded() {
         if (!builder.isEmpty()) {

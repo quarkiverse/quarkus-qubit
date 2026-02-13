@@ -43,8 +43,6 @@ public abstract class AbstractCapturedVariablesTest {
         TestDataFactory.createStandardPersonsAndProducts();
     }
 
-    // ========== Single Captured Variable Tests ==========
-
     @Test
     void singleCapturedVariable_int() {
         int minAge = 30;
@@ -125,8 +123,6 @@ public abstract class AbstractCapturedVariablesTest {
                 .allMatch(p -> p.isActive() == activeStatus);
     }
 
-    // ========== Multiple Captured Variables Tests ==========
-
     @Test
     void twoCapturedVariables_range() {
         int minAge = 25;
@@ -164,8 +160,6 @@ public abstract class AbstractCapturedVariablesTest {
                         p.getLastName().equals(lastName));
     }
 
-    // ========== Arithmetic Operations with Captured Variables ==========
-
     @Test
     void capturedVariable_inArithmeticOperation_addition() {
         int baseAge = 20;
@@ -197,8 +191,6 @@ public abstract class AbstractCapturedVariablesTest {
                 .allMatch(p -> p.getPrice().subtract(adjustment).compareTo(new BigDecimal("700")) > 0);
     }
 
-    // ========== String Operations with Captured Variables ==========
-
     @Test
     void capturedVariable_stringContains() {
         String searchTerm = "ice";
@@ -228,8 +220,6 @@ public abstract class AbstractCapturedVariablesTest {
                 .hasSizeGreaterThan(0)
                 .allMatch(p -> p.getFirstName().endsWith(suffix));
     }
-
-    // ========== Complex Expressions with Captured Variables ==========
 
     @Test
     void complexExpression_orWithCapturedVariables() {
@@ -271,8 +261,6 @@ public abstract class AbstractCapturedVariablesTest {
         }
     }
 
-    // ========== Count Queries with Captured Variables ==========
-
     @Test
     void countQuery_withCapturedVariable() {
         int minAge = 30;
@@ -297,8 +285,6 @@ public abstract class AbstractCapturedVariablesTest {
         assertThat(count).isEqualTo(results.size());
     }
 
-    // ========== Exists Queries with Captured Variables ==========
-
     @Test
     void existsQuery_withCapturedVariable_true() {
         int minAge = 30;
@@ -314,8 +300,6 @@ public abstract class AbstractCapturedVariablesTest {
 
         assertThat(exists).isFalse();
     }
-
-    // ========== Edge Cases ==========
 
     @Test
     void capturedVariable_usedMultipleTimes() {
@@ -343,8 +327,6 @@ public abstract class AbstractCapturedVariablesTest {
                     }
                 });
     }
-
-    // ========== Multiple where() with Captured Variables ==========
 
     @Test
     @Transactional

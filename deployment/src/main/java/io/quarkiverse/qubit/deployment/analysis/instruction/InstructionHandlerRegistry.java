@@ -1,7 +1,5 @@
 package io.quarkiverse.qubit.deployment.analysis.instruction;
 
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.HANDLERS_CANNOT_BE_EMPTY;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,7 +21,7 @@ public final class InstructionHandlerRegistry {
     public InstructionHandlerRegistry(List<InstructionHandler> handlers) {
         Objects.requireNonNull(handlers, "handlers cannot be null");
         if (handlers.isEmpty()) {
-            throw new IllegalArgumentException(HANDLERS_CANNOT_BE_EMPTY);
+            throw new IllegalArgumentException("handlers cannot be empty");
         }
         this.handlers = List.copyOf(handlers);
         this.opcodeDispatch = buildDispatchTable(this.handlers);

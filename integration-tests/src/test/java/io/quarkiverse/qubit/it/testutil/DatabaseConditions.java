@@ -36,9 +36,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  */
 public class DatabaseConditions {
 
-    // ==========================================
     // ANNOTATIONS
-    // ==========================================
 
     /**
      * Annotation to run a test only on PostgreSQL.
@@ -100,9 +98,7 @@ public class DatabaseConditions {
         String reason() default "This test requires native compilation support";
     }
 
-    // ==========================================
     // CONDITIONS
-    // ==========================================
 
     /**
      * Condition that enables tests only on PostgreSQL.

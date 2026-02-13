@@ -305,8 +305,6 @@ public class InvokeDynamicScanner {
         private int joinSelectJoinedLine = -1;
         private int joinSelectLine = -1;
 
-        // ===== Lambdas =====
-
         List<PendingLambda> pendingLambdas() {
             return pendingLambdas;
         }
@@ -319,8 +317,6 @@ public class InvokeDynamicScanner {
             return !pendingLambdas.isEmpty();
         }
 
-        // ===== Aggregation =====
-
         @Nullable
         PendingAggregation pendingAggregation() {
             return pendingAggregation;
@@ -329,8 +325,6 @@ public class InvokeDynamicScanner {
         void setAggregation(String methodName) {
             this.pendingAggregation = new PendingAggregation(methodName);
         }
-
-        // ===== Join =====
 
         @Nullable
         JoinType pendingJoinType() {
@@ -364,8 +358,6 @@ public class InvokeDynamicScanner {
             Log.infof("Join context: detected JoinStream.select() at line %d", line);
         }
 
-        // ===== Group =====
-
         boolean isGroupContext() {
             return pendingGroupQuery;
         }
@@ -386,8 +378,6 @@ public class InvokeDynamicScanner {
         void markGroupSelect(int line) {
             this.groupSelectLine = line;
         }
-
-        // ===== Pagination & Distinct =====
 
         boolean hasDistinct() {
             return pendingDistinct;
@@ -415,8 +405,6 @@ public class InvokeDynamicScanner {
             this.pendingLimitValue = value;
         }
 
-        // ===== Line Numbers =====
-
         int currentLine() {
             return currentLine;
         }
@@ -441,8 +429,6 @@ public class InvokeDynamicScanner {
             }
             return currentLine;
         }
-
-        // ===== Terminal Operation Check =====
 
         /**
          * Checks if instruction is a terminal operation on QubitStream/JoinStream/GroupStream.
@@ -506,8 +492,6 @@ public class InvokeDynamicScanner {
             return false;
         }
 
-        // ===== Reset =====
-
         /**
          * Resets state for next call site detection within the same method.
          * Called after a terminal operation is found and processed.
@@ -529,8 +513,6 @@ public class InvokeDynamicScanner {
             // Note: currentLine is NOT reset - it tracks position in method
         }
     }
-
-    // ========== Lambda Classification ==========
 
     /**
      * Mutable builder for LambdaInfo. Encapsulates the classification logic
@@ -895,8 +877,6 @@ public class InvokeDynamicScanner {
         return METHOD_LIMIT.equals(methodCall.name) &&
                 QUBIT_STREAM_INTERNAL_NAME.equals(methodCall.owner);
     }
-
-    // ========== Integer Constant Extraction ==========
 
     /** Extracts integer value from a bytecode instruction if it's a constant. */
     @FunctionalInterface

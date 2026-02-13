@@ -37,8 +37,6 @@ public abstract class AbstractDtoProjectionTest {
         TestDataFactory.createStandardPersonsAndProducts();
     }
 
-    // ========== Basic DTO Projections ==========
-
     @Test
     void selectDTO_twoFields() {
         var names = personOps().select((Person p) -> new PersonNameDTO(p.firstName, p.lastName)).toList();
@@ -82,8 +80,6 @@ public abstract class AbstractDtoProjectionTest {
                         new PersonSummaryDTO("Charlie", 28, 55000.0));
     }
 
-    // ========== Product DTO Projections ==========
-
     @Test
     void selectDTO_productWithBigDecimal() {
         var products = productOps().select((Product p) -> new ProductInfoDTO(p.name, p.price, p.category)).toList();
@@ -97,8 +93,6 @@ public abstract class AbstractDtoProjectionTest {
                         new ProductInfoDTO("Coffee Maker", new BigDecimal("89.99"), "Appliances"),
                         new ProductInfoDTO("Monitor", new BigDecimal("399.99"), "Electronics"));
     }
-
-    // ========== Combined WHERE + DTO Projection ==========
 
     @Test
     void whereActive_selectDTO() {
@@ -161,8 +155,6 @@ public abstract class AbstractDtoProjectionTest {
                         new ProductInfoDTO("Monitor", new BigDecimal("399.99"), "Electronics"));
     }
 
-    // ========== Complex Filtering + DTO Projection ==========
-
     @Test
     void whereActiveAndSalaryGreaterThan60K_selectDTO() {
         var activeHighEarners = personOps().where((Person p) -> p.active && p.salary > 60000.0)
@@ -204,8 +196,6 @@ public abstract class AbstractDtoProjectionTest {
                         new ProductInfoDTO("Smartphone", new BigDecimal("899.99"), "Electronics"),
                         new ProductInfoDTO("Monitor", new BigDecimal("399.99"), "Electronics"));
     }
-
-    // ========== Edge Cases ==========
 
     @Test
     void whereNoMatches_selectDTO_returnsEmptyList() {

@@ -46,8 +46,6 @@ class HandlerEdgeCaseTest {
         context = new AnalysisContext(testMethod, 0);
     }
 
-    // ==================== BytecodeValidator Tests ====================
-
     @Nested
     class BytecodeValidatorTests {
 
@@ -142,8 +140,6 @@ class HandlerEdgeCaseTest {
         }
     }
 
-    // ==================== ArithmeticInstructionHandler Tests ====================
-
     @Nested
     class ArithmeticHandlerTests {
 
@@ -227,8 +223,6 @@ class HandlerEdgeCaseTest {
         }
     }
 
-    // ==================== LoadInstructionHandler Tests ====================
-
     @Nested
     class LoadHandlerTests {
 
@@ -286,8 +280,6 @@ class HandlerEdgeCaseTest {
                     .isInstanceOf(NullPointerException.class);
         }
 
-        // ==================== Group Context Mode Tests (kill mutation line 58) ====================
-
         @Test
         void handle_aload_inGroupContextMode_pushesGroupParameter() {
             // Create context with group context mode enabled (via constructor)
@@ -309,8 +301,6 @@ class HandlerEdgeCaseTest {
                     .as("ALOAD in group context mode should push GroupParameter")
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupParameter.class);
         }
-
-        // ==================== Bi-Entity Mode Tests (kill mutations line 61) ====================
 
         static Stream<Arguments> biEntityModeCases() {
             return Stream.of(
@@ -343,8 +333,6 @@ class HandlerEdgeCaseTest {
             assertThat(biParam.position()).isEqualTo(expectedPosition);
         }
 
-        // ==================== Primitive Load Invalid Slot Tests (kill mutation line 98) ====================
-
         @ParameterizedTest(name = "primitive load opcode {0} with invalid slot throws exception")
         @ValueSource(ints = { ILOAD, LLOAD, FLOAD, DLOAD })
         void handle_primitiveLoad_withInvalidSlot_throwsException(int opcode) {
@@ -354,8 +342,6 @@ class HandlerEdgeCaseTest {
                     .hasMessageContaining("Primitive load")
                     .hasMessageContaining("does not correspond to a method parameter");
         }
-
-        // ==================== Non-int Primitive Type Tests (kill mutations line 106) ====================
 
         static Stream<Arguments> primitiveLoadCases() {
             return Stream.of(
@@ -386,8 +372,6 @@ class HandlerEdgeCaseTest {
                     .isEqualTo(expectedType);
         }
 
-        // ==================== ILOAD Type Lookup Tests ====================
-
         static Stream<Arguments> iloadTypeLookupCases() {
             return Stream.of(
                     Arguments.of("I", int.class, "ILOAD/int"),
@@ -415,8 +399,6 @@ class HandlerEdgeCaseTest {
         }
     }
 
-    // ==================== ConstantInstructionHandler Tests ====================
-
     @Nested
     class ConstantHandlerTests {
 
@@ -439,8 +421,6 @@ class HandlerEdgeCaseTest {
             assertThat(context.peek()).isNotNull();
         }
 
-        // ==================== Kill mutation: line 46 return false (ACONST_NULL) ====================
-
         @Test
         void handle_aconstNull_returnsFalse_doesNotTerminate() {
             // The handler should return false (not terminate) after handling ACONST_NULL
@@ -456,8 +436,6 @@ class HandlerEdgeCaseTest {
                     .as("Pushed element should be NullLiteral")
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.NullLiteral.class);
         }
-
-        // ==================== Kill mutations: lines 55, 60, 65 return false (DCONST, FCONST, LCONST) ====================
 
         @ParameterizedTest(name = "const opcode {0} does not terminate")
         @ValueSource(ints = { DCONST_0, DCONST_1, FCONST_0, LCONST_0 })
@@ -477,7 +455,6 @@ class HandlerEdgeCaseTest {
             assertThat(context.getStackSize()).isEqualTo(1);
         }
 
-        // ==================== ICONST Post-Branch Behavior Tests ====================
         // These tests exercise the ICONST handling after branch instructions have been seen
 
         @Test
@@ -513,7 +490,6 @@ class HandlerEdgeCaseTest {
             assertThat(context.getStackSize()).isEqualTo(1);
         }
 
-        // ==================== ICONST_0/1 Post-Branch Termination Tests ====================
         // Test the isFinalResult() and handleIconst() mutation-killing scenarios
 
         static Stream<Arguments> iconstWithReturnOpcodeCases() {
@@ -592,8 +568,6 @@ class HandlerEdgeCaseTest {
                     .isEqualTo(2);
         }
 
-        // ==================== Kill mutations for constant values ====================
-
         static Stream<Arguments> constantOpcodeValues() {
             return Stream.of(
                     Arguments.of(DCONST_0, 0.0, "DCONST_0"),
@@ -621,8 +595,6 @@ class HandlerEdgeCaseTest {
                     .as("%s should push %s", opcodeName, expectedValue)
                     .isEqualTo(expectedValue);
         }
-
-        // ==================== Kill mutations for isIconstUsedInExpression ====================
 
         @Test
         void handle_iconst0_afterBranch_withInvokeVirtualNext_pushedForExpression() {
@@ -778,8 +750,6 @@ class HandlerEdgeCaseTest {
             assertThat(ctx.getStackSize()).isEqualTo(2);
         }
 
-        // ==================== Kill mutations for boundary conditions ====================
-
         @ParameterizedTest(name = "canHandle non-constant opcode {0} returns false")
         @ValueSource(ints = { ALOAD, ISTORE, POP, NOP })
         void canHandle_withNonConstantOpcode_returnsFalse(int opcode) {
@@ -789,7 +759,6 @@ class HandlerEdgeCaseTest {
                     .isFalse();
         }
 
-        // ==================== Kill mutations: lines 194, 200 - isArithmeticOrLogicalOpcode/isBranchOpcode ====================
         // These test boundary opcodes at the edges of the arithmetic and branch ranges
 
         @ParameterizedTest(name = "ICONST_0 before {1} arithmetic opcode pushes for expression")
@@ -822,8 +791,6 @@ class HandlerEdgeCaseTest {
             assertThat(terminated).isFalse();
             assertThat(ctx.getStackSize()).isEqualTo(2);
         }
-
-        // ==================== Kill mutations: line 185 - isBooleanValueOfCall ====================
 
         @Test
         void handle_iconst0_afterBranch_withBooleanValueOf_skipsConstant() {
@@ -870,8 +837,6 @@ class HandlerEdgeCaseTest {
                     .isEqualTo(2);
         }
 
-        // ==================== Kill mutations: line 113 - isFinalResult loop boundary ====================
-
         @Test
         void handle_iconst0_afterBranch_atEndOfInstructions_terminates() {
             // When ICONST is at the end (no next instruction), isFinalResult returns true
@@ -888,8 +853,6 @@ class HandlerEdgeCaseTest {
                     .as("ICONST_0 at end of instructions should terminate")
                     .isTrue();
         }
-
-        // ==================== Kill mutations: line 150, 166, 178 - isIconstUsedInExpression conditions ====================
 
         @Test
         void handle_iconst0_afterBranch_emptyLookahead_returnsFalse() {
@@ -912,8 +875,6 @@ class HandlerEdgeCaseTest {
                     .isTrue();
         }
     }
-
-    // ==================== TypeConversionHandler Tests ====================
 
     @Nested
     class TypeConversionHandlerTests {
@@ -944,8 +905,6 @@ class HandlerEdgeCaseTest {
             assertThat(terminated).isFalse();
             assertThat(context.isStackEmpty()).isTrue();
         }
-
-        // ==================== Constant Folding Tests (kill mutations lines 37, 48-51) ====================
 
         static Stream<Arguments> typeConversionFoldingCases() {
             return Stream.of(
@@ -1000,8 +959,6 @@ class HandlerEdgeCaseTest {
             }
         }
 
-        // ==================== Kill mutation line 37: type mismatch should not fold ====================
-
         static Stream<Arguments> typeMismatchConversions() {
             return Stream.of(
                     Arguments.of(I2L, 42L, long.class, "I2L with long"),
@@ -1040,8 +997,6 @@ class HandlerEdgeCaseTest {
         }
     }
 
-    // ==================== Handler Registry Tests ====================
-
     @Nested
     class InstructionHandlerRegistryTests {
 
@@ -1075,14 +1030,10 @@ class HandlerEdgeCaseTest {
         }
     }
 
-    // ==================== MethodInvocationHandler Tests ====================
-
     @Nested
     class MethodInvocationHandlerTests {
 
         private final MethodInvocationHandler handler = MethodInvocationHandler.INSTANCE;
-
-        // ==================== canHandle Tests ====================
 
         @ParameterizedTest(name = "canHandle invoke opcode {0}")
         @ValueSource(ints = { INVOKEVIRTUAL, INVOKESTATIC, INVOKESPECIAL, INVOKEINTERFACE })
@@ -1100,8 +1051,6 @@ class HandlerEdgeCaseTest {
                     .as("Should not handle IADD")
                     .isFalse();
         }
-
-        // ==================== VirtualMethodCategory Tests ====================
 
         static Stream<Arguments> methodCategoryMappings() {
             return Stream.of(
@@ -1134,8 +1083,6 @@ class HandlerEdgeCaseTest {
 
             assertThat(category).isEqualTo(expectedCategory);
         }
-
-        // ==================== handleInvokeStatic Tests ====================
 
         @Test
         void handle_booleanValueOf_skipsAndDoesNotAffectStack() {
@@ -1249,8 +1196,6 @@ class HandlerEdgeCaseTest {
                     .isEqualTo(3);
         }
 
-        // ==================== handleInvokeSpecial Tests ====================
-
         @Test
         void handle_bigDecimalConstructor_withStringConstant_foldsToBigDecimalConstant() {
             // Simulate: new BigDecimal("123.45")
@@ -1336,8 +1281,6 @@ class HandlerEdgeCaseTest {
                     .isEqualTo(1);
         }
 
-        // ==================== String Method Tests ====================
-
         @Test
         void handle_substringOneArg_createsMethodCall() {
             context.push(field("name", String.class));
@@ -1397,8 +1340,6 @@ class HandlerEdgeCaseTest {
                     .isEqualTo(2);
         }
 
-        // ==================== BigDecimal Arithmetic Tests ====================
-
         @ParameterizedTest(name = "BigDecimal.{0} creates MethodCall")
         @ValueSource(strings = { "add", "subtract", "multiply", "divide" })
         void handle_bigDecimalArithmetic_createsMethodCall(String methodName) {
@@ -1429,8 +1370,6 @@ class HandlerEdgeCaseTest {
                     .as("Unrecognized BigDecimal method should not consume arguments")
                     .isEqualTo(2);
         }
-
-        // ==================== Getter Method Tests ====================
 
         @Test
         void handle_getterOnEmptyStack_doesNothing() {
@@ -1479,8 +1418,6 @@ class HandlerEdgeCaseTest {
                     .isEqualTo(MethodInvocationHandler.VirtualMethodCategory.UNHANDLED);
         }
 
-        // ==================== Bi-Entity Getter Tests ====================
-
         @Test
         void handle_getter_onBiEntityParameter_createsBiEntityFieldAccess() {
             // Test getter on BiEntityParameter creates BiEntityFieldAccess
@@ -1501,8 +1438,6 @@ class HandlerEdgeCaseTest {
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityFieldAccess.class);
         }
 
-        // ==================== INVOKEINTERFACE Tests (to kill uncovered mutation) ====================
-
         @Test
         void handle_invokeInterface_containsMethod_handledAsGroupMethod() {
             // Simulate calling Collection.contains() which is a group method
@@ -1517,8 +1452,6 @@ class HandlerEdgeCaseTest {
             // Depending on implementation, may or may not modify stack
             assertThat(context.getStackSize()).isGreaterThanOrEqualTo(0);
         }
-
-        // ==================== Boolean.valueOf Conditional Tests (to kill surviving mutations) ====================
 
         @Test
         void handle_booleanValueOf_wrongOwner_doesNotSkip() {
@@ -1559,8 +1492,6 @@ class HandlerEdgeCaseTest {
             assertThat(context.getStackSize()).isGreaterThanOrEqualTo(0);
         }
 
-        // ==================== INVOKESPECIAL Non-Constructor Tests ====================
-
         @Test
         void handle_invokeSpecial_nonConstructor_withNullArgs_leavesStackUnchanged() {
             // Non-constructor INVOKESPECIAL with no proper args extraction
@@ -1574,8 +1505,6 @@ class HandlerEdgeCaseTest {
                     .as("Non-constructor INVOKESPECIAL should leave stack unchanged")
                     .isEqualTo(1);
         }
-
-        // ==================== Collection.contains() Pattern Tests (kill mutations 335-337, 354, 362, 366, 372) ====================
 
         @Test
         void handle_collectionContains_withCapturedVariableAndFieldAccess_createsInExpression() {
@@ -1757,8 +1686,6 @@ class HandlerEdgeCaseTest {
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.MemberOfExpression.class);
         }
 
-        // ==================== isCollectionContainsCall condition tests (kill mutations 335-337) ====================
-
         static Stream<Arguments> invalidContainsCallCases() {
             return Stream.of(
                     Arguments.of("java/util/Collection", "add", "(Ljava/lang/Object;)Z", "wrong method name"),
@@ -1795,8 +1722,6 @@ class HandlerEdgeCaseTest {
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.InExpression.class);
         }
 
-        // ==================== handleCollectionContains empty stack test (kill mutation 354) ====================
-
         @ParameterizedTest(name = "collection contains with {0} stack elements throws underflow")
         @ValueSource(ints = { 0, 1 })
         void handle_collectionContains_insufficientStack_throwsException(int stackElements) {
@@ -1810,8 +1735,6 @@ class HandlerEdgeCaseTest {
                     .isInstanceOf(BytecodeAnalysisException.class)
                     .hasMessageContaining("Stack underflow");
         }
-
-        // ==================== Temporal Factory Method condition tests (kill mutations 711, 717) ====================
 
         @Test
         void handle_temporalFactory_insufficientStackSize_doesNothing() {
@@ -1877,8 +1800,6 @@ class HandlerEdgeCaseTest {
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall.class);
         }
 
-        // ==================== Substring edge cases (kill mutations 528, 531) ====================
-
         @Test
         void handle_substringTwoArgs_insufficientStack_leavesUnchanged() {
             // Only 2 elements when we need 3 for substring(II)
@@ -1893,8 +1814,6 @@ class HandlerEdgeCaseTest {
                     .as("Insufficient stack for substring(II) should leave unchanged")
                     .isEqualTo(2);
         }
-
-        // ==================== INVOKEINTERFACE for equals and compareTo (kill mutations 306, 312-313) ====================
 
         static Stream<Arguments> invokeInterfaceMethodCases() {
             return Stream.of(
@@ -1919,8 +1838,6 @@ class HandlerEdgeCaseTest {
                     .as("Interface %s() should create %s", methodName, resultDescription)
                     .isInstanceOf(expectedResultType);
         }
-
-        // ==================== handleInvokeSpecial constructor edge cases (kill mutations 239, 248) ====================
 
         @Test
         void handle_invokeSpecial_constructorWithNoArgs_createsConstructorCall() {
@@ -1985,8 +1902,6 @@ class HandlerEdgeCaseTest {
                     .as("Non-string constant should create ConstructorCall")
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.ConstructorCall.class);
         }
-
-        // ==================== handleStringMethods - kill method name mutations ====================
 
         @ParameterizedTest(name = "String.{0} with argument creates MethodCall")
         @ValueSource(strings = { "startsWith", "endsWith" })
@@ -2057,8 +1972,6 @@ class HandlerEdgeCaseTest {
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.FieldAccess.class);
         }
 
-        // ==================== Stack underflow tests for binary methods (equals, compareTo) ====================
-
         static Stream<Arguments> binaryMethodUnderflowCases() {
             return Stream.of(
                     Arguments.of("equals", "(Ljava/lang/Object;)Z", "java/lang/Object", 0, "empty stack"),
@@ -2081,8 +1994,6 @@ class HandlerEdgeCaseTest {
                     .hasMessageContaining("Stack underflow");
         }
 
-        // ==================== handleNoArgumentStringMethod - descriptor mismatch ====================
-
         @ParameterizedTest(name = "String.{0} with wrong descriptor does nothing")
         @ValueSource(strings = { "length", "isEmpty" })
         void handle_stringMethod_wrongDescriptor_doesNothing(String methodName) {
@@ -2095,8 +2006,6 @@ class HandlerEdgeCaseTest {
             assertThat(context.peek())
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.FieldAccess.class);
         }
-
-        // ==================== handleTemporalMethods - temporal accessor mutations ====================
 
         static Stream<Arguments> temporalAccessorMethods() {
             return Stream.of(
@@ -2149,8 +2058,6 @@ class HandlerEdgeCaseTest {
             assertThat(call.returnType()).isEqualTo(boolean.class);
         }
 
-        // ==================== handleBigDecimalMethods - method name mutations ====================
-
         @Test
         void handle_bigDecimalRemainder_notHandled() {
             context.push(field("amount", java.math.BigDecimal.class));
@@ -2177,8 +2084,6 @@ class HandlerEdgeCaseTest {
             assertThat(context.getStackSize()).isEqualTo(1);
         }
 
-        // ==================== handleInvokeSpecial non-constructor ====================
-
         @Test
         void handle_invokeSpecial_superMethodCall_ignored() {
             context.push(field("obj", Object.class));
@@ -2190,8 +2095,6 @@ class HandlerEdgeCaseTest {
             // Non-constructor INVOKESPECIAL is ignored
             assertThat(context.getStackSize()).isEqualTo(1);
         }
-
-        // ==================== isMemberOfPattern - more edge cases ====================
 
         @Test
         void handle_collectionContains_pathExpressionWithFieldAccess_createsMemberOf() {
@@ -2231,14 +2134,10 @@ class HandlerEdgeCaseTest {
         }
     }
 
-    // ==================== InvokeDynamicHandler Tests ====================
-
     @Nested
     class InvokeDynamicHandlerTests {
 
         private final InvokeDynamicHandler handler = InvokeDynamicHandler.INSTANCE;
-
-        // ==================== canHandle Tests ====================
 
         @Test
         void canHandle_withINVOKEDYNAMIC_returnsTrue() {
@@ -2265,8 +2164,6 @@ class HandlerEdgeCaseTest {
                     .as("Should not handle non-INVOKEDYNAMIC")
                     .isFalse();
         }
-
-        // ==================== escapeRecipe Tests (kill 12 mutations) ====================
 
         @Test
         void escapeRecipe_withNull_returnsNullString() {
@@ -2295,8 +2192,6 @@ class HandlerEdgeCaseTest {
             String result = invokeEscapeRecipe(input);
             assertThat(result).as("escapeRecipe(%s)", description).isEqualTo(expected);
         }
-
-        // ==================== StringConcatFactory handle Tests ====================
 
         @Test
         void handle_stringConcatFactory_withRecipe_buildsExpression() {
@@ -2417,8 +2312,6 @@ class HandlerEdgeCaseTest {
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.class);
         }
 
-        // ==================== LambdaMetafactory Tests ====================
-
         @Test
         void handle_lambdaMetafactory_nonQuerySpec_returnsFalse() {
             // LambdaMetafactory but NOT QuerySpec - should not handle
@@ -2482,8 +2375,6 @@ class HandlerEdgeCaseTest {
                     .isFalse();
         }
 
-        // ==================== extractRecipe Tests (kill mutations lines 148, 151) ====================
-
         @Test
         void handle_stringConcatFactory_withNonStringBsmArg_returnsFalse() {
             // bsmArgs[0] is not a String
@@ -2507,8 +2398,6 @@ class HandlerEdgeCaseTest {
                     .as("Stack should remain empty")
                     .isTrue();
         }
-
-        // ==================== parseRecipe boundary tests (kill mutations lines 192) ====================
 
         @Test
         void handle_stringConcatFactory_withFewerOperandsThanMarkers_handlesGracefully() {
@@ -2555,8 +2444,6 @@ class HandlerEdgeCaseTest {
             assertThat(terminated).isFalse();
             assertThat(context.getStackSize()).isEqualTo(1);
         }
-
-        // ==================== Helper method to access private escapeRecipe ====================
 
         private String invokeEscapeRecipe(String recipe) {
             try {

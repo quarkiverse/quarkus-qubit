@@ -40,8 +40,6 @@ public abstract class AbstractExpressionProjectionTest {
         TestDataFactory.createStandardPersonsAndProducts();
     }
 
-    // ========== Arithmetic Operations - Addition ==========
-
     @Test
     void selectArithmetic_integerAddition() {
         var agesPlus5 = personOps().select((Person p) -> p.age + 5).toList();
@@ -64,8 +62,6 @@ public abstract class AbstractExpressionProjectionTest {
                 .containsExactlyInAnyOrder(80000.0, 70000.0, 90000.0, 95000.0, 60000.0);
     }
 
-    // ========== Arithmetic Operations - Subtraction ==========
-
     @Test
     void selectArithmetic_integerSubtraction() {
         var agesMinus2 = personOps().select((Person p) -> p.age - 2).toList();
@@ -87,8 +83,6 @@ public abstract class AbstractExpressionProjectionTest {
                 .hasSize(5)
                 .containsExactlyInAnyOrder(65000.0, 55000.0, 75000.0, 80000.0, 45000.0);
     }
-
-    // ========== Arithmetic Operations - Multiplication ==========
 
     @Test
     void selectArithmetic_integerMultiplication() {
@@ -129,8 +123,6 @@ public abstract class AbstractExpressionProjectionTest {
                 .containsExactlyInAnyOrder(175.0f, 168.0f, 182.0f, 165.0f, 178.0f);
     }
 
-    // ========== Arithmetic Operations - Division ==========
-
     @Test
     void selectArithmetic_integerDivision() {
         var agesHalved = personOps().select((Person p) -> p.age / 2).toList();
@@ -158,8 +150,6 @@ public abstract class AbstractExpressionProjectionTest {
                         55000.0 / 12.0);
     }
 
-    // ========== Arithmetic Operations - Modulo ==========
-
     @Test
     void selectArithmetic_integerModulo() {
         var agesMod10 = personOps().select((Person p) -> p.age % 10).toList();
@@ -170,8 +160,6 @@ public abstract class AbstractExpressionProjectionTest {
                 .hasSize(5)
                 .containsExactlyInAnyOrder(0, 5, 5, 5, 8);
     }
-
-    // ========== String Concatenation ==========
 
     @Test
     void selectStringConcat_fullName() {
@@ -214,8 +202,6 @@ public abstract class AbstractExpressionProjectionTest {
                         "Williams, Alice (alice.williams@example.com)",
                         "Brown, Charlie (charlie.brown@example.com)");
     }
-
-    // ========== Combined WHERE + Expression Projection ==========
 
     @Test
     void whereActive_selectSalaryRaise() {
@@ -272,15 +258,12 @@ public abstract class AbstractExpressionProjectionTest {
                 .containsExactly("Bob Johnson (INACTIVE)");
     }
 
-    // ========== Complex Arithmetic Expressions ==========
-
     @Test
     void selectComplexArithmetic_multipleOperations() {
         // Calculate: (age * 2) + 10
         var complexAges = personOps().select((Person p) -> (p.age * 2) + 10).toList();
 
         // Original ages: 30, 25, 45, 35, 28
-        // Expected: (30*2)+10=70, (25*2)+10=60, (45*2)+10=100, (35*2)+10=80, (28*2)+10=66
         assertThat(complexAges)
                 .hasSize(5)
                 .containsExactlyInAnyOrder(70, 60, 100, 80, 66);
@@ -297,8 +280,6 @@ public abstract class AbstractExpressionProjectionTest {
                 .hasSize(5)
                 .containsExactlyInAnyOrder(12500.0, 11500.0, 13500.0, 14000.0, 10500.0);
     }
-
-    // ========== Product Entity Tests ==========
 
     @Test
     void productSelect_priceWithTax() {
@@ -338,8 +319,6 @@ public abstract class AbstractExpressionProjectionTest {
                         "Monitor [Electronics]");
     }
 
-    // ========== Edge Cases ==========
-
     @Test
     void whereNoMatches_selectExpression_returnsEmptyList() {
         var results = personOps().where((Person p) -> p.age > 100)
@@ -371,7 +350,6 @@ public abstract class AbstractExpressionProjectionTest {
     void selectArithmetic_divisionResultsInDecimal() {
         var results = personOps().select((Person p) -> p.age / 3).toList();
 
-        // Integer division: 30/3=10, 25/3=8, 45/3=15, 35/3=11, 28/3=9
         assertThat(results)
                 .hasSize(5)
                 .containsExactlyInAnyOrder(10, 8, 15, 11, 9);

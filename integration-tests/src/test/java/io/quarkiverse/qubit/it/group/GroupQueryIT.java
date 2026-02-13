@@ -36,8 +36,6 @@ class GroupQueryIT {
         TestDataFactory.createPersonsWithPhones();
     }
 
-    // ========== BASIC GROUP BY QUERIES ==========
-
     @Test
     void groupByDepartmentNameReturnsAllDepartments() {
         // Group by department.name, returns distinct department names
@@ -61,8 +59,6 @@ class GroupQueryIT {
                 .hasSize(3)
                 .containsExactlyInAnyOrder("Engineering", "Sales", "Human Resources");
     }
-
-    // ========== GROUP BY WITH COUNT ==========
 
     @Test
     void groupByWithCountReturnsCorrectCounts() {
@@ -93,8 +89,6 @@ class GroupQueryIT {
                 .isEqualTo(1);
     }
 
-    // ========== GROUP BY WITH AGGREGATIONS ==========
-
     @Test
     void groupByWithAvgReturnsCorrectAverages() {
         // Group by department.name and compute average salary
@@ -107,12 +101,10 @@ class GroupQueryIT {
 
         assertThat(stats).hasSize(3);
 
-        // Engineering: (75000 + 90000) / 2 = 82500
         DepartmentStatsDTO engineering = stats.stream()
                 .filter(s -> s.getDepartmentName().equals("Engineering")).findFirst().orElseThrow();
         assertThat(engineering.getAverageSalary()).isEqualTo(82500.0);
 
-        // Sales: (65000 + 55000) / 2 = 60000
         DepartmentStatsDTO sales = stats.stream()
                 .filter(s -> s.getDepartmentName().equals("Sales")).findFirst().orElseThrow();
         assertThat(sales.getAverageSalary()).isEqualTo(60000.0);
@@ -172,8 +164,6 @@ class GroupQueryIT {
         assertThat(sales[1]).isEqualTo(65000.0); // Jane has max salary
     }
 
-    // ========== GROUP BY WITH HAVING ==========
-
     @Test
     void groupByWithHavingCountFiltersCorrectly() {
         // Only departments with more than 1 person
@@ -199,8 +189,6 @@ class GroupQueryIT {
                 .hasSize(2)
                 .containsExactlyInAnyOrder("Engineering", "Human Resources");
     }
-
-    // ========== GROUP BY WITH SORTING ==========
 
     @Test
     void groupByWithSortByKeyAscending() {
@@ -243,8 +231,6 @@ class GroupQueryIT {
         assertThat(stats.getLast().getDepartmentName()).isEqualTo("Human Resources");
     }
 
-    // ========== GROUP BY WITH PAGINATION ==========
-
     @Test
     void groupByWithLimit() {
         // Only return first 2 departments
@@ -272,8 +258,6 @@ class GroupQueryIT {
                 .containsExactly("Human Resources", "Sales");
     }
 
-    // ========== GROUP BY COUNT (TERMINAL) ==========
-
     @Test
     void groupByCountReturnsNumberOfGroups() {
         // Count how many distinct departments
@@ -293,8 +277,6 @@ class GroupQueryIT {
         assertThat(largeGroupCount).isEqualTo(2);
     }
 
-    // ========== GROUP BY WITH PRE-FILTER ==========
-
     @Test
     void whereBeforeGroupByFiltersBeforeGrouping() {
         // Only group active persons
@@ -311,8 +293,6 @@ class GroupQueryIT {
         assertThat(stats).extracting(DepartmentStatsDTO::getDepartmentName)
                 .containsExactlyInAnyOrder("Engineering", "Sales");
     }
-
-    // ========== GROUP BY WITH CAPTURED VARIABLES ==========
 
     @Test
     void groupByWithCapturedVariableInHaving() {

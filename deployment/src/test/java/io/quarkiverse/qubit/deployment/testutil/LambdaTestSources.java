@@ -66,8 +66,6 @@ public class LambdaTestSources {
         public double rating;
     }
 
-    // ==================== INTEGER COMPARISONS ====================
-
     public static QuerySpec<TestPerson, Boolean> integerGreaterThan() {
         return p -> p.age > 30;
     }
@@ -87,8 +85,6 @@ public class LambdaTestSources {
     public static QuerySpec<TestPerson, Boolean> integerNotEquals() {
         return p -> p.age != 30;
     }
-
-    // ==================== LONG COMPARISONS ====================
 
     public static QuerySpec<TestPerson, Boolean> longGreaterThan() {
         return p -> p.employeeId > 1000003L;
@@ -110,8 +106,6 @@ public class LambdaTestSources {
         return p -> p.employeeId != 1000001L;
     }
 
-    // ==================== FLOAT COMPARISONS ====================
-
     public static QuerySpec<TestPerson, Boolean> floatGreaterThan() {
         return p -> p.height > 1.70f;
     }
@@ -131,8 +125,6 @@ public class LambdaTestSources {
     public static QuerySpec<TestPerson, Boolean> floatNotEquals() {
         return p -> p.height != 1.75f;
     }
-
-    // ==================== DOUBLE COMPARISONS ====================
 
     public static QuerySpec<TestPerson, Boolean> doubleGreaterThan() {
         return p -> p.salary > 70000.0;
@@ -154,8 +146,6 @@ public class LambdaTestSources {
         return p -> p.salary != 75000.0;
     }
 
-    // ==================== BIGDECIMAL COMPARISONS ====================
-
     public static QuerySpec<TestProduct, Boolean> bigDecimalGreaterThan() {
         return p -> p.price.compareTo(new BigDecimal("500")) > 0;
     }
@@ -175,8 +165,6 @@ public class LambdaTestSources {
     public static QuerySpec<TestProduct, Boolean> bigDecimalNotEquals() {
         return p -> p.price.compareTo(new BigDecimal("899.99")) != 0;
     }
-
-    // ==================== TEMPORAL COMPARISONS ====================
 
     public static QuerySpec<TestPerson, Boolean> localDateAfter() {
         return p -> p.birthDate.isAfter(LocalDate.of(1990, 1, 1));
@@ -202,8 +190,6 @@ public class LambdaTestSources {
         return p -> p.startTime.isBefore(LocalTime.of(9, 0));
     }
 
-    // ==================== RANGE QUERIES ====================
-
     public static QuerySpec<TestPerson, Boolean> integerRangeQuery() {
         return p -> p.age >= 25 && p.age <= 35;
     }
@@ -220,8 +206,6 @@ public class LambdaTestSources {
         return p -> p.price.compareTo(new BigDecimal("800.00")) >= 0 &&
                 p.price.compareTo(new BigDecimal("1500.00")) <= 0;
     }
-
-    // ==================== EQUALITY OPERATIONS ====================
 
     public static QuerySpec<TestPerson, Boolean> stringEquality() {
         return p -> p.firstName.equals("John");
@@ -280,8 +264,6 @@ public class LambdaTestSources {
         return p -> p.price.compareTo(new BigDecimal("899.99")) == 0;
     }
 
-    // ==================== NULL CHECKS ====================
-
     public static QuerySpec<TestPerson, Boolean> stringNullCheck() {
         return p -> p.email == null;
     }
@@ -314,7 +296,6 @@ public class LambdaTestSources {
         return p -> p.startTime == null;
     }
 
-    // ==================== BOXED INTEGER FIELD-TO-FIELD COMPARISONS ====================
     // These test cases reproduce the JFR-documented stack underflow bug
     // where comparing two boxed Integer fields triggers Integer.intValue() unboxing
 
@@ -342,8 +323,6 @@ public class LambdaTestSources {
         return p -> p.age != p.minAge;
     }
 
-    // ==================== CHAINED NULL CHECKS ====================
-
     public static QuerySpec<TestPerson, Boolean> nullCheckWithAnd() {
         return p -> p.email != null && p.firstName != null;
     }
@@ -355,8 +334,6 @@ public class LambdaTestSources {
     public static QuerySpec<TestPerson, Boolean> nullCheckWithOr() {
         return p -> p.email == null || p.firstName == null;
     }
-
-    // ==================== LOGICAL OPERATIONS - AND ====================
 
     public static QuerySpec<TestPerson, Boolean> twoConditionAnd() {
         return p -> p.age > 25 && p.active;
@@ -381,8 +358,6 @@ public class LambdaTestSources {
                 p.height != null && p.height > 1.6f;
     }
 
-    // ==================== LOGICAL OPERATIONS - OR ====================
-
     public static QuerySpec<TestPerson, Boolean> simpleOr() {
         return p -> p.age < 26 || p.age > 40;
     }
@@ -399,8 +374,6 @@ public class LambdaTestSources {
         return p -> p.age < 27 || p.age > 43 || p.firstName.equals("Alice") ||
                 p.email.contains("@example.com");
     }
-
-    // ==================== LOGICAL OPERATIONS - NOT ====================
 
     public static QuerySpec<TestPerson, Boolean> simpleNot() {
         return p -> !p.active;
@@ -429,8 +402,6 @@ public class LambdaTestSources {
     public static QuerySpec<TestPerson, Boolean> notWithOr() {
         return p -> !(p.active || p.salary > 90000);
     }
-
-    // ==================== ARITHMETIC OPERATIONS ====================
 
     public static QuerySpec<TestPerson, Boolean> integerAddition() {
         return p -> p.age + 5 > 35;
@@ -513,8 +484,6 @@ public class LambdaTestSources {
         return p -> p.employeeId - p.employeeId == 0L;
     }
 
-    // ==================== STRING OPERATIONS ====================
-
     public static QuerySpec<TestPerson, Boolean> stringStartsWith() {
         return p -> p.firstName.startsWith("J");
     }
@@ -563,8 +532,6 @@ public class LambdaTestSources {
         return p -> p.email != null && p.email.contains("@") && p.email.endsWith(".com");
     }
 
-    // ==================== COMPLEX EXPRESSIONS ====================
-
     public static QuerySpec<TestPerson, Boolean> nestedAndOrExpression() {
         return p -> (p.age > 25 && p.age < 35) || p.salary > 80000;
     }
@@ -606,8 +573,6 @@ public class LambdaTestSources {
         return p -> (p.firstName.equals("John") || p.firstName.equals("Jane")) &&
                 p.age >= 25 && p.active;
     }
-
-    // ==================== CAPTURED VARIABLES ====================
 
     public static QuerySpec<TestPerson, Boolean> capturedStringVariable() {
         String searchName = "John";

@@ -57,8 +57,6 @@ public abstract class PrecompiledBiEntityLambdaAnalyzer extends AbstractLambdaAn
         }
     }
 
-    // ==================== BI-ENTITY SPECIFIC ASSERTION HELPERS ====================
-
     /**
      * Asserts that an expression is a BiEntityFieldAccess with the expected field name.
      */

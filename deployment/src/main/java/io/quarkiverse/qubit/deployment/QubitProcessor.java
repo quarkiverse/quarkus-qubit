@@ -1,7 +1,5 @@
 package io.quarkiverse.qubit.deployment;
 
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.CHARACTERISTICS_REQUIRED;
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.GENERATED_CLASS_NAME_REQUIRED;
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.QUERY_ID_REQUIRED;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_ENTITY_CLASS_NAME;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_REPOSITORY_CLASS_NAME;
@@ -1006,10 +1004,10 @@ public class QubitProcessor {
                     throw new IllegalStateException(QUERY_ID_REQUIRED);
                 }
                 if (generatedClassName == null) {
-                    throw new IllegalStateException(GENERATED_CLASS_NAME_REQUIRED);
+                    throw new IllegalStateException("generatedClassName is required");
                 }
                 if (characteristics == null) {
-                    throw new IllegalStateException(CHARACTERISTICS_REQUIRED);
+                    throw new IllegalStateException("characteristics is required");
                 }
                 DevUIExpressions expressions = new DevUIExpressions(
                         predicateExpression, projectionExpression, sortExpression, aggregationExpression,

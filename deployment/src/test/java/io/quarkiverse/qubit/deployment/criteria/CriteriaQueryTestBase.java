@@ -167,8 +167,6 @@ public abstract class CriteriaQueryTestBase extends AbstractLambdaAnalyzer {
         assertCriteriaGenerationSucceeds(expr);
     }
 
-    // ==================== CRITERIA-SPECIFIC ASSERTION HELPERS ====================
-
     /**
      * Asserts that a specific Criteria API method was called.
      */

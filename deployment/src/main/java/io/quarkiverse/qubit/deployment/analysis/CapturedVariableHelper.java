@@ -1,8 +1,6 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
 import static io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.and;
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.CANNOT_COMBINE_EMPTY_PREDICATE_LIST;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -161,7 +159,7 @@ public final class CapturedVariableHelper {
     /** Combines multiple predicates with AND. Throws if predicates is empty. */
     public static LambdaExpression combinePredicatesWithAnd(List<LambdaExpression> predicates) {
         if (predicates.isEmpty()) {
-            throw new IllegalArgumentException(CANNOT_COMBINE_EMPTY_PREDICATE_LIST);
+            throw new IllegalArgumentException("Cannot combine empty predicate list");
         }
 
         if (predicates.size() == 1) {

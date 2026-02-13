@@ -42,9 +42,7 @@ public abstract class AbstractComplexCombinationsTest {
         TestDataFactory.createStandardPersons();
     }
 
-    // =============================================================================================
     // SKIP → COUNT (1 test)
-    // =============================================================================================
 
     @Test
     @Transactional
@@ -58,9 +56,7 @@ public abstract class AbstractComplexCombinationsTest {
         assertThat(countWithSkip).isGreaterThan(0);
     }
 
-    // =============================================================================================
     // SORTEDDESCENDINGBY + LIMIT → TOLIST (1 test)
-    // =============================================================================================
 
     @Test
     @Transactional
@@ -79,9 +75,7 @@ public abstract class AbstractComplexCombinationsTest {
         }
     }
 
-    // =============================================================================================
     // SORTEDDESCENDINGBY + SKIP → TOLIST (1 test)
-    // =============================================================================================
 
     @Test
     @Transactional
@@ -104,9 +98,7 @@ public abstract class AbstractComplexCombinationsTest {
         }
     }
 
-    // =============================================================================================
     // WHERE + SELECT + LIMIT → TOLIST (1 test)
-    // =============================================================================================
 
     @Test
     @Transactional
@@ -121,9 +113,7 @@ public abstract class AbstractComplexCombinationsTest {
                 .allMatch(name -> name != null && !name.isEmpty());
     }
 
-    // =============================================================================================
     // SELECT + SORTEDBY + SKIP → TOLIST (1 test)
-    // =============================================================================================
 
     @Test
     @Transactional
@@ -149,9 +139,7 @@ public abstract class AbstractComplexCombinationsTest {
         }
     }
 
-    // =============================================================================================
     // WHERE + SORTEDBY + SKIP → TOLIST (1 test)
-    // =============================================================================================
 
     @Test
     @Transactional
@@ -178,9 +166,7 @@ public abstract class AbstractComplexCombinationsTest {
         }
     }
 
-    // =============================================================================================
     // WHERE + SELECT + SORTEDBY + LIMIT → TOLIST (1 test)
-    // =============================================================================================
 
     @Test
     @Transactional
@@ -197,9 +183,7 @@ public abstract class AbstractComplexCombinationsTest {
                 .isSorted(); // Natural string ordering (alphabetical)
     }
 
-    // =============================================================================================
     // WHERE + SORTEDBY + LIMIT + SKIP → TOLIST (1 test)
-    // =============================================================================================
 
     @Test
     @Transactional

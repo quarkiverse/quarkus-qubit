@@ -29,8 +29,6 @@ public abstract class AbstractRelationshipNavigationTest {
         TestDataFactory.createAllDataWithRelationships();
     }
 
-    // ========== PHONE ENTITY TESTS ==========
-
     @Test
     void phonesByType() {
         var results = phoneOps().where((Phone ph) -> ph.type.equals("mobile")).toList();
@@ -101,8 +99,6 @@ public abstract class AbstractRelationshipNavigationTest {
                 .hasSizeGreaterThan(0)
                 .allMatch(ph -> ph.getNumber().startsWith("555-01"));
     }
-
-    // ========== TAG ENTITY TESTS ==========
 
     @Test
     void tagsByName() {

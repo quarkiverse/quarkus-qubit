@@ -1,7 +1,5 @@
 package io.quarkiverse.qubit.deployment.util;
 
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.NO_MORE_PARAMETERS;
-
 import io.quarkus.logging.Log;
 
 /**
@@ -156,8 +154,6 @@ public final class DescriptorParser {
         return TypeConverter.primitiveCharToClass(info.typeChar());
     }
 
-    // ========== Return Type Utilities ==========
-
     /** Extracts return type descriptor from method descriptor. */
     public static String getReturnTypeDescriptor(String methodDescriptor) {
         if (methodDescriptor == null) {
@@ -220,7 +216,7 @@ public final class DescriptorParser {
 
         public void next() {
             if (!hasNext()) {
-                throw new IllegalStateException(NO_MORE_PARAMETERS);
+                throw new IllegalStateException("No more parameters");
             }
 
             paramIndex++;

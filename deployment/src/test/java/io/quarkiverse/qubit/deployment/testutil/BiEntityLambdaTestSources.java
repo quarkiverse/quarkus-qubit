@@ -41,8 +41,6 @@ public class BiEntityLambdaTestSources {
         public boolean isPrimary;
     }
 
-    // ==================== FIELD ACCESS ON JOINED ENTITY (SECOND) ====================
-
     public static BiQuerySpec<TestPerson, TestPhone, Boolean> joinedEntityFieldEquals() {
         return (p, ph) -> ph.type.equals("mobile");
     }
@@ -54,8 +52,6 @@ public class BiEntityLambdaTestSources {
     public static BiQuerySpec<TestPerson, TestPhone, Boolean> joinedEntityNegatedBooleanField() {
         return (p, ph) -> !ph.isPrimary;
     }
-
-    // ==================== FIELD ACCESS ON SOURCE ENTITY (FIRST) ====================
 
     public static BiQuerySpec<TestPerson, TestPhone, Boolean> sourceEntityFieldEquals() {
         return (p, ph) -> p.firstName.equals("John");
@@ -69,8 +65,6 @@ public class BiEntityLambdaTestSources {
         return (p, ph) -> p.active;
     }
 
-    // ==================== PREDICATES ON BOTH ENTITIES ====================
-
     public static BiQuerySpec<TestPerson, TestPhone, Boolean> bothEntitiesSimpleAnd() {
         return (p, ph) -> p.active && ph.isPrimary;
     }
@@ -82,8 +76,6 @@ public class BiEntityLambdaTestSources {
     public static BiQuerySpec<TestPerson, TestPhone, Boolean> bothEntitiesWithOr() {
         return (p, ph) -> p.age > 50 || ph.type.equals("mobile");
     }
-
-    // ==================== STRING METHODS ON JOINED ENTITY ====================
 
     public static BiQuerySpec<TestPerson, TestPhone, Boolean> joinedEntityStartsWith() {
         return (p, ph) -> ph.number.startsWith("555");
@@ -97,8 +89,6 @@ public class BiEntityLambdaTestSources {
         return (p, ph) -> ph.number.endsWith("00");
     }
 
-    // ==================== PROJECTIONS (SELECT) ====================
-
     public static BiQuerySpec<TestPerson, TestPhone, String> projectJoinedEntityField() {
         return (p, ph) -> ph.number;
     }
@@ -110,8 +100,6 @@ public class BiEntityLambdaTestSources {
     public static BiQuerySpec<TestPerson, TestPhone, Integer> projectSourceEntityIntField() {
         return (p, ph) -> p.age;
     }
-
-    // ==================== CAPTURED VARIABLES ====================
 
     public static BiQuerySpec<TestPerson, TestPhone, Boolean> joinedEntityWithCapturedVariable() {
         String phoneType = "mobile";

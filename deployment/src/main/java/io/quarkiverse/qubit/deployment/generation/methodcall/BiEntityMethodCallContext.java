@@ -37,8 +37,6 @@ public record BiEntityMethodCallContext(
         Objects.requireNonNull(helper, "helper cannot be null");
     }
 
-    // ========== MethodCallDispatchContext Implementation ==========
-
     @Override
     public Expr generateTargetAsJpaExpression() {
         var ctx = new BiEntityBaseContext(bc, cb, root, join, capturedValues, helper);

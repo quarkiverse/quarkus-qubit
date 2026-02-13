@@ -36,9 +36,7 @@ public abstract class AbstractSingleResultTest {
         TestDataFactory.createStandardPersonsAndProducts();
     }
 
-    // =============================================================================================
     // getSingleResult() TESTS
-    // =============================================================================================
 
     @Test
     @Transactional
@@ -100,9 +98,7 @@ public abstract class AbstractSingleResultTest {
                 .isEqualTo("Alice");
     }
 
-    // =============================================================================================
     // findFirst() TESTS
-    // =============================================================================================
 
     @Test
     @Transactional
@@ -191,9 +187,7 @@ public abstract class AbstractSingleResultTest {
                 .isEqualTo("Alice");
     }
 
-    // =============================================================================================
     // EDGE CASES
-    // =============================================================================================
 
     @Test
     @Transactional

@@ -88,8 +88,6 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
         throw implementationInjectionMissing();
     }
 
-    // ========== Aggregation Entry Points ==========
-
     /**
      * Prepares a minimum value aggregation query.
      * <p>
@@ -247,8 +245,6 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
     default QubitStream<Double> sumDouble(QuerySpec<E, Double> mapper) {
         throw implementationInjectionMissing();
     }
-
-    // ========== Join Operations ==========
 
     /**
      * Creates an inner join query with a related entity collection.

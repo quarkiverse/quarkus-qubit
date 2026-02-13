@@ -26,8 +26,6 @@ class RepositoryAggregationIT extends AbstractAggregationTest {
         return new RepositoryPersonQueryOperations(personRepository);
     }
 
-    // ========== NULL HANDLING (3 tests) ==========
-
     @Test
     @Transactional
     void minHeight_withNullValues_skipsNulls() {
@@ -72,8 +70,6 @@ class RepositoryAggregationIT extends AbstractAggregationTest {
 
         assertThat(sumEmployeeId).isEqualTo(5000015L);
     }
-
-    // ========== EMPTY RESULT SETS (3 tests) ==========
 
     @Test
     @Transactional

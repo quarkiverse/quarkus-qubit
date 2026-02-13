@@ -33,7 +33,6 @@ class DtoProjectionIT extends AbstractDtoProjectionTest {
         return StaticProductQueryOperations.INSTANCE;
     }
 
-    // ========== DTO Getter Coverage Tests (for mutation testing) ==========
     // These tests use static entity methods directly to cover DTO getters
 
     @Test

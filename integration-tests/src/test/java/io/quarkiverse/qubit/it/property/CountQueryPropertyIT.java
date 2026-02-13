@@ -47,9 +47,7 @@ class CountQueryPropertyIT {
         TestDataFactory.createStandardProducts();
     }
 
-    // ======================================================================
     // Count-List Consistency Properties
-    // ======================================================================
 
     @Test
     @Transactional
@@ -99,9 +97,7 @@ class CountQueryPropertyIT {
                 .isEqualTo(listSize);
     }
 
-    // ======================================================================
     // Non-Negativity Property
-    // ======================================================================
 
     @Test
     @Transactional
@@ -121,9 +117,7 @@ class CountQueryPropertyIT {
                 .isZero();
     }
 
-    // ======================================================================
     // Filter Monotonicity Property
-    // ======================================================================
 
     @Test
     @Transactional
@@ -142,9 +136,7 @@ class CountQueryPropertyIT {
                 .isLessThanOrEqualTo(oneFilterCount);
     }
 
-    // ======================================================================
     // Pagination Independence Properties
-    // ======================================================================
 
     @ParameterizedTest(name = "count ignores skip({0})")
     @ValueSource(ints = { 0, 1, 2, 5, 10 })
@@ -191,9 +183,7 @@ class CountQueryPropertyIT {
         }
     }
 
-    // ======================================================================
     // Sort Independence Property
-    // ======================================================================
 
     @Test
     @Transactional
@@ -214,9 +204,7 @@ class CountQueryPropertyIT {
                 .isEqualTo(countWithoutSort);
     }
 
-    // ======================================================================
     // Count vs List Size with Various Filters
-    // ======================================================================
 
     @ParameterizedTest(name = "count with age > {0} matches list size")
     @ValueSource(ints = { 20, 25, 30, 35, 40, 45, 50 })
@@ -242,9 +230,7 @@ class CountQueryPropertyIT {
                 .isEqualTo(listSize);
     }
 
-    // ======================================================================
     // Empty Result Set Properties
-    // ======================================================================
 
     @Test
     @Transactional
@@ -268,9 +254,7 @@ class CountQueryPropertyIT {
                 .isZero();
     }
 
-    // ======================================================================
     // Count Consistency Across Operations
-    // ======================================================================
 
     @Test
     @Transactional
@@ -285,9 +269,7 @@ class CountQueryPropertyIT {
                 .isEqualTo(count3);
     }
 
-    // ======================================================================
     // Product Entity Count Properties
-    // ======================================================================
 
     @Test
     @Transactional

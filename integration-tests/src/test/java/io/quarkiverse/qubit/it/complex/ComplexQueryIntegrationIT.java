@@ -47,9 +47,7 @@ class ComplexQueryIntegrationIT {
         TestDataFactory.createPersonsWithPhones();
     }
 
-    // ==========================================================================
     // NESTED SUBQUERIES: EXISTS / NOT EXISTS
-    // ==========================================================================
 
     @Nested
     @DisplayName("EXISTS Subqueries")
@@ -137,9 +135,7 @@ class ComplexQueryIntegrationIT {
         }
     }
 
-    // ==========================================================================
     // NESTED SUBQUERIES: IN / NOT IN
-    // ==========================================================================
 
     @Nested
     @DisplayName("IN Subqueries")
@@ -205,9 +201,7 @@ class ComplexQueryIntegrationIT {
         }
     }
 
-    // ==========================================================================
     // MULTIPLE SUBQUERIES IN SAME PREDICATE
-    // ==========================================================================
 
     @Nested
     @DisplayName("Multiple Subqueries Combined")
@@ -267,9 +261,7 @@ class ComplexQueryIntegrationIT {
         }
     }
 
-    // ==========================================================================
     // MULTI-LEVEL RELATIONSHIP NAVIGATION
-    // ==========================================================================
 
     @Nested
     @DisplayName("Multi-level Navigation")
@@ -282,7 +274,6 @@ class ComplexQueryIntegrationIT {
             List<Phone> engineeringPhones = Phone.where(
                     (Phone ph) -> ph.owner.department.name.equals("Engineering")).toList();
 
-            // John has 2 phones, Alice has 2 phones = 4 phones total in Engineering
             assertThat(engineeringPhones).hasSize(4);
         }
 
@@ -317,9 +308,7 @@ class ComplexQueryIntegrationIT {
         }
     }
 
-    // ==========================================================================
     // COMBINED GROUP / HAVING / SELECT
-    // ==========================================================================
 
     @Nested
     @DisplayName("Complex Grouping Operations")
@@ -451,9 +440,7 @@ class ComplexQueryIntegrationIT {
         }
     }
 
-    // ==========================================================================
     // JOIN WITH SUBQUERY COMBINATIONS
-    // ==========================================================================
 
     @Nested
     @DisplayName("Join Combined with Subquery")
@@ -470,7 +457,6 @@ class ComplexQueryIntegrationIT {
                     .selectJoined()
                     .toList();
 
-            // John: 2 phones, Bob: 3 phones, Alice: 2 phones = 7 phones
             assertThat(phones).hasSize(7);
         }
 
@@ -490,9 +476,7 @@ class ComplexQueryIntegrationIT {
         }
     }
 
-    // ==========================================================================
     // EDGE CASES AND BOUNDARY CONDITIONS
-    // ==========================================================================
 
     @Nested
     @DisplayName("Edge Cases")

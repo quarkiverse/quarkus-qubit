@@ -39,9 +39,7 @@ class TypeConversionHandlerTest {
         context = contextFor(testMethod, 0);
     }
 
-    // ========================================================================
     // canHandle() Tests
-    // ========================================================================
 
     @Nested
     class CanHandleTests {
@@ -66,9 +64,7 @@ class TypeConversionHandlerTest {
         }
     }
 
-    // ========================================================================
     // Type Conversion Tests (Parameterized)
-    // ========================================================================
 
     @Nested
     class TypeConversionTests {
@@ -98,9 +94,7 @@ class TypeConversionHandlerTest {
         }
     }
 
-    // ========================================================================
     // Edge Cases and Error Handling
-    // ========================================================================
 
     @Nested
     class EdgeCaseTests {
@@ -184,9 +178,7 @@ class TypeConversionHandlerTest {
         }
     }
 
-    // ========================================================================
     // Test Data Providers
-    // ========================================================================
 
     static Stream<Arguments> typeConversionOpcodes() {
         return Stream.of(

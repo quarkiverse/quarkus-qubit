@@ -38,8 +38,6 @@ public final class SubqueryBuilder<T> {
         this.entityClass = entityClass;
     }
 
-    // ========== Filtering ==========
-
     /**
      * Adds a filtering predicate to the subquery (WHERE clause).
      * <p>
@@ -53,8 +51,6 @@ public final class SubqueryBuilder<T> {
                 "SubqueryBuilder.where() should never be called at runtime. " +
                         "This method exists only for bytecode analysis at build time.");
     }
-
-    // ========== Scalar Aggregation Subqueries ==========
 
     /**
      * Returns the average of a numeric field. Generates: {@code SELECT AVG(field) FROM Entity}
@@ -131,8 +127,6 @@ public final class SubqueryBuilder<T> {
                         "This method exists only for bytecode analysis at build time.");
     }
 
-    // ========== Exists Subqueries ==========
-
     /**
      * Returns true if any entity matches the predicate. Generates: {@code EXISTS (SELECT 1 FROM Entity WHERE predicate)}
      *
@@ -156,8 +150,6 @@ public final class SubqueryBuilder<T> {
                 "SubqueryBuilder.notExists() should never be called at runtime. " +
                         "This method exists only for bytecode analysis at build time.");
     }
-
-    // ========== In Subqueries ==========
 
     /**
      * Returns true if the field value is in the subquery results.
@@ -219,8 +211,6 @@ public final class SubqueryBuilder<T> {
                 "SubqueryBuilder.notIn() should never be called at runtime. " +
                         "This method exists only for bytecode analysis at build time.");
     }
-
-    // ========== Package-Private Accessors ==========
 
     /**
      * Returns the entity class for this subquery builder.

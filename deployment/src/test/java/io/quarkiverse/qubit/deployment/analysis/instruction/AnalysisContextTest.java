@@ -40,8 +40,6 @@ class AnalysisContextTest {
         context = new AnalysisContext(testMethod, 0);
     }
 
-    // ==================== Stack Operations Tests ====================
-
     @Nested
     @DisplayName("Stack operations")
     class StackOperationsTests {
@@ -170,8 +168,6 @@ class AnalysisContextTest {
         }
     }
 
-    // ==================== Entity Parameter Tests ====================
-
     @Nested
     @DisplayName("isEntityParameter")
     class IsEntityParameterTests {
@@ -223,8 +219,6 @@ class AnalysisContextTest {
         }
     }
 
-    // ==================== Entity Position Tests ====================
-
     @Nested
     @DisplayName("getEntityPosition")
     class GetEntityPositionTests {
@@ -265,8 +259,6 @@ class AnalysisContextTest {
             assertThat(context.getEntityPosition(2)).isNull();
         }
     }
-
-    // ==================== Variable Name Lookup Tests ====================
 
     @Nested
     @DisplayName("getVariableNameForSlot")
@@ -320,8 +312,6 @@ class AnalysisContextTest {
             assertThat(context.getVariableNameForSlot(3)).isNull();
         }
     }
-
-    // ==================== Array Creation Tracking Tests ====================
 
     @Nested
     @DisplayName("Array creation tracking")
@@ -393,8 +383,6 @@ class AnalysisContextTest {
             assertThat(context.isInArrayCreation()).isFalse();
         }
     }
-
-    // ==================== Find Method Tests ====================
 
     @Nested
     @DisplayName("findMethod")
@@ -485,8 +473,6 @@ class AnalysisContextTest {
         }
     }
 
-    // ==================== Control Flow Tests ====================
-
     @Nested
     @DisplayName("Control flow")
     class ControlFlowTests {
@@ -522,8 +508,6 @@ class AnalysisContextTest {
             assertThat(context.getBranchCoordinator()).isNotNull();
         }
     }
-
-    // ==================== Constructor Variations Tests ====================
 
     @Nested
     @DisplayName("Constructor variations")
@@ -571,8 +555,6 @@ class AnalysisContextTest {
         }
     }
 
-    // ==================== Instruction Access Tests ====================
-
     @Nested
     @DisplayName("Instruction access")
     class InstructionAccessTests {
@@ -605,8 +587,6 @@ class AnalysisContextTest {
         }
     }
 
-    // ==================== Analyze Nested Lambda Tests ====================
-
     @Nested
     @DisplayName("analyzeNestedLambda")
     class AnalyzeNestedLambdaTests {
@@ -635,8 +615,6 @@ class AnalysisContextTest {
             assertThat(result).isSameAs(expectedResult);
         }
     }
-
-    // ==================== Nested Lambda Support Record Tests ====================
 
     @Nested
     @DisplayName("NestedLambdaSupport")

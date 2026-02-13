@@ -32,8 +32,6 @@ import io.quarkiverse.qubit.SortDirection;
  */
 public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
 
-    // ========== State Fields ==========
-
     /**
      * The source entity class being queried.
      */
@@ -90,8 +88,6 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
      */
     private final boolean distinct;
 
-    // ========== Constructors ==========
-
     /**
      * Creates a new JoinStream for the given source entity and relationship.
      */
@@ -138,8 +134,6 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         this.distinct = distinct;
     }
 
-    // ========== Join Conditions ==========
-
     @Override
     public JoinStream<T, R> on(BiQuerySpec<T, R, Boolean> condition) {
         requireNonNullLambda(condition, "Condition", "on");
@@ -148,8 +142,6 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         return new JoinStreamImpl<>(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
                 newOnConditions, biPredicates, sourcePredicates, sortOrders, offset, limit, distinct);
     }
-
-    // ========== Filtering ==========
 
     @Override
     public JoinStream<T, R> where(BiQuerySpec<T, R, Boolean> predicate) {
@@ -168,8 +160,6 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         return new JoinStreamImpl<>(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
                 onConditions, biPredicates, newSourcePredicates, sortOrders, offset, limit, distinct);
     }
-
-    // ========== Projection ==========
 
     @Override
     public <S> QubitStream<S> select(BiQuerySpec<T, R, S> mapper) {
@@ -206,8 +196,6 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         return new ImmutableResultStream<>(results, "selectJoined projection");
     }
 
-    // ========== Sorting ==========
-
     @Override
     public <K extends Comparable<K>> JoinStream<T, R> sortedBy(BiQuerySpec<T, R, K> keyExtractor) {
         requireNonNullLambda(keyExtractor, "Key extractor", "sortedBy");
@@ -226,8 +214,6 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
                 onConditions, biPredicates, sourcePredicates, newSortOrders, offset, limit, distinct);
     }
 
-    // ========== Pagination ==========
-
     @Override
     public JoinStream<T, R> skip(int n) {
         return new JoinStreamImpl<>(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
@@ -240,15 +226,11 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
                 onConditions, biPredicates, sourcePredicates, sortOrders, offset, validateLimitCount(n), distinct);
     }
 
-    // ========== Distinct ==========
-
     @Override
     public JoinStream<T, R> distinct() {
         return new JoinStreamImpl<>(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
                 onConditions, biPredicates, sourcePredicates, sortOrders, offset, limit, true);
     }
-
-    // ========== Terminal Operations ==========
 
     @Override
     public List<T> toList() {
@@ -287,8 +269,6 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
     public boolean exists() {
         return count() > 0;
     }
-
-    // ========== Internal Helper Methods ==========
 
     /**
      * Returns the primary lambda for call site ID uniqueness.
@@ -357,15 +337,11 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         return allCapturedValues.toArray(new Object[0]);
     }
 
-    // ========== Internal Classes ==========
-
     /**
      * Represents a bi-entity sort order specification.
      */
     private record BiSortOrder<T, R>(BiQuerySpec<T, R, ?> keyExtractor, SortDirection direction) {
     }
-
-    // ========== Getters for Build-Time Analysis ==========
 
     public Class<T> getSourceEntityClass() {
         return sourceEntityClass;

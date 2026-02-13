@@ -23,14 +23,10 @@ public final class BranchStateFixtures {
     private BranchStateFixtures() {
     }
 
-    // ==================== Initial State ====================
-
     /** Creates a fresh Initial state. */
     public static BranchState.Initial initialState() {
         return new BranchState.Initial();
     }
-
-    // ==================== AndMode States ====================
 
     /** AndMode with no previous jump target. */
     public static BranchState.AndMode andModeNoJump() {
@@ -52,8 +48,6 @@ public final class BranchStateFixtures {
         return new BranchState.AndMode(Optional.of(false), true);
     }
 
-    // ==================== OrMode States ====================
-
     /** OrMode with no previous jump target. */
     public static BranchState.OrMode orModeNoJump() {
         return new BranchState.OrMode(Optional.empty(), false);
@@ -73,8 +67,6 @@ public final class BranchStateFixtures {
     public static BranchState.OrMode orModeEnteredFromAndGroup() {
         return new BranchState.OrMode(Optional.of(true), true);
     }
-
-    // ==================== Custom Builder ====================
 
     /** Builder for custom BranchState configurations. */
     public static AndModeBuilder andMode() {

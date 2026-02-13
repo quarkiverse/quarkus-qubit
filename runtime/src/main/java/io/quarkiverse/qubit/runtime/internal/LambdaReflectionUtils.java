@@ -34,8 +34,6 @@ public final class LambdaReflectionUtils {
         // Utility class - no instantiation
     }
 
-    // ========== Lambda Validation Utilities ==========
-
     /** Validates lambda is not null, returns it for inline usage. */
     public static <T> T requireNonNullLambda(T lambda, String paramName, String methodName) {
         if (lambda == null) {
@@ -209,8 +207,6 @@ public final class LambdaReflectionUtils {
         return "unknown";
     }
 
-    // ========== CDI Lookup Utilities ==========
-
     /** Cached registry (Issue #17 fix: prevents InstanceHandle leaks). */
     private static final AtomicReference<QueryExecutorRegistry> CACHED_REGISTRY = new AtomicReference<>();
 
@@ -272,8 +268,6 @@ public final class LambdaReflectionUtils {
         CACHED_REGISTRY.set(null);
     }
 
-    // ========== Captured Variable Extraction Utilities ==========
-
     /** Extracts captured variables from lambda list with per-lambda validation. */
     public static int extractFromLambdas(List<?> lambdas, String lambdaType, String callSiteId,
             List<Object> destination, int remainingCount) {
@@ -307,8 +301,6 @@ public final class LambdaReflectionUtils {
         return remainingCount;
     }
 
-    // ========== Pagination Validation Utilities ==========
-
     /** Validates skip count is non-negative, returns it. */
     public static int validateSkipCount(int n) {
         if (n < 0) {
@@ -324,8 +316,6 @@ public final class LambdaReflectionUtils {
         }
         return n;
     }
-
-    // ========== Single Result Validation Utilities ==========
 
     /** Returns single result or throws NoResultException/NonUniqueResultException. */
     public static <T> T requireSingleResult(List<T> results) {

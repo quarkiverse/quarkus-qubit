@@ -19,9 +19,7 @@ class QueryExecutionPlanTest {
     private static final String TEST_ENTITY_CLASS = "com.example.Person";
     private static final String TEST_TERMINAL_METHOD = "toList";
 
-    // ========================================================================
     // Record Constructor Tests
-    // ========================================================================
 
     @Nested
     class RecordTests {
@@ -57,9 +55,7 @@ class QueryExecutionPlanTest {
         }
     }
 
-    // ========================================================================
     // Builder Tests
-    // ========================================================================
 
     @Nested
     class BuilderTests {

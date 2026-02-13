@@ -17,12 +17,8 @@ import java.util.List;
  */
 public interface GroupStream<T, K> {
 
-    // ========== Having Clause ==========
-
     /** Filters groups based on aggregate conditions (SQL HAVING). Multiple calls combine with AND. */
     GroupStream<T, K> having(GroupQuerySpec<T, K, Boolean> condition);
-
-    // ========== Projection ==========
 
     /** Projects each group to a new type using {@link Group} methods: key(), count(), avg(), sum*(), min(), max(). */
     <R> QubitStream<R> select(GroupQuerySpec<T, K, R> mapper);
@@ -30,15 +26,11 @@ public interface GroupStream<T, K> {
     /** Selects only the grouping keys. */
     QubitStream<K> selectKey();
 
-    // ========== Sorting ==========
-
     /** Sorts groups ascending by key or aggregate values. */
     <C extends Comparable<C>> GroupStream<T, K> sortedBy(GroupQuerySpec<T, K, C> keyExtractor);
 
     /** Sorts groups descending by key or aggregate values. */
     <C extends Comparable<C>> GroupStream<T, K> sortedDescendingBy(GroupQuerySpec<T, K, C> keyExtractor);
-
-    // ========== Pagination ==========
 
     /**
      * Skips the first {@code n} groups (SQL OFFSET).
@@ -53,8 +45,6 @@ public interface GroupStream<T, K> {
      * @throws IllegalArgumentException if {@code n < 0}
      */
     GroupStream<T, K> limit(int n);
-
-    // ========== Terminal Operations ==========
 
     /** Executes query and returns all grouping keys. Equivalent to {@code .selectKey().toList()}. */
     List<K> toList();

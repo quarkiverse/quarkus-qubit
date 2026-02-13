@@ -29,9 +29,7 @@ import net.jqwik.api.*;
  */
 class AstFactoryMethodPropertyTest {
 
-    // ======================================================================
     // BinaryOp Factory Method Properties
-    // ======================================================================
 
     @Property
     @Label("BinaryOp.eq(): equivalent to constructor with EQ operator")
@@ -179,9 +177,7 @@ class AstFactoryMethodPropertyTest {
         assertThat(fromFactory).isEqualTo(fromConstructor);
     }
 
-    // ======================================================================
     // UnaryOp Factory Method Properties
-    // ======================================================================
 
     @Property
     @Label("UnaryOp.not(): equivalent to constructor with NOT operator")
@@ -195,9 +191,7 @@ class AstFactoryMethodPropertyTest {
                 .isEqualTo(fromConstructor);
     }
 
-    // ======================================================================
     // InExpression Factory Method Properties
-    // ======================================================================
 
     @Property
     @Label("InExpression.in(): creates non-negated IN expression")
@@ -235,9 +229,7 @@ class AstFactoryMethodPropertyTest {
                 .isSameAs(collection);
     }
 
-    // ======================================================================
     // BinaryOp Operator Symbol Properties
-    // ======================================================================
 
     @Property
     @Label("BinaryOp.Operator: all operators have non-empty symbols")
@@ -259,9 +251,7 @@ class AstFactoryMethodPropertyTest {
         }
     }
 
-    // ======================================================================
     // Record Validation Properties
-    // ======================================================================
 
     @Property
     @Label("CapturedVariable: rejects negative index")
@@ -288,9 +278,7 @@ class AstFactoryMethodPropertyTest {
                 .isInstanceOf(NullPointerException.class);
     }
 
-    // ======================================================================
     // Arbitrary Providers
-    // ======================================================================
 
     @Provide
     Arbitrary<LambdaExpression> leafExpressions() {

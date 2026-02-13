@@ -35,8 +35,6 @@ public abstract class AbstractJoinQueryTest {
         TestDataFactory.createPersonsWithPhones();
     }
 
-    // ========== BASIC JOIN QUERIES ==========
-
     @Test
     void basicJoinReturnsAllPersonsWithPhones() {
         var results = personOps().join((Person p) -> p.phones)
@@ -85,8 +83,6 @@ public abstract class AbstractJoinQueryTest {
                 .containsExactly("Bob");
     }
 
-    // ========== JOIN WITH CAPTURED VARIABLES ==========
-
     @Test
     void joinWithCapturedVariable() {
         String phoneType = "mobile";
@@ -112,8 +108,6 @@ public abstract class AbstractJoinQueryTest {
                 .extracting(p -> p.firstName)
                 .containsExactly("John");
     }
-
-    // ========== JOIN WITH PREDICATE ON SOURCE ENTITY ==========
 
     @Test
     void joinWithWhereOnSourceEntity() {
@@ -142,8 +136,6 @@ public abstract class AbstractJoinQueryTest {
                 .containsExactlyInAnyOrder("John", "Bob", "Alice");
     }
 
-    // ========== JOIN WITH MULTIPLE PREDICATES ==========
-
     @Test
     void joinWithMultipleWhereClausesOnJoinedEntity() {
         var results = personOps().join((Person p) -> p.phones)
@@ -157,8 +149,6 @@ public abstract class AbstractJoinQueryTest {
                 .extracting(p -> p.firstName)
                 .containsExactly("John");
     }
-
-    // ========== JOIN COUNT/EXISTS ==========
 
     @Test
     void joinCount() {
@@ -187,8 +177,6 @@ public abstract class AbstractJoinQueryTest {
         assertThat(exists).isFalse();
     }
 
-    // ========== JOIN WITH PAGINATION ==========
-
     @Test
     void joinWithLimit() {
         var results = personOps().join((Person p) -> p.phones)
@@ -210,8 +198,6 @@ public abstract class AbstractJoinQueryTest {
         assertThat(results).hasSize(2);
     }
 
-    // ========== JOIN WITH DISTINCT ==========
-
     @Test
     void joinDistinctWithEntities() {
         var results = personOps().join((Person p) -> p.phones)
@@ -227,8 +213,6 @@ public abstract class AbstractJoinQueryTest {
         long count = personOps().join((Person p) -> p.phones).count();
         assertThat(count).isEqualTo(9);
     }
-
-    // ========== JOIN WITH STRING METHODS ==========
 
     @Test
     void joinWithStartsWith() {
@@ -256,8 +240,6 @@ public abstract class AbstractJoinQueryTest {
                 .containsExactlyInAnyOrder("John", "Jane", "Bob", "Alice");
     }
 
-    // ========== JOIN WITH PRIMARY PHONE ==========
-
     @Test
     void joinWithPrimaryPhone() {
         var results = personOps().join((Person p) -> p.phones)
@@ -280,8 +262,6 @@ public abstract class AbstractJoinQueryTest {
                 .extracting(p -> p.firstName)
                 .containsExactlyInAnyOrder("John", "Bob", "Alice");
     }
-
-    // ========== SELECT JOINED ==========
 
     @Test
     void selectJoinedReturnsPhones() {
@@ -341,8 +321,6 @@ public abstract class AbstractJoinQueryTest {
         assertThat(phones).hasSize(9);
     }
 
-    // ========== JOIN PROJECTION ==========
-
     @Test
     void selectWithBiQuerySpecReturnsProjectedDTO() {
         var results = personOps().join((Person p) -> p.phones)
@@ -396,8 +374,6 @@ public abstract class AbstractJoinQueryTest {
                 .hasSize(3)
                 .allMatch(n -> n instanceof String);
     }
-
-    // ========== LEFT JOIN ==========
 
     @Test
     void leftJoinBasic() {
@@ -496,8 +472,6 @@ public abstract class AbstractJoinQueryTest {
 
         assertThat(exists).isFalse();
     }
-
-    // ========== DTO GETTER COVERAGE ==========
 
     @Test
     void personPhoneDTO_gettersReturnCorrectValues() {

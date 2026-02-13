@@ -29,8 +29,6 @@ class MethodScanStateTest {
         state = new MethodScanState();
     }
 
-    // ==================== Initial State Tests ====================
-
     @Nested
     @DisplayName("Initial State")
     class InitialStateTests {
@@ -78,8 +76,6 @@ class MethodScanStateTest {
         }
     }
 
-    // ==================== Lambda Management Tests ====================
-
     @Nested
     @DisplayName("Lambda Management")
     class LambdaManagementTests {
@@ -118,8 +114,6 @@ class MethodScanStateTest {
         }
     }
 
-    // ==================== Aggregation Tests ====================
-
     @Nested
     @DisplayName("Aggregation State")
     class AggregationStateTests {
@@ -142,8 +136,6 @@ class MethodScanStateTest {
             assertThat(state.pendingAggregation().aggregationMethod()).isEqualTo("max");
         }
     }
-
-    // ==================== Join State Tests ====================
 
     @Nested
     @DisplayName("Join State")
@@ -184,8 +176,6 @@ class MethodScanStateTest {
         }
     }
 
-    // ==================== Group State Tests ====================
-
     @Nested
     @DisplayName("Group State")
     class GroupStateTests {
@@ -217,8 +207,6 @@ class MethodScanStateTest {
             assertThat(state.effectiveLine()).isEqualTo(80);
         }
     }
-
-    // ==================== Pagination State Tests ====================
 
     @Nested
     @DisplayName("Pagination State")
@@ -257,8 +245,6 @@ class MethodScanStateTest {
             assertThat(state.skipValue()).isNull();
         }
     }
-
-    // ==================== Line Number Tests ====================
 
     @Nested
     @DisplayName("Line Number Tracking")
@@ -321,8 +307,6 @@ class MethodScanStateTest {
             assertThat(state.effectiveLine()).isEqualTo(75);
         }
     }
-
-    // ==================== Reset Tests ====================
 
     @Nested
     @DisplayName("Reset")
@@ -393,8 +377,6 @@ class MethodScanStateTest {
         }
     }
 
-    // ==================== PendingLambda Record Tests ====================
-
     @Nested
     @DisplayName("PendingLambda Record")
     class PendingLambdaTests {
@@ -426,8 +408,6 @@ class MethodScanStateTest {
             assertThat(lambda.isGroupSpec()).isFalse();
         }
     }
-
-    // ==================== Complex Scenario Tests ====================
 
     @Nested
     @DisplayName("Complex Scenarios")

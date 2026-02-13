@@ -61,8 +61,6 @@ import io.quarkus.hibernate.orm.panache.PanacheEntity;
 @MappedSuperclass
 public abstract class QubitEntity extends PanacheEntity {
 
-    // ========== Query Entry Points ==========
-
     /**
      * Creates a query filtered by the given predicate.
      * <p>
@@ -199,8 +197,6 @@ public abstract class QubitEntity extends PanacheEntity {
                         "Did you forget to annotate your entity with @Entity? " +
                         "Or is the Qubit build-time processor not properly configured?");
     }
-
-    // ========== Aggregation Operations ==========
 
     /**
      * Prepares a minimum value aggregation query.
@@ -402,8 +398,6 @@ public abstract class QubitEntity extends PanacheEntity {
                         "Or is the Qubit build-time processor not properly configured?");
     }
 
-    // ========== Join Operations ==========
-
     /**
      * Creates an inner join query with a related entity collection.
      * <p>
@@ -480,8 +474,6 @@ public abstract class QubitEntity extends PanacheEntity {
                         "Did you forget to annotate your entity with @Entity? " +
                         "Or is the Qubit build-time processor not properly configured?");
     }
-
-    // ========== Grouping Operations ==========
 
     /**
      * Creates a GROUP BY query grouped by the specified key extractor.

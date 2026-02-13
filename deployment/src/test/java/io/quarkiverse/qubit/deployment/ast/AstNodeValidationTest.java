@@ -22,8 +22,6 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.*;
  */
 class AstNodeValidationTest {
 
-    // ==================== FieldAccess Validation ====================
-
     @Nested
     class FieldAccessValidationTests {
 
@@ -54,8 +52,6 @@ class AstNodeValidationTest {
             assertThat(access.getFieldName()).isPresent().contains("firstName");
         }
     }
-
-    // ==================== MethodCall Validation ====================
 
     @Nested
     class MethodCallValidationTests {
@@ -101,8 +97,6 @@ class AstNodeValidationTest {
         }
     }
 
-    // ==================== Constant Validation ====================
-
     @Nested
     class ConstantValidationTests {
 
@@ -134,8 +128,6 @@ class AstNodeValidationTest {
         }
     }
 
-    // ==================== Parameter Validation ====================
-
     @Nested
     class ParameterValidationTests {
 
@@ -161,8 +153,6 @@ class AstNodeValidationTest {
             assertThat(param.index()).isZero();
         }
     }
-
-    // ==================== CapturedVariable Validation ====================
 
     @Nested
     class CapturedVariableValidationTests {
@@ -196,8 +186,6 @@ class AstNodeValidationTest {
         }
     }
 
-    // ==================== NullLiteral Validation ====================
-
     @Nested
     class NullLiteralValidationTests {
 
@@ -214,8 +202,6 @@ class AstNodeValidationTest {
             assertThat(literal.expectedType()).isEqualTo(String.class);
         }
     }
-
-    // ==================== Cast Validation ====================
 
     @Nested
     class CastValidationTests {
@@ -241,8 +227,6 @@ class AstNodeValidationTest {
         }
     }
 
-    // ==================== InstanceOf Validation ====================
-
     @Nested
     class InstanceOfValidationTests {
 
@@ -266,8 +250,6 @@ class AstNodeValidationTest {
             assertThat(check.targetType()).isEqualTo(Number.class);
         }
     }
-
-    // ==================== Conditional Validation ====================
 
     @Nested
     class ConditionalValidationTests {
@@ -299,8 +281,6 @@ class AstNodeValidationTest {
             assertThat(cond.condition()).isEqualTo(Constant.TRUE);
         }
     }
-
-    // ==================== ConstructorCall Validation ====================
 
     @Nested
     class ConstructorCallValidationTests {
@@ -338,8 +318,6 @@ class AstNodeValidationTest {
                     .isInstanceOf(UnsupportedOperationException.class);
         }
     }
-
-    // ==================== ArrayCreation Validation ====================
 
     @Nested
     class ArrayCreationValidationTests {
@@ -381,8 +359,6 @@ class AstNodeValidationTest {
             assertThat(array.isObjectArray()).isFalse();
         }
     }
-
-    // ==================== PathSegment Validation ====================
 
     @Nested
     class PathSegmentValidationTests {
@@ -441,8 +417,6 @@ class AstNodeValidationTest {
         }
     }
 
-    // ==================== SegmentBasedPath Validation ====================
-
     @Nested
     class SegmentBasedPathValidationTests {
 
@@ -478,8 +452,6 @@ class AstNodeValidationTest {
                     .isInstanceOf(UnsupportedOperationException.class);
         }
     }
-
-    // ==================== PathExpression Validation ====================
 
     @Nested
     class PathExpressionValidationTests {
@@ -569,8 +541,6 @@ class AstNodeValidationTest {
         // is dead code - an EQUIVALENT MUTATION that cannot be killed.
     }
 
-    // ==================== InExpression Validation ====================
-
     @Nested
     class InExpressionValidationTests {
 
@@ -601,8 +571,6 @@ class AstNodeValidationTest {
         }
     }
 
-    // ==================== MemberOfExpression Validation ====================
-
     @Nested
     class MemberOfExpressionValidationTests {
 
@@ -632,8 +600,6 @@ class AstNodeValidationTest {
             assertThat(expr.negated()).isTrue();
         }
     }
-
-    // ==================== BiEntityParameter Validation ====================
 
     @Nested
     class BiEntityParameterValidationTests {
@@ -673,8 +639,6 @@ class AstNodeValidationTest {
             assertThat(param.isFirstEntity()).isFalse();
         }
     }
-
-    // ==================== BiEntityFieldAccess Validation ====================
 
     @Nested
     class BiEntityFieldAccessValidationTests {
@@ -730,8 +694,6 @@ class AstNodeValidationTest {
             assertThat(access.getFieldName()).isPresent().contains("phone");
         }
     }
-
-    // ==================== BiEntityPathExpression Validation ====================
 
     @Nested
     class BiEntityPathExpressionValidationTests {
@@ -822,8 +784,6 @@ class AstNodeValidationTest {
         // removed from getFieldName() - it now directly accesses segments.getFirst().
     }
 
-    // ==================== GroupKeyReference Validation ====================
-
     @Nested
     class GroupKeyReferenceValidationTests {
 
@@ -847,8 +807,6 @@ class AstNodeValidationTest {
             assertThat(ref.resultType()).isEqualTo(String.class);
         }
     }
-
-    // ==================== GroupAggregation Validation ====================
 
     @Nested
     class GroupAggregationValidationTests {
@@ -893,8 +851,6 @@ class AstNodeValidationTest {
         }
     }
 
-    // ==================== GroupParameter Validation ====================
-
     @Nested
     class GroupParameterValidationTests {
 
@@ -926,8 +882,6 @@ class AstNodeValidationTest {
                     .hasMessageContaining("Key type cannot be null");
         }
     }
-
-    // ==================== SubqueryBuilderReference Validation ====================
 
     @Nested
     class SubqueryBuilderReferenceValidationTests {
@@ -984,8 +938,6 @@ class AstNodeValidationTest {
                     .hasMessageContaining("New predicate cannot be null");
         }
     }
-
-    // ==================== ScalarSubquery Validation ====================
 
     @Nested
     class ScalarSubqueryValidationTests {
@@ -1089,8 +1041,6 @@ class AstNodeValidationTest {
         }
     }
 
-    // ==================== ExistsSubquery Validation ====================
-
     @Nested
     class ExistsSubqueryValidationTests {
 
@@ -1120,8 +1070,6 @@ class AstNodeValidationTest {
             assertThat(sub.negated()).isTrue();
         }
     }
-
-    // ==================== InSubquery Validation ====================
 
     @Nested
     class InSubqueryValidationTests {
@@ -1176,8 +1124,6 @@ class AstNodeValidationTest {
         }
     }
 
-    // ==================== CorrelatedVariable Validation ====================
-
     @Nested
     class CorrelatedVariableValidationTests {
 
@@ -1202,8 +1148,6 @@ class AstNodeValidationTest {
             assertThat(var.outerEntityType()).isEqualTo(Object.class);
         }
     }
-
-    // ==================== BinaryOp Factory Methods ====================
 
     /** Test data for BinaryOp factory methods. */
     static Stream<Arguments> binaryOpFactoryMethods() {
@@ -1253,8 +1197,6 @@ class AstNodeValidationTest {
         }
     }
 
-    // ==================== UnaryOp Factory Methods ====================
-
     @Nested
     class UnaryOpFactoryMethodTests {
 
@@ -1269,8 +1211,6 @@ class AstNodeValidationTest {
             assertThat(UnaryOp.Operator.NOT.symbol()).isEqualTo("!");
         }
     }
-
-    // ==================== getFieldName Default Behavior ====================
 
     @Nested
     class GetFieldNameDefaultBehaviorTests {

@@ -30,8 +30,6 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
  */
 class ComparisonOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
 
-    // ==================== PARAMETERIZED TEST DATA ====================
-
     /**
      * Test data for simple binary comparison operations.
      * Each entry: methodName, expectedOperator, expectedFieldName, expectedConstant
@@ -107,8 +105,6 @@ class ComparisonOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
                 Arguments.of("bigDecimalRangeQuery", LambdaExpression.BinaryOp.Operator.GE,
                         LambdaExpression.BinaryOp.Operator.LE));
     }
-
-    // ==================== PARAMETERIZED TESTS ====================
 
     @ParameterizedTest(name = "{0}: field {2} {1} {3}")
     @MethodSource("simpleBinaryComparisons")
@@ -197,7 +193,6 @@ class ComparisonOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         assertBinaryOp(andOp.right(), expectedRightOperator);
     }
 
-    // ==================== BOXED INTEGER FIELD-TO-FIELD COMPARISONS ====================
     // These tests reproduce the JFR-documented stack underflow bug where
     // comparing two boxed Integer fields triggers Integer.intValue() unboxing.
     // Bytecode pattern:

@@ -63,8 +63,6 @@ public class FluentApiTestSources {
         public double price;
     }
 
-    // ==================== BASIC WHERE QUERIES ====================
-
     /**
      * Simple where with toList terminal.
      * Pattern: where(lambda).toList()
@@ -99,8 +97,6 @@ public class FluentApiTestSources {
                 .toList();
     }
 
-    // ==================== SELECT PROJECTION QUERIES ====================
-
     /**
      * Simple select projection.
      * Pattern: select(lambda).toList()
@@ -118,8 +114,6 @@ public class FluentApiTestSources {
                 .select((TestEmployee e) -> e.name)
                 .toList();
     }
-
-    // ==================== SORTING QUERIES ====================
 
     /**
      * Sorted by ascending.
@@ -146,8 +140,6 @@ public class FluentApiTestSources {
                 .sortedBy((TestEmployee e) -> e.name)
                 .toList();
     }
-
-    // ==================== AGGREGATION QUERIES ====================
 
     /**
      * Min aggregation.
@@ -191,8 +183,6 @@ public class FluentApiTestSources {
                 .getSingleResult();
     }
 
-    // ==================== PAGINATION QUERIES ====================
-
     /**
      * Skip and limit query (pagination).
      * Pattern: where(lambda).skip(10).limit(10).toList()
@@ -214,8 +204,6 @@ public class FluentApiTestSources {
                 .toList();
     }
 
-    // ==================== SINGLE RESULT QUERIES ====================
-
     /**
      * Get single result.
      * Pattern: where(lambda).getSingleResult()
@@ -233,8 +221,6 @@ public class FluentApiTestSources {
         return TestEmployee.where((TestEmployee e) -> e.age > 50)
                 .findFirst();
     }
-
-    // ==================== COMPLEX COMBINATIONS ====================
 
     /**
      * Complex query with multiple clauses.

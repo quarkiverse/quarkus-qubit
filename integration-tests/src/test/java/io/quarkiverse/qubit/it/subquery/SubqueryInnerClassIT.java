@@ -66,7 +66,6 @@ class SubqueryInnerClassIT {
     @DisplayName("AVG subquery with inner entity class")
     @Transactional
     void avgSubqueryWithInnerEntityClass() {
-        // Average salary: (90000 + 75000 + 60000 + 85000 + 55000) / 5 = 73000
         // Above average: Alice (90000), Bob (75000), Diana (85000)
 
         List<TestPerson> aboveAvg = TestPerson.where(
@@ -97,7 +96,6 @@ class SubqueryInnerClassIT {
     @Transactional
     void filteredAvgSubqueryWithInnerEntityClass() {
         // Active employees: Alice (90000), Bob (75000), Diana (85000)
-        // Active average: (90000 + 75000 + 85000) / 3 = 83333.33
         // Active above active average: Alice (90000), Diana (85000)
 
         List<TestPerson> activeAboveActiveAvg = TestPerson.where(

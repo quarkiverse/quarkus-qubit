@@ -64,9 +64,7 @@ class CapturedVariableCoverageTest {
         return CapturedVariableHelper.countCapturedVariables(expression);
     }
 
-    // ========================================================================
     // Tests for Cast Expression (Missing Coverage)
-    // ========================================================================
 
     @Test
     void testCastExpression_withCapturedVariable_missesVariable() {
@@ -113,9 +111,7 @@ class CapturedVariableCoverageTest {
                 .isZero();
     }
 
-    // ========================================================================
     // Tests for InstanceOf Expression (Missing Coverage)
-    // ========================================================================
 
     @Test
     void testInstanceOfExpression_withCapturedVariable_missesVariable() {
@@ -162,9 +158,7 @@ class CapturedVariableCoverageTest {
                 .isZero();
     }
 
-    // ========================================================================
     // Tests for Conditional Expression (Missing Coverage)
-    // ========================================================================
 
     @Test
     void testConditionalExpression_withCapturedVariableInCondition_missesVariable() {
@@ -249,9 +243,7 @@ class CapturedVariableCoverageTest {
                 .isZero();
     }
 
-    // ========================================================================
     // Baseline Tests (Verify that supported types DO detect variables)
-    // ========================================================================
 
     @Test
     void testSupportedTypes_detectCapturedVariables() {

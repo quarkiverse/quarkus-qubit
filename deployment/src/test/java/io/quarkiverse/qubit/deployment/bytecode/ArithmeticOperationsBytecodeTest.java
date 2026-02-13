@@ -19,8 +19,6 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
  */
 class ArithmeticOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
 
-    // ==================== PARAMETERIZED TEST DATA ====================
-
     /**
      * Test data for arithmetic operations with comparison.
      * Each entry: lambdaMethodName, comparisonOp, arithmeticOp, fieldName, arithmeticOperand, comparisonConstant
@@ -72,8 +70,6 @@ class ArithmeticOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
                         LambdaExpression.BinaryOp.Operator.DIV, "salary", 1000.0, 75.0));
     }
 
-    // ==================== PARAMETERIZED TESTS ====================
-
     @ParameterizedTest(name = "{0}: ({3} {2} {4}) {1} {5}")
     @MethodSource("arithmeticWithComparison")
     void arithmeticOperation(
@@ -99,8 +95,6 @@ class ArithmeticOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
         // Right: comparison constant
         assertConstant(compOp.right(), comparisonConstant);
     }
-
-    // ==================== FIELD-FIELD ARITHMETIC ====================
 
     @Test
     void longFieldFieldAddition() {

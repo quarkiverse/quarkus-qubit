@@ -23,8 +23,6 @@ import org.junit.jupiter.params.provider.ValueSource;
  */
 class FluentMethodTypeTest {
 
-    // ==================== Parameterized Test Data ====================
-
     /** Method name to FluentMethodType mappings for lookup tests. */
     static Stream<Arguments> methodNameMappings() {
         return Stream.of(
@@ -54,8 +52,6 @@ class FluentMethodTypeTest {
                 Arguments.of(FluentMethodType.SUM_LONG, FluentMethodType.MethodCategory.AGGREGATION),
                 Arguments.of(FluentMethodType.SUM_DOUBLE, FluentMethodType.MethodCategory.AGGREGATION));
     }
-
-    // ========== fromMethodName Tests ==========
 
     @Nested
     @DisplayName("fromMethodName() lookup")
@@ -104,8 +100,6 @@ class FluentMethodTypeTest {
         }
     }
 
-    // ========== Category Tests ==========
-
     @Nested
     @DisplayName("Category and isAggregation()")
     class CategoryTests {
@@ -140,8 +134,6 @@ class FluentMethodTypeTest {
                     .isNotNull();
         }
     }
-
-    // ========== EnumSet Constants Tests ==========
 
     @Nested
     @DisplayName("EnumSet Constants")
@@ -202,8 +194,6 @@ class FluentMethodTypeTest {
         }
     }
 
-    // ========== MethodCategory Tests ==========
-
     @Nested
     @DisplayName("MethodCategory enum")
     class MethodCategoryTests {
@@ -237,8 +227,6 @@ class FluentMethodTypeTest {
             }
         }
     }
-
-    // ========== Method Name Tests ==========
 
     @Nested
     @DisplayName("getMethodName()")

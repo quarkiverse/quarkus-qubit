@@ -9,9 +9,7 @@ import org.junit.jupiter.api.Test;
  */
 class QueryCharacteristicsTest {
 
-    // ========================================================================
     // forList() Tests
-    // ========================================================================
 
     @Test
     void forList_allFlagsAreFalse() {
@@ -25,9 +23,7 @@ class QueryCharacteristicsTest {
         assertThat(result.isGroupQuery()).isFalse();
     }
 
-    // ========================================================================
     // forCount() Tests
-    // ========================================================================
 
     @Test
     void forCount_onlyCountQueryIsTrue() {
@@ -41,9 +37,7 @@ class QueryCharacteristicsTest {
         assertThat(result.isGroupQuery()).isFalse();
     }
 
-    // ========================================================================
     // forAggregation() Tests
-    // ========================================================================
 
     @Test
     void forAggregation_onlyAggregationQueryIsTrue() {
@@ -57,9 +51,7 @@ class QueryCharacteristicsTest {
         assertThat(result.isGroupQuery()).isFalse();
     }
 
-    // ========================================================================
     // forJoinList() Tests
-    // ========================================================================
 
     @Test
     void forJoinList_onlyJoinQueryIsTrue() {
@@ -73,9 +65,7 @@ class QueryCharacteristicsTest {
         assertThat(result.isGroupQuery()).isFalse();
     }
 
-    // ========================================================================
     // forJoinCount() Tests
-    // ========================================================================
 
     @Test
     void forJoinCount_countAndJoinQueryAreTrue() {
@@ -89,9 +79,7 @@ class QueryCharacteristicsTest {
         assertThat(result.isGroupQuery()).isFalse();
     }
 
-    // ========================================================================
     // forSelectJoined() Tests
-    // ========================================================================
 
     @Test
     void forSelectJoined_joinQueryAndSelectJoinedAreTrue() {
@@ -105,9 +93,7 @@ class QueryCharacteristicsTest {
         assertThat(result.isGroupQuery()).isFalse();
     }
 
-    // ========================================================================
     // forJoinProjection() Tests
-    // ========================================================================
 
     @Test
     void forJoinProjection_joinQueryAndJoinProjectionAreTrue() {
@@ -121,9 +107,7 @@ class QueryCharacteristicsTest {
         assertThat(result.isGroupQuery()).isFalse();
     }
 
-    // ========================================================================
     // forGroupList() Tests
-    // ========================================================================
 
     @Test
     void forGroupList_onlyGroupQueryIsTrue() {
@@ -137,9 +121,7 @@ class QueryCharacteristicsTest {
         assertThat(result.isGroupQuery()).isTrue();
     }
 
-    // ========================================================================
     // forGroupCount() Tests
-    // ========================================================================
 
     @Test
     void forGroupCount_countAndGroupQueryAreTrue() {

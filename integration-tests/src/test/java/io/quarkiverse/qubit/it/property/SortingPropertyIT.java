@@ -46,9 +46,7 @@ class SortingPropertyIT {
         TestDataFactory.createAdditionalPersons();
     }
 
-    // ======================================================================
     // Total Ordering Properties
-    // ======================================================================
 
     @Test
     @Transactional
@@ -98,9 +96,7 @@ class SortingPropertyIT {
         }
     }
 
-    // ======================================================================
     // Completeness Property (No Lost Elements)
-    // ======================================================================
 
     @Test
     @Transactional
@@ -125,9 +121,7 @@ class SortingPropertyIT {
                 .containsExactlyElementsOf(unsortedIds);
     }
 
-    // ======================================================================
     // Idempotence Property (Sort Twice = Sort Once)
-    // ======================================================================
 
     @Test
     @Transactional
@@ -143,9 +137,7 @@ class SortingPropertyIT {
                 .containsExactlyElementsOf(idsOnce);
     }
 
-    // ======================================================================
     // Reversal Property (Descending = Reverse of Ascending)
-    // ======================================================================
 
     @Test
     @Transactional
@@ -179,9 +171,7 @@ class SortingPropertyIT {
                 .containsExactlyElementsOf(reversedAscending);
     }
 
-    // ======================================================================
     // Sort with Filter Properties
-    // ======================================================================
 
     @Test
     @Transactional
@@ -209,9 +199,7 @@ class SortingPropertyIT {
                 .allMatch(p -> p.age > 25);
     }
 
-    // ======================================================================
     // Sort with Pagination Properties
-    // ======================================================================
 
     @ParameterizedTest(name = "skip({0}) maintains sort ordering")
     @ValueSource(ints = { 0, 1, 2, 3, 4 })
@@ -265,9 +253,7 @@ class SortingPropertyIT {
         }
     }
 
-    // ======================================================================
     // Sort with Projection Properties
-    // ======================================================================
 
     @Test
     @Transactional
@@ -311,9 +297,7 @@ class SortingPropertyIT {
         }
     }
 
-    // ======================================================================
     // Boundary Properties
-    // ======================================================================
 
     @Test
     @Transactional

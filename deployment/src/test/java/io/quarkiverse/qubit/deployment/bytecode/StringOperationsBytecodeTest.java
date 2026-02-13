@@ -21,8 +21,6 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
  */
 class StringOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
 
-    // ==================== PARAMETERIZED TEST DATA ====================
-
     /**
      * Test data for string predicate methods (startsWith, endsWith, contains).
      * Each entry: lambdaMethodName, expectedMethodName, expectedFieldName, expectedArgument
@@ -44,8 +42,6 @@ class StringOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
                 Arguments.of("stringToUpperCase", "toUpperCase", "firstName", "JANE"),
                 Arguments.of("stringTrim", "trim", "email", "david.miller@example.com"));
     }
-
-    // ==================== PARAMETERIZED TESTS ====================
 
     @ParameterizedTest(name = "{0}: {2}.{1}(\"{3}\")")
     @MethodSource("stringPredicateMethods")
@@ -76,8 +72,6 @@ class StringOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
 
         assertConstant(eqOp.right(), expectedConstant);
     }
-
-    // ==================== SPECIAL CASE TESTS ====================
 
     @Test
     void stringLength() {

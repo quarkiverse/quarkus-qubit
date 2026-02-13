@@ -42,8 +42,6 @@ class GroupMethodAnalyzerTest {
         context = new AnalysisContext(testMethod, 0);
     }
 
-    // ==================== isGroupMethodCall Tests ====================
-
     @Nested
     class IsGroupMethodCallTests {
 
@@ -77,8 +75,6 @@ class GroupMethodAnalyzerTest {
                     .isFalse();
         }
     }
-
-    // ==================== handleGroupKey Tests ====================
 
     @Nested
     class HandleGroupKeyTests {
@@ -119,8 +115,6 @@ class GroupMethodAnalyzerTest {
                     .isTrue();
         }
     }
-
-    // ==================== handleGroupCount Tests ====================
 
     @Nested
     class HandleGroupCountTests {
@@ -163,8 +157,6 @@ class GroupMethodAnalyzerTest {
                     .isTrue();
         }
     }
-
-    // ==================== handleGroupCountDistinct Tests ====================
 
     @Nested
     class HandleGroupCountDistinctTests {
@@ -224,8 +216,6 @@ class GroupMethodAnalyzerTest {
                     .isTrue();
         }
     }
-
-    // ==================== handleGroupAggregationWithField Tests (avg, sumInteger, sumLong, sumDouble) ====================
 
     @Nested
     class HandleGroupAggregationWithFieldTests {
@@ -319,8 +309,6 @@ class GroupMethodAnalyzerTest {
         }
     }
 
-    // ==================== handleGroupMinMax Tests ====================
-
     @Nested
     class HandleGroupMinMaxTests {
 
@@ -405,8 +393,6 @@ class GroupMethodAnalyzerTest {
         }
     }
 
-    // ==================== Unhandled Method Tests ====================
-
     @Nested
     class UnhandledMethodTests {
 
@@ -423,8 +409,6 @@ class GroupMethodAnalyzerTest {
                     .isEqualTo(1);
         }
     }
-
-    // ==================== Helper Methods ====================
 
     /**
      * Creates a Group interface method instruction.

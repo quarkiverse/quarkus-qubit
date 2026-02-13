@@ -33,8 +33,6 @@ class RelationshipNavigationIT extends AbstractRelationshipNavigationTest {
         return StaticTagQueryOperations.INSTANCE;
     }
 
-    // ========== COMBINED ENTITY QUERIES ==========
-
     @Test
     void queryAllEntityTypes() {
         var activePersons = Person.where((Person p) -> p.active).toList();
@@ -65,8 +63,6 @@ class RelationshipNavigationIT extends AbstractRelationshipNavigationTest {
         var coloredTags = Tag.where((Tag t) -> !t.color.equals("")).toList();
         assertThat(coloredTags).hasSizeGreaterThan(0);
     }
-
-    // ========== COLLECTION GETTER TESTS (for mutation coverage) ==========
 
     @Test
     @Transactional

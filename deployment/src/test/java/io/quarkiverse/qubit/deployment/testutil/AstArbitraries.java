@@ -35,9 +35,7 @@ import net.jqwik.api.*;
  */
 public class AstArbitraries {
 
-    // ======================================================================
     // Common Types for AST Nodes
-    // ======================================================================
 
     private static final Class<?>[] COMMON_TYPES = {
             String.class, Integer.class, Long.class, Double.class,
@@ -69,9 +67,7 @@ public class AstArbitraries {
                 .map(s -> Character.toLowerCase(s.charAt(0)) + s.substring(1));
     }
 
-    // ======================================================================
     // Leaf Expressions (No Children)
-    // ======================================================================
 
     /**
      * Arbitrary for Constant expressions with various value types.
@@ -149,9 +145,7 @@ public class AstArbitraries {
                 nullLiterals().map(n -> n));
     }
 
-    // ======================================================================
     // Binary and Unary Operators
-    // ======================================================================
 
     /**
      * Arbitrary for BinaryOp.Operator values.
@@ -199,9 +193,7 @@ public class AstArbitraries {
         return Arbitraries.of(UnaryOp.Operator.values());
     }
 
-    // ======================================================================
     // Composite Expressions (Bounded Depth)
-    // ======================================================================
 
     /**
      * Arbitrary for BinaryOp with leaf children (depth 1).
@@ -319,9 +311,7 @@ public class AstArbitraries {
                 fieldNames().map(n -> new FieldAccess(n, Boolean.class)));
     }
 
-    // ======================================================================
     // Offset Values for Renumbering Tests
-    // ======================================================================
 
     /**
      * Arbitrary for offset values (non-negative, bounded).
@@ -339,9 +329,7 @@ public class AstArbitraries {
         return Arbitraries.integers().between(1, 100);
     }
 
-    // ======================================================================
     // Lists for Combination Tests
-    // ======================================================================
 
     /**
      * Arbitrary for non-empty lists of predicates.

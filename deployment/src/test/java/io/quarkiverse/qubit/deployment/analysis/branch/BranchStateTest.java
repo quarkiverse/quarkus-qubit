@@ -31,8 +31,6 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 @DisplayName("BranchState")
 class BranchStateTest {
 
-    // ==================== Test Fixtures ====================
-
     private static final LambdaExpression.Constant TRUE_CONST = new LambdaExpression.Constant(true, boolean.class);
     private static final LambdaExpression.Constant FALSE_CONST = new LambdaExpression.Constant(false, boolean.class);
     private static final LambdaExpression.Constant INT_CONST = new LambdaExpression.Constant(1, int.class);
@@ -40,8 +38,6 @@ class BranchStateTest {
     private static final LambdaExpression.BinaryOp OR_EXPR = LambdaExpression.BinaryOp.or(TRUE_CONST, FALSE_CONST);
     private static final LambdaExpression.BinaryOp AND_EXPR = LambdaExpression.BinaryOp.and(TRUE_CONST, FALSE_CONST);
     private static final LambdaExpression.BinaryOp EQ_EXPR = LambdaExpression.BinaryOp.eq(INT_CONST, INT_CONST);
-
-    // ==================== Initial State Tests ====================
 
     @Nested
     @DisplayName("Initial State")
@@ -81,8 +77,6 @@ class BranchStateTest {
                 Arguments.of(true, BranchState.OrMode.class),
                 Arguments.of(false, BranchState.AndMode.class));
     }
-
-    // ==================== AND Mode Tests ====================
 
     @Nested
     @DisplayName("AndMode")
@@ -176,8 +170,6 @@ class BranchStateTest {
                         LambdaExpression.BinaryOp.and(nestedOr, INT_CONST), INT_CONST)));
     }
 
-    // ==================== OR Mode Tests ====================
-
     @Nested
     @DisplayName("OrMode")
     class OrModeTests {
@@ -251,8 +243,6 @@ class BranchStateTest {
                 Arguments.of(false, "OR expression", OR_EXPR, OR));
     }
 
-    // ==================== getLastJumpTarget Tests ====================
-
     @Nested
     @DisplayName("getLastJumpTarget")
     class GetLastJumpTargetTests {
@@ -275,8 +265,6 @@ class BranchStateTest {
                 Arguments.of("OrMode(true)", new BranchState.OrMode(Optional.of(true), false), Optional.of(true)),
                 Arguments.of("OrMode(false)", new BranchState.OrMode(Optional.of(false), false), Optional.of(false)));
     }
-
-    // ==================== afterCombination Tests ====================
 
     @Nested
     @DisplayName("AndMode.afterCombination")
@@ -315,8 +303,6 @@ class BranchStateTest {
                 Arguments.of(true, Optional.of(false), OR, false) // used OR, not AND
         );
     }
-
-    // ==================== Complex Scenario Tests ====================
 
     @Nested
     @DisplayName("Complex Scenarios")

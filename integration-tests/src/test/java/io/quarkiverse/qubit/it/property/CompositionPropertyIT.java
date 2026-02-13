@@ -50,9 +50,7 @@ class CompositionPropertyIT {
         TestDataFactory.createStandardProducts();
     }
 
-    // ======================================================================
     // Filter-First Property (Filtering Before Pagination)
-    // ======================================================================
 
     @ParameterizedTest(name = "filter applied before skip({0})")
     @ValueSource(ints = { 0, 1, 2, 3 })
@@ -97,9 +95,7 @@ class CompositionPropertyIT {
                 .allMatch(p -> p.active);
     }
 
-    // ======================================================================
     // Sort-Pagination Consistency (Sort Before Pagination)
-    // ======================================================================
 
     @ParameterizedTest(name = "sort applied before pagination (pageSize={0})")
     @ValueSource(ints = { 1, 2, 3, 4 })
@@ -135,9 +131,7 @@ class CompositionPropertyIT {
         }
     }
 
-    // ======================================================================
     // Multiple Filters Composition
-    // ======================================================================
 
     @Test
     @Transactional
@@ -180,9 +174,7 @@ class CompositionPropertyIT {
                 .allMatch(p -> p.active && p.age > 25 && p.salary > 60000.0);
     }
 
-    // ======================================================================
     // Full Pipeline Composition
-    // ======================================================================
 
     @Test
     @Transactional
@@ -243,9 +235,7 @@ class CompositionPropertyIT {
         }
     }
 
-    // ======================================================================
     // Projection Transparency (Doesn't Affect Semantics)
-    // ======================================================================
 
     @Test
     @Transactional
@@ -274,9 +264,7 @@ class CompositionPropertyIT {
                 .isEqualTo(count2);
     }
 
-    // ======================================================================
     // Terminal Operation Properties
-    // ======================================================================
 
     @Test
     @Transactional
@@ -305,9 +293,7 @@ class CompositionPropertyIT {
         }
     }
 
-    // ======================================================================
     // Product Entity Composition Properties
-    // ======================================================================
 
     @ParameterizedTest(name = "product: filter + sort + limit({0}) maintains invariants")
     @ValueSource(ints = { 1, 2, 3, 4 })
@@ -352,9 +338,7 @@ class CompositionPropertyIT {
         }
     }
 
-    // ======================================================================
     // Edge Case Composition Properties
-    // ======================================================================
 
     @Test
     @Transactional

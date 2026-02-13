@@ -6,7 +6,6 @@ import static io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer.Label
 import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.CONDITIONAL_JUMP_LOOKAHEAD_LIMIT;
 import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.LABEL_CLASSIFICATION_LOOKAHEAD_LIMIT;
 import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.LABEL_TRACE_DEPTH_LIMIT;
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.unexpectedLabelClassification;
 import static org.objectweb.asm.Opcodes.GOTO;
 import static org.objectweb.asm.Opcodes.ICONST_0;
 import static org.objectweb.asm.Opcodes.ICONST_1;
@@ -132,7 +131,7 @@ public final class ControlFlowAnalyzer {
             case TRUE_SINK -> labelToValue.put(label, true);
             case FALSE_SINK -> labelToValue.put(label, false);
             case INTERMEDIATE -> resolveIntermediateLabel(label, instructions, labelToIndex, classifications, labelToValue);
-            default -> throw new IllegalStateException(unexpectedLabelClassification(classification));
+            default -> throw new IllegalStateException("Unexpected label classification: " + classification);
         }
     }
 

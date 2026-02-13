@@ -70,8 +70,6 @@ public class UnsupportedExpressionException extends RuntimeException {
         };
     }
 
-    // ========== Factory Methods ==========
-
     public static UnsupportedExpressionException nullExpression(String context) {
         return new UnsupportedExpressionException(
                 "Null expression encountered where a value was required. Context: " + context);

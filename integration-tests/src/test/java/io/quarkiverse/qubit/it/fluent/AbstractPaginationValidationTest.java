@@ -26,9 +26,7 @@ public abstract class AbstractPaginationValidationTest {
         TestDataFactory.createStandardPersonsAndProducts();
     }
 
-    // =============================================================================================
     // SKIP VALIDATION TESTS
-    // =============================================================================================
 
     @Test
     void skip_negativeValue_throwsIllegalArgumentException() {
@@ -59,9 +57,7 @@ public abstract class AbstractPaginationValidationTest {
                 .hasMessageContaining("skip count must be >= 0");
     }
 
-    // =============================================================================================
     // LIMIT VALIDATION TESTS
-    // =============================================================================================
 
     @Test
     void limit_negativeValue_throwsIllegalArgumentException() {
@@ -92,9 +88,7 @@ public abstract class AbstractPaginationValidationTest {
                 .hasMessageContaining("limit count must be >= 0");
     }
 
-    // =============================================================================================
     // COMBINED VALIDATION TESTS
-    // =============================================================================================
 
     @Test
     void skipAndLimit_bothNegative_throwsIllegalArgumentException() {
@@ -129,9 +123,7 @@ public abstract class AbstractPaginationValidationTest {
                 .hasMessageContaining("-10");
     }
 
-    // =============================================================================================
     // VALIDATION WITH PREDICATES AND PROJECTIONS
-    // =============================================================================================
 
     @Test
     void skip_negativeWithPredicate_throwsIllegalArgumentException() {

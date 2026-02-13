@@ -43,9 +43,7 @@ public abstract class AbstractDistinctOperationsTest {
         TestDataFactory.createStandardPersons();
     }
 
-    // =============================================================================================
     // DISTINCT → COUNT (1 test)
-    // =============================================================================================
 
     @Test
     @Transactional
@@ -80,9 +78,7 @@ public abstract class AbstractDistinctOperationsTest {
                 .contains("Doe", "Smith", "Johnson", "Williams", "Brown");
     }
 
-    // =============================================================================================
     // WHERE + DISTINCT → TOLIST (2 tests)
-    // =============================================================================================
 
     @Test
     @Transactional
@@ -134,9 +130,7 @@ public abstract class AbstractDistinctOperationsTest {
                 .allMatch(name -> name != null);
     }
 
-    // =============================================================================================
     // WHERE + DISTINCT → COUNT (2 tests)
-    // =============================================================================================
 
     @Test
     @Transactional
@@ -161,9 +155,7 @@ public abstract class AbstractDistinctOperationsTest {
         assertThat(count).isGreaterThan(0);
     }
 
-    // =============================================================================================
     // SELECT + DISTINCT → COUNT (1 test)
-    // =============================================================================================
 
     @Test
     @Transactional
@@ -185,9 +177,7 @@ public abstract class AbstractDistinctOperationsTest {
         assertThat(distinctAgeCount).isLessThanOrEqualTo(Person.count());
     }
 
-    // =============================================================================================
     // DISTINCT + LIMIT → TOLIST (1 test)
-    // =============================================================================================
 
     @Test
     @Transactional
@@ -202,9 +192,7 @@ public abstract class AbstractDistinctOperationsTest {
                 .doesNotHaveDuplicates();
     }
 
-    // =============================================================================================
     // DISTINCT + SKIP → TOLIST (1 test)
-    // =============================================================================================
 
     @Test
     @Transactional
@@ -227,9 +215,7 @@ public abstract class AbstractDistinctOperationsTest {
         }
     }
 
-    // =============================================================================================
     // WHERE + SELECT + DISTINCT → TOLIST (2 tests)
-    // =============================================================================================
 
     @Test
     @Transactional
@@ -257,9 +243,7 @@ public abstract class AbstractDistinctOperationsTest {
                 .allMatch(age -> age > 0);
     }
 
-    // =============================================================================================
     // WHERE + DISTINCT + LIMIT → TOLIST (1 test)
-    // =============================================================================================
 
     @Test
     @Transactional
@@ -275,9 +259,7 @@ public abstract class AbstractDistinctOperationsTest {
                 .doesNotHaveDuplicates();
     }
 
-    // =============================================================================================
     // SELECT + DISTINCT + LIMIT → TOLIST (1 test)
-    // =============================================================================================
 
     @Test
     @Transactional
@@ -292,9 +274,7 @@ public abstract class AbstractDistinctOperationsTest {
                 .doesNotHaveDuplicates();
     }
 
-    // =============================================================================================
     // WHERE + SELECT + DISTINCT + LIMIT → TOLIST (1 test)
-    // =============================================================================================
 
     @Test
     @Transactional

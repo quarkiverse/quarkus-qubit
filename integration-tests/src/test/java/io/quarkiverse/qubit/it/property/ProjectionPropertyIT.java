@@ -52,9 +52,7 @@ class ProjectionPropertyIT {
         TestDataFactory.createStandardProducts();
     }
 
-    // ======================================================================
     // Count Preservation Properties
-    // ======================================================================
 
     @Test
     @Transactional
@@ -96,9 +94,7 @@ class ProjectionPropertyIT {
                 .isEqualTo(entityCount);
     }
 
-    // ======================================================================
     // Value Correctness Properties
-    // ======================================================================
 
     @Test
     @Transactional
@@ -144,9 +140,7 @@ class ProjectionPropertyIT {
                 .containsExactlyInAnyOrderElementsOf(entitySalaries);
     }
 
-    // ======================================================================
     // Type Correctness Properties
-    // ======================================================================
 
     @Test
     @Transactional
@@ -178,9 +172,7 @@ class ProjectionPropertyIT {
                 .allSatisfy(value -> assertThat(value).isInstanceOf(Double.class));
     }
 
-    // ======================================================================
     // Filter Compatibility Properties
-    // ======================================================================
 
     @Test
     @Transactional
@@ -210,9 +202,7 @@ class ProjectionPropertyIT {
                 .allMatch(age -> age > ageThreshold);
     }
 
-    // ======================================================================
     // Sort Compatibility Properties
-    // ======================================================================
 
     @Test
     @Transactional
@@ -242,9 +232,7 @@ class ProjectionPropertyIT {
         }
     }
 
-    // ======================================================================
     // Pagination Compatibility Properties
-    // ======================================================================
 
     @ParameterizedTest(name = "projection with skip({0}): returns correct count")
     @ValueSource(ints = { 0, 1, 2, 3, 4, 5 })
@@ -306,9 +294,7 @@ class ProjectionPropertyIT {
         }
     }
 
-    // ======================================================================
     // Combined Operations Properties
-    // ======================================================================
 
     @Test
     @Transactional
@@ -362,9 +348,7 @@ class ProjectionPropertyIT {
         }
     }
 
-    // ======================================================================
     // Product Entity Projection Properties
-    // ======================================================================
 
     @Test
     @Transactional

@@ -28,8 +28,6 @@ public abstract class AbstractInClauseTest {
         TestDataFactory.createStandardPersons();
     }
 
-    // ========== IN with String List ==========
-
     @Test
     void inClause_withStringList() {
         List<String> targetNames = List.of("John", "Jane", "Alice");
@@ -72,8 +70,6 @@ public abstract class AbstractInClauseTest {
                 .allMatch(p -> lastNames.contains(p.getLastName()));
     }
 
-    // ========== IN with Integer List ==========
-
     @Test
     void inClause_withIntegerList() {
         List<Integer> targetAges = List.of(30, 25, 35);
@@ -93,8 +89,6 @@ public abstract class AbstractInClauseTest {
 
         assertThat(results).isEmpty();
     }
-
-    // ========== IN with Set ==========
 
     @Test
     void inClause_withStringSet() {
@@ -117,8 +111,6 @@ public abstract class AbstractInClauseTest {
                 .hasSize(2)
                 .allMatch(p -> targetAges.contains(p.getAge()));
     }
-
-    // ========== IN combined with other predicates ==========
 
     @Test
     void inClause_combinedWithAnd() {
@@ -153,8 +145,6 @@ public abstract class AbstractInClauseTest {
                 .allMatch(p -> targetNames.contains(p.getFirstName()) && p.getAge() >= 30);
     }
 
-    // ========== IN with sorting ==========
-
     @Test
     void inClause_withSorting() {
         List<String> targetNames = List.of("John", "Jane", "Alice");
@@ -184,8 +174,6 @@ public abstract class AbstractInClauseTest {
                 .extracting(Person::getFirstName)
                 .containsExactly("Alice", "John", "Jane");
     }
-
-    // ========== IN with pagination ==========
 
     @Test
     void inClause_withLimit() {
@@ -220,8 +208,6 @@ public abstract class AbstractInClauseTest {
                 .containsExactly("Bob", "Jane");
     }
 
-    // ========== IN with count/exists ==========
-
     @Test
     void inClause_withCount() {
         List<String> targetNames = List.of("John", "Jane", "Alice");
@@ -249,8 +235,6 @@ public abstract class AbstractInClauseTest {
         assertThat(exists).isFalse();
     }
 
-    // ========== IN with distinct ==========
-
     @Test
     void inClause_withDistinct() {
         List<String> targetNames = List.of("John", "Jane", "Alice");
@@ -264,8 +248,6 @@ public abstract class AbstractInClauseTest {
                 .hasSize(3)
                 .allMatch(p -> targetNames.contains(p.getFirstName()));
     }
-
-    // ========== IN with projection ==========
 
     @Test
     void inClause_withProjection() {
@@ -293,8 +275,6 @@ public abstract class AbstractInClauseTest {
 
         assertThat(ages).containsExactly(35, 25, 30);
     }
-
-    // ========== Multiple IN clauses ==========
 
     @Test
     void multipleInClauses() {

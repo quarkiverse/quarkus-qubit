@@ -11,25 +11,17 @@ import java.util.Optional;
  */
 public interface QubitStream<T> {
 
-    // ========== Filtering ==========
-
     /** Filters entities matching the predicate. Multiple calls combine with AND. */
     QubitStream<T> where(QuerySpec<T, Boolean> predicate);
 
-    // ========== Projection ==========
-
     /** Projects each entity to a new type. Supports field access, expressions, and DTO construction. */
     <R> QubitStream<R> select(QuerySpec<T, R> mapper);
-
-    // ========== Sorting ==========
 
     /** Sorts ascending. Last call becomes primary sort key. */
     <K extends Comparable<K>> QubitStream<T> sortedBy(QuerySpec<T, K> keyExtractor);
 
     /** Sorts descending. Last call becomes primary sort key. */
     <K extends Comparable<K>> QubitStream<T> sortedDescendingBy(QuerySpec<T, K> keyExtractor);
-
-    // ========== Pagination ==========
 
     /**
      * Skips the first {@code n} results (SQL OFFSET).
@@ -45,12 +37,8 @@ public interface QubitStream<T> {
      */
     QubitStream<T> limit(int n);
 
-    // ========== Distinct ==========
-
     /** Returns only distinct results (SQL SELECT DISTINCT). */
     QubitStream<T> distinct();
-
-    // ========== Aggregation Operations ==========
 
     /** Counts matching entities (terminal operation). */
     long count();
@@ -73,8 +61,6 @@ public interface QubitStream<T> {
     /** Prepares AVG for numeric values (returns Double). Call {@link #getSingleResult()} to execute. */
     QubitStream<Double> avg(QuerySpec<T, ? extends Number> mapper);
 
-    // ========== Terminal Operations ==========
-
     /** Executes query and returns all results as a list. Never null, may be empty. */
     List<T> toList();
 
@@ -92,8 +78,6 @@ public interface QubitStream<T> {
 
     /** Checks if any entity matches (terminal operation). */
     boolean exists();
-
-    // ========== Join Operations ==========
 
     /**
      * Creates an inner join with a related collection.
@@ -114,8 +98,6 @@ public interface QubitStream<T> {
      * @return JoinStream for composing join operations
      */
     <R> JoinStream<T, R> leftJoin(QuerySpec<T, Collection<R>> relationship);
-
-    // ========== Grouping Operations ==========
 
     /**
      * Groups entities by the specified key (SQL GROUP BY).

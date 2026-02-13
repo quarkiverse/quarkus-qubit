@@ -18,8 +18,6 @@ import org.junit.jupiter.params.provider.ValueSource;
  */
 class OpcodeClassifierTest {
 
-    // ==================== Arithmetic Opcode Tests ====================
-
     @Nested
     @DisplayName("isArithmeticOpcode")
     class IsArithmeticOpcodeTests {
@@ -100,8 +98,6 @@ class OpcodeClassifierTest {
         }
     }
 
-    // ==================== Logical Opcode Tests ====================
-
     @Nested
     @DisplayName("isLogicalOpcode")
     class IsLogicalOpcodeTests {
@@ -149,8 +145,6 @@ class OpcodeClassifierTest {
         }
     }
 
-    // ==================== Arithmetic or Logical Opcode Tests ====================
-
     @Nested
     @DisplayName("isArithmeticOrLogicalOpcode")
     class IsArithmeticOrLogicalOpcodeTests {
@@ -197,8 +191,6 @@ class OpcodeClassifierTest {
                     .isFalse();
         }
     }
-
-    // ==================== Comparison Opcode Tests ====================
 
     @Nested
     @DisplayName("isComparisonOpcode")
@@ -253,8 +245,6 @@ class OpcodeClassifierTest {
                     .isFalse();
         }
     }
-
-    // ==================== Branch Opcode Tests ====================
 
     @Nested
     @DisplayName("isBranchOpcode")
@@ -320,8 +310,6 @@ class OpcodeClassifierTest {
         }
     }
 
-    // ==================== Invoke Opcode Tests ====================
-
     @Nested
     @DisplayName("isInvokeOpcode")
     class IsInvokeOpcodeTests {
@@ -377,8 +365,6 @@ class OpcodeClassifierTest {
         }
     }
 
-    // ==================== Type Conversion Opcode Tests ====================
-
     @Nested
     @DisplayName("isTypeConversionOpcode")
     class IsTypeConversionOpcodeTests {
@@ -422,8 +408,6 @@ class OpcodeClassifierTest {
                     .isFalse();
         }
     }
-
-    // ==================== Constant Opcode Tests ====================
 
     @Nested
     @DisplayName("isConstantOpcode")
@@ -497,8 +481,6 @@ class OpcodeClassifierTest {
         }
     }
 
-    // ==================== Int Constant Opcode Tests ====================
-
     @Nested
     @DisplayName("isIntConstantOpcode")
     class IsIntConstantOpcodeTests {
@@ -534,8 +516,6 @@ class OpcodeClassifierTest {
         }
     }
 
-    // ==================== Float Constant Opcode Tests ====================
-
     @Nested
     @DisplayName("isFloatConstantOpcode")
     class IsFloatConstantOpcodeTests {
@@ -563,8 +543,6 @@ class OpcodeClassifierTest {
         }
     }
 
-    // ==================== Long Constant Opcode Tests ====================
-
     @Nested
     @DisplayName("isLongConstantOpcode")
     class IsLongConstantOpcodeTests {
@@ -591,8 +569,6 @@ class OpcodeClassifierTest {
                     .isFalse();
         }
     }
-
-    // ==================== Double Constant Opcode Tests ====================
 
     @Nested
     @DisplayName("isDoubleConstantOpcode")

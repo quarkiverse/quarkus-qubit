@@ -1,7 +1,5 @@
 package io.quarkiverse.qubit.deployment.generation.methodcall;
 
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.cannotGetValueFromUnsupported;
-
 import java.util.Objects;
 import java.util.function.UnaryOperator;
 
@@ -47,7 +45,7 @@ public sealed interface GenerationResult permits
         return switch (this) {
             case Success(var value) -> value;
             case Unsupported(_, var reason) ->
-                throw new IllegalStateException(cannotGetValueFromUnsupported(reason));
+                throw new IllegalStateException("Cannot get value from Unsupported: " + reason);
         };
     }
 

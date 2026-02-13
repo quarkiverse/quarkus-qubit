@@ -34,8 +34,6 @@ class InvokeDynamicHandlerErrorTest {
         context = new AnalysisContext(testMethod, 0);
     }
 
-    // ==================== canHandle Tests ====================
-
     @Nested
     @DisplayName("canHandle detection")
     class CanHandleTests {
@@ -50,8 +48,6 @@ class InvokeDynamicHandlerErrorTest {
                     .isTrue();
         }
     }
-
-    // ==================== StringConcatFactory Error Tests ====================
 
     @Nested
     @DisplayName("StringConcatFactory error paths")
@@ -151,8 +147,6 @@ class InvokeDynamicHandlerErrorTest {
         }
     }
 
-    // ==================== Nested Lambda Error Tests ====================
-
     @Nested
     @DisplayName("Nested Lambda error paths")
     class NestedLambdaErrorTests {
@@ -213,8 +207,6 @@ class InvokeDynamicHandlerErrorTest {
         }
     }
 
-    // ==================== Unhandled INVOKEDYNAMIC Tests ====================
-
     @Nested
     @DisplayName("Unhandled INVOKEDYNAMIC")
     class UnhandledInvokeDynamicTests {
@@ -255,8 +247,6 @@ class InvokeDynamicHandlerErrorTest {
                     .isFalse();
         }
     }
-
-    // ==================== Success Path Tests ====================
 
     @Nested
     @DisplayName("StringConcatFactory success paths")
@@ -312,8 +302,6 @@ class InvokeDynamicHandlerErrorTest {
                     .isEqualTo(1);
         }
     }
-
-    // ==================== Helper Methods ====================
 
     private InvokeDynamicInsnNode createStringConcatIndy(String name, String recipe) {
         return new InvokeDynamicInsnNode(

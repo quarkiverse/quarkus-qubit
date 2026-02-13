@@ -30,8 +30,6 @@ import io.quarkiverse.qubit.SortDirection;
  */
 public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
 
-    // ========== State Fields ==========
-
     /**
      * The entity class being queried.
      */
@@ -71,8 +69,6 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
      * LIMIT value (null if not set).
      */
     private final Integer limit;
-
-    // ========== Constructors ==========
 
     /**
      * Creates a new group stream for the given entity class and key extractor.
@@ -115,8 +111,6 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
         this.limit = limit;
     }
 
-    // ========== Having Clause ==========
-
     @Override
     public GroupStream<T, K> having(GroupQuerySpec<T, K, Boolean> condition) {
         requireNonNullLambda(condition, "Condition", "having");
@@ -124,8 +118,6 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
         newConditions.add(condition);
         return withHavingConditions(newConditions);
     }
-
-    // ========== Projection ==========
 
     @Override
     public <R> QubitStream<R> select(GroupQuerySpec<T, K, R> mapper) {
@@ -150,8 +142,6 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
         return new ImmutableResultStream<>(results, "group projection");
     }
 
-    // ========== Sorting ==========
-
     @Override
     public <C extends Comparable<C>> GroupStream<T, K> sortedBy(GroupQuerySpec<T, K, C> keyExtractor) {
         requireNonNullLambda(keyExtractor, "Key extractor", "sortedBy");
@@ -168,8 +158,6 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
         return withSortOrders(newSortOrders);
     }
 
-    // ========== Pagination ==========
-
     @Override
     public GroupStream<T, K> skip(int n) {
         return withOffset(validateSkipCount(n));
@@ -179,8 +167,6 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
     public GroupStream<T, K> limit(int n) {
         return withLimit(validateLimitCount(n));
     }
-
-    // ========== Terminal Operations ==========
 
     @Override
     public List<K> toList() {
@@ -199,8 +185,6 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
         QueryExecutorRegistry registry = getQueryExecutorRegistry();
         return registry.executeGroupCountQuery(callSiteId, entityClass, capturedValues);
     }
-
-    // ========== Stream Derivation Helpers ==========
 
     private GroupStreamImpl<T, K> withHavingConditions(List<GroupQuerySpec<T, K, Boolean>> havingConditions) {
         return new GroupStreamImpl<>(entityClass, keyExtractor, predicates, havingConditions, selector, sortOrders, offset,
@@ -221,8 +205,6 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
         return new GroupStreamImpl<>(entityClass, keyExtractor, predicates, havingConditions, selector, sortOrders, offset,
                 limit);
     }
-
-    // ========== Call Site Resolution Helpers ==========
 
     /**
      * Returns the primary lambda for call site ID uniqueness.
@@ -289,8 +271,6 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
 
         return allCapturedValues.toArray(new Object[0]);
     }
-
-    // ========== Internal Classes ==========
 
     /**
      * Represents a sort order specification for groups.

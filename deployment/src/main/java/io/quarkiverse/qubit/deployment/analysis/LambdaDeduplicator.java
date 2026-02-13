@@ -283,8 +283,6 @@ public class LambdaDeduplicator {
         return lambdaHashToExecutor.size();
     }
 
-    // ========== Parameter Objects ==========
-
     /** Bundles join hash computation parameters. */
     public record JoinHashRequest(
             LambdaExpression joinRelationshipExpression,
