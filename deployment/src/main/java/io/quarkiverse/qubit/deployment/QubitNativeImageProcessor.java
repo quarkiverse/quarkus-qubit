@@ -8,7 +8,6 @@ import java.util.Set;
 import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.builditem.GeneratedResourceBuildItem;
-import io.quarkus.deployment.builditem.nativeimage.ReflectiveClassBuildItem;
 import io.quarkus.deployment.pkg.steps.NativeOrNativeSourcesBuild;
 import io.quarkus.logging.Log;
 
@@ -55,19 +54,11 @@ public class QubitNativeImageProcessor {
             }
 
             String declaringClass = parts[0];
-            String methodName = parts[1];
-            // parts[2] is lineNumber (not used for native config)
-            // parts[3] is lambdaMethodName (not used for native config)
 
-            // Validate extracted components
+            // Validate declaring class
             if (declaringClass.isEmpty()) {
                 throw new IllegalStateException(String.format(
                         "Empty declaringClass in queryId: '%s'. This indicates a bug in build-time query analysis.",
-                        queryId));
-            }
-            if (methodName.isEmpty()) {
-                throw new IllegalStateException(String.format(
-                        "Empty methodName in queryId: '%s'. This indicates a bug in build-time query analysis.",
                         queryId));
             }
 
@@ -75,11 +66,9 @@ public class QubitNativeImageProcessor {
             String interfaceType = determineInterfaceType(transformation);
 
             // Register ALL lambdas - writeReplace needed for call site ID extraction
-            lambdaReflections.produce(new LambdaReflectionBuildItem(
-                    declaringClass, methodName, interfaceType, transformation.getCapturedVarCount()));
+            lambdaReflections.produce(new LambdaReflectionBuildItem(declaringClass, interfaceType));
 
-            Log.debugf("Qubit: Registered lambda reflection for %s.%s (%s, %d captured vars)",
-                    declaringClass, methodName, interfaceType, transformation.getCapturedVarCount());
+            Log.debugf("Qubit: Registered lambda reflection for %s (%s)", declaringClass, interfaceType);
         }
     }
 
@@ -92,37 +81,6 @@ public class QubitNativeImageProcessor {
             return GROUP_QUERY_SPEC_CLASS;
         }
         return QUERY_SPEC_CLASS;
-    }
-
-    /** Registers runtime classes for native reflection. */
-    @BuildStep(onlyIf = NativeOrNativeSourcesBuild.class)
-    void registerRuntimeClassesForReflection(BuildProducer<ReflectiveClassBuildItem> reflectiveClass) {
-        // Uses getDeclaredMethod for SerializedLambda extraction via writeReplace()
-        reflectiveClass.produce(ReflectiveClassBuildItem.builder(
-                "io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils")
-                .methods().fields().build());
-
-        // CDI bean lookup via Arc.container().instance()
-        reflectiveClass.produce(ReflectiveClassBuildItem.builder(
-                "io.quarkiverse.qubit.runtime.internal.QueryExecutorRegistry")
-                .constructors().methods().fields().build());
-
-        // Group interface used in group lambda parameter
-        reflectiveClass.produce(ReflectiveClassBuildItem.builder(
-                "io.quarkiverse.qubit.Group")
-                .methods().build());
-
-        // Return type for projection queries
-        reflectiveClass.produce(ReflectiveClassBuildItem.builder(
-                "io.quarkiverse.qubit.runtime.internal.ImmutableResultStream")
-                .constructors().methods().build());
-
-        // Stream implementation classes
-        reflectiveClass.produce(ReflectiveClassBuildItem.builder(
-                "io.quarkiverse.qubit.runtime.internal.QubitStreamImpl",
-                "io.quarkiverse.qubit.runtime.internal.JoinStreamImpl",
-                "io.quarkiverse.qubit.runtime.internal.GroupStreamImpl")
-                .constructors().methods().build());
     }
 
     /**

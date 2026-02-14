@@ -17,19 +17,15 @@ class LambdaReflectionBuildItemTest {
     class ToStringTests {
 
         @Test
-        @DisplayName("includes declaring class and method")
-        void includesDeclaringClassAndMethod() {
+        @DisplayName("includes declaring class")
+        void includesDeclaringClass() {
             LambdaReflectionBuildItem item = new LambdaReflectionBuildItem(
                     "com.example.MyClass",
-                    "findUsers",
-                    "io.quarkiverse.qubit.QuerySpec",
-                    2);
+                    "io.quarkiverse.qubit.QuerySpec");
 
             String result = item.toString();
 
-            assertThat(result)
-                    .contains("com.example.MyClass")
-                    .contains("findUsers");
+            assertThat(result).contains("com.example.MyClass");
         }
 
         @Test
@@ -37,9 +33,7 @@ class LambdaReflectionBuildItemTest {
         void includesInterfaceType() {
             LambdaReflectionBuildItem item = new LambdaReflectionBuildItem(
                     "com.example.MyClass",
-                    "findUsers",
-                    "io.quarkiverse.qubit.QuerySpec",
-                    2);
+                    "io.quarkiverse.qubit.QuerySpec");
 
             String result = item.toString();
 
@@ -47,33 +41,17 @@ class LambdaReflectionBuildItemTest {
         }
 
         @Test
-        @DisplayName("includes captured variable count")
-        void includesCapturedVarCount() {
-            LambdaReflectionBuildItem item = new LambdaReflectionBuildItem(
-                    "com.example.MyClass",
-                    "findUsers",
-                    "io.quarkiverse.qubit.QuerySpec",
-                    5);
-
-            String result = item.toString();
-
-            assertThat(result).contains("5");
-        }
-
-        @Test
         @DisplayName("matches expected format")
         void matchesExpectedFormat() {
             LambdaReflectionBuildItem item = new LambdaReflectionBuildItem(
                     "com.example.MyClass",
-                    "findUsers",
-                    "io.quarkiverse.qubit.QuerySpec",
-                    2);
+                    "io.quarkiverse.qubit.QuerySpec");
 
             String result = item.toString();
 
             assertThat(result).isEqualTo(
-                    "LambdaReflectionBuildItem{com.example.MyClass.findUsers, " +
-                            "interface=io.quarkiverse.qubit.QuerySpec, capturedVars=2}");
+                    "LambdaReflectionBuildItem{com.example.MyClass, " +
+                            "interface=io.quarkiverse.qubit.QuerySpec}");
         }
     }
 }
