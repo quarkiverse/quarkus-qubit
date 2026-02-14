@@ -3,8 +3,10 @@ package io.quarkiverse.qubit.runtime.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.NonUniqueResultException;
@@ -237,27 +239,27 @@ class LambdaReflectionUtilsTest {
     class ExtractFromLambdasTests {
 
         @Test
-        @DisplayName("returns remaining count when no lambdas")
-        void returnsRemainingCountWhenNoLambdas() {
+        @DisplayName("does not modify destination when no lambdas")
+        void doesNotModifyDestinationWhenNoLambdas() {
             List<Object> destination = new ArrayList<>();
 
-            int remaining = LambdaReflectionUtils.extractFromLambdas(
-                    List.of(), "test", "callsite", destination, 5);
+            LambdaReflectionUtils.extractFromLambdas(List.of(), destination);
 
-            assertThat(remaining).isEqualTo(5);
             assertThat(destination).isEmpty();
         }
 
         @Test
-        @DisplayName("stops when remaining count reaches zero")
-        void stopsWhenRemainingCountReachesZero() {
+        @DisplayName("extracts captured args from all lambdas in list")
+        void extractsCapturedArgsFromAllLambdas() {
+            String first = "a";
+            String second = "b";
+            Supplier<String> lambda1 = (Supplier<String> & Serializable) () -> first;
+            Supplier<String> lambda2 = (Supplier<String> & Serializable) () -> second;
             List<Object> destination = new ArrayList<>();
 
-            int remaining = LambdaReflectionUtils.extractFromLambdas(
-                    List.of("a", "b", "c"), "test", "callsite", destination, 0);
+            LambdaReflectionUtils.extractFromLambdas(List.of(lambda1, lambda2), destination);
 
-            assertThat(remaining).isZero();
-            assertThat(destination).isEmpty();
+            assertThat(destination).containsExactly("a", "b");
         }
     }
 
@@ -266,17 +268,98 @@ class LambdaReflectionUtilsTest {
     class ExtractFromSingleLambdaTests {
 
         @Test
-        @DisplayName("returns remaining count unchanged when lambda has no captured fields")
-        void returnsRemainingCountUnchangedWhenNoCapturedFields() {
+        @DisplayName("does not modify destination when lambda has no captures")
+        void doesNotModifyDestinationWhenNoCapturedFields() {
             List<Object> destination = new ArrayList<>();
-            Object lambdaWithNoFields = new Object() {
-            }; // Anonymous class with no fields
+            Supplier<String> lambda = (Supplier<String> & Serializable) () -> "hello";
 
-            int remaining = LambdaReflectionUtils.extractFromSingleLambda(
-                    lambdaWithNoFields, "test", "callsite", destination, 5);
+            LambdaReflectionUtils.extractFromSingleLambda(lambda, destination);
 
-            assertThat(remaining).isEqualTo(5);
             assertThat(destination).isEmpty();
+        }
+
+        @Test
+        @DisplayName("adds captured args to destination")
+        void addsCapturedArgsToDestination() {
+            List<Object> destination = new ArrayList<>();
+            String captured = "value";
+            Supplier<String> lambda = (Supplier<String> & Serializable) () -> captured;
+
+            LambdaReflectionUtils.extractFromSingleLambda(lambda, destination);
+
+            assertThat(destination).containsExactly("value");
+        }
+    }
+
+    @Nested
+    @DisplayName("extractCapturedArgs()")
+    class ExtractCapturedArgsTests {
+
+        @Test
+        @DisplayName("returns empty array for null")
+        void returnsEmptyArrayForNull() {
+            Object[] result = LambdaReflectionUtils.extractCapturedArgs(null);
+
+            assertThat(result).isEmpty();
+        }
+
+        @Test
+        @DisplayName("returns empty array for lambda with no captures")
+        void returnsEmptyArrayForLambdaWithNoCaptures() {
+            Supplier<String> lambda = (Supplier<String> & Serializable) () -> "constant";
+
+            Object[] result = LambdaReflectionUtils.extractCapturedArgs(lambda);
+
+            assertThat(result).isEmpty();
+        }
+
+        @Test
+        @DisplayName("extracts captured variable from lambda")
+        void extractsCapturedVariable() {
+            String captured = "test-value";
+            Supplier<String> lambda = (Supplier<String> & Serializable) () -> captured;
+
+            Object[] result = LambdaReflectionUtils.extractCapturedArgs(lambda);
+
+            assertThat(result).containsExactly("test-value");
+        }
+
+        @Test
+        @DisplayName("extracts multiple captured variables")
+        void extractsMultipleCapturedVariables() {
+            String first = "hello";
+            int second = 42;
+            Supplier<String> lambda = (Supplier<String> & Serializable) () -> first + second;
+
+            Object[] result = LambdaReflectionUtils.extractCapturedArgs(lambda);
+
+            assertThat(result).containsExactly("hello", 42);
+        }
+    }
+
+    @Nested
+    @DisplayName("LambdaInfo")
+    class LambdaInfoTests {
+
+        @Test
+        @DisplayName("extract returns null method name for null instance")
+        void extractReturnsNullMethodNameForNullInstance() {
+            LambdaReflectionUtils.LambdaInfo info = LambdaReflectionUtils.LambdaInfo.extract(null);
+
+            assertThat(info.implMethodName()).isEqualTo("null");
+            assertThat(info.capturedArgs()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("extract returns method name and captured args")
+        void extractReturnsMethodNameAndCapturedArgs() {
+            String value = "captured";
+            Supplier<String> lambda = (Supplier<String> & Serializable) () -> value;
+
+            LambdaReflectionUtils.LambdaInfo info = LambdaReflectionUtils.LambdaInfo.extract(lambda);
+
+            assertThat(info.implMethodName()).startsWith("lambda$");
+            assertThat(info.capturedArgs()).containsExactly("captured");
         }
     }
 

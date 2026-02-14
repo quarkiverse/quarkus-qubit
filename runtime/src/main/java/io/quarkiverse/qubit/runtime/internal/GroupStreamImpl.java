@@ -247,26 +247,27 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
         }
 
         List<Object> allCapturedValues = new ArrayList<>();
-        int remainingCount = capturedCount;
 
         // Extract from predicates (WHERE clauses before grouping)
-        remainingCount = extractFromLambdas(predicates, "predicate", callSiteId,
-                allCapturedValues, remainingCount);
+        extractFromLambdas(predicates, allCapturedValues);
 
         // Extract from keyExtractor (groupBy key)
-        if (remainingCount > 0 && keyExtractor != null) {
-            remainingCount = extractFromSingleLambda(keyExtractor, "keyExtractor", callSiteId,
-                    allCapturedValues, remainingCount);
+        if (keyExtractor != null) {
+            extractFromSingleLambda(keyExtractor, allCapturedValues);
         }
 
         // Extract from havingConditions (HAVING clauses)
-        remainingCount = extractFromLambdas(havingConditions, "havingCondition", callSiteId,
-                allCapturedValues, remainingCount);
+        extractFromLambdas(havingConditions, allCapturedValues);
 
         // Extract from selector (select projection)
-        if (remainingCount > 0 && selector != null) {
-            extractFromSingleLambda(selector, "selector", callSiteId,
-                    allCapturedValues, remainingCount);
+        if (selector != null) {
+            extractFromSingleLambda(selector, allCapturedValues);
+        }
+
+        if (allCapturedValues.size() != capturedCount) {
+            throw new IllegalStateException(
+                    String.format("Captured variable count mismatch at %s: expected %d, found %d",
+                            callSiteId, capturedCount, allCapturedValues.size()));
         }
 
         return allCapturedValues.toArray(new Object[0]);

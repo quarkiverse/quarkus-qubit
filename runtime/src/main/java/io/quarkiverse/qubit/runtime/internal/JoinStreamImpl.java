@@ -318,20 +318,14 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
 
         // Extract from all lambda sources: bi-predicates, source predicates, ON conditions
         List<Object> allCapturedValues = new ArrayList<>();
-        int remainingCount = capturedCount;
+        extractFromLambdas(biPredicates, allCapturedValues);
+        extractFromLambdas(sourcePredicates, allCapturedValues);
+        extractFromLambdas(onConditions, allCapturedValues);
 
-        // Extract from all lambda sources using helper method
-        remainingCount = extractFromLambdas(biPredicates, "bi-predicate", callSiteId,
-                allCapturedValues, remainingCount);
-        remainingCount = extractFromLambdas(sourcePredicates, "source-predicate", callSiteId,
-                allCapturedValues, remainingCount);
-        remainingCount = extractFromLambdas(onConditions, "ON-condition", callSiteId,
-                allCapturedValues, remainingCount);
-
-        if (remainingCount != 0) {
+        if (allCapturedValues.size() != capturedCount) {
             throw new IllegalStateException(
                     String.format("Captured variable count mismatch at %s: expected %d, found %d",
-                            callSiteId, capturedCount, capturedCount - remainingCount));
+                            callSiteId, capturedCount, allCapturedValues.size()));
         }
 
         return allCapturedValues.toArray(new Object[0]);

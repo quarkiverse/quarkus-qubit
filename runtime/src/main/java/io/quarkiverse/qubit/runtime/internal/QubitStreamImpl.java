@@ -1,6 +1,6 @@
 package io.quarkiverse.qubit.runtime.internal;
 
-import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.countCapturedFields;
+import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.extractCapturedArgs;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.getCallSiteId;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.getQueryExecutorRegistry;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.requireNonNullLambda;
@@ -400,7 +400,8 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
 
     /**
      * Extracts captured variables from all predicates in the pipeline.
-     * Supports multiple where() clauses with captured variables.
+     * Uses {@link SerializedLambda#getCapturedArg(int)} via
+     * {@link LambdaReflectionUtils#extractCapturedArgs(Object)}.
      */
     private Object[] extractCapturedVariables(String callSiteId) {
         int capturedCount = QueryExecutorRegistry.getCapturedVariableCount(callSiteId);
@@ -409,51 +410,31 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
             return new Object[0];
         }
 
-        // Extract from ALL predicates, not just the first
         if (predicates.isEmpty()) {
             return new Object[0];
         }
 
         // Single predicate optimization (most common case)
         if (predicates.size() == 1) {
-            return CapturedVariableExtractor.extract(predicates.getFirst(), capturedCount);
+            Object[] values = extractCapturedArgs(predicates.getFirst());
+            if (values.length != capturedCount) {
+                throw new IllegalStateException(
+                        String.format("Captured variable count mismatch at %s: expected %d, found %d",
+                                callSiteId, capturedCount, values.length));
+            }
+            return values;
         }
 
         // Multiple predicates: extract from each and combine
-        // Build-time renumbering in CallSiteProcessor ensures CapturedVariable indices are sequential
         List<Object> allCapturedValues = new ArrayList<>();
-        int remainingCount = capturedCount;
-
         for (QuerySpec<T, Boolean> predicate : predicates) {
-            if (remainingCount == 0) {
-                break; // All captured variables extracted
-            }
-
-            // Count captured fields in this predicate
-            int predicateCapturedCount = countCapturedFields(predicate);
-
-            if (predicateCapturedCount > 0) {
-                Object[] predicateValues = CapturedVariableExtractor.extract(predicate, predicateCapturedCount);
-
-                // Issue #20 Fix: Per-predicate validation for easier debugging
-                // Validates that extractor returned the expected number of values
-                if (predicateValues.length != predicateCapturedCount) {
-                    throw new IllegalStateException(String.format(
-                            "Captured variable extraction mismatch for predicate in %s: " +
-                                    "expected %d values from predicate fields but extractor returned %d. " +
-                                    "This may indicate a compiler/runtime field naming inconsistency.",
-                            callSiteId, predicateCapturedCount, predicateValues.length));
-                }
-
-                Collections.addAll(allCapturedValues, predicateValues);
-                remainingCount -= predicateCapturedCount;
-            }
+            Collections.addAll(allCapturedValues, extractCapturedArgs(predicate));
         }
 
-        if (remainingCount != 0) {
+        if (allCapturedValues.size() != capturedCount) {
             throw new IllegalStateException(
                     String.format("Captured variable count mismatch at %s: expected %d, found %d",
-                            callSiteId, capturedCount, capturedCount - remainingCount));
+                            callSiteId, capturedCount, allCapturedValues.size()));
         }
 
         return allCapturedValues.toArray(new Object[0]);

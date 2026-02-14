@@ -7,6 +7,7 @@ import java.lang.invoke.SerializedLambda;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
@@ -130,6 +131,32 @@ public final class LambdaReflectionUtils {
     }
 
     /**
+     * Unified lambda metadata extraction via {@link SerializedLambda}.
+     * Combines method name and captured argument extraction into a single
+     * {@code writeReplace()} call, replacing the separate
+     * {@code CapturedVariableExtractor} field-reflection path.
+     *
+     * @param implMethodName the lambda's implementation method name (e.g., "lambda$where$0")
+     * @param capturedArgs the values captured by the lambda closure
+     */
+    public record LambdaInfo(String implMethodName, Object[] capturedArgs) {
+
+        /** Extracts both method name and captured args from a lambda instance. */
+        public static LambdaInfo extract(Object lambdaInstance) {
+            if (lambdaInstance == null) {
+                return new LambdaInfo("null", new Object[0]);
+            }
+            SerializedLambda sl = getSerializedLambda(lambdaInstance);
+            int count = sl.getCapturedArgCount();
+            Object[] args = new Object[count];
+            for (int i = 0; i < count; i++) {
+                args[i] = sl.getCapturedArg(i);
+            }
+            return new LambdaInfo(sl.getImplMethodName(), args);
+        }
+    }
+
+    /**
      * Extracts lambda implementation method name (e.g., "lambda$where$0") via SerializedLambda.
      * Fails fast on extraction failure - silent fallback would cause build/runtime ID mismatch.
      */
@@ -137,10 +164,43 @@ public final class LambdaReflectionUtils {
         if (lambdaInstance == null) {
             return "null";
         }
+        return getSerializedLambda(lambdaInstance).getImplMethodName();
+    }
 
+    /**
+     * Extracts captured argument values from a lambda instance via
+     * {@link SerializedLambda#getCapturedArg(int)}.
+     * <p>
+     * This replaces the compiler-specific field reflection approach
+     * ({@code arg$N} for javac, {@code val$N} for Eclipse, {@code argN} for GraalVM)
+     * with the stable {@code SerializedLambda} public API available since Java 8.
+     *
+     * @param lambdaInstance the lambda to extract captured args from
+     * @return the captured argument values, or empty array if none
+     */
+    public static Object[] extractCapturedArgs(Object lambdaInstance) {
+        if (lambdaInstance == null) {
+            return new Object[0];
+        }
+        SerializedLambda sl = getSerializedLambda(lambdaInstance);
+        int count = sl.getCapturedArgCount();
+        if (count == 0) {
+            return new Object[0];
+        }
+        Object[] args = new Object[count];
+        for (int i = 0; i < count; i++) {
+            args[i] = sl.getCapturedArg(i);
+        }
+        return args;
+    }
+
+    /**
+     * Gets {@link SerializedLambda} from a lambda instance via {@code writeReplace()}.
+     * Fails fast with actionable diagnostics on all failure modes.
+     */
+    private static SerializedLambda getSerializedLambda(Object lambdaInstance) {
         Class<?> lambdaClass = lambdaInstance.getClass();
 
-        // Validate that the lambda implements Serializable (required for SerializedLambda extraction)
         if (!(lambdaInstance instanceof Serializable)) {
             throw new IllegalStateException(String.format(
                     "Lambda class %s does not implement Serializable. " +
@@ -150,16 +210,14 @@ public final class LambdaReflectionUtils {
                     lambdaClass.getName()));
         }
 
-        // Extract using SerializedLambda (the only reliable approach)
         try {
             Method writeReplace = lambdaClass.getDeclaredMethod("writeReplace");
             writeReplace.setAccessible(true);
             Object serializedForm = writeReplace.invoke(lambdaInstance);
             if (serializedForm instanceof SerializedLambda sl) {
-                return sl.getImplMethodName();
+                return sl;
             }
 
-            // writeReplace returned something other than SerializedLambda
             throw new IllegalStateException(String.format(
                     "Lambda class %s.writeReplace() returned %s instead of SerializedLambda. " +
                             "This is unexpected - the lambda may be using a non-standard implementation.",
@@ -167,7 +225,6 @@ public final class LambdaReflectionUtils {
                     serializedForm != null ? serializedForm.getClass().getName() : "null"));
 
         } catch (NoSuchMethodException e) {
-            // Lambda doesn't have writeReplace method
             throw new IllegalStateException(String.format(
                     "Lambda class %s does not have writeReplace() method. " +
                             "In native image mode, ensure reachability-metadata.json registers this method. " +
@@ -177,13 +234,11 @@ public final class LambdaReflectionUtils {
                     getLambdaInterfaceType(lambdaClass)), e);
 
         } catch (IllegalStateException e) {
-            // Re-throw our own exceptions
             throw e;
 
         } catch (Exception e) {
-            // Any other reflection error
             throw new IllegalStateException(String.format(
-                    "Failed to extract lambda method name from %s via SerializedLambda. " +
+                    "Failed to extract SerializedLambda from %s. " +
                             "Cause: %s: %s. " +
                             "This may indicate a security manager restriction or native image reflection issue.",
                     lambdaClass.getName(),
@@ -268,37 +323,16 @@ public final class LambdaReflectionUtils {
         CACHED_REGISTRY.set(null);
     }
 
-    /** Extracts captured variables from lambda list with per-lambda validation. */
-    public static int extractFromLambdas(List<?> lambdas, String lambdaType, String callSiteId,
-            List<Object> destination, int remainingCount) {
+    /** Extracts captured variables from all lambdas in the list via SerializedLambda. */
+    public static void extractFromLambdas(List<?> lambdas, List<Object> destination) {
         for (Object lambda : lambdas) {
-            if (remainingCount == 0) {
-                break;
-            }
-            remainingCount = extractFromSingleLambda(lambda, lambdaType, callSiteId, destination, remainingCount);
+            Collections.addAll(destination, extractCapturedArgs(lambda));
         }
-        return remainingCount;
     }
 
-    /** Extracts captured variables from single lambda with validation. */
-    public static int extractFromSingleLambda(Object lambda, String lambdaType, String callSiteId,
-            List<Object> destination, int remainingCount) {
-        int capturedCount = countCapturedFields(lambda);
-        if (capturedCount > 0) {
-            Object[] values = CapturedVariableExtractor.extract(lambda, capturedCount);
-
-            // Per-lambda validation for easier debugging
-            if (values.length != capturedCount) {
-                throw new IllegalStateException(String.format(
-                        "Captured variable extraction mismatch for %s in %s: " +
-                                "expected %d values but extractor returned %d.",
-                        lambdaType, callSiteId, capturedCount, values.length));
-            }
-
-            java.util.Collections.addAll(destination, values);
-            remainingCount -= capturedCount;
-        }
-        return remainingCount;
+    /** Extracts captured variables from a single lambda via SerializedLambda. */
+    public static void extractFromSingleLambda(Object lambda, List<Object> destination) {
+        Collections.addAll(destination, extractCapturedArgs(lambda));
     }
 
     /** Validates skip count is non-negative, returns it. */
