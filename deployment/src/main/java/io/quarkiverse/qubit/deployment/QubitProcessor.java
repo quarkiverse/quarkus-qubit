@@ -275,7 +275,7 @@ public class QubitProcessor {
 
         CallSiteProcessor.CallSiteProcessingContext processingContext = new CallSiteProcessor.CallSiteProcessingContext(
                 applicationArchives, generatedCount, deduplicatedCount,
-                generatedClass, queryTransformations, config.logging(), true);
+                generatedClass, queryTransformations, config.logging(), config.failOnAnalysisError());
 
         // JIT warm-up: process first call site sequentially to prime Gizmo2 hot paths.
         // Without this, each ForkJoinPool thread pays ~150ms JIT penalty on its first task.

@@ -26,6 +26,13 @@ public interface QubitBuildTimeConfig {
     /** Performance metrics configuration. */
     MetricsConfig metrics();
 
+    /**
+     * Whether to fail the build when bytecode analysis encounters an error.
+     * When {@code false}, unsupported patterns are logged and skipped.
+     */
+    @WithDefault("true")
+    boolean failOnAnalysisError();
+
     /** Package scanning configuration. */
     interface ScanningConfig {
 

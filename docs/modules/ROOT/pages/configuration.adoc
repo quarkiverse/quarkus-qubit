@@ -87,3 +87,15 @@ Additional fine-grained logging switches:
 |`false`
 |Log detailed bytecode analysis steps
 |===
+
+== Analysis
+
+[cols="1,1,2"]
+|===
+|Property |Default |Description
+
+|`quarkus.qubit.fail-on-analysis-error`
+|`true`
+|Whether to fail the build when bytecode analysis encounters an error.
+When `false`, unsupported patterns are logged and skipped.
+|===
