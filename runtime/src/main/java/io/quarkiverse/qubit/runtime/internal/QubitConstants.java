@@ -13,6 +13,8 @@ public final class QubitConstants {
     public static final String METHOD_SELECT = "select";
     public static final String METHOD_SORTED_BY = "sortedBy";
     public static final String METHOD_SORTED_DESCENDING_BY = "sortedDescendingBy";
+    public static final String METHOD_THEN_SORTED_BY = "thenSortedBy";
+    public static final String METHOD_THEN_SORTED_DESCENDING_BY = "thenSortedDescendingBy";
 
     // Fluent API - Intermediate operations (instance methods on QubitStream)
     public static final String METHOD_SKIP = "skip";
@@ -47,6 +49,7 @@ public final class QubitConstants {
     // All fluent API intermediate operations
     public static final Set<String> FLUENT_INTERMEDIATE_METHODS = Set.of(
             METHOD_WHERE, METHOD_SELECT, METHOD_SORTED_BY, METHOD_SORTED_DESCENDING_BY,
+            METHOD_THEN_SORTED_BY, METHOD_THEN_SORTED_DESCENDING_BY,
             METHOD_SKIP, METHOD_LIMIT, METHOD_DISTINCT,
             METHOD_MIN, METHOD_MAX, METHOD_AVG,
             METHOD_SUM_INTEGER, METHOD_SUM_LONG, METHOD_SUM_DOUBLE);

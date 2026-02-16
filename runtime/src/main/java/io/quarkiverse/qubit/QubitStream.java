@@ -23,6 +23,12 @@ public interface QubitStream<T> {
     /** Sorts descending. Last call becomes primary sort key. */
     <K extends Comparable<K>> QubitStream<T> sortedDescendingBy(QuerySpec<T, K> keyExtractor);
 
+    /** Adds a secondary ascending sort. Lower priority than sortedBy(). */
+    <K extends Comparable<K>> QubitStream<T> thenSortedBy(QuerySpec<T, K> keyExtractor);
+
+    /** Adds a secondary descending sort. Lower priority than sortedDescendingBy(). */
+    <K extends Comparable<K>> QubitStream<T> thenSortedDescendingBy(QuerySpec<T, K> keyExtractor);
+
     /**
      * Skips the first {@code n} results (SQL OFFSET).
      *

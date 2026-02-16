@@ -215,6 +215,24 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
     }
 
     @Override
+    public <K extends Comparable<K>> JoinStream<T, R> thenSortedBy(BiQuerySpec<T, R, K> keyExtractor) {
+        requireNonNullLambda(keyExtractor, "Key extractor", "thenSortedBy");
+        List<BiSortOrder<T, R>> newSortOrders = new ArrayList<>(this.sortOrders);
+        newSortOrders.add(new BiSortOrder<>(keyExtractor, SortDirection.ASCENDING));
+        return new JoinStreamImpl<>(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
+                onConditions, biPredicates, sourcePredicates, newSortOrders, offset, limit, distinct);
+    }
+
+    @Override
+    public <K extends Comparable<K>> JoinStream<T, R> thenSortedDescendingBy(BiQuerySpec<T, R, K> keyExtractor) {
+        requireNonNullLambda(keyExtractor, "Key extractor", "thenSortedDescendingBy");
+        List<BiSortOrder<T, R>> newSortOrders = new ArrayList<>(this.sortOrders);
+        newSortOrders.add(new BiSortOrder<>(keyExtractor, SortDirection.DESCENDING));
+        return new JoinStreamImpl<>(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
+                onConditions, biPredicates, sourcePredicates, newSortOrders, offset, limit, distinct);
+    }
+
+    @Override
     public JoinStream<T, R> skip(int n) {
         return new JoinStreamImpl<>(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
                 onConditions, biPredicates, sourcePredicates, sortOrders, validateSkipCount(n), limit, distinct);

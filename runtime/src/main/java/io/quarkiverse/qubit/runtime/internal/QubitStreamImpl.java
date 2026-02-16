@@ -158,6 +158,22 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
         return withSortOrders(newSortOrders);
     }
 
+    @Override
+    public <K extends Comparable<K>> QubitStream<T> thenSortedBy(QuerySpec<T, K> keyExtractor) {
+        requireNonNullLambda(keyExtractor, PARAM_KEY_EXTRACTOR, "thenSortedBy");
+        List<SortOrder<T>> newSortOrders = new ArrayList<>(this.sortOrders);
+        newSortOrders.add(new SortOrder<>(keyExtractor, SortDirection.ASCENDING));
+        return withSortOrders(newSortOrders);
+    }
+
+    @Override
+    public <K extends Comparable<K>> QubitStream<T> thenSortedDescendingBy(QuerySpec<T, K> keyExtractor) {
+        requireNonNullLambda(keyExtractor, PARAM_KEY_EXTRACTOR, "thenSortedDescendingBy");
+        List<SortOrder<T>> newSortOrders = new ArrayList<>(this.sortOrders);
+        newSortOrders.add(new SortOrder<>(keyExtractor, SortDirection.DESCENDING));
+        return withSortOrders(newSortOrders);
+    }
+
     // PAGINATION
 
     @Override

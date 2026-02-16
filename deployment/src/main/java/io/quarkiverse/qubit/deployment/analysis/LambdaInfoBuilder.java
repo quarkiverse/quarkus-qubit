@@ -104,11 +104,11 @@ final class LambdaInfoBuilder {
     private boolean classifyGroupSortLambda(PendingLambda lambda, @Nullable String fluentMethod) {
         if (!lambda.isGroupSpec())
             return false;
-        if (METHOD_SORTED_BY.equals(fluentMethod)) {
+        if (METHOD_SORTED_BY.equals(fluentMethod) || METHOD_THEN_SORTED_BY.equals(fluentMethod)) {
             groupSortLambdas.add(new SortLambda(lambda.methodName(), lambda.descriptor(), SortDirection.ASCENDING));
             return true;
         }
-        if (METHOD_SORTED_DESCENDING_BY.equals(fluentMethod)) {
+        if (METHOD_SORTED_DESCENDING_BY.equals(fluentMethod) || METHOD_THEN_SORTED_DESCENDING_BY.equals(fluentMethod)) {
             groupSortLambdas.add(new SortLambda(lambda.methodName(), lambda.descriptor(), SortDirection.DESCENDING));
             return true;
         }
@@ -152,9 +152,9 @@ final class LambdaInfoBuilder {
     }
 
     private void classifySortLambda(PendingLambda lambda, @Nullable String fluentMethod) {
-        if (METHOD_SORTED_BY.equals(fluentMethod)) {
+        if (METHOD_SORTED_BY.equals(fluentMethod) || METHOD_THEN_SORTED_BY.equals(fluentMethod)) {
             sortLambdas.add(new SortLambda(lambda.methodName(), lambda.descriptor(), SortDirection.ASCENDING));
-        } else if (METHOD_SORTED_DESCENDING_BY.equals(fluentMethod)) {
+        } else if (METHOD_SORTED_DESCENDING_BY.equals(fluentMethod) || METHOD_THEN_SORTED_DESCENDING_BY.equals(fluentMethod)) {
             sortLambdas.add(new SortLambda(lambda.methodName(), lambda.descriptor(), SortDirection.DESCENDING));
         }
     }

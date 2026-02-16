@@ -58,6 +58,16 @@ public final class ImmutableResultStream<T> implements QubitStream<T> {
     }
 
     @Override
+    public <K extends Comparable<K>> QubitStream<T> thenSortedBy(QuerySpec<T, K> keyExtractor) {
+        throw unsupported("sort");
+    }
+
+    @Override
+    public <K extends Comparable<K>> QubitStream<T> thenSortedDescendingBy(QuerySpec<T, K> keyExtractor) {
+        throw unsupported("sort");
+    }
+
+    @Override
     public <K extends Comparable<K>> ScalarResult<K> min(QuerySpec<T, K> mapper) {
         throw unsupported(OP_AGGREGATE);
     }

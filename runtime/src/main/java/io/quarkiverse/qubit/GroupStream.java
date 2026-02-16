@@ -32,6 +32,12 @@ public interface GroupStream<T, K> {
     /** Sorts groups descending by key or aggregate values. */
     <C extends Comparable<C>> GroupStream<T, K> sortedDescendingBy(GroupQuerySpec<T, K, C> keyExtractor);
 
+    /** Adds a secondary ascending sort. Lower priority than sortedBy(). */
+    <C extends Comparable<C>> GroupStream<T, K> thenSortedBy(GroupQuerySpec<T, K, C> keyExtractor);
+
+    /** Adds a secondary descending sort. Lower priority than sortedDescendingBy(). */
+    <C extends Comparable<C>> GroupStream<T, K> thenSortedDescendingBy(GroupQuerySpec<T, K, C> keyExtractor);
+
     /**
      * Skips the first {@code n} groups (SQL OFFSET).
      *

@@ -159,6 +159,22 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
     }
 
     @Override
+    public <C extends Comparable<C>> GroupStream<T, K> thenSortedBy(GroupQuerySpec<T, K, C> keyExtractor) {
+        requireNonNullLambda(keyExtractor, "Key extractor", "thenSortedBy");
+        List<GroupSortOrder<T, K>> newSortOrders = new ArrayList<>(this.sortOrders);
+        newSortOrders.add(new GroupSortOrder<>(keyExtractor, SortDirection.ASCENDING));
+        return withSortOrders(newSortOrders);
+    }
+
+    @Override
+    public <C extends Comparable<C>> GroupStream<T, K> thenSortedDescendingBy(GroupQuerySpec<T, K, C> keyExtractor) {
+        requireNonNullLambda(keyExtractor, "Key extractor", "thenSortedDescendingBy");
+        List<GroupSortOrder<T, K>> newSortOrders = new ArrayList<>(this.sortOrders);
+        newSortOrders.add(new GroupSortOrder<>(keyExtractor, SortDirection.DESCENDING));
+        return withSortOrders(newSortOrders);
+    }
+
+    @Override
     public GroupStream<T, K> skip(int n) {
         return withOffset(validateSkipCount(n));
     }

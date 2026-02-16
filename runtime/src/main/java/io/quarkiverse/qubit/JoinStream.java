@@ -42,6 +42,12 @@ public interface JoinStream<T, R> {
     /** Sorts results descending using a key from either entity. */
     <K extends Comparable<K>> JoinStream<T, R> sortedDescendingBy(BiQuerySpec<T, R, K> keyExtractor);
 
+    /** Adds a secondary ascending sort. Lower priority than sortedBy(). */
+    <K extends Comparable<K>> JoinStream<T, R> thenSortedBy(BiQuerySpec<T, R, K> keyExtractor);
+
+    /** Adds a secondary descending sort. Lower priority than sortedDescendingBy(). */
+    <K extends Comparable<K>> JoinStream<T, R> thenSortedDescendingBy(BiQuerySpec<T, R, K> keyExtractor);
+
     /**
      * Skips the first {@code n} results (SQL OFFSET).
      *

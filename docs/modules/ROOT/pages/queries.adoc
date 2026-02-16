@@ -58,10 +58,10 @@ List<Person> byAgeDesc = personRepository
     .sortedDescendingBy((Person p) -> p.age)
     .toList();
 
-// Multiple sort keys: sorts by lastName first, then firstName
+// Multiple sort keys: primary by lastName, secondary by firstName
 List<Person> sorted = personRepository
-    .sortedBy((Person p) -> p.firstName)
     .sortedBy((Person p) -> p.lastName)
+    .thenSortedBy((Person p) -> p.firstName)
     .toList();
 ----
 
