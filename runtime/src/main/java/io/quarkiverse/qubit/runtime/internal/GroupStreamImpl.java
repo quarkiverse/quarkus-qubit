@@ -233,26 +233,26 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
      * <li>Selector (select projection)</li>
      * </ol>
      *
-     * @return the primary lambda, or null if no lambdas are present
+     * @return the primary lambda
+     * @throws IllegalStateException if no lambdas are present (unreachable — keyExtractor is always set)
      */
     private Object getPrimaryLambda() {
-        // First predicate takes priority
         if (!predicates.isEmpty()) {
             return predicates.getFirst();
         }
-        // groupBy key extractor (always present for group queries)
+        // groupBy key extractor is always present (required constructor param)
         if (keyExtractor != null) {
             return keyExtractor;
         }
-        // Having condition
         if (!havingConditions.isEmpty()) {
             return havingConditions.getFirst();
         }
-        // Selector for projection
         if (selector != null) {
             return selector;
         }
-        return null;
+        throw new IllegalStateException(
+                "No lambda found in group query pipeline. This should be unreachable — " +
+                        "group queries always have a key extractor lambda.");
     }
 
     private Object[] extractCapturedVariables(String callSiteId) {

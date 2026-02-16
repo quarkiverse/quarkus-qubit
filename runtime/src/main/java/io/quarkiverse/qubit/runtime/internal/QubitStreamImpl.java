@@ -386,28 +386,27 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
      * <li>First sort key extractor (for sort-only queries)</li>
      * </ol>
      *
-     * @return the primary lambda, or null if no lambdas are present
+     * @return the primary lambda
+     * @throws IllegalStateException if no lambdas are present in the pipeline
      */
     private Object getPrimaryLambda() {
-        // First predicate takes priority
         if (!predicates.isEmpty()) {
             return predicates.getFirst();
         }
-        // Selector for projection-only queries
         if (selector != null) {
             return selector;
         }
-        // Aggregation mapper for aggregation queries
         if (aggregationMapper != null) {
             return aggregationMapper;
         }
-        // Sort key extractor for sort-only queries
-        // Note: sortOrders are prepended (newest at index 0), so we pick the last
+        // sortOrders are prepended (newest at index 0), so pick the last
         // element (first added) to match build-time's sortLambdas.get(0)
         if (!sortOrders.isEmpty()) {
             return sortOrders.getLast().keyExtractor();
         }
-        return null;
+        throw new IllegalStateException(
+                "No lambda found in query pipeline. A Qubit query must have at least one " +
+                        "lambda expression (where, select, sortedBy, min, max, avg, or sum*).");
     }
 
     /**

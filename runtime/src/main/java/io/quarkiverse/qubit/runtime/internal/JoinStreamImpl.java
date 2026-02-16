@@ -300,26 +300,26 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
      * <li>First ON condition</li>
      * </ol>
      *
-     * @return the primary lambda, or null if no lambdas are present
+     * @return the primary lambda
+     * @throws IllegalStateException if no lambdas are present (unreachable — relationshipAccessor is always set)
      */
     private Object getPrimaryLambda() {
-        // Source predicate first (matches build-time predicateLambdas priority)
         if (!sourcePredicates.isEmpty()) {
             return sourcePredicates.getFirst();
         }
-        // Bi-entity predicate (matches build-time biEntityPredicateLambdas)
         if (!biPredicates.isEmpty()) {
             return biPredicates.getFirst();
         }
-        // Relationship accessor (always present for joins)
+        // Relationship accessor is always present for joins (required constructor param)
         if (relationshipAccessor != null) {
             return relationshipAccessor;
         }
-        // ON condition
         if (!onConditions.isEmpty()) {
             return onConditions.getFirst();
         }
-        return null;
+        throw new IllegalStateException(
+                "No lambda found in join query pipeline. This should be unreachable — " +
+                        "join queries always have a relationship accessor lambda.");
     }
 
     /**
