@@ -250,4 +250,13 @@ public class FluentApiTestSources {
         return TestEmployee.where((TestEmployee e) -> e.age > minAge && e.department.equals(dept))
                 .toList();
     }
+
+    /**
+     * Orphaned lambda: QuerySpec without terminal operation.
+     * The scanner should warn about this at build time.
+     */
+    @SuppressWarnings("unused")
+    public void withOrphanedLambda() {
+        TestEmployee.where((TestEmployee e) -> e.age > 25);
+    }
 }

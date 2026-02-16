@@ -561,6 +561,18 @@ public class InvokeDynamicScanner {
                 state.reset();
             }
         }
+
+        // Detect orphaned lambdas: QuerySpec lambdas without a terminal operation in the same method.
+        // Skip lambda$ methods — they legitimately contain nested QuerySpec lambdas for subqueries.
+        if (state.hasLambdas() && !method.name.startsWith("lambda$")) {
+            String ownerName = classNode.name.replace('/', '.');
+            for (PendingLambda lambda : state.pendingLambdas()) {
+                Log.warnf("Qubit: QuerySpec lambda '%s' in %s.%s has no terminal operation " +
+                        "(toList/count/exists/getSingleResult/findFirst) in the same method. " +
+                        "This query will not be pre-compiled and will fail at runtime.",
+                        lambda.methodName(), ownerName, method.name);
+            }
+        }
     }
 
     /**

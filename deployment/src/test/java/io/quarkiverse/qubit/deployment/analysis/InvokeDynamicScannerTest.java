@@ -50,6 +50,15 @@ class InvokeDynamicScannerTest {
         }
 
         @Test
+        void doesNotProduceCallSiteForOrphanedLambda() {
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+                    FLUENT_API_SOURCES_CLASS);
+
+            assertThat(callSites)
+                    .noneMatch(cs -> "withOrphanedLambda".equals(cs.methodName()));
+        }
+
+        @Test
         void callSitesHaveOwnerClassName() {
             List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
