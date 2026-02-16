@@ -1,42 +1,21 @@
 package io.quarkiverse.qubit.deployment.generation;
 
-import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.unknownAggregationType;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_AVG;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_COUNT;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_COUNT_DISTINCT;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_CREATE_QUERY;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_MAX;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_MIN;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_SUM_AS_DOUBLE;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_SUM_AS_LONG;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CQ_FROM;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CQ_GROUP_BY;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CQ_HAVING;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CQ_SELECT;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.EM_CREATE_QUERY;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.EM_GET_CRITERIA_BUILDER;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.FROM_JOIN;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.INTEGER_LONG_VALUE;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.INTEGER_VALUE_OF;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.LIST_SIZE;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.LONG_VALUE_OF;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.PATH_GET;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.TQ_GET_RESULT_LIST;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.TQ_GET_SINGLE_RESULT;
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_AVG;
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_MAX;
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_MIN;
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_SUM_DOUBLE;
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_SUM_INTEGER;
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.AGG_TYPE_SUM_LONG;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QE_EXECUTE;
 
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.criteria.Expression;
-import jakarta.persistence.criteria.Predicate;
 
 import org.jspecify.annotations.Nullable;
 
@@ -121,55 +100,14 @@ public class QueryExecutorClassGenerator {
     }
 
     /** JPA Criteria API query setup: CriteriaBuilder, CriteriaQuery, and Root stored as LocalVar for Gizmo2. */
-    private record QuerySetup(
+    record QuerySetup(
             LocalVar cb,
             LocalVar query,
             LocalVar root) {
     }
 
-    /** Context for GROUP BY query generation with WHERE, GROUP BY, and HAVING. */
-    private record GroupQueryContext(
-            BlockCreator bc,
-            Expr em,
-            Expr entityClass,
-            LambdaExpression predicateExpression,
-            LambdaExpression groupByKeyExpression,
-            LambdaExpression havingExpression,
-            Expr capturedValues) {
-    }
-
-    /** Extended GROUP BY context adding select, sort, pagination, and distinct. */
-    private record GroupListContext(
-            GroupQueryContext base,
-            LambdaExpression groupSelectExpression,
-            List<SortExpression> groupSortExpressions,
-            Expr offset,
-            Expr limit,
-            Expr distinct) {
-        // Delegate accessors for convenience
-        BlockCreator bc() {
-            return base.bc();
-        }
-
-        Expr em() {
-            return base.em();
-        }
-
-        Expr entityClass() {
-            return base.entityClass();
-        }
-
-        LambdaExpression havingExpression() {
-            return base.havingExpression();
-        }
-
-        Expr capturedValues() {
-            return base.capturedValues();
-        }
-    }
-
     /** Sets up CriteriaBuilder, CriteriaQuery, and Root in a single call. Uses LocalVar for Gizmo2 stack management. */
-    private QuerySetup setupQuery(
+    QuerySetup setupQuery(
             BlockCreator bc,
             Expr em,
             Expr entityClass,
@@ -182,12 +120,12 @@ public class QueryExecutorClassGenerator {
     }
 
     /** Sets up query with Object.class result type (projections, groups). */
-    private QuerySetup setupQueryForObject(BlockCreator bc, Expr em, Expr entityClass) {
+    QuerySetup setupQueryForObject(BlockCreator bc, Expr em, Expr entityClass) {
         return setupQuery(bc, em, entityClass, Const.of(Object.class));
     }
 
     /** Sets up query with Long.class result type (count queries). */
-    private QuerySetup setupQueryForLong(BlockCreator bc, Expr em, Expr entityClass) {
+    QuerySetup setupQueryForLong(BlockCreator bc, Expr em, Expr entityClass) {
         return setupQuery(bc, em, entityClass, Const.of(Long.class));
     }
 
@@ -236,8 +174,10 @@ public class QueryExecutorClassGenerator {
                     mc.body(bc -> {
                         Expr result;
                         if (isAggregationQuery) {
-                            // Aggregation queries (min, max, avg, sum*)
-                            result = generateAggregationQueryBody(bc, em, entityClassParam, predicateExpression,
+                            // Delegate aggregation queries (min, max, avg, sum*) to AggregationQueryGenerator
+                            var aggGen = new AggregationQueryGenerator(expressionGenerator, clauseApplier,
+                                    QueryExecutorClassGenerator.this);
+                            result = aggGen.generateAggregationQueryBody(bc, em, entityClassParam, predicateExpression,
                                     aggregationExpression, aggregationType, capturedValues);
                         } else if (isCountQuery) {
                             // Count queries ignore pagination and distinct parameters
@@ -404,20 +344,24 @@ public class QueryExecutorClassGenerator {
                     var distinct = mc.parameter("distinct", Boolean.class);
 
                     mc.body(bc -> {
+                        // Delegate to GroupQueryGenerator
+                        var groupGen = new GroupQueryGenerator(expressionGenerator, clauseApplier,
+                                QueryExecutorClassGenerator.this);
+
                         // Create base context with common parameters
-                        GroupQueryContext baseCtx = new GroupQueryContext(
+                        var baseCtx = new GroupQueryGenerator.GroupQueryContext(
                                 bc, em, entityClassParam,
                                 predicateExpression, groupByKeyExpression,
                                 havingExpression, capturedValues);
 
                         Expr result;
                         if (isCountQuery) {
-                            result = generateGroupCountQueryBody(baseCtx);
+                            result = groupGen.generateGroupCountQueryBody(baseCtx);
                         } else {
-                            GroupListContext listCtx = new GroupListContext(
+                            var listCtx = new GroupQueryGenerator.GroupListContext(
                                     baseCtx, groupSelectExpression, groupSortExpressions,
                                     offset, limit, distinct);
-                            result = generateGroupQueryBody(listCtx);
+                            result = groupGen.generateGroupQueryBody(listCtx);
                         }
 
                         bc.return_(result);
@@ -437,172 +381,6 @@ public class QueryExecutorClassGenerator {
                 metricsCollector.addCodeGenerationTime(System.nanoTime() - startTime);
             }
         }
-    }
-
-    /** Generates GROUP BY query with optional WHERE, HAVING, SELECT, and ORDER BY. */
-    private Expr generateGroupQueryBody(GroupListContext ctx) {
-        BlockCreator bc = ctx.bc();
-
-        // Setup query and apply common GROUP BY logic
-        QuerySetup setup = setupQueryForObject(bc, ctx.em(), ctx.entityClass());
-        Expr cb = setup.cb();
-        Expr query = setup.query();
-        Expr root = setup.root();
-
-        // Apply common WHERE and GROUP BY setup
-        // Returns LocalVar for Gizmo2 scoping (used across HAVING, SELECT, ORDER BY)
-        LocalVar groupKeyExpr = applyGroupQuerySetup(ctx.base(), setup);
-
-        // Apply HAVING predicate if present
-        if (ctx.havingExpression() != null) {
-            Expr havingPredicate = expressionGenerator.generateGroupPredicate(
-                    bc, ctx.havingExpression(), cb, root, groupKeyExpr, ctx.capturedValues());
-            applyHavingPredicate(bc, query, havingPredicate);
-        }
-
-        // Apply SELECT projection if present
-        if (ctx.groupSelectExpression() != null) {
-            Expr selection = expressionGenerator.generateGroupSelectExpression(
-                    bc, ctx.groupSelectExpression(), cb, root, groupKeyExpr, ctx.capturedValues());
-            bc.invokeInterface(CQ_SELECT, query, selection);
-        } else {
-            // Default: SELECT the grouping key
-            bc.invokeInterface(CQ_SELECT, query, groupKeyExpr);
-        }
-
-        // Apply ORDER BY for group queries
-        applyGroupOrderBy(bc, query, root, groupKeyExpr, cb, ctx.groupSortExpressions(), ctx.capturedValues());
-
-        // Apply DISTINCT if requested
-        clauseApplier.applyDistinct(bc, query, ctx.distinct());
-
-        // Create TypedQuery
-        // Use LocalVar for values used across multiple operations (Gizmo2 requirement)
-        LocalVar typedQuery = bc.localVar("typedQuery", bc.invokeInterface(EM_CREATE_QUERY, ctx.em(), query));
-
-        // Apply pagination
-        clauseApplier.applyPagination(bc, typedQuery, ctx.offset(), ctx.limit());
-
-        // Return getResultList()
-        return bc.invokeInterface(TQ_GET_RESULT_LIST, typedQuery);
-    }
-
-    /** Applies WHERE predicate and generates GROUP BY key expression. */
-    private Expr applyWhereAndGenerateGroupKey(GroupQueryContext ctx, QuerySetup setup) {
-        BlockCreator bc = ctx.bc();
-
-        // Apply pre-grouping WHERE predicate if present (with subquery support)
-        if (ctx.predicateExpression() != null) {
-            Expr predicate = expressionGenerator.generatePredicateWithSubqueries(
-                    bc, ctx.predicateExpression(), setup.cb(), setup.query(), setup.root(), ctx.capturedValues());
-            clauseApplier.applyWherePredicate(bc, setup.query(), predicate);
-        }
-
-        // Generate and return GROUP BY key expression
-        return expressionGenerator.generateExpression(
-                bc, ctx.groupByKeyExpression(), setup.cb(), setup.root(), ctx.capturedValues());
-    }
-
-    /** Applies WHERE, GROUP BY key, and GROUP BY clause setup. Returns LocalVar for Gizmo2 scoping. */
-    private LocalVar applyGroupQuerySetup(GroupQueryContext ctx, QuerySetup setup) {
-        // Apply WHERE and generate group key
-        Expr groupKeyExpr = applyWhereAndGenerateGroupKey(ctx, setup);
-
-        // Store in LocalVar for Gizmo2 scoping - this value is used across multiple operations
-        // (HAVING predicate, SELECT expression, ORDER BY, and the GROUP BY array itself)
-        LocalVar groupKeyVar = ctx.bc().localVar("groupKey", groupKeyExpr);
-
-        // Apply GROUP BY
-        LocalVar groupByArray = ctx.bc().localVar("groupByArray", ctx.bc().newEmptyArray(Expression.class, 1));
-        ctx.bc().set(groupByArray.elem(0), groupKeyVar);
-        ctx.bc().invokeInterface(CQ_GROUP_BY, setup.query(), groupByArray);
-
-        return groupKeyVar;
-    }
-
-    /** Generates GROUP BY COUNT using COUNT(DISTINCT) or runtime result counting for HAVING. */
-    private Expr generateGroupCountQueryBody(GroupQueryContext ctx) {
-        if (ctx.havingExpression() != null) {
-            return generateGroupCountWithHaving(ctx);
-        } else {
-            return generateGroupCountWithoutHaving(ctx);
-        }
-    }
-
-    /** Generates GROUP COUNT with HAVING (counts results at runtime). */
-    private Expr generateGroupCountWithHaving(GroupQueryContext ctx) {
-        BlockCreator bc = ctx.bc();
-
-        // With HAVING: Create query for Object (group key type may vary)
-        QuerySetup setup = setupQueryForObject(bc, ctx.em(), ctx.entityClass());
-
-        // Apply WHERE + GROUP BY setup (returns LocalVar for Gizmo2 scoping)
-        LocalVar groupKeyExpr = applyGroupQuerySetup(ctx, setup);
-
-        // Apply HAVING predicate
-        Expr havingPredicate = expressionGenerator.generateGroupPredicate(
-                bc, ctx.havingExpression(), setup.cb(), setup.root(), groupKeyExpr, ctx.capturedValues());
-        applyHavingPredicate(bc, setup.query(), havingPredicate);
-
-        // SELECT groupKey (we'll count results at runtime)
-        bc.invokeInterface(CQ_SELECT, setup.query(), groupKeyExpr);
-
-        // Create TypedQuery and get result list
-        Expr typedQuery = bc.invokeInterface(EM_CREATE_QUERY, ctx.em(), setup.query());
-        Expr resultList = bc.invokeInterface(TQ_GET_RESULT_LIST, typedQuery);
-
-        // Return result list size as Long
-        Expr size = bc.invokeInterface(LIST_SIZE, resultList);
-        Expr sizeLong = bc.invokeVirtual(
-                INTEGER_LONG_VALUE,
-                bc.invokeStatic(INTEGER_VALUE_OF, size));
-        return bc.invokeStatic(LONG_VALUE_OF, sizeLong);
-    }
-
-    /** Generates GROUP COUNT without HAVING using COUNT(DISTINCT groupKey). */
-    private Expr generateGroupCountWithoutHaving(GroupQueryContext ctx) {
-        BlockCreator bc = ctx.bc();
-
-        // Without HAVING: Create query for Long (count result)
-        QuerySetup setup = setupQueryForLong(bc, ctx.em(), ctx.entityClass());
-
-        // Apply WHERE and generate group key (no GROUP BY needed for COUNT DISTINCT)
-        Expr groupKeyExpr = applyWhereAndGenerateGroupKey(ctx, setup);
-
-        // Simple COUNT(DISTINCT groupKey)
-        Expr countExpr = bc.invokeInterface(CB_COUNT_DISTINCT, setup.cb(), groupKeyExpr);
-        bc.invokeInterface(CQ_SELECT, setup.query(), countExpr);
-
-        // Create TypedQuery and return getSingleResult()
-        Expr typedQuery = bc.invokeInterface(EM_CREATE_QUERY, ctx.em(), setup.query());
-        return bc.invokeInterface(TQ_GET_SINGLE_RESULT, typedQuery);
-    }
-
-    /**
-     * Applies HAVING clause predicate to CriteriaQuery.
-     */
-    private void applyHavingPredicate(BlockCreator bc, Expr query, Expr predicate) {
-        if (predicate != null) {
-            Expr predicateArray = GizmoHelper.createElementArray(bc, Predicate.class, predicate);
-            bc.invokeInterface(CQ_HAVING, query, predicateArray);
-        }
-    }
-
-    /**
-     * Applies ORDER BY clause for GROUP BY queries.
-     */
-    private void applyGroupOrderBy(
-            BlockCreator bc,
-            Expr query,
-            Expr root,
-            Expr groupKeyExpr,
-            Expr cb,
-            List<?> sortExpressions,
-            Expr capturedValues) {
-
-        GizmoHelper.buildOrderByClause(bc, query, cb, sortExpressions,
-                sortExpr -> expressionGenerator.generateGroupSortExpression(
-                        bc, sortExpr.keyExtractor(), cb, root, groupKeyExpr, capturedValues));
     }
 
     /** Generates LIST query with WHERE, SELECT, ORDER BY, and pagination. */
@@ -665,79 +443,6 @@ public class QueryExecutorClassGenerator {
         clauseApplier.applyWherePredicate(bc, query, predicate);
         Expr typedQuery = bc.invokeInterface(EM_CREATE_QUERY, em, query);
         return bc.invokeInterface(TQ_GET_SINGLE_RESULT, typedQuery);
-    }
-
-    /** Generates aggregation query (MIN, MAX, AVG, SUM) with optional WHERE. */
-    private Expr generateAggregationQueryBody(
-            BlockCreator bc,
-            Expr em,
-            Expr entityClass,
-            LambdaExpression predicateExpression,
-            LambdaExpression aggregationExpression,
-            String aggregationType,
-            Expr capturedValues) {
-
-        // Determine result type based on aggregation type
-        Class<?> resultType = getAggregationResultType(aggregationType);
-        Expr resultClass = Const.of(resultType);
-
-        // Setup query with the aggregation result type
-        QuerySetup setup = setupQuery(bc, em, entityClass, resultClass);
-        Expr cb = setup.cb();
-        Expr query = setup.query();
-        Expr root = setup.root();
-
-        // Generate expression for aggregation mapper (e.g., root.get("salary"))
-        Expr mapperExpr = expressionGenerator.generateExpression(
-                bc, aggregationExpression, cb, root, capturedValues);
-
-        // Apply aggregation function
-        Expr aggExpr = applyAggregationFunction(bc, cb, mapperExpr, aggregationType);
-
-        // SELECT aggregation result
-        bc.invokeInterface(CQ_SELECT, query, aggExpr);
-
-        // Apply WHERE predicate if present (with subquery support)
-        if (predicateExpression != null) {
-            Expr predicate = expressionGenerator.generatePredicateWithSubqueries(
-                    bc, predicateExpression, cb, query, root, capturedValues);
-            clauseApplier.applyWherePredicate(bc, query, predicate);
-        }
-
-        // Create and execute query
-        Expr typedQuery = bc.invokeInterface(EM_CREATE_QUERY, em, query);
-
-        return bc.invokeInterface(TQ_GET_SINGLE_RESULT, typedQuery);
-    }
-
-    /** Maps aggregation type to Java result type (AVG->Double, SUM->Long, etc). */
-    private Class<?> getAggregationResultType(String aggregationType) {
-        return switch (aggregationType) {
-            case AGG_TYPE_AVG -> Double.class; // AVG always returns Double
-            case AGG_TYPE_SUM_INTEGER -> Long.class; // SUM of integers returns Long
-            case AGG_TYPE_SUM_LONG -> Long.class; // SUM of longs returns Long
-            case AGG_TYPE_SUM_DOUBLE -> Double.class; // SUM of doubles returns Double
-            case AGG_TYPE_MIN, AGG_TYPE_MAX -> Object.class; // MIN/MAX return same type as field (use Object for now)
-            default -> throw new IllegalArgumentException(unknownAggregationType(aggregationType));
-        };
-    }
-
-    /** Generates cb.min(), cb.max(), cb.avg(), or cb.sum() call. */
-    private Expr applyAggregationFunction(
-            BlockCreator bc,
-            Expr cb,
-            Expr expression,
-            String aggregationType) {
-
-        return switch (aggregationType) {
-            case AGG_TYPE_MIN -> bc.invokeInterface(CB_MIN, cb, expression);
-            case AGG_TYPE_MAX -> bc.invokeInterface(CB_MAX, cb, expression);
-            case AGG_TYPE_AVG -> bc.invokeInterface(CB_AVG, cb, expression);
-            case AGG_TYPE_SUM_INTEGER -> bc.invokeInterface(CB_SUM_AS_LONG, cb, expression); // Use sumAsLong for Integer fields
-            case AGG_TYPE_SUM_LONG -> bc.invokeInterface(CB_SUM_AS_LONG, cb, expression);
-            case AGG_TYPE_SUM_DOUBLE -> bc.invokeInterface(CB_SUM_AS_DOUBLE, cb, expression);
-            default -> throw new IllegalArgumentException(unknownAggregationType(aggregationType));
-        };
     }
 
     /** Generates JOIN COUNT query with relationship navigation and bi-entity predicates. */

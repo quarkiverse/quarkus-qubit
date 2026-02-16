@@ -142,7 +142,7 @@ public class LambdaDeduplicator {
 
     /** Computes MD5 hash for lambda expression and query type. */
     public String computeLambdaHash(LambdaExpression expression, boolean isCountQuery, boolean isProjectionQuery) {
-        String queryType = CallSiteProcessor.getQueryType(isCountQuery, !isProjectionQuery, isProjectionQuery);
+        String queryType = ExecutorRegistrationHelper.getQueryType(isCountQuery, !isProjectionQuery, isProjectionQuery);
         return HashBuilder.create()
                 .expression(expression)
                 .queryType(queryType)
@@ -153,7 +153,7 @@ public class LambdaDeduplicator {
     public String computeCombinedHash(LambdaExpression predicateExpression,
             LambdaExpression projectionExpression,
             boolean isCountQuery) {
-        String queryType = CallSiteProcessor.getQueryType(isCountQuery, true, true);
+        String queryType = ExecutorRegistrationHelper.getQueryType(isCountQuery, true, true);
         return HashBuilder.create()
                 .where(predicateExpression)
                 .select(projectionExpression)
@@ -176,7 +176,7 @@ public class LambdaDeduplicator {
             boolean isCountQuery,
             boolean isProjectionQuery) {
 
-        String queryType = CallSiteProcessor.getQueryType(isCountQuery, !isProjectionQuery, isProjectionQuery);
+        String queryType = ExecutorRegistrationHelper.getQueryType(isCountQuery, !isProjectionQuery, isProjectionQuery);
         return HashBuilder.create()
                 .expression(expression)
                 .sort(sortExpressions)
@@ -191,7 +191,7 @@ public class LambdaDeduplicator {
             List<SortExpression> sortExpressions,
             boolean isCountQuery) {
 
-        String queryType = CallSiteProcessor.getQueryType(isCountQuery, true, true);
+        String queryType = ExecutorRegistrationHelper.getQueryType(isCountQuery, true, true);
         return HashBuilder.create()
                 .where(predicateExpression)
                 .select(projectionExpression)

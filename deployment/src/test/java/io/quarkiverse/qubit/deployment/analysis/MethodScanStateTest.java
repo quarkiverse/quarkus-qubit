@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaSpecType;
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.MethodScanState;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.PendingLambda;
 
 /**

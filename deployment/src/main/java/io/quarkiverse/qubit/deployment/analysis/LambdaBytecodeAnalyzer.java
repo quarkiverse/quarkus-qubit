@@ -9,10 +9,8 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.InsnList;
@@ -50,40 +48,14 @@ import io.quarkus.logging.Log;
  */
 public class LambdaBytecodeAnalyzer {
 
-    /** Cache to avoid repeatedly parsing the same class bytecode into ClassNode. */
-    private static final ConcurrentHashMap<String, ClassNode> CLASS_NODE_CACHE = new ConcurrentHashMap<>();
-
     /** Clears the ClassNode cache. Used for dev mode hot reload support. */
     public static void clearCache() {
-        CLASS_NODE_CACHE.clear();
-        Log.debug("LambdaBytecodeAnalyzer ClassNode cache cleared");
+        ClassNodeCache.clear();
     }
 
     /** Pre-loads a ClassNode into the cache during warm-up to eliminate contention. */
     public static void preloadClassNode(byte[] classBytes, BuildMetricsCollector metricsCollector) {
-        getOrParseClassNode(classBytes, metricsCollector);
-    }
-
-    /** Gets or parses a ClassNode from bytecode, using cache to avoid repeated parsing. */
-    private static ClassNode getOrParseClassNode(byte[] classBytes, BuildMetricsCollector metricsCollector) {
-        // Get class name without full parsing (ClassReader reads constant pool header only)
-        ClassReader reader = new ClassReader(classBytes);
-        String className = reader.getClassName();
-
-        return CLASS_NODE_CACHE.computeIfAbsent(className, key -> {
-            long asmStartTime = System.nanoTime();
-            try {
-                ClassNode classNode = new ClassNode();
-                // Skip debug info (local vars, line numbers) and frames - not needed for lambda analysis
-                reader.accept(classNode, ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
-                return classNode;
-            } finally {
-                if (metricsCollector != null) {
-                    metricsCollector.addAsmParsingTime(System.nanoTime() - asmStartTime);
-                    metricsCollector.incrementUniqueClassesLoaded();
-                }
-            }
-        });
+        ClassNodeCache.preload(classBytes, metricsCollector);
     }
 
     /**
@@ -164,7 +136,7 @@ public class LambdaBytecodeAnalyzer {
             BuildMetricsCollector metricsCollector) {
         ClassNode classNode;
         try {
-            classNode = getOrParseClassNode(classBytes, metricsCollector);
+            classNode = ClassNodeCache.getOrParse(classBytes, metricsCollector);
         } catch (Exception e) {
             throw BytecodeAnalysisException.analysisFailedWithContext(
                     "Failed to read class bytecode for group lambda analysis",
@@ -218,7 +190,7 @@ public class LambdaBytecodeAnalyzer {
             BuildMetricsCollector metricsCollector) {
         ClassNode classNode;
         try {
-            classNode = getOrParseClassNode(classBytes, metricsCollector);
+            classNode = ClassNodeCache.getOrParse(classBytes, metricsCollector);
         } catch (Exception e) {
             throw BytecodeAnalysisException.analysisFailedWithContext(
                     "Failed to read class bytecode for lambda analysis",
