@@ -3,7 +3,6 @@ package io.quarkiverse.qubit.deployment;
 import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.DESC_CLASS_CONSTRUCTOR;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.CONSTRUCTOR;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.DESC_QUERY_SPEC_TO_JOIN_STREAM;
-
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JOIN_STREAM_IMPL_INTERNAL_NAME;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JOIN_TYPE_DESCRIPTOR;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JOIN_TYPE_INTERNAL_NAME;

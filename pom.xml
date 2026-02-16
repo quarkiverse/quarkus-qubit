@@ -78,10 +78,10 @@
     <build>
         <plugins>
             <!--
-                Disable impsort from quarkiverse-parent: JavaParser (used by impsort) cannot
-                parse record deconstruction patterns (JEP 440), type patterns in switch (JEP 441),
-                or unnamed patterns (JEP 456) used throughout this codebase.
-                Re-enable once JavaParser supports these Java 21+ features.
+                Disable impsort from quarkiverse-parent: JavaParser 3.28.0 (used by impsort 1.13.0)
+                cannot parse qualified type patterns in switch expressions (e.g.,
+                'case Outer.Inner _ ->'), which are used throughout this codebase.
+                Re-enable once JavaParser supports qualified names in switch pattern matching.
             -->
             <plugin>
                 <groupId>net.revelc.code</groupId>

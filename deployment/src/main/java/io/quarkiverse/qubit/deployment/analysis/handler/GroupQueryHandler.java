@@ -3,8 +3,8 @@ package io.quarkiverse.qubit.deployment.analysis.handler;
 import java.util.List;
 
 import io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome;
-import io.quarkiverse.qubit.deployment.analysis.CapturedVariableHelper;
 import io.quarkiverse.qubit.deployment.analysis.CallSite;
+import io.quarkiverse.qubit.deployment.analysis.CapturedVariableHelper;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.GroupQueryResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
