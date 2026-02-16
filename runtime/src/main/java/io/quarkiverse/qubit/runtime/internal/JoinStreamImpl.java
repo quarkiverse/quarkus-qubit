@@ -286,7 +286,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
 
     @Override
     public boolean exists() {
-        return count() > 0;
+        return findFirst().isPresent();
     }
 
     /**

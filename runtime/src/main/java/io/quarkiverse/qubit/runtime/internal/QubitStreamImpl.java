@@ -283,8 +283,9 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
 
     @Override
     public boolean exists() {
-        // Delegate to count() > 0 (as specified in the implementation tracker)
-        return count() > 0;
+        // Optimization: uses findFirst() which applies LIMIT 1 at the SQL level,
+        // avoiding a full COUNT(*) scan of all matching rows.
+        return findFirst().isPresent();
     }
 
     // INTERNAL HELPER METHODS - Stream Derivation

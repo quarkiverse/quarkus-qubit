@@ -68,7 +68,7 @@ public sealed interface CallSite permits CallSite.SimpleCallSite, CallSite.Aggre
     }
 
     default boolean isCountQuery() {
-        return METHOD_COUNT.equals(targetMethodName()) || METHOD_EXISTS.equals(targetMethodName());
+        return METHOD_COUNT.equals(targetMethodName());
     }
 
     default String getCallSiteId() {

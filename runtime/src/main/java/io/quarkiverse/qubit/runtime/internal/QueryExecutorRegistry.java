@@ -246,13 +246,6 @@ public class QueryExecutorRegistry {
     }
 
     /**
-     * Executes exists query for call site.
-     */
-    public <T> boolean executeExistsQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues) {
-        return executeCountQuery(callSiteId, entityClass, capturedValues) > 0;
-    }
-
-    /**
      * Executes aggregation query for call site (MIN, MAX, AVG, SUM).
      */
     @SuppressWarnings("unchecked")

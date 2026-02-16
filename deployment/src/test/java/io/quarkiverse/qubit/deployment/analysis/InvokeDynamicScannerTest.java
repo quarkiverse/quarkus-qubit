@@ -288,7 +288,9 @@ class InvokeDynamicScannerTest {
         }
 
         @Test
-        void isCountQueryReturnsTrueForExistsTerminal() {
+        void isCountQueryReturnsFalseForExistsTerminal() {
+            // exists() uses findFirst().isPresent() at runtime (LIMIT 1 optimization),
+            // so it generates a LIST executor, not a COUNT executor.
             List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
@@ -298,7 +300,7 @@ class InvokeDynamicScannerTest {
 
             assertThat(existsCallSites)
                     .isNotEmpty()
-                    .allMatch(CallSite::isCountQuery);
+                    .noneMatch(CallSite::isCountQuery);
         }
 
         @Test
