@@ -21,6 +21,7 @@ import org.jboss.jandex.DotName;
 import org.jboss.jandex.IndexView;
 
 import io.quarkiverse.qubit.QubitEntity;
+import io.quarkiverse.qubit.deployment.analysis.CallSite;
 import io.quarkiverse.qubit.deployment.analysis.CallSiteProcessor;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicQuickCheck;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner;
@@ -226,7 +227,7 @@ public class QubitProcessor {
 
         // Parallel class scanning: safe because InvokeDynamicScanner.scanClass() creates
         // fresh local state per invocation and BytecodeLoader uses ConcurrentHashMap cache
-        List<InvokeDynamicScanner.LambdaCallSite> allCallSites = filteredClasses.parallelStream()
+        List<CallSite> allCallSites = filteredClasses.parallelStream()
                 .flatMap(classInfo -> scanClassForCallSites(classInfo, scanner, applicationArchives, config.logging(),
                         metricsCollector).stream())
                 .peek(c -> Log.tracef("Qubit: Found callSite %s", c.getCallSiteId()))
@@ -247,7 +248,7 @@ public class QubitProcessor {
         // Phase: Cache Warming - pre-load bytecode and ClassNodes for classes with call sites
         // This reduces I/O contention during parallel analysis by warming both caches
         Set<String> classesWithCallSites = allCallSites.stream()
-                .map(InvokeDynamicScanner.LambdaCallSite::ownerClassName)
+                .map(CallSite::ownerClassName)
                 .collect(Collectors.toSet());
 
         Log.debugf("Qubit: Warming bytecode and ClassNode caches for %d classes with call sites", classesWithCallSites.size());
@@ -278,7 +279,7 @@ public class QubitProcessor {
 
         // JIT warm-up: process first call site sequentially to prime Gizmo2 hot paths.
         // Without this, each ForkJoinPool thread pays ~150ms JIT penalty on its first task.
-        List<InvokeDynamicScanner.LambdaCallSite> remainingCallSites = jitWarmUpAndGetRemaining(
+        List<CallSite> remainingCallSites = jitWarmUpAndGetRemaining(
                 allCallSites, configuredProcessor, processingContext, metricsCollector);
 
         // Parallel processing with JIT-primed code paths
@@ -305,8 +306,8 @@ public class QubitProcessor {
     }
 
     /** Processes first call site sequentially to prime JIT, returns remaining for parallel processing. */
-    private List<InvokeDynamicScanner.LambdaCallSite> jitWarmUpAndGetRemaining(
-            List<InvokeDynamicScanner.LambdaCallSite> allCallSites,
+    private List<CallSite> jitWarmUpAndGetRemaining(
+            List<CallSite> allCallSites,
             CallSiteProcessor processor,
             CallSiteProcessor.CallSiteProcessingContext ctx,
             BuildMetricsCollector metricsCollector) {
@@ -314,7 +315,7 @@ public class QubitProcessor {
         if (allCallSites.isEmpty()) {
             return allCallSites;
         }
-        InvokeDynamicScanner.LambdaCallSite warmupCallSite = allCallSites.getFirst();
+        CallSite warmupCallSite = allCallSites.getFirst();
         processor.processCallSiteWithHandlers(warmupCallSite, ctx);
         if (metricsCollector != null) {
             metricsCollector.incrementQueryCount();
@@ -435,7 +436,7 @@ public class QubitProcessor {
     }
 
     /** Scans a class for lambda call sites with Jandex pre-filter and constant pool quick check. */
-    private List<InvokeDynamicScanner.LambdaCallSite> scanClassForCallSites(
+    private List<CallSite> scanClassForCallSites(
             ClassInfo classInfo,
             InvokeDynamicScanner scanner,
             ApplicationArchivesBuildItem applicationArchives,
@@ -479,7 +480,7 @@ public class QubitProcessor {
             }
 
             // Full ASM parsing for classes that might contain invokedynamic
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(classBytes, className);
+            List<CallSite> callSites = scanner.scanClass(classBytes, className);
 
             if (!callSites.isEmpty()) {
                 Log.debugf("Found %d lambda call site(s) in %s", callSites.size(), className);
@@ -507,16 +508,16 @@ public class QubitProcessor {
      * cause silent data corruption - second registration overwrites first.
      */
     // Package-private for testing
-    void validateUniqueCallSiteIds(List<InvokeDynamicScanner.LambdaCallSite> callSites) {
-        Map<String, List<InvokeDynamicScanner.LambdaCallSite>> callSiteIdToSites = new HashMap<>();
+    void validateUniqueCallSiteIds(List<CallSite> callSites) {
+        Map<String, List<CallSite>> callSiteIdToSites = new HashMap<>();
 
-        for (InvokeDynamicScanner.LambdaCallSite callSite : callSites) {
+        for (CallSite callSite : callSites) {
             String callSiteId = callSite.getCallSiteId();
             callSiteIdToSites.computeIfAbsent(callSiteId, _ -> new ArrayList<>()).add(callSite);
         }
 
         // Find duplicates
-        List<Map.Entry<String, List<InvokeDynamicScanner.LambdaCallSite>>> duplicates = callSiteIdToSites.entrySet()
+        List<Map.Entry<String, List<CallSite>>> duplicates = callSiteIdToSites.entrySet()
                 .stream()
                 .filter(e -> e.getValue().size() > 1)
                 .toList();
@@ -528,13 +529,13 @@ public class QubitProcessor {
                     .append("Multiple Qubit query expressions on the same source line will cause silent data corruption.\n");
             errorMessage.append("Each query must be on a separate line to ensure unique call site identification.\n\n");
 
-            for (Map.Entry<String, List<InvokeDynamicScanner.LambdaCallSite>> duplicate : duplicates) {
+            for (Map.Entry<String, List<CallSite>> duplicate : duplicates) {
                 String callSiteId = duplicate.getKey();
-                List<InvokeDynamicScanner.LambdaCallSite> sites = duplicate.getValue();
+                List<CallSite> sites = duplicate.getValue();
 
                 errorMessage.append("Call site ID: ").append(callSiteId).append("\n");
                 errorMessage.append("  Found ").append(sites.size()).append(" queries on this line:\n");
-                for (InvokeDynamicScanner.LambdaCallSite site : sites) {
+                for (CallSite site : sites) {
                     errorMessage.append("    - ").append(site).append("\n");
                 }
                 errorMessage.append("\n");

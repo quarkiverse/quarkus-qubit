@@ -7,7 +7,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.JoinType;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaSpecType;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.MethodScanState;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.PendingLambda;
@@ -144,18 +143,18 @@ class MethodScanStateTest {
         @Test
         @DisplayName("setJoinType sets INNER join")
         void setJoinTypeInner() {
-            state.setJoinType(JoinType.INNER);
+            state.setJoinType(CallSite.JoinType.INNER);
 
-            assertThat(state.pendingJoinType()).isEqualTo(JoinType.INNER);
+            assertThat(state.pendingJoinType()).isEqualTo(CallSite.JoinType.INNER);
             assertThat(state.isJoinContext()).isTrue();
         }
 
         @Test
         @DisplayName("setJoinType sets LEFT join")
         void setJoinTypeLeft() {
-            state.setJoinType(JoinType.LEFT);
+            state.setJoinType(CallSite.JoinType.LEFT);
 
-            assertThat(state.pendingJoinType()).isEqualTo(JoinType.LEFT);
+            assertThat(state.pendingJoinType()).isEqualTo(CallSite.JoinType.LEFT);
             assertThat(state.isJoinContext()).isTrue();
         }
 
@@ -318,7 +317,7 @@ class MethodScanStateTest {
             // Set up various state
             state.addLambda(new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC));
             state.setAggregation("min");
-            state.setJoinType(JoinType.LEFT);
+            state.setJoinType(CallSite.JoinType.LEFT);
             state.markJoinSelectJoined(50);
             state.markJoinSelect(55);
             state.markGroupQuery();
@@ -363,7 +362,7 @@ class MethodScanStateTest {
         @DisplayName("state can be reused after reset")
         void stateCanBeReusedAfterReset() {
             state.addLambda(new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC));
-            state.setJoinType(JoinType.INNER);
+            state.setJoinType(CallSite.JoinType.INNER);
             state.reset();
 
             // Add new state
@@ -433,13 +432,13 @@ class MethodScanStateTest {
             // Simulate: Person.join(p -> p.phones).where((p, ph) -> ph.type.equals("mobile")).toList()
             state.updateLine(20);
             state.addLambda(new PendingLambda("lambda$0", "(LPerson;)LList;", "join", LambdaSpecType.QUERY_SPEC));
-            state.setJoinType(JoinType.INNER);
+            state.setJoinType(CallSite.JoinType.INNER);
             state.updateLine(21);
             state.addLambda(new PendingLambda("lambda$1", "(LPerson;LPhone;)Z", "where", LambdaSpecType.BI_QUERY_SPEC));
 
             assertThat(state.hasLambdas()).isTrue();
             assertThat(state.isJoinContext()).isTrue();
-            assertThat(state.pendingJoinType()).isEqualTo(JoinType.INNER);
+            assertThat(state.pendingJoinType()).isEqualTo(CallSite.JoinType.INNER);
             assertThat(state.pendingLambdas()).hasSize(2);
         }
 

@@ -3,7 +3,7 @@ package io.quarkiverse.qubit.deployment.generation.join;
 import java.util.List;
 import java.util.Objects;
 
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner;
+import io.quarkiverse.qubit.deployment.analysis.CallSite;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkus.gizmo2.Expr;
@@ -18,7 +18,7 @@ public record JoinQueryContext(
         Expr entityClass,
         LambdaExpression joinRelationshipExpression,
         LambdaExpression biEntityPredicateExpression,
-        InvokeDynamicScanner.JoinType joinType,
+        CallSite.JoinType joinType,
         List<SortExpression> sortExpressions,
         Expr capturedValues,
         Expr offset,

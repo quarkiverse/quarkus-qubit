@@ -3,7 +3,7 @@ package io.quarkiverse.qubit.deployment.analysis.handler;
 import java.util.List;
 
 import io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome;
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaCallSite;
+import io.quarkiverse.qubit.deployment.analysis.CallSite;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.JoinQueryResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
@@ -30,8 +30,8 @@ public final class JoinQueryHandler extends AbstractQueryHandler {
     }
 
     @Override
-    public boolean canHandle(LambdaCallSite callSite) {
-        return callSite.isJoinQuery();
+    public boolean canHandle(CallSite callSite) {
+        return callSite instanceof CallSite.JoinCallSite;
     }
 
     @Override
@@ -40,7 +40,7 @@ public final class JoinQueryHandler extends AbstractQueryHandler {
     }
 
     private AnalysisOutcome doAnalyze(QueryAnalysisContext context) {
-        LambdaCallSite callSite = context.callSite();
+        CallSite.JoinCallSite callSite = (CallSite.JoinCallSite) context.callSite();
 
         // Analyze join relationship lambda (required)
         LambdaExpression joinRelationshipExpr = analyzeSingleLambda(
@@ -94,7 +94,7 @@ public final class JoinQueryHandler extends AbstractQueryHandler {
                         sortExpressions,
                         callSite.joinType().name(),
                         callSite.isCountQuery(),
-                        callSite.isSelectJoinedQuery(),
+                        callSite.isSelectJoined(),
                         callSite.isJoinProjectionQuery()));
 
         return AnalysisOutcome.success(result, context.callSiteId(), lambdaHash);
@@ -103,9 +103,10 @@ public final class JoinQueryHandler extends AbstractQueryHandler {
     @Override
     public String computeHash(
             LambdaDeduplicator deduplicator,
-            LambdaCallSite callSite,
+            CallSite callSite,
             LambdaAnalysisResult result) {
 
+        CallSite.JoinCallSite joinCallSite = (CallSite.JoinCallSite) callSite;
         JoinQueryResult join = castResult(result, JoinQueryResult.class);
         return deduplicator.computeJoinHash(
                 new LambdaDeduplicator.JoinHashRequest(
@@ -114,8 +115,8 @@ public final class JoinQueryHandler extends AbstractQueryHandler {
                         join.biEntityProjectionExpression(),
                         join.sortExpressions(),
                         join.joinType().name(),
-                        callSite.isCountQuery(),
-                        callSite.isSelectJoinedQuery(),
-                        callSite.isJoinProjectionQuery()));
+                        joinCallSite.isCountQuery(),
+                        joinCallSite.isSelectJoined(),
+                        joinCallSite.isJoinProjectionQuery()));
     }
 }

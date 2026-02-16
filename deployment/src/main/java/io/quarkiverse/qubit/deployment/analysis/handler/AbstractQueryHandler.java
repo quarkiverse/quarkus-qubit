@@ -6,8 +6,8 @@ import java.util.function.Function;
 
 import io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome;
 import io.quarkiverse.qubit.deployment.analysis.CapturedVariableHelper;
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaPair;
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.SortLambda;
+import io.quarkiverse.qubit.deployment.analysis.CallSite.LambdaPair;
+import io.quarkiverse.qubit.deployment.analysis.CallSite.SortLambda;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;

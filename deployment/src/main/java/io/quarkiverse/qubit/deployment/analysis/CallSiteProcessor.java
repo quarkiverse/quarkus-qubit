@@ -121,7 +121,7 @@ public class CallSiteProcessor {
      * Returns explicit {@link AnalysisOutcome} (Success/UnsupportedPattern/AnalysisError).
      */
     public AnalysisOutcome processCallSiteWithHandlers(
-            InvokeDynamicScanner.LambdaCallSite callSite,
+            CallSite callSite,
             CallSiteProcessingContext processingContext) {
 
         // Start JFR event for this analysis
@@ -210,7 +210,7 @@ public class CallSiteProcessor {
     }
 
     /** Computes bytecode signature and checks early dedup cache. */
-    private EarlyDedupResult computeAndCheckEarlyDedup(InvokeDynamicScanner.LambdaCallSite callSite) {
+    private EarlyDedupResult computeAndCheckEarlyDedup(CallSite callSite) {
         long startTime = System.nanoTime();
         try {
             String signature = deduplicator.computeBytecodeSignature(callSite);
@@ -230,7 +230,7 @@ public class CallSiteProcessor {
     /** Handles analysis outcome after handler execution. */
     private AnalysisOutcome handleAnalysisOutcome(
             AnalysisOutcome outcome,
-            InvokeDynamicScanner.LambdaCallSite callSite,
+            CallSite callSite,
             String callSiteId,
             String bytecodeSignature,
             String queryType,
@@ -267,7 +267,7 @@ public class CallSiteProcessor {
     /** Handles successful analysis: checks deduplication and generates executor. */
     private AnalysisOutcome handleSuccessOutcome(
             AnalysisOutcome.Success success,
-            InvokeDynamicScanner.LambdaCallSite callSite,
+            CallSite callSite,
             String callSiteId,
             String bytecodeSignature,
             String queryType,
@@ -350,7 +350,7 @@ public class CallSiteProcessor {
     private void generateExecutorFromResult(
             LambdaAnalysisResult result,
             String lambdaHash,
-            InvokeDynamicScanner.LambdaCallSite callSite,
+            CallSite callSite,
             BuildProducer<GeneratedClassBuildItem> generatedClass,
             BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations,
             QubitBuildTimeConfig.LoggingConfig loggingConfig) {
@@ -365,32 +365,34 @@ public class CallSiteProcessor {
         // Delegate to generation methods based on result type
         switch (result) {
             case LambdaAnalysisResult.GroupQueryResult group -> {
+                CallSite.GroupCallSite g = (CallSite.GroupCallSite) callSite;
                 ExecutorRegistrationContext ctx = new ExecutorRegistrationContext(
                         lambdaHash, callSiteId,
-                        DescriptorParser.getEntityClassName(callSite.groupByLambdaDescriptor()),
+                        DescriptorParser.getEntityClassName(g.groupByLambdaDescriptor()),
                         callSite.targetMethodName(),
                         callSite.isCountQuery(), callSite.hasDistinct(),
                         callSite.skipValue(), callSite.limitValue(),
                         generatedClass, queryTransformations, loggingConfig);
-                generateAndRegisterGroupExecutor(group, callSite.isGroupSelectKey(), ctx);
+                generateAndRegisterGroupExecutor(group, g.isGroupSelectKey(), ctx);
             }
 
             case LambdaAnalysisResult.JoinQueryResult join -> {
+                CallSite.JoinCallSite j = (CallSite.JoinCallSite) callSite;
                 ExecutorRegistrationContext ctx = new ExecutorRegistrationContext(
                         lambdaHash, callSiteId,
-                        DescriptorParser.getEntityClassName(callSite.joinRelationshipLambdaDescriptor()),
+                        DescriptorParser.getEntityClassName(j.joinRelationshipLambdaDescriptor()),
                         callSite.targetMethodName(),
                         callSite.isCountQuery(), callSite.hasDistinct(),
                         callSite.skipValue(), callSite.limitValue(),
                         generatedClass, queryTransformations, loggingConfig);
-                generateAndRegisterJoinExecutor(join, callSite.isSelectJoinedQuery(),
-                        callSite.isJoinProjectionQuery(), ctx);
+                generateAndRegisterJoinExecutor(join, j.isSelectJoined(),
+                        j.isJoinProjectionQuery(), ctx);
             }
 
             case LambdaAnalysisResult.AggregationQueryResult agg -> {
                 ExecutorRegistrationContext ctx = new ExecutorRegistrationContext(
                         lambdaHash, callSiteId,
-                        DescriptorParser.getEntityClassName(callSite.lambdaMethodDescriptor()),
+                        DescriptorParser.getEntityClassName(getEntityDescriptor(callSite)),
                         callSite.targetMethodName(),
                         callSite.isCountQuery(), callSite.hasDistinct(),
                         callSite.skipValue(), callSite.limitValue(),
@@ -403,7 +405,7 @@ public class CallSiteProcessor {
             case LambdaAnalysisResult.SimpleQueryResult simple -> {
                 ExecutorRegistrationContext ctx = new ExecutorRegistrationContext(
                         lambdaHash, callSiteId,
-                        DescriptorParser.getEntityClassName(callSite.lambdaMethodDescriptor()),
+                        DescriptorParser.getEntityClassName(getEntityDescriptor(callSite)),
                         callSite.targetMethodName(),
                         callSite.isCountQuery(), callSite.hasDistinct(),
                         callSite.skipValue(), callSite.limitValue(),
@@ -419,8 +421,8 @@ public class CallSiteProcessor {
      * Registers a duplicate call site detected by bytecode signature pre-grouping. Returns false if fallback analysis needed.
      */
     public boolean registerEarlyDeduplicated(
-            InvokeDynamicScanner.LambdaCallSite duplicate,
-            InvokeDynamicScanner.LambdaCallSite representative,
+            CallSite duplicate,
+            CallSite representative,
             CallSiteProcessingContext ctx) {
 
         // Get the executor class name from the representative's signature
@@ -452,7 +454,7 @@ public class CallSiteProcessor {
      * Uses minimal QueryCharacteristics since we don't have the full analysis result.
      */
     private void registerEarlyDeduplicatedQuery(
-            InvokeDynamicScanner.LambdaCallSite callSite,
+            CallSite callSite,
             String executorClassName,
             BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations,
             QubitBuildTimeConfig.LoggingConfig loggingConfig) {
@@ -463,7 +465,7 @@ public class CallSiteProcessor {
         String entityClassName = DescriptorParser.getEntityClassName(getEntityDescriptor(callSite));
 
         // Build characteristics from call site flags
-        QueryCharacteristics characteristics = QueryCharacteristics.fromCallSite(callSite, false);
+        QueryCharacteristics characteristics = QueryCharacteristics.fromCallSite(callSite);
 
         // Produce the build item for registry registration
         queryTransformations.produce(
@@ -484,14 +486,12 @@ public class CallSiteProcessor {
     /** Returns true if lambda was deduplicated (existing executor reused). */
     private boolean checkAndHandleDuplicate(
             LambdaAnalysis analysis,
-            InvokeDynamicScanner.LambdaCallSite callSite,
+            CallSite callSite,
             AtomicInteger deduplicatedCount,
             BuildProducer<QubitProcessor.QueryTransformationBuildItem> queryTransformations,
             QubitBuildTimeConfig.LoggingConfig loggingConfig) {
 
-        boolean isGroupQuery = analysis.result() instanceof LambdaAnalysisResult.GroupQueryResult;
-
-        QueryCharacteristics characteristics = QueryCharacteristics.fromCallSite(callSite, isGroupQuery);
+        QueryCharacteristics characteristics = QueryCharacteristics.fromCallSite(callSite);
 
         // Extract entity class name and expressions from the analysis result for DevUI display
         String entityClassName = extractEntityClassName(callSite, analysis.result());
@@ -526,12 +526,12 @@ public class CallSiteProcessor {
     /**
      * Extracts the entity class name from the call site based on query type.
      */
-    private String extractEntityClassName(InvokeDynamicScanner.LambdaCallSite callSite, LambdaAnalysisResult result) {
+    private String extractEntityClassName(CallSite callSite, LambdaAnalysisResult result) {
         return switch (result) {
             case LambdaAnalysisResult.GroupQueryResult _ ->
-                DescriptorParser.getEntityClassName(callSite.groupByLambdaDescriptor());
+                DescriptorParser.getEntityClassName(((CallSite.GroupCallSite) callSite).groupByLambdaDescriptor());
             case LambdaAnalysisResult.JoinQueryResult _ ->
-                DescriptorParser.getEntityClassName(callSite.joinRelationshipLambdaDescriptor());
+                DescriptorParser.getEntityClassName(((CallSite.JoinCallSite) callSite).joinRelationshipLambdaDescriptor());
             case LambdaAnalysisResult.AggregationQueryResult _ ->
                 DescriptorParser.getEntityClassName(getEntityDescriptor(callSite));
             case LambdaAnalysisResult.SimpleQueryResult _ ->
@@ -543,18 +543,24 @@ public class CallSiteProcessor {
      * Gets the best available descriptor for entity class extraction.
      * Prefers predicate/projection descriptor, falls back to sort lambda descriptor.
      */
-    private String getEntityDescriptor(InvokeDynamicScanner.LambdaCallSite callSite) {
-        // Try primary lambda descriptor first
-        if (callSite.lambdaMethodDescriptor() != null) {
-            return callSite.lambdaMethodDescriptor();
-        }
-        // Fall back to first sort lambda descriptor if available
-        var sortLambdas = callSite.sortLambdas();
-        if (sortLambdas != null && !sortLambdas.isEmpty()) {
-            return sortLambdas.getFirst().descriptor();
-        }
-        // Final fallback
-        return null;
+    private String getEntityDescriptor(CallSite callSite) {
+        return switch (callSite) {
+            case CallSite.SimpleCallSite s -> {
+                // Try primary lambda descriptor first
+                if (s.lambdaMethodDescriptor() != null) {
+                    yield s.lambdaMethodDescriptor();
+                }
+                // Fall back to first sort lambda descriptor if available
+                var sortLambdas = s.sortLambdas();
+                if (sortLambdas != null && !sortLambdas.isEmpty()) {
+                    yield sortLambdas.getFirst().descriptor();
+                }
+                yield null;
+            }
+            case CallSite.AggregationCallSite a -> a.aggregationLambdaMethodDescriptor();
+            case CallSite.GroupCallSite g -> g.groupByLambdaDescriptor();
+            case CallSite.JoinCallSite j -> j.joinRelationshipLambdaDescriptor();
+        };
     }
 
     /**
@@ -718,7 +724,7 @@ public class CallSiteProcessor {
                         .build());
 
         if (ctx.loggingConfig().logGeneratedClasses()) {
-            String joinTypeDesc = (join.joinType() == InvokeDynamicScanner.JoinType.LEFT)
+            String joinTypeDesc = (join.joinType() == CallSite.JoinType.LEFT)
                     ? "LEFT JOIN"
                     : "INNER JOIN";
             String queryTypeDesc;

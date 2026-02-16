@@ -41,7 +41,7 @@ class InvokeDynamicScannerTest {
 
         @Test
         void scansClassAndFindsCallSites() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             assertThat(callSites)
@@ -51,7 +51,7 @@ class InvokeDynamicScannerTest {
 
         @Test
         void callSitesHaveOwnerClassName() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             assertThat(callSites)
@@ -62,7 +62,7 @@ class InvokeDynamicScannerTest {
 
         @Test
         void callSitesHaveMethodName() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             assertThat(callSites)
@@ -73,18 +73,22 @@ class InvokeDynamicScannerTest {
 
         @Test
         void callSitesHaveLambdaMethodName() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             assertThat(callSites)
-                    .allSatisfy(cs -> assertThat(cs.lambdaMethodName())
-                            .as("Lambda method name should be set")
-                            .isNotBlank());
+                    .allSatisfy(cs -> {
+                        if (cs instanceof CallSite.SimpleCallSite simple) {
+                            assertThat(simple.lambdaMethodName())
+                                    .as("Lambda method name should be set")
+                                    .isNotBlank();
+                        }
+                    });
         }
 
         @Test
         void callSitesHaveLineNumbers() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             assertThat(callSites)
@@ -95,7 +99,7 @@ class InvokeDynamicScannerTest {
 
         @Test
         void callSitesHaveTargetMethodName() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             assertThat(callSites)
@@ -106,7 +110,7 @@ class InvokeDynamicScannerTest {
 
         @Test
         void getCallSiteIdReturnsUniqueIdentifier() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             assertThat(callSites)
@@ -121,7 +125,7 @@ class InvokeDynamicScannerTest {
 
         @Test
         void returnsEmptyListForNullBytes() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(null, "SomeClass");
+            List<CallSite> callSites = scanner.scanClass(null, "SomeClass");
 
             // Should handle null gracefully (caught in try-catch)
             assertThat(callSites).isEmpty();
@@ -131,7 +135,7 @@ class InvokeDynamicScannerTest {
         void returnsEmptyListForInvalidBytecode() {
             byte[] invalidBytecode = new byte[] { 0x00, 0x01, 0x02, 0x03 };
 
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(invalidBytecode, "InvalidClass");
+            List<CallSite> callSites = scanner.scanClass(invalidBytecode, "InvalidClass");
 
             // Should handle invalid bytecode gracefully
             assertThat(callSites).isEmpty();
@@ -145,7 +149,7 @@ class InvokeDynamicScannerTest {
                     .getResourceAsStream(className.replace('.', '/') + ".class")) {
                 if (is != null) {
                     byte[] classBytes = is.readAllBytes();
-                    List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(classBytes, className);
+                    List<CallSite> callSites = scanner.scanClass(classBytes, className);
 
                     assertThat(callSites)
                             .as("String class should have no QuerySpec lambdas")
@@ -160,7 +164,7 @@ class InvokeDynamicScannerTest {
 
         @Test
         void detectsToListTerminal() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             assertThat(callSites)
@@ -170,7 +174,7 @@ class InvokeDynamicScannerTest {
 
         @Test
         void detectsCountTerminal() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             assertThat(callSites)
@@ -180,7 +184,7 @@ class InvokeDynamicScannerTest {
 
         @Test
         void detectsExistsTerminal() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             assertThat(callSites)
@@ -190,7 +194,7 @@ class InvokeDynamicScannerTest {
 
         @Test
         void detectsGetSingleResultTerminal() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             assertThat(callSites)
@@ -200,7 +204,7 @@ class InvokeDynamicScannerTest {
 
         @Test
         void detectsFindFirstTerminal() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             assertThat(callSites)
@@ -214,41 +218,45 @@ class InvokeDynamicScannerTest {
 
         @Test
         void detectsWhereFluentMethod() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             assertThat(callSites)
-                    .anyMatch(cs -> "where".equals(cs.fluentMethodName()))
+                    .anyMatch(cs -> cs instanceof CallSite.SimpleCallSite simple
+                            && "where".equals(simple.fluentMethodName()))
                     .as("Should detect where() fluent method");
         }
 
         @Test
         void detectsSelectFluentMethod() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             assertThat(callSites)
-                    .anyMatch(cs -> "select".equals(cs.fluentMethodName()))
+                    .anyMatch(cs -> cs instanceof CallSite.SimpleCallSite simple
+                            && "select".equals(simple.fluentMethodName()))
                     .as("Should detect select() fluent method");
         }
 
         @Test
         void detectsSortedByFluentMethod() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             assertThat(callSites)
-                    .anyMatch(cs -> "sortedBy".equals(cs.fluentMethodName()))
+                    .anyMatch(cs -> cs instanceof CallSite.SimpleCallSite simple
+                            && "sortedBy".equals(simple.fluentMethodName()))
                     .as("Should detect sortedBy() fluent method");
         }
 
         @Test
         void detectsSortedDescendingByFluentMethod() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             assertThat(callSites)
-                    .anyMatch(cs -> "sortedDescendingBy".equals(cs.fluentMethodName()))
+                    .anyMatch(cs -> cs instanceof CallSite.SimpleCallSite simple
+                            && "sortedDescendingBy".equals(simple.fluentMethodName()))
                     .as("Should detect sortedDescendingBy() fluent method");
         }
     }
@@ -258,54 +266,55 @@ class InvokeDynamicScannerTest {
 
         @Test
         void isCountQueryReturnsTrueForCountTerminal() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
-            List<InvokeDynamicScanner.LambdaCallSite> countCallSites = callSites.stream()
+            List<CallSite> countCallSites = callSites.stream()
                     .filter(cs -> "count".equals(cs.targetMethodName()))
                     .toList();
 
             assertThat(countCallSites)
                     .isNotEmpty()
-                    .allMatch(InvokeDynamicScanner.LambdaCallSite::isCountQuery);
+                    .allMatch(CallSite::isCountQuery);
         }
 
         @Test
         void isCountQueryReturnsTrueForExistsTerminal() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
-            List<InvokeDynamicScanner.LambdaCallSite> existsCallSites = callSites.stream()
+            List<CallSite> existsCallSites = callSites.stream()
                     .filter(cs -> "exists".equals(cs.targetMethodName()))
                     .toList();
 
             assertThat(existsCallSites)
                     .isNotEmpty()
-                    .allMatch(InvokeDynamicScanner.LambdaCallSite::isCountQuery);
+                    .allMatch(CallSite::isCountQuery);
         }
 
         @Test
         void isCountQueryReturnsFalseForToListTerminal() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
-            List<InvokeDynamicScanner.LambdaCallSite> listCallSites = callSites.stream()
+            List<CallSite> listCallSites = callSites.stream()
                     .filter(cs -> "toList".equals(cs.targetMethodName()))
                     .toList();
 
             assertThat(listCallSites)
                     .isNotEmpty()
-                    .noneMatch(InvokeDynamicScanner.LambdaCallSite::isCountQuery);
+                    .noneMatch(CallSite::isCountQuery);
         }
 
         @Test
         void isProjectionQueryDetectsSelectClauses() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             // At least some call sites should be projections (select() calls)
             assertThat(callSites)
-                    .anyMatch(InvokeDynamicScanner.LambdaCallSite::isProjectionQuery);
+                    .anyMatch(cs -> cs instanceof CallSite.SimpleCallSite simple
+                            && simple.isProjectionQuery());
         }
     }
 
@@ -314,72 +323,72 @@ class InvokeDynamicScannerTest {
 
         @Test
         void isAggregationQueryReturnsTrueForMinTerminal() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
-            List<InvokeDynamicScanner.LambdaCallSite> minCallSites = callSites.stream()
+            List<CallSite> minCallSites = callSites.stream()
                     .filter(cs -> "min".equals(cs.targetMethodName()))
                     .toList();
 
             assertThat(minCallSites)
                     .isNotEmpty()
-                    .allMatch(InvokeDynamicScanner.LambdaCallSite::isAggregationQuery);
+                    .allMatch(cs -> cs instanceof CallSite.AggregationCallSite);
         }
 
         @Test
         void isAggregationQueryReturnsTrueForMaxTerminal() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
-            List<InvokeDynamicScanner.LambdaCallSite> maxCallSites = callSites.stream()
+            List<CallSite> maxCallSites = callSites.stream()
                     .filter(cs -> "max".equals(cs.targetMethodName()))
                     .toList();
 
             assertThat(maxCallSites)
                     .isNotEmpty()
-                    .allMatch(InvokeDynamicScanner.LambdaCallSite::isAggregationQuery);
+                    .allMatch(cs -> cs instanceof CallSite.AggregationCallSite);
         }
 
         @Test
         void isAggregationQueryReturnsTrueForAvgTerminal() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
-            List<InvokeDynamicScanner.LambdaCallSite> avgCallSites = callSites.stream()
+            List<CallSite> avgCallSites = callSites.stream()
                     .filter(cs -> "avg".equals(cs.targetMethodName()))
                     .toList();
 
             assertThat(avgCallSites)
                     .isNotEmpty()
-                    .allMatch(InvokeDynamicScanner.LambdaCallSite::isAggregationQuery);
+                    .allMatch(cs -> cs instanceof CallSite.AggregationCallSite);
         }
 
         @Test
         void isAggregationQueryReturnsTrueForSumIntegerTerminal() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
-            List<InvokeDynamicScanner.LambdaCallSite> sumCallSites = callSites.stream()
+            List<CallSite> sumCallSites = callSites.stream()
                     .filter(cs -> "sumInteger".equals(cs.targetMethodName()))
                     .toList();
 
             assertThat(sumCallSites)
                     .isNotEmpty()
-                    .allMatch(InvokeDynamicScanner.LambdaCallSite::isAggregationQuery);
+                    .allMatch(cs -> cs instanceof CallSite.AggregationCallSite);
         }
 
         @Test
         void isAggregationQueryReturnsFalseForNonAggregationTerminal() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
-            List<InvokeDynamicScanner.LambdaCallSite> toListCallSites = callSites.stream()
+            List<CallSite> toListCallSites = callSites.stream()
                     .filter(cs -> "toList".equals(cs.targetMethodName()))
                     .toList();
 
             assertThat(toListCallSites)
                     .isNotEmpty()
-                    .noneMatch(InvokeDynamicScanner.LambdaCallSite::isAggregationQuery);
+                    .noneMatch(cs -> cs instanceof CallSite.AggregationCallSite);
         }
     }
 
@@ -388,44 +397,47 @@ class InvokeDynamicScannerTest {
 
         @Test
         void detectsChainedWherePredicates() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             // Find call sites with multiple predicates
             assertThat(callSites)
-                    .anyMatch(cs -> cs.predicateLambdas() != null && cs.predicateLambdas().size() > 1)
+                    .anyMatch(cs -> cs instanceof CallSite.SimpleCallSite simple
+                            && simple.predicateLambdas() != null && simple.predicateLambdas().size() > 1)
                     .as("Should detect chained where() with multiple predicates");
         }
 
         @Test
         void detectsSortLambdas() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             // Find call sites with sort lambdas
             assertThat(callSites)
-                    .anyMatch(cs -> cs.sortLambdas() != null && !cs.sortLambdas().isEmpty())
+                    .anyMatch(cs -> cs instanceof CallSite.SimpleCallSite simple
+                            && simple.sortLambdas() != null && !simple.sortLambdas().isEmpty())
                     .as("Should detect sortedBy() with sort lambdas");
         }
 
         @Test
         void detectsCombinedWhereAndSelect() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             // Find combined queries (where + select)
             assertThat(callSites)
-                    .anyMatch(InvokeDynamicScanner.LambdaCallSite::isCombinedQuery)
+                    .anyMatch(cs -> cs instanceof CallSite.SimpleCallSite simple
+                            && simple.isCombinedQuery())
                     .as("Should detect combined where().select() patterns");
         }
     }
 
     @Nested
-    class LambdaCallSiteRecordMethods {
+    class CallSiteRecordMethods {
 
         @Test
         void toStringReturnsReadableFormat() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             assertThat(callSites)
@@ -434,55 +446,65 @@ class InvokeDynamicScannerTest {
                         String str = cs.toString();
                         assertThat(str)
                                 .as("toString should be readable")
-                                .contains("LambdaCallSite")
+                                .contains("CallSite")
                                 .contains("line");
                     });
         }
 
         @Test
         void isJoinQueryReturnsFalseForNonJoinQueries() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             // FluentApiTestSources doesn't have join queries
             assertThat(callSites)
-                    .allSatisfy(cs -> assertThat(cs.isJoinQuery())
+                    .allSatisfy(cs -> assertThat(cs)
                             .as("Non-join queries should return false")
-                            .isFalse());
+                            .isNotInstanceOf(CallSite.JoinCallSite.class));
         }
 
         @Test
         void isGroupByQueryReturnsFalseForNonGroupQueries() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             // FluentApiTestSources doesn't have group queries
             assertThat(callSites)
-                    .allSatisfy(cs -> assertThat(cs.isGroupByQuery())
+                    .allSatisfy(cs -> assertThat(cs)
                             .as("Non-group queries should return false")
-                            .isFalse());
+                            .isNotInstanceOf(CallSite.GroupCallSite.class));
         }
 
         @Test
         void isSelectJoinedQueryReturnsFalseForNonJoinQueries() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             assertThat(callSites)
-                    .allSatisfy(cs -> assertThat(cs.isSelectJoinedQuery())
-                            .as("Non-join queries should return false for selectJoined")
-                            .isFalse());
+                    .allSatisfy(cs -> {
+                        if (cs instanceof CallSite.JoinCallSite join) {
+                            assertThat(join.isSelectJoined())
+                                    .as("Non-join queries should return false for selectJoined")
+                                    .isFalse();
+                        }
+                        // Non-JoinCallSite instances cannot be selectJoined, so the assertion passes trivially
+                    });
         }
 
         @Test
         void isJoinProjectionQueryReturnsFalseForNonJoinQueries() {
-            List<InvokeDynamicScanner.LambdaCallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
                     FLUENT_API_SOURCES_CLASS);
 
             assertThat(callSites)
-                    .allSatisfy(cs -> assertThat(cs.isJoinProjectionQuery())
-                            .as("Non-join queries should return false for join projection")
-                            .isFalse());
+                    .allSatisfy(cs -> {
+                        if (cs instanceof CallSite.JoinCallSite join) {
+                            assertThat(join.isJoinProjectionQuery())
+                                    .as("Non-join queries should return false for join projection")
+                                    .isFalse();
+                        }
+                        // Non-JoinCallSite instances cannot have join projections, so the assertion passes trivially
+                    });
         }
     }
 }

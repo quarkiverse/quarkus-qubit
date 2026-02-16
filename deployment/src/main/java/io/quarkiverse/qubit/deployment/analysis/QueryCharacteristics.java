@@ -48,15 +48,21 @@ public record QueryCharacteristics(
         return new QueryCharacteristics(true, false, false, false, false, true);
     }
 
-    public static QueryCharacteristics fromCallSite(
-            InvokeDynamicScanner.LambdaCallSite callSite,
-            boolean isGroupQuery) {
-        return new QueryCharacteristics(
-                callSite.isCountQuery(),
-                callSite.isAggregationQuery(),
-                callSite.isJoinQuery(),
-                callSite.isSelectJoinedQuery(),
-                callSite.isJoinProjectionQuery(),
-                isGroupQuery);
+    public static QueryCharacteristics fromCallSite(CallSite callSite) {
+        boolean isCount = callSite.isCountQuery();
+        return switch (callSite) {
+            case CallSite.GroupCallSite _ -> isCount ? forGroupCount() : forGroupList();
+            case CallSite.JoinCallSite j -> {
+                if (isCount)
+                    yield forJoinCount();
+                if (j.isJoinProjectionQuery())
+                    yield forJoinProjection();
+                if (j.isSelectJoined())
+                    yield forSelectJoined();
+                yield forJoinList();
+            }
+            case CallSite.AggregationCallSite _ -> forAggregation();
+            case CallSite.SimpleCallSite _ -> isCount ? forCount() : forList();
+        };
     }
 }

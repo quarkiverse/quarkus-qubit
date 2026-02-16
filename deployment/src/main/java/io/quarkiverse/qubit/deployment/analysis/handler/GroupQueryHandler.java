@@ -4,7 +4,7 @@ import java.util.List;
 
 import io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome;
 import io.quarkiverse.qubit.deployment.analysis.CapturedVariableHelper;
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaCallSite;
+import io.quarkiverse.qubit.deployment.analysis.CallSite;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.GroupQueryResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
@@ -35,8 +35,8 @@ public final class GroupQueryHandler extends AbstractQueryHandler {
     }
 
     @Override
-    public boolean canHandle(LambdaCallSite callSite) {
-        return callSite.isGroupQuery();
+    public boolean canHandle(CallSite callSite) {
+        return callSite instanceof CallSite.GroupCallSite;
     }
 
     @Override
@@ -45,7 +45,7 @@ public final class GroupQueryHandler extends AbstractQueryHandler {
     }
 
     private AnalysisOutcome doAnalyze(QueryAnalysisContext context) {
-        LambdaCallSite callSite = context.callSite();
+        CallSite.GroupCallSite callSite = (CallSite.GroupCallSite) context.callSite();
 
         // Analyze groupBy key lambda (required)
         LambdaExpression groupByKeyExpr = analyzeSingleLambda(
@@ -126,7 +126,7 @@ public final class GroupQueryHandler extends AbstractQueryHandler {
     @Override
     public String computeHash(
             LambdaDeduplicator deduplicator,
-            LambdaCallSite callSite,
+            CallSite callSite,
             LambdaAnalysisResult result) {
 
         GroupQueryResult group = castResult(result, GroupQueryResult.class);

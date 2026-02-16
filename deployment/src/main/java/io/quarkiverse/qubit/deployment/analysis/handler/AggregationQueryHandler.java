@@ -14,7 +14,7 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUM_IN
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUM_LONG;
 
 import io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome;
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaCallSite;
+import io.quarkiverse.qubit.deployment.analysis.CallSite;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.AggregationQueryResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator;
@@ -40,8 +40,8 @@ public final class AggregationQueryHandler extends AbstractQueryHandler {
     }
 
     @Override
-    public boolean canHandle(LambdaCallSite callSite) {
-        return callSite.isAggregationQuery();
+    public boolean canHandle(CallSite callSite) {
+        return callSite instanceof CallSite.AggregationCallSite;
     }
 
     @Override
@@ -50,7 +50,7 @@ public final class AggregationQueryHandler extends AbstractQueryHandler {
     }
 
     private AnalysisOutcome doAnalyze(QueryAnalysisContext context) {
-        LambdaCallSite callSite = context.callSite();
+        CallSite.AggregationCallSite callSite = (CallSite.AggregationCallSite) context.callSite();
 
         // Analyze aggregation mapper lambda (required)
         LambdaExpression aggregationExpr = analyzeSingleLambda(
@@ -89,7 +89,7 @@ public final class AggregationQueryHandler extends AbstractQueryHandler {
     @Override
     public String computeHash(
             LambdaDeduplicator deduplicator,
-            LambdaCallSite callSite,
+            CallSite callSite,
             LambdaAnalysisResult result) {
 
         AggregationQueryResult agg = castResult(result, AggregationQueryResult.class);

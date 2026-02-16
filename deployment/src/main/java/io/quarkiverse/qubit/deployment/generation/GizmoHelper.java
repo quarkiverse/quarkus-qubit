@@ -16,7 +16,7 @@ import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Selection;
 
 import io.quarkiverse.qubit.SortDirection;
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner;
+import io.quarkiverse.qubit.deployment.analysis.CallSite;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkus.gizmo2.Const;
@@ -50,8 +50,8 @@ public final class GizmoHelper {
     }
 
     /** Loads JPA JoinType enum value (INNER or LEFT). */
-    public static Expr loadJpaJoinType(InvokeDynamicScanner.JoinType joinType) {
-        String jpaJoinTypeName = (joinType == InvokeDynamicScanner.JoinType.LEFT) ? "LEFT" : "INNER";
+    public static Expr loadJpaJoinType(CallSite.JoinType joinType) {
+        String jpaJoinTypeName = (joinType == CallSite.JoinType.LEFT) ? "LEFT" : "INNER";
         ClassDesc joinTypeDesc = ClassDesc.of(JoinType.class.getName());
         return Expr.staticField(FieldDesc.of(joinTypeDesc, jpaJoinTypeName, joinTypeDesc));
     }

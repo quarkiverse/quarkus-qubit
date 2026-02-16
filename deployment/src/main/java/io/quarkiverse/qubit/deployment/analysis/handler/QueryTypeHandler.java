@@ -1,7 +1,7 @@
 package io.quarkiverse.qubit.deployment.analysis.handler;
 
 import io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome;
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaCallSite;
+import io.quarkiverse.qubit.deployment.analysis.CallSite;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator;
 
@@ -15,11 +15,11 @@ public sealed interface QueryTypeHandler permits AbstractQueryHandler {
     String queryTypeName();
 
     /** Returns true if this handler can process the call site. */
-    boolean canHandle(LambdaCallSite callSite);
+    boolean canHandle(CallSite callSite);
 
     /** Analyzes lambda bytecode; returns Success, UnsupportedPattern, or AnalysisError. */
     AnalysisOutcome analyze(QueryAnalysisContext context);
 
     /** Computes MD5 hash for deduplication based on query type-specific components. */
-    String computeHash(LambdaDeduplicator deduplicator, LambdaCallSite callSite, LambdaAnalysisResult result);
+    String computeHash(LambdaDeduplicator deduplicator, CallSite callSite, LambdaAnalysisResult result);
 }

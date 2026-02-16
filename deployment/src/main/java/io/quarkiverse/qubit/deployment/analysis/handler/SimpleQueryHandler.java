@@ -5,7 +5,7 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SELECT
 import java.util.List;
 
 import io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome;
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaCallSite;
+import io.quarkiverse.qubit.deployment.analysis.CallSite;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SimpleQueryResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
@@ -32,11 +32,9 @@ public final class SimpleQueryHandler extends AbstractQueryHandler {
     }
 
     @Override
-    public boolean canHandle(LambdaCallSite callSite) {
+    public boolean canHandle(CallSite callSite) {
         // Simple handler is the default - handles anything not handled by others
-        return !callSite.isGroupQuery() &&
-                !callSite.isJoinQuery() &&
-                !callSite.isAggregationQuery();
+        return callSite instanceof CallSite.SimpleCallSite;
     }
 
     @Override
@@ -45,7 +43,7 @@ public final class SimpleQueryHandler extends AbstractQueryHandler {
     }
 
     private AnalysisOutcome doAnalyze(QueryAnalysisContext context) {
-        LambdaCallSite callSite = context.callSite();
+        CallSite.SimpleCallSite callSite = (CallSite.SimpleCallSite) context.callSite();
 
         // Analyze predicate (WHERE clause) - may be null for SELECT-only queries
         LambdaExpression predicateExpr = analyzeAndCombinePredicates(
@@ -106,7 +104,7 @@ public final class SimpleQueryHandler extends AbstractQueryHandler {
     @Override
     public String computeHash(
             LambdaDeduplicator deduplicator,
-            LambdaCallSite callSite,
+            CallSite callSite,
             LambdaAnalysisResult result) {
 
         SimpleQueryResult simple = castResult(result, SimpleQueryResult.class);
@@ -115,7 +113,7 @@ public final class SimpleQueryHandler extends AbstractQueryHandler {
 
     private String computeHashWithDeduplicator(
             LambdaDeduplicator deduplicator,
-            LambdaCallSite callSite,
+            CallSite callSite,
             SimpleQueryResult result) {
 
         boolean isCountQuery = callSite.isCountQuery();

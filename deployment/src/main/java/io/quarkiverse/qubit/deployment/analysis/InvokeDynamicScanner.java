@@ -1,7 +1,6 @@
 package io.quarkiverse.qubit.deployment.analysis;
 
 import static io.quarkiverse.qubit.deployment.util.DescriptorParser.returnTypeContains;
-import static io.quarkiverse.qubit.deployment.util.DescriptorParser.returnsBooleanType;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
 
 import java.util.ArrayList;
@@ -23,6 +22,14 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
 import io.quarkiverse.qubit.SortDirection;
+import io.quarkiverse.qubit.deployment.analysis.CallSite.AggregationCallSite;
+import io.quarkiverse.qubit.deployment.analysis.CallSite.Common;
+import io.quarkiverse.qubit.deployment.analysis.CallSite.GroupCallSite;
+import io.quarkiverse.qubit.deployment.analysis.CallSite.JoinCallSite;
+import io.quarkiverse.qubit.deployment.analysis.CallSite.JoinType;
+import io.quarkiverse.qubit.deployment.analysis.CallSite.LambdaPair;
+import io.quarkiverse.qubit.deployment.analysis.CallSite.SimpleCallSite;
+import io.quarkiverse.qubit.deployment.analysis.CallSite.SortLambda;
 import io.quarkus.logging.Log;
 
 /**
@@ -30,14 +37,6 @@ import io.quarkus.logging.Log;
  * Supports standard, join (BiQuerySpec), and group (GroupQuerySpec) queries.
  */
 public class InvokeDynamicScanner {
-
-    /** Join type: INNER or LEFT OUTER. */
-    public enum JoinType {
-        /** Standard inner join - excludes source entities without matching joined entities. */
-        INNER,
-        /** Left outer join - includes all source entities even without matching joined entities. */
-        LEFT
-    }
 
     /** Query context type: STANDARD, JOIN, or GROUP. */
     public enum QueryContext {
@@ -49,189 +48,9 @@ public class InvokeDynamicScanner {
         GROUP
     }
 
-    /** Pair of lambda method name and descriptor. */
-    public record LambdaPair(String methodName, String descriptor) {
-    }
-
-    /** Sort lambda with direction (ascending/descending). */
-    public record SortLambda(String methodName, String descriptor, SortDirection direction) {
-    }
-
-    /** Discovered lambda call site with predicates, projections, sorting, joins, and groups. */
-    public record LambdaCallSite(
-            String ownerClassName,
-            String methodName,
-            String lambdaMethodName, // Primary lambda (for backward compatibility)
-            String lambdaMethodDescriptor, // Primary lambda descriptor
-            String fluentMethodName, // Primary fluent method (for backward compatibility)
-            String targetMethodName,
-            int lineNumber,
-            int terminalInsnIndex,
-            String projectionLambdaMethodName, // SELECT lambda (null if no select clause)
-            String projectionLambdaMethodDescriptor, // SELECT lambda descriptor
-            List<LambdaPair> predicateLambdas, // ALL WHERE lambdas for multiple where() support
-            List<SortLambda> sortLambdas, // ALL sort lambdas with direction
-            String aggregationLambdaMethodName, // Aggregation mapper lambda (e.g., p -> p.salary for min/max/avg/sum)
-            String aggregationLambdaMethodDescriptor, // Aggregation mapper descriptor
-            JoinType joinType, // Join type (INNER/LEFT) or null if not a join query
-            String joinRelationshipLambdaMethodName, // Join relationship lambda (e.g., p -> p.phones)
-            String joinRelationshipLambdaDescriptor, // Join relationship lambda descriptor
-            List<LambdaPair> biEntityPredicateLambdas, // BiQuerySpec WHERE lambdas for join queries
-            boolean isSelectJoined, // True if selectJoined() was called
-            String biEntityProjectionLambdaMethodName, // BiQuerySpec SELECT lambda for join projections
-            String biEntityProjectionLambdaDescriptor, // BiQuerySpec SELECT lambda descriptor
-            boolean isGroupQuery, // True if this is a GROUP BY query
-            String groupByLambdaMethodName, // groupBy() lambda (e.g., p -> p.department)
-            String groupByLambdaDescriptor, // groupBy() lambda descriptor
-            List<LambdaPair> havingLambdas, // having() lambdas (GroupQuerySpec)
-            List<LambdaPair> groupSelectLambdas, // select() lambdas in group context (GroupQuerySpec)
-            List<SortLambda> groupSortLambdas, // sortedBy() lambdas in group context (GroupQuerySpec)
-            boolean isGroupSelectKey, // True if selectKey() was called on GroupStream
-            boolean hasDistinct, // True if distinct() was called
-            Integer skipValue, // Value passed to skip(), null if not called
-            Integer limitValue) { // Value passed to limit(), null if not called
-
-        /** Returns true if this is a count query (count() or exists()). */
-        public boolean isCountQuery() {
-            return METHOD_COUNT.equals(targetMethodName) || METHOD_EXISTS.equals(targetMethodName);
-        }
-
-        /** Returns true if this is an aggregation query (min, max, avg, sum*). */
-        public boolean isAggregationQuery() {
-            return AGGREGATION_METHOD_NAMES.contains(targetMethodName);
-        }
-
-        /** Returns true if this is a join query. */
-        public boolean isJoinQuery() {
-            return joinType != null;
-        }
-
-        /** Returns true if selectJoined() was called. */
-        public boolean isSelectJoinedQuery() {
-            return isSelectJoined;
-        }
-
-        /** Returns true if this is a join projection query with BiQuerySpec. */
-        public boolean isJoinProjectionQuery() {
-            return joinType != null && biEntityProjectionLambdaMethodName != null;
-        }
-
-        /** Returns true if this is a GROUP BY query. */
-        public boolean isGroupByQuery() {
-            return isGroupQuery;
-        }
-
-        /** Returns true if this is a projection query (select). */
-        public boolean isProjectionQuery() {
-            // Check if projection lambda is present
-            if (projectionLambdaMethodName != null) {
-                return true;
-            }
-
-            // Backward compatibility: Check fluent method name
-            if (METHOD_SELECT.equals(fluentMethodName)) {
-                return true;
-            }
-
-            if (METHOD_WHERE.equals(fluentMethodName)) {
-                return false;
-            }
-
-            // Sorting methods are not projections
-            if (METHOD_SORTED_BY.equals(fluentMethodName) || METHOD_SORTED_DESCENDING_BY.equals(fluentMethodName)) {
-                return false;
-            }
-
-            // Aggregation methods are not projections - they are aggregations
-            if (AGGREGATION_METHOD_NAMES.contains(fluentMethodName)) {
-                return false;
-            }
-
-            // Fallback: Use descriptor heuristic
-            if (returnsBooleanType(lambdaMethodDescriptor)) {
-                return false;
-            }
-
-            Log.warnf("Treating as projection (non-boolean): descriptor=%s, fluent=%s", lambdaMethodDescriptor,
-                    fluentMethodName);
-            return true;
-        }
-
-        /** Returns true if this is a combined WHERE + SELECT query. */
-        public boolean isCombinedQuery() {
-            return (predicateLambdas != null && !predicateLambdas.isEmpty()) && projectionLambdaMethodName != null;
-        }
-
-        /** Returns unique identifier: ownerClassName:methodName:lineNumber:lambdaMethodName. */
-        public String getCallSiteId() {
-            // Use the primary lambda method name as discriminator
-            // Priority: predicate > groupBy > join relationship > projection > aggregation
-            String primaryLambda = getPrimaryLambdaMethodName();
-            return ownerClassName + ":" + methodName + ":" + lineNumber + ":" + primaryLambda;
-        }
-
-        /** Returns primary lambda method name (predicate > groupBy > join > projection > sort). */
-        public String getPrimaryLambdaMethodName() {
-            // Single-entity predicates first (QubitStream.where())
-            if (predicateLambdas != null && !predicateLambdas.isEmpty()) {
-                return predicateLambdas.getFirst().methodName();
-            }
-            // Bi-entity predicates for join queries (JoinStream.where(BiQuerySpec))
-            if (biEntityPredicateLambdas != null && !biEntityPredicateLambdas.isEmpty()) {
-                return biEntityPredicateLambdas.getFirst().methodName();
-            }
-            if (groupByLambdaMethodName != null) {
-                return groupByLambdaMethodName;
-            }
-            if (joinRelationshipLambdaMethodName != null) {
-                return joinRelationshipLambdaMethodName;
-            }
-            if (projectionLambdaMethodName != null) {
-                return projectionLambdaMethodName;
-            }
-            if (aggregationLambdaMethodName != null) {
-                return aggregationLambdaMethodName;
-            }
-            // Sort lambdas (sortedBy/sortedDescendingBy)
-            if (sortLambdas != null && !sortLambdas.isEmpty()) {
-                return sortLambdas.getFirst().methodName();
-            }
-            if (lambdaMethodName != null) {
-                return lambdaMethodName;
-            }
-            // Fallback to terminal instruction index for queries without explicit lambdas
-            return String.valueOf(terminalInsnIndex);
-        }
-
-        @Override
-        public String toString() {
-            if (isGroupByQuery()) {
-                int havingCount = havingLambdas != null ? havingLambdas.size() : 0;
-                int selectCount = groupSelectLambdas != null ? groupSelectLambdas.size() : 0;
-                return String.format("LambdaCallSite{%s.%s line %d, GROUP BY=%s, having=%d, groupSelect=%d, target=%s}",
-                        ownerClassName, methodName, lineNumber,
-                        groupByLambdaMethodName, havingCount, selectCount, targetMethodName);
-            }
-            if (isJoinQuery()) {
-                int biPredicateCount = biEntityPredicateLambdas != null ? biEntityPredicateLambdas.size() : 0;
-                return String.format("LambdaCallSite{%s.%s line %d, %s JOIN, relationship=%s, biPredicates=%d, target=%s}",
-                        ownerClassName, methodName, lineNumber,
-                        joinType, joinRelationshipLambdaMethodName, biPredicateCount, targetMethodName);
-            }
-            if (isCombinedQuery()) {
-                int predicateCount = predicateLambdas != null ? predicateLambdas.size() : 0;
-                return String.format("LambdaCallSite{%s.%s line %d, where=%d predicates, select=%s, target=%s}",
-                        ownerClassName, methodName, lineNumber,
-                        predicateCount, projectionLambdaMethodName, targetMethodName);
-            }
-            return String.format("LambdaCallSite{%s.%s line %d, lambda=%s, fluent=%s, target=%s}",
-                    ownerClassName, methodName, lineNumber, lambdaMethodName, fluentMethodName, targetMethodName);
-        }
-    }
-
     /** Scans class bytecode for QuerySpec lambda call sites. */
-    public List<LambdaCallSite> scanClass(byte[] classBytes, String className) {
-        List<LambdaCallSite> callSites = new ArrayList<>();
+    public List<CallSite> scanClass(byte[] classBytes, String className) {
+        List<CallSite> callSites = new ArrayList<>();
 
         try {
             ClassReader reader = new ClassReader(classBytes);
@@ -717,7 +536,7 @@ public class InvokeDynamicScanner {
     ) {
     }
 
-    private void scanMethod(ClassNode classNode, MethodNode method, List<LambdaCallSite> callSites) {
+    private void scanMethod(ClassNode classNode, MethodNode method, List<CallSite> callSites) {
         InsnList instructions = method.instructions;
         MethodScanState state = new MethodScanState();
 
@@ -727,16 +546,16 @@ public class InvokeDynamicScanner {
             updateScanState(insn, instructions, i, state);
 
             if (state.isTerminalOperation(insn, this)) {
-                LambdaCallSite callSite = createCallSite(classNode, method, (MethodInsnNode) insn, state, i);
+                CallSite callSite = createCallSite(classNode, method, (MethodInsnNode) insn, state, i);
                 callSites.add(callSite);
                 Log.debugf("Found fluent API terminal operation: %s", callSite);
 
                 // Debug logging for group call sites
-                if (state.isGroupContext()) {
+                if (callSite instanceof GroupCallSite g) {
                     Log.infof("Detected GROUP call site: %s (groupSelect=%d, hasSelectKey=%b, usedLine=%d)",
-                            callSite.getCallSiteId(),
-                            callSite.groupSelectLambdas() != null ? callSite.groupSelectLambdas().size() : 0,
-                            state.pendingGroupSelectKey(), state.effectiveLine());
+                            g.getCallSiteId(),
+                            g.groupSelectLambdas().size(),
+                            g.isGroupSelectKey(), state.effectiveLine());
                 }
 
                 state.reset();
@@ -938,10 +757,11 @@ public class InvokeDynamicScanner {
     }
 
     /**
-     * Creates a LambdaCallSite from MethodScanState.
-     * Uses the state object directly to avoid a long parameter list.
+     * Creates the appropriate CallSite subtype from MethodScanState.
+     * Dispatches to GroupCallSite, JoinCallSite, AggregationCallSite, or SimpleCallSite
+     * based on the scan state.
      */
-    private LambdaCallSite createCallSite(ClassNode classNode, MethodNode method, MethodInsnNode methodCall,
+    private CallSite createCallSite(ClassNode classNode, MethodNode method, MethodInsnNode methodCall,
             MethodScanState state, int insnIndex) {
         // Extract aggregation method if present
         PendingAggregation agg = state.pendingAggregation();
@@ -953,38 +773,55 @@ public class InvokeDynamicScanner {
         // For aggregation queries, use aggregation method as target instead of getSingleResult
         String targetMethod = aggregationMethod != null ? aggregationMethod : methodCall.name;
 
-        return new LambdaCallSite(
+        Common common = new Common(
                 classNode.name.replace('/', '.'),
                 method.name,
-                info.primaryLambdaMethod,
-                info.primaryLambdaDescriptor,
-                info.primaryFluentMethod,
-                targetMethod,
                 state.effectiveLine(),
+                targetMethod,
                 insnIndex,
-                info.selectLambdaMethod,
-                info.selectLambdaDescriptor,
-                info.whereLambdas,
-                info.sortLambdas,
-                info.aggregationLambdaMethod,
-                info.aggregationLambdaDescriptor,
-                state.pendingJoinType(),
-                info.joinRelationshipLambdaMethod,
-                info.joinRelationshipLambdaDescriptor,
-                info.biEntityWhereLambdas,
-                state.pendingJoinSelectJoined(),
-                info.biEntityProjectionLambdaMethod,
-                info.biEntityProjectionLambdaDescriptor,
-                info.isGroup,
-                info.groupByLambdaMethod,
-                info.groupByLambdaDescriptor,
-                info.havingLambdas,
-                info.groupSelectLambdas,
-                info.groupSortLambdas,
-                state.pendingGroupSelectKey(),
                 state.hasDistinct(),
                 state.skipValue(),
                 state.limitValue());
+
+        if (info.isGroup) {
+            return new GroupCallSite(common,
+                    info.whereLambdas,
+                    info.groupByLambdaMethod,
+                    info.groupByLambdaDescriptor,
+                    info.havingLambdas,
+                    info.groupSelectLambdas,
+                    info.groupSortLambdas,
+                    state.pendingGroupSelectKey());
+        }
+
+        if (state.pendingJoinType() != null) {
+            return new JoinCallSite(common,
+                    state.pendingJoinType(),
+                    info.joinRelationshipLambdaMethod,
+                    info.joinRelationshipLambdaDescriptor,
+                    info.whereLambdas,
+                    info.biEntityWhereLambdas,
+                    info.sortLambdas,
+                    state.pendingJoinSelectJoined(),
+                    info.biEntityProjectionLambdaMethod,
+                    info.biEntityProjectionLambdaDescriptor);
+        }
+
+        if (aggregationMethod != null) {
+            return new AggregationCallSite(common,
+                    info.whereLambdas,
+                    info.aggregationLambdaMethod,
+                    info.aggregationLambdaDescriptor);
+        }
+
+        return new SimpleCallSite(common,
+                info.primaryLambdaMethod,
+                info.primaryLambdaDescriptor,
+                info.primaryFluentMethod,
+                info.whereLambdas,
+                info.selectLambdaMethod,
+                info.selectLambdaDescriptor,
+                info.sortLambdas);
     }
 
     /**

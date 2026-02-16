@@ -2,8 +2,6 @@ package io.quarkiverse.qubit.deployment.analysis.handler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,7 +10,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaCallSite;
+import io.quarkiverse.qubit.deployment.analysis.CallSite;
 
 /**
  * Unit tests for {@link QueryTypeHandlerRegistry}.
@@ -89,13 +87,14 @@ class QueryTypeHandlerRegistryTest {
     @DisplayName("handlerFor()")
     class HandlerForTests {
 
+        private static final CallSite.Common COMMON = new CallSite.Common(
+                "com.example.Test", "testMethod", 1, "toList", 100, false, null, null);
+
         @Test
         @DisplayName("returns SimpleQueryHandler for simple queries")
         void returnsSimpleHandlerForSimpleQueries() {
-            LambdaCallSite callSite = mock(LambdaCallSite.class);
-            when(callSite.isGroupQuery()).thenReturn(false);
-            when(callSite.isJoinQuery()).thenReturn(false);
-            when(callSite.isAggregationQuery()).thenReturn(false);
+            CallSite callSite = new CallSite.SimpleCallSite(
+                    COMMON, "lambda$0", "(LPerson;)Z", "where", null, null, null, null);
 
             QueryTypeHandlerRegistry registry = QueryTypeHandlerRegistry.getDefault();
             QueryTypeHandler handler = registry.handlerFor(callSite);
@@ -106,8 +105,8 @@ class QueryTypeHandlerRegistryTest {
         @Test
         @DisplayName("returns GroupQueryHandler for group queries")
         void returnsGroupHandlerForGroupQueries() {
-            LambdaCallSite callSite = mock(LambdaCallSite.class);
-            when(callSite.isGroupQuery()).thenReturn(true);
+            CallSite callSite = new CallSite.GroupCallSite(
+                    COMMON, null, "lambda$0", "(LPerson;)LString;", null, null, null, false);
 
             QueryTypeHandlerRegistry registry = QueryTypeHandlerRegistry.getDefault();
             QueryTypeHandler handler = registry.handlerFor(callSite);
@@ -118,9 +117,9 @@ class QueryTypeHandlerRegistryTest {
         @Test
         @DisplayName("returns JoinQueryHandler for join queries")
         void returnsJoinHandlerForJoinQueries() {
-            LambdaCallSite callSite = mock(LambdaCallSite.class);
-            when(callSite.isGroupQuery()).thenReturn(false);
-            when(callSite.isJoinQuery()).thenReturn(true);
+            CallSite callSite = new CallSite.JoinCallSite(
+                    COMMON, CallSite.JoinType.INNER, "lambda$0", "(LPerson;)LList;",
+                    null, null, null, false, null, null);
 
             QueryTypeHandlerRegistry registry = QueryTypeHandlerRegistry.getDefault();
             QueryTypeHandler handler = registry.handlerFor(callSite);
@@ -131,10 +130,8 @@ class QueryTypeHandlerRegistryTest {
         @Test
         @DisplayName("returns AggregationQueryHandler for aggregation queries")
         void returnsAggregationHandlerForAggregationQueries() {
-            LambdaCallSite callSite = mock(LambdaCallSite.class);
-            when(callSite.isGroupQuery()).thenReturn(false);
-            when(callSite.isJoinQuery()).thenReturn(false);
-            when(callSite.isAggregationQuery()).thenReturn(true);
+            CallSite callSite = new CallSite.AggregationCallSite(
+                    COMMON, null, "lambda$0", "(LPerson;)I");
 
             QueryTypeHandlerRegistry registry = QueryTypeHandlerRegistry.getDefault();
             QueryTypeHandler handler = registry.handlerFor(callSite);
@@ -148,13 +145,12 @@ class QueryTypeHandlerRegistryTest {
             // Create a registry with no handlers
             QueryTypeHandlerRegistry emptyRegistry = new QueryTypeHandlerRegistry(List.of());
 
-            LambdaCallSite callSite = mock(LambdaCallSite.class);
-            when(callSite.getCallSiteId()).thenReturn("test-call-site-123");
+            CallSite callSite = new CallSite.SimpleCallSite(
+                    COMMON, "lambda$0", "(LPerson;)Z", "where", null, null, null, null);
 
             assertThatThrownBy(() -> emptyRegistry.handlerFor(callSite))
                     .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("No handler found")
-                    .hasMessageContaining("test-call-site-123");
+                    .hasMessageContaining("No handler found");
         }
     }
 

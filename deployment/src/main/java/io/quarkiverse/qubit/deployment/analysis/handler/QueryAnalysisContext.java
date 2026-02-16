@@ -7,7 +7,7 @@ import java.util.Objects;
 
 import org.jspecify.annotations.Nullable;
 
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaCallSite;
+import io.quarkiverse.qubit.deployment.analysis.CallSite;
 import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
 import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator;
 import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
@@ -18,7 +18,7 @@ import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
  */
 public record QueryAnalysisContext(
         byte[] classBytes,
-        LambdaCallSite callSite,
+        CallSite callSite,
         String callSiteId,
         LambdaBytecodeAnalyzer bytecodeAnalyzer,
         LambdaDeduplicator deduplicator,
@@ -36,7 +36,7 @@ public record QueryAnalysisContext(
     /** Creates context from components, deriving callSiteId from callSite. */
     public static QueryAnalysisContext of(
             byte[] classBytes,
-            LambdaCallSite callSite,
+            CallSite callSite,
             LambdaBytecodeAnalyzer bytecodeAnalyzer,
             LambdaDeduplicator deduplicator) {
         return new QueryAnalysisContext(
@@ -51,7 +51,7 @@ public record QueryAnalysisContext(
     /** Creates context from components with metrics collector. */
     public static QueryAnalysisContext of(
             byte[] classBytes,
-            LambdaCallSite callSite,
+            CallSite callSite,
             LambdaBytecodeAnalyzer bytecodeAnalyzer,
             LambdaDeduplicator deduplicator,
             @Nullable BuildMetricsCollector metricsCollector) {

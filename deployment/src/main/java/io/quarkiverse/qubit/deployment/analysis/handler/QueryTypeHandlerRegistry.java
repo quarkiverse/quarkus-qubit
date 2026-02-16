@@ -2,7 +2,7 @@ package io.quarkiverse.qubit.deployment.analysis.handler;
 
 import java.util.List;
 
-import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaCallSite;
+import io.quarkiverse.qubit.deployment.analysis.CallSite;
 
 /**
  * Registry for query type handlers. Immutable and thread-safe.
@@ -32,7 +32,7 @@ public record QueryTypeHandlerRegistry(List<QueryTypeHandler> handlers) {
      *
      * @throws IllegalStateException if no handler found
      */
-    public QueryTypeHandler handlerFor(LambdaCallSite callSite) {
+    public QueryTypeHandler handlerFor(CallSite callSite) {
         for (QueryTypeHandler handler : handlers) {
             if (handler.canHandle(callSite)) {
                 return handler;

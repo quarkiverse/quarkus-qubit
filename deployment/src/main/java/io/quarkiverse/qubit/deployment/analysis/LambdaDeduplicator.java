@@ -44,40 +44,44 @@ public class LambdaDeduplicator {
      * Computes bytecode signature for early deduplication using structural elements only.
      * Excludes ownerClassName and methodName so identical lambdas across call sites deduplicate.
      */
-    public String computeBytecodeSignature(InvokeDynamicScanner.LambdaCallSite callSite) {
+    public String computeBytecodeSignature(CallSite callSite) {
         StringBuilder sb = new StringBuilder();
-
-        // Include all lambda components
-        appendLambdaPairs(sb, "W", callSite.predicateLambdas());
-        appendSingleLambda(sb, "S", callSite.projectionLambdaMethodName(),
-                callSite.projectionLambdaMethodDescriptor());
-        appendSortLambdas(sb, "O", callSite.sortLambdas());
-        appendSingleLambda(sb, "A", callSite.aggregationLambdaMethodName(),
-                callSite.aggregationLambdaMethodDescriptor());
-        appendSingleLambda(sb, "J", callSite.joinRelationshipLambdaMethodName(),
-                callSite.joinRelationshipLambdaDescriptor());
-        appendLambdaPairs(sb, "BW", callSite.biEntityPredicateLambdas());
-        appendSingleLambda(sb, "BS", callSite.biEntityProjectionLambdaMethodName(),
-                callSite.biEntityProjectionLambdaDescriptor());
-        appendSingleLambda(sb, "G", callSite.groupByLambdaMethodName(),
-                callSite.groupByLambdaDescriptor());
-        appendLambdaPairs(sb, "H", callSite.havingLambdas());
-        appendLambdaPairs(sb, "GS", callSite.groupSelectLambdas());
-        appendSortLambdas(sb, "GO", callSite.groupSortLambdas());
-
-        // Include query modifiers
+        switch (callSite) {
+            case CallSite.SimpleCallSite s -> {
+                appendLambdaPairs(sb, "W", s.predicateLambdas());
+                appendSingleLambda(sb, "S", s.projectionLambdaMethodName(), s.projectionLambdaMethodDescriptor());
+                appendSortLambdas(sb, "O", s.sortLambdas());
+            }
+            case CallSite.AggregationCallSite a -> {
+                appendLambdaPairs(sb, "W", a.predicateLambdas());
+                appendSingleLambda(sb, "A", a.aggregationLambdaMethodName(), a.aggregationLambdaMethodDescriptor());
+            }
+            case CallSite.JoinCallSite j -> {
+                appendLambdaPairs(sb, "W", j.predicateLambdas());
+                appendSortLambdas(sb, "O", j.sortLambdas());
+                appendSingleLambda(sb, "J", j.joinRelationshipLambdaMethodName(), j.joinRelationshipLambdaDescriptor());
+                appendLambdaPairs(sb, "BW", j.biEntityPredicateLambdas());
+                appendSingleLambda(sb, "BS", j.biEntityProjectionLambdaMethodName(), j.biEntityProjectionLambdaDescriptor());
+            }
+            case CallSite.GroupCallSite g -> {
+                appendLambdaPairs(sb, "W", g.predicateLambdas());
+                appendSingleLambda(sb, "G", g.groupByLambdaMethodName(), g.groupByLambdaDescriptor());
+                appendLambdaPairs(sb, "H", g.havingLambdas());
+                appendLambdaPairs(sb, "GS", g.groupSelectLambdas());
+                appendSortLambdas(sb, "GO", g.groupSortLambdas());
+            }
+        }
         appendQueryModifiers(sb, callSite);
-
         return HashBuilder.create().queryType(sb.toString()).buildHash();
     }
 
     /** Appends lambda pairs to signature builder. */
     private void appendLambdaPairs(StringBuilder sb, String prefix,
-            List<InvokeDynamicScanner.LambdaPair> pairs) {
+            List<CallSite.LambdaPair> pairs) {
         if (pairs == null) {
             return;
         }
-        for (InvokeDynamicScanner.LambdaPair pair : pairs) {
+        for (CallSite.LambdaPair pair : pairs) {
             sb.append(prefix).append(":").append(pair.methodName())
                     .append(":").append(pair.descriptor()).append("|");
         }
@@ -85,11 +89,11 @@ public class LambdaDeduplicator {
 
     /** Appends sort lambdas to signature builder. */
     private void appendSortLambdas(StringBuilder sb, String prefix,
-            List<InvokeDynamicScanner.SortLambda> sortLambdas) {
+            List<CallSite.SortLambda> sortLambdas) {
         if (sortLambdas == null) {
             return;
         }
-        for (InvokeDynamicScanner.SortLambda sl : sortLambdas) {
+        for (CallSite.SortLambda sl : sortLambdas) {
             sb.append(prefix).append(":").append(sl.methodName())
                     .append(":").append(sl.descriptor())
                     .append(":").append(sl.direction()).append("|");
@@ -107,14 +111,16 @@ public class LambdaDeduplicator {
     }
 
     /** Appends query modifiers to signature builder. */
-    private void appendQueryModifiers(StringBuilder sb, InvokeDynamicScanner.LambdaCallSite callSite) {
+    private void appendQueryModifiers(StringBuilder sb, CallSite callSite) {
         sb.append("count=").append(callSite.isCountQuery()).append("|");
         sb.append("distinct=").append(callSite.hasDistinct()).append("|");
-        if (callSite.joinType() != null) {
-            sb.append("joinType=").append(callSite.joinType()).append("|");
+        if (callSite instanceof CallSite.JoinCallSite j) {
+            sb.append("joinType=").append(j.joinType()).append("|");
+            sb.append("selectJoined=").append(j.isSelectJoined()).append("|");
         }
-        sb.append("selectJoined=").append(callSite.isSelectJoined()).append("|");
-        sb.append("selectKey=").append(callSite.isGroupSelectKey()).append("|");
+        if (callSite instanceof CallSite.GroupCallSite g) {
+            sb.append("selectKey=").append(g.isGroupSelectKey()).append("|");
+        }
     }
 
     /** Returns cached result for the given bytecode signature, or null if not found. */

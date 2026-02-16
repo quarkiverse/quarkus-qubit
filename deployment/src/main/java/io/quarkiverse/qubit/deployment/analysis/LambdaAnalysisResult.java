@@ -57,7 +57,7 @@ public sealed interface LambdaAnalysisResult {
             LambdaExpression biEntityPredicateExpression,
             LambdaExpression biEntityProjectionExpression,
             List<SortExpression> sortExpressions,
-            InvokeDynamicScanner.JoinType joinType,
+            CallSite.JoinType joinType,
             int totalCapturedVarCount) implements LambdaAnalysisResult {
     }
 
