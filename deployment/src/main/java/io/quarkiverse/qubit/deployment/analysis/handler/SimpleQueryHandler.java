@@ -6,6 +6,7 @@ import java.util.List;
 
 import io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome;
 import io.quarkiverse.qubit.deployment.analysis.CallSite;
+import io.quarkiverse.qubit.deployment.analysis.CapturedVariableHelper;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SimpleQueryResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
@@ -81,7 +82,17 @@ public final class SimpleQueryHandler extends AbstractQueryHandler {
             }
         }
 
-        // Count captured variables
+        // Renumber captured variables for contiguous indexing across expressions.
+        // Each lambda's captured variables start at index 0, but the generated executor
+        // uses a single flat capturedValues[] array. Without renumbering, predicate and
+        // projection captured variables would collide at index 0.
+        // Note: renumberCapturedVariables() handles null expressions and offset=0 as no-ops.
+        int offset = CapturedVariableHelper.countCapturedVariables(predicateExpr);
+        projectionExpr = CapturedVariableHelper.renumberCapturedVariables(projectionExpr, offset);
+        offset += CapturedVariableHelper.countCapturedVariables(projectionExpr);
+        sortExpressions = renumberSortExpressions(sortExpressions, offset);
+
+        // Count captured variables (after renumbering — count is the same, indices are adjusted)
         int totalCapturedVars = countTotalCapturedVariablesWithSort(
                 predicateExpr, sortExpressions, projectionExpr);
 

@@ -398,6 +398,53 @@ class QueryExecutorClassGeneratorTest {
     }
 
     @Test
+    @DisplayName("16a. Captured variables in both predicate and projection (Bug B - index collision)")
+    void capturedVariablesInPredicateAndProjection() throws Exception {
+        // Verifies the generator handles distinct captured variable indices across
+        // predicate and projection. The ASTs here use PRE-RENUMBERED indices
+        // (predicate=0, projection=1) as SimpleQueryHandler would produce after
+        // calling CapturedVariableHelper.renumberCapturedVariables().
+        // The renumbering pipeline itself is tested via integration tests.
+        LambdaExpression predicate = BinaryOp.gt(
+                new FieldAccess("age", int.class),
+                new CapturedVariable(0, int.class));
+
+        LambdaExpression projection = BinaryOp.add(
+                new FieldAccess("salary", double.class),
+                new CapturedVariable(1, double.class));
+
+        byte[] bytecode = generator.generateQueryExecutorClass(
+                predicate, projection, List.of(), null, null,
+                "io.test.Exec16a", false, false);
+
+        // capturedValues[0] = 30 (minAge), capturedValues[1] = 1000.0 (bonus)
+        List<Double> results = executeGeneratedQuery(bytecode, "io.test.Exec16a",
+                new Object[] { 30, 1000.0 }, null, null, null);
+        // age > 30: Charlie(45, 95000), Diana(35, 75000) → salary + bonus
+        assertThat(results).hasSize(2)
+                .containsExactlyInAnyOrder(96000.0, 76000.0);
+    }
+
+    @Test
+    @DisplayName("16b. Captured variable in projection only (Bug A - runtime extraction)")
+    void capturedVariableInProjectionOnly() throws Exception {
+        // No WHERE, SELECT salary + capturedValues[0] (bonus = 5000.0)
+        LambdaExpression projection = BinaryOp.add(
+                new FieldAccess("salary", double.class),
+                new CapturedVariable(0, double.class));
+
+        byte[] bytecode = generator.generateQueryExecutorClass(
+                null, projection, List.of(), null, null,
+                "io.test.Exec16b", false, false);
+
+        List<Double> results = executeGeneratedQuery(bytecode, "io.test.Exec16b",
+                new Object[] { 5000.0 }, null, null, null);
+        // All 4 rows: salary + 5000
+        assertThat(results).hasSize(4)
+                .containsExactlyInAnyOrder(90000.0, 70000.0, 100000.0, 80000.0);
+    }
+
+    @Test
     @DisplayName("16. Multiple captured variables: age > cv[0] AND salary < cv[1]")
     void multipleCapturedVariables() throws Exception {
         // WHERE age > capturedValues[0] AND salary < capturedValues[1]

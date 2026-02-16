@@ -4,6 +4,7 @@ import java.util.List;
 
 import io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome;
 import io.quarkiverse.qubit.deployment.analysis.CallSite;
+import io.quarkiverse.qubit.deployment.analysis.CapturedVariableHelper;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.JoinQueryResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
@@ -69,7 +70,17 @@ public final class JoinQueryHandler extends AbstractQueryHandler {
         List<SortExpression> sortExpressions = analyzeBiEntitySortLambdas(
                 context, callSite.sortLambdas());
 
-        // Count captured variables
+        // Renumber captured variables for contiguous indexing across expressions.
+        // Counting order: biEntityPredicate → joinRelationship → biEntityProjection → sorts
+        int offset = CapturedVariableHelper.countCapturedVariables(biEntityPredicateExpr);
+        // joinRelationshipExpr is guaranteed non-null (early return above)
+        joinRelationshipExpr = CapturedVariableHelper.renumberCapturedVariables(joinRelationshipExpr, offset);
+        offset += CapturedVariableHelper.countCapturedVariables(joinRelationshipExpr);
+        biEntityProjectionExpr = CapturedVariableHelper.renumberCapturedVariables(biEntityProjectionExpr, offset);
+        offset += CapturedVariableHelper.countCapturedVariables(biEntityProjectionExpr);
+        sortExpressions = renumberSortExpressions(sortExpressions, offset);
+
+        // Count captured variables (after renumbering)
         int totalCapturedVars = countTotalCapturedVariablesWithSort(
                 biEntityPredicateExpr,
                 sortExpressions,

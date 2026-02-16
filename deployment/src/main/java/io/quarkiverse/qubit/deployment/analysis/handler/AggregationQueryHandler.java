@@ -15,6 +15,7 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUM_LO
 
 import io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome;
 import io.quarkiverse.qubit.deployment.analysis.CallSite;
+import io.quarkiverse.qubit.deployment.analysis.CapturedVariableHelper;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.AggregationQueryResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator;
@@ -69,7 +70,13 @@ public final class AggregationQueryHandler extends AbstractQueryHandler {
         // Determine aggregation type from terminal method
         String aggregationType = getAggregationType(callSite.targetMethodName());
 
-        // Count captured variables
+        // Renumber aggregation captured variables to avoid index collision with predicate.
+        // renumberCapturedVariables() handles offset=0 as a no-op.
+        int predicateCapturedCount = CapturedVariableHelper.countCapturedVariables(predicateExpr);
+        aggregationExpr = CapturedVariableHelper.renumberCapturedVariables(
+                aggregationExpr, predicateCapturedCount);
+
+        // Count captured variables (after renumbering)
         int totalCapturedVars = countTotalCapturedVariables(predicateExpr, aggregationExpr);
 
         // Build result

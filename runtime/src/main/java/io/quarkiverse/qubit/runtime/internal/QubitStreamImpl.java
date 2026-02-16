@@ -1,6 +1,7 @@
 package io.quarkiverse.qubit.runtime.internal;
 
-import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.extractCapturedArgs;
+import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.extractFromLambdas;
+import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.extractFromSingleLambda;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.getCallSiteId;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.getQueryExecutorRegistry;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.requireNonNullLambda;
@@ -10,7 +11,6 @@ import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.valida
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -410,9 +410,12 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     }
 
     /**
-     * Extracts captured variables from all predicates in the pipeline.
+     * Extracts captured variables from all lambdas in the pipeline.
      * Uses {@link SerializedLambda#getCapturedArg(int)} via
      * {@link LambdaReflectionUtils#extractCapturedArgs(Object)}.
+     * <p>
+     * Extraction order must match build-time counting order in SimpleQueryHandler:
+     * predicates → selector (projection) → aggregationMapper → sort key extractors.
      */
     private Object[] extractCapturedVariables(String callSiteId) {
         int capturedCount = QueryExecutorRegistry.getCapturedVariableCount(callSiteId);
@@ -421,25 +424,17 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
             return new Object[0];
         }
 
-        if (predicates.isEmpty()) {
-            return new Object[0];
-        }
-
-        // Single predicate optimization (most common case)
-        if (predicates.size() == 1) {
-            Object[] values = extractCapturedArgs(predicates.getFirst());
-            if (values.length != capturedCount) {
-                throw new IllegalStateException(
-                        String.format("Captured variable count mismatch at %s: expected %d, found %d",
-                                callSiteId, capturedCount, values.length));
-            }
-            return values;
-        }
-
-        // Multiple predicates: extract from each and combine
+        // Extract from ALL lambda sources in build-time counting order
         List<Object> allCapturedValues = new ArrayList<>();
-        for (QuerySpec<T, Boolean> predicate : predicates) {
-            Collections.addAll(allCapturedValues, extractCapturedArgs(predicate));
+        extractFromLambdas(predicates, allCapturedValues);
+        if (selector != null) {
+            extractFromSingleLambda(selector, allCapturedValues);
+        }
+        if (aggregationMapper != null) {
+            extractFromSingleLambda(aggregationMapper, allCapturedValues);
+        }
+        for (SortOrder<T> sortOrder : sortOrders) {
+            extractFromSingleLambda(sortOrder.keyExtractor(), allCapturedValues);
         }
 
         if (allCapturedValues.size() != capturedCount) {

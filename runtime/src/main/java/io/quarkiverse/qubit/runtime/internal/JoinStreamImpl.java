@@ -1,6 +1,7 @@
 package io.quarkiverse.qubit.runtime.internal;
 
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.extractFromLambdas;
+import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.extractFromSingleLambda;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.getCallSiteId;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.getQueryExecutorRegistry;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.requireNonNullLambda;
@@ -323,8 +324,16 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
 
     /**
      * Extracts captured variables from all lambdas in the join stream.
-     * Supports bi-entity predicates, source predicates, and ON conditions.
-     * Variables are extracted in the order they appear and combined into a single array.
+     * <p>
+     * Build-time counting order (JoinQueryHandler):
+     * biEntityPredicate → joinRelationship → biEntityProjection → sorts.
+     * <p>
+     * Runtime extraction order (here): biPredicates → sourcePredicates → onConditions → sorts.
+     * Note: sourcePredicates and onConditions are not separately analyzed at build time
+     * (JoinQueryHandler only processes biEntityPredicateLambdas). The relationship accessor
+     * and projection lambdas are not extracted here because they typically have no captured
+     * variables (field access only). If captured variables in these lambdas become needed,
+     * both build-time analysis and runtime extraction must be updated together.
      */
     private Object[] extractCapturedVariables() {
         String callSiteId = getCallSiteId(QubitConstants.JOIN_METHODS, getPrimaryLambda());
@@ -334,11 +343,13 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
             return new Object[0];
         }
 
-        // Extract from all lambda sources: bi-predicates, source predicates, ON conditions
         List<Object> allCapturedValues = new ArrayList<>();
         extractFromLambdas(biPredicates, allCapturedValues);
         extractFromLambdas(sourcePredicates, allCapturedValues);
         extractFromLambdas(onConditions, allCapturedValues);
+        for (BiSortOrder<T, R> sortOrder : sortOrders) {
+            extractFromSingleLambda(sortOrder.keyExtractor(), allCapturedValues);
+        }
 
         if (allCapturedValues.size() != capturedCount) {
             throw new IllegalStateException(

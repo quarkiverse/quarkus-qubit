@@ -85,7 +85,19 @@ public final class GroupQueryHandler extends AbstractQueryHandler {
                 sl -> analyzer.analyzeGroupQuerySpec(classBytes, sl.methodName(), sl.descriptor()),
                 context.callSiteId());
 
-        // Count captured variables across all expressions
+        // Renumber captured variables for contiguous indexing across expressions.
+        // Counting order: predicate → groupByKey → having → groupSelect → sorts
+        int offset = CapturedVariableHelper.countCapturedVariables(predicateExpr);
+        // groupByKeyExpr is guaranteed non-null (early return above)
+        groupByKeyExpr = CapturedVariableHelper.renumberCapturedVariables(groupByKeyExpr, offset);
+        offset += CapturedVariableHelper.countCapturedVariables(groupByKeyExpr);
+        havingExpr = CapturedVariableHelper.renumberCapturedVariables(havingExpr, offset);
+        offset += CapturedVariableHelper.countCapturedVariables(havingExpr);
+        groupSelectExpr = CapturedVariableHelper.renumberCapturedVariables(groupSelectExpr, offset);
+        offset += CapturedVariableHelper.countCapturedVariables(groupSelectExpr);
+        groupSortExpressions = renumberSortExpressions(groupSortExpressions, offset);
+
+        // Count captured variables (after renumbering)
         int totalCapturedVars = countGroupCapturedVariables(
                 predicateExpr, groupByKeyExpr, havingExpr, groupSelectExpr, groupSortExpressions);
 

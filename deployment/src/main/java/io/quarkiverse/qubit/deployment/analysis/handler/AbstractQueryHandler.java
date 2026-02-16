@@ -190,6 +190,19 @@ public abstract sealed class AbstractQueryHandler implements QueryTypeHandler
         return count;
     }
 
+    /** Renumbers captured variable indices in sort expressions by adding offset. */
+    protected static List<SortExpression> renumberSortExpressions(
+            List<SortExpression> sortExpressions, int offset) {
+        if (offset == 0 || sortExpressions == null || sortExpressions.isEmpty()) {
+            return sortExpressions;
+        }
+        return sortExpressions.stream()
+                .map(se -> new SortExpression(
+                        CapturedVariableHelper.renumberCapturedVariables(se.keyExtractor(), offset),
+                        se.direction()))
+                .toList();
+    }
+
     /** Wraps analysis in try-catch, converting exceptions to AnalysisOutcome. */
     protected AnalysisOutcome safeAnalyze(
             QueryAnalysisContext context,

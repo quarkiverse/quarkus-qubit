@@ -280,6 +280,11 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
             extractFromSingleLambda(selector, allCapturedValues);
         }
 
+        // Extract from sort key extractors
+        for (GroupSortOrder<T, K> sortOrder : sortOrders) {
+            extractFromSingleLambda(sortOrder.keyExtractor(), allCapturedValues);
+        }
+
         if (allCapturedValues.size() != capturedCount) {
             throw new IllegalStateException(
                     String.format("Captured variable count mismatch at %s: expected %d, found %d",
