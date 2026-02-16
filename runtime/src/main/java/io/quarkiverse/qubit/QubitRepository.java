@@ -312,4 +312,35 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
     default <R> JoinStream<E, R> leftJoin(QuerySpec<E, Collection<R>> relationship) {
         throw implementationInjectionMissing();
     }
+
+    /**
+     * Creates a GROUP BY query grouped by the specified key extractor.
+     * <p>
+     * <strong>Generated at build time</strong> via bytecode enhancement.
+     * <p>
+     * Example:
+     *
+     * <pre>{@code
+     * // Group by department and count
+     * List<DeptCount> counts = personRepository
+     *         .groupBy(p -> p.department.name)
+     *         .select(g -> new DeptCount(g.key(), g.count()))
+     *         .toList();
+     *
+     * // Group with HAVING clause
+     * List<String> largeDepts = personRepository
+     *         .groupBy(p -> p.department.name)
+     *         .having(g -> g.count() > 5)
+     *         .selectKey()
+     *         .toList();
+     * }</pre>
+     *
+     * @param <K> the type of the grouping key
+     * @param keyExtractor lambda extracting the grouping key from an entity
+     * @return a GroupStream for composing HAVING, SELECT, and ORDER BY operations
+     */
+    @GenerateBridge
+    default <K> GroupStream<E, K> groupBy(QuerySpec<E, K> keyExtractor) {
+        throw implementationInjectionMissing();
+    }
 }

@@ -6,6 +6,8 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.DESC_QUERY_SP
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JOIN_STREAM_IMPL_INTERNAL_NAME;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JOIN_TYPE_DESCRIPTOR;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JOIN_TYPE_INTERNAL_NAME;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.DESC_QUERY_SPEC_TO_GROUP_STREAM;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_GROUP_BY;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_JOIN;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_LEFT_JOIN;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUBIT_REPOSITORY_CLASS_NAME;
@@ -141,7 +143,8 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
         private boolean isGenerateBridgeMethod(String methodName) {
             return FluentMethodType.fromMethodName(methodName).isPresent() ||
                     METHOD_JOIN.equals(methodName) ||
-                    METHOD_LEFT_JOIN.equals(methodName);
+                    METHOD_LEFT_JOIN.equals(methodName) ||
+                    METHOD_GROUP_BY.equals(methodName);
         }
 
         /**
@@ -161,6 +164,9 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
                 // Generate join methods
                 generateJoinMethod(METHOD_JOIN);
                 generateJoinMethod(METHOD_LEFT_JOIN);
+
+                // Generate groupBy method
+                generateGroupByMethod();
             }
             super.visitEnd();
         }
@@ -219,6 +225,51 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             mv.visitMaxs(4, 2);
             mv.visitEnd();
             Log.infof("    Successfully generated method: %s", methodName);
+        }
+
+        /**
+         * Generates a groupBy method implementation for repositories.
+         * Returns GroupStream instead of QubitStream.
+         *
+         * Generated code equivalent:
+         *
+         * <pre>{@code
+         * public <K> GroupStream<E, K> groupBy(QuerySpec<E, K> keyExtractor) {
+         *     return new QubitStreamImpl<>(entityClass).groupBy(keyExtractor);
+         * }
+         * }</pre>
+         */
+        private void generateGroupByMethod() {
+            String methodDescriptor = DESC_QUERY_SPEC_TO_GROUP_STREAM;
+            String genericSignature = "<K:Ljava/lang/Object;>(Lio/quarkiverse/qubit/QuerySpec<L" +
+                    entityType.getInternalName() + ";TK;>;)Lio/quarkiverse/qubit/GroupStream<L" +
+                    entityType.getInternalName() + ";TK;>;";
+
+            MethodVisitor mv = cv.visitMethod(
+                    Opcodes.ACC_PUBLIC,
+                    METHOD_GROUP_BY,
+                    methodDescriptor,
+                    genericSignature,
+                    null);
+
+            mv.visitCode();
+
+            // new QubitStreamImpl<>(entityClass)
+            mv.visitTypeInsn(Opcodes.NEW, QUBIT_STREAM_IMPL_INTERNAL_NAME);
+            mv.visitInsn(Opcodes.DUP);
+            mv.visitLdcInsn(entityType);
+            mv.visitMethodInsn(Opcodes.INVOKESPECIAL, QUBIT_STREAM_IMPL_INTERNAL_NAME,
+                    CONSTRUCTOR, DESC_CLASS_CONSTRUCTOR, false);
+
+            // .groupBy(keyExtractor)
+            mv.visitVarInsn(Opcodes.ALOAD, 1);
+            mv.visitMethodInsn(Opcodes.INVOKEINTERFACE, QUBIT_STREAM_INTERNAL_NAME,
+                    METHOD_GROUP_BY, methodDescriptor, true);
+
+            mv.visitInsn(Opcodes.ARETURN);
+            mv.visitMaxs(4, 2);
+            mv.visitEnd();
+            Log.infof("    Successfully generated method: groupBy");
         }
 
         /**
