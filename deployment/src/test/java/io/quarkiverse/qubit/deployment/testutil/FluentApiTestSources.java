@@ -142,6 +142,26 @@ public class FluentApiTestSources {
     }
 
     /**
+     * Multi-level sort with thenSortedBy.
+     * Pattern: sortedBy(lambda).thenSortedBy(lambda).toList()
+     */
+    public List<TestEmployee> multiLevelSort() {
+        return TestEmployee.sortedBy((TestEmployee e) -> e.name)
+                .thenSortedBy((TestEmployee e) -> e.age)
+                .toList();
+    }
+
+    /**
+     * Multi-level sort with thenSortedDescendingBy.
+     * Pattern: sortedBy(lambda).thenSortedDescendingBy(lambda).toList()
+     */
+    public List<TestEmployee> multiLevelSortMixed() {
+        return TestEmployee.sortedBy((TestEmployee e) -> e.department)
+                .thenSortedDescendingBy((TestEmployee e) -> e.salary)
+                .toList();
+    }
+
+    /**
      * Min aggregation.
      * Pattern: min(lambda).getSingleResult()
      */

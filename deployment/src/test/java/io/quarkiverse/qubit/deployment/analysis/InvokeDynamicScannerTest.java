@@ -328,6 +328,46 @@ class InvokeDynamicScannerTest {
     }
 
     @Nested
+    class ThenSortedByDetection {
+
+        @Test
+        void detectsThenSortedByLambda() {
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+                    FLUENT_API_SOURCES_CLASS);
+
+            // multiLevelSort() uses sortedBy + thenSortedBy — should produce a call site with 2 sort lambdas
+            assertThat(callSites)
+                    .filteredOn(cs -> "multiLevelSort".equals(cs.methodName()))
+                    .isNotEmpty()
+                    .allSatisfy(cs -> {
+                        assertThat(cs).isInstanceOf(CallSite.SimpleCallSite.class);
+                        CallSite.SimpleCallSite simple = (CallSite.SimpleCallSite) cs;
+                        assertThat(simple.sortLambdas()).hasSize(2);
+                    });
+        }
+
+        @Test
+        void detectsThenSortedDescendingByLambda() {
+            List<CallSite> callSites = scanner.scanClass(fluentApiSourcesBytes,
+                    FLUENT_API_SOURCES_CLASS);
+
+            // multiLevelSortMixed() uses sortedBy + thenSortedDescendingBy
+            assertThat(callSites)
+                    .filteredOn(cs -> "multiLevelSortMixed".equals(cs.methodName()))
+                    .isNotEmpty()
+                    .allSatisfy(cs -> {
+                        assertThat(cs).isInstanceOf(CallSite.SimpleCallSite.class);
+                        CallSite.SimpleCallSite simple = (CallSite.SimpleCallSite) cs;
+                        assertThat(simple.sortLambdas()).hasSize(2);
+                        assertThat(simple.sortLambdas().get(0).direction())
+                                .isEqualTo(io.quarkiverse.qubit.SortDirection.ASCENDING);
+                        assertThat(simple.sortLambdas().get(1).direction())
+                                .isEqualTo(io.quarkiverse.qubit.SortDirection.DESCENDING);
+                    });
+        }
+    }
+
+    @Nested
     class AggregationQueryDetection {
 
         @Test
