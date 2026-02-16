@@ -99,11 +99,6 @@ public final class QubitConstants {
     public static final String SUBQUERY_IN = "in";
     public static final String SUBQUERY_NOT_IN = "notIn";
 
-    // All subquery methods (for stack walking filter)
-    public static final Set<String> SUBQUERY_METHODS = Set.of(
-            SUBQUERY_AVG, SUBQUERY_SUM, SUBQUERY_MIN, SUBQUERY_MAX, SUBQUERY_COUNT,
-            SUBQUERY_EXISTS, SUBQUERY_NOT_EXISTS, SUBQUERY_IN, SUBQUERY_NOT_IN);
-
     // Subqueries utility class internal name
     public static final String SUBQUERIES_INTERNAL_NAME = "io/quarkiverse/qubit/Subqueries";
 
@@ -122,18 +117,14 @@ public final class QubitConstants {
     public static final Set<String> TEMPORAL_COMPARISON_METHOD_NAMES = Set.of(
             METHOD_IS_AFTER, METHOD_IS_BEFORE, METHOD_IS_EQUAL);
 
-    // Extension capability name for interoperability with other extensions
-    public static final String QUBIT_CAPABILITY = "io.quarkiverse.qubit";
-
     public static final String QUBIT_ENTITY_CLASS_NAME = "io.quarkiverse.qubit.QubitEntity";
     public static final String QUBIT_REPOSITORY_CLASS_NAME = "io.quarkiverse.qubit.QubitRepository";
-    public static final String QUBIT_STREAM_CLASS_NAME = "io.quarkiverse.qubit.QubitStream";
-    public static final String QUERY_EXECUTOR_CLASS_NAME = "io.quarkiverse.qubit.runtime.internal.QueryExecutor";
 
     // JVM internal names (slash-separated format for ASM bytecode generation)
     public static final String QUBIT_ENTITY_INTERNAL_NAME = "io/quarkiverse/qubit/QubitEntity";
     public static final String QUBIT_REPOSITORY_INTERNAL_NAME = "io/quarkiverse/qubit/QubitRepository";
     public static final String QUBIT_STREAM_INTERNAL_NAME = "io/quarkiverse/qubit/QubitStream";
+    public static final String SCALAR_RESULT_INTERNAL_NAME = "io/quarkiverse/qubit/ScalarResult";
     public static final String JOIN_STREAM_INTERNAL_NAME = "io/quarkiverse/qubit/JoinStream";
     public static final String GROUP_STREAM_INTERNAL_NAME = "io/quarkiverse/qubit/GroupStream";
     public static final String QUERY_SPEC_INTERNAL_NAME = "io/quarkiverse/qubit/QuerySpec";
@@ -141,20 +132,13 @@ public final class QubitConstants {
     public static final String BI_QUERY_SPEC_DESCRIPTOR = "Lio/quarkiverse/qubit/BiQuerySpec;";
     public static final String GROUP_QUERY_SPEC_DESCRIPTOR = "Lio/quarkiverse/qubit/GroupQuerySpec;";
 
-    // Fluent API method descriptors (QuerySpec -> Stream)
+    // Fluent API method descriptors (QuerySpec -> Stream / ScalarResult)
     public static final String DESC_QUERY_SPEC_TO_STREAM = "(Lio/quarkiverse/qubit/QuerySpec;)Lio/quarkiverse/qubit/QubitStream;";
+    public static final String DESC_QUERY_SPEC_TO_SCALAR_RESULT = "(Lio/quarkiverse/qubit/QuerySpec;)Lio/quarkiverse/qubit/ScalarResult;";
     public static final String DESC_QUERY_SPEC_TO_JOIN_STREAM = "(Lio/quarkiverse/qubit/QuerySpec;)Lio/quarkiverse/qubit/JoinStream;";
     public static final String DESC_QUERY_SPEC_TO_GROUP_STREAM = "(Lio/quarkiverse/qubit/QuerySpec;)Lio/quarkiverse/qubit/GroupStream;";
 
     // Standard Java method names for lambda expression analysis
-    public static final String METHOD_DOUBLE_VALUE = "doubleValue";
-    public static final String METHOD_INT_VALUE = "intValue";
-    public static final String METHOD_LONG_VALUE = "longValue";
-    public static final String METHOD_FLOAT_VALUE = "floatValue";
-    public static final String METHOD_BOOLEAN_VALUE = "booleanValue";
-    public static final String METHOD_BYTE_VALUE = "byteValue";
-    public static final String METHOD_SHORT_VALUE = "shortValue";
-    public static final String METHOD_CHAR_VALUE = "charValue";
     public static final String METHOD_ADD = "add";
     public static final String METHOD_SUBTRACT = "subtract";
     public static final String METHOD_MULTIPLY = "multiply";
@@ -244,8 +228,6 @@ public final class QubitConstants {
     public static final String CB_COUNT_DISTINCT = "countDistinct";
     public static final String CB_MIN = "min";
     public static final String CB_MAX = "max";
-    public static final String CB_LEAST = "least";
-    public static final String CB_GREATEST = "greatest";
 
     // CriteriaQuery GROUP BY operations
     public static final String CQ_GROUP_BY = "groupBy";
@@ -253,22 +235,12 @@ public final class QubitConstants {
 
     // CriteriaBuilder subquery operations
     public static final String CB_EXISTS = "exists";
-    public static final String CB_NOT_EXISTS = "not"; // cb.not(cb.exists(subquery))
-    public static final String CQ_SUBQUERY = "subquery"; // criteriaQuery.subquery()
 
     // Path method names (for JPA Path API)
     public static final String PATH_GET = "get";
 
     // String class method names
     public static final String STRING_CONCAT = "concat";
-
-    // SQL function names (used with CriteriaBuilder.function)
-    public static final String SQL_YEAR = "YEAR";
-    public static final String SQL_MONTH = "MONTH";
-    public static final String SQL_DAY = "DAY";
-    public static final String SQL_HOUR = "HOUR";
-    public static final String SQL_MINUTE = "MINUTE";
-    public static final String SQL_SECOND = "SECOND";
 
     public static final String SQL_LIKE_WILDCARD = "%";
 
@@ -291,10 +263,6 @@ public final class QubitConstants {
 
     // Constructor method name
     public static final String CONSTRUCTOR = "<init>";
-
-    // Captured variable field name patterns (compiler-specific)
-    public static final String CAPTURED_VAR_PREFIX_JAVAC = "arg$"; // javac: arg$1, arg$2, ...
-    public static final String CAPTURED_VAR_PREFIX_ECLIPSE = "val$"; // Eclipse: val$1, val$2, ...
 
     // JVM Internal Class Names (slash-separated for ASM bytecode analysis)
     public static final String JVM_JAVA_LANG_OBJECT = "java/lang/Object";
@@ -343,10 +311,6 @@ public final class QubitConstants {
     public static final String AGG_TYPE_SUM_INTEGER = "SUM_INTEGER";
     public static final String AGG_TYPE_SUM_LONG = "SUM_LONG";
     public static final String AGG_TYPE_SUM_DOUBLE = "SUM_DOUBLE";
-
-    public static final Set<String> AGGREGATION_TYPES = Set.of(
-            AGG_TYPE_MIN, AGG_TYPE_MAX, AGG_TYPE_AVG,
-            AGG_TYPE_SUM_INTEGER, AGG_TYPE_SUM_LONG, AGG_TYPE_SUM_DOUBLE);
 
     // Query type identifiers for hash computation and deduplication
     public static final String QUERY_TYPE_LIST = "LIST";

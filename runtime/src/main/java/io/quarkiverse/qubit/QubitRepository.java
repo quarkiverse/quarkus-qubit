@@ -111,7 +111,7 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * @return a new stream configured for MIN aggregation
      */
     @GenerateBridge
-    default <K extends Comparable<K>> QubitStream<K> min(QuerySpec<E, K> mapper) {
+    default <K extends Comparable<K>> ScalarResult<K> min(QuerySpec<E, K> mapper) {
         throw implementationInjectionMissing();
     }
 
@@ -138,7 +138,7 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * @return a new stream configured for MAX aggregation
      */
     @GenerateBridge
-    default <K extends Comparable<K>> QubitStream<K> max(QuerySpec<E, K> mapper) {
+    default <K extends Comparable<K>> ScalarResult<K> max(QuerySpec<E, K> mapper) {
         throw implementationInjectionMissing();
     }
 
@@ -164,7 +164,7 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * @return a new stream configured for AVG aggregation (returns Double)
      */
     @GenerateBridge
-    default QubitStream<Double> avg(QuerySpec<E, ? extends Number> mapper) {
+    default ScalarResult<Double> avg(QuerySpec<E, ? extends Number> mapper) {
         throw implementationInjectionMissing();
     }
 
@@ -190,7 +190,7 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * @return a new stream configured for SUM aggregation (returns Long)
      */
     @GenerateBridge
-    default QubitStream<Long> sumInteger(QuerySpec<E, Integer> mapper) {
+    default ScalarResult<Long> sumInteger(QuerySpec<E, Integer> mapper) {
         throw implementationInjectionMissing();
     }
 
@@ -216,7 +216,7 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * @return a new stream configured for SUM aggregation (returns Long)
      */
     @GenerateBridge
-    default QubitStream<Long> sumLong(QuerySpec<E, Long> mapper) {
+    default ScalarResult<Long> sumLong(QuerySpec<E, Long> mapper) {
         throw implementationInjectionMissing();
     }
 
@@ -242,7 +242,7 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * @return a new stream configured for SUM aggregation (returns Double)
      */
     @GenerateBridge
-    default QubitStream<Double> sumDouble(QuerySpec<E, Double> mapper) {
+    default ScalarResult<Double> sumDouble(QuerySpec<E, Double> mapper) {
         throw implementationInjectionMissing();
     }
 

@@ -3,7 +3,7 @@ package io.quarkiverse.qubit.deployment;
 import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.DESC_CLASS_CONSTRUCTOR;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.CONSTRUCTOR;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.DESC_QUERY_SPEC_TO_JOIN_STREAM;
-import static io.quarkiverse.qubit.runtime.internal.QubitConstants.DESC_QUERY_SPEC_TO_STREAM;
+
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JOIN_STREAM_IMPL_INTERNAL_NAME;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JOIN_TYPE_DESCRIPTOR;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.JOIN_TYPE_INTERNAL_NAME;
@@ -207,12 +207,12 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             // Load QuerySpec parameter (index 1 for instance method)
             mv.visitVarInsn(Opcodes.ALOAD, 1);
 
-            // Call the appropriate method on the stream
+            // Call the appropriate method on the stream (uses config descriptor for correct return type)
             mv.visitMethodInsn(
                     Opcodes.INVOKEINTERFACE,
                     QUBIT_STREAM_INTERNAL_NAME,
                     methodName,
-                    DESC_QUERY_SPEC_TO_STREAM,
+                    config.methodDescriptor(),
                     true);
 
             mv.visitInsn(Opcodes.ARETURN);
@@ -345,12 +345,12 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             // Load QuerySpec parameter (index 1 for instance method)
             mv.visitVarInsn(Opcodes.ALOAD, 1);
 
-            // Call the appropriate method on the stream
+            // Call the appropriate method on the stream (uses config descriptor for correct return type)
             mv.visitMethodInsn(
                     Opcodes.INVOKEINTERFACE,
                     QUBIT_STREAM_INTERNAL_NAME,
                     methodName,
-                    DESC_QUERY_SPEC_TO_STREAM,
+                    config.methodDescriptor(),
                     true);
 
             mv.visitInsn(Opcodes.ARETURN);

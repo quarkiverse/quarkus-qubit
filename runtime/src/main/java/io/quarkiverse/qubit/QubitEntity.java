@@ -225,7 +225,7 @@ public abstract class QubitEntity extends PanacheEntity {
      * @return a QubitStream that will yield the minimum value
      * @throws IllegalStateException if called at runtime without build-time enhancement
      */
-    public static <T extends QubitEntity, K extends Comparable<K>> QubitStream<K> min(QuerySpec<T, K> mapper) {
+    public static <T extends QubitEntity, K extends Comparable<K>> ScalarResult<K> min(QuerySpec<T, K> mapper) {
         throw new IllegalStateException(
                 "This method is normally automatically overridden in subclasses at build time. " +
                         "Did you forget to annotate your entity with @Entity? " +
@@ -259,7 +259,7 @@ public abstract class QubitEntity extends PanacheEntity {
      * @return a QubitStream that will yield the maximum value
      * @throws IllegalStateException if called at runtime without build-time enhancement
      */
-    public static <T extends QubitEntity, K extends Comparable<K>> QubitStream<K> max(QuerySpec<T, K> mapper) {
+    public static <T extends QubitEntity, K extends Comparable<K>> ScalarResult<K> max(QuerySpec<T, K> mapper) {
         throw new IllegalStateException(
                 "This method is normally automatically overridden in subclasses at build time. " +
                         "Did you forget to annotate your entity with @Entity? " +
@@ -292,7 +292,7 @@ public abstract class QubitEntity extends PanacheEntity {
      * @return a QubitStream that will yield the average as a Double
      * @throws IllegalStateException if called at runtime without build-time enhancement
      */
-    public static <T extends QubitEntity> QubitStream<Double> avg(QuerySpec<T, ? extends Number> mapper) {
+    public static <T extends QubitEntity> ScalarResult<Double> avg(QuerySpec<T, ? extends Number> mapper) {
         throw new IllegalStateException(
                 "This method is normally automatically overridden in subclasses at build time. " +
                         "Did you forget to annotate your entity with @Entity? " +
@@ -325,7 +325,7 @@ public abstract class QubitEntity extends PanacheEntity {
      * @return a QubitStream that will yield the sum as a Long
      * @throws IllegalStateException if called at runtime without build-time enhancement
      */
-    public static <T extends QubitEntity> QubitStream<Long> sumInteger(QuerySpec<T, Integer> mapper) {
+    public static <T extends QubitEntity> ScalarResult<Long> sumInteger(QuerySpec<T, Integer> mapper) {
         throw new IllegalStateException(
                 "This method is normally automatically overridden in subclasses at build time. " +
                         "Did you forget to annotate your entity with @Entity? " +
@@ -358,7 +358,7 @@ public abstract class QubitEntity extends PanacheEntity {
      * @return a QubitStream that will yield the sum as a Long
      * @throws IllegalStateException if called at runtime without build-time enhancement
      */
-    public static <T extends QubitEntity> QubitStream<Long> sumLong(QuerySpec<T, Long> mapper) {
+    public static <T extends QubitEntity> ScalarResult<Long> sumLong(QuerySpec<T, Long> mapper) {
         throw new IllegalStateException(
                 "This method is normally automatically overridden in subclasses at build time. " +
                         "Did you forget to annotate your entity with @Entity? " +
@@ -391,7 +391,7 @@ public abstract class QubitEntity extends PanacheEntity {
      * @return a QubitStream that will yield the sum as a Double
      * @throws IllegalStateException if called at runtime without build-time enhancement
      */
-    public static <T extends QubitEntity> QubitStream<Double> sumDouble(QuerySpec<T, Double> mapper) {
+    public static <T extends QubitEntity> ScalarResult<Double> sumDouble(QuerySpec<T, Double> mapper) {
         throw new IllegalStateException(
                 "This method is normally automatically overridden in subclasses at build time. " +
                         "Did you forget to annotate your entity with @Entity? " +

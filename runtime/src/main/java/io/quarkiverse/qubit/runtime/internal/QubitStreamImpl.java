@@ -20,6 +20,7 @@ import io.quarkiverse.qubit.JoinStream;
 import io.quarkiverse.qubit.JoinType;
 import io.quarkiverse.qubit.QubitStream;
 import io.quarkiverse.qubit.QuerySpec;
+import io.quarkiverse.qubit.ScalarResult;
 import io.quarkiverse.qubit.SortDirection;
 
 /**
@@ -189,45 +190,39 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     }
 
     @Override
-    public <K extends Comparable<K>> QubitStream<K> min(QuerySpec<T, K> mapper) {
+    public <K extends Comparable<K>> ScalarResult<K> min(QuerySpec<T, K> mapper) {
         requireNonNullLambda(mapper, PARAM_MAPPER, "min");
-        // Store aggregation state, execution happens in getSingleResult()
-        return withAggregation(AggregationType.MIN, mapper);
+        return new ScalarResultImpl<>(withAggregation(AggregationType.MIN, mapper));
     }
 
     @Override
-    public <K extends Comparable<K>> QubitStream<K> max(QuerySpec<T, K> mapper) {
+    public <K extends Comparable<K>> ScalarResult<K> max(QuerySpec<T, K> mapper) {
         requireNonNullLambda(mapper, PARAM_MAPPER, "max");
-        // Store aggregation state, execution happens in getSingleResult()
-        return withAggregation(AggregationType.MAX, mapper);
+        return new ScalarResultImpl<>(withAggregation(AggregationType.MAX, mapper));
     }
 
     @Override
-    public QubitStream<Long> sumInteger(QuerySpec<T, Integer> mapper) {
+    public ScalarResult<Long> sumInteger(QuerySpec<T, Integer> mapper) {
         requireNonNullLambda(mapper, PARAM_MAPPER, "sumInteger");
-        // Store aggregation state, execution happens in getSingleResult()
-        return withAggregation(AggregationType.SUM_INTEGER, mapper);
+        return new ScalarResultImpl<>(withAggregation(AggregationType.SUM_INTEGER, mapper));
     }
 
     @Override
-    public QubitStream<Long> sumLong(QuerySpec<T, Long> mapper) {
+    public ScalarResult<Long> sumLong(QuerySpec<T, Long> mapper) {
         requireNonNullLambda(mapper, PARAM_MAPPER, "sumLong");
-        // Store aggregation state, execution happens in getSingleResult()
-        return withAggregation(AggregationType.SUM_LONG, mapper);
+        return new ScalarResultImpl<>(withAggregation(AggregationType.SUM_LONG, mapper));
     }
 
     @Override
-    public QubitStream<Double> sumDouble(QuerySpec<T, Double> mapper) {
+    public ScalarResult<Double> sumDouble(QuerySpec<T, Double> mapper) {
         requireNonNullLambda(mapper, PARAM_MAPPER, "sumDouble");
-        // Store aggregation state, execution happens in getSingleResult()
-        return withAggregation(AggregationType.SUM_DOUBLE, mapper);
+        return new ScalarResultImpl<>(withAggregation(AggregationType.SUM_DOUBLE, mapper));
     }
 
     @Override
-    public QubitStream<Double> avg(QuerySpec<T, ? extends Number> mapper) {
+    public ScalarResult<Double> avg(QuerySpec<T, ? extends Number> mapper) {
         requireNonNullLambda(mapper, PARAM_MAPPER, "avg");
-        // Store aggregation state, execution happens in getSingleResult()
-        return withAggregation(AggregationType.AVG, mapper);
+        return new ScalarResultImpl<>(withAggregation(AggregationType.AVG, mapper));
     }
 
     // TERMINAL OPERATIONS

@@ -464,9 +464,13 @@ public class InvokeDynamicScanner {
                 streamInternalName.equals(methodCall.owner);
     }
 
-    /** Checks if method call is a terminal operation on QubitStream. Package-private for {@link MethodScanState}. */
+    /**
+     * Checks if method call is a terminal operation on QubitStream or ScalarResult. Package-private for
+     * {@link MethodScanState}.
+     */
     boolean isQubitStreamTerminalCall(MethodInsnNode methodCall) {
-        return isStreamTerminalCall(methodCall, QUBIT_STREAM_INTERNAL_NAME);
+        return isStreamTerminalCall(methodCall, QUBIT_STREAM_INTERNAL_NAME) ||
+                isStreamTerminalCall(methodCall, SCALAR_RESULT_INTERNAL_NAME);
     }
 
     /** Checks if method call is a terminal operation on JoinStream. Package-private for {@link MethodScanState}. */
@@ -544,17 +548,17 @@ public class InvokeDynamicScanner {
             return true;
         }
 
-        // Also accept if it's a static method call (invokestatic) with QubitStream return type
+        // Also accept if it's a static method call (invokestatic) with ScalarResult return type
         // This handles direct static calls like Person.min(...)
         if (methodCall.getOpcode() == Opcodes.INVOKESTATIC) {
-            return returnTypeContains(methodCall.desc, QUBIT_STREAM_INTERNAL_NAME);
+            return returnTypeContains(methodCall.desc, SCALAR_RESULT_INTERNAL_NAME);
         }
 
-        // Also accept instance method calls on QubitRepository that return QubitStream
+        // Also accept instance method calls on QubitRepository that return ScalarResult
         // This handles repository.min(...) calls
         if (methodCall.getOpcode() == Opcodes.INVOKEVIRTUAL ||
                 methodCall.getOpcode() == Opcodes.INVOKEINTERFACE) {
-            return returnTypeContains(methodCall.desc, QUBIT_STREAM_INTERNAL_NAME);
+            return returnTypeContains(methodCall.desc, SCALAR_RESULT_INTERNAL_NAME);
         }
 
         return false;

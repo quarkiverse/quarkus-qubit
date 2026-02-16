@@ -4,6 +4,7 @@ import static io.quarkiverse.qubit.deployment.common.BytecodeAnalysisConstants.D
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.CONSTRUCTOR;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.DESC_QUERY_SPEC_TO_GROUP_STREAM;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.DESC_QUERY_SPEC_TO_JOIN_STREAM;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.DESC_QUERY_SPEC_TO_SCALAR_RESULT;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.DESC_QUERY_SPEC_TO_STREAM;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_AVG;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_GROUP_BY;
@@ -369,118 +370,64 @@ public final class QubitBytecodeGenerator {
 
         // Aggregation methods - these now return QubitStream (intermediate operations)
 
-        /**
-         * Creates config for min() method.
-         * Returns: <K extends Comparable<K>> QubitStream<K>
-         */
+        /** Creates config for min() method. Returns: ScalarResult<K> */
         public static FluentMethodConfig forMin(Type entityType, String entityInternalName) {
             String genericSignature = "<K::Ljava/lang/Comparable<TK;>;>(Lio/quarkiverse/qubit/QuerySpec<L" +
-                    entityInternalName + ";TK;>;)Lio/quarkiverse/qubit/QubitStream<TK;>;";
-
+                    entityInternalName + ";TK;>;)Lio/quarkiverse/qubit/ScalarResult<TK;>;";
             return new FluentMethodConfig(
-                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
-                    METHOD_MIN,
-                    DESC_QUERY_SPEC_TO_STREAM, // Returns QubitStream
-                    genericSignature,
-                    Opcodes.ARETURN,
-                    entityType,
-                    3,
-                    1);
+                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC, METHOD_MIN,
+                    DESC_QUERY_SPEC_TO_SCALAR_RESULT, genericSignature,
+                    Opcodes.ARETURN, entityType, 3, 1);
         }
 
-        /**
-         * Creates config for max() method.
-         * Returns: <K extends Comparable<K>> QubitStream<K>
-         */
+        /** Creates config for max() method. Returns: ScalarResult<K> */
         public static FluentMethodConfig forMax(Type entityType, String entityInternalName) {
             String genericSignature = "<K::Ljava/lang/Comparable<TK;>;>(Lio/quarkiverse/qubit/QuerySpec<L" +
-                    entityInternalName + ";TK;>;)Lio/quarkiverse/qubit/QubitStream<TK;>;";
-
+                    entityInternalName + ";TK;>;)Lio/quarkiverse/qubit/ScalarResult<TK;>;";
             return new FluentMethodConfig(
-                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
-                    METHOD_MAX,
-                    DESC_QUERY_SPEC_TO_STREAM, // Returns QubitStream
-                    genericSignature,
-                    Opcodes.ARETURN,
-                    entityType,
-                    3,
-                    1);
+                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC, METHOD_MAX,
+                    DESC_QUERY_SPEC_TO_SCALAR_RESULT, genericSignature,
+                    Opcodes.ARETURN, entityType, 3, 1);
         }
 
-        /**
-         * Creates config for avg() method.
-         * Returns: QubitStream<Double>
-         */
+        /** Creates config for avg() method. Returns: ScalarResult<Double> */
         public static FluentMethodConfig forAvg(Type entityType, String entityInternalName) {
             String genericSignature = "(Lio/quarkiverse/qubit/QuerySpec<L" +
-                    entityInternalName + ";+Ljava/lang/Number;>;)Lio/quarkiverse/qubit/QubitStream<Ljava/lang/Double;>;";
-
+                    entityInternalName + ";+Ljava/lang/Number;>;)Lio/quarkiverse/qubit/ScalarResult<Ljava/lang/Double;>;";
             return new FluentMethodConfig(
-                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
-                    METHOD_AVG,
-                    DESC_QUERY_SPEC_TO_STREAM, // Returns QubitStream
-                    genericSignature,
-                    Opcodes.ARETURN,
-                    entityType,
-                    3,
-                    1);
+                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC, METHOD_AVG,
+                    DESC_QUERY_SPEC_TO_SCALAR_RESULT, genericSignature,
+                    Opcodes.ARETURN, entityType, 3, 1);
         }
 
-        /**
-         * Creates config for sumInteger() method.
-         * Returns: QubitStream<Long>
-         */
+        /** Creates config for sumInteger() method. Returns: ScalarResult<Long> */
         public static FluentMethodConfig forSumInteger(Type entityType, String entityInternalName) {
             String genericSignature = "(Lio/quarkiverse/qubit/QuerySpec<L" +
-                    entityInternalName + ";Ljava/lang/Integer;>;)Lio/quarkiverse/qubit/QubitStream<Ljava/lang/Long;>;";
-
+                    entityInternalName + ";Ljava/lang/Integer;>;)Lio/quarkiverse/qubit/ScalarResult<Ljava/lang/Long;>;";
             return new FluentMethodConfig(
-                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
-                    METHOD_SUM_INTEGER,
-                    DESC_QUERY_SPEC_TO_STREAM, // Returns QubitStream
-                    genericSignature,
-                    Opcodes.ARETURN, // object reference return
-                    entityType,
-                    3,
-                    1);
+                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC, METHOD_SUM_INTEGER,
+                    DESC_QUERY_SPEC_TO_SCALAR_RESULT, genericSignature,
+                    Opcodes.ARETURN, entityType, 3, 1);
         }
 
-        /**
-         * Creates config for sumLong() method.
-         * Returns: QubitStream<Long>
-         */
+        /** Creates config for sumLong() method. Returns: ScalarResult<Long> */
         public static FluentMethodConfig forSumLong(Type entityType, String entityInternalName) {
             String genericSignature = "(Lio/quarkiverse/qubit/QuerySpec<L" +
-                    entityInternalName + ";Ljava/lang/Long;>;)Lio/quarkiverse/qubit/QubitStream<Ljava/lang/Long;>;";
-
+                    entityInternalName + ";Ljava/lang/Long;>;)Lio/quarkiverse/qubit/ScalarResult<Ljava/lang/Long;>;";
             return new FluentMethodConfig(
-                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
-                    METHOD_SUM_LONG,
-                    DESC_QUERY_SPEC_TO_STREAM, // Returns QubitStream
-                    genericSignature,
-                    Opcodes.ARETURN, // object reference return
-                    entityType,
-                    3,
-                    1);
+                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC, METHOD_SUM_LONG,
+                    DESC_QUERY_SPEC_TO_SCALAR_RESULT, genericSignature,
+                    Opcodes.ARETURN, entityType, 3, 1);
         }
 
-        /**
-         * Creates config for sumDouble() method.
-         * Returns: QubitStream<Double>
-         */
+        /** Creates config for sumDouble() method. Returns: ScalarResult<Double> */
         public static FluentMethodConfig forSumDouble(Type entityType, String entityInternalName) {
             String genericSignature = "(Lio/quarkiverse/qubit/QuerySpec<L" +
-                    entityInternalName + ";Ljava/lang/Double;>;)Lio/quarkiverse/qubit/QubitStream<Ljava/lang/Double;>;";
-
+                    entityInternalName + ";Ljava/lang/Double;>;)Lio/quarkiverse/qubit/ScalarResult<Ljava/lang/Double;>;";
             return new FluentMethodConfig(
-                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
-                    METHOD_SUM_DOUBLE,
-                    DESC_QUERY_SPEC_TO_STREAM, // Returns QubitStream
-                    genericSignature,
-                    Opcodes.ARETURN, // object reference return
-                    entityType,
-                    3,
-                    1);
+                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC, METHOD_SUM_DOUBLE,
+                    DESC_QUERY_SPEC_TO_SCALAR_RESULT, genericSignature,
+                    Opcodes.ARETURN, entityType, 3, 1);
         }
     }
 }

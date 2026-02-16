@@ -4,6 +4,7 @@ import io.quarkiverse.qubit.it.Person;
 import io.quarkiverse.qubit.JoinStream;
 import io.quarkiverse.qubit.QuerySpec;
 import io.quarkiverse.qubit.QubitStream;
+import io.quarkiverse.qubit.ScalarResult;
 
 import java.util.Collection;
 
@@ -46,32 +47,32 @@ public class StaticPersonQueryOperations implements PersonQueryOperations {
     }
 
     @Override
-    public <K extends Comparable<K>> QubitStream<K> min(QuerySpec<Person, K> mapper) {
+    public <K extends Comparable<K>> ScalarResult<K> min(QuerySpec<Person, K> mapper) {
         return Person.min(mapper);
     }
 
     @Override
-    public <K extends Comparable<K>> QubitStream<K> max(QuerySpec<Person, K> mapper) {
+    public <K extends Comparable<K>> ScalarResult<K> max(QuerySpec<Person, K> mapper) {
         return Person.max(mapper);
     }
 
     @Override
-    public QubitStream<Double> avg(QuerySpec<Person, ? extends Number> mapper) {
+    public ScalarResult<Double> avg(QuerySpec<Person, ? extends Number> mapper) {
         return Person.avg(mapper);
     }
 
     @Override
-    public QubitStream<Long> sumInteger(QuerySpec<Person, Integer> mapper) {
+    public ScalarResult<Long> sumInteger(QuerySpec<Person, Integer> mapper) {
         return Person.sumInteger(mapper);
     }
 
     @Override
-    public QubitStream<Long> sumLong(QuerySpec<Person, Long> mapper) {
+    public ScalarResult<Long> sumLong(QuerySpec<Person, Long> mapper) {
         return Person.sumLong(mapper);
     }
 
     @Override
-    public QubitStream<Double> sumDouble(QuerySpec<Person, Double> mapper) {
+    public ScalarResult<Double> sumDouble(QuerySpec<Person, Double> mapper) {
         return Person.sumDouble(mapper);
     }
 

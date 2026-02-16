@@ -13,6 +13,7 @@ import io.quarkiverse.qubit.GroupStream;
 import io.quarkiverse.qubit.JoinStream;
 import io.quarkiverse.qubit.QubitStream;
 import io.quarkiverse.qubit.QuerySpec;
+import io.quarkiverse.qubit.ScalarResult;
 
 /**
  * Immutable QubitStream wrapping pre-computed projection results.
@@ -57,32 +58,32 @@ public final class ImmutableResultStream<T> implements QubitStream<T> {
     }
 
     @Override
-    public <K extends Comparable<K>> QubitStream<K> min(QuerySpec<T, K> mapper) {
+    public <K extends Comparable<K>> ScalarResult<K> min(QuerySpec<T, K> mapper) {
         throw unsupported(OP_AGGREGATE);
     }
 
     @Override
-    public <K extends Comparable<K>> QubitStream<K> max(QuerySpec<T, K> mapper) {
+    public <K extends Comparable<K>> ScalarResult<K> max(QuerySpec<T, K> mapper) {
         throw unsupported(OP_AGGREGATE);
     }
 
     @Override
-    public QubitStream<Long> sumInteger(QuerySpec<T, Integer> mapper) {
+    public ScalarResult<Long> sumInteger(QuerySpec<T, Integer> mapper) {
         throw unsupported(OP_AGGREGATE);
     }
 
     @Override
-    public QubitStream<Long> sumLong(QuerySpec<T, Long> mapper) {
+    public ScalarResult<Long> sumLong(QuerySpec<T, Long> mapper) {
         throw unsupported(OP_AGGREGATE);
     }
 
     @Override
-    public QubitStream<Double> sumDouble(QuerySpec<T, Double> mapper) {
+    public ScalarResult<Double> sumDouble(QuerySpec<T, Double> mapper) {
         throw unsupported(OP_AGGREGATE);
     }
 
     @Override
-    public QubitStream<Double> avg(QuerySpec<T, ? extends Number> mapper) {
+    public ScalarResult<Double> avg(QuerySpec<T, ? extends Number> mapper) {
         throw unsupported(OP_AGGREGATE);
     }
 

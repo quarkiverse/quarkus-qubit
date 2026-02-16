@@ -43,23 +43,23 @@ public interface QubitStream<T> {
     /** Counts matching entities (terminal operation). */
     long count();
 
-    /** Prepares MIN aggregation. Call {@link #getSingleResult()} to execute. */
-    <K extends Comparable<K>> QubitStream<K> min(QuerySpec<T, K> mapper);
+    /** Returns the minimum value of the mapped field. */
+    <K extends Comparable<K>> ScalarResult<K> min(QuerySpec<T, K> mapper);
 
-    /** Prepares MAX aggregation. Call {@link #getSingleResult()} to execute. */
-    <K extends Comparable<K>> QubitStream<K> max(QuerySpec<T, K> mapper);
+    /** Returns the maximum value of the mapped field. */
+    <K extends Comparable<K>> ScalarResult<K> max(QuerySpec<T, K> mapper);
 
-    /** Prepares SUM for Integer values (returns Long). Call {@link #getSingleResult()} to execute. */
-    QubitStream<Long> sumInteger(QuerySpec<T, Integer> mapper);
+    /** Returns the sum of Integer values as Long. */
+    ScalarResult<Long> sumInteger(QuerySpec<T, Integer> mapper);
 
-    /** Prepares SUM for Long values (returns Long). Call {@link #getSingleResult()} to execute. */
-    QubitStream<Long> sumLong(QuerySpec<T, Long> mapper);
+    /** Returns the sum of Long values as Long. */
+    ScalarResult<Long> sumLong(QuerySpec<T, Long> mapper);
 
-    /** Prepares SUM for Double values (returns Double). Call {@link #getSingleResult()} to execute. */
-    QubitStream<Double> sumDouble(QuerySpec<T, Double> mapper);
+    /** Returns the sum of Double values as Double. */
+    ScalarResult<Double> sumDouble(QuerySpec<T, Double> mapper);
 
-    /** Prepares AVG for numeric values (returns Double). Call {@link #getSingleResult()} to execute. */
-    QubitStream<Double> avg(QuerySpec<T, ? extends Number> mapper);
+    /** Returns the average of numeric values as Double. */
+    ScalarResult<Double> avg(QuerySpec<T, ? extends Number> mapper);
 
     /** Executes query and returns all results as a list. Never null, may be empty. */
     List<T> toList();

@@ -4,6 +4,7 @@ import io.quarkiverse.qubit.it.Person;
 import io.quarkiverse.qubit.JoinStream;
 import io.quarkiverse.qubit.QuerySpec;
 import io.quarkiverse.qubit.QubitStream;
+import io.quarkiverse.qubit.ScalarResult;
 
 import java.util.Collection;
 
@@ -52,32 +53,32 @@ public interface PersonQueryOperations {
     /**
      * Creates a MIN aggregation query.
      */
-    <K extends Comparable<K>> QubitStream<K> min(QuerySpec<Person, K> mapper);
+    <K extends Comparable<K>> ScalarResult<K> min(QuerySpec<Person, K> mapper);
 
     /**
      * Creates a MAX aggregation query.
      */
-    <K extends Comparable<K>> QubitStream<K> max(QuerySpec<Person, K> mapper);
+    <K extends Comparable<K>> ScalarResult<K> max(QuerySpec<Person, K> mapper);
 
     /**
      * Creates an AVG aggregation query.
      */
-    QubitStream<Double> avg(QuerySpec<Person, ? extends Number> mapper);
+    ScalarResult<Double> avg(QuerySpec<Person, ? extends Number> mapper);
 
     /**
      * Creates a SUM aggregation query for Integer fields.
      */
-    QubitStream<Long> sumInteger(QuerySpec<Person, Integer> mapper);
+    ScalarResult<Long> sumInteger(QuerySpec<Person, Integer> mapper);
 
     /**
      * Creates a SUM aggregation query for Long fields.
      */
-    QubitStream<Long> sumLong(QuerySpec<Person, Long> mapper);
+    ScalarResult<Long> sumLong(QuerySpec<Person, Long> mapper);
 
     /**
      * Creates a SUM aggregation query for Double fields.
      */
-    QubitStream<Double> sumDouble(QuerySpec<Person, Double> mapper);
+    ScalarResult<Double> sumDouble(QuerySpec<Person, Double> mapper);
 
     /**
      * Creates a join query stream.
