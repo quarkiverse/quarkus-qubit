@@ -126,16 +126,9 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     // PROJECTION
 
     @Override
-    @SuppressWarnings("unchecked")
     public <R> QubitStream<R> select(QuerySpec<T, R> mapper) {
         requireNonNullLambda(mapper, PARAM_MAPPER, "select");
-        // For now, we'll use a simple approach - the actual type inference
-        // will be done at build time by the processor
-        Class<R> newResultType = (Class<R>) Object.class; // Placeholder
-
-        // Create a new stream with the selector
-        // Note: This is a type transformation, so we need to cast carefully
-        return withSelector(mapper, newResultType);
+        return withSelector(mapper, buildTimeResolvedType());
     }
 
     // SORTING
@@ -375,7 +368,15 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
                 mapper);
     }
 
-    // INTERNAL HELPER METHODS - Call Site Resolution
+    // INTERNAL HELPER METHODS
+
+    /** Type placeholder — actual type is resolved at build time by the Qubit processor. */
+    @SuppressWarnings("unchecked")
+    private static <R> Class<R> buildTimeResolvedType() {
+        return (Class<R>) Object.class;
+    }
+
+    // Call Site Resolution
 
     /**
      * Returns the primary lambda for call site ID uniqueness.
@@ -451,23 +452,15 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     // JOIN OPERATIONS
 
     @Override
-    @SuppressWarnings("unchecked")
     public <R> JoinStream<T, R> join(QuerySpec<T, Collection<R>> relationship) {
         requireNonNullLambda(relationship, "Relationship", "join");
-        // Infer joined entity class from the relationship
-        // For now, use Object.class as placeholder - actual type is resolved at build time
-        Class<R> joinedClass = (Class<R>) Object.class;
-        return new JoinStreamImpl<>(entityClass, joinedClass, relationship, JoinType.INNER);
+        return new JoinStreamImpl<>(entityClass, buildTimeResolvedType(), relationship, JoinType.INNER);
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <R> JoinStream<T, R> leftJoin(QuerySpec<T, Collection<R>> relationship) {
         requireNonNullLambda(relationship, "Relationship", "leftJoin");
-        // Infer joined entity class from the relationship
-        // For now, use Object.class as placeholder - actual type is resolved at build time
-        Class<R> joinedClass = (Class<R>) Object.class;
-        return new JoinStreamImpl<>(entityClass, joinedClass, relationship, JoinType.LEFT);
+        return new JoinStreamImpl<>(entityClass, buildTimeResolvedType(), relationship, JoinType.LEFT);
     }
 
     // GROUPING OPERATIONS
