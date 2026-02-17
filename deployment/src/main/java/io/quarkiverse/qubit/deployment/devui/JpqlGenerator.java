@@ -258,7 +258,7 @@ public final class JpqlGenerator {
             case InSubquery inSub -> inSubqueryToJpql(inSub);
             case CorrelatedVariable correlated -> "OUTER." + expressionToJpql(correlated.fieldExpression());
             case SubqueryBuilderReference _ -> "(SUBQUERY)";
-            case MathFunction _ -> throw new UnsupportedOperationException("MathFunction not yet implemented");
+            case MathFunction mathFunc -> mathFunctionToJpql(mathFunc);
         };
     }
 
@@ -513,6 +513,28 @@ public final class JpqlGenerator {
         }
         sb.append(")");
         return sb.toString();
+    }
+
+    private static String mathFunctionToJpql(MathFunction mathFunc) {
+        String operand = expressionToJpql(mathFunc.operand());
+        return switch (mathFunc.op()) {
+            case ABS -> "ABS(" + operand + ")";
+            case NEG -> "-(" + operand + ")";
+            case SQRT -> "SQRT(" + operand + ")";
+            case SIGN -> "SIGN(" + operand + ")";
+            case CEILING -> "CEILING(" + operand + ")";
+            case FLOOR -> "FLOOR(" + operand + ")";
+            case EXP -> "EXP(" + operand + ")";
+            case LN -> "LN(" + operand + ")";
+            case POWER -> {
+                String second = expressionToJpql(mathFunc.secondOperand());
+                yield "POWER(" + operand + ", " + second + ")";
+            }
+            case ROUND -> {
+                String second = expressionToJpql(mathFunc.secondOperand());
+                yield "ROUND(" + operand + ", " + second + ")";
+            }
+        };
     }
 
 }

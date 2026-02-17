@@ -44,6 +44,7 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.ScalarSubquery;
 import io.quarkiverse.qubit.deployment.generation.expression.BiEntityBaseContext;
+import io.quarkiverse.qubit.deployment.generation.expression.MathExpressionBuilder;
 import io.quarkiverse.qubit.deployment.generation.expression.BiEntitySubqueryContext;
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionBuilderRegistry;
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionGeneratorHelper;
@@ -124,6 +125,9 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
             case MemberOfExpression memberOfExpr ->
                 generateMemberOfPredicate(bc, memberOfExpr, cb, root, capturedValues);
+
+            case LambdaExpression.MathFunction mathFunc ->
+                generateMathFunction(bc, cb, root, capturedValues, mathFunc);
 
             default -> throw new UnsupportedExpressionException(expression, "predicate generation");
         };
@@ -384,6 +388,9 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
                 // Maps to JPA: cb.selectCase().when(condition, trueExpr).otherwise(falseExpr)
                 generateConditionalExpression(bc, conditional, cb, root, capturedValues);
 
+            case LambdaExpression.MathFunction mathFunc ->
+                generateMathFunction(bc, cb, root, capturedValues, mathFunc);
+
             default -> throw new UnsupportedExpressionException(expression);
         };
     }
@@ -414,6 +421,28 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         LocalVar caseWhen = bc.localVar("caseWhen",
                 bc.invokeInterface(CASE_WHEN_EXPR, caseBuilder, conditionLocal, trueLocal));
         return bc.invokeInterface(CASE_OTHERWISE_EXPR, caseWhen, falseLocal);
+    }
+
+    /** Generates a JPA math function expression from a MathFunction AST node. */
+    private Expr generateMathFunction(BlockCreator bc, Expr cb, Expr root, Expr capturedValues,
+            LambdaExpression.MathFunction mathFunc) {
+
+        // Generate the primary operand as a JPA Expression
+        Expr operandExpr = generateExpressionAsJpaExpression(bc, mathFunc.operand(), cb, root, capturedValues);
+
+        // Generate the second operand for binary operations
+        Expr secondExpr = null;
+        if (mathFunc.op().isBinary()) {
+            if (mathFunc.op() == LambdaExpression.MathFunction.MathOp.ROUND) {
+                // round() second arg is Integer, not Expression -- use raw value
+                secondExpr = generateExpression(bc, mathFunc.secondOperand(), cb, root, capturedValues);
+            } else {
+                // power() second arg is Expression
+                secondExpr = generateExpressionAsJpaExpression(bc, mathFunc.secondOperand(), cb, root, capturedValues);
+            }
+        }
+
+        return MathExpressionBuilder.build(bc, cb, operandExpr, secondExpr, mathFunc.op());
     }
 
     /**

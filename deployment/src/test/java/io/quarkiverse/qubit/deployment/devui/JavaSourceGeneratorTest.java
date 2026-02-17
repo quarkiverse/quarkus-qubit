@@ -216,6 +216,115 @@ class JavaSourceGeneratorTest {
     }
 
     @Nested
+    @DisplayName("MathFunction AST nodes")
+    class MathFunctionNodes {
+
+        @Test
+        @DisplayName("generates Math.abs from MathFunction node")
+        void generateMathAbs() {
+            LambdaExpression expr = MathFunction.abs(new FieldAccess("balance", double.class));
+
+            String java = JavaSourceGenerator.generateJavaSource(expr);
+
+            assertThat(java).contains("Math.abs(p.balance)");
+        }
+
+        @Test
+        @DisplayName("generates negation from MathFunction node")
+        void generateMathNeg() {
+            LambdaExpression expr = MathFunction.neg(new FieldAccess("amount", double.class));
+
+            String java = JavaSourceGenerator.generateJavaSource(expr);
+
+            assertThat(java).contains("-(p.amount)");
+        }
+
+        @Test
+        @DisplayName("generates Math.sqrt from MathFunction node")
+        void generateMathSqrt() {
+            LambdaExpression expr = MathFunction.sqrt(new FieldAccess("value", double.class));
+
+            String java = JavaSourceGenerator.generateJavaSource(expr);
+
+            assertThat(java).contains("Math.sqrt(p.value)");
+        }
+
+        @Test
+        @DisplayName("generates Integer.signum from MathFunction node")
+        void generateMathSign() {
+            LambdaExpression expr = MathFunction.sign(new FieldAccess("value", int.class));
+
+            String java = JavaSourceGenerator.generateJavaSource(expr);
+
+            assertThat(java).contains("Integer.signum(p.value)");
+        }
+
+        @Test
+        @DisplayName("generates Math.ceil from MathFunction node")
+        void generateMathCeiling() {
+            LambdaExpression expr = MathFunction.ceiling(new FieldAccess("price", double.class));
+
+            String java = JavaSourceGenerator.generateJavaSource(expr);
+
+            assertThat(java).contains("Math.ceil(p.price)");
+        }
+
+        @Test
+        @DisplayName("generates Math.floor from MathFunction node")
+        void generateMathFloor() {
+            LambdaExpression expr = MathFunction.floor(new FieldAccess("price", double.class));
+
+            String java = JavaSourceGenerator.generateJavaSource(expr);
+
+            assertThat(java).contains("Math.floor(p.price)");
+        }
+
+        @Test
+        @DisplayName("generates Math.exp from MathFunction node")
+        void generateMathExp() {
+            LambdaExpression expr = MathFunction.exp(new FieldAccess("rate", double.class));
+
+            String java = JavaSourceGenerator.generateJavaSource(expr);
+
+            assertThat(java).contains("Math.exp(p.rate)");
+        }
+
+        @Test
+        @DisplayName("generates Math.log from MathFunction node")
+        void generateMathLn() {
+            LambdaExpression expr = MathFunction.ln(new FieldAccess("value", double.class));
+
+            String java = JavaSourceGenerator.generateJavaSource(expr);
+
+            assertThat(java).contains("Math.log(p.value)");
+        }
+
+        @Test
+        @DisplayName("generates Math.pow from MathFunction node")
+        void generateMathPower() {
+            LambdaExpression expr = MathFunction.power(
+                    new FieldAccess("base", double.class),
+                    new Constant(2, int.class));
+
+            String java = JavaSourceGenerator.generateJavaSource(expr);
+
+            assertThat(java).contains("Math.pow(p.base, 2)");
+        }
+
+        @Test
+        @DisplayName("generates QubitMath.round from MathFunction node")
+        void generateMathRound() {
+            LambdaExpression expr = MathFunction.round(
+                    new FieldAccess("price", double.class),
+                    new Constant(2, int.class));
+
+            String java = JavaSourceGenerator.generateJavaSource(expr);
+
+            assertThat(java).contains("QubitMath.round(p.price, 2)");
+        }
+    }
+
+    @Nested
     @DisplayName("Captured variables")
     class CapturedVariables {
 
@@ -415,6 +524,18 @@ class JavaSourceGeneratorTest {
             String java = JavaSourceGenerator.generateJavaSource(expr);
 
             assertThat(java).isEqualTo("p -> g");
+        }
+
+        @Test
+        @DisplayName("generates math function composed with group aggregation")
+        void generateMathFunctionWithGroupAggregation() {
+            // Math.abs(g.avg(salary)) — MathFunction wrapping a group aggregation
+            LambdaExpression expr = MathFunction.abs(
+                    GroupAggregation.avg(new FieldAccess("salary", double.class)));
+
+            String java = JavaSourceGenerator.generateJavaSource(expr);
+
+            assertThat(java).contains("Math.abs(g.avg(e.salary))");
         }
     }
 

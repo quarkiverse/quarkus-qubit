@@ -1,0 +1,165 @@
+= Math Functions
+
+Qubit maps standard Java math methods to JPA CriteriaBuilder functions at build time.
+Write natural Java expressions using `Math.*` methods, and Qubit generates the equivalent JPA criteria calls.
+
+== Unary Functions
+
+Use `Math.abs()`, `Math.sqrt()`, `Math.ceil()`, `Math.floor()`, `Math.exp()`, and `Math.log()` directly in lambdas:
+
+[source,java]
+----
+// Absolute value: find people within 5 years of age 30
+List<Person> nearby = personRepository
+    .where((Person p) -> Math.abs(p.age - 30) < 5)
+    .toList();
+
+// Square root
+List<Person> highEarners = personRepository
+    .where((Person p) -> Math.sqrt(p.salary) > 300)
+    .toList();
+
+// Ceiling and floor
+List<Person> results = personRepository
+    .where((Person p) -> Math.ceil(p.rating) >= 4)
+    .toList();
+
+// Natural logarithm (Math.log maps to JPA LN)
+List<Person> filtered = personRepository
+    .where((Person p) -> Math.log(p.salary) > 10)
+    .toList();
+----
+
+== Sign and Negation
+
+Use `Integer.signum()` or `Long.signum()` for the sign of a number, and the unary `-` operator for negation:
+
+[source,java]
+----
+// Sign: returns -1, 0, or 1
+List<Person> positiveBalance = personRepository
+    .where((Person p) -> Integer.signum(p.balance) > 0)
+    .toList();
+
+// Unary negation
+List<Person> results = personRepository
+    .where((Person p) -> -p.age < -18)
+    .toList();
+----
+
+== Binary Functions
+
+`Math.pow()` takes two arguments — the base and the exponent:
+
+[source,java]
+----
+// Power: x^y
+List<Person> results = personRepository
+    .where((Person p) -> Math.pow(p.score, 2) > 10000)
+    .toList();
+
+// With captured variable
+double exponent = 3.0;
+List<Person> results = personRepository
+    .where((Person p) -> Math.pow(p.rating, exponent) > 100)
+    .toList();
+----
+
+== Rounding
+
+Qubit supports two forms of rounding:
+
+`Math.round()` rounds to the nearest integer:
+
+[source,java]
+----
+List<Person> results = personRepository
+    .where((Person p) -> Math.round(p.salary) > 50000)
+    .toList();
+----
+
+`QubitMath.round()` rounds to an arbitrary number of decimal places.
+Import the marker class and specify the precision:
+
+[source,java]
+----
+import io.quarkiverse.qubit.QubitMath;
+
+// Round to 2 decimal places
+List<Person> results = personRepository
+    .where((Person p) -> QubitMath.round(p.salary, 2) > 50000)
+    .toList();
+----
+
+== In Projections
+
+Math functions work in `select()` projections:
+
+[source,java]
+----
+List<Double> rootSalaries = personRepository
+    .select((Person p) -> Math.sqrt(p.salary))
+    .toList();
+
+List<PersonDTO> dtos = personRepository
+    .select((Person p) -> new PersonDTO(
+        p.firstName,
+        Math.abs(p.age - 30)))
+    .toList();
+----
+
+== Reference
+
+All supported math functions and their JPA mappings:
+
+[cols="2,2,1"]
+|===
+|Java Expression |JPA CriteriaBuilder |JPA Version
+
+|`Math.abs(x)`
+|`cb.abs(expr)`
+|2.0
+
+|`-x` (unary negation)
+|`cb.neg(expr)`
+|2.0
+
+|`Math.sqrt(x)`
+|`cb.sqrt(expr)`
+|2.0
+
+|`Integer.signum(x)` / `Long.signum(x)`
+|`cb.sign(expr)`
+|3.1
+
+|`Math.ceil(x)`
+|`cb.ceiling(expr)`
+|3.1
+
+|`Math.floor(x)`
+|`cb.floor(expr)`
+|3.1
+
+|`Math.exp(x)`
+|`cb.exp(expr)`
+|3.1
+
+|`Math.log(x)`
+|`cb.ln(expr)`
+|3.1
+
+|`Math.pow(x, y)`
+|`cb.power(expr, expr)`
+|3.1
+
+|`Math.round(x)`
+|`cb.round(expr, 0)`
+|3.1
+
+|`QubitMath.round(x, n)`
+|`cb.round(expr, n)`
+|3.1
+|===
+
+NOTE: All functions listed above are standard JPA CriteriaBuilder methods. No database-specific `cb.function()` calls are used.
+Trigonometric functions (`sin`, `cos`, `tan`) are Hibernate-only extensions and are not supported.

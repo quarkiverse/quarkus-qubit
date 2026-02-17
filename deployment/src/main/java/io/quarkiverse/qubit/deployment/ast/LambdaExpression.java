@@ -1334,18 +1334,25 @@ public sealed interface LambdaExpression {
 
         /** Standard JPA CriteriaBuilder math operations. */
         public enum MathOp {
-            // Unary functions (JPA 2.0)
+            /** Absolute value — {@code cb.abs()} (JPA 2.0) */
             ABS,
+            /** Arithmetic negation — {@code cb.neg()} (JPA 2.0) */
             NEG,
+            /** Square root — {@code cb.sqrt()} (JPA 2.0) */
             SQRT,
-            // Unary functions (JPA 3.1)
+            /** Sign of a number (-1, 0, 1) — {@code cb.sign()} (JPA 3.1) */
             SIGN,
+            /** Ceiling — {@code cb.ceiling()} (JPA 3.1) */
             CEILING,
+            /** Floor — {@code cb.floor()} (JPA 3.1) */
             FLOOR,
+            /** Exponential (e^x) — {@code cb.exp()} (JPA 3.1) */
             EXP,
+            /** Natural logarithm — {@code cb.ln()} (JPA 3.1) */
             LN,
-            // Binary functions (JPA 3.1)
+            /** Exponentiation (x^y) — {@code cb.power()} (JPA 3.1) */
             POWER,
+            /** Round to N decimal places — {@code cb.round()} (JPA 3.1) */
             ROUND;
 
             /** Returns true if this operation requires a second operand. */

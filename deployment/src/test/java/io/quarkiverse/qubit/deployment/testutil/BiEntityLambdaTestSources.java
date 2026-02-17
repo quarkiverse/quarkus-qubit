@@ -111,4 +111,8 @@ public class BiEntityLambdaTestSources {
         String targetType = "work";
         return (p, ph) -> p.age > minAge && ph.type.equals(targetType);
     }
+
+    public static BiQuerySpec<TestPerson, TestPhone, Boolean> joinedMathAbs() {
+        return (p, ph) -> Math.abs(p.age) > 5;
+    }
 }

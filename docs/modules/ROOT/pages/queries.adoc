@@ -170,6 +170,9 @@ List<Person> matching = personRepository
 |Arithmetic
 |`+`, `-`, `*`, `/`, `%`
 
+|xref:math-functions.adoc[Math]
+|`Math.abs()`, `Math.sqrt()`, `Math.ceil()`, `Math.floor()`, `Math.exp()`, `Math.log()`, `Math.pow()`, `Math.round()`, `Integer.signum()`, `QubitMath.round()`
+
 |String
 |`startsWith()`, `endsWith()`, `contains()`, `toLowerCase()`, `toUpperCase()`, `trim()`, `length()`, `substring()`
 

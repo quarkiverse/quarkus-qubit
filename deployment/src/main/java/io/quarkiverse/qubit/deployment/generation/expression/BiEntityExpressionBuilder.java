@@ -72,6 +72,9 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
             case LambdaExpression.MethodCall methodCall ->
                 generateBiEntityMethodCall(ctx, methodCall);
 
+            case LambdaExpression.MathFunction mathFunc ->
+                generateBiEntityMathFunction(ctx, mathFunc);
+
             default -> null;
         };
     }
@@ -159,6 +162,9 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
 
             case LambdaExpression.CorrelatedVariable correlated ->
                 ctx.helper().generateCorrelatedFieldExpression(ctx.bc(), correlated, ctx.root());
+
+            case LambdaExpression.MathFunction mathFunc ->
+                generateBiEntityMathFunction(ctx, mathFunc);
 
             default -> null;
         };
@@ -376,5 +382,25 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
 
         return buildConstructorExpression(ctx.bc(), ctx.cb(), resultClassHandle, constructorCall.arguments(),
                 arg -> generateBiEntityExpressionAsJpaExpression(ctx, arg));
+    }
+
+    /** Generates JPA math function expression in bi-entity context. */
+    private Expr generateBiEntityMathFunction(BiEntityContext ctx, LambdaExpression.MathFunction mathFunc) {
+        // Generate the primary operand as a JPA Expression
+        Expr operandExpr = generateBiEntityExpressionAsJpaExpression(ctx, mathFunc.operand());
+
+        // Generate the second operand for binary operations
+        Expr secondExpr = null;
+        if (mathFunc.op().isBinary()) {
+            if (mathFunc.op() == LambdaExpression.MathFunction.MathOp.ROUND) {
+                // round() second arg is Integer, not Expression -- use raw value
+                secondExpr = generateBiEntityExpression(ctx, mathFunc.secondOperand());
+            } else {
+                // power() second arg is Expression
+                secondExpr = generateBiEntityExpressionAsJpaExpression(ctx, mathFunc.secondOperand());
+            }
+        }
+
+        return MathExpressionBuilder.build(ctx.bc(), ctx.cb(), operandExpr, secondExpr, mathFunc.op());
     }
 }

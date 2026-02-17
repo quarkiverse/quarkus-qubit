@@ -146,6 +146,47 @@ class OpcodeClassifierTest {
     }
 
     @Nested
+    @DisplayName("isNegationOpcode")
+    class IsNegationOpcodeTests {
+
+        @ParameterizedTest
+        @ValueSource(ints = { INEG, LNEG, FNEG, DNEG })
+        void negOpcodes_areNegation(int opcode) {
+            assertThat(OpcodeClassifier.isNegationOpcode(opcode))
+                    .as("NEG opcode %d should be negation", opcode)
+                    .isTrue();
+        }
+
+        @Test
+        void belowRange_isNotNegation() {
+            assertThat(OpcodeClassifier.isNegationOpcode(INEG - 1))
+                    .as("Opcode below INEG should not be negation")
+                    .isFalse();
+        }
+
+        @Test
+        void aboveRange_isNotNegation() {
+            assertThat(OpcodeClassifier.isNegationOpcode(DNEG + 1))
+                    .as("Opcode above DNEG should not be negation")
+                    .isFalse();
+        }
+
+        @Test
+        void iadd_isNotNegation() {
+            assertThat(OpcodeClassifier.isNegationOpcode(IADD))
+                    .as("IADD should NOT be negation")
+                    .isFalse();
+        }
+
+        @Test
+        void nop_isNotNegation() {
+            assertThat(OpcodeClassifier.isNegationOpcode(NOP))
+                    .as("NOP should NOT be negation")
+                    .isFalse();
+        }
+    }
+
+    @Nested
     @DisplayName("isArithmeticOrLogicalOpcode")
     class IsArithmeticOrLogicalOpcodeTests {
 

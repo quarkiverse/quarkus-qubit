@@ -75,6 +75,19 @@ class MathOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
             LambdaExpression.Constant decPlaces = (LambdaExpression.Constant) mathFunc.secondOperand();
             assertThat(decPlaces.value()).isEqualTo(0);
         }
+
+        @Test
+        @DisplayName("QubitMath.round(p.salary, 2) produces ROUND node with 2 decimal places")
+        void qubitRound_producesRoundNodeWithDecimalPlaces() {
+            LambdaExpression expr = analyzeLambda("qubitRound");
+            LambdaExpression.BinaryOp comparison = (LambdaExpression.BinaryOp) expr;
+            assertThat(comparison.left()).isInstanceOf(MathFunction.class);
+            MathFunction mathFunc = (MathFunction) comparison.left();
+            assertThat(mathFunc.op()).isEqualTo(MathOp.ROUND);
+            assertThat(mathFunc.secondOperand()).isInstanceOf(LambdaExpression.Constant.class);
+            LambdaExpression.Constant decPlaces = (LambdaExpression.Constant) mathFunc.secondOperand();
+            assertThat(decPlaces.value()).isEqualTo(2);
+        }
     }
 
     @Nested

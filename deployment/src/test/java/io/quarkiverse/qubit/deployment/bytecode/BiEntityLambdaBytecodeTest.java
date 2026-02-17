@@ -15,6 +15,7 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityFieldAccess;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.EntityPosition;
+import io.quarkiverse.qubit.deployment.ast.LambdaExpression.MathFunction;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.UnaryOp;
 
@@ -233,6 +234,35 @@ class BiEntityLambdaBytecodeTest extends PrecompiledBiEntityLambdaAnalyzer {
             assertThat(typeField.fieldName()).isEqualTo("type");
             assertThat(typeField.entityPosition()).isEqualTo(EntityPosition.SECOND);
             assertCapturedVariable(rightBinOp.right(), 1);
+        }
+    }
+
+    @Nested
+    @DisplayName("Math Functions")
+    class MathFunctionTests {
+
+        @Test
+        @DisplayName("Math.abs(p.age) > 5 produces MathFunction node in bi-entity context")
+        void joinedMathAbs() {
+            LambdaExpression expr = analyzeBiEntityLambda("joinedMathAbs");
+
+            // Top level is BinaryOp (comparison > 5)
+            assertBinaryOp(expr, BinaryOp.Operator.GT);
+            BinaryOp comparison = (BinaryOp) expr;
+
+            // Left side should be MathFunction with ABS
+            assertThat(comparison.left()).isInstanceOf(MathFunction.class);
+            MathFunction mathFunc = (MathFunction) comparison.left();
+            assertThat(mathFunc.op()).isEqualTo(MathFunction.MathOp.ABS);
+
+            // Operand should be a BiEntityFieldAccess for "age" from FIRST entity
+            assertThat(mathFunc.operand()).isInstanceOf(BiEntityFieldAccess.class);
+            BiEntityFieldAccess fieldAccess = (BiEntityFieldAccess) mathFunc.operand();
+            assertThat(fieldAccess.fieldName()).isEqualTo("age");
+            assertThat(fieldAccess.entityPosition()).isEqualTo(EntityPosition.FIRST);
+
+            // Right side should be constant 5
+            assertConstant(comparison.right(), 5);
         }
     }
 

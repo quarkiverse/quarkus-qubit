@@ -96,7 +96,7 @@ public final class JavaSourceGenerator {
             case InSubquery inSub -> inSubqueryToJava(inSub, param);
             case CorrelatedVariable correlated -> param + "." + expressionToJava(correlated.fieldExpression(), param);
             case SubqueryBuilderReference _ -> "subquery(...)";
-            case MathFunction _ -> throw new UnsupportedOperationException("MathFunction not yet implemented");
+            case MathFunction mathFunc -> mathFunctionToJava(mathFunc, param);
         };
     }
 
@@ -438,5 +438,27 @@ public final class JavaSourceGenerator {
         }
         sb.append(")");
         return sb.toString();
+    }
+
+    private static String mathFunctionToJava(MathFunction mathFunc, String param) {
+        String operand = expressionToJava(mathFunc.operand(), param);
+        return switch (mathFunc.op()) {
+            case ABS -> "Math.abs(" + operand + ")";
+            case NEG -> "-(" + operand + ")";
+            case SQRT -> "Math.sqrt(" + operand + ")";
+            case SIGN -> "Integer.signum(" + operand + ")";
+            case CEILING -> "Math.ceil(" + operand + ")";
+            case FLOOR -> "Math.floor(" + operand + ")";
+            case EXP -> "Math.exp(" + operand + ")";
+            case LN -> "Math.log(" + operand + ")";
+            case POWER -> {
+                String second = expressionToJava(mathFunc.secondOperand(), param);
+                yield "Math.pow(" + operand + ", " + second + ")";
+            }
+            case ROUND -> {
+                String second = expressionToJava(mathFunc.secondOperand(), param);
+                yield "QubitMath.round(" + operand + ", " + second + ")";
+            }
+        };
     }
 }

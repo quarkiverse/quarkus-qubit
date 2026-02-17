@@ -221,4 +221,39 @@ class ExpressionTypeCounterTest {
 
         assertThat(counts.get(BuildMetricsCollector.EXPR_FIELD_ACCESS)).isEqualTo(1);
     }
+
+    @Test
+    void countsUnaryMathFunctionOperand() {
+        // Math.abs(p.salary) — unary MathFunction should recurse into operand
+        LambdaExpression expr = MathFunction.abs(new FieldAccess("salary", double.class));
+
+        Map<String, Integer> counts = ExpressionTypeCounter.count(expr);
+
+        assertThat(counts.get(BuildMetricsCollector.EXPR_FIELD_ACCESS)).isEqualTo(1);
+    }
+
+    @Test
+    void countsBinaryMathFunctionOperands() {
+        // Math.pow(p.base, p.exponent) — binary MathFunction should recurse into both operands
+        LambdaExpression expr = MathFunction.power(
+                new FieldAccess("base", double.class),
+                new FieldAccess("exponent", double.class));
+
+        Map<String, Integer> counts = ExpressionTypeCounter.count(expr);
+
+        assertThat(counts.get(BuildMetricsCollector.EXPR_FIELD_ACCESS)).isEqualTo(2);
+    }
+
+    @Test
+    void countsMathFunctionInComparison() {
+        // Math.abs(p.salary) > 1000 — MathFunction nested inside a comparison
+        LambdaExpression expr = BinaryOp.gt(
+                MathFunction.abs(new FieldAccess("salary", double.class)),
+                new Constant(1000, int.class));
+
+        Map<String, Integer> counts = ExpressionTypeCounter.count(expr);
+
+        assertThat(counts.get(BuildMetricsCollector.EXPR_COMPARISON)).isEqualTo(1);
+        assertThat(counts.get(BuildMetricsCollector.EXPR_FIELD_ACCESS)).isEqualTo(1);
+    }
 }

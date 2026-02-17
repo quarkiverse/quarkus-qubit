@@ -516,6 +516,115 @@ class JpqlGeneratorTest {
     }
 
     @Nested
+    @DisplayName("MathFunction AST nodes")
+    class MathFunctionNodes {
+
+        @Test
+        @DisplayName("generates ABS from MathFunction node")
+        void generateMathAbs() {
+            LambdaExpression expr = MathFunction.abs(new FieldAccess("balance", double.class));
+
+            String jpql = JpqlGenerator.predicateToJpql(expr);
+
+            assertThat(jpql).contains("ABS(e.balance)");
+        }
+
+        @Test
+        @DisplayName("generates negation from MathFunction node")
+        void generateMathNeg() {
+            LambdaExpression expr = MathFunction.neg(new FieldAccess("amount", double.class));
+
+            String jpql = JpqlGenerator.predicateToJpql(expr);
+
+            assertThat(jpql).contains("-(e.amount)");
+        }
+
+        @Test
+        @DisplayName("generates SQRT from MathFunction node")
+        void generateMathSqrt() {
+            LambdaExpression expr = MathFunction.sqrt(new FieldAccess("value", double.class));
+
+            String jpql = JpqlGenerator.predicateToJpql(expr);
+
+            assertThat(jpql).contains("SQRT(e.value)");
+        }
+
+        @Test
+        @DisplayName("generates SIGN from MathFunction node")
+        void generateMathSign() {
+            LambdaExpression expr = MathFunction.sign(new FieldAccess("value", int.class));
+
+            String jpql = JpqlGenerator.predicateToJpql(expr);
+
+            assertThat(jpql).contains("SIGN(e.value)");
+        }
+
+        @Test
+        @DisplayName("generates CEILING from MathFunction node")
+        void generateMathCeiling() {
+            LambdaExpression expr = MathFunction.ceiling(new FieldAccess("price", double.class));
+
+            String jpql = JpqlGenerator.predicateToJpql(expr);
+
+            assertThat(jpql).contains("CEILING(e.price)");
+        }
+
+        @Test
+        @DisplayName("generates FLOOR from MathFunction node")
+        void generateMathFloor() {
+            LambdaExpression expr = MathFunction.floor(new FieldAccess("price", double.class));
+
+            String jpql = JpqlGenerator.predicateToJpql(expr);
+
+            assertThat(jpql).contains("FLOOR(e.price)");
+        }
+
+        @Test
+        @DisplayName("generates EXP from MathFunction node")
+        void generateMathExp() {
+            LambdaExpression expr = MathFunction.exp(new FieldAccess("rate", double.class));
+
+            String jpql = JpqlGenerator.predicateToJpql(expr);
+
+            assertThat(jpql).contains("EXP(e.rate)");
+        }
+
+        @Test
+        @DisplayName("generates LN from MathFunction node")
+        void generateMathLn() {
+            LambdaExpression expr = MathFunction.ln(new FieldAccess("value", double.class));
+
+            String jpql = JpqlGenerator.predicateToJpql(expr);
+
+            assertThat(jpql).contains("LN(e.value)");
+        }
+
+        @Test
+        @DisplayName("generates POWER from MathFunction node")
+        void generateMathPower() {
+            LambdaExpression expr = MathFunction.power(
+                    new FieldAccess("base", double.class),
+                    new Constant(2, int.class));
+
+            String jpql = JpqlGenerator.predicateToJpql(expr);
+
+            assertThat(jpql).contains("POWER(e.base, 2)");
+        }
+
+        @Test
+        @DisplayName("generates ROUND from MathFunction node")
+        void generateMathRound() {
+            LambdaExpression expr = MathFunction.round(
+                    new FieldAccess("price", double.class),
+                    new Constant(2, int.class));
+
+            String jpql = JpqlGenerator.predicateToJpql(expr);
+
+            assertThat(jpql).contains("ROUND(e.price, 2)");
+        }
+    }
+
+    @Nested
     @DisplayName("Date/Time method calls")
     class DateTimeMethodCalls {
 
@@ -942,6 +1051,19 @@ class JpqlGeneratorTest {
             String jpql = JpqlGenerator.predicateToJpql(expr);
 
             assertThat(jpql).isEqualTo("MAX(e.price)");
+        }
+
+        @Test
+        @DisplayName("generates math function composed with group aggregation comparison")
+        void generateMathFunctionWithGroupAggregation() {
+            // ABS(AVG(e.salary)) > 1000 — MathFunction wrapping a group aggregation
+            LambdaExpression expr = BinaryOp.gt(
+                    MathFunction.abs(GroupAggregation.avg(new FieldAccess("salary", double.class))),
+                    new Constant(1000, int.class));
+
+            String jpql = JpqlGenerator.predicateToJpql(expr);
+
+            assertThat(jpql).contains("ABS(AVG(e.salary))");
         }
     }
 

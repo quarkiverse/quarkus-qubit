@@ -210,6 +210,11 @@ public enum MethodInvocationHandler implements InstructionHandler {
             return;
         }
 
+        // Handle QubitMath.round(value, decimalPlaces) marker method
+        if (handleQubitMathMethod(ctx, staticInsn)) {
+            return;
+        }
+
         // Handle Subqueries.subquery(Class) factory method (delegated to SubqueryAnalyzer)
         if (subqueryAnalyzer.isSubqueriesMethodCall(staticInsn)) {
             subqueryAnalyzer.handleSubqueriesFactoryMethod(ctx, staticInsn);
@@ -577,6 +582,7 @@ public enum MethodInvocationHandler implements InstructionHandler {
 
     // ─── Math Static Method Handling ─────────────────────────────────────────
 
+    /** Dispatches java.lang.Math static methods to unary, binary, or round handlers. */
     private boolean handleMathStaticMethod(AnalysisContext ctx, MethodInsnNode staticInsn) {
         if (!staticInsn.owner.equals(JVM_JAVA_LANG_MATH)) {
             return false;
@@ -595,6 +601,7 @@ public enum MethodInvocationHandler implements InstructionHandler {
         return false;
     }
 
+    /** Pops one operand and pushes a unary MathFunction (abs, sqrt, ceil, floor, exp, log, signum). */
     private boolean handleUnaryMathMethod(AnalysisContext ctx, String methodName) {
         if (ctx.getStack().isEmpty()) {
             return false;
@@ -605,6 +612,7 @@ public enum MethodInvocationHandler implements InstructionHandler {
         return true;
     }
 
+    /** Pops two operands and pushes a binary MathFunction (pow). */
     private boolean handleBinaryMathMethod(AnalysisContext ctx, String methodName) {
         if (ctx.getStack().size() < 2) {
             return false;
@@ -616,6 +624,7 @@ public enum MethodInvocationHandler implements InstructionHandler {
         return true;
     }
 
+    /** Handles Math.round(x) → MathFunction.round(operand, 0) for integer rounding. */
     private boolean handleMathRound(AnalysisContext ctx) {
         if (ctx.getStack().isEmpty()) {
             return false;
@@ -625,6 +634,24 @@ public enum MethodInvocationHandler implements InstructionHandler {
         return true;
     }
 
+    /** Handles QubitMath.round(value, decimalPlaces) marker method for arbitrary-precision rounding. */
+    private boolean handleQubitMathMethod(AnalysisContext ctx, MethodInsnNode staticInsn) {
+        if (!staticInsn.owner.equals(JVM_QUBIT_MATH)) {
+            return false;
+        }
+        if (!staticInsn.name.equals(METHOD_ROUND)) {
+            return false;
+        }
+        if (ctx.getStack().size() < 2) {
+            return false;
+        }
+        LambdaExpression decimalPlaces = ctx.pop();
+        LambdaExpression operand = ctx.pop();
+        ctx.push(LambdaExpression.MathFunction.round(operand, decimalPlaces));
+        return true;
+    }
+
+    /** Handles Integer.signum(int) and Long.signum(long) → MathFunction.sign(). */
     private boolean handleSignumMethod(AnalysisContext ctx, MethodInsnNode staticInsn) {
         if (!staticInsn.name.equals(METHOD_SIGNUM)) {
             return false;
@@ -640,6 +667,7 @@ public enum MethodInvocationHandler implements InstructionHandler {
         return true;
     }
 
+    /** Maps Java Math method name to the corresponding unary MathOp. */
     private static LambdaExpression.MathFunction.MathOp mapUnaryMathOp(String methodName) {
         return switch (methodName) {
             case METHOD_ABS -> LambdaExpression.MathFunction.MathOp.ABS;
@@ -653,6 +681,7 @@ public enum MethodInvocationHandler implements InstructionHandler {
         };
     }
 
+    /** Maps Java Math method name to the corresponding binary MathOp. */
     private static LambdaExpression.MathFunction.MathOp mapBinaryMathOp(String methodName) {
         return switch (methodName) {
             case METHOD_POW -> LambdaExpression.MathFunction.MathOp.POWER;

@@ -8,6 +8,7 @@ import java.time.LocalTime;
 import jakarta.persistence.Entity;
 
 import io.quarkiverse.qubit.QubitEntity;
+import io.quarkiverse.qubit.QubitMath;
 import io.quarkiverse.qubit.QuerySpec;
 
 /**
@@ -530,6 +531,10 @@ public class LambdaTestSources {
 
     public static QuerySpec<TestPerson, Boolean> integerSignum() {
         return (TestPerson p) -> Integer.signum(p.age) > 0;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> qubitRound() {
+        return (TestPerson p) -> QubitMath.round(p.salary, 2) > 50000;
     }
 
     public static QuerySpec<TestPerson, Boolean> unaryNegation() {

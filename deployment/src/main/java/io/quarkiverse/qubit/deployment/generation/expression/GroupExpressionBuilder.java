@@ -122,6 +122,9 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
                 // Maps to JPA: cb.selectCase().when(condition, trueExpr).otherwise(falseExpr)
                 generateGroupConditionalExpression(bc, conditional, cb, root, groupKeyExpr, capturedValues, helper);
 
+            case LambdaExpression.MathFunction mathFunc ->
+                generateGroupMathFunction(bc, mathFunc, cb, root, groupKeyExpr, capturedValues, helper);
+
             default -> null;
         };
     }
@@ -239,6 +242,32 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
 
         Expr operand = generateGroupPredicate(bc, unOp.operand(), cb, root, groupKeyExpr, capturedValues, helper);
         return helper.applyUnaryOperator(bc, cb, operand, unOp.operator());
+    }
+
+    /** Generates JPA math function expression in GROUP BY context. */
+    private Expr generateGroupMathFunction(
+            BlockCreator bc,
+            LambdaExpression.MathFunction mathFunc,
+            Expr cb,
+            Expr root,
+            Expr groupKeyExpr,
+            Expr capturedValues,
+            ExpressionGeneratorHelper helper) {
+
+        Expr operandExpr = generateGroupSelectExpression(bc, mathFunc.operand(), cb, root, groupKeyExpr, capturedValues,
+                helper);
+
+        Expr secondExpr = null;
+        if (mathFunc.op().isBinary()) {
+            if (mathFunc.op() == LambdaExpression.MathFunction.MathOp.ROUND) {
+                secondExpr = helper.generateExpression(bc, mathFunc.secondOperand(), cb, root, capturedValues);
+            } else {
+                secondExpr = generateGroupSelectExpression(bc, mathFunc.secondOperand(), cb, root, groupKeyExpr,
+                        capturedValues, helper);
+            }
+        }
+
+        return MathExpressionBuilder.build(bc, cb, operandExpr, secondExpr, mathFunc.op());
     }
 
     private Expr generateGroupArrayCreation(
