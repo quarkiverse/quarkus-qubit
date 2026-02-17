@@ -143,8 +143,10 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     @Override
     public <K extends Comparable<K>> QubitStream<T> sortedBy(QuerySpec<T, K> keyExtractor) {
         requireNonNullLambda(keyExtractor, PARAM_KEY_EXTRACTOR, "sortedBy");
+        // Sort orders are stored in execution priority order (index 0 = primary sort).
+        // Since sortedBy() uses "last call wins" semantics, we PREPEND to make the
+        // last-called sort the primary (index 0). thenSortedBy() APPENDS for secondary.
         List<SortOrder<T>> newSortOrders = new ArrayList<>(this.sortOrders);
-        // Prepend to list (last call wins - becomes primary sort)
         newSortOrders.add(0, new SortOrder<>(keyExtractor, SortDirection.ASCENDING));
         return withSortOrders(newSortOrders);
     }
