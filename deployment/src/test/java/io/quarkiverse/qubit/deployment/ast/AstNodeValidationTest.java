@@ -1239,4 +1239,119 @@ class AstNodeValidationTest {
             assertThat(result).isEqualTo("name");
         }
     }
+
+    /** Test data for unary MathOp isBinary() verification. */
+    static Stream<Arguments> unaryMathOps() {
+        return Stream.of(
+                Arguments.of(MathFunction.MathOp.ABS),
+                Arguments.of(MathFunction.MathOp.NEG),
+                Arguments.of(MathFunction.MathOp.SQRT),
+                Arguments.of(MathFunction.MathOp.SIGN),
+                Arguments.of(MathFunction.MathOp.CEILING),
+                Arguments.of(MathFunction.MathOp.FLOOR),
+                Arguments.of(MathFunction.MathOp.EXP),
+                Arguments.of(MathFunction.MathOp.LN));
+    }
+
+    /** Test data for binary MathOp isBinary() verification. */
+    static Stream<Arguments> binaryMathOps() {
+        return Stream.of(
+                Arguments.of(MathFunction.MathOp.POWER),
+                Arguments.of(MathFunction.MathOp.ROUND));
+    }
+
+    /** Test data for unary factory method verification. */
+    static Stream<Arguments> unaryFactoryMethods() {
+        LambdaExpression operand = field("salary", Double.class);
+        return Stream.of(
+                Arguments.of("abs", MathFunction.abs(operand), MathFunction.MathOp.ABS),
+                Arguments.of("neg", MathFunction.neg(operand), MathFunction.MathOp.NEG),
+                Arguments.of("sqrt", MathFunction.sqrt(operand), MathFunction.MathOp.SQRT),
+                Arguments.of("sign", MathFunction.sign(operand), MathFunction.MathOp.SIGN),
+                Arguments.of("ceiling", MathFunction.ceiling(operand), MathFunction.MathOp.CEILING),
+                Arguments.of("floor", MathFunction.floor(operand), MathFunction.MathOp.FLOOR),
+                Arguments.of("exp", MathFunction.exp(operand), MathFunction.MathOp.EXP),
+                Arguments.of("ln", MathFunction.ln(operand), MathFunction.MathOp.LN));
+    }
+
+    @Nested
+    class MathFunctionValidationTests {
+
+        @Test
+        void unaryFactory_createsCorrectNode() {
+            LambdaExpression operand = field("salary", Double.class);
+            MathFunction result = MathFunction.abs(operand);
+
+            assertThat(result.op()).isEqualTo(MathFunction.MathOp.ABS);
+            assertThat(result.operand()).isSameAs(operand);
+            assertThat(result.secondOperand()).isNull();
+        }
+
+        @Test
+        void binaryFactory_createsCorrectNode() {
+            LambdaExpression base = field("salary", Double.class);
+            LambdaExpression exponent = constant(2);
+            MathFunction result = MathFunction.power(base, exponent);
+
+            assertThat(result.op()).isEqualTo(MathFunction.MathOp.POWER);
+            assertThat(result.operand()).isSameAs(base);
+            assertThat(result.secondOperand()).isSameAs(exponent);
+        }
+
+        @Test
+        void constructor_withNullOp_throwsNullPointerException() {
+            assertThatThrownBy(() -> new MathFunction(null, field("x", Double.class), null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("MathOp cannot be null");
+        }
+
+        @Test
+        void constructor_withNullOperand_throwsNullPointerException() {
+            assertThatThrownBy(() -> new MathFunction(MathFunction.MathOp.ABS, null, null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("operand cannot be null");
+        }
+
+        @Test
+        void constructor_binaryOpWithoutSecondOperand_throwsIllegalArgumentException() {
+            assertThatThrownBy(() -> new MathFunction(MathFunction.MathOp.POWER, field("x", Double.class), null))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("POWER requires a second operand");
+        }
+
+        @Test
+        void constructor_unaryOpWithSecondOperand_throwsIllegalArgumentException() {
+            assertThatThrownBy(
+                    () -> new MathFunction(MathFunction.MathOp.ABS, field("x", Double.class), constant(2)))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("ABS is unary but received a second operand");
+        }
+
+        @ParameterizedTest(name = "{0} is unary (isBinary = false)")
+        @MethodSource("io.quarkiverse.qubit.deployment.ast.AstNodeValidationTest#unaryMathOps")
+        void isBinary_forUnaryOps_returnsFalse(MathFunction.MathOp op) {
+            assertThat(op.isBinary())
+                    .as("%s should be unary (isBinary() == false)", op)
+                    .isFalse();
+        }
+
+        @ParameterizedTest(name = "{0} is binary (isBinary = true)")
+        @MethodSource("io.quarkiverse.qubit.deployment.ast.AstNodeValidationTest#binaryMathOps")
+        void isBinary_forBinaryOps_returnsTrue(MathFunction.MathOp op) {
+            assertThat(op.isBinary())
+                    .as("%s should be binary (isBinary() == true)", op)
+                    .isTrue();
+        }
+
+        @ParameterizedTest(name = "{0}() creates {2} op")
+        @MethodSource("io.quarkiverse.qubit.deployment.ast.AstNodeValidationTest#unaryFactoryMethods")
+        void unaryFactoryMethod_createsCorrectOp(String methodName, MathFunction result, MathFunction.MathOp expectedOp) {
+            assertThat(result.op())
+                    .as("%s() should create %s op", methodName, expectedOp)
+                    .isEqualTo(expectedOp);
+            assertThat(result.secondOperand())
+                    .as("%s() should have null secondOperand", methodName)
+                    .isNull();
+        }
+    }
 }

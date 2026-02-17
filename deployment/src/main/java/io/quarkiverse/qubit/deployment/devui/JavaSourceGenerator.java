@@ -96,6 +96,7 @@ public final class JavaSourceGenerator {
             case InSubquery inSub -> inSubqueryToJava(inSub, param);
             case CorrelatedVariable correlated -> param + "." + expressionToJava(correlated.fieldExpression(), param);
             case SubqueryBuilderReference _ -> "subquery(...)";
+            case MathFunction _ -> throw new UnsupportedOperationException("MathFunction not yet implemented");
         };
     }
 

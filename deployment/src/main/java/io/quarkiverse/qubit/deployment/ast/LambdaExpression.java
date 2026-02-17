@@ -1309,4 +1309,102 @@ public sealed interface LambdaExpression {
             Objects.requireNonNull(outerEntityType, "Outer entity type cannot be null");
         }
     }
+
+    // ─── Mathematical Functions ───────────────────────────────────────────────
+
+    /**
+     * Mathematical function applied to one or two expressions.
+     *
+     * <p>
+     * Represents standard JPA CriteriaBuilder math functions:
+     * <ul>
+     * <li>Unary: {@code cb.abs()}, {@code cb.neg()}, {@code cb.sqrt()}, {@code cb.sign()},
+     * {@code cb.ceiling()}, {@code cb.floor()}, {@code cb.exp()}, {@code cb.ln()}</li>
+     * <li>Binary: {@code cb.power()}, {@code cb.round()}</li>
+     * </ul>
+     *
+     * @param op the math operation
+     * @param operand the primary operand expression
+     * @param secondOperand the second operand (non-null for binary ops, null for unary)
+     */
+    record MathFunction(
+            MathOp op,
+            LambdaExpression operand,
+            @Nullable LambdaExpression secondOperand) implements LambdaExpression {
+
+        /** Standard JPA CriteriaBuilder math operations. */
+        public enum MathOp {
+            // Unary functions (JPA 2.0)
+            ABS,
+            NEG,
+            SQRT,
+            // Unary functions (JPA 3.1)
+            SIGN,
+            CEILING,
+            FLOOR,
+            EXP,
+            LN,
+            // Binary functions (JPA 3.1)
+            POWER,
+            ROUND;
+
+            /** Returns true if this operation requires a second operand. */
+            public boolean isBinary() {
+                return this == POWER || this == ROUND;
+            }
+        }
+
+        public MathFunction {
+            Objects.requireNonNull(op, "MathOp cannot be null");
+            Objects.requireNonNull(operand, "operand cannot be null");
+            if (op.isBinary() && secondOperand == null) {
+                throw new IllegalArgumentException(op + " requires a second operand");
+            }
+            if (!op.isBinary() && secondOperand != null) {
+                throw new IllegalArgumentException(op + " is unary but received a second operand");
+            }
+        }
+
+        // Unary factory methods
+        public static MathFunction abs(LambdaExpression operand) {
+            return new MathFunction(MathOp.ABS, operand, null);
+        }
+
+        public static MathFunction neg(LambdaExpression operand) {
+            return new MathFunction(MathOp.NEG, operand, null);
+        }
+
+        public static MathFunction sqrt(LambdaExpression operand) {
+            return new MathFunction(MathOp.SQRT, operand, null);
+        }
+
+        public static MathFunction sign(LambdaExpression operand) {
+            return new MathFunction(MathOp.SIGN, operand, null);
+        }
+
+        public static MathFunction ceiling(LambdaExpression operand) {
+            return new MathFunction(MathOp.CEILING, operand, null);
+        }
+
+        public static MathFunction floor(LambdaExpression operand) {
+            return new MathFunction(MathOp.FLOOR, operand, null);
+        }
+
+        public static MathFunction exp(LambdaExpression operand) {
+            return new MathFunction(MathOp.EXP, operand, null);
+        }
+
+        public static MathFunction ln(LambdaExpression operand) {
+            return new MathFunction(MathOp.LN, operand, null);
+        }
+
+        // Binary factory methods
+        public static MathFunction power(LambdaExpression base, LambdaExpression exponent) {
+            return new MathFunction(MathOp.POWER, base, exponent);
+        }
+
+        public static MathFunction round(LambdaExpression operand, LambdaExpression decimalPlaces) {
+            return new MathFunction(MathOp.ROUND, operand, decimalPlaces);
+        }
+    }
 }

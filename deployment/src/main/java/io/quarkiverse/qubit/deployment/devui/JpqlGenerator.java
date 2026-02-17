@@ -258,6 +258,7 @@ public final class JpqlGenerator {
             case InSubquery inSub -> inSubqueryToJpql(inSub);
             case CorrelatedVariable correlated -> "OUTER." + expressionToJpql(correlated.fieldExpression());
             case SubqueryBuilderReference _ -> "(SUBQUERY)";
+            case MathFunction _ -> throw new UnsupportedOperationException("MathFunction not yet implemented");
         };
     }
 

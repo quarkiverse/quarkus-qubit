@@ -210,6 +210,13 @@ public final class ExpressionTypeCounter {
                 countRecursive(cv.fieldExpression(), counts);
             }
 
+            case MathFunction math -> {
+                countRecursive(math.operand(), counts);
+                if (math.secondOperand() != null) {
+                    countRecursive(math.secondOperand(), counts);
+                }
+            }
+
             // Leaf nodes that don't contribute to expression type counts
             case Parameter _,CapturedVariable _,NullLiteral _,BiEntityParameter _,GroupParameter _ -> {
                 // No counting for these leaf nodes
