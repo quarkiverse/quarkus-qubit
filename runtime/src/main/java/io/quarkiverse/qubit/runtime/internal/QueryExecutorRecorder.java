@@ -101,12 +101,12 @@ public class QueryExecutorRecorder {
     }
 
     /**
-     * Clears all registered executors and cached registry reference.
-     * Called at STATIC_INIT start before re-registering executors.
-     * Runs on both initial builds and dev mode hot reload.
+     * Resets all runtime state before re-registering executors.
+     * Clears executor maps, captured variable counts, and cached CDI registry reference.
+     * Called at STATIC_INIT start on both initial builds and dev mode hot reload.
      */
-    public void clearAllExecutors() {
-        LOG.debug("Clearing all query executors and cached registry");
+    public void resetRuntimeState() {
+        LOG.debug("Resetting runtime state: clearing executors and cached registry");
         QueryExecutorRegistry.clearAllExecutors();
         LambdaReflectionUtils.clearCachedRegistry();
     }

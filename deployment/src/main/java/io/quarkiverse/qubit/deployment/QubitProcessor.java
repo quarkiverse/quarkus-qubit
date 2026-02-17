@@ -563,8 +563,8 @@ public class QubitProcessor {
             QueryExecutorRecorder recorder,
             List<QueryTransformationBuildItem> transformations) {
 
-        // Clear stale executors before registration (essential for dev mode hot reload)
-        recorder.clearAllExecutors();
+        // Reset runtime state before re-registering executors
+        recorder.resetRuntimeState();
 
         Log.debugf("Qubit: Registering %d query executors in registry", transformations.size());
 
