@@ -433,10 +433,10 @@ class LambdaDeduplicatorTest {
 
             String withoutProjection = deduplicator.computeJoinHash(
                     new LambdaDeduplicator.JoinHashRequest(
-                            joinRel, null, null, null, "INNER", false, false, false));
+                            joinRel, null, null, null, null, "INNER", false, false, false));
             String withProjection = deduplicator.computeJoinHash(
                     new LambdaDeduplicator.JoinHashRequest(
-                            joinRel, null, projection, null, "INNER", false, false, true));
+                            joinRel, null, null, projection, null, "INNER", false, false, true));
 
             assertThat(withoutProjection).isNotEqualTo(withProjection);
         }
@@ -448,10 +448,10 @@ class LambdaDeduplicatorTest {
 
             String notJoinProjection = deduplicator.computeJoinHash(
                     new LambdaDeduplicator.JoinHashRequest(
-                            joinRel, null, projection, null, "INNER", false, false, false));
+                            joinRel, null, null, projection, null, "INNER", false, false, false));
             String isJoinProjection = deduplicator.computeJoinHash(
                     new LambdaDeduplicator.JoinHashRequest(
-                            joinRel, null, projection, null, "INNER", false, false, true));
+                            joinRel, null, null, projection, null, "INNER", false, false, true));
 
             assertThat(notJoinProjection).isNotEqualTo(isJoinProjection);
         }

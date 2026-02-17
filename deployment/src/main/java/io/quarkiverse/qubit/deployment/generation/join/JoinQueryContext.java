@@ -17,6 +17,7 @@ public record JoinQueryContext(
         Expr em,
         Expr entityClass,
         LambdaExpression joinRelationshipExpression,
+        LambdaExpression sourcePredicateExpression,
         LambdaExpression biEntityPredicateExpression,
         CallSite.JoinType joinType,
         List<SortExpression> sortExpressions,
@@ -31,12 +32,16 @@ public record JoinQueryContext(
         Objects.requireNonNull(entityClass, "entityClass cannot be null");
         Objects.requireNonNull(joinRelationshipExpression, "joinRelationshipExpression cannot be null");
         Objects.requireNonNull(joinType, "joinType cannot be null");
-        // biEntityPredicateExpression, sortExpressions, capturedValues, offset, limit, distinct can be null
+        // sourcePredicateExpression, biEntityPredicateExpression, sortExpressions, capturedValues, offset, limit, distinct can be null
     }
 
     /** Extracts field name from join relationship (e.g., "phones" from p -> p.phones). */
     public String relationshipFieldName() {
         return joinRelationshipExpression.getFieldNameOrThrow();
+    }
+
+    public boolean hasSourcePredicate() {
+        return sourcePredicateExpression != null;
     }
 
     public boolean hasPredicate() {

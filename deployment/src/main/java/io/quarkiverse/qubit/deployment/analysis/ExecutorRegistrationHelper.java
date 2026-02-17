@@ -127,13 +127,14 @@ class ExecutorRegistrationHelper {
 
         // Build-time validation: ensure all CapturedVariable indices are within bounds
         validateCapturedVariableIndices(capturedVarCount,
-                join.joinRelationshipExpression(), join.biEntityPredicateExpression(),
-                join.biEntityProjectionExpression());
+                join.joinRelationshipExpression(), join.sourcePredicateExpression(),
+                join.biEntityPredicateExpression(), join.biEntityProjectionExpression());
 
         String className = ctx.generateClassName(targetPackage, classNamePrefix);
 
         byte[] bytecode = classGenerator.generateJoinQueryExecutorClass(
                 join.joinRelationshipExpression(),
+                join.sourcePredicateExpression(),
                 join.biEntityPredicateExpression(),
                 join.biEntityProjectionExpression(),
                 join.sortExpressions(),
@@ -333,6 +334,7 @@ class ExecutorRegistrationHelper {
             }
             case LambdaAnalysisResult.JoinQueryResult join -> {
                 ExpressionTypeCounter.countAndRecord(join.joinRelationshipExpression(), collector);
+                ExpressionTypeCounter.countAndRecord(join.sourcePredicateExpression(), collector);
                 ExpressionTypeCounter.countAndRecord(join.biEntityPredicateExpression(), collector);
                 ExpressionTypeCounter.countAndRecord(join.biEntityProjectionExpression(), collector);
                 countSortExpressionTypes(join.sortExpressions(), collector);

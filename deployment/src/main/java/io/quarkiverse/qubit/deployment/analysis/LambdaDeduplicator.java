@@ -219,7 +219,7 @@ public class LambdaDeduplicator {
             LambdaExpression biEntityPredicateExpression,
             String joinType,
             boolean isCountQuery) {
-        return computeJoinHash(new JoinHashRequest(joinRelationshipExpression, biEntityPredicateExpression,
+        return computeJoinHash(new JoinHashRequest(joinRelationshipExpression, null, biEntityPredicateExpression,
                 null, null, joinType, isCountQuery, false, false));
     }
 
@@ -230,7 +230,7 @@ public class LambdaDeduplicator {
             List<SortExpression> sortExpressions,
             String joinType,
             boolean isCountQuery) {
-        return computeJoinHash(new JoinHashRequest(joinRelationshipExpression, biEntityPredicateExpression,
+        return computeJoinHash(new JoinHashRequest(joinRelationshipExpression, null, biEntityPredicateExpression,
                 null, sortExpressions, joinType, isCountQuery, false, false));
     }
 
@@ -242,7 +242,7 @@ public class LambdaDeduplicator {
             String joinType,
             boolean isCountQuery,
             boolean isSelectJoined) {
-        return computeJoinHash(new JoinHashRequest(joinRelationshipExpression, biEntityPredicateExpression,
+        return computeJoinHash(new JoinHashRequest(joinRelationshipExpression, null, biEntityPredicateExpression,
                 null, sortExpressions, joinType, isCountQuery, isSelectJoined, false));
     }
 
@@ -250,6 +250,7 @@ public class LambdaDeduplicator {
     public String computeJoinHash(JoinHashRequest request) {
         return HashBuilder.create()
                 .join(request.joinRelationshipExpression())
+                .where(request.sourcePredicateExpression())
                 .biWhere(request.biEntityPredicateExpression())
                 .biSelect(request.biEntityProjectionExpression())
                 .sort(request.sortExpressions())
@@ -292,6 +293,7 @@ public class LambdaDeduplicator {
     /** Bundles join hash computation parameters. */
     public record JoinHashRequest(
             LambdaExpression joinRelationshipExpression,
+            LambdaExpression sourcePredicateExpression,
             LambdaExpression biEntityPredicateExpression,
             LambdaExpression biEntityProjectionExpression,
             List<SortExpression> sortExpressions,

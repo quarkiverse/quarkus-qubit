@@ -485,4 +485,56 @@ public abstract class AbstractJoinQueryTest {
         assertThat(dto.getPersonName()).isEqualTo("John");
         assertThat(dto.getPhoneNumber()).isEqualTo("555-0101");
     }
+
+    // --- Source-only predicate tests (MEDIUM-7 fix) ---
+
+    @Test
+    void joinWithSourceOnlyWhere() {
+        // Source-only predicate uses single-parameter QuerySpec (not BiQuerySpec)
+        // This exercises the JoinStream.where(QuerySpec<T, Boolean>) overload
+        var results = personOps().join((Person p) -> p.phones)
+                .where((Person p) -> p.active)
+                .distinct()
+                .toList();
+
+        // Bob is inactive, so excluded. John, Jane, Alice, Charlie are active.
+        assertThat(results)
+                .hasSize(4)
+                .extracting(p -> p.firstName)
+                .containsExactlyInAnyOrder("John", "Jane", "Alice", "Charlie");
+    }
+
+    @Test
+    void joinWithSourceOnlyWhereAndCapturedVariable() {
+        // Source-only predicate with a captured variable
+        int minAge = 30;
+
+        var results = personOps().join((Person p) -> p.phones)
+                .where((Person p) -> p.age >= minAge)
+                .distinct()
+                .toList();
+
+        // John(30), Bob(45), Alice(35) have age >= 30
+        assertThat(results)
+                .hasSize(3)
+                .extracting(p -> p.firstName)
+                .containsExactlyInAnyOrder("John", "Bob", "Alice");
+    }
+
+    @Test
+    void joinWithSourceOnlyAndBiEntityWhereCombined() {
+        // Both source-only and bi-entity predicates on the same join.
+        // CriteriaQuery.where() replaces — the code generator must combine with cb.and().
+        var results = personOps().join((Person p) -> p.phones)
+                .where((Person p) -> p.active)
+                .where((Person p, Phone ph) -> ph.type.equals("work"))
+                .distinct()
+                .toList();
+
+        // Active persons with work phones: John, Alice (Bob has work but is inactive)
+        assertThat(results)
+                .hasSize(2)
+                .extracting(p -> p.firstName)
+                .containsExactlyInAnyOrder("John", "Alice");
+    }
 }

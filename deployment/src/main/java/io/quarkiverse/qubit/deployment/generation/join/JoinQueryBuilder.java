@@ -57,11 +57,20 @@ public final class JoinQueryBuilder {
         // Step 5: Apply selection based on strategy (using pattern matching)
         applySelection(bc, query, cb, root, joinHandle, ctx, strategy);
 
-        // Step 6: Apply WHERE predicate if present
-        if (ctx.hasPredicate()) {
-            Expr predicate = expressionGenerator.generateBiEntityPredicateWithSubqueries(
-                    bc, ctx.biEntityPredicateExpression(), cb, query, root, joinHandle, ctx.capturedValues());
-            clauseApplier.applyWherePredicate(bc, query, predicate);
+        // Step 6: Apply WHERE predicates.
+        // CriteriaQuery.where() REPLACES the previous clause, so source-only and
+        // bi-entity predicates must be combined with cb.and() before a single call.
+        Expr sourcePredicate = ctx.hasSourcePredicate()
+                ? expressionGenerator.generatePredicateWithSubqueries(
+                        bc, ctx.sourcePredicateExpression(), cb, query, root, ctx.capturedValues())
+                : null;
+        Expr biEntityPredicate = ctx.hasPredicate()
+                ? expressionGenerator.generateBiEntityPredicateWithSubqueries(
+                        bc, ctx.biEntityPredicateExpression(), cb, query, root, joinHandle, ctx.capturedValues())
+                : null;
+        Expr combinedPredicate = GizmoHelper.combinePredicatesWithAnd(bc, cb, sourcePredicate, biEntityPredicate);
+        if (combinedPredicate != null) {
+            clauseApplier.applyWherePredicate(bc, query, combinedPredicate);
         }
 
         // Step 7: Apply ORDER BY

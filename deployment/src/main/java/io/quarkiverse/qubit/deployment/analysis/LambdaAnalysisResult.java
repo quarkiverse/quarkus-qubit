@@ -54,6 +54,7 @@ public sealed interface LambdaAnalysisResult {
      */
     record JoinQueryResult(
             LambdaExpression joinRelationshipExpression,
+            LambdaExpression sourcePredicateExpression,
             LambdaExpression biEntityPredicateExpression,
             LambdaExpression biEntityProjectionExpression,
             List<SortExpression> sortExpressions,

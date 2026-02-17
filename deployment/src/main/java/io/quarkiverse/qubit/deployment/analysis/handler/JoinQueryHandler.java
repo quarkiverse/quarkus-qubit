@@ -66,13 +66,20 @@ public final class JoinQueryHandler extends AbstractQueryHandler {
                 callSite.biEntityProjectionLambdaMethodName(),
                 callSite.biEntityProjectionLambdaDescriptor());
 
+        // Analyze source-only predicates (single-entity WHERE on source)
+        LambdaExpression sourcePredicateExpr = analyzeAndCombinePredicates(
+                context, callSite.predicateLambdas());
+
         // Analyze bi-entity sort expressions (join queries use bi-entity lambdas)
         List<SortExpression> sortExpressions = analyzeBiEntitySortLambdas(
                 context, callSite.sortLambdas());
 
         // Renumber captured variables for contiguous indexing across expressions.
-        // Counting order: biEntityPredicate → joinRelationship → biEntityProjection → sorts
+        // Counting order must match runtime extraction order in JoinStreamImpl.extractCapturedVariables():
+        // biEntityPredicate → sourcePredicate → joinRelationship → biEntityProjection → sorts
         int offset = CapturedVariableHelper.countCapturedVariables(biEntityPredicateExpr);
+        sourcePredicateExpr = CapturedVariableHelper.renumberCapturedVariables(sourcePredicateExpr, offset);
+        offset += CapturedVariableHelper.countCapturedVariables(sourcePredicateExpr);
         // joinRelationshipExpr is guaranteed non-null (early return above)
         joinRelationshipExpr = CapturedVariableHelper.renumberCapturedVariables(joinRelationshipExpr, offset);
         offset += CapturedVariableHelper.countCapturedVariables(joinRelationshipExpr);
@@ -84,12 +91,14 @@ public final class JoinQueryHandler extends AbstractQueryHandler {
         int totalCapturedVars = countTotalCapturedVariablesWithSort(
                 biEntityPredicateExpr,
                 sortExpressions,
+                sourcePredicateExpr,
                 joinRelationshipExpr,
                 biEntityProjectionExpr);
 
         // Build result
         JoinQueryResult result = new JoinQueryResult(
                 joinRelationshipExpr,
+                sourcePredicateExpr,
                 biEntityPredicateExpr,
                 biEntityProjectionExpr,
                 sortExpressions,
@@ -100,6 +109,7 @@ public final class JoinQueryHandler extends AbstractQueryHandler {
         String lambdaHash = context.deduplicator().computeJoinHash(
                 new LambdaDeduplicator.JoinHashRequest(
                         joinRelationshipExpr,
+                        sourcePredicateExpr,
                         biEntityPredicateExpr,
                         biEntityProjectionExpr,
                         sortExpressions,
@@ -122,6 +132,7 @@ public final class JoinQueryHandler extends AbstractQueryHandler {
         return deduplicator.computeJoinHash(
                 new LambdaDeduplicator.JoinHashRequest(
                         join.joinRelationshipExpression(),
+                        join.sourcePredicateExpression(),
                         join.biEntityPredicateExpression(),
                         join.biEntityProjectionExpression(),
                         join.sortExpressions(),

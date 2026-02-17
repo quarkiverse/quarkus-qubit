@@ -174,4 +174,19 @@ public final class GizmoHelper {
         // Apply orderBy to query
         bc.invokeInterface(CQ_ORDER_BY, query, ordersArray);
     }
+
+    /**
+     * Combines two nullable JPA Predicate expressions with AND.
+     * Returns the combined predicate, or whichever is non-null, or null if both are null.
+     * Used when CriteriaQuery.where() would replace instead of AND'ing.
+     */
+    public static Expr combinePredicatesWithAnd(
+            BlockCreator bc, Expr cb, Expr predicate1, Expr predicate2) {
+        if (predicate1 != null && predicate2 != null) {
+            Expr predicateArray = createElementArray(bc, jakarta.persistence.criteria.Predicate.class,
+                    predicate1, predicate2);
+            return bc.invokeInterface(CB_AND, cb, predicateArray);
+        }
+        return predicate1 != null ? predicate1 : predicate2;
+    }
 }

@@ -210,6 +210,7 @@ public class QueryExecutorClassGenerator {
     /** Generates query executor for JOIN queries with bi-entity predicates and projections. */
     public byte[] generateJoinQueryExecutorClass(
             LambdaExpression joinRelationshipExpression,
+            LambdaExpression sourcePredicateExpression,
             LambdaExpression biEntityPredicateExpression,
             LambdaExpression biEntityProjectionExpression,
             List<SortExpression> sortExpressions,
@@ -255,13 +256,15 @@ public class QueryExecutorClassGenerator {
                         if (isCountQuery) {
                             result = generateJoinCountQueryBody(
                                     bc, em, entityClassParam,
-                                    joinRelationshipExpression, biEntityPredicateExpression,
+                                    joinRelationshipExpression, sourcePredicateExpression,
+                                    biEntityPredicateExpression,
                                     joinType, capturedValues);
                         } else {
                             // Use Template Method pattern with Strategy for the three join query variants
                             JoinQueryContext ctx = new JoinQueryContext(
                                     bc, em, entityClassParam,
-                                    joinRelationshipExpression, biEntityPredicateExpression,
+                                    joinRelationshipExpression, sourcePredicateExpression,
+                                    biEntityPredicateExpression,
                                     joinType, sortExpressions, capturedValues, offset, limit, distinct);
 
                             // Determine selection strategy based on query type
@@ -451,6 +454,7 @@ public class QueryExecutorClassGenerator {
             Expr em,
             Expr entityClass,
             LambdaExpression joinRelationshipExpression,
+            LambdaExpression sourcePredicateExpression,
             LambdaExpression biEntityPredicateExpression,
             CallSite.JoinType joinType,
             Expr capturedValues) {
@@ -473,11 +477,19 @@ public class QueryExecutorClassGenerator {
         Expr countExpr = bc.invokeInterface(CB_COUNT, cb, root);
         bc.invokeInterface(CQ_SELECT, query, countExpr);
 
-        // Apply bi-entity predicate if present
-        if (biEntityPredicateExpression != null) {
-            Expr predicate = expressionGenerator.generateBiEntityPredicateWithSubqueries(
-                    bc, biEntityPredicateExpression, cb, query, root, joinHandle, capturedValues);
-            clauseApplier.applyWherePredicate(bc, query, predicate);
+        // Apply WHERE predicates — combine with cb.and() if both exist
+        // (CriteriaQuery.where() replaces, so multiple calls would lose earlier predicates)
+        Expr sourcePredicate = sourcePredicateExpression != null
+                ? expressionGenerator.generatePredicateWithSubqueries(
+                        bc, sourcePredicateExpression, cb, query, root, capturedValues)
+                : null;
+        Expr biEntityPredicate = biEntityPredicateExpression != null
+                ? expressionGenerator.generateBiEntityPredicateWithSubqueries(
+                        bc, biEntityPredicateExpression, cb, query, root, joinHandle, capturedValues)
+                : null;
+        Expr combinedPredicate = GizmoHelper.combinePredicatesWithAnd(bc, cb, sourcePredicate, biEntityPredicate);
+        if (combinedPredicate != null) {
+            clauseApplier.applyWherePredicate(bc, query, combinedPredicate);
         }
 
         // Create TypedQuery
