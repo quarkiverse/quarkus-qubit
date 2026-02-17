@@ -3,8 +3,6 @@ package io.quarkiverse.qubit.runtime.internal;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Supplier;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -19,6 +17,10 @@ import org.jboss.logging.Logger;
  * <p>
  * This registry stores query executors generated during build-time bytecode analysis
  * and provides execution methods for different query types (list, count, join, group, aggregation).
+ * <p>
+ * Thread safety: ConcurrentHashMap provides safe concurrent reads during request processing.
+ * Registration occurs during STATIC_INIT (single-threaded, before any requests).
+ * Clearing occurs at build start or dev mode reload (Quarkus suspends requests first).
  */
 @ApplicationScoped
 public class QueryExecutorRegistry {
@@ -68,9 +70,6 @@ public class QueryExecutorRegistry {
     private static final Map<String, QueryExecutor<Long>> GROUP_COUNT_EXECUTORS = new ConcurrentHashMap<>();
     private static final Map<String, Integer> CAPTURED_VAR_COUNTS = new ConcurrentHashMap<>();
 
-    /** RW lock for atomic clear during dev mode hot reload. Read lock for queries, write lock for clear. */
-    private static final ReadWriteLock EXECUTOR_LOCK = new ReentrantReadWriteLock();
-
     // Format strings for executor count reporting (eliminates duplication)
     private static final String COUNT_FORMAT_STANDARD = "%d list, %d count";
     private static final String COUNT_FORMAT_WITH_AGGREGATION = "%d list, %d count, %d aggregation";
@@ -82,50 +81,30 @@ public class QueryExecutorRegistry {
     @Inject
     EntityManager entityManager;
 
-    /** Registers executor with write lock for atomic executor+captured-var-count update. */
+    /** Registers executor and its captured variable count. Called during STATIC_INIT (single-threaded). */
     private static <T> void registerExecutor(
             String callSiteId,
             QueryExecutor<T> executor,
             int capturedVarCount,
             Map<String, QueryExecutor<T>> executorMap,
             ExecutorType type) {
-        EXECUTOR_LOCK.writeLock().lock();
-        try {
-            executorMap.put(callSiteId, executor);
-            CAPTURED_VAR_COUNTS.put(callSiteId, capturedVarCount);
-            LOG.debugf("Registered %s executor for call site: %s (captured variables: %d)",
-                    type.displayName(), callSiteId, capturedVarCount);
-        } finally {
-            EXECUTOR_LOCK.writeLock().unlock();
-        }
+        executorMap.put(callSiteId, executor);
+        CAPTURED_VAR_COUNTS.put(callSiteId, capturedVarCount);
+        LOG.debugf("Registered %s executor for call site: %s (captured variables: %d)",
+                type.displayName(), callSiteId, capturedVarCount);
     }
 
-    /** Looks up executor with read lock; throws if not found. */
+    /** Looks up executor; throws if not found. */
     private <T> QueryExecutor<T> getExecutor(
             Map<String, QueryExecutor<T>> executorMap,
             String callSiteId,
             ExecutorType type,
             Supplier<String> countFormat) {
-        EXECUTOR_LOCK.readLock().lock();
-        try {
-            QueryExecutor<T> executor = executorMap.get(callSiteId);
-            if (executor == null) {
-                throw new IllegalStateException(buildExecutorNotFoundError(callSiteId, type, countFormat));
-            }
-            return executor;
-        } finally {
-            EXECUTOR_LOCK.readLock().unlock();
+        QueryExecutor<T> executor = executorMap.get(callSiteId);
+        if (executor == null) {
+            throw new IllegalStateException(buildExecutorNotFoundError(callSiteId, type, countFormat));
         }
-    }
-
-    /** Returns map size with read lock. */
-    private static int getExecutorCount(Map<String, ?> executorMap) {
-        EXECUTOR_LOCK.readLock().lock();
-        try {
-            return executorMap.size();
-        } finally {
-            EXECUTOR_LOCK.readLock().unlock();
-        }
+        return executor;
     }
 
     /** Builds error message for missing executor. */
@@ -185,30 +164,25 @@ public class QueryExecutorRegistry {
         registerExecutor(callSiteId, executor, capturedVarCount, AGGREGATION_EXECUTORS, ExecutorType.AGGREGATION);
     }
 
-    /** Returns captured var count with read lock; throws if not registered (fail-fast). */
+    /** Returns captured var count; throws if not registered (fail-fast). */
     public static int getCapturedVariableCount(String callSiteId) {
-        EXECUTOR_LOCK.readLock().lock();
-        try {
-            Integer count = CAPTURED_VAR_COUNTS.get(callSiteId);
-            if (count == null) {
-                throw new IllegalStateException(String.format(
-                        "No captured variable count registered for call site: %s%n" +
-                                "%n" +
-                                "This typically indicates:%n" +
-                                "  1. The query was not analyzed during build-time processing%n" +
-                                "  2. Dev mode hot reload cleared executors before re-registration completed%n" +
-                                "  3. Call site ID mismatch between build-time and runtime%n" +
-                                "%n" +
-                                "Solutions:%n" +
-                                "  - Run a clean build: 'mvn clean compile'%n" +
-                                "  - If in dev mode, retry the request after reload completes%n" +
-                                "  - Check build logs for QubitProcessor registration messages",
-                        callSiteId));
-            }
-            return count;
-        } finally {
-            EXECUTOR_LOCK.readLock().unlock();
+        Integer count = CAPTURED_VAR_COUNTS.get(callSiteId);
+        if (count == null) {
+            throw new IllegalStateException(String.format(
+                    "No captured variable count registered for call site: %s%n" +
+                            "%n" +
+                            "This typically indicates:%n" +
+                            "  1. The query was not analyzed during build-time processing%n" +
+                            "  2. Dev mode hot reload cleared executors before re-registration completed%n" +
+                            "  3. Call site ID mismatch between build-time and runtime%n" +
+                            "%n" +
+                            "Solutions:%n" +
+                            "  - Run a clean build: 'mvn clean compile'%n" +
+                            "  - If in dev mode, retry the request after reload completes%n" +
+                            "  - Check build logs for QubitProcessor registration messages",
+                    callSiteId));
         }
+        return count;
     }
 
     /** Executes list query (lock held only during lookup, not DB execution). */
@@ -264,42 +238,40 @@ public class QueryExecutorRegistry {
         return (R) executor.execute(entityManager, entityClass, capturedValues, null, null, null);
     }
 
-    // Acquires read locks to prevent data races with clearAllExecutors() during dev mode hot reload.
-
     public static int getListExecutorCount() {
-        return getExecutorCount(LIST_EXECUTORS);
+        return LIST_EXECUTORS.size();
     }
 
     public static int getCountExecutorCount() {
-        return getExecutorCount(COUNT_EXECUTORS);
+        return COUNT_EXECUTORS.size();
     }
 
     public static int getAggregationExecutorCount() {
-        return getExecutorCount(AGGREGATION_EXECUTORS);
+        return AGGREGATION_EXECUTORS.size();
     }
 
     public static int getJoinListExecutorCount() {
-        return getExecutorCount(JOIN_LIST_EXECUTORS);
+        return JOIN_LIST_EXECUTORS.size();
     }
 
     public static int getJoinCountExecutorCount() {
-        return getExecutorCount(JOIN_COUNT_EXECUTORS);
+        return JOIN_COUNT_EXECUTORS.size();
     }
 
     public static int getJoinSelectJoinedExecutorCount() {
-        return getExecutorCount(JOIN_SELECT_JOINED_EXECUTORS);
+        return JOIN_SELECT_JOINED_EXECUTORS.size();
     }
 
     public static int getJoinProjectionExecutorCount() {
-        return getExecutorCount(JOIN_PROJECTION_EXECUTORS);
+        return JOIN_PROJECTION_EXECUTORS.size();
     }
 
     public static int getGroupListExecutorCount() {
-        return getExecutorCount(GROUP_LIST_EXECUTORS);
+        return GROUP_LIST_EXECUTORS.size();
     }
 
     public static int getGroupCountExecutorCount() {
-        return getExecutorCount(GROUP_COUNT_EXECUTORS);
+        return GROUP_COUNT_EXECUTORS.size();
     }
 
     /**
@@ -502,45 +474,39 @@ public class QueryExecutorRegistry {
         return executor.execute(entityManager, entityClass, capturedValues, null, null, null);
     }
 
-    /** Clears all executors (dev mode hot reload). Acquires exclusive write lock. */
+    /**
+     * Clears all executor registrations and captured variable counts.
+     * Called at STATIC_INIT start before re-registering executors.
+     * Safe without locking: Quarkus suspends request processing during reload.
+     */
     public static void clearAllExecutors() {
-        EXECUTOR_LOCK.writeLock().lock();
-        try {
-            int totalCleared = LIST_EXECUTORS.size() + COUNT_EXECUTORS.size() +
-                    AGGREGATION_EXECUTORS.size() + JOIN_LIST_EXECUTORS.size() +
-                    JOIN_COUNT_EXECUTORS.size() + JOIN_SELECT_JOINED_EXECUTORS.size() +
-                    JOIN_PROJECTION_EXECUTORS.size() + GROUP_LIST_EXECUTORS.size() +
-                    GROUP_COUNT_EXECUTORS.size() + CAPTURED_VAR_COUNTS.size();
+        int totalCleared = LIST_EXECUTORS.size() + COUNT_EXECUTORS.size() +
+                AGGREGATION_EXECUTORS.size() + JOIN_LIST_EXECUTORS.size() +
+                JOIN_COUNT_EXECUTORS.size() + JOIN_SELECT_JOINED_EXECUTORS.size() +
+                JOIN_PROJECTION_EXECUTORS.size() + GROUP_LIST_EXECUTORS.size() +
+                GROUP_COUNT_EXECUTORS.size() + CAPTURED_VAR_COUNTS.size();
 
-            LIST_EXECUTORS.clear();
-            COUNT_EXECUTORS.clear();
-            AGGREGATION_EXECUTORS.clear();
-            JOIN_LIST_EXECUTORS.clear();
-            JOIN_COUNT_EXECUTORS.clear();
-            JOIN_SELECT_JOINED_EXECUTORS.clear();
-            JOIN_PROJECTION_EXECUTORS.clear();
-            GROUP_LIST_EXECUTORS.clear();
-            GROUP_COUNT_EXECUTORS.clear();
-            CAPTURED_VAR_COUNTS.clear();
+        LIST_EXECUTORS.clear();
+        COUNT_EXECUTORS.clear();
+        AGGREGATION_EXECUTORS.clear();
+        JOIN_LIST_EXECUTORS.clear();
+        JOIN_COUNT_EXECUTORS.clear();
+        JOIN_SELECT_JOINED_EXECUTORS.clear();
+        JOIN_PROJECTION_EXECUTORS.clear();
+        GROUP_LIST_EXECUTORS.clear();
+        GROUP_COUNT_EXECUTORS.clear();
+        CAPTURED_VAR_COUNTS.clear();
 
-            LOG.debugf("Cleared %d executor registrations (dev mode reload)", totalCleared);
-        } finally {
-            EXECUTOR_LOCK.writeLock().unlock();
-        }
+        LOG.debugf("Cleared %d executor registrations", totalCleared);
     }
 
-    /** Returns total executor count across all types (with read lock). */
+    /** Returns total executor count across all types. */
     public static int getTotalExecutorCount() {
-        EXECUTOR_LOCK.readLock().lock();
-        try {
-            return LIST_EXECUTORS.size() + COUNT_EXECUTORS.size() +
-                    AGGREGATION_EXECUTORS.size() + JOIN_LIST_EXECUTORS.size() +
-                    JOIN_COUNT_EXECUTORS.size() + JOIN_SELECT_JOINED_EXECUTORS.size() +
-                    JOIN_PROJECTION_EXECUTORS.size() + GROUP_LIST_EXECUTORS.size() +
-                    GROUP_COUNT_EXECUTORS.size();
-        } finally {
-            EXECUTOR_LOCK.readLock().unlock();
-        }
+        return LIST_EXECUTORS.size() + COUNT_EXECUTORS.size() +
+                AGGREGATION_EXECUTORS.size() + JOIN_LIST_EXECUTORS.size() +
+                JOIN_COUNT_EXECUTORS.size() + JOIN_SELECT_JOINED_EXECUTORS.size() +
+                JOIN_PROJECTION_EXECUTORS.size() + GROUP_LIST_EXECUTORS.size() +
+                GROUP_COUNT_EXECUTORS.size();
     }
 
     /**
