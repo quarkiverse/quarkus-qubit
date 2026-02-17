@@ -484,6 +484,62 @@ public class LambdaTestSources {
         return p -> p.employeeId - p.employeeId == 0L;
     }
 
+    // ─── Math Operations ─────────────────────────────────────────────────────
+
+    public static QuerySpec<TestPerson, Boolean> mathAbs() {
+        return (TestPerson p) -> Math.abs(p.age) > 5;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> mathAbsArithmetic() {
+        int target = 30;
+        return (TestPerson p) -> Math.abs(p.age - target) < 5;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> mathSqrt() {
+        return (TestPerson p) -> Math.sqrt(p.salary) > 200;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> mathCeil() {
+        return (TestPerson p) -> Math.ceil(p.height) > 6;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> mathFloor() {
+        return (TestPerson p) -> Math.floor(p.salary) > 50000;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> mathExp() {
+        return (TestPerson p) -> Math.exp(p.height) > 100;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> mathLog() {
+        return (TestPerson p) -> Math.log(p.salary) > 10;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> mathPow() {
+        return (TestPerson p) -> Math.pow(p.age, 2) > 900;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> mathPowCapturedExponent() {
+        double exponent = 2.0;
+        return (TestPerson p) -> Math.pow(p.salary, exponent) > 1000000;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> mathRound() {
+        return (TestPerson p) -> Math.round(p.salary) > 50000;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> integerSignum() {
+        return (TestPerson p) -> Integer.signum(p.age) > 0;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> unaryNegation() {
+        return (TestPerson p) -> -p.age < -18;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> doubleNegation_arithmetic() {
+        return (TestPerson p) -> -p.salary < -50000;
+    }
+
     public static QuerySpec<TestPerson, Boolean> stringStartsWith() {
         return p -> p.firstName.startsWith("J");
     }

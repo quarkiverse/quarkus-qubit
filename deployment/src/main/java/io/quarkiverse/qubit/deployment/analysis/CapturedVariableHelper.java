@@ -75,6 +75,13 @@ public final class CapturedVariableHelper {
                 collectCapturedVariableIndices(memberOfExpr.collectionField(), capturedIndices);
             }
 
+            case LambdaExpression.MathFunction mathFunc -> {
+                collectCapturedVariableIndices(mathFunc.operand(), capturedIndices);
+                if (mathFunc.secondOperand() != null) {
+                    collectCapturedVariableIndices(mathFunc.secondOperand(), capturedIndices);
+                }
+            }
+
             // No captured variables (separate cases for exhaustiveness)
             case LambdaExpression.PathExpression _ -> {
                 /* no-op */ }
@@ -150,6 +157,12 @@ public final class CapturedVariableHelper {
                         renumberCapturedVariables(value, offset),
                         renumberCapturedVariables(collectionField, offset),
                         negated);
+
+            case LambdaExpression.MathFunction(var op, var operand, var secondOp) ->
+                new LambdaExpression.MathFunction(
+                        op,
+                        renumberCapturedVariables(operand, offset),
+                        secondOp != null ? renumberCapturedVariables(secondOp, offset) : null);
 
             // No captured variables - return as-is
             default -> expression;
