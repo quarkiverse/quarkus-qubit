@@ -15,6 +15,11 @@ public final class OpcodeClassifier {
         return opcode >= IADD && opcode <= DREM;
     }
 
+    /** Checks if opcode is numeric negation (INEG, LNEG, FNEG, DNEG). */
+    public static boolean isNegationOpcode(int opcode) {
+        return opcode >= INEG && opcode <= DNEG;
+    }
+
     /** Checks if opcode is logical (IAND, IOR, IXOR). */
     public static boolean isLogicalOpcode(int opcode) {
         return opcode == IAND || opcode == IOR || opcode == IXOR;

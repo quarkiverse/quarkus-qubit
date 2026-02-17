@@ -27,6 +27,8 @@ public enum ArithmeticInstructionHandler implements InstructionHandler {
             IMUL, LMUL, FMUL, DMUL,
             IDIV, LDIV, FDIV, DDIV,
             IREM, LREM, FREM, DREM,
+            // Negation: NEG for int, long, float, double
+            INEG, LNEG, FNEG, DNEG,
             // Logical: AND, OR, XOR
             IAND, IOR, IXOR,
             // Comparison: CMP for long, float, double
@@ -46,7 +48,9 @@ public enum ArithmeticInstructionHandler implements InstructionHandler {
     public boolean handle(AbstractInsnNode insn, AnalysisContext ctx) {
         int opcode = insn.getOpcode();
 
-        if (OpcodeClassifier.isArithmeticOpcode(opcode)) {
+        if (OpcodeClassifier.isNegationOpcode(opcode)) {
+            handleNegationOperation(ctx, opcode);
+        } else if (OpcodeClassifier.isArithmeticOpcode(opcode)) {
             handleArithmeticOperation(ctx, opcode);
         } else if (OpcodeClassifier.isLogicalOpcode(opcode)) {
             handleLogicalOperation(ctx, opcode);
@@ -55,6 +59,13 @@ public enum ArithmeticInstructionHandler implements InstructionHandler {
         }
 
         return false;
+    }
+
+    /** Handles unary negation: pushes MathFunction.neg(operand). */
+    private void handleNegationOperation(AnalysisContext ctx, int opcode) {
+        BytecodeValidator.requireStackSize(ctx.getStack(), 1, OpcodeNames.get(opcode));
+        LambdaExpression operand = ctx.pop();
+        ctx.push(LambdaExpression.MathFunction.neg(operand));
     }
 
     /** Handles arithmetic operations. */
