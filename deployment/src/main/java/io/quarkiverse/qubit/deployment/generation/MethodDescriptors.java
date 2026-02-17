@@ -144,6 +144,46 @@ public final class MethodDescriptors {
     public static final MethodDesc HCB_SECOND = MethodDesc.of(HibernateCriteriaBuilder.class, "second", JpaFunction.class,
             Expression.class);
 
+    // ─── Math Functions (JPA 2.0 + 3.1) ─────────────────────────────────────
+
+    /** cb.abs(Expression) -> Expression (JPA 2.0) */
+    public static final MethodDesc CB_ABS = MethodDesc.of(CriteriaBuilder.class, "abs", Expression.class, Expression.class);
+
+    /** cb.neg(Expression) -> Expression (JPA 2.0) */
+    public static final MethodDesc CB_NEG = MethodDesc.of(CriteriaBuilder.class, "neg", Expression.class, Expression.class);
+
+    /** cb.sqrt(Expression) -> Expression<Double> (JPA 2.0) */
+    public static final MethodDesc CB_SQRT = MethodDesc.of(CriteriaBuilder.class, "sqrt", Expression.class, Expression.class);
+
+    /** cb.sign(Expression) -> Expression<Integer> (JPA 3.1) */
+    public static final MethodDesc CB_SIGN = MethodDesc.of(CriteriaBuilder.class, "sign", Expression.class, Expression.class);
+
+    /** cb.ceiling(Expression) -> Expression (JPA 3.1) */
+    public static final MethodDesc CB_CEILING = MethodDesc.of(CriteriaBuilder.class, "ceiling", Expression.class,
+            Expression.class);
+
+    /** cb.floor(Expression) -> Expression (JPA 3.1) */
+    public static final MethodDesc CB_FLOOR = MethodDesc.of(CriteriaBuilder.class, "floor", Expression.class,
+            Expression.class);
+
+    /** cb.exp(Expression) -> Expression<Double> (JPA 3.1) */
+    public static final MethodDesc CB_EXP = MethodDesc.of(CriteriaBuilder.class, "exp", Expression.class, Expression.class);
+
+    /** cb.ln(Expression) -> Expression<Double> (JPA 3.1) */
+    public static final MethodDesc CB_LN = MethodDesc.of(CriteriaBuilder.class, "ln", Expression.class, Expression.class);
+
+    /** cb.power(Expression, Expression) -> Expression<Double> (JPA 3.1) */
+    public static final MethodDesc CB_POWER = MethodDesc.of(CriteriaBuilder.class, "power", Expression.class,
+            Expression.class, Expression.class);
+
+    /** cb.power(Expression, Number) -> Expression<Double> (JPA 3.1) */
+    public static final MethodDesc CB_POWER_NUMBER = MethodDesc.of(CriteriaBuilder.class, "power", Expression.class,
+            Expression.class, Number.class);
+
+    /** cb.round(Expression, Integer) -> Expression (JPA 3.1) */
+    public static final MethodDesc CB_ROUND = MethodDesc.of(CriteriaBuilder.class, "round", Expression.class,
+            Expression.class, Integer.class);
+
     public static final MethodDesc STRING_CONCAT = MethodDesc.of(String.class, "concat", String.class, String.class);
 
     public static final MethodDesc EM_GET_CRITERIA_BUILDER = MethodDesc.of(EntityManager.class, "getCriteriaBuilder",
