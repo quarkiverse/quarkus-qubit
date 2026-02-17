@@ -150,6 +150,43 @@ public final class QubitConstants {
     public static final Set<String> BIG_DECIMAL_ARITHMETIC_METHODS = Set.of(
             METHOD_ADD, METHOD_SUBTRACT, METHOD_MULTIPLY, METHOD_DIVIDE);
 
+    // ─── Math Class Methods ──────────────────────────────────────────────────
+
+    /** JVM internal name for java.lang.Math. */
+    public static final String JVM_JAVA_LANG_MATH = "java/lang/Math";
+
+    /** JVM internal name for java.lang.Integer. */
+    public static final String JVM_JAVA_LANG_INTEGER = "java/lang/Integer";
+
+    /** JVM internal name for java.lang.Long. */
+    public static final String JVM_JAVA_LANG_LONG = "java/lang/Long";
+
+    // Math method names
+    public static final String METHOD_ABS = "abs";
+    public static final String METHOD_SQRT = "sqrt";
+    public static final String METHOD_CEIL = "ceil";
+    public static final String METHOD_FLOOR = "floor";
+    public static final String METHOD_EXP = "exp";
+    public static final String METHOD_LOG = "log";
+    public static final String METHOD_POW = "pow";
+    public static final String METHOD_ROUND = "round";
+    public static final String METHOD_SIGNUM = "signum";
+
+    /** Math unary methods that map to JPA CriteriaBuilder unary functions. */
+    public static final Set<String> MATH_UNARY_METHODS = Set.of(
+            METHOD_ABS, METHOD_SQRT, METHOD_CEIL, METHOD_FLOOR,
+            METHOD_EXP, METHOD_LOG, METHOD_SIGNUM);
+
+    /** Math binary methods that map to JPA CriteriaBuilder binary functions. */
+    public static final Set<String> MATH_BINARY_METHODS = Set.of(METHOD_POW);
+
+    /** Owners that have signum() static method. */
+    public static final Set<String> SIGNUM_OWNERS = Set.of(
+            JVM_JAVA_LANG_MATH, JVM_JAVA_LANG_INTEGER, JVM_JAVA_LANG_LONG);
+
+    /** JVM internal name for QubitMath marker class. */
+    public static final String JVM_QUBIT_MATH = "io/quarkiverse/qubit/QubitMath";
+
     public static final String METHOD_STARTS_WITH = "startsWith";
     public static final String METHOD_ENDS_WITH = "endsWith";
     public static final String METHOD_CONTAINS = "contains";
