@@ -500,20 +500,12 @@ public class QueryExecutorRegistry {
         LOG.debugf("Cleared %d executor registrations", totalCleared);
     }
 
-    /** Returns total executor count across all types. */
-    public static int getTotalExecutorCount() {
+    /** Returns total count of registered executors across all types. */
+    public static int getRegisteredExecutorCount() {
         return LIST_EXECUTORS.size() + COUNT_EXECUTORS.size() +
                 AGGREGATION_EXECUTORS.size() + JOIN_LIST_EXECUTORS.size() +
                 JOIN_COUNT_EXECUTORS.size() + JOIN_SELECT_JOINED_EXECUTORS.size() +
                 JOIN_PROJECTION_EXECUTORS.size() + GROUP_LIST_EXECUTORS.size() +
                 GROUP_COUNT_EXECUTORS.size();
-    }
-
-    /**
-     * Returns total count of registered executors for performance metrics.
-     * Alias for getTotalExecutorCount() for clarity in metrics context.
-     */
-    public static int getRegisteredExecutorCount() {
-        return getTotalExecutorCount();
     }
 }
