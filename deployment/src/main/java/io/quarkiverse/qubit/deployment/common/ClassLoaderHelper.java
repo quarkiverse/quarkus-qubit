@@ -26,6 +26,11 @@ public final class ClassLoaderHelper {
     /** Cache for loaded classes to avoid repeated Class.forName() calls. */
     private static final ConcurrentHashMap<String, Class<?>> CLASS_CACHE = new ConcurrentHashMap<>();
 
+    /** Clears the class cache. Called at build start to prevent stale entries in long-running daemons. */
+    public static void clearCache() {
+        CLASS_CACHE.clear();
+    }
+
     /**
      * Attempts to load class with caching. Thread-safe via ConcurrentHashMap.computeIfAbsent.
      * <p>

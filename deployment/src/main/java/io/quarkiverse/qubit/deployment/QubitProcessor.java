@@ -21,6 +21,7 @@ import org.jboss.jandex.DotName;
 import org.jboss.jandex.IndexView;
 
 import io.quarkiverse.qubit.QubitEntity;
+import io.quarkiverse.qubit.deployment.common.ClassLoaderHelper;
 import io.quarkiverse.qubit.deployment.analysis.CallSite;
 import io.quarkiverse.qubit.deployment.analysis.CallSiteProcessor;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicQuickCheck;
@@ -180,10 +181,12 @@ public class QubitProcessor {
         // Set metrics collector on class generator for Gizmo2 timing
         classGenerator.setMetricsCollector(metricsCollector);
 
-        // Clear caches for fresh metrics collection (also essential for dev mode hot reload)
+        // Clear all static caches at build start to ensure fresh state.
+        // Essential for dev mode hot reload and long-running build daemons (mvnd).
         BytecodeLoader.clearCache();
         LambdaBytecodeAnalyzer.clearCache();
         QueryExecutorClassGenerator.clearCache();
+        ClassLoaderHelper.clearCache();
 
         Log.debugf("Qubit: Scanning for lambda call sites using invokedynamic analysis");
 
