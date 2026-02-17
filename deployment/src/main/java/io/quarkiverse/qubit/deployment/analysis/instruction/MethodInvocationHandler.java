@@ -200,6 +200,16 @@ public enum MethodInvocationHandler implements InstructionHandler {
             return;
         }
 
+        // Handle Math static methods (Math.abs, Math.sqrt, Math.ceil, etc.)
+        if (handleMathStaticMethod(ctx, staticInsn)) {
+            return;
+        }
+
+        // Handle Integer.signum() and Long.signum()
+        if (handleSignumMethod(ctx, staticInsn)) {
+            return;
+        }
+
         // Handle Subqueries.subquery(Class) factory method (delegated to SubqueryAnalyzer)
         if (subqueryAnalyzer.isSubqueriesMethodCall(staticInsn)) {
             subqueryAnalyzer.handleSubqueriesFactoryMethod(ctx, staticInsn);
@@ -563,6 +573,91 @@ public enum MethodInvocationHandler implements InstructionHandler {
     private void pushConstructorCall(AnalysisContext ctx, List<LambdaExpression> args, String owner) {
         Class<?> constructedType = TypeConverter.descriptorToClass("L" + owner + ";");
         ctx.push(new LambdaExpression.ConstructorCall(owner, args, constructedType));
+    }
+
+    // ─── Math Static Method Handling ─────────────────────────────────────────
+
+    private boolean handleMathStaticMethod(AnalysisContext ctx, MethodInsnNode staticInsn) {
+        if (!staticInsn.owner.equals(JVM_JAVA_LANG_MATH)) {
+            return false;
+        }
+        String methodName = staticInsn.name;
+
+        if (MATH_UNARY_METHODS.contains(methodName)) {
+            return handleUnaryMathMethod(ctx, methodName);
+        }
+        if (MATH_BINARY_METHODS.contains(methodName)) {
+            return handleBinaryMathMethod(ctx, methodName);
+        }
+        if (methodName.equals(METHOD_ROUND)) {
+            return handleMathRound(ctx);
+        }
+        return false;
+    }
+
+    private boolean handleUnaryMathMethod(AnalysisContext ctx, String methodName) {
+        if (ctx.getStack().isEmpty()) {
+            return false;
+        }
+        LambdaExpression operand = ctx.pop();
+        LambdaExpression.MathFunction.MathOp op = mapUnaryMathOp(methodName);
+        ctx.push(new LambdaExpression.MathFunction(op, operand, null));
+        return true;
+    }
+
+    private boolean handleBinaryMathMethod(AnalysisContext ctx, String methodName) {
+        if (ctx.getStack().size() < 2) {
+            return false;
+        }
+        LambdaExpression secondOperand = ctx.pop();
+        LambdaExpression firstOperand = ctx.pop();
+        LambdaExpression.MathFunction.MathOp op = mapBinaryMathOp(methodName);
+        ctx.push(new LambdaExpression.MathFunction(op, firstOperand, secondOperand));
+        return true;
+    }
+
+    private boolean handleMathRound(AnalysisContext ctx) {
+        if (ctx.getStack().isEmpty()) {
+            return false;
+        }
+        LambdaExpression operand = ctx.pop();
+        ctx.push(LambdaExpression.MathFunction.round(operand, LambdaExpression.Constant.ZERO_INT));
+        return true;
+    }
+
+    private boolean handleSignumMethod(AnalysisContext ctx, MethodInsnNode staticInsn) {
+        if (!staticInsn.name.equals(METHOD_SIGNUM)) {
+            return false;
+        }
+        if (!SIGNUM_OWNERS.contains(staticInsn.owner)) {
+            return false;
+        }
+        if (ctx.getStack().isEmpty()) {
+            return false;
+        }
+        LambdaExpression operand = ctx.pop();
+        ctx.push(LambdaExpression.MathFunction.sign(operand));
+        return true;
+    }
+
+    private static LambdaExpression.MathFunction.MathOp mapUnaryMathOp(String methodName) {
+        return switch (methodName) {
+            case METHOD_ABS -> LambdaExpression.MathFunction.MathOp.ABS;
+            case METHOD_SQRT -> LambdaExpression.MathFunction.MathOp.SQRT;
+            case METHOD_CEIL -> LambdaExpression.MathFunction.MathOp.CEILING;
+            case METHOD_FLOOR -> LambdaExpression.MathFunction.MathOp.FLOOR;
+            case METHOD_EXP -> LambdaExpression.MathFunction.MathOp.EXP;
+            case METHOD_LOG -> LambdaExpression.MathFunction.MathOp.LN;
+            case METHOD_SIGNUM -> LambdaExpression.MathFunction.MathOp.SIGN;
+            default -> throw new IllegalArgumentException("Unknown unary math method: " + methodName);
+        };
+    }
+
+    private static LambdaExpression.MathFunction.MathOp mapBinaryMathOp(String methodName) {
+        return switch (methodName) {
+            case METHOD_POW -> LambdaExpression.MathFunction.MathOp.POWER;
+            default -> throw new IllegalArgumentException("Unknown binary math method: " + methodName);
+        };
     }
 
     /** Auto-boxing valueOf owners — these are identity wrappers stripped during analysis. */
