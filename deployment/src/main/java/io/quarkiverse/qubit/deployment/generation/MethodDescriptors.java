@@ -106,6 +106,14 @@ public final class MethodDescriptors {
     public static final MethodDesc CB_SUBSTRING_3 = MethodDesc.of(CriteriaBuilder.class, "substring", Expression.class,
             Expression.class, Expression.class, Expression.class);
 
+    /** cb.locate(Expression<String>, Expression<String>) -> Expression<Integer> (JPA 2.0) */
+    public static final MethodDesc CB_LOCATE_2 = MethodDesc.of(CriteriaBuilder.class, "locate", Expression.class,
+            Expression.class, Expression.class);
+
+    /** cb.locate(Expression<String>, Expression<String>, Expression<Integer>) -> Expression<Integer> (JPA 2.0) */
+    public static final MethodDesc CB_LOCATE_3 = MethodDesc.of(CriteriaBuilder.class, "locate", Expression.class,
+            Expression.class, Expression.class, Expression.class);
+
     public static final MethodDesc CB_FUNCTION = MethodDesc.of(CriteriaBuilder.class, "function", Expression.class,
             String.class, Class.class, Expression[].class);
 

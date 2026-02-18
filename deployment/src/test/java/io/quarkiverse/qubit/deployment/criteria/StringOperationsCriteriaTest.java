@@ -1,5 +1,6 @@
 package io.quarkiverse.qubit.deployment.criteria;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -108,5 +109,17 @@ class StringOperationsCriteriaTest extends CriteriaQueryTestBase {
         assertCriteriaMethodCalled(structure, "equal");
         assertFieldAccessed(structure, "email");
         assertConstantUsed(structure, ""); // empty string literal
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {
+            "stringIndexOf", "stringIndexOfEquals", "stringIndexOfNotFound",
+            "stringIndexOfAtStart", "stringIndexOfGreaterOrEqual",
+            "stringIndexOfWithCapturedPattern"
+    })
+    @DisplayName("generates criteria for indexOf operations")
+    void indexOfOperation_generatesCriteria(String lambdaMethodName) {
+        LambdaExpression expression = analyzeLambda(lambdaMethodName);
+        assertCriteriaGenerationSucceeds(expression);
     }
 }

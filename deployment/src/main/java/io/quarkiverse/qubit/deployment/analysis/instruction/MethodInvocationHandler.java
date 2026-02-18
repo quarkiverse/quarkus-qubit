@@ -391,6 +391,9 @@ public enum MethodInvocationHandler implements InstructionHandler {
             case METHOD_SUBSTRING ->
                 handleSubstringMethod(ctx, methodInsn);
 
+            case METHOD_INDEX_OF ->
+                handleIndexOfMethod(ctx, methodInsn);
+
             default -> {
                 /* No action for unrecognized String methods */ }
         }
@@ -423,6 +426,24 @@ public enum MethodInvocationHandler implements InstructionHandler {
                 ctx.push(new LambdaExpression.MethodCall(target, METHOD_SUBSTRING, arguments, String.class));
             }
         }
+    }
+
+    /** Handles String.indexOf(String) and String.indexOf(String, int) -> MethodCall. */
+    private void handleIndexOfMethod(AnalysisContext ctx, MethodInsnNode methodInsn) {
+        // indexOf(String) — descriptor: (Ljava/lang/String;)I
+        if (methodInsn.desc.equals(DESC_STRING_TO_INT)) {
+            handleSingleArgumentMethodCall(ctx, METHOD_INDEX_OF, int.class);
+            return;
+        }
+        // indexOf(String, int) — descriptor: (Ljava/lang/String;I)I
+        if (methodInsn.desc.equals(DESC_STRING_INT_TO_INT) && ctx.getStackSize() >= 3) {
+            List<LambdaExpression> arguments = new ArrayList<>();
+            arguments.add(0, ctx.pop()); // fromIndex (was on top)
+            arguments.add(0, ctx.pop()); // searchString
+            LambdaExpression target = ctx.pop();
+            ctx.push(new LambdaExpression.MethodCall(target, METHOD_INDEX_OF, arguments, int.class));
+        }
+        // indexOf(int) and indexOf(int, int) — char-based: not supported, fall through silently
     }
 
     private void handleBigDecimalMethods(AnalysisContext ctx, MethodInsnNode methodInsn) {

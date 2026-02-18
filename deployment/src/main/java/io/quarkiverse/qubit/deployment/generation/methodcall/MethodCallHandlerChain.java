@@ -67,6 +67,7 @@ public final class MethodCallHandlerChain {
                 StringLikePatternHandler.INSTANCE, // startsWith, endsWith, contains
                 BigDecimalArithmeticHandler.INSTANCE, // add, subtract, multiply, divide
                 StringSubstringHandler.INSTANCE, // substring
+                StringIndexOfHandler.INSTANCE, // indexOf -> LOCATE with 0-based conversion
 
                 // DELEGATING priority - delegate to expression builders
                 TemporalAccessorHandler.INSTANCE, // getYear, getMonth, getDayOfMonth

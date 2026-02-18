@@ -203,6 +203,7 @@ public final class QubitConstants {
     public static final String METHOD_IS_EMPTY = "isEmpty";
     public static final String METHOD_IS_BLANK = "isBlank";
     public static final String METHOD_SUBSTRING = "substring";
+    public static final String METHOD_INDEX_OF = "indexOf";
 
     public static final Set<String> STRING_TRANSFORMATION_METHODS = Set.of(
             METHOD_TO_LOWER_CASE, METHOD_TO_UPPER_CASE, METHOD_TRIM);

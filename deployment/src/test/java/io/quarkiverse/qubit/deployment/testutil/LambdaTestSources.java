@@ -666,6 +666,33 @@ public class LambdaTestSources {
         return p -> (p.age > threshold && p.active) || p.salary > 80000;
     }
 
+    // ─── String indexOf Operations ──────────────────────────────────────────
+
+    public static QuerySpec<TestPerson, Boolean> stringIndexOf() {
+        return (TestPerson p) -> p.email.indexOf("@") > 0;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> stringIndexOfEquals() {
+        return (TestPerson p) -> p.email.indexOf("@") == 5;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> stringIndexOfNotFound() {
+        return (TestPerson p) -> p.email.indexOf("@") == -1;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> stringIndexOfAtStart() {
+        return (TestPerson p) -> p.firstName.indexOf("J") == 0;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> stringIndexOfGreaterOrEqual() {
+        return (TestPerson p) -> p.email.indexOf("@") >= 0;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> stringIndexOfWithCapturedPattern() {
+        String pattern = "@example";
+        return (TestPerson p) -> p.email.indexOf(pattern) >= 0;
+    }
+
     public static QuerySpec<TestPerson, Boolean> capturedBooleanVariable() {
         boolean isActive = true;
         return p -> p.active == isActive;

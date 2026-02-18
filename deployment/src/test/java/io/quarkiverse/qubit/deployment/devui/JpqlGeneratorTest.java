@@ -469,6 +469,61 @@ class JpqlGeneratorTest {
     }
 
     @Nested
+    @DisplayName("indexOf method calls")
+    class IndexOfMethodCalls {
+
+        @Test
+        @DisplayName("generates LOCATE - 1 for indexOf with one arg")
+        void generateIndexOfOneArg() {
+            LambdaExpression predicate = BinaryOp.gt(
+                    new MethodCall(
+                            new FieldAccess("email", String.class),
+                            "indexOf",
+                            java.util.List.of(new Constant("@", String.class)),
+                            int.class),
+                    new Constant(0, int.class));
+
+            String jpql = JpqlGenerator.generateJpql(PERSON_CLASS, predicate, null, false);
+
+            assertThat(jpql).contains("LOCATE('@', e.email) - 1");
+        }
+
+        @Test
+        @DisplayName("generates LOCATE - 1 for indexOf with two args")
+        void generateIndexOfTwoArgs() {
+            LambdaExpression predicate = BinaryOp.ge(
+                    new MethodCall(
+                            new FieldAccess("email", String.class),
+                            "indexOf",
+                            java.util.List.of(
+                                    new Constant("@", String.class),
+                                    new Constant(3, int.class)),
+                            int.class),
+                    new Constant(0, int.class));
+
+            String jpql = JpqlGenerator.generateJpql(PERSON_CLASS, predicate, null, false);
+
+            assertThat(jpql).contains("LOCATE('@', e.email, 3) - 1");
+        }
+
+        @Test
+        @DisplayName("generates LOCATE - 1 with captured variable")
+        void generateIndexOfWithCapturedVar() {
+            LambdaExpression predicate = BinaryOp.ge(
+                    new MethodCall(
+                            new FieldAccess("email", String.class),
+                            "indexOf",
+                            java.util.List.of(new CapturedVariable(0, String.class)),
+                            int.class),
+                    new Constant(0, int.class));
+
+            String jpql = JpqlGenerator.generateJpql(PERSON_CLASS, predicate, null, false);
+
+            assertThat(jpql).contains("LOCATE(:capturedVar0, e.email) - 1");
+        }
+    }
+
+    @Nested
     @DisplayName("Math method calls")
     class MathMethodCalls {
 

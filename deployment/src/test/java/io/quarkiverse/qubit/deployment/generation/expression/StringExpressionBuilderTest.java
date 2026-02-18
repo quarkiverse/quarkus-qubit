@@ -98,6 +98,18 @@ class StringExpressionBuilderTest {
         }
 
         @Test
+        @DisplayName("indexOf should return INDEX_OF")
+        void shouldReturnIndexOfForIndexOfMethod() {
+            LambdaExpression.MethodCall methodCall = createMethodCall("indexOf");
+
+            StringOperationType result = builder.getOperationType(methodCall);
+
+            assertThat(result)
+                    .as("getOperationType(\"indexOf\") should return INDEX_OF")
+                    .isEqualTo(StringOperationType.INDEX_OF);
+        }
+
+        @Test
         @DisplayName("should differentiate all operation types correctly")
         void shouldDifferentiateAllOperationTypes() {
             // Test each type once to verify no cross-contamination
@@ -107,6 +119,8 @@ class StringExpressionBuilderTest {
                     .isEqualTo(StringOperationType.PATTERN);
             assertThat(builder.getOperationType(createMethodCall("substring")))
                     .isEqualTo(StringOperationType.SUBSTRING);
+            assertThat(builder.getOperationType(createMethodCall("indexOf")))
+                    .isEqualTo(StringOperationType.INDEX_OF);
             assertThat(builder.getOperationType(createMethodCall("equals")))
                     .isEqualTo(StringOperationType.UTILITY);
             assertThat(builder.getOperationType(createMethodCall("unknownMethod")))

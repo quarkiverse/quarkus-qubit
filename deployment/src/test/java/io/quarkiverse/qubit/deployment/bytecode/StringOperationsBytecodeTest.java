@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -155,5 +157,38 @@ class StringOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
 
         assertThat(outerAnd.left()).isNotNull();
         assertThat(outerAnd.right()).isNotNull();
+    }
+
+    @Nested
+    @DisplayName("indexOf operations")
+    class IndexOfOperations {
+
+        @Test
+        @DisplayName("indexOf(String) produces MethodCall with indexOf name")
+        void stringIndexOf_producesMethodCallNode() {
+            LambdaExpression expr = analyzeLambda("stringIndexOf");
+            // Top level is BinaryOp (comparison > 0)
+            assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.GT);
+            LambdaExpression.BinaryOp comparison = (LambdaExpression.BinaryOp) expr;
+            // Left side should be MethodCall with indexOf
+            assertMethodCall(comparison.left(), "indexOf");
+            LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) comparison.left();
+            assertThat(methodCall.arguments()).hasSize(1);
+            // Target should be FieldAccess for email
+            assertFieldAccess(methodCall.target(), "email");
+        }
+
+        @Test
+        @DisplayName("indexOf(String) with captured pattern")
+        void stringIndexOfWithCapturedPattern_hasCapturedArgument() {
+            LambdaExpression expr = analyzeLambda("stringIndexOfWithCapturedPattern");
+            assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.GE);
+            LambdaExpression.BinaryOp comparison = (LambdaExpression.BinaryOp) expr;
+            assertMethodCall(comparison.left(), "indexOf");
+            LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) comparison.left();
+            assertThat(methodCall.arguments()).hasSize(1);
+            // First argument should be a CapturedVariable (the pattern)
+            assertThat(methodCall.arguments().getFirst()).isInstanceOf(LambdaExpression.CapturedVariable.class);
+        }
     }
 }

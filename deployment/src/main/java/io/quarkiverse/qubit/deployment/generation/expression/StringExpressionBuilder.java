@@ -7,6 +7,7 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_IS_BLA
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_IS_EMPTY;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_LENGTH;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_STARTS_WITH;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_INDEX_OF;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUBSTRING;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_TO_LOWER_CASE;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_TO_UPPER_CASE;
@@ -58,6 +59,9 @@ public enum StringExpressionBuilder implements ExpressionBuilder {
         if (methodName.equals(METHOD_SUBSTRING)) {
             return StringOperationType.SUBSTRING;
         }
+        if (methodName.equals(METHOD_INDEX_OF)) {
+            return StringOperationType.INDEX_OF;
+        }
         if (STRING_UTILITY_METHODS.contains(methodName)) {
             return StringOperationType.UTILITY;
         }
@@ -70,6 +74,7 @@ public enum StringExpressionBuilder implements ExpressionBuilder {
         TRANSFORMATION, // toLowerCase, toUpperCase, trim
         PATTERN, // startsWith, endsWith, contains
         SUBSTRING, // substring
+        INDEX_OF, // indexOf
         UTILITY // equals, length, isEmpty
     }
 
@@ -179,6 +184,51 @@ public enum StringExpressionBuilder implements ExpressionBuilder {
         }
 
         return BuilderResult.notApplicable();
+    }
+
+    /**
+     * Generates bytecode for indexOf with 1-based to 0-based result conversion.
+     *
+     * <p>
+     * JPA LOCATE returns 1-based positions (1 = first char, 0 = not found).
+     * Java indexOf returns 0-based positions (0 = first char, -1 = not found).
+     * Conversion: {@code cb.diff(cb.locate(...), cb.literal(1))}
+     * This correctly maps: LOCATE 0 (not found) -> -1, LOCATE 1 -> 0, LOCATE 2 -> 1, etc.
+     */
+    public BuilderResult buildStringIndexOf(
+            BlockCreator bc,
+            LambdaExpression.MethodCall methodCall,
+            Expr cb,
+            Expr fieldExpression,
+            List<Expr> arguments) {
+
+        if (!methodCall.methodName().equals(METHOD_INDEX_OF)) {
+            return BuilderResult.notApplicable();
+        }
+
+        Expr locateResult;
+
+        if (arguments.size() == 1) {
+            // indexOf(String) -> cb.locate(field, pattern)
+            Expr pattern = arguments.getFirst();
+            locateResult = bc.invokeInterface(MethodDescriptors.CB_LOCATE_2, cb, fieldExpression, pattern);
+        } else if (arguments.size() == 2) {
+            // indexOf(String, int fromIndex) -> cb.locate(field, pattern, fromIndex + 1)
+            Expr pattern = arguments.getFirst();
+            Expr fromIndex = arguments.get(1);
+            Expr fromJpa = addOneToExpression(bc, cb, fromIndex);
+            locateResult = bc.invokeInterface(MethodDescriptors.CB_LOCATE_3, cb, fieldExpression, pattern, fromJpa);
+        } else {
+            return BuilderResult.notApplicable();
+        }
+
+        // Subtract 1 from result: LOCATE returns 1-based, indexOf expects 0-based
+        // LOCATE returns 0 for not-found -> 0 - 1 = -1 (matches Java indexOf not-found)
+        Expr one = Const.of(1);
+        LocalVar oneLiteral = bc.localVar("indexOfOneLiteral", wrapAsLiteral(bc, cb, one));
+        Expr result = bc.invokeInterface(MethodDescriptors.CB_DIFF, cb, locateResult, oneLiteral);
+
+        return BuilderResult.success(result);
     }
 
     /** Generates bytecode for utility methods: equals, length, isEmpty, isBlank. */

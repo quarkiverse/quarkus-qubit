@@ -18,7 +18,7 @@ class MethodCallHandlerChainTest {
 
         List<MethodCallHandler> handlers = chain.handlers();
         assertFalse(handlers.isEmpty());
-        assertEquals(8, handlers.size());
+        assertEquals(9, handlers.size());
     }
 
     @Test
@@ -82,6 +82,7 @@ class MethodCallHandlerChainTest {
         assertEquals(HandlerPriority.FAST_REJECT, StringLikePatternHandler.INSTANCE.priority());
         assertEquals(HandlerPriority.FAST_REJECT, BigDecimalArithmeticHandler.INSTANCE.priority());
         assertEquals(HandlerPriority.FAST_REJECT, StringSubstringHandler.INSTANCE.priority());
+        assertEquals(HandlerPriority.FAST_REJECT, StringIndexOfHandler.INSTANCE.priority());
     }
 
     @Test

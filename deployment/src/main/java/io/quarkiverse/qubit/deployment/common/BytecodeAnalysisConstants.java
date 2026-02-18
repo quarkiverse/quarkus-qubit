@@ -16,6 +16,8 @@ public final class BytecodeAnalysisConstants {
     public static final String DESC_NO_ARG_TO_STRING = "()Ljava/lang/String;"; // toLowerCase, trim
     public static final String DESC_INT_TO_STRING = "(I)Ljava/lang/String;"; // substring(int)
     public static final String DESC_TWO_INTS_TO_STRING = "(II)Ljava/lang/String;"; // substring(int, int)
+    public static final String DESC_STRING_TO_INT = "(Ljava/lang/String;)I"; // indexOf(String)
+    public static final String DESC_STRING_INT_TO_INT = "(Ljava/lang/String;I)I"; // indexOf(String, int)
     public static final String DESC_CLASS_CONSTRUCTOR = "(Ljava/lang/Class;)V"; // QubitStreamImpl(Class<E>)
 
     /** Boolean markers (ICONST_0/1) - javac 11-25 emits within 5-10 instructions. */

@@ -5,6 +5,7 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_CONTAI
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_ENDS_WITH;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_EQUALS;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_EQUALS_IGNORE_CASE;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_INDEX_OF;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_GET_DAY_OF_MONTH;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_GET_HOUR;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_GET_MINUTE;
@@ -43,6 +44,8 @@ public final class JpqlGenerator {
     private static final String JPQL_LENGTH = "LENGTH(";
     private static final String JPQL_TRIM = "TRIM(";
     private static final String JPQL_SUBSTRING = "SUBSTRING(";
+    private static final String JPQL_LOCATE = "LOCATE(";
+    private static final String JPQL_MINUS_ONE = ") - 1";
 
     // Date/Time function prefixes
     private static final String JPQL_YEAR = "YEAR(";
@@ -198,6 +201,13 @@ public final class JpqlGenerator {
             case METHOD_TO_UPPER_CASE -> JPQL_UPPER + target + ")";
             case METHOD_TRIM -> JPQL_TRIM + target + ")";
             case METHOD_LENGTH -> JPQL_LENGTH + target + ")";
+            case METHOD_INDEX_OF -> {
+                if (methodCall.arguments().size() == 2) {
+                    String fromArg = expressionToJpqlBiEntity(methodCall.arguments().get(1), joinAlias);
+                    yield JPQL_LOCATE + firstArg + ", " + target + ", " + fromArg + JPQL_MINUS_ONE;
+                }
+                yield JPQL_LOCATE + firstArg + ", " + target + JPQL_MINUS_ONE;
+            }
             // Date/Time methods
             case METHOD_GET_YEAR -> JPQL_YEAR + target + ")";
             case METHOD_GET_MONTH_VALUE -> JPQL_MONTH + target + ")";
@@ -361,6 +371,14 @@ public final class JpqlGenerator {
                     yield JPQL_SUBSTRING + target + ", " + start + ")";
                 }
                 yield JPQL_SUBSTRING + target + ")";
+            }
+            case METHOD_INDEX_OF -> {
+                String arg = firstArgOrPlaceholder(methodCall);
+                if (methodCall.arguments().size() == 2) {
+                    String fromArg = expressionToJpql(methodCall.arguments().get(1));
+                    yield JPQL_LOCATE + arg + ", " + target + ", " + fromArg + JPQL_MINUS_ONE;
+                }
+                yield JPQL_LOCATE + arg + ", " + target + JPQL_MINUS_ONE;
             }
             case STRING_CONCAT -> {
                 String arg = firstArgOrPlaceholder(methodCall);
