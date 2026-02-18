@@ -12,6 +12,7 @@ import static io.quarkiverse.qubit.deployment.generation.GizmoHelper.createEleme
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CASE_OTHERWISE_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CASE_WHEN_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_AND;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_BETWEEN_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_CONCAT_EXPR_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_CONSTRUCT;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_EQUAL;
@@ -36,6 +37,7 @@ import jakarta.persistence.criteria.Selection;
 import org.jspecify.annotations.Nullable;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
+import io.quarkiverse.qubit.deployment.common.PatternDetector;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.ExistsSubquery;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.InExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.InSubquery;
@@ -471,6 +473,14 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             }
 
             case LOGICAL -> {
+                // BETWEEN optimization: detect field >= low && field <= high
+                if (binOp.operator() == LambdaExpression.BinaryOp.Operator.AND) {
+                    PatternDetector.BetweenComponents between = PatternDetector.detectBetween(binOp);
+                    if (between != null) {
+                        yield generateBetweenPredicate(bc, cb, root, capturedValues, between);
+                    }
+                }
+                // Standard AND/OR handling
                 Expr left = generatePredicate(bc, binOp.left(), cb, root, capturedValues);
                 Expr right = generatePredicate(bc, binOp.right(), cb, root, capturedValues);
                 yield combinePredicates(bc, cb, left, right, binOp.operator());
@@ -835,6 +845,15 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         };
 
         return bc.invokeInterface(combineMethod, cb, predicateArray);
+    }
+
+    /** Generates cb.between(field, lowerBound, upperBound) for detected BETWEEN patterns. */
+    private Expr generateBetweenPredicate(BlockCreator bc, Expr cb, Expr root, Expr capturedValues,
+            PatternDetector.BetweenComponents between) {
+        Expr fieldExpr = generateExpressionAsJpaExpression(bc, between.field(), cb, root, capturedValues);
+        Expr lowerExpr = generateExpressionAsJpaExpression(bc, between.lowerBound(), cb, root, capturedValues);
+        Expr upperExpr = generateExpressionAsJpaExpression(bc, between.upperBound(), cb, root, capturedValues);
+        return bc.invokeInterface(CB_BETWEEN_EXPR, cb, fieldExpr, lowerExpr, upperExpr);
     }
 
     /** Wraps value as literal Expression. */

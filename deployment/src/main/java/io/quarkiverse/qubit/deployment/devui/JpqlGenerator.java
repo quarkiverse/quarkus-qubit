@@ -25,6 +25,8 @@ import java.util.stream.Collectors;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.*;
+import io.quarkiverse.qubit.deployment.common.PatternDetector;
+import io.quarkiverse.qubit.deployment.common.PatternDetector.BetweenComponents;
 import io.quarkiverse.qubit.deployment.util.ClassNameUtils;
 
 /** Generates pseudo-JPQL strings from LambdaExpression AST for DevUI display. */
@@ -278,6 +280,17 @@ public final class JpqlGenerator {
     }
 
     private static String binaryOpToJpql(BinaryOp binaryOp) {
+        // BETWEEN optimization: detect field >= low && field <= high
+        if (binaryOp.operator() == BinaryOp.Operator.AND) {
+            BetweenComponents between = PatternDetector.detectBetween(binaryOp);
+            if (between != null) {
+                String field = expressionToJpql(between.field());
+                String lower = expressionToJpql(between.lowerBound());
+                String upper = expressionToJpql(between.upperBound());
+                return field + " BETWEEN " + lower + " AND " + upper;
+            }
+        }
+
         String left = expressionToJpql(binaryOp.left());
         String right = expressionToJpql(binaryOp.right());
         String op = operatorToJpql(binaryOp.operator());

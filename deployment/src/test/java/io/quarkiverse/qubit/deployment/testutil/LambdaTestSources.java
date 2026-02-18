@@ -702,4 +702,46 @@ public class LambdaTestSources {
         long employeeId = 1000001L;
         return p -> p.employeeId == employeeId;
     }
+
+    // ─── BETWEEN Operations ─────────────────────────────────────────────────
+
+    public static QuerySpec<TestPerson, Boolean> betweenCanonical() {
+        return (TestPerson p) -> p.age >= 18 && p.age <= 65;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> betweenCapturedVariables() {
+        int min = 18;
+        int max = 65;
+        return (TestPerson p) -> p.age >= min && p.age <= max;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> betweenReversedAndOrder() {
+        return (TestPerson p) -> p.age <= 65 && p.age >= 18;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> betweenReversedLeftOperand() {
+        int min = 18;
+        return (TestPerson p) -> min <= p.age && p.age <= 65;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> betweenReversedRightOperand() {
+        int max = 65;
+        return (TestPerson p) -> p.age >= 18 && max >= p.age;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> betweenDoubleSalary() {
+        return (TestPerson p) -> p.salary >= 50000 && p.salary <= 100000;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> exclusiveRangeNotBetween() {
+        return (TestPerson p) -> p.age > 18 && p.age < 65;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> differentFieldsNotBetween() {
+        return (TestPerson p) -> p.age >= 18 && p.employeeId <= 1000;
+    }
+
+    public static QuerySpec<TestPerson, Boolean> mixedOperatorsNotBetween() {
+        return (TestPerson p) -> p.age >= 18 && p.age < 65;
+    }
 }

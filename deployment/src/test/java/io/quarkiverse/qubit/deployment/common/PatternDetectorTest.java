@@ -902,6 +902,178 @@ class PatternDetectorTest {
     }
 
     @Nested
+    @DisplayName("detectBetween()")
+    class DetectBetweenTests {
+
+        private final LambdaExpression field = new LambdaExpression.FieldAccess("age", int.class);
+        private final LambdaExpression low = new LambdaExpression.Constant(18, int.class);
+        private final LambdaExpression high = new LambdaExpression.Constant(65, int.class);
+
+        // ─── Positive cases ─────────────────────────────────────────────
+
+        @Test
+        @DisplayName("canonical: field >= low AND field <= high")
+        void canonical_returnsBetweenComponents() {
+            LambdaExpression.BinaryOp binOp = BinaryOp.and(
+                    BinaryOp.ge(field, low),
+                    BinaryOp.le(field, high));
+
+            PatternDetector.BetweenComponents result = PatternDetector.detectBetween(binOp);
+
+            assertThat(result).isNotNull();
+            assertThat(result.field()).isEqualTo(field);
+            assertThat(result.lowerBound()).isEqualTo(low);
+            assertThat(result.upperBound()).isEqualTo(high);
+        }
+
+        @Test
+        @DisplayName("reversed AND order: field <= high AND field >= low")
+        void reversedAndOrder_returnsBetweenComponents() {
+            LambdaExpression.BinaryOp binOp = BinaryOp.and(
+                    BinaryOp.le(field, high),
+                    BinaryOp.ge(field, low));
+
+            PatternDetector.BetweenComponents result = PatternDetector.detectBetween(binOp);
+
+            assertThat(result).isNotNull();
+            assertThat(result.field()).isEqualTo(field);
+            assertThat(result.lowerBound()).isEqualTo(low);
+            assertThat(result.upperBound()).isEqualTo(high);
+        }
+
+        @Test
+        @DisplayName("reversed left operand: low <= field AND field <= high")
+        void reversedLeftOperand_returnsBetweenComponents() {
+            // le(low, field) means "low <= field" which normalizes to field >= low
+            LambdaExpression.BinaryOp binOp = BinaryOp.and(
+                    BinaryOp.le(low, field),
+                    BinaryOp.le(field, high));
+
+            PatternDetector.BetweenComponents result = PatternDetector.detectBetween(binOp);
+
+            assertThat(result).isNotNull();
+            assertThat(result.field()).isEqualTo(field);
+            assertThat(result.lowerBound()).isEqualTo(low);
+            assertThat(result.upperBound()).isEqualTo(high);
+        }
+
+        @Test
+        @DisplayName("reversed right operand: field >= low AND high >= field")
+        void reversedRightOperand_returnsBetweenComponents() {
+            // ge(high, field) means "high >= field" which normalizes to field <= high
+            LambdaExpression.BinaryOp binOp = BinaryOp.and(
+                    BinaryOp.ge(field, low),
+                    BinaryOp.ge(high, field));
+
+            PatternDetector.BetweenComponents result = PatternDetector.detectBetween(binOp);
+
+            assertThat(result).isNotNull();
+            assertThat(result.field()).isEqualTo(field);
+            assertThat(result.lowerBound()).isEqualTo(low);
+            assertThat(result.upperBound()).isEqualTo(high);
+        }
+
+        @Test
+        @DisplayName("with captured variables")
+        void withCapturedVariables_returnsBetweenComponents() {
+            LambdaExpression capturedLow = new LambdaExpression.CapturedVariable(0, int.class);
+            LambdaExpression capturedHigh = new LambdaExpression.CapturedVariable(1, int.class);
+            LambdaExpression.BinaryOp binOp = BinaryOp.and(
+                    BinaryOp.ge(field, capturedLow),
+                    BinaryOp.le(field, capturedHigh));
+
+            PatternDetector.BetweenComponents result = PatternDetector.detectBetween(binOp);
+
+            assertThat(result).isNotNull();
+            assertThat(result.field()).isEqualTo(field);
+            assertThat(result.lowerBound()).isEqualTo(capturedLow);
+            assertThat(result.upperBound()).isEqualTo(capturedHigh);
+        }
+
+        @Test
+        @DisplayName("PathExpression field: pathExpr >= low AND pathExpr <= high")
+        void pathExpressionField_returnsBetweenComponents() {
+            var segments = java.util.List.of(
+                    new LambdaExpression.PathSegment("address", Object.class,
+                            LambdaExpression.RelationType.MANY_TO_ONE),
+                    new LambdaExpression.PathSegment("zipCode", int.class,
+                            LambdaExpression.RelationType.FIELD));
+            LambdaExpression pathExpr = new LambdaExpression.PathExpression(segments, int.class);
+            LambdaExpression.BinaryOp binOp = BinaryOp.and(
+                    BinaryOp.ge(pathExpr, low),
+                    BinaryOp.le(pathExpr, high));
+
+            PatternDetector.BetweenComponents result = PatternDetector.detectBetween(binOp);
+
+            assertThat(result).isNotNull();
+            assertThat(result.field()).isEqualTo(pathExpr);
+            assertThat(result.lowerBound()).isEqualTo(low);
+            assertThat(result.upperBound()).isEqualTo(high);
+        }
+
+        // ─── Negative cases ─────────────────────────────────────────────
+
+        @Test
+        @DisplayName("OR operator instead of AND → returns null")
+        void orOperator_returnsNull() {
+            LambdaExpression.BinaryOp binOp = BinaryOp.or(
+                    BinaryOp.ge(field, low),
+                    BinaryOp.le(field, high));
+
+            assertThat(PatternDetector.detectBetween(binOp)).isNull();
+        }
+
+        @Test
+        @DisplayName("GT + LT (exclusive range) → returns null")
+        void exclusiveRange_returnsNull() {
+            LambdaExpression.BinaryOp binOp = BinaryOp.and(
+                    BinaryOp.gt(field, low),
+                    BinaryOp.lt(field, high));
+
+            assertThat(PatternDetector.detectBetween(binOp)).isNull();
+        }
+
+        @Test
+        @DisplayName("different fields → returns null")
+        void differentFields_returnsNull() {
+            LambdaExpression otherField = new LambdaExpression.FieldAccess("salary", double.class);
+            LambdaExpression.BinaryOp binOp = BinaryOp.and(
+                    BinaryOp.ge(field, low),
+                    BinaryOp.le(otherField, high));
+
+            assertThat(PatternDetector.detectBetween(binOp)).isNull();
+        }
+
+        @Test
+        @DisplayName("mixed operators (GE + LT) → returns null")
+        void mixedOperators_returnsNull() {
+            LambdaExpression.BinaryOp binOp = BinaryOp.and(
+                    BinaryOp.ge(field, low),
+                    BinaryOp.lt(field, high));
+
+            assertThat(PatternDetector.detectBetween(binOp)).isNull();
+        }
+
+        @Test
+        @DisplayName("non-comparison children (boolean fields) → returns null")
+        void nonComparisonChildren_returnsNull() {
+            LambdaExpression.BinaryOp binOp = BinaryOp.and(
+                    new LambdaExpression.FieldAccess("active", boolean.class),
+                    new LambdaExpression.FieldAccess("enabled", boolean.class));
+
+            assertThat(PatternDetector.detectBetween(binOp)).isNull();
+        }
+
+        @Test
+        @DisplayName("single comparison (no AND) → returns null")
+        void singleComparison_returnsNull() {
+            LambdaExpression.BinaryOp binOp = BinaryOp.ge(field, low);
+
+            assertThat(PatternDetector.detectBetween(binOp)).isNull();
+        }
+    }
+
+    @Nested
     @DisplayName("Additional mutation-killing tests")
     class AdditionalMutationKillingTests {
 

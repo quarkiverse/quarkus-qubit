@@ -57,6 +57,14 @@ public final class MethodDescriptors {
     public static final MethodDesc CB_LESS_THAN_OR_EQUAL_EXPR = MethodDesc.of(CriteriaBuilder.class, "lessThanOrEqualTo",
             Predicate.class, Expression.class, Expression.class);
 
+    /** cb.between(Expression, Expression, Expression) -> Predicate (JPA 2.0) */
+    public static final MethodDesc CB_BETWEEN_EXPR = MethodDesc.of(CriteriaBuilder.class, "between", Predicate.class,
+            Expression.class, Expression.class, Expression.class);
+
+    /** cb.between(Expression, Comparable, Comparable) -> Predicate (JPA 2.0) */
+    public static final MethodDesc CB_BETWEEN = MethodDesc.of(CriteriaBuilder.class, "between", Predicate.class,
+            Expression.class, Comparable.class, Comparable.class);
+
     public static final MethodDesc CB_COUNT = MethodDesc.of(CriteriaBuilder.class, "count", Expression.class, Expression.class);
     public static final MethodDesc CB_AVG = MethodDesc.of(CriteriaBuilder.class, "avg", Expression.class, Expression.class);
     public static final MethodDesc CB_SUM = MethodDesc.of(CriteriaBuilder.class, "sum", Expression.class, Expression.class);

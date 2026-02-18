@@ -1348,6 +1348,39 @@ class JpqlGeneratorTest {
     }
 
     @Nested
+    @DisplayName("BETWEEN optimization")
+    class BetweenOptimization {
+
+        @Test
+        @DisplayName("field >= low AND field <= high generates BETWEEN")
+        void canonicalBetween_generatesBetweenJpql() {
+            // e.age BETWEEN 18 AND 65
+            LambdaExpression predicate = BinaryOp.and(
+                    BinaryOp.ge(new FieldAccess("age", int.class), new Constant(18, int.class)),
+                    BinaryOp.le(new FieldAccess("age", int.class), new Constant(65, int.class)));
+
+            String jpql = JpqlGenerator.generateJpql(PERSON_CLASS, predicate, null, false);
+
+            assertThat(jpql)
+                    .contains("BETWEEN")
+                    .contains("e.age BETWEEN 18 AND 65");
+        }
+
+        @Test
+        @DisplayName("exclusive range (GT + LT) does NOT generate BETWEEN")
+        void exclusiveRange_doesNotGenerateBetween() {
+            // e.age > 18 AND e.age < 65 — not inclusive, no BETWEEN
+            LambdaExpression predicate = BinaryOp.and(
+                    BinaryOp.gt(new FieldAccess("age", int.class), new Constant(18, int.class)),
+                    BinaryOp.lt(new FieldAccess("age", int.class), new Constant(65, int.class)));
+
+            String jpql = JpqlGenerator.generateJpql(PERSON_CLASS, predicate, null, false);
+
+            assertThat(jpql).doesNotContain("BETWEEN");
+        }
+    }
+
+    @Nested
     @DisplayName("Default method handling")
     class DefaultMethodHandling {
 

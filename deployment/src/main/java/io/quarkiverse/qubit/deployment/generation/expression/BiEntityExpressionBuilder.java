@@ -7,6 +7,7 @@ import static io.quarkiverse.qubit.deployment.common.PatternDetector.isNegatedSu
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isNullCheckPattern;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isSubqueryBooleanComparison;
 import static io.quarkiverse.qubit.deployment.generation.GizmoHelper.buildConstructorExpression;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_BETWEEN_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NOT;
 
 import org.jspecify.annotations.Nullable;
@@ -267,6 +268,13 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
 
         // Logical operations
         if (isLogicalOperation(binOp)) {
+            // BETWEEN optimization: detect field >= low && field <= high
+            if (binOp.operator() == LambdaExpression.BinaryOp.Operator.AND) {
+                PatternDetector.BetweenComponents between = PatternDetector.detectBetween(binOp);
+                if (between != null) {
+                    return generateBiEntityBetweenPredicate(ctx, between);
+                }
+            }
             Expr left = generateBiEntityPredicate(ctx, binOp.left());
             Expr right = generateBiEntityPredicate(ctx, binOp.right());
             return ctx.helper().combinePredicates(ctx.bc(), ctx.cb(), left, right, binOp.operator());
@@ -288,6 +296,14 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
         LambdaExpression nonNullExpr = ctx.helper().extractNonNullExpression(binOp);
         Expr expression = generateBiEntityExpressionAsJpaExpression(ctx, nonNullExpr);
         return ctx.helper().generateNullCheckPredicate(ctx.bc(), ctx.cb(), expression, binOp.operator());
+    }
+
+    /** Generates cb.between(field, lowerBound, upperBound) for detected BETWEEN patterns in bi-entity context. */
+    private Expr generateBiEntityBetweenPredicate(BiEntityContext ctx, PatternDetector.BetweenComponents between) {
+        Expr fieldExpr = generateBiEntityExpressionAsJpaExpression(ctx, between.field());
+        Expr lowerExpr = generateBiEntityExpressionAsJpaExpression(ctx, between.lowerBound());
+        Expr upperExpr = generateBiEntityExpressionAsJpaExpression(ctx, between.upperBound());
+        return ctx.bc().invokeInterface(CB_BETWEEN_EXPR, ctx.cb(), fieldExpr, lowerExpr, upperExpr);
     }
 
     private Expr generateBiEntityUnaryOperation(BiEntityContext ctx, LambdaExpression.UnaryOp unOp) {

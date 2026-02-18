@@ -106,15 +106,13 @@ class ComparisonOperationsCriteriaTest extends CriteriaQueryTestBase {
         assertCriteriaMethodCalled(structure, expectedCriteriaMethod);
     }
 
-    @ParameterizedTest(name = "{0} → cb.and(ge, le)")
+    @ParameterizedTest(name = "{0} → cb.between()")
     @MethodSource("rangeQueries")
     void rangeQuery(String lambdaMethodName) {
         LambdaExpression expr = analyzeLambda(lambdaMethodName);
         CriteriaQueryStructure structure = generateCriteriaQuery(expr);
 
         assertCriteriaGenerationSucceeds(expr);
-        assertCriteriaMethodCalled(structure, "and");
-        assertCriteriaMethodCalled(structure, "greaterThanOrEqualTo");
-        assertCriteriaMethodCalled(structure, "lessThanOrEqualTo");
+        assertCriteriaMethodCalled(structure, "between");
     }
 }

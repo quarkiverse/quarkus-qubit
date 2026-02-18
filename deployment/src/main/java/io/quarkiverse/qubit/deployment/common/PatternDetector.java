@@ -15,6 +15,8 @@ import java.util.Deque;
 import java.util.Iterator;
 import java.util.function.Predicate;
 
+import org.jspecify.annotations.Nullable;
+
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.util.TypeConverter;
 
@@ -332,5 +334,113 @@ public final class PatternDetector {
             return Boolean.TRUE.equals(value) || Integer.valueOf(1).equals(value);
         }
         return false;
+    }
+
+    // ─── BETWEEN Pattern Detection ──────────────────────────────────────────
+
+    /**
+     * Components of a BETWEEN expression detected from an AND of two comparisons.
+     * Both bounds are inclusive (matches SQL BETWEEN semantics).
+     */
+    public record BetweenComponents(
+            LambdaExpression field,
+            LambdaExpression lowerBound,
+            LambdaExpression upperBound) {
+    }
+
+    /**
+     * Detects if a BinaryOp(AND) can be optimized to a BETWEEN expression.
+     *
+     * <p>
+     * Detects patterns where two comparisons on the same field form an inclusive range:
+     * {@code field >= low && field <= high} (and all operand-order variations).
+     *
+     * @return BetweenComponents if the pattern matches, null otherwise
+     */
+    public static @Nullable BetweenComponents detectBetween(LambdaExpression.BinaryOp binOp) {
+        if (binOp.operator() != LambdaExpression.BinaryOp.Operator.AND) {
+            return null;
+        }
+        if (!(binOp.left() instanceof LambdaExpression.BinaryOp left) ||
+                !(binOp.right() instanceof LambdaExpression.BinaryOp right)) {
+            return null;
+        }
+
+        // Normalize both comparisons to (field, operator, bound) form
+        NormalizedComparison leftNorm = normalizeComparison(left);
+        NormalizedComparison rightNorm = normalizeComparison(right);
+        if (leftNorm == null || rightNorm == null) {
+            return null;
+        }
+
+        // Both sides must reference the same field
+        if (!leftNorm.field.equals(rightNorm.field)) {
+            return null;
+        }
+
+        // Need one GE and one LE to form inclusive BETWEEN
+        if (leftNorm.isGe() && rightNorm.isLe()) {
+            return new BetweenComponents(leftNorm.field, leftNorm.bound, rightNorm.bound);
+        }
+        if (leftNorm.isLe() && rightNorm.isGe()) {
+            return new BetweenComponents(leftNorm.field, rightNorm.bound, leftNorm.bound);
+        }
+
+        return null;
+    }
+
+    /**
+     * A comparison normalized to (field, operator, bound) form.
+     * Handles reversed operands: "18 <= field" becomes (field, GE, 18).
+     */
+    private record NormalizedComparison(
+            LambdaExpression field,
+            LambdaExpression.BinaryOp.Operator operator,
+            LambdaExpression bound) {
+
+        boolean isGe() {
+            return operator == LambdaExpression.BinaryOp.Operator.GE;
+        }
+
+        boolean isLe() {
+            return operator == LambdaExpression.BinaryOp.Operator.LE;
+        }
+    }
+
+    /**
+     * Normalizes a comparison BinaryOp to (field, op, bound) form.
+     * Handles reversed operands by flipping the operator.
+     * Returns null if not a GE or LE comparison.
+     */
+    private static @Nullable NormalizedComparison normalizeComparison(LambdaExpression.BinaryOp comp) {
+        var op = comp.operator();
+        var left = comp.left();
+        var right = comp.right();
+
+        // Only GE and LE map to inclusive BETWEEN
+        if (op != LambdaExpression.BinaryOp.Operator.GE && op != LambdaExpression.BinaryOp.Operator.LE) {
+            return null;
+        }
+
+        // Direct form: field >= value or field <= value
+        if (isEntityFieldExpression(left)) {
+            return new NormalizedComparison(left, op, right);
+        }
+        // Reversed form: value <= field -> field >= value, value >= field -> field <= value
+        if (isEntityFieldExpression(right)) {
+            var flippedOp = flipOperator(op);
+            return new NormalizedComparison(right, flippedOp, left);
+        }
+
+        return null;
+    }
+
+    /** Flips comparison operator direction: GE <-> LE. */
+    private static LambdaExpression.BinaryOp.Operator flipOperator(LambdaExpression.BinaryOp.Operator op) {
+        return switch (op) {
+            case GE -> LambdaExpression.BinaryOp.Operator.LE;
+            case LE -> LambdaExpression.BinaryOp.Operator.GE;
+            default -> throw new IllegalArgumentException("Can only flip GE/LE, got: " + op);
+        };
     }
 }

@@ -2,6 +2,7 @@ package io.quarkiverse.qubit.deployment.generation.expression;
 
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.COUNT_SHOULD_BE_HANDLED_ABOVE;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isLogicalOperation;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_BETWEEN_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.GizmoHelper.buildConstructorExpression;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CASE_OTHERWISE_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CASE_WHEN_EXPR;
@@ -206,6 +207,20 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
 
         // Logical operations (AND, OR)
         if (isLogicalOperation(binOp)) {
+            // BETWEEN optimization: detect field >= low && field <= high
+            if (binOp.operator() == LambdaExpression.BinaryOp.Operator.AND) {
+                PatternDetector.BetweenComponents between = PatternDetector.detectBetween(binOp);
+                if (between != null) {
+                    Expr fieldExpr = generateGroupSelectExpression(bc, between.field(), cb, root, groupKeyExpr,
+                            capturedValues, helper);
+                    Expr lowerExpr = generateGroupSelectExpression(bc, between.lowerBound(), cb, root, groupKeyExpr,
+                            capturedValues, helper);
+                    Expr upperExpr = generateGroupSelectExpression(bc, between.upperBound(), cb, root, groupKeyExpr,
+                            capturedValues, helper);
+                    return bc.invokeInterface(CB_BETWEEN_EXPR, cb, fieldExpr, lowerExpr, upperExpr);
+                }
+            }
+
             Expr left = generateGroupPredicate(bc, binOp.left(), cb, root, groupKeyExpr, capturedValues, helper);
             Expr right = generateGroupPredicate(bc, binOp.right(), cb, root, groupKeyExpr, capturedValues, helper);
 
