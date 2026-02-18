@@ -1465,6 +1465,67 @@ class JpqlGeneratorTest {
     }
 
     @Nested
+    @DisplayName("LIKE pattern method calls")
+    class LikePatternMethodCalls {
+
+        @Test
+        @DisplayName("generates LIKE for Qubit.like()")
+        void generateLike() {
+            LambdaExpression predicate = new MethodCall(
+                    new FieldAccess("email", String.class),
+                    "like",
+                    java.util.List.of(new Constant("%@%.com", String.class)),
+                    boolean.class);
+
+            String jpql = JpqlGenerator.generateJpql(PERSON_CLASS, predicate, null, false);
+
+            assertThat(jpql).isEqualTo("SELECT e FROM Person e WHERE e.email LIKE '%@%.com'");
+        }
+
+        @Test
+        @DisplayName("generates NOT LIKE for Qubit.notLike()")
+        void generateNotLike() {
+            LambdaExpression predicate = new MethodCall(
+                    new FieldAccess("email", String.class),
+                    "notLike",
+                    java.util.List.of(new Constant("%spam%", String.class)),
+                    boolean.class);
+
+            String jpql = JpqlGenerator.generateJpql(PERSON_CLASS, predicate, null, false);
+
+            assertThat(jpql).isEqualTo("SELECT e FROM Person e WHERE e.email NOT LIKE '%spam%'");
+        }
+
+        @Test
+        @DisplayName("generates LIKE with captured variable")
+        void generateLikeWithCapturedVariable() {
+            LambdaExpression predicate = new MethodCall(
+                    new FieldAccess("email", String.class),
+                    "like",
+                    java.util.List.of(new CapturedVariable(0, String.class, "pattern")),
+                    boolean.class);
+
+            String jpql = JpqlGenerator.generateJpql(PERSON_CLASS, predicate, null, false);
+
+            assertThat(jpql).isEqualTo("SELECT e FROM Person e WHERE e.email LIKE :pattern");
+        }
+
+        @Test
+        @DisplayName("generates LIKE with single-char wildcard")
+        void generateLikeWithSingleCharWildcard() {
+            LambdaExpression predicate = new MethodCall(
+                    new FieldAccess("firstName", String.class),
+                    "like",
+                    java.util.List.of(new Constant("J_hn", String.class)),
+                    boolean.class);
+
+            String jpql = JpqlGenerator.generateJpql(PERSON_CLASS, predicate, null, false);
+
+            assertThat(jpql).contains("e.firstName LIKE 'J_hn'");
+        }
+    }
+
+    @Nested
     @DisplayName("Default method handling")
     class DefaultMethodHandling {
 

@@ -9,6 +9,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Inheritance;
 import jakarta.persistence.InheritanceType;
 
+import io.quarkiverse.qubit.Qubit;
 import io.quarkiverse.qubit.QubitEntity;
 import io.quarkiverse.qubit.QubitMath;
 import io.quarkiverse.qubit.QuerySpec;
@@ -862,5 +863,33 @@ public class LambdaTestSources {
     public static QuerySpec<TestPerson, Boolean> foldedIntCaptured() {
         int minAge = 15;
         return (TestPerson p) -> p.age > TestUtils.doubleValue(minAge);
+    }
+
+    // ─── LIKE Pattern Operations ─────────────────────────────────────────────
+
+    // Arbitrary LIKE pattern with constant
+    public static QuerySpec<TestPerson, Boolean> likePattern() {
+        return (TestPerson p) -> Qubit.like(p.email, "%@%.com");
+    }
+
+    // LIKE with captured variable pattern
+    public static QuerySpec<TestPerson, Boolean> likeCapturedPattern() {
+        String pattern = "%@example%";
+        return (TestPerson p) -> Qubit.like(p.email, pattern);
+    }
+
+    // NOT LIKE pattern
+    public static QuerySpec<TestPerson, Boolean> notLikePattern() {
+        return (TestPerson p) -> Qubit.notLike(p.email, "%spam%");
+    }
+
+    // LIKE with single-char wildcard
+    public static QuerySpec<TestPerson, Boolean> likeSingleCharWildcard() {
+        return (TestPerson p) -> Qubit.like(p.firstName, "J_hn");
+    }
+
+    // LIKE combined with other conditions
+    public static QuerySpec<TestPerson, Boolean> likeCombinedWithAnd() {
+        return (TestPerson p) -> Qubit.like(p.email, "%@%.com") && p.active;
     }
 }

@@ -1,0 +1,59 @@
+package io.quarkiverse.qubit;
+
+/**
+ * Marker class for Qubit query operations that have no direct Java equivalent.
+ *
+ * <p>
+ * Methods in this class are never executed at runtime. During build-time
+ * bytecode analysis, calls to these methods are intercepted and replaced
+ * with JPA Criteria API expressions.
+ *
+ * <p>
+ * Example usage:
+ *
+ * <pre>{@code
+ * // Arbitrary LIKE pattern with % and _ wildcards
+ * Person.where(p -> Qubit.like(p.email, "%@%.com")).toList();
+ * }</pre>
+ *
+ * @see QubitMath for mathematical marker methods
+ */
+public final class Qubit {
+
+    private Qubit() {
+    }
+
+    /**
+     * Matches a string field against a SQL LIKE pattern.
+     *
+     * <p>
+     * Use {@code %} for any sequence of characters and {@code _} for a single character.
+     * Maps to {@code CriteriaBuilder.like(Expression, String)} at build time.
+     *
+     * <p>
+     * For common prefix/suffix/substring matching, prefer the native Java methods:
+     * {@code startsWith()}, {@code endsWith()}, {@code contains()}.
+     *
+     * @param value the string field to match
+     * @param pattern the LIKE pattern with {@code %} and {@code _} wildcards
+     * @return always true (never executed at runtime)
+     */
+    public static boolean like(String value, String pattern) {
+        return true; // Never executed — intercepted at build time
+    }
+
+    /**
+     * Matches a string field against a SQL NOT LIKE pattern.
+     *
+     * <p>
+     * Use {@code %} for any sequence of characters and {@code _} for a single character.
+     * Maps to {@code CriteriaBuilder.not(CriteriaBuilder.like(Expression, String))} at build time.
+     *
+     * @param value the string field to match
+     * @param pattern the LIKE pattern with {@code %} and {@code _} wildcards
+     * @return always true (never executed at runtime)
+     */
+    public static boolean notLike(String value, String pattern) {
+        return true; // Never executed — intercepted at build time
+    }
+}

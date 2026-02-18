@@ -187,6 +187,13 @@ public final class QubitConstants {
     /** JVM internal name for QubitMath marker class. */
     public static final String JVM_QUBIT_MATH = "io/quarkiverse/qubit/QubitMath";
 
+    /** JVM internal name for Qubit marker class. */
+    public static final String JVM_QUBIT = "io/quarkiverse/qubit/Qubit";
+
+    // Qubit marker method names
+    public static final String METHOD_LIKE = "like";
+    public static final String METHOD_NOT_LIKE = "notLike";
+
     public static final String METHOD_STARTS_WITH = "startsWith";
     public static final String METHOD_ENDS_WITH = "endsWith";
     public static final String METHOD_CONTAINS = "contains";

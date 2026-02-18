@@ -15,6 +15,7 @@ public sealed interface MethodCallHandler permits
         StringTransformationHandler,
         BigDecimalArithmeticHandler,
         StringLikePatternHandler,
+        QubitLikeHandler,
         StringSubstringHandler,
         StringIndexOfHandler,
         StringUtilityHandler,

@@ -6,6 +6,8 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_ENDS_W
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_EQUALS;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_EQUALS_IGNORE_CASE;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_INDEX_OF;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_LIKE;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_NOT_LIKE;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_GET_DAY_OF_MONTH;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_GET_HOUR;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_GET_MINUTE;
@@ -211,6 +213,9 @@ public final class JpqlGenerator {
                 }
                 yield JPQL_LOCATE + firstArg + ", " + target + JPQL_MINUS_ONE;
             }
+            // Qubit.like() / Qubit.notLike()
+            case METHOD_LIKE -> target + " LIKE " + firstArg;
+            case METHOD_NOT_LIKE -> target + " NOT LIKE " + firstArg;
             // Date/Time methods
             case METHOD_GET_YEAR -> JPQL_YEAR + target + ")";
             case METHOD_GET_MONTH_VALUE -> JPQL_MONTH + target + ")";
@@ -399,6 +404,15 @@ public final class JpqlGenerator {
             case STRING_CONCAT -> {
                 String arg = firstArgOrPlaceholder(methodCall);
                 yield JPQL_CONCAT + target + ", " + arg + ")";
+            }
+            // Qubit.like() / Qubit.notLike()
+            case METHOD_LIKE -> {
+                String arg = firstArgOrPlaceholder(methodCall);
+                yield target + " LIKE " + arg;
+            }
+            case METHOD_NOT_LIKE -> {
+                String arg = firstArgOrPlaceholder(methodCall);
+                yield target + " NOT LIKE " + arg;
             }
             // Math methods
             case "abs" -> "ABS(" + target + ")";

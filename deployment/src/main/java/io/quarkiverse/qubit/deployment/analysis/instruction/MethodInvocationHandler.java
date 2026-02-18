@@ -215,6 +215,11 @@ public enum MethodInvocationHandler implements InstructionHandler {
             return;
         }
 
+        // Handle Qubit.like(field, pattern) and Qubit.notLike(field, pattern)
+        if (handleQubitLikeMethod(ctx, staticInsn)) {
+            return;
+        }
+
         // Handle Subqueries.subquery(Class) factory method (delegated to SubqueryAnalyzer)
         if (subqueryAnalyzer.isSubqueriesMethodCall(staticInsn)) {
             subqueryAnalyzer.handleSubqueriesFactoryMethod(ctx, staticInsn);
@@ -655,6 +660,29 @@ public enum MethodInvocationHandler implements InstructionHandler {
         }
         LambdaExpression operand = ctx.pop();
         ctx.push(LambdaExpression.MathFunction.round(operand, LambdaExpression.Constant.ZERO_INT));
+        return true;
+    }
+
+    /** Handles Qubit.like(field, pattern) and Qubit.notLike(field, pattern) marker methods. */
+    private boolean handleQubitLikeMethod(AnalysisContext ctx, MethodInsnNode staticInsn) {
+        if (!staticInsn.owner.equals(JVM_QUBIT)) {
+            return false;
+        }
+        boolean isLike = staticInsn.name.equals(METHOD_LIKE);
+        boolean isNotLike = staticInsn.name.equals(METHOD_NOT_LIKE);
+        if (!isLike && !isNotLike) {
+            return false;
+        }
+        if (ctx.getStack().size() < 2) {
+            return false;
+        }
+        LambdaExpression pattern = ctx.pop(); // second arg (pattern)
+        LambdaExpression field = ctx.pop(); // first arg (field)
+
+        // Create MethodCall with "like" or "notLike" name
+        // The code generation handler will map this to cb.like() or cb.not(cb.like())
+        String methodName = isLike ? METHOD_LIKE : METHOD_NOT_LIKE;
+        ctx.push(new LambdaExpression.MethodCall(field, methodName, List.of(pattern), boolean.class));
         return true;
     }
 
