@@ -85,6 +85,12 @@ public final class CapturedVariableHelper {
             case LambdaExpression.TreatExpression(_, var inner) ->
                 collectCapturedVariableIndices(inner, capturedIndices);
 
+            case LambdaExpression.FoldedMethodCall(_, _, _, var args, _) -> {
+                for (LambdaExpression arg : args) {
+                    collectCapturedVariableIndices(arg, capturedIndices);
+                }
+            }
+
             // No captured variables (separate cases for exhaustiveness)
             case LambdaExpression.PathExpression _ -> {
                 /* no-op */ }
@@ -171,6 +177,10 @@ public final class CapturedVariableHelper {
                 new LambdaExpression.TreatExpression(
                         treatType,
                         renumberCapturedVariables(inner, offset));
+
+            case LambdaExpression.FoldedMethodCall(var owner, var name, var desc, var args, var ret) ->
+                new LambdaExpression.FoldedMethodCall(owner, name, desc,
+                        args.stream().map(a -> renumberCapturedVariables(a, offset)).toList(), ret);
 
             // No captured variables - return as-is
             default -> expression;

@@ -219,6 +219,12 @@ public final class ExpressionTypeCounter {
 
             case TreatExpression treat -> countRecursive(treat.inner(), counts);
 
+            case FoldedMethodCall folded -> {
+                for (LambdaExpression arg : folded.arguments()) {
+                    countRecursive(arg, counts);
+                }
+            }
+
             // Leaf nodes that don't contribute to expression type counts
             case Parameter _,CapturedVariable _,NullLiteral _,BiEntityParameter _,GroupParameter _ -> {
                 // No counting for these leaf nodes

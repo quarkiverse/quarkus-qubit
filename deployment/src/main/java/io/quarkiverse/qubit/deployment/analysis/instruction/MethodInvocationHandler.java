@@ -227,6 +227,9 @@ public enum MethodInvocationHandler implements InstructionHandler {
                 return; // First matching spec wins
             }
         }
+
+        // Catch-all: attempt constant folding for unknown static methods
+        handleUnknownStaticMethod(ctx, staticInsn);
     }
 
     /** Handles INVOKESPECIAL: constructor calls with BigDecimal constant folding. */
@@ -708,6 +711,144 @@ public enum MethodInvocationHandler implements InstructionHandler {
             case METHOD_POW -> LambdaExpression.MathFunction.MathOp.POWER;
             default -> throw new IllegalArgumentException("Unknown binary math method: " + methodName);
         };
+    }
+
+    // ─── External Method Constant Folding ──────────────────────────────────
+
+    /**
+     * Classification of method arguments for constant folding.
+     * ALL_CONSTANT: every argument is a Constant — can evaluate at build time.
+     * HAS_CAPTURED: mix of Constants and CapturedVariables — runtime FoldedMethodCall.
+     * NOT_FOLDABLE: contains entity fields or other expressions — cannot fold.
+     */
+    private enum Foldability {
+        ALL_CONSTANT,
+        HAS_CAPTURED,
+        NOT_FOLDABLE
+    }
+
+    /** Classifies whether the given arguments are foldable. */
+    private static Foldability classifyArguments(LambdaExpression[] args) {
+        boolean allConstant = true;
+        for (LambdaExpression arg : args) {
+            switch (arg) {
+                case LambdaExpression.Constant _ -> {
+                    /* OK */ }
+                case LambdaExpression.CapturedVariable _ -> allConstant = false;
+                default -> {
+                    return Foldability.NOT_FOLDABLE;
+                }
+            }
+        }
+        return allConstant ? Foldability.ALL_CONSTANT : Foldability.HAS_CAPTURED;
+    }
+
+    /** Re-pushes all arguments back onto the stack (used when folding is not possible). */
+    private static void repushArguments(AnalysisContext ctx, LambdaExpression[] args) {
+        for (LambdaExpression arg : args) {
+            ctx.push(arg);
+        }
+    }
+
+    /**
+     * Handles unrecognized static methods by attempting constant folding.
+     * If all arguments are constants or captured variables, the method can be
+     * evaluated at build time (all constants) or at query execution time (captured vars).
+     * If any argument is an entity field expression, the method call is silently skipped.
+     */
+    private void handleUnknownStaticMethod(AnalysisContext ctx, MethodInsnNode staticInsn) {
+        int argCount = DescriptorParser.countMethodArguments(staticInsn.desc);
+        if (argCount == 0 || ctx.getStackSize() < argCount) {
+            return;
+        }
+
+        // Pop arguments from stack (reverse order)
+        LambdaExpression[] args = new LambdaExpression[argCount];
+        for (int i = argCount - 1; i >= 0; i--) {
+            args[i] = ctx.pop();
+        }
+
+        Foldability foldability = classifyArguments(args);
+        if (foldability == Foldability.NOT_FOLDABLE) {
+            repushArguments(ctx, args);
+            return;
+        }
+
+        // Resolve the owner class
+        Class<?> ownerClass = resolveOwnerClass(staticInsn.owner);
+        if (ownerClass == null) {
+            repushArguments(ctx, args);
+            return;
+        }
+
+        // Verify the method actually exists on the owner class before proceeding
+        Class<?>[] paramTypes = DescriptorParser.getParameterTypes(staticInsn.desc);
+        if (!hasStaticMethod(ownerClass, staticInsn.name, paramTypes)) {
+            repushArguments(ctx, args);
+            return;
+        }
+
+        Class<?> returnType = DescriptorParser.getReturnType(staticInsn.desc);
+
+        // Case 1: All constant — evaluate at build time
+        if (foldability == Foldability.ALL_CONSTANT) {
+            Object result = evaluateStaticMethodAtBuildTime(ownerClass, staticInsn.name, paramTypes, args);
+            if (result != null) {
+                ctx.push(new LambdaExpression.Constant(result, returnType));
+                return;
+            }
+        }
+
+        // Case 2: Has captured variables (or build-time evaluation failed) — create FoldedMethodCall
+        ctx.push(new LambdaExpression.FoldedMethodCall(
+                ownerClass,
+                staticInsn.name,
+                staticInsn.desc,
+                List.of(args),
+                returnType));
+    }
+
+    /** Returns true if the class has a public static method with the given name and parameter types. */
+    private static boolean hasStaticMethod(Class<?> ownerClass, String methodName, Class<?>[] paramTypes) {
+        try {
+            java.lang.reflect.Method method = ownerClass.getMethod(methodName, paramTypes);
+            return java.lang.reflect.Modifier.isStatic(method.getModifiers());
+        } catch (NoSuchMethodException _) {
+            return false;
+        }
+    }
+
+    /** Resolves a JVM internal class name to a Class, or null if not available at build time. */
+    @org.jspecify.annotations.Nullable
+    private static Class<?> resolveOwnerClass(String internalName) {
+        try {
+            return Class.forName(internalName.replace('/', '.'), false,
+                    Thread.currentThread().getContextClassLoader());
+        } catch (ClassNotFoundException _) {
+            return null;
+        }
+    }
+
+    /**
+     * Evaluates a static method at build time via reflection.
+     * All arguments must be Constants (caller guarantees this via Foldability.ALL_CONSTANT check).
+     * Returns null on any reflection failure.
+     */
+    @org.jspecify.annotations.Nullable
+    private static Object evaluateStaticMethodAtBuildTime(
+            Class<?> ownerClass, String methodName, Class<?>[] paramTypes, LambdaExpression[] args) {
+        try {
+            Object[] values = new Object[args.length];
+            for (int i = 0; i < args.length; i++) {
+                values[i] = ((LambdaExpression.Constant) args[i]).value();
+            }
+            java.lang.reflect.Method method = ownerClass.getMethod(methodName, paramTypes);
+            return method.invoke(null, values);
+        } catch (Exception e) {
+            Log.debugf("Failed to evaluate static method %s.%s at build time: %s",
+                    ownerClass.getSimpleName(), methodName, e.getMessage());
+            return null;
+        }
     }
 
     /** Auto-boxing valueOf owners — these are identity wrappers stripped during analysis. */

@@ -827,4 +827,40 @@ public class LambdaTestSources {
     public static QuerySpec<TestAnimal, Boolean> patternMatchWithParentField() {
         return (TestAnimal a) -> a instanceof TestDog d && d.breed.equals("Lab") && a.weight > 20;
     }
+
+    // ─── Constant Folding Operations ─────────────────────────────────────────
+
+    // All-constant args: evaluated at build time
+    public static QuerySpec<TestPerson, Boolean> foldedAllConstant() {
+        return (TestPerson p) -> p.firstName.equals(TestUtils.toUpper("hello"));
+    }
+
+    // Captured variable arg: evaluated at runtime
+    public static QuerySpec<TestPerson, Boolean> foldedCapturedVariable() {
+        String searchTerm = "hello";
+        return (TestPerson p) -> p.firstName.equals(TestUtils.toUpper(searchTerm));
+    }
+
+    // Two-arg method with constants
+    public static QuerySpec<TestPerson, Boolean> foldedTwoArgConstant() {
+        return (TestPerson p) -> p.firstName.equals(TestUtils.withPrefix("Mr.", "Smith"));
+    }
+
+    // Two-arg method with captured variables
+    public static QuerySpec<TestPerson, Boolean> foldedTwoArgCaptured() {
+        String prefix = "Mr.";
+        String name = "Smith";
+        return (TestPerson p) -> p.firstName.equals(TestUtils.withPrefix(prefix, name));
+    }
+
+    // Integer constant folding
+    public static QuerySpec<TestPerson, Boolean> foldedIntConstant() {
+        return (TestPerson p) -> p.age > TestUtils.doubleValue(15);
+    }
+
+    // Integer with captured variable
+    public static QuerySpec<TestPerson, Boolean> foldedIntCaptured() {
+        int minAge = 15;
+        return (TestPerson p) -> p.age > TestUtils.doubleValue(minAge);
+    }
 }

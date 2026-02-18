@@ -273,6 +273,7 @@ public final class JpqlGenerator {
             case SubqueryBuilderReference _ -> "(SUBQUERY)";
             case MathFunction mathFunc -> mathFunctionToJpql(mathFunc);
             case TreatExpression treat -> treatExpressionToJpql(treat);
+            case FoldedMethodCall folded -> foldedMethodCallToJpql(folded);
         };
     }
 
@@ -575,6 +576,13 @@ public final class JpqlGenerator {
                 yield "ROUND(" + operand + ", " + second + ")";
             }
         };
+    }
+
+    private static String foldedMethodCallToJpql(FoldedMethodCall folded) {
+        String args = folded.arguments().stream()
+                .map(JpqlGenerator::expressionToJpql)
+                .collect(Collectors.joining(", "));
+        return folded.ownerClass().getSimpleName() + "." + folded.methodName() + "(" + args + ")";
     }
 
     private static String treatExpressionToJpql(TreatExpression treat) {

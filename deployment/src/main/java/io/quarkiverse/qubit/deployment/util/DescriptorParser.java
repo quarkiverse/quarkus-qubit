@@ -190,6 +190,25 @@ public final class DescriptorParser {
         return returnType.contains(classInternalName);
     }
 
+    /** Returns the return type Class from a method descriptor. Uses TypeConverter for resolution. */
+    public static Class<?> getReturnType(String descriptor) {
+        String returnTypeDesc = getReturnTypeDescriptor(descriptor);
+        if (returnTypeDesc.isEmpty() || "V".equals(returnTypeDesc)) {
+            return void.class;
+        }
+        return TypeConverter.descriptorToClass(returnTypeDesc);
+    }
+
+    /** Returns an array of parameter types from a method descriptor. */
+    public static Class<?>[] getParameterTypes(String descriptor) {
+        int paramCount = countMethodArguments(descriptor);
+        Class<?>[] types = new Class<?>[paramCount];
+        for (int i = 0; i < paramCount; i++) {
+            types[i] = getParameterType(descriptor, i);
+        }
+        return types;
+    }
+
     /** Iterates method descriptor parameters accounting for wide types (long/double take 2 slots). */
     public static class ParameterIterator {
         private final String descriptor;

@@ -49,6 +49,7 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.MemberOfExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.PathSegment;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.ScalarSubquery;
+import io.quarkiverse.qubit.deployment.util.DescriptorParser;
 import io.quarkiverse.qubit.deployment.generation.expression.BiEntityBaseContext;
 import io.quarkiverse.qubit.deployment.generation.expression.MathExpressionBuilder;
 import io.quarkiverse.qubit.deployment.generation.expression.BiEntitySubqueryContext;
@@ -422,6 +423,9 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             case LambdaExpression.TreatExpression treat ->
                 generateTreatExpression(bc, treat, cb, root, capturedValues);
 
+            case LambdaExpression.FoldedMethodCall folded ->
+                generateFoldedMethodCall(bc, cb, root, capturedValues, folded);
+
             default -> throw new UnsupportedExpressionException(expression);
         };
     }
@@ -504,6 +508,31 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
         // Generate inner expression using treatedRoot instead of root
         return generateExpressionAsJpaExpression(bc, treat.inner(), cb, treatedRoot, capturedValues);
+    }
+
+    /**
+     * Generates runtime evaluation of a folded static method call.
+     * Evaluates the static method with the given arguments and wraps the result as a JPA literal.
+     */
+    private Expr generateFoldedMethodCall(BlockCreator bc, Expr cb, Expr root, Expr capturedValues,
+            LambdaExpression.FoldedMethodCall folded) {
+
+        // Generate each argument as a raw value (Constant or CapturedVariable)
+        Expr[] argExprs = new Expr[folded.arguments().size()];
+        for (int i = 0; i < folded.arguments().size(); i++) {
+            argExprs[i] = generateExpression(bc, folded.arguments().get(i), cb, root, capturedValues);
+        }
+
+        // Build MethodDesc for the static method
+        Class<?>[] paramTypes = DescriptorParser.getParameterTypes(folded.methodDescriptor());
+        MethodDesc staticMethod = MethodDesc.of(folded.ownerClass(), folded.methodName(),
+                folded.returnType(), paramTypes);
+
+        // Invoke the static method: result = OwnerClass.methodName(arg1, arg2, ...)
+        Expr result = bc.invokeStatic(staticMethod, argExprs);
+
+        // Wrap the result as a JPA literal: cb.literal(result)
+        return wrapAsLiteral(bc, cb, result);
     }
 
     /**

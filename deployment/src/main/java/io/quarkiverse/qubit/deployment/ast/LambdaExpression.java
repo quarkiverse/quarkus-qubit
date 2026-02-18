@@ -1338,6 +1338,37 @@ public sealed interface LambdaExpression {
     // ─── Mathematical Functions ───────────────────────────────────────────────
 
     /**
+     * Static method call evaluated at query execution time (constant folding).
+     *
+     * <p>
+     * When all arguments to a static method are compile-time constants or captured
+     * variables, the method is invoked at query execution time and the result is used
+     * as a JPA literal parameter. This enables utility methods like
+     * {@code StringUtils.upperCase(searchTerm)} in lambda expressions.
+     *
+     * @param ownerClass the class containing the static method
+     * @param methodName the method name
+     * @param methodDescriptor the JVM method descriptor (e.g., "(Ljava/lang/String;)Ljava/lang/String;")
+     * @param arguments the method arguments (must be Constant or CapturedVariable)
+     * @param returnType the method return type
+     */
+    record FoldedMethodCall(
+            Class<?> ownerClass,
+            String methodName,
+            String methodDescriptor,
+            List<LambdaExpression> arguments,
+            Class<?> returnType) implements LambdaExpression {
+
+        public FoldedMethodCall {
+            Objects.requireNonNull(ownerClass, "Owner class cannot be null");
+            Objects.requireNonNull(methodName, "Method name cannot be null");
+            Objects.requireNonNull(methodDescriptor, "Method descriptor cannot be null");
+            arguments = List.copyOf(arguments);
+            Objects.requireNonNull(returnType, "Return type cannot be null");
+        }
+    }
+
+    /**
      * Mathematical function applied to one or two expressions.
      *
      * <p>

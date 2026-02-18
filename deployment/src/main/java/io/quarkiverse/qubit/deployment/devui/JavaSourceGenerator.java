@@ -98,6 +98,7 @@ public final class JavaSourceGenerator {
             case SubqueryBuilderReference _ -> "subquery(...)";
             case MathFunction mathFunc -> mathFunctionToJava(mathFunc, param);
             case TreatExpression treat -> treatToJava(treat, param);
+            case FoldedMethodCall folded -> foldedMethodCallToJava(folded, param);
         };
     }
 
@@ -461,6 +462,13 @@ public final class JavaSourceGenerator {
                 yield "QubitMath.round(" + operand + ", " + second + ")";
             }
         };
+    }
+
+    private static String foldedMethodCallToJava(FoldedMethodCall folded, String param) {
+        String args = folded.arguments().stream()
+                .map(a -> expressionToJava(a, param))
+                .collect(Collectors.joining(", "));
+        return folded.ownerClass().getSimpleName() + "." + folded.methodName() + "(" + args + ")";
     }
 
     private static String treatToJava(TreatExpression treat, String param) {

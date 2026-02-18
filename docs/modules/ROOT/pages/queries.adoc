@@ -190,6 +190,9 @@ List<Person> matching = personRepository
 
 |Inheritance (TREAT)
 |`a instanceof Dog d && d.breed`, `((Dog) a).breed` — access subclass fields via pattern matching or explicit cast
+
+|Constant Folding
+|Static utility methods with constant or captured variable arguments are automatically evaluated: `MyUtils.toUpper("hello")` at build time, `MyUtils.toUpper(searchTerm)` at query execution time
 |===
 
 == Query Optimizations
