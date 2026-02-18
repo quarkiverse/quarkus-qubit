@@ -744,4 +744,32 @@ public class LambdaTestSources {
     public static QuerySpec<TestPerson, Boolean> mixedOperatorsNotBetween() {
         return (TestPerson p) -> p.age >= 18 && p.age < 65;
     }
+
+    // ─── NULLIF Operations ──────────────────────────────────────────────────
+
+    // Canonical: field.equals(sentinel) ? null : field
+    public static QuerySpec<TestPerson, String> nullifCanonical() {
+        return (TestPerson p) -> p.firstName.equals("UNKNOWN") ? null : p.firstName;
+    }
+
+    // NE variant: !field.equals(sentinel) ? field : null
+    public static QuerySpec<TestPerson, String> nullifNotEquals() {
+        return (TestPerson p) -> !p.firstName.equals("UNKNOWN") ? p.firstName : null;
+    }
+
+    // With captured variable sentinel
+    public static QuerySpec<TestPerson, String> nullifCapturedSentinel() {
+        String sentinel = "N/A";
+        return (TestPerson p) -> p.lastName.equals(sentinel) ? null : p.lastName;
+    }
+
+    // NOT a NULLIF: different fields in condition vs result
+    public static QuerySpec<TestPerson, String> notNullifDifferentFields() {
+        return (TestPerson p) -> p.firstName.equals("UNKNOWN") ? null : p.lastName;
+    }
+
+    // NOT a NULLIF: non-null true value (regular ternary)
+    public static QuerySpec<TestPerson, String> notNullifNonNullTrue() {
+        return (TestPerson p) -> p.firstName.equals("UNKNOWN") ? "DEFAULT" : p.firstName;
+    }
 }

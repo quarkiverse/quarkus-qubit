@@ -13,6 +13,7 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CASE_
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CASE_WHEN_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_AND;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_BETWEEN_EXPR;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NULLIF_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_CONCAT_EXPR_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_CONSTRUCT;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_EQUAL;
@@ -22,6 +23,7 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_IS
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_IS_TRUE;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_LITERAL;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NOT;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NULL_LITERAL;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NOT_EQUAL;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_OR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_SELECT_CASE;
@@ -385,10 +387,21 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             case LambdaExpression.CorrelatedVariable correlated ->
                 generateCorrelatedFieldExpression(bc, correlated, root);
 
-            case LambdaExpression.Conditional conditional ->
-                // Ternary conditional: condition ? trueValue : falseValue
-                // Maps to JPA: cb.selectCase().when(condition, trueExpr).otherwise(falseExpr)
-                generateConditionalExpression(bc, conditional, cb, root, capturedValues);
+            case LambdaExpression.Conditional conditional -> {
+                // NULLIF optimization: detect field == sentinel ? null : field
+                PatternDetector.NullifComponents nullif = PatternDetector.detectNullif(conditional);
+                if (nullif != null) {
+                    yield generateNullifExpression(bc, cb, root, capturedValues, nullif);
+                }
+                // Standard CASE WHEN handling
+                yield generateConditionalExpression(bc, conditional, cb, root, capturedValues);
+            }
+
+            case LambdaExpression.NullLiteral(var expectedType) -> {
+                // Generate cb.nullLiteral(Type.class) for null values in expressions
+                Expr typeClass = Const.of(expectedType);
+                yield bc.invokeInterface(CB_NULL_LITERAL, cb, typeClass);
+            }
 
             case LambdaExpression.MathFunction mathFunc ->
                 generateMathFunction(bc, cb, root, capturedValues, mathFunc);
@@ -423,6 +436,14 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         LocalVar caseWhen = bc.localVar("caseWhen",
                 bc.invokeInterface(CASE_WHEN_EXPR, caseBuilder, conditionLocal, trueLocal));
         return bc.invokeInterface(CASE_OTHERWISE_EXPR, caseWhen, falseLocal);
+    }
+
+    /** Generates cb.nullif(expression, sentinel) for detected NULLIF patterns. */
+    private Expr generateNullifExpression(BlockCreator bc, Expr cb, Expr root, Expr capturedValues,
+            PatternDetector.NullifComponents nullif) {
+        Expr fieldExpr = generateExpressionAsJpaExpression(bc, nullif.expression(), cb, root, capturedValues);
+        Expr sentinelExpr = generateExpressionAsJpaExpression(bc, nullif.sentinel(), cb, root, capturedValues);
+        return bc.invokeInterface(CB_NULLIF_EXPR, cb, fieldExpr, sentinelExpr);
     }
 
     /** Generates a JPA math function expression from a MathFunction AST node. */

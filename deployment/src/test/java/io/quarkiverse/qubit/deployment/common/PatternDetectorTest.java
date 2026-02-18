@@ -1074,6 +1074,180 @@ class PatternDetectorTest {
     }
 
     @Nested
+    @DisplayName("detectNullif()")
+    class DetectNullifTests {
+
+        private final LambdaExpression field = new LambdaExpression.FieldAccess("firstName", String.class);
+        private final LambdaExpression sentinel = new LambdaExpression.Constant("UNKNOWN", String.class);
+        private final LambdaExpression nullLiteral = new LambdaExpression.NullLiteral(String.class);
+
+        // ─── Positive cases ─────────────────────────────────────────────
+
+        @Test
+        @DisplayName("canonical: EQ ? null : field -> returns NullifComponents")
+        void canonical_eqNullField_returnsNullifComponents() {
+            // field == sentinel ? null : field
+            LambdaExpression.Conditional conditional = new LambdaExpression.Conditional(
+                    BinaryOp.eq(field, sentinel),
+                    nullLiteral,
+                    field);
+
+            PatternDetector.NullifComponents result = PatternDetector.detectNullif(conditional);
+
+            assertThat(result).isNotNull();
+            assertThat(result.expression()).isEqualTo(field);
+            assertThat(result.sentinel()).isEqualTo(sentinel);
+        }
+
+        @Test
+        @DisplayName("reversed EQ operands: sentinel == field ? null : field -> returns NullifComponents")
+        void reversedEqOperands_returnsNullifComponents() {
+            // sentinel == field ? null : field
+            LambdaExpression.Conditional conditional = new LambdaExpression.Conditional(
+                    BinaryOp.eq(sentinel, field),
+                    nullLiteral,
+                    field);
+
+            PatternDetector.NullifComponents result = PatternDetector.detectNullif(conditional);
+
+            assertThat(result).isNotNull();
+            assertThat(result.expression()).isEqualTo(field);
+            assertThat(result.sentinel()).isEqualTo(sentinel);
+        }
+
+        @Test
+        @DisplayName("NE variant: field != sentinel ? field : null -> returns NullifComponents")
+        void neVariant_returnsNullifComponents() {
+            // field != sentinel ? field : null
+            LambdaExpression.Conditional conditional = new LambdaExpression.Conditional(
+                    BinaryOp.ne(field, sentinel),
+                    field,
+                    nullLiteral);
+
+            PatternDetector.NullifComponents result = PatternDetector.detectNullif(conditional);
+
+            assertThat(result).isNotNull();
+            assertThat(result.expression()).isEqualTo(field);
+            assertThat(result.sentinel()).isEqualTo(sentinel);
+        }
+
+        @Test
+        @DisplayName("with captured variable sentinel")
+        void withCapturedVariable_returnsNullifComponents() {
+            LambdaExpression capturedSentinel = new LambdaExpression.CapturedVariable(0, String.class);
+            LambdaExpression.Conditional conditional = new LambdaExpression.Conditional(
+                    BinaryOp.eq(field, capturedSentinel),
+                    nullLiteral,
+                    field);
+
+            PatternDetector.NullifComponents result = PatternDetector.detectNullif(conditional);
+
+            assertThat(result).isNotNull();
+            assertThat(result.expression()).isEqualTo(field);
+            assertThat(result.sentinel()).isEqualTo(capturedSentinel);
+        }
+
+        @Test
+        @DisplayName("PathExpression field: path == sentinel ? null : path -> returns NullifComponents")
+        void pathExpressionField_returnsNullifComponents() {
+            var segments = java.util.List.of(
+                    new LambdaExpression.PathSegment("address", Object.class,
+                            LambdaExpression.RelationType.MANY_TO_ONE),
+                    new LambdaExpression.PathSegment("city", String.class,
+                            LambdaExpression.RelationType.FIELD));
+            LambdaExpression pathExpr = new LambdaExpression.PathExpression(segments, String.class);
+            LambdaExpression.Conditional conditional = new LambdaExpression.Conditional(
+                    BinaryOp.eq(pathExpr, sentinel),
+                    nullLiteral,
+                    pathExpr);
+
+            PatternDetector.NullifComponents result = PatternDetector.detectNullif(conditional);
+
+            assertThat(result).isNotNull();
+            assertThat(result.expression()).isEqualTo(pathExpr);
+            assertThat(result.sentinel()).isEqualTo(sentinel);
+        }
+
+        // ─── Negative cases ─────────────────────────────────────────────
+
+        @Test
+        @DisplayName("different fields in condition vs result -> returns null")
+        void differentFields_returnsNull() {
+            LambdaExpression otherField = new LambdaExpression.FieldAccess("lastName", String.class);
+            LambdaExpression.Conditional conditional = new LambdaExpression.Conditional(
+                    BinaryOp.eq(field, sentinel),
+                    nullLiteral,
+                    otherField);
+
+            assertThat(PatternDetector.detectNullif(conditional)).isNull();
+        }
+
+        @Test
+        @DisplayName("non-null true value -> returns null")
+        void nonNullTrueValue_returnsNull() {
+            LambdaExpression defaultValue = new LambdaExpression.Constant("DEFAULT", String.class);
+            LambdaExpression.Conditional conditional = new LambdaExpression.Conditional(
+                    BinaryOp.eq(field, sentinel),
+                    defaultValue,
+                    field);
+
+            assertThat(PatternDetector.detectNullif(conditional)).isNull();
+        }
+
+        @Test
+        @DisplayName("non-EQ/NE operator (GT) -> returns null")
+        void nonEqNeOperator_returnsNull() {
+            LambdaExpression.Conditional conditional = new LambdaExpression.Conditional(
+                    BinaryOp.gt(field, sentinel),
+                    nullLiteral,
+                    field);
+
+            assertThat(PatternDetector.detectNullif(conditional)).isNull();
+        }
+
+        @Test
+        @DisplayName("no BinaryOp condition (boolean field) -> returns null")
+        void noBinaryOpCondition_returnsNull() {
+            LambdaExpression booleanField = new LambdaExpression.FieldAccess("active", boolean.class);
+            LambdaExpression.Conditional conditional = new LambdaExpression.Conditional(
+                    booleanField,
+                    nullLiteral,
+                    field);
+
+            assertThat(PatternDetector.detectNullif(conditional)).isNull();
+        }
+
+        @Test
+        @DisplayName("NE with null in wrong branch (trueValue is null instead of falseValue) -> returns null")
+        void neWithNullInWrongBranch_returnsNull() {
+            // field != sentinel ? null : field -- NE expects null in falseValue, not trueValue
+            LambdaExpression.Conditional conditional = new LambdaExpression.Conditional(
+                    BinaryOp.ne(field, sentinel),
+                    nullLiteral,
+                    field);
+
+            // This actually matches EQ pattern reversed -- but condition is NE not EQ, so no match
+            // Wait: NE + trueValue=null doesn't match either pattern. Let me check...
+            // Pattern 1: EQ + trueValue=null -> yes
+            // Pattern 2: NE + falseValue=null -> yes
+            // NE + trueValue=null -> neither pattern matches
+            assertThat(PatternDetector.detectNullif(conditional)).isNull();
+        }
+
+        @Test
+        @DisplayName("field is not entity field expression (Constant) -> returns null")
+        void fieldIsConstant_returnsNull() {
+            LambdaExpression constField = new LambdaExpression.Constant("fixed", String.class);
+            LambdaExpression.Conditional conditional = new LambdaExpression.Conditional(
+                    BinaryOp.eq(constField, sentinel),
+                    nullLiteral,
+                    constField);
+
+            assertThat(PatternDetector.detectNullif(conditional)).isNull();
+        }
+    }
+
+    @Nested
     @DisplayName("Additional mutation-killing tests")
     class AdditionalMutationKillingTests {
 

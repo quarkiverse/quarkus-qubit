@@ -188,3 +188,13 @@ List<Person> matching = personRepository
 |Ternary
 |`condition ? trueExpr : falseExpr` in projections
 |===
+
+== Query Optimizations
+
+Qubit automatically detects common patterns and generates optimized JPA Criteria API calls:
+
+**BETWEEN**: Range checks like `p.age >= 18 && p.age <= 65` generate `cb.between()` instead of separate `cb.greaterThanOrEqualTo()` and `cb.lessThanOrEqualTo()` calls. All operand orderings are recognized (`low \<= field`, `field >= low`, etc.).
+
+**NULLIF**: Ternary expressions like `p.status.equals("UNKNOWN") ? null : p.status` generate `cb.nullif()` instead of a CASE WHEN expression. Both `equals` and `!=` forms are detected.
+
+These optimizations are transparent — write natural Java and Qubit applies the best JPA mapping automatically.

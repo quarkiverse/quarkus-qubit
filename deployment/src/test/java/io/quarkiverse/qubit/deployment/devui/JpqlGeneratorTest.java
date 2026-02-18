@@ -1348,6 +1348,90 @@ class JpqlGeneratorTest {
     }
 
     @Nested
+    @DisplayName("NULLIF optimization")
+    class NullifOptimization {
+
+        @Test
+        @DisplayName("field == sentinel ? null : field generates NULLIF")
+        void canonicalNullif_generatesNullifJpql() {
+            // e.firstName == 'UNKNOWN' ? null : e.firstName -> NULLIF(e.firstName, 'UNKNOWN')
+            LambdaExpression projection = new Conditional(
+                    BinaryOp.eq(
+                            new FieldAccess("firstName", String.class),
+                            new Constant("UNKNOWN", String.class)),
+                    new NullLiteral(String.class),
+                    new FieldAccess("firstName", String.class));
+
+            String jpql = JpqlGenerator.generateJpql(PERSON_CLASS, null, projection, false);
+
+            assertThat(jpql).contains("NULLIF(e.firstName, 'UNKNOWN')");
+        }
+
+        @Test
+        @DisplayName("field != sentinel ? field : null generates NULLIF")
+        void neVariant_generatesNullifJpql() {
+            // e.firstName != 'UNKNOWN' ? e.firstName : null -> NULLIF(e.firstName, 'UNKNOWN')
+            LambdaExpression projection = new Conditional(
+                    BinaryOp.ne(
+                            new FieldAccess("firstName", String.class),
+                            new Constant("UNKNOWN", String.class)),
+                    new FieldAccess("firstName", String.class),
+                    new NullLiteral(String.class));
+
+            String jpql = JpqlGenerator.generateJpql(PERSON_CLASS, null, projection, false);
+
+            assertThat(jpql).contains("NULLIF(e.firstName, 'UNKNOWN')");
+        }
+
+        @Test
+        @DisplayName("NULLIF with captured variable sentinel")
+        void capturedSentinel_generatesNullifJpql() {
+            LambdaExpression projection = new Conditional(
+                    BinaryOp.eq(
+                            new FieldAccess("lastName", String.class),
+                            new CapturedVariable(0, String.class)),
+                    new NullLiteral(String.class),
+                    new FieldAccess("lastName", String.class));
+
+            String jpql = JpqlGenerator.generateJpql(PERSON_CLASS, null, projection, false);
+
+            assertThat(jpql).contains("NULLIF(e.lastName, :capturedVar0)");
+        }
+
+        @Test
+        @DisplayName("different fields does NOT generate NULLIF")
+        void differentFields_doesNotGenerateNullif() {
+            LambdaExpression projection = new Conditional(
+                    BinaryOp.eq(
+                            new FieldAccess("firstName", String.class),
+                            new Constant("UNKNOWN", String.class)),
+                    new NullLiteral(String.class),
+                    new FieldAccess("lastName", String.class));
+
+            String jpql = JpqlGenerator.generateJpql(PERSON_CLASS, null, projection, false);
+
+            assertThat(jpql).doesNotContain("NULLIF");
+            assertThat(jpql).contains("CASE WHEN");
+        }
+
+        @Test
+        @DisplayName("non-null true value does NOT generate NULLIF")
+        void nonNullTrueValue_doesNotGenerateNullif() {
+            LambdaExpression projection = new Conditional(
+                    BinaryOp.eq(
+                            new FieldAccess("firstName", String.class),
+                            new Constant("UNKNOWN", String.class)),
+                    new Constant("DEFAULT", String.class),
+                    new FieldAccess("firstName", String.class));
+
+            String jpql = JpqlGenerator.generateJpql(PERSON_CLASS, null, projection, false);
+
+            assertThat(jpql).doesNotContain("NULLIF");
+            assertThat(jpql).contains("CASE WHEN");
+        }
+    }
+
+    @Nested
     @DisplayName("BETWEEN optimization")
     class BetweenOptimization {
 

@@ -27,6 +27,7 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.*;
 import io.quarkiverse.qubit.deployment.common.PatternDetector;
 import io.quarkiverse.qubit.deployment.common.PatternDetector.BetweenComponents;
+import io.quarkiverse.qubit.deployment.common.PatternDetector.NullifComponents;
 import io.quarkiverse.qubit.deployment.util.ClassNameUtils;
 
 /** Generates pseudo-JPQL strings from LambdaExpression AST for DevUI display. */
@@ -455,6 +456,13 @@ public final class JpqlGenerator {
     }
 
     private static String conditionalToJpql(Conditional conditional) {
+        // NULLIF optimization: detect field == sentinel ? null : field
+        NullifComponents nullif = PatternDetector.detectNullif(conditional);
+        if (nullif != null) {
+            return "NULLIF(" + expressionToJpql(nullif.expression()) + ", "
+                    + expressionToJpql(nullif.sentinel()) + ")";
+        }
+        // Standard CASE WHEN
         String condition = expressionToJpql(conditional.condition());
         String trueVal = expressionToJpql(conditional.trueValue());
         String falseVal = expressionToJpql(conditional.falseValue());

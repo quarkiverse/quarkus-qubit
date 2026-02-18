@@ -3,6 +3,8 @@ package io.quarkiverse.qubit.deployment.generation.expression;
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.COUNT_SHOULD_BE_HANDLED_ABOVE;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isLogicalOperation;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_BETWEEN_EXPR;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NULLIF_EXPR;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NULL_LITERAL;
 import static io.quarkiverse.qubit.deployment.generation.GizmoHelper.buildConstructorExpression;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CASE_OTHERWISE_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CASE_WHEN_EXPR;
@@ -115,13 +117,27 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
             case LambdaExpression.CapturedVariable capturedVar ->
                 helper.loadAndWrapCapturedValue(bc, cb, capturedVar, capturedValues);
 
+            case LambdaExpression.NullLiteral(var expectedType) -> {
+                Expr typeClass = io.quarkus.gizmo2.Const.of(expectedType);
+                yield bc.invokeInterface(CB_NULL_LITERAL, cb, typeClass);
+            }
+
             case LambdaExpression.BinaryOp binOp ->
                 generateGroupBinaryOperation(bc, binOp, cb, root, groupKeyExpr, capturedValues, helper);
 
-            case LambdaExpression.Conditional conditional ->
-                // Ternary conditional: condition ? trueValue : falseValue
-                // Maps to JPA: cb.selectCase().when(condition, trueExpr).otherwise(falseExpr)
-                generateGroupConditionalExpression(bc, conditional, cb, root, groupKeyExpr, capturedValues, helper);
+            case LambdaExpression.Conditional conditional -> {
+                // NULLIF optimization: detect field == sentinel ? null : field
+                PatternDetector.NullifComponents nullif = PatternDetector.detectNullif(conditional);
+                if (nullif != null) {
+                    Expr fieldExpr = generateGroupSelectExpression(bc, nullif.expression(), cb, root, groupKeyExpr,
+                            capturedValues, helper);
+                    Expr sentinelExpr = generateGroupSelectExpression(bc, nullif.sentinel(), cb, root, groupKeyExpr,
+                            capturedValues, helper);
+                    yield bc.invokeInterface(CB_NULLIF_EXPR, cb, fieldExpr, sentinelExpr);
+                }
+                // Standard CASE WHEN handling
+                yield generateGroupConditionalExpression(bc, conditional, cb, root, groupKeyExpr, capturedValues, helper);
+            }
 
             case LambdaExpression.MathFunction mathFunc ->
                 generateGroupMathFunction(bc, mathFunc, cb, root, groupKeyExpr, capturedValues, helper);

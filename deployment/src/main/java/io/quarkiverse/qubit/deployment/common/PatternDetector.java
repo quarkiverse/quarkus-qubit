@@ -443,4 +443,161 @@ public final class PatternDetector {
             default -> throw new IllegalArgumentException("Can only flip GE/LE, got: " + op);
         };
     }
+
+    // ─── NULLIF Pattern Detection ───────────────────────────────────────────
+
+    /** Components of a NULLIF expression: returns null when expression equals sentinel. */
+    public record NullifComponents(LambdaExpression expression, LambdaExpression sentinel) {
+    }
+
+    /**
+     * Detects if a Conditional (ternary) matches NULLIF semantics.
+     *
+     * <p>
+     * Matches patterns at the AST level:
+     * <ul>
+     * <li>{@code field == sentinel ? null : field} → NULLIF(field, sentinel)</li>
+     * <li>{@code field != sentinel ? field : null} → NULLIF(field, sentinel)</li>
+     * </ul>
+     *
+     * <p>
+     * Also handles the bytecode-level boolean comparison wrapping produced by
+     * {@code handleEqualsMethod()}, where {@code field.equals(sentinel)} becomes
+     * {@code BinaryOp(BinaryOp(field, EQ, sentinel), NE, Constant(0))} (truthy check)
+     * and {@code !field.equals(sentinel)} becomes
+     * {@code BinaryOp(BinaryOp(field, EQ, sentinel), EQ, Constant(0))} (falsy check).
+     *
+     * @return NullifComponents if pattern matches, null otherwise
+     */
+    public static @Nullable NullifComponents detectNullif(LambdaExpression.Conditional conditional) {
+        LambdaExpression condition = conditional.condition();
+        LambdaExpression trueValue = conditional.trueValue();
+        LambdaExpression falseValue = conditional.falseValue();
+
+        if (!(condition instanceof LambdaExpression.BinaryOp comp)) {
+            return null;
+        }
+
+        // Try direct patterns first (for hand-constructed ASTs in tests)
+        NullifComponents direct = detectNullifDirect(comp, trueValue, falseValue);
+        if (direct != null) {
+            return direct;
+        }
+
+        // Try unwrapped boolean comparison patterns (from bytecode analysis)
+        return detectNullifFromBooleanComparison(comp, trueValue, falseValue);
+    }
+
+    /**
+     * Detects NULLIF from direct AST patterns (field EQ/NE sentinel in condition).
+     */
+    private static @Nullable NullifComponents detectNullifDirect(
+            LambdaExpression.BinaryOp comp,
+            LambdaExpression trueValue,
+            LambdaExpression falseValue) {
+
+        // Pattern 1: field == sentinel ? null : field
+        if (comp.operator() == LambdaExpression.BinaryOp.Operator.EQ
+                && trueValue instanceof LambdaExpression.NullLiteral) {
+            return matchNullifField(comp, falseValue);
+        }
+
+        // Pattern 2: field != sentinel ? field : null
+        if (comp.operator() == LambdaExpression.BinaryOp.Operator.NE
+                && falseValue instanceof LambdaExpression.NullLiteral) {
+            return matchNullifField(comp, trueValue);
+        }
+
+        return null;
+    }
+
+    /**
+     * Detects NULLIF from bytecode-level boolean comparison wrapping.
+     *
+     * <p>
+     * Bytecode pattern for {@code field.equals(sentinel) ? null : field}:
+     *
+     * <pre>
+     * Conditional(
+     *   condition: BinaryOp(BinaryOp(field, EQ, sentinel), NE, Constant(0)),
+     *   trueValue: NullLiteral,
+     *   falseValue: field
+     * )
+     * </pre>
+     *
+     * <p>
+     * Bytecode pattern for {@code !field.equals(sentinel) ? field : null}:
+     *
+     * <pre>
+     * Conditional(
+     *   condition: BinaryOp(BinaryOp(field, EQ, sentinel), EQ, Constant(0)),
+     *   trueValue: field,
+     *   falseValue: NullLiteral
+     * )
+     * </pre>
+     */
+    private static @Nullable NullifComponents detectNullifFromBooleanComparison(
+            LambdaExpression.BinaryOp comp,
+            LambdaExpression trueValue,
+            LambdaExpression falseValue) {
+
+        // Check for boolean comparison wrapping: inner_comparison NE/EQ Constant(0)
+        if (!isEqualityOperation(comp)) {
+            return null;
+        }
+
+        if (!(comp.left() instanceof LambdaExpression.BinaryOp innerComp)) {
+            return null;
+        }
+
+        if (!(comp.right() instanceof LambdaExpression.Constant(var value, var type))
+                || type != int.class || !Integer.valueOf(0).equals(value)) {
+            return null;
+        }
+
+        // Unwrap: NE 0 means "is true" (equals matched), EQ 0 means "is false" (not equals)
+        // NE 0 + trueValue=null → field.equals(sentinel) ? null : field → NULLIF
+        if (comp.operator() == LambdaExpression.BinaryOp.Operator.NE
+                && trueValue instanceof LambdaExpression.NullLiteral) {
+            return matchNullifField(innerComp, falseValue);
+        }
+
+        // EQ 0 + falseValue=null → !field.equals(sentinel) ? field : null → NULLIF
+        if (comp.operator() == LambdaExpression.BinaryOp.Operator.EQ
+                && falseValue instanceof LambdaExpression.NullLiteral) {
+            return matchNullifField(innerComp, trueValue);
+        }
+
+        return null;
+    }
+
+    /**
+     * Matches the field from the comparison against the non-null branch value.
+     * Handles both operand orders: field == sentinel and sentinel == field.
+     */
+    private static @Nullable NullifComponents matchNullifField(
+            LambdaExpression.BinaryOp comparison, LambdaExpression nonNullValue) {
+        LambdaExpression left = comparison.left();
+        LambdaExpression right = comparison.right();
+
+        // field == sentinel ? null : field (field on left of comparison)
+        if (left.equals(nonNullValue) && isFieldExpression(left)) {
+            return new NullifComponents(left, right);
+        }
+
+        // sentinel == field ? null : field (field on right of comparison)
+        if (right.equals(nonNullValue) && isFieldExpression(right)) {
+            return new NullifComponents(right, left);
+        }
+
+        return null;
+    }
+
+    /**
+     * Returns true if expression is a field-like expression suitable for NULLIF.
+     * This includes entity field access and path expressions.
+     */
+    public static boolean isFieldExpression(LambdaExpression expr) {
+        return isEntityFieldExpression(expr);
+    }
 }

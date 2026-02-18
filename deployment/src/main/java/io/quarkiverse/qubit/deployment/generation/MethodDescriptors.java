@@ -135,6 +135,10 @@ public final class MethodDescriptors {
             Expression.class);
     public static final MethodDesc CB_LITERAL = MethodDesc.of(CriteriaBuilder.class, "literal", Expression.class, Object.class);
 
+    /** cb.nullLiteral(Class) -> Expression (JPA 2.0) */
+    public static final MethodDesc CB_NULL_LITERAL = MethodDesc.of(CriteriaBuilder.class, "nullLiteral", Expression.class,
+            Class.class);
+
     public static final MethodDesc CB_IS_MEMBER = MethodDesc.of(CriteriaBuilder.class, "isMember", Predicate.class,
             Object.class, Expression.class);
     public static final MethodDesc CB_IS_NOT_MEMBER = MethodDesc.of(CriteriaBuilder.class, "isNotMember", Predicate.class,
@@ -238,6 +242,14 @@ public final class MethodDescriptors {
             Expression.class, Expression.class);
     /** Case.otherwise(R result) -> Expression<R> */
     public static final MethodDesc CASE_OTHERWISE_VALUE = MethodDesc.of(CriteriaBuilder.Case.class, "otherwise",
+            Expression.class, Object.class);
+
+    /** cb.nullif(Expression, Expression) -> Expression (JPA 2.0) */
+    public static final MethodDesc CB_NULLIF_EXPR = MethodDesc.of(CriteriaBuilder.class, "nullif", Expression.class,
+            Expression.class, Expression.class);
+
+    /** cb.nullif(Expression, Object) -> Expression (JPA 2.0) */
+    public static final MethodDesc CB_NULLIF = MethodDesc.of(CriteriaBuilder.class, "nullif", Expression.class,
             Expression.class, Object.class);
 
     public static final MethodDesc CB_ASC = MethodDesc.of(CriteriaBuilder.class, "asc", Order.class, Expression.class);
