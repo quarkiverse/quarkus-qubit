@@ -524,6 +524,61 @@ class JpqlGeneratorTest {
     }
 
     @Nested
+    @DisplayName("replace method calls")
+    class ReplaceMethodCalls {
+
+        @Test
+        @DisplayName("generates REPLACE with two constant args")
+        void generateReplaceWithConstants() {
+            LambdaExpression predicate = BinaryOp.eq(
+                    new MethodCall(
+                            new FieldAccess("name", String.class),
+                            "replace",
+                            java.util.List.of(
+                                    new Constant("old", String.class),
+                                    new Constant("new", String.class)),
+                            String.class),
+                    new Constant("result", String.class));
+
+            String jpql = JpqlGenerator.generateJpql(PERSON_CLASS, predicate, null, false);
+
+            assertThat(jpql).contains("REPLACE(e.name, 'old', 'new')");
+        }
+
+        @Test
+        @DisplayName("generates REPLACE with captured variables")
+        void generateReplaceWithCapturedVars() {
+            LambdaExpression projection = new MethodCall(
+                    new FieldAccess("email", String.class),
+                    "replace",
+                    java.util.List.of(
+                            new CapturedVariable(0, String.class),
+                            new CapturedVariable(1, String.class)),
+                    String.class);
+
+            String jpql = JpqlGenerator.generateJpql(PERSON_CLASS, null, projection, false);
+
+            assertThat(jpql).contains("REPLACE(e.email, :capturedVar0, :capturedVar1)");
+        }
+
+        @Test
+        @DisplayName("generates REPLACE as projection")
+        void generateReplaceAsProjection() {
+            LambdaExpression projection = new MethodCall(
+                    new FieldAccess("name", String.class),
+                    "replace",
+                    java.util.List.of(
+                            new Constant("Mr.", String.class),
+                            new Constant("", String.class)),
+                    String.class);
+
+            String jpql = JpqlGenerator.generateJpql(PERSON_CLASS, null, projection, false);
+
+            assertThat(jpql).isEqualTo("SELECT REPLACE(e.name, 'Mr.', '') FROM Person e");
+        }
+    }
+
+    @Nested
     @DisplayName("Math method calls")
     class MathMethodCalls {
 

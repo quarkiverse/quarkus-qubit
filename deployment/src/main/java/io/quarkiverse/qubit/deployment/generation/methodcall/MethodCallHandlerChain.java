@@ -68,6 +68,7 @@ public final class MethodCallHandlerChain {
                 BigDecimalArithmeticHandler.INSTANCE, // add, subtract, multiply, divide
                 StringSubstringHandler.INSTANCE, // substring
                 StringIndexOfHandler.INSTANCE, // indexOf -> LOCATE with 0-based conversion
+                StringReplaceHandler.INSTANCE, // replace -> cb.replace() (JPA 3.2)
                 QubitLikeHandler.INSTANCE, // Qubit.like(), Qubit.notLike()
 
                 // DELEGATING priority - delegate to expression builders

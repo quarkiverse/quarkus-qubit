@@ -123,6 +123,14 @@ public final class MethodDescriptors {
     public static final MethodDesc CB_LOCATE_3 = MethodDesc.of(CriteriaBuilder.class, "locate", Expression.class,
             Expression.class, Expression.class, Expression.class);
 
+    /** cb.replace(Expression<String>, String, String) -> Expression<String> (JPA 3.2) */
+    public static final MethodDesc CB_REPLACE = MethodDesc.of(CriteriaBuilder.class, "replace", Expression.class,
+            Expression.class, String.class, String.class);
+
+    /** cb.replace(Expression<String>, Expression<String>, Expression<String>) -> Expression<String> (JPA 3.2) */
+    public static final MethodDesc CB_REPLACE_EXPR = MethodDesc.of(CriteriaBuilder.class, "replace", Expression.class,
+            Expression.class, Expression.class, Expression.class);
+
     public static final MethodDesc CB_FUNCTION = MethodDesc.of(CriteriaBuilder.class, "function", Expression.class,
             String.class, Class.class, Expression[].class);
 

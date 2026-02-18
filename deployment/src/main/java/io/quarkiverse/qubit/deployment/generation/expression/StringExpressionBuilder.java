@@ -8,6 +8,7 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_IS_EMP
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_LENGTH;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_STARTS_WITH;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_INDEX_OF;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_REPLACE;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUBSTRING;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_TO_LOWER_CASE;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_TO_UPPER_CASE;
@@ -62,6 +63,9 @@ public enum StringExpressionBuilder implements ExpressionBuilder {
         if (methodName.equals(METHOD_INDEX_OF)) {
             return StringOperationType.INDEX_OF;
         }
+        if (methodName.equals(METHOD_REPLACE)) {
+            return StringOperationType.REPLACE;
+        }
         if (STRING_UTILITY_METHODS.contains(methodName)) {
             return StringOperationType.UTILITY;
         }
@@ -75,6 +79,7 @@ public enum StringExpressionBuilder implements ExpressionBuilder {
         PATTERN, // startsWith, endsWith, contains
         SUBSTRING, // substring
         INDEX_OF, // indexOf
+        REPLACE, // replace
         UTILITY // equals, length, isEmpty
     }
 
@@ -291,6 +296,17 @@ public enum StringExpressionBuilder implements ExpressionBuilder {
         }
 
         return BuilderResult.notApplicable();
+    }
+
+    /** Generates bytecode for cb.replace(field, target, replacement). */
+    public BuilderResult buildStringReplace(
+            BlockCreator bc,
+            Expr cb,
+            Expr fieldExpression,
+            Expr target,
+            Expr replacement) {
+        Expr result = bc.invokeInterface(MethodDescriptors.CB_REPLACE, cb, fieldExpression, target, replacement);
+        return BuilderResult.success(result);
     }
 
     /** Wraps value as literal Expression. */

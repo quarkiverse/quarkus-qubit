@@ -167,4 +167,39 @@ public abstract class AbstractStringOperationsTest {
                 .hasSizeGreaterThan(0)
                 .allMatch(p -> p.getDescription().length() > 10);
     }
+
+    // ─── String.replace() Tests ──────────────────────────────────────────────
+
+    @Test
+    void stringReplaceInWhere() {
+        // Replace domain and check the result ends with the new domain
+        String oldDomain = "@example.com";
+        String newDomain = "@test.com";
+        var results = personOps().where((Person p) -> p.email.replace(oldDomain, newDomain).endsWith(newDomain)).toList();
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(p -> p.getEmail().endsWith(oldDomain));
+    }
+
+    @Test
+    void stringReplaceRemovesCharacters() {
+        // Replace "o" with "" effectively removes "o", shortening the name
+        var results = personOps().where((Person p) -> p.firstName.replace("o", "").length() < p.firstName.length()).toList();
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(p -> p.getFirstName().contains("o"));
+    }
+
+    @Test
+    void stringReplaceWithConstants() {
+        // Replace "@example.com" with "@test.com" and check equality
+        var results = personOps().where((Person p) -> p.email.replace("@example.com", "@test.com").equals("john.doe@test.com"))
+                .toList();
+
+        assertThat(results)
+                .hasSize(1)
+                .allMatch(p -> p.getEmail().equals("john.doe@example.com"));
+    }
 }

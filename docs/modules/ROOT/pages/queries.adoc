@@ -174,7 +174,7 @@ List<Person> matching = personRepository
 |`Math.abs()`, `Math.sqrt()`, `Math.ceil()`, `Math.floor()`, `Math.exp()`, `Math.log()`, `Math.pow()`, `Math.round()`, `Integer.signum()`, `QubitMath.round()`
 
 |String
-|`startsWith()`, `endsWith()`, `contains()`, `toLowerCase()`, `toUpperCase()`, `trim()`, `length()`, `substring()`, `indexOf()`, `Qubit.like()`, `Qubit.notLike()`
+|`startsWith()`, `endsWith()`, `contains()`, `toLowerCase()`, `toUpperCase()`, `trim()`, `length()`, `substring()`, `indexOf()`, `replace()`, `Qubit.like()`, `Qubit.notLike()`
 
 |Null
 |`== null`, `!= null`

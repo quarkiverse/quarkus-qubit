@@ -18,6 +18,7 @@ public sealed interface MethodCallHandler permits
         QubitLikeHandler,
         StringSubstringHandler,
         StringIndexOfHandler,
+        StringReplaceHandler,
         StringUtilityHandler,
         GetterMethodHandler {
 

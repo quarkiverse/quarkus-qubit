@@ -122,4 +122,15 @@ class StringOperationsCriteriaTest extends CriteriaQueryTestBase {
         LambdaExpression expression = analyzeLambda(lambdaMethodName);
         assertCriteriaGenerationSucceeds(expression);
     }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {
+            "stringReplaceConstant", "stringReplaceProjection",
+            "stringReplaceCaptured", "stringReplaceCombined"
+    })
+    @DisplayName("generates criteria for replace operations")
+    void replaceOperation_generatesCriteria(String lambdaMethodName) {
+        LambdaExpression expression = analyzeLambda(lambdaMethodName);
+        assertCriteriaGenerationSucceeds(expression);
+    }
 }

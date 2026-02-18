@@ -7,6 +7,7 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_EQUALS
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_EQUALS_IGNORE_CASE;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_INDEX_OF;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_LIKE;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_REPLACE;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_NOT_LIKE;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_GET_DAY_OF_MONTH;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_GET_HOUR;
@@ -50,6 +51,7 @@ public final class JpqlGenerator {
     private static final String JPQL_TRIM = "TRIM(";
     private static final String JPQL_SUBSTRING = "SUBSTRING(";
     private static final String JPQL_LOCATE = "LOCATE(";
+    private static final String JPQL_REPLACE = "REPLACE(";
     private static final String JPQL_MINUS_ONE = ") - 1";
 
     // Date/Time function prefixes
@@ -212,6 +214,12 @@ public final class JpqlGenerator {
                     yield JPQL_LOCATE + firstArg + ", " + target + ", " + fromArg + JPQL_MINUS_ONE;
                 }
                 yield JPQL_LOCATE + firstArg + ", " + target + JPQL_MINUS_ONE;
+            }
+            case METHOD_REPLACE -> {
+                String replArg = methodCall.arguments().size() > 1
+                        ? expressionToJpqlBiEntity(methodCall.arguments().get(1), joinAlias)
+                        : "?";
+                yield JPQL_REPLACE + target + ", " + firstArg + ", " + replArg + ")";
             }
             // Qubit.like() / Qubit.notLike()
             case METHOD_LIKE -> target + " LIKE " + firstArg;
@@ -400,6 +408,11 @@ public final class JpqlGenerator {
                     yield JPQL_LOCATE + arg + ", " + target + ", " + fromArg + JPQL_MINUS_ONE;
                 }
                 yield JPQL_LOCATE + arg + ", " + target + JPQL_MINUS_ONE;
+            }
+            case METHOD_REPLACE -> {
+                String targetArg = !methodCall.arguments().isEmpty() ? expressionToJpql(methodCall.arguments().get(0)) : "?";
+                String replArg = methodCall.arguments().size() > 1 ? expressionToJpql(methodCall.arguments().get(1)) : "?";
+                yield JPQL_REPLACE + target + ", " + targetArg + ", " + replArg + ")";
             }
             case STRING_CONCAT -> {
                 String arg = firstArgOrPlaceholder(methodCall);

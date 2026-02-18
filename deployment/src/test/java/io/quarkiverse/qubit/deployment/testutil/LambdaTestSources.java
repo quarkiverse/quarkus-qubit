@@ -706,6 +706,30 @@ public class LambdaTestSources {
         return p -> p.employeeId == employeeId;
     }
 
+    // ─── String replace Operations ────────────────────────────────────────────
+
+    // replace with constant strings
+    public static QuerySpec<TestPerson, Boolean> stringReplaceConstant() {
+        return (TestPerson p) -> p.firstName.replace("old", "new").equals("new");
+    }
+
+    // replace in projection
+    public static QuerySpec<TestPerson, String> stringReplaceProjection() {
+        return (TestPerson p) -> p.firstName.replace("Mr.", "");
+    }
+
+    // replace with captured variables
+    public static QuerySpec<TestPerson, Boolean> stringReplaceCaptured() {
+        String target = "old";
+        String replacement = "new";
+        return (TestPerson p) -> p.firstName.replace(target, replacement).equals("new");
+    }
+
+    // replace combined with other operations
+    public static QuerySpec<TestPerson, Boolean> stringReplaceCombined() {
+        return (TestPerson p) -> p.email.replace("@old.com", "@new.com").endsWith("@new.com");
+    }
+
     // ─── BETWEEN Operations ─────────────────────────────────────────────────
 
     public static QuerySpec<TestPerson, Boolean> betweenCanonical() {

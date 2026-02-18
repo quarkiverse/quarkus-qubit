@@ -402,6 +402,9 @@ public enum MethodInvocationHandler implements InstructionHandler {
             case METHOD_INDEX_OF ->
                 handleIndexOfMethod(ctx, methodInsn);
 
+            case METHOD_REPLACE ->
+                handleReplaceMethod(ctx, methodInsn);
+
             default -> {
                 /* No action for unrecognized String methods */ }
         }
@@ -434,6 +437,42 @@ public enum MethodInvocationHandler implements InstructionHandler {
                 ctx.push(new LambdaExpression.MethodCall(target, METHOD_SUBSTRING, arguments, String.class));
             }
         }
+    }
+
+    /** Handles String.replace(CharSequence, CharSequence) and String.replace(char, char). */
+    private void handleReplaceMethod(AnalysisContext ctx, MethodInsnNode methodInsn) {
+        // replace(CharSequence, CharSequence)
+        if (methodInsn.desc.equals(DESC_TWO_CHAR_SEQUENCES_TO_STRING) && ctx.getStackSize() >= 3) {
+            LambdaExpression replacement = ctx.pop();
+            LambdaExpression target = ctx.pop();
+            LambdaExpression fieldTarget = ctx.pop();
+            ctx.push(new LambdaExpression.MethodCall(fieldTarget, METHOD_REPLACE,
+                    List.of(target, replacement), String.class));
+            return;
+        }
+        // replace(char, char) — convert chars to single-char strings
+        if (methodInsn.desc.equals(DESC_TWO_CHARS_TO_STRING) && ctx.getStackSize() >= 3) {
+            LambdaExpression replacement = ctx.pop();
+            LambdaExpression target = ctx.pop();
+            LambdaExpression fieldTarget = ctx.pop();
+            // Convert char constants to String constants if possible
+            target = charToStringConstant(target);
+            replacement = charToStringConstant(replacement);
+            ctx.push(new LambdaExpression.MethodCall(fieldTarget, METHOD_REPLACE,
+                    List.of(target, replacement), String.class));
+        }
+    }
+
+    /** Converts a char Constant to a single-character String Constant. */
+    private static LambdaExpression charToStringConstant(LambdaExpression expr) {
+        if (expr instanceof LambdaExpression.Constant(var value, _) && value instanceof Character c) {
+            return new LambdaExpression.Constant(String.valueOf(c), String.class);
+        }
+        if (expr instanceof LambdaExpression.Constant(var value, _) && value instanceof Integer i) {
+            // char constants may be stored as int in bytecode
+            return new LambdaExpression.Constant(String.valueOf((char) i.intValue()), String.class);
+        }
+        return expr; // CapturedVariable or other — leave as-is, will be cast at runtime
     }
 
     /** Handles String.indexOf(String) and String.indexOf(String, int) -> MethodCall. */

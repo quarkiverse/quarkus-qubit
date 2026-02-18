@@ -86,7 +86,7 @@ class StringExpressionBuilderTest {
         }
 
         @ParameterizedTest(name = "{0} should return null")
-        @ValueSource(strings = { "hashCode", "toString", "charAt", "split", "replace", "matches", "" })
+        @ValueSource(strings = { "hashCode", "toString", "charAt", "split", "matches", "" })
         void shouldReturnNullForUnknownMethods(String methodName) {
             LambdaExpression.MethodCall methodCall = createMethodCall(methodName);
 
@@ -95,6 +95,18 @@ class StringExpressionBuilderTest {
             assertThat(result)
                     .as("getOperationType(\"%s\") should return null", methodName)
                     .isNull();
+        }
+
+        @Test
+        @DisplayName("replace should return REPLACE")
+        void shouldReturnReplaceForReplaceMethod() {
+            LambdaExpression.MethodCall methodCall = createMethodCall("replace");
+
+            StringOperationType result = builder.getOperationType(methodCall);
+
+            assertThat(result)
+                    .as("getOperationType(\"replace\") should return REPLACE")
+                    .isEqualTo(StringOperationType.REPLACE);
         }
 
         @Test
@@ -121,6 +133,8 @@ class StringExpressionBuilderTest {
                     .isEqualTo(StringOperationType.SUBSTRING);
             assertThat(builder.getOperationType(createMethodCall("indexOf")))
                     .isEqualTo(StringOperationType.INDEX_OF);
+            assertThat(builder.getOperationType(createMethodCall("replace")))
+                    .isEqualTo(StringOperationType.REPLACE);
             assertThat(builder.getOperationType(createMethodCall("equals")))
                     .isEqualTo(StringOperationType.UTILITY);
             assertThat(builder.getOperationType(createMethodCall("unknownMethod")))

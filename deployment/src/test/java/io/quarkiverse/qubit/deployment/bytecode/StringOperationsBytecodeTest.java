@@ -160,6 +160,51 @@ class StringOperationsBytecodeTest extends PrecompiledLambdaAnalyzer {
     }
 
     @Nested
+    @DisplayName("replace operations")
+    class ReplaceOperations {
+
+        @Test
+        @DisplayName("replace(String, String) produces MethodCall with replace name and two arguments")
+        void stringReplaceConstant_producesMethodCallNode() {
+            LambdaExpression expr = analyzeLambda("stringReplaceConstant");
+            // Top level is BinaryOp (equality check)
+            assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.EQ);
+            LambdaExpression.BinaryOp eqOp = (LambdaExpression.BinaryOp) expr;
+            // Left side should be MethodCall with replace
+            assertMethodCall(eqOp.left(), "replace");
+            LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) eqOp.left();
+            assertThat(methodCall.arguments()).hasSize(2);
+            assertConstant(methodCall.arguments().get(0), "old");
+            assertConstant(methodCall.arguments().get(1), "new");
+            // Target should be FieldAccess for firstName
+            assertFieldAccess(methodCall.target(), "firstName");
+        }
+
+        @Test
+        @DisplayName("replace with captured variables has CapturedVariable arguments")
+        void stringReplaceCaptured_hasCapturedArguments() {
+            LambdaExpression expr = analyzeLambda("stringReplaceCaptured");
+            assertBinaryOp(expr, LambdaExpression.BinaryOp.Operator.EQ);
+            LambdaExpression.BinaryOp eqOp = (LambdaExpression.BinaryOp) expr;
+            assertMethodCall(eqOp.left(), "replace");
+            LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) eqOp.left();
+            assertThat(methodCall.arguments()).hasSize(2);
+            assertThat(methodCall.arguments().get(0)).isInstanceOf(LambdaExpression.CapturedVariable.class);
+            assertThat(methodCall.arguments().get(1)).isInstanceOf(LambdaExpression.CapturedVariable.class);
+        }
+
+        @Test
+        @DisplayName("replace in projection produces MethodCall")
+        void stringReplaceProjection_producesMethodCall() {
+            LambdaExpression expr = analyzeLambda("stringReplaceProjection");
+            assertMethodCall(expr, "replace");
+            LambdaExpression.MethodCall methodCall = (LambdaExpression.MethodCall) expr;
+            assertThat(methodCall.arguments()).hasSize(2);
+            assertFieldAccess(methodCall.target(), "firstName");
+        }
+    }
+
+    @Nested
     @DisplayName("indexOf operations")
     class IndexOfOperations {
 
