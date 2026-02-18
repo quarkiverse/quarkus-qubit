@@ -6,6 +6,8 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.Inheritance;
+import jakarta.persistence.InheritanceType;
 
 import io.quarkiverse.qubit.QubitEntity;
 import io.quarkiverse.qubit.QubitMath;
@@ -771,5 +773,58 @@ public class LambdaTestSources {
     // NOT a NULLIF: non-null true value (regular ternary)
     public static QuerySpec<TestPerson, String> notNullifNonNullTrue() {
         return (TestPerson p) -> p.firstName.equals("UNKNOWN") ? "DEFAULT" : p.firstName;
+    }
+
+    // ─── TREAT / instanceof Test Entities ──────────────────────────────────
+
+    @Entity
+    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+    public static class TestAnimal extends QubitEntity {
+        public String name;
+        public int weight;
+    }
+
+    @Entity
+    public static class TestDog extends TestAnimal {
+        public String breed;
+        public boolean trained;
+    }
+
+    @Entity
+    public static class TestCat extends TestAnimal {
+        public boolean indoor;
+    }
+
+    // ─── TREAT / instanceof Operations ─────────────────────────────────────
+
+    // Pattern matching with field access: a instanceof TestDog d && d.breed.equals("Lab")
+    public static QuerySpec<TestAnimal, Boolean> patternMatchDogBreed() {
+        return (TestAnimal a) -> a instanceof TestDog d && d.breed.equals("Lab");
+    }
+
+    // Explicit cast with field access: a instanceof TestDog && ((TestDog) a).breed.equals("Lab")
+    public static QuerySpec<TestAnimal, Boolean> castDogBreed() {
+        return (TestAnimal a) -> a instanceof TestDog && ((TestDog) a).breed.equals("Lab");
+    }
+
+    // Pattern matching with boolean field access
+    public static QuerySpec<TestAnimal, Boolean> patternMatchDogTrained() {
+        return (TestAnimal a) -> a instanceof TestDog d && d.trained;
+    }
+
+    // Pattern matching with captured variable
+    public static QuerySpec<TestAnimal, Boolean> patternMatchCaptured() {
+        String targetBreed = "Lab";
+        return (TestAnimal a) -> a instanceof TestDog d && d.breed.equals(targetBreed);
+    }
+
+    // Explicit cast with Cat boolean field
+    public static QuerySpec<TestAnimal, Boolean> castCatIndoor() {
+        return (TestAnimal a) -> a instanceof TestCat && ((TestCat) a).indoor;
+    }
+
+    // Pattern match with parent field access too
+    public static QuerySpec<TestAnimal, Boolean> patternMatchWithParentField() {
+        return (TestAnimal a) -> a instanceof TestDog d && d.breed.equals("Lab") && a.weight > 20;
     }
 }

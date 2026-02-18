@@ -133,3 +133,17 @@ INSERT INTO product_tag (product_id, tag_id) VALUES (4, 4);
 -- Monitor: electronics, premium
 INSERT INTO product_tag (product_id, tag_id) VALUES (5, 1);
 INSERT INTO product_tag (product_id, tag_id) VALUES (5, 2);
+
+-- ============================================================
+-- ANIMALS (SINGLE_TABLE inheritance: Animal -> Dog, Cat)
+-- ============================================================
+-- DTYPE column is auto-managed by Hibernate for discriminator
+INSERT INTO Animal (id, DTYPE, name, weight, vaccinated, breed, trained, indoor, color) VALUES (1, 'Dog', 'Rex', 30, true, 'Labrador', true, null, null);
+INSERT INTO Animal (id, DTYPE, name, weight, vaccinated, breed, trained, indoor, color) VALUES (2, 'Dog', 'Buddy', 25, true, 'Golden Retriever', false, null, null);
+INSERT INTO Animal (id, DTYPE, name, weight, vaccinated, breed, trained, indoor, color) VALUES (3, 'Dog', 'Max', 35, false, 'German Shepherd', true, null, null);
+INSERT INTO Animal (id, DTYPE, name, weight, vaccinated, breed, trained, indoor, color) VALUES (4, 'Cat', 'Whiskers', 5, true, null, null, true, 'black');
+INSERT INTO Animal (id, DTYPE, name, weight, vaccinated, breed, trained, indoor, color) VALUES (5, 'Cat', 'Luna', 4, true, null, null, false, 'white');
+INSERT INTO Animal (id, DTYPE, name, weight, vaccinated, breed, trained, indoor, color) VALUES (6, 'Cat', 'Mittens', 6, false, null, null, true, 'orange');
+
+-- Update sequence for PostgreSQL
+ALTER SEQUENCE animal_seq RESTART WITH 100;

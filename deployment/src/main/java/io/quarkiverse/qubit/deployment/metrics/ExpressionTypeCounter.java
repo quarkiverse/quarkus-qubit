@@ -217,6 +217,8 @@ public final class ExpressionTypeCounter {
                 }
             }
 
+            case TreatExpression treat -> countRecursive(treat.inner(), counts);
+
             // Leaf nodes that don't contribute to expression type counts
             case Parameter _,CapturedVariable _,NullLiteral _,BiEntityParameter _,GroupParameter _ -> {
                 // No counting for these leaf nodes

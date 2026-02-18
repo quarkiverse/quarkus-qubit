@@ -97,6 +97,7 @@ public final class JavaSourceGenerator {
             case CorrelatedVariable correlated -> param + "." + expressionToJava(correlated.fieldExpression(), param);
             case SubqueryBuilderReference _ -> "subquery(...)";
             case MathFunction mathFunc -> mathFunctionToJava(mathFunc, param);
+            case TreatExpression treat -> treatToJava(treat, param);
         };
     }
 
@@ -460,5 +461,11 @@ public final class JavaSourceGenerator {
                 yield "QubitMath.round(" + operand + ", " + second + ")";
             }
         };
+    }
+
+    private static String treatToJava(TreatExpression treat, String param) {
+        String inner = expressionToJava(treat.inner(), param);
+        String typeName = treat.treatType().getSimpleName();
+        return "((" + typeName + ") " + param + ")." + inner;
     }
 }

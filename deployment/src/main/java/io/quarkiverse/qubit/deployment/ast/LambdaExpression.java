@@ -244,6 +244,31 @@ public sealed interface LambdaExpression {
         }
     }
 
+    /**
+     * Entity downcast for accessing subclass fields in inheritance hierarchies.
+     *
+     * <p>
+     * Maps to JPA: {@code cb.treat(root, targetType).get(fieldName)}.
+     * The {@code inner} expression is resolved against the treated root.
+     *
+     * <p>
+     * Created when pattern matching ({@code a instanceof Dog d && d.breed.equals("Lab")})
+     * or explicit casting ({@code a instanceof Dog && ((Dog) a).breed.equals("Lab")}) is
+     * detected during bytecode analysis.
+     *
+     * @param treatType the entity subclass to downcast to
+     * @param inner the expression to resolve on the treated root (FieldAccess, PathExpression)
+     */
+    record TreatExpression(
+            Class<?> treatType,
+            LambdaExpression inner) implements LambdaExpression {
+
+        public TreatExpression {
+            Objects.requireNonNull(treatType, "Treat type cannot be null");
+            Objects.requireNonNull(inner, "Inner expression cannot be null");
+        }
+    }
+
     /** Ternary conditional expression. */
     record Conditional(
             LambdaExpression condition,

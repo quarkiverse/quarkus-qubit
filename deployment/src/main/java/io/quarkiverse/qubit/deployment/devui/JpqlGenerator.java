@@ -272,6 +272,7 @@ public final class JpqlGenerator {
             case CorrelatedVariable correlated -> "OUTER." + expressionToJpql(correlated.fieldExpression());
             case SubqueryBuilderReference _ -> "(SUBQUERY)";
             case MathFunction mathFunc -> mathFunctionToJpql(mathFunc);
+            case TreatExpression treat -> treatExpressionToJpql(treat);
         };
     }
 
@@ -574,6 +575,12 @@ public final class JpqlGenerator {
                 yield "ROUND(" + operand + ", " + second + ")";
             }
         };
+    }
+
+    private static String treatExpressionToJpql(TreatExpression treat) {
+        String inner = expressionToJpql(treat.inner());
+        String typeName = treat.treatType().getSimpleName();
+        return "TREAT(" + ENTITY_ALIAS + " AS " + typeName + ")." + inner;
     }
 
 }

@@ -187,6 +187,9 @@ List<Person> matching = personRepository
 
 |Ternary
 |`condition ? trueExpr : falseExpr` in projections
+
+|Inheritance (TREAT)
+|`a instanceof Dog d && d.breed`, `((Dog) a).breed` — access subclass fields via pattern matching or explicit cast
 |===
 
 == Query Optimizations

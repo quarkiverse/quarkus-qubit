@@ -14,6 +14,7 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CASE_
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_AND;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_BETWEEN_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NULLIF_EXPR;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_TREAT_ROOT;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_CONCAT_EXPR_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_CONSTRUCT;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_EQUAL;
@@ -30,6 +31,7 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_SE
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CLASS_FOR_NAME;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.EXPRESSION_IN_COLLECTION;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.PATH_GET;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.PATH_TYPE;
 
 import java.util.Objects;
 
@@ -132,6 +134,17 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
             case LambdaExpression.MathFunction mathFunc ->
                 generateMathFunction(bc, cb, root, capturedValues, mathFunc);
+
+            case LambdaExpression.TreatExpression treat ->
+                generateTreatExpression(bc, treat, cb, root, capturedValues);
+
+            case LambdaExpression.InstanceOf instanceOf -> {
+                // TYPE(e) = SubType check: cb.equal(root.type(), cb.literal(SubType.class))
+                Expr rootType = bc.invokeInterface(PATH_TYPE, root);
+                Expr typeClass = Const.of(instanceOf.targetType());
+                Expr typeLiteral = bc.invokeInterface(CB_LITERAL, cb, typeClass);
+                yield bc.invokeInterface(CB_EQUAL, cb, rootType, typeLiteral);
+            }
 
             default -> throw new UnsupportedExpressionException(expression, "predicate generation");
         };
@@ -406,6 +419,9 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             case LambdaExpression.MathFunction mathFunc ->
                 generateMathFunction(bc, cb, root, capturedValues, mathFunc);
 
+            case LambdaExpression.TreatExpression treat ->
+                generateTreatExpression(bc, treat, cb, root, capturedValues);
+
             default -> throw new UnsupportedExpressionException(expression);
         };
     }
@@ -466,6 +482,28 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         }
 
         return MathExpressionBuilder.build(bc, cb, operandExpr, secondExpr, mathFunc.op());
+    }
+
+    /**
+     * Generates JPA TREAT expression for inheritance type casting.
+     * <p>
+     * Maps: {@code ((Dog) a).breed} or {@code a instanceof Dog d && d.breed}
+     * To JPA: {@code cb.treat(root, Dog.class).get("breed")}
+     */
+    private Expr generateTreatExpression(
+            BlockCreator bc,
+            LambdaExpression.TreatExpression treat,
+            Expr cb,
+            Expr root,
+            Expr capturedValues) {
+
+        // cb.treat(root, Dog.class) -> Root<Dog>
+        Expr classLiteral = Const.of(treat.treatType());
+        LocalVar treatedRoot = bc.localVar("treatedRoot",
+                bc.invokeInterface(CB_TREAT_ROOT, cb, root, classLiteral));
+
+        // Generate inner expression using treatedRoot instead of root
+        return generateExpressionAsJpaExpression(bc, treat.inner(), cb, treatedRoot, capturedValues);
     }
 
     /**

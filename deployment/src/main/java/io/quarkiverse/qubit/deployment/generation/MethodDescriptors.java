@@ -25,6 +25,7 @@ public final class MethodDescriptors {
     public static final MethodDesc CLASS_FOR_NAME = MethodDesc.of(Class.class, "forName", Class.class, String.class);
 
     public static final MethodDesc PATH_GET = MethodDesc.of(Path.class, "get", Path.class, String.class);
+    public static final MethodDesc PATH_TYPE = MethodDesc.of(Path.class, "type", Expression.class);
 
     public static final MethodDesc CRITERIA_QUERY_SUBQUERY = MethodDesc.of(CriteriaQuery.class, "subquery", Subquery.class,
             Class.class);
@@ -261,6 +262,10 @@ public final class MethodDescriptors {
             int.class);
     public static final MethodDesc TQ_SET_MAX_RESULTS = MethodDesc.of(TypedQuery.class, "setMaxResults", TypedQuery.class,
             int.class);
+
+    /** cb.treat(Root, Class) -> Root (JPA 2.1 downcast for inheritance queries) */
+    public static final MethodDesc CB_TREAT_ROOT = MethodDesc.of(CriteriaBuilder.class, "treat", Root.class,
+            Root.class, Class.class);
 
     public static final MethodDesc FROM_JOIN = MethodDesc.of(From.class, "join", Join.class, String.class, JoinType.class);
 

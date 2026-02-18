@@ -34,6 +34,7 @@ public final class InstructionHandlerRegistry {
                 ConstantInstructionHandler.INSTANCE,
                 ArithmeticInstructionHandler.INSTANCE,
                 TypeConversionHandler.INSTANCE,
+                TypeCheckHandler.INSTANCE, // INSTANCEOF, CHECKCAST
                 InvokeDynamicHandler.INSTANCE, // Java 9+ string concatenation
                 MethodInvocationHandler.INSTANCE));
     }

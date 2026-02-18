@@ -419,7 +419,6 @@ class LoadInstructionHandlerTest {
     /** Opcodes that the handler cannot handle. */
     static Stream<Arguments> unhandledOpcodes() {
         return Stream.of(
-                Arguments.of("ASTORE", ASTORE),
                 Arguments.of("ISTORE", ISTORE));
     }
 

@@ -34,7 +34,8 @@ public enum LoadInstructionHandler implements InstructionHandler {
 
     /** Opcodes handled by this handler for O(1) dispatch. */
     private static final Set<Integer> SUPPORTED_OPCODES = Set.of(
-            ALOAD, ILOAD, LLOAD, FLOAD, DLOAD, GETFIELD, GETSTATIC);
+            ALOAD, ILOAD, LLOAD, FLOAD, DLOAD, GETFIELD, GETSTATIC,
+            ASTORE);
 
     @Override
     public Set<Integer> supportedOpcodes() {
@@ -55,6 +56,7 @@ public enum LoadInstructionHandler implements InstructionHandler {
             case ILOAD, LLOAD, FLOAD, DLOAD -> handlePrimitiveLoad(ctx, opcode, (VarInsnNode) insn);
             case GETFIELD -> handleGetField(ctx, (FieldInsnNode) insn);
             case GETSTATIC -> handleGetStatic(ctx, (FieldInsnNode) insn);
+            case ASTORE -> handleAStore(ctx, (VarInsnNode) insn);
         }
 
         return false;
@@ -74,6 +76,13 @@ public enum LoadInstructionHandler implements InstructionHandler {
                 ctx.push(new LambdaExpression.Parameter("entity", Object.class, varInsn.var));
             }
         } else {
+            // Check for treat alias (pattern variable from instanceof + checkcast + astore)
+            LambdaExpression treatAlias = ctx.getTreatAlias(varInsn.var);
+            if (treatAlias != null) {
+                ctx.push(treatAlias);
+                return;
+            }
+
             int paramIndex = DescriptorParser.slotIndexToParameterIndex(
                     ctx.getMethod().desc, varInsn.var);
 
@@ -89,6 +98,19 @@ public enum LoadInstructionHandler implements InstructionHandler {
             String varName = ctx.getVariableNameForSlot(varInsn.var);
             ctx.push(new LambdaExpression.CapturedVariable(paramIndex, varType, varName));
         }
+    }
+
+    /** Handles ASTORE: registers treat alias if top of stack is a Cast expression (pattern variable). */
+    private void handleAStore(AnalysisContext ctx, VarInsnNode varInsn) {
+        if (ctx.isStackEmpty()) {
+            return; // Nothing on stack to store
+        }
+        LambdaExpression top = ctx.peek();
+        if (top instanceof LambdaExpression.Cast) {
+            // Pattern variable: store the Cast as a treat alias
+            ctx.registerTreatAlias(varInsn.var, ctx.pop());
+        }
+        // For non-Cast ASTORE, leave stack unchanged (consumed by branch handler or ignored)
     }
 
     /** Handles primitive loads. */
@@ -225,6 +247,25 @@ public enum LoadInstructionHandler implements InstructionHandler {
                         extendedPath,
                         outerParameterIndex,
                         outerEntityType));
+            }
+
+            case LambdaExpression.Cast(_, var castType) ->
+                // Direct cast: ((Dog) a).breed → TreatExpression(Dog, FieldAccess("breed"))
+                ctx.push(new LambdaExpression.TreatExpression(
+                        castType,
+                        new FieldAccess(fieldName, fieldType)));
+
+            case LambdaExpression.TreatExpression(var treatType, var inner) -> {
+                // Chained access on treated reference: ((Dog) a).trainer.name
+                LambdaExpression extendedInner = switch (inner) {
+                    case FieldAccess fa ->
+                        new PathExpression(buildPath(toSegment(fa), newSegment), fieldType);
+                    case PathExpression(var segments, _) ->
+                        new PathExpression(extendPath(segments, newSegment), fieldType);
+                    default ->
+                        new FieldAccess(fieldName, fieldType);
+                };
+                ctx.push(new LambdaExpression.TreatExpression(treatType, extendedInner));
             }
 
             default ->

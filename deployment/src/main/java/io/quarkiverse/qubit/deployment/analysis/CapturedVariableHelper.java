@@ -82,6 +82,9 @@ public final class CapturedVariableHelper {
                 }
             }
 
+            case LambdaExpression.TreatExpression(_, var inner) ->
+                collectCapturedVariableIndices(inner, capturedIndices);
+
             // No captured variables (separate cases for exhaustiveness)
             case LambdaExpression.PathExpression _ -> {
                 /* no-op */ }
@@ -163,6 +166,11 @@ public final class CapturedVariableHelper {
                         op,
                         renumberCapturedVariables(operand, offset),
                         secondOp != null ? renumberCapturedVariables(secondOp, offset) : null);
+
+            case LambdaExpression.TreatExpression(var treatType, var inner) ->
+                new LambdaExpression.TreatExpression(
+                        treatType,
+                        renumberCapturedVariables(inner, offset));
 
             // No captured variables - return as-is
             default -> expression;

@@ -3,6 +3,7 @@ package io.quarkiverse.qubit.deployment.analysis.instruction;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -87,6 +88,9 @@ public class AnalysisContext {
 
     /** Collected elements for pending array creation. */
     private java.util.List<LambdaExpression> pendingArrayElements = null;
+
+    /** Treat aliases: local variable slots that hold pattern-matched entity references. */
+    private final Map<Integer, LambdaExpression> treatAliases = new HashMap<>();
 
     /** Creates context for single-entity lambda. */
     public AnalysisContext(MethodNode method, int entityParameterIndex) {
@@ -416,5 +420,15 @@ public class AnalysisContext {
     /** Checks if a skip is pending. */
     public boolean hasSkipPending() {
         return skipToIndex >= 0;
+    }
+
+    /** Registers a pattern variable slot as a treat alias (from INSTANCEOF + CHECKCAST + ASTORE). */
+    public void registerTreatAlias(int slot, LambdaExpression castExpression) {
+        treatAliases.put(slot, castExpression);
+    }
+
+    /** Returns the treat alias for a slot, or null if not a pattern variable. */
+    public @Nullable LambdaExpression getTreatAlias(int slot) {
+        return treatAliases.get(slot);
     }
 }
