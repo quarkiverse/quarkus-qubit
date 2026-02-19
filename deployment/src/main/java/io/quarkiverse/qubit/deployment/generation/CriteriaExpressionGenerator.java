@@ -426,6 +426,15 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             case LambdaExpression.FoldedMethodCall folded ->
                 generateFoldedMethodCall(bc, cb, root, capturedValues, folded);
 
+            case LambdaExpression.InstanceOf instanceOf -> {
+                // TYPE(e) = SubType check: cb.equal(root.type(), cb.literal(SubType.class))
+                // Predicate extends Expression<Boolean>, so this is valid as a JPA expression.
+                Expr rootType = bc.invokeInterface(PATH_TYPE, root);
+                Expr typeClass = Const.of(instanceOf.targetType());
+                Expr typeLiteral = bc.invokeInterface(CB_LITERAL, cb, typeClass);
+                yield bc.invokeInterface(CB_EQUAL, cb, rootType, typeLiteral);
+            }
+
             default -> throw new UnsupportedExpressionException(expression);
         };
     }

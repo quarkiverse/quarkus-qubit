@@ -154,7 +154,13 @@ public final class PatternDetector {
                 expr instanceof LambdaExpression.GroupAggregation ||
                 expr instanceof LambdaExpression.GroupKeyReference ||
                 expr instanceof LambdaExpression.ScalarSubquery ||
+                isCastOfComparableExpression(expr) ||
                 isArithmeticExpression(expr);
+    }
+
+    /** Returns true if expression is a Cast wrapping a comparable expression (e.g., checkcast before unboxing). */
+    private static boolean isCastOfComparableExpression(LambdaExpression expr) {
+        return expr instanceof LambdaExpression.Cast(var inner, _) && isComparableExpression(inner);
     }
 
     /** Returns true if expression is entity field access (FieldAccess, PathExpression, BiEntity variants). */

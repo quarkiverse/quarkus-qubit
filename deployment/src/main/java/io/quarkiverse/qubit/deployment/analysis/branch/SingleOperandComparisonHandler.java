@@ -66,8 +66,9 @@ public class SingleOperandComparisonHandler implements BranchHandler {
         switch (patterns.pattern()) {
             case NUMERIC_COMPARISON -> {
                 // Numeric comparison: ISUB/LSUB or DCMPL/DCMPG → comparison
-                right = BytecodeValidator.popSafe(stack, INSTRUCTION_NAME + "-NumericComp-right");
-                left = BytecodeValidator.popSafe(stack, INSTRUCTION_NAME + "-NumericComp-left");
+                // Unwrap Cast nodes from CHECKCAST (type narrowing before unboxing)
+                right = BranchHandler.unwrapCast(BytecodeValidator.popSafe(stack, INSTRUCTION_NAME + "-NumericComp-right"));
+                left = BranchHandler.unwrapCast(BytecodeValidator.popSafe(stack, INSTRUCTION_NAME + "-NumericComp-left"));
             }
             case COMPARE_TO -> {
                 // CompareTo pattern: a.compareTo(b) → comparison

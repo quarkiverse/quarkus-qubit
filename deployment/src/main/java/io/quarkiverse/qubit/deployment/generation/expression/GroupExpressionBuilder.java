@@ -67,6 +67,10 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
                 // Key reference as boolean (if key is boolean type)
                 groupKeyExpr;
 
+            case LambdaExpression.Cast(var innerExpr, _) ->
+                // Java type cast — unwrap and process inner expression
+                generateGroupPredicate(bc, innerExpr, cb, root, groupKeyExpr, capturedValues, helper);
+
             default -> null;
         };
     }
@@ -141,6 +145,11 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
 
             case LambdaExpression.MathFunction mathFunc ->
                 generateGroupMathFunction(bc, mathFunc, cb, root, groupKeyExpr, capturedValues, helper);
+
+            case LambdaExpression.Cast(var innerExpr, _) ->
+                // Java type cast (e.g., CHECKCAST after g.key()) — unwrap and process inner expression.
+                // JPA Criteria API has no equivalent; the expression already has the correct type.
+                generateGroupSelectExpression(bc, innerExpr, cb, root, groupKeyExpr, capturedValues, helper);
 
             default -> null;
         };

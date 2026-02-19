@@ -36,6 +36,15 @@ public interface BranchHandler {
         return getClass().getSimpleName();
     }
 
+    /**
+     * Strips bytecode-level Cast wrappers (from CHECKCAST) that have no semantic meaning.
+     * Cast nodes appear when the JVM narrows a generic return type (e.g., Comparable to Double)
+     * before unboxing. They are transparent for numeric comparison purposes.
+     */
+    static LambdaExpression unwrapCast(LambdaExpression expr) {
+        return expr instanceof LambdaExpression.Cast(var inner, _) ? inner : expr;
+    }
+
     // Convenience methods delegating to BranchExpressionCombiner
     // These provide cleaner call sites in handlers
 

@@ -82,8 +82,10 @@ public abstract class AbstractZeroEqualityBranchHandler implements BranchHandler
         return switch (patterns.pattern()) {
             case NUMERIC_COMPARISON -> {
                 // Handle numeric comparison: ISUB/LSUB or DCMPL/DCMPG → instruction
-                LambdaExpression right = BytecodeValidator.popSafe(stack, getInstructionName() + "-NumericComp");
-                LambdaExpression left = BytecodeValidator.popSafe(stack, getInstructionName() + "-NumericComp");
+                LambdaExpression right = BranchHandler.unwrapCast(
+                        BytecodeValidator.popSafe(stack, getInstructionName() + "-NumericComp"));
+                LambdaExpression left = BranchHandler.unwrapCast(
+                        BytecodeValidator.popSafe(stack, getInstructionName() + "-NumericComp"));
                 stack.push(createNumericComparisonExpression(left, right));
                 Log.tracef("%s: Numeric comparison pattern - created comparison", getInstructionName());
                 yield ctx.state();

@@ -189,7 +189,7 @@ final class MethodScanState {
             boolean isQubitTerminal = scanner.isQubitStreamTerminalCall(methodCall);
             Log.debugf("Group context check: hasSelectLambda=%b, hasSelectKey=%b, isQubitTerminal=%b, method=%s.%s",
                     hasSelectLambda, pendingGroupSelectKey, isQubitTerminal, methodCall.owner, methodCall.name);
-            if ((hasSelectLambda || pendingGroupSelectKey) && isQubitTerminal) {
+            if (isQubitTerminal) {
                 Log.debugf("Group context: detected QubitStream terminal after select %s.%s", methodCall.owner,
                         methodCall.name);
                 return true;
