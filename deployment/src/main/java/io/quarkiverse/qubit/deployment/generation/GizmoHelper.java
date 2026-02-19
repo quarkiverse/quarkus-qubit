@@ -158,12 +158,22 @@ public final class GizmoHelper {
                 // Generate JPA Expression for the sort key using provided generator
                 Expr sortKeyExpr = sortKeyGenerator.apply(sortExpr);
 
-                // Create Order object (ascending or descending)
+                // Create Order object (ascending or descending), with optional null precedence
                 Expr order;
-                if (sortExpr.direction() == SortDirection.DESCENDING) {
-                    order = bc.invokeInterface(CB_DESC, cb, sortKeyExpr);
+                if (sortExpr.nullPrecedence() != null) {
+                    // JPA 3.2: cb.asc(expr, Nulls.FIRST) / cb.desc(expr, Nulls.LAST)
+                    Expr nullsEnum = loadNullsEnumConstant(sortExpr.nullPrecedence());
+                    if (sortExpr.direction() == SortDirection.DESCENDING) {
+                        order = bc.invokeInterface(CB_DESC_NULLS, cb, sortKeyExpr, nullsEnum);
+                    } else {
+                        order = bc.invokeInterface(CB_ASC_NULLS, cb, sortKeyExpr, nullsEnum);
+                    }
                 } else {
-                    order = bc.invokeInterface(CB_ASC, cb, sortKeyExpr);
+                    if (sortExpr.direction() == SortDirection.DESCENDING) {
+                        order = bc.invokeInterface(CB_DESC, cb, sortKeyExpr);
+                    } else {
+                        order = bc.invokeInterface(CB_ASC, cb, sortKeyExpr);
+                    }
                 }
 
                 // Add to orders array at position i (forward order)
@@ -173,6 +183,12 @@ public final class GizmoHelper {
 
         // Apply orderBy to query
         bc.invokeInterface(CQ_ORDER_BY, query, ordersArray);
+    }
+
+    /** Loads a {@code jakarta.persistence.criteria.Nulls} enum constant (FIRST or LAST) as a Gizmo Expr. */
+    private static Expr loadNullsEnumConstant(String nullsValue) {
+        ClassDesc nullsDesc = ClassDesc.of("jakarta.persistence.criteria.Nulls");
+        return Expr.staticField(FieldDesc.of(nullsDesc, nullsValue, nullsDesc));
     }
 
     /**

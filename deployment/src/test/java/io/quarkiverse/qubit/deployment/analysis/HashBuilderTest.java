@@ -159,7 +159,7 @@ class HashBuilderTest {
         @Test
         void sort_withExpressions_addsSortString() {
             LambdaExpression keyExpr = new LambdaExpression.FieldAccess("name", String.class);
-            SortExpression sortExpr = new SortExpression(keyExpr, SortDirection.ASCENDING);
+            SortExpression sortExpr = new SortExpression(keyExpr, SortDirection.ASCENDING, null);
 
             String result = HashBuilder.create()
                     .sort(List.of(sortExpr))
@@ -174,8 +174,8 @@ class HashBuilderTest {
         void sort_withMultipleExpressions_joinsWithComma() {
             LambdaExpression expr1 = new LambdaExpression.FieldAccess("lastName", String.class);
             LambdaExpression expr2 = new LambdaExpression.FieldAccess("firstName", String.class);
-            SortExpression sort1 = new SortExpression(expr1, SortDirection.ASCENDING);
-            SortExpression sort2 = new SortExpression(expr2, SortDirection.DESCENDING);
+            SortExpression sort1 = new SortExpression(expr1, SortDirection.ASCENDING, null);
+            SortExpression sort2 = new SortExpression(expr2, SortDirection.DESCENDING, null);
 
             String result = HashBuilder.create()
                     .sort(List.of(sort1, sort2))
@@ -489,7 +489,7 @@ class HashBuilderTest {
             LambdaExpression whereExpr = new LambdaExpression.FieldAccess("status", String.class);
             LambdaExpression selectExpr = new LambdaExpression.FieldAccess("name", String.class);
             LambdaExpression sortKeyExpr = new LambdaExpression.FieldAccess("createdAt", java.util.Date.class);
-            SortExpression sortExpr = new SortExpression(sortKeyExpr, SortDirection.DESCENDING);
+            SortExpression sortExpr = new SortExpression(sortKeyExpr, SortDirection.DESCENDING, null);
 
             String result = HashBuilder.create()
                     .where(whereExpr)
@@ -615,7 +615,7 @@ class HashBuilderTest {
             String result = HashBuilder.create()
                     .where(whereExpr)
                     .select(selectExpr)
-                    .sort(List.of(new SortExpression(sortKeyExpr, SortDirection.ASCENDING)))
+                    .sort(List.of(new SortExpression(sortKeyExpr, SortDirection.ASCENDING, null)))
                     .groupBy(groupByExpr)
                     .having(havingExpr)
                     .queryType(false)

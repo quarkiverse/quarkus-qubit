@@ -4,6 +4,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+import jakarta.persistence.criteria.Nulls;
+
 /**
  * Type-safe, fluent query builder translated to JPA Criteria Queries at build time.
  *
@@ -28,6 +30,34 @@ public interface QubitStream<T> {
 
     /** Adds a secondary descending sort. Lower priority than sortedDescendingBy(). */
     <K extends Comparable<K>> QubitStream<T> thenSortedDescendingBy(QuerySpec<T, K> keyExtractor);
+
+    /**
+     * Sorts ascending with explicit null precedence (JPA 3.2).
+     * Use {@link Nulls#FIRST} to place nulls at the beginning,
+     * or {@link Nulls#LAST} to place nulls at the end.
+     */
+    <K extends Comparable<K>> QubitStream<T> sortedBy(QuerySpec<T, K> keyExtractor,
+            Nulls nullPrecedence);
+
+    /**
+     * Sorts descending with explicit null precedence (JPA 3.2).
+     * Use {@link Nulls#FIRST} to place nulls at the beginning,
+     * or {@link Nulls#LAST} to place nulls at the end.
+     */
+    <K extends Comparable<K>> QubitStream<T> sortedDescendingBy(QuerySpec<T, K> keyExtractor,
+            Nulls nullPrecedence);
+
+    /**
+     * Adds a secondary ascending sort with explicit null precedence (JPA 3.2).
+     */
+    <K extends Comparable<K>> QubitStream<T> thenSortedBy(QuerySpec<T, K> keyExtractor,
+            Nulls nullPrecedence);
+
+    /**
+     * Adds a secondary descending sort with explicit null precedence (JPA 3.2).
+     */
+    <K extends Comparable<K>> QubitStream<T> thenSortedDescendingBy(QuerySpec<T, K> keyExtractor,
+            Nulls nullPrecedence);
 
     /**
      * Skips the first {@code n} results (SQL OFFSET).

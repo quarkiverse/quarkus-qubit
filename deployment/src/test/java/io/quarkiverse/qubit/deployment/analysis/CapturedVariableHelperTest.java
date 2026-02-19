@@ -178,7 +178,7 @@ class CapturedVariableHelperTest {
         @Test
         void countCapturedVariablesInSortExpressions_withOneSortExpr_countsCorrectly() {
             LambdaAnalysisResult.SortExpression sort = new LambdaAnalysisResult.SortExpression(
-                    captured(0, String.class), SortDirection.ASCENDING);
+                    captured(0, String.class), SortDirection.ASCENDING, null);
 
             int count = CapturedVariableHelper.countCapturedVariablesInSortExpressions(List.of(sort));
 
@@ -190,9 +190,9 @@ class CapturedVariableHelperTest {
         @Test
         void countCapturedVariablesInSortExpressions_withMultipleSortExprs_sumsCorrectly() {
             LambdaAnalysisResult.SortExpression sort1 = new LambdaAnalysisResult.SortExpression(
-                    captured(0, String.class), SortDirection.ASCENDING);
+                    captured(0, String.class), SortDirection.ASCENDING, null);
             LambdaAnalysisResult.SortExpression sort2 = new LambdaAnalysisResult.SortExpression(
-                    captured(1, Integer.class), SortDirection.DESCENDING);
+                    captured(1, Integer.class), SortDirection.DESCENDING, null);
 
             int count = CapturedVariableHelper.countCapturedVariablesInSortExpressions(List.of(sort1, sort2));
 

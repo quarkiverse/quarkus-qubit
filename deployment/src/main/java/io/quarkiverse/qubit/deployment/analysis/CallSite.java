@@ -3,6 +3,8 @@ package io.quarkiverse.qubit.deployment.analysis;
 import static io.quarkiverse.qubit.deployment.util.DescriptorParser.returnsBooleanType;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.List;
 
 import io.quarkiverse.qubit.SortDirection;
@@ -14,7 +16,8 @@ public sealed interface CallSite permits CallSite.SimpleCallSite, CallSite.Aggre
     record LambdaPair(String methodName, String descriptor) {
     }
 
-    record SortLambda(String methodName, String descriptor, SortDirection direction) {
+    record SortLambda(String methodName, String descriptor, SortDirection direction,
+            @Nullable String nullPrecedence) {
     }
 
     enum JoinType {

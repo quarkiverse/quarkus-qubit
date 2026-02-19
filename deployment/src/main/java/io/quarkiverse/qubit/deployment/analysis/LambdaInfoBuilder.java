@@ -105,11 +105,13 @@ final class LambdaInfoBuilder {
         if (!lambda.isGroupSpec())
             return false;
         if (METHOD_SORTED_BY.equals(fluentMethod) || METHOD_THEN_SORTED_BY.equals(fluentMethod)) {
-            groupSortLambdas.add(new SortLambda(lambda.methodName(), lambda.descriptor(), SortDirection.ASCENDING));
+            groupSortLambdas.add(new SortLambda(lambda.methodName(), lambda.descriptor(),
+                    SortDirection.ASCENDING, lambda.nullPrecedence()));
             return true;
         }
         if (METHOD_SORTED_DESCENDING_BY.equals(fluentMethod) || METHOD_THEN_SORTED_DESCENDING_BY.equals(fluentMethod)) {
-            groupSortLambdas.add(new SortLambda(lambda.methodName(), lambda.descriptor(), SortDirection.DESCENDING));
+            groupSortLambdas.add(new SortLambda(lambda.methodName(), lambda.descriptor(),
+                    SortDirection.DESCENDING, lambda.nullPrecedence()));
             return true;
         }
         return false;
@@ -153,9 +155,11 @@ final class LambdaInfoBuilder {
 
     private void classifySortLambda(PendingLambda lambda, @Nullable String fluentMethod) {
         if (METHOD_SORTED_BY.equals(fluentMethod) || METHOD_THEN_SORTED_BY.equals(fluentMethod)) {
-            sortLambdas.add(new SortLambda(lambda.methodName(), lambda.descriptor(), SortDirection.ASCENDING));
+            sortLambdas.add(new SortLambda(lambda.methodName(), lambda.descriptor(),
+                    SortDirection.ASCENDING, lambda.nullPrecedence()));
         } else if (METHOD_SORTED_DESCENDING_BY.equals(fluentMethod) || METHOD_THEN_SORTED_DESCENDING_BY.equals(fluentMethod)) {
-            sortLambdas.add(new SortLambda(lambda.methodName(), lambda.descriptor(), SortDirection.DESCENDING));
+            sortLambdas.add(new SortLambda(lambda.methodName(), lambda.descriptor(),
+                    SortDirection.DESCENDING, lambda.nullPrecedence()));
         }
     }
 

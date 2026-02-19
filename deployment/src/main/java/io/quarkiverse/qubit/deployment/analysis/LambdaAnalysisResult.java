@@ -2,6 +2,8 @@ package io.quarkiverse.qubit.deployment.analysis;
 
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 import io.quarkiverse.qubit.SortDirection;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
@@ -81,6 +83,7 @@ public sealed interface LambdaAnalysisResult {
      */
     record SortExpression(
             LambdaExpression keyExtractor,
-            SortDirection direction) {
+            SortDirection direction,
+            @Nullable String nullPrecedence) {
     }
 }

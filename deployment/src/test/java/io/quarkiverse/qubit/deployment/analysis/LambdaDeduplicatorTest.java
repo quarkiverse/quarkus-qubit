@@ -48,11 +48,11 @@ class LambdaDeduplicatorTest {
     }
 
     private SortExpression sortAsc(String fieldName) {
-        return new SortExpression(field(fieldName), SortDirection.ASCENDING);
+        return new SortExpression(field(fieldName), SortDirection.ASCENDING, null);
     }
 
     private SortExpression sortDesc(String fieldName) {
-        return new SortExpression(field(fieldName), SortDirection.DESCENDING);
+        return new SortExpression(field(fieldName), SortDirection.DESCENDING, null);
     }
 
     // computeLambdaHash Tests

@@ -3,6 +3,7 @@ package io.quarkiverse.qubit;
 import java.util.Collection;
 
 import jakarta.persistence.MappedSuperclass;
+import jakarta.persistence.criteria.Nulls;
 
 import io.quarkus.hibernate.orm.panache.PanacheEntity;
 
@@ -196,6 +197,29 @@ public abstract class QubitEntity extends PanacheEntity {
                 "This method is normally automatically overridden in subclasses at build time. " +
                         "Did you forget to annotate your entity with @Entity? " +
                         "Or is the Qubit build-time processor not properly configured?");
+    }
+
+    /**
+     * Creates a query sorted in ascending order with explicit null precedence (JPA 3.2).
+     *
+     * @see #sortedBy(QuerySpec)
+     */
+    public static <T extends QubitEntity, K extends Comparable<K>> QubitStream<T> sortedBy(
+            QuerySpec<T, K> keyExtractor, Nulls nullPrecedence) {
+        // Nulls parameter is build-time metadata only (extracted from bytecode by the scanner).
+        // Delegates to the overridden single-argument version at runtime.
+        return sortedBy(keyExtractor);
+    }
+
+    /**
+     * Creates a query sorted in descending order with explicit null precedence (JPA 3.2).
+     *
+     * @see #sortedDescendingBy(QuerySpec)
+     */
+    public static <T extends QubitEntity, K extends Comparable<K>> QubitStream<T> sortedDescendingBy(
+            QuerySpec<T, K> keyExtractor, Nulls nullPrecedence) {
+        // Nulls parameter is build-time metadata only (extracted from bytecode by the scanner).
+        return sortedDescendingBy(keyExtractor);
     }
 
     /**

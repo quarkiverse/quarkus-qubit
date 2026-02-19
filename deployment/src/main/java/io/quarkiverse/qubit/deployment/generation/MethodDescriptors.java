@@ -268,6 +268,13 @@ public final class MethodDescriptors {
     public static final MethodDesc CB_ASC = MethodDesc.of(CriteriaBuilder.class, "asc", Order.class, Expression.class);
     public static final MethodDesc CB_DESC = MethodDesc.of(CriteriaBuilder.class, "desc", Order.class, Expression.class);
 
+    /** cb.asc(Expression, Nulls) -> Order (JPA 3.2) */
+    public static final MethodDesc CB_ASC_NULLS = MethodDesc.of(CriteriaBuilder.class, "asc", Order.class,
+            Expression.class, Nulls.class);
+    /** cb.desc(Expression, Nulls) -> Order (JPA 3.2) */
+    public static final MethodDesc CB_DESC_NULLS = MethodDesc.of(CriteriaBuilder.class, "desc", Order.class,
+            Expression.class, Nulls.class);
+
     public static final MethodDesc TQ_GET_RESULT_LIST = MethodDesc.of(TypedQuery.class, "getResultList", List.class);
     public static final MethodDesc TQ_GET_SINGLE_RESULT = MethodDesc.of(TypedQuery.class, "getSingleResult", Object.class);
     public static final MethodDesc TQ_SET_FIRST_RESULT = MethodDesc.of(TypedQuery.class, "setFirstResult", TypedQuery.class,

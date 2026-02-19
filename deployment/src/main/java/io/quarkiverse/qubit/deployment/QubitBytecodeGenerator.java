@@ -72,8 +72,10 @@ public final class QubitBytecodeGenerator {
                 DESC_CLASS_CONSTRUCTOR,
                 false);
 
-        // Load QuerySpec parameter (index 0 for static method)
-        mv.visitVarInsn(Opcodes.ALOAD, 0);
+        // Load parameters (index 0..N for static method)
+        for (int i = 0; i < config.maxLocals(); i++) {
+            mv.visitVarInsn(Opcodes.ALOAD, i);
+        }
 
         // Call the appropriate method on the stream: .where(spec) or .select(spec) or .min(spec) etc.
         // Use the method descriptor from config (aggregation methods have different return types)
@@ -366,6 +368,43 @@ public final class QubitBytecodeGenerator {
                     entityType,
                     3,
                     1);
+        }
+
+        private static final String DESC_QUERY_SPEC_NULLS_TO_STREAM = "(Lio/quarkiverse/qubit/QuerySpec;"
+                + "Ljakarta/persistence/criteria/Nulls;)Lio/quarkiverse/qubit/QubitStream;";
+
+        /** Creates config for sortedBy(QuerySpec, Nulls) method (JPA 3.2). */
+        public static FluentMethodConfig forSortedByWithNulls(Type entityType, String entityInternalName) {
+            String genericSignature = "<K::Ljava/lang/Comparable<TK;>;>(Lio/quarkiverse/qubit/QuerySpec<L" +
+                    entityInternalName + ";TK;>;Ljakarta/persistence/criteria/Nulls;)Lio/quarkiverse/qubit/QubitStream<L"
+                    + entityInternalName + ";>;";
+
+            return new FluentMethodConfig(
+                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                    METHOD_SORTED_BY,
+                    DESC_QUERY_SPEC_NULLS_TO_STREAM,
+                    genericSignature,
+                    Opcodes.ARETURN,
+                    entityType,
+                    4,
+                    2);
+        }
+
+        /** Creates config for sortedDescendingBy(QuerySpec, Nulls) method (JPA 3.2). */
+        public static FluentMethodConfig forSortedDescendingByWithNulls(Type entityType, String entityInternalName) {
+            String genericSignature = "<K::Ljava/lang/Comparable<TK;>;>(Lio/quarkiverse/qubit/QuerySpec<L" +
+                    entityInternalName + ";TK;>;Ljakarta/persistence/criteria/Nulls;)Lio/quarkiverse/qubit/QubitStream<L"
+                    + entityInternalName + ";>;";
+
+            return new FluentMethodConfig(
+                    Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                    METHOD_SORTED_DESCENDING_BY,
+                    DESC_QUERY_SPEC_NULLS_TO_STREAM,
+                    genericSignature,
+                    Opcodes.ARETURN,
+                    entityType,
+                    4,
+                    2);
         }
 
         // Aggregation methods - these now return QubitStream (intermediate operations)

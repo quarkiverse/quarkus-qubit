@@ -81,7 +81,7 @@ class MethodScanStateTest {
         @Test
         @DisplayName("addLambda adds to pending list")
         void addLambdaAddsToPendingList() {
-            PendingLambda lambda = new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC);
+            PendingLambda lambda = new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC, null);
 
             state.addLambda(lambda);
 
@@ -93,9 +93,9 @@ class MethodScanStateTest {
         @Test
         @DisplayName("multiple lambdas can be added")
         void multipleLambdasCanBeAdded() {
-            state.addLambda(new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC));
-            state.addLambda(new PendingLambda("lambda$1", "(LPerson;)LString;", "select", LambdaSpecType.QUERY_SPEC));
-            state.addLambda(new PendingLambda("lambda$2", "(LPerson;)I", "sortedBy", LambdaSpecType.QUERY_SPEC));
+            state.addLambda(new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC, null));
+            state.addLambda(new PendingLambda("lambda$1", "(LPerson;)LString;", "select", LambdaSpecType.QUERY_SPEC, null));
+            state.addLambda(new PendingLambda("lambda$2", "(LPerson;)I", "sortedBy", LambdaSpecType.QUERY_SPEC, null));
 
             assertThat(state.pendingLambdas()).hasSize(3);
         }
@@ -103,7 +103,7 @@ class MethodScanStateTest {
         @Test
         @DisplayName("pendingLambdas returns modifiable list")
         void pendingLambdasReturnsModifiableList() {
-            state.addLambda(new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC));
+            state.addLambda(new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC, null));
 
             // The list should be modifiable for reset()
             state.pendingLambdas().clear();
@@ -314,7 +314,7 @@ class MethodScanStateTest {
         @DisplayName("reset clears all state except currentLine")
         void resetClearsAllStateExceptCurrentLine() {
             // Set up various state
-            state.addLambda(new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC));
+            state.addLambda(new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC, null));
             state.setAggregation("min");
             state.setJoinType(CallSite.JoinType.LEFT);
             state.markJoinSelectJoined(50);
@@ -349,7 +349,7 @@ class MethodScanStateTest {
         @Test
         @DisplayName("reset can be called multiple times")
         void resetCanBeCalledMultipleTimes() {
-            state.addLambda(new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC));
+            state.addLambda(new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC, null));
             state.reset();
             state.reset();
             state.reset();
@@ -360,12 +360,12 @@ class MethodScanStateTest {
         @Test
         @DisplayName("state can be reused after reset")
         void stateCanBeReusedAfterReset() {
-            state.addLambda(new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC));
+            state.addLambda(new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC, null));
             state.setJoinType(CallSite.JoinType.INNER);
             state.reset();
 
             // Add new state
-            state.addLambda(new PendingLambda("lambda$1", "(LOrder;)Z", "where", LambdaSpecType.QUERY_SPEC));
+            state.addLambda(new PendingLambda("lambda$1", "(LOrder;)Z", "where", LambdaSpecType.QUERY_SPEC, null));
             state.markGroupQuery();
 
             assertThat(state.hasLambdas()).isTrue();
@@ -382,7 +382,8 @@ class MethodScanStateTest {
         @Test
         @DisplayName("isBiEntity returns true for BI_QUERY_SPEC")
         void isBiEntityReturnsTrueForBiQuerySpec() {
-            PendingLambda lambda = new PendingLambda("lambda$0", "(LPerson;LPhone;)Z", "where", LambdaSpecType.BI_QUERY_SPEC);
+            PendingLambda lambda = new PendingLambda("lambda$0", "(LPerson;LPhone;)Z", "where", LambdaSpecType.BI_QUERY_SPEC,
+                    null);
 
             assertThat(lambda.isBiEntity()).isTrue();
             assertThat(lambda.isGroupSpec()).isFalse();
@@ -391,7 +392,7 @@ class MethodScanStateTest {
         @Test
         @DisplayName("isGroupSpec returns true for GROUP_QUERY_SPEC")
         void isGroupSpecReturnsTrueForGroupQuerySpec() {
-            PendingLambda lambda = new PendingLambda("lambda$0", "(LGroup;)Z", "having", LambdaSpecType.GROUP_QUERY_SPEC);
+            PendingLambda lambda = new PendingLambda("lambda$0", "(LGroup;)Z", "having", LambdaSpecType.GROUP_QUERY_SPEC, null);
 
             assertThat(lambda.isGroupSpec()).isTrue();
             assertThat(lambda.isBiEntity()).isFalse();
@@ -400,7 +401,7 @@ class MethodScanStateTest {
         @Test
         @DisplayName("standard QuerySpec is neither BiEntity nor GroupSpec")
         void standardQuerySpecIsNeither() {
-            PendingLambda lambda = new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC);
+            PendingLambda lambda = new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC, null);
 
             assertThat(lambda.isBiEntity()).isFalse();
             assertThat(lambda.isGroupSpec()).isFalse();
@@ -416,7 +417,7 @@ class MethodScanStateTest {
         void simulatesSimpleWhereQuery() {
             // Simulate: Person.where(p -> p.age > 18).toList()
             state.updateLine(10);
-            state.addLambda(new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC));
+            state.addLambda(new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC, null));
             state.updateLine(11);
 
             assertThat(state.hasLambdas()).isTrue();
@@ -430,10 +431,10 @@ class MethodScanStateTest {
         void simulatesJoinQuery() {
             // Simulate: Person.join(p -> p.phones).where((p, ph) -> ph.type.equals("mobile")).toList()
             state.updateLine(20);
-            state.addLambda(new PendingLambda("lambda$0", "(LPerson;)LList;", "join", LambdaSpecType.QUERY_SPEC));
+            state.addLambda(new PendingLambda("lambda$0", "(LPerson;)LList;", "join", LambdaSpecType.QUERY_SPEC, null));
             state.setJoinType(CallSite.JoinType.INNER);
             state.updateLine(21);
-            state.addLambda(new PendingLambda("lambda$1", "(LPerson;LPhone;)Z", "where", LambdaSpecType.BI_QUERY_SPEC));
+            state.addLambda(new PendingLambda("lambda$1", "(LPerson;LPhone;)Z", "where", LambdaSpecType.BI_QUERY_SPEC, null));
 
             assertThat(state.hasLambdas()).isTrue();
             assertThat(state.isJoinContext()).isTrue();
@@ -446,10 +447,10 @@ class MethodScanStateTest {
         void simulatesGroupQuery() {
             // Simulate: Person.groupBy(p -> p.department).select(g -> g.count()).toList()
             state.updateLine(30);
-            state.addLambda(new PendingLambda("lambda$0", "(LPerson;)LString;", "groupBy", LambdaSpecType.QUERY_SPEC));
+            state.addLambda(new PendingLambda("lambda$0", "(LPerson;)LString;", "groupBy", LambdaSpecType.QUERY_SPEC, null));
             state.markGroupQuery();
             state.updateLine(31);
-            state.addLambda(new PendingLambda("lambda$1", "(LGroup;)J", "select", LambdaSpecType.GROUP_QUERY_SPEC));
+            state.addLambda(new PendingLambda("lambda$1", "(LGroup;)J", "select", LambdaSpecType.GROUP_QUERY_SPEC, null));
             state.markGroupSelect(31);
 
             assertThat(state.isGroupContext()).isTrue();
@@ -461,7 +462,7 @@ class MethodScanStateTest {
         void simulatesQueryWithPagination() {
             // Simulate: Person.where(...).distinct().skip(10).limit(25).toList()
             state.updateLine(40);
-            state.addLambda(new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC));
+            state.addLambda(new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC, null));
             state.markDistinct();
             state.setSkipValue(10);
             state.setLimitValue(25);
@@ -476,7 +477,7 @@ class MethodScanStateTest {
         void simulatesMultipleCallSites() {
             // First query
             state.updateLine(50);
-            state.addLambda(new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC));
+            state.addLambda(new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC, null));
             state.setLimitValue(10);
 
             // Simulate terminal operation found - reset
@@ -484,7 +485,7 @@ class MethodScanStateTest {
 
             // Second query
             state.updateLine(55);
-            state.addLambda(new PendingLambda("lambda$1", "(LOrder;)Z", "where", LambdaSpecType.QUERY_SPEC));
+            state.addLambda(new PendingLambda("lambda$1", "(LOrder;)Z", "where", LambdaSpecType.QUERY_SPEC, null));
             state.markDistinct();
 
             // Verify second query state

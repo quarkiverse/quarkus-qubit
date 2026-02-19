@@ -5,12 +5,14 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import org.jspecify.annotations.Nullable;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Handle;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.IntInsnNode;
@@ -76,7 +78,8 @@ public class InvokeDynamicScanner {
     }
 
     /** Tracked lambda with spec type (QuerySpec, BiQuerySpec, GroupQuerySpec). Package-private for testing. */
-    record PendingLambda(String methodName, String descriptor, String fluentMethod, LambdaSpecType specType) {
+    record PendingLambda(String methodName, String descriptor, String fluentMethod, LambdaSpecType specType,
+            @Nullable String nullPrecedence) {
         boolean isBiEntity() {
             return specType == LambdaSpecType.BI_QUERY_SPEC;
         }
@@ -195,6 +198,12 @@ public class InvokeDynamicScanner {
         }
     }
 
+    private static final String NULLS_INTERNAL_NAME = "jakarta/persistence/criteria/Nulls";
+
+    private static final Set<String> SORT_METHOD_NAMES = Set.of(
+            METHOD_SORTED_BY, METHOD_SORTED_DESCENDING_BY,
+            METHOD_THEN_SORTED_BY, METHOD_THEN_SORTED_DESCENDING_BY);
+
     private void detectAndAddLambda(AbstractInsnNode insn, InsnList instructions, int index,
             MethodScanState state) {
         if (insn instanceof InvokeDynamicInsnNode invokeDynamic && isQuerySpecLambda(invokeDynamic)) {
@@ -202,11 +211,43 @@ public class InvokeDynamicScanner {
             if (handle != null) {
                 String fluentMethod = findFluentMethodForward(instructions, index);
                 LambdaSpecType specType = determineLambdaSpecType(invokeDynamic);
-                state.addLambda(new PendingLambda(handle.getName(), handle.getDesc(), fluentMethod, specType));
-                Log.debugf("Detected lambda: method=%s, fluent=%s, specType=%s, desc=%s",
-                        handle.getName(), fluentMethod, specType, invokeDynamic.desc);
+
+                // Extract Nulls enum argument if this is a sort method with null precedence
+                String nullPrecedence = null;
+                if (fluentMethod != null && SORT_METHOD_NAMES.contains(fluentMethod)) {
+                    nullPrecedence = extractNullsArgumentForward(instructions, index);
+                }
+
+                state.addLambda(new PendingLambda(handle.getName(), handle.getDesc(), fluentMethod, specType,
+                        nullPrecedence));
+                Log.debugf("Detected lambda: method=%s, fluent=%s, specType=%s, nulls=%s, desc=%s",
+                        handle.getName(), fluentMethod, specType, nullPrecedence, invokeDynamic.desc);
             }
         }
+    }
+
+    /**
+     * Scans forward from a lambda's invokedynamic to find a GETSTATIC for the
+     * {@code jakarta.persistence.criteria.Nulls} enum (FIRST or LAST).
+     * Returns the field name ("FIRST" or "LAST"), or null if no Nulls argument found.
+     */
+    private @Nullable String extractNullsArgumentForward(InsnList instructions, int lambdaIndex) {
+        for (int j = lambdaIndex + 1; j < Math.min(lambdaIndex + 5, instructions.size()); j++) {
+            AbstractInsnNode insn = instructions.get(j);
+            if (isMetadataInstruction(insn)) {
+                continue;
+            }
+            if (insn instanceof FieldInsnNode fieldInsn
+                    && fieldInsn.getOpcode() == Opcodes.GETSTATIC
+                    && NULLS_INTERNAL_NAME.equals(fieldInsn.owner)) {
+                return fieldInsn.name; // "FIRST" or "LAST"
+            }
+            // If we hit a method call before finding GETSTATIC Nulls, stop
+            if (insn instanceof MethodInsnNode) {
+                break;
+            }
+        }
+        return null;
     }
 
     /** Determines lambda spec type from invokedynamic descriptor. */

@@ -22,6 +22,7 @@ import io.quarkiverse.qubit.QubitStream;
 import io.quarkiverse.qubit.QuerySpec;
 import io.quarkiverse.qubit.ScalarResult;
 import io.quarkiverse.qubit.SortDirection;
+import jakarta.persistence.criteria.Nulls;
 
 /**
  * Default implementation of {@link QubitStream} using JPA Criteria Queries.
@@ -167,6 +168,33 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
         List<SortOrder<T>> newSortOrders = new ArrayList<>(this.sortOrders);
         newSortOrders.add(new SortOrder<>(keyExtractor, SortDirection.DESCENDING));
         return withSortOrders(newSortOrders);
+    }
+
+    // Nulls-precedence overloads (JPA 3.2) — Nulls parameter is build-time only,
+    // extracted from bytecode during analysis. Runtime delegates to standard sort methods.
+
+    @Override
+    public <K extends Comparable<K>> QubitStream<T> sortedBy(QuerySpec<T, K> keyExtractor,
+            Nulls nullPrecedence) {
+        return sortedBy(keyExtractor);
+    }
+
+    @Override
+    public <K extends Comparable<K>> QubitStream<T> sortedDescendingBy(QuerySpec<T, K> keyExtractor,
+            Nulls nullPrecedence) {
+        return sortedDescendingBy(keyExtractor);
+    }
+
+    @Override
+    public <K extends Comparable<K>> QubitStream<T> thenSortedBy(QuerySpec<T, K> keyExtractor,
+            Nulls nullPrecedence) {
+        return thenSortedBy(keyExtractor);
+    }
+
+    @Override
+    public <K extends Comparable<K>> QubitStream<T> thenSortedDescendingBy(QuerySpec<T, K> keyExtractor,
+            Nulls nullPrecedence) {
+        return thenSortedDescendingBy(keyExtractor);
     }
 
     // PAGINATION

@@ -4,6 +4,8 @@ import static io.quarkus.hibernate.orm.panache.common.runtime.AbstractJpaOperati
 
 import java.util.Collection;
 
+import jakarta.persistence.criteria.Nulls;
+
 import io.quarkus.hibernate.orm.panache.PanacheEntity;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import io.quarkus.panache.common.impl.GenerateBridge;
@@ -86,6 +88,18 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
     @GenerateBridge
     default <K extends Comparable<K>> QubitStream<E> sortedDescendingBy(QuerySpec<E, K> keyExtractor) {
         throw implementationInjectionMissing();
+    }
+
+    /** Sorts ascending with explicit null precedence (JPA 3.2). */
+    default <K extends Comparable<K>> QubitStream<E> sortedBy(QuerySpec<E, K> keyExtractor,
+            Nulls nullPrecedence) {
+        return sortedBy(keyExtractor); // Nulls is build-time metadata only
+    }
+
+    /** Sorts descending with explicit null precedence (JPA 3.2). */
+    default <K extends Comparable<K>> QubitStream<E> sortedDescendingBy(QuerySpec<E, K> keyExtractor,
+            Nulls nullPrecedence) {
+        return sortedDescendingBy(keyExtractor); // Nulls is build-time metadata only
     }
 
     /**

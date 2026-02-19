@@ -152,7 +152,8 @@ public abstract sealed class AbstractQueryHandler implements QueryTypeHandler
                 continue;
             }
 
-            sortExpressions.add(new SortExpression(keyExtractor, sortLambda.direction()));
+            sortExpressions.add(new SortExpression(keyExtractor, sortLambda.direction(),
+                    sortLambda.nullPrecedence()));
         }
 
         return sortExpressions;
@@ -199,7 +200,8 @@ public abstract sealed class AbstractQueryHandler implements QueryTypeHandler
         return sortExpressions.stream()
                 .map(se -> new SortExpression(
                         CapturedVariableHelper.renumberCapturedVariables(se.keyExtractor(), offset),
-                        se.direction()))
+                        se.direction(),
+                        se.nullPrecedence()))
                 .toList();
     }
 

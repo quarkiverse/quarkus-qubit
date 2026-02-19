@@ -1,5 +1,7 @@
 package io.quarkiverse.qubit.it.fluent;
 
+import jakarta.persistence.criteria.Nulls;
+
 import io.quarkiverse.qubit.it.Person;
 import io.quarkiverse.qubit.it.Product;
 import io.quarkiverse.qubit.it.testdata.TestDataFactory;
@@ -335,5 +337,66 @@ public abstract class AbstractSortingTest {
         assertThat(results)
                 .allMatch(p -> p.available)
                 .isSortedAccordingTo(Comparator.comparing(p -> p.price));
+    }
+
+    // ─── Null Precedence Tests (JPA 3.2) ────────────────────────────────────
+    // Verifies that sortedBy/sortedDescendingBy with Nulls parameter generates
+    // correct ORDER BY ... NULLS FIRST/LAST SQL via cb.asc(expr, Nulls)/cb.desc(expr, Nulls).
+
+    @Test
+    void sortedByWithNullsLast() {
+        var results = Person.sortedBy((Person p) -> p.salary, Nulls.LAST).toList();
+
+        assertThat(results)
+                .hasSize(5)
+                .isSortedAccordingTo(Comparator.comparingDouble(p -> p.getSalary()));
+    }
+
+    @Test
+    void sortedByWithNullsFirst() {
+        var results = Person.sortedBy((Person p) -> p.age, Nulls.FIRST).toList();
+
+        assertThat(results)
+                .hasSize(5)
+                .isSortedAccordingTo(Comparator.comparingInt(p -> p.getAge()));
+    }
+
+    @Test
+    void sortedDescendingByWithNullsFirst() {
+        var results = Person.sortedDescendingBy((Person p) -> p.salary, Nulls.FIRST).toList();
+
+        assertThat(results)
+                .hasSize(5)
+                .isSortedAccordingTo(Comparator.comparingDouble((Person p) -> p.getSalary()).reversed());
+    }
+
+    @Test
+    void sortedDescendingByWithNullsLast() {
+        var results = Person.sortedDescendingBy((Person p) -> p.age, Nulls.LAST).toList();
+
+        assertThat(results)
+                .hasSize(5)
+                .isSortedAccordingTo(Comparator.comparingInt((Person p) -> p.getAge()).reversed());
+    }
+
+    @Test
+    void sortedByWithNullsLastCombinedWithWhere() {
+        var results = personOps().where((Person p) -> p.age > 25)
+                .sortedBy((Person p) -> p.salary, Nulls.LAST)
+                .toList();
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(p -> p.getAge() > 25)
+                .isSortedAccordingTo(Comparator.comparingDouble(p -> p.getSalary()));
+    }
+
+    @Test
+    void sortedByWithNullsLastOnStringField() {
+        var results = Person.sortedBy((Person p) -> p.firstName, Nulls.LAST).toList();
+
+        assertThat(results)
+                .hasSize(5)
+                .isSortedAccordingTo(Comparator.comparing(Person::getFirstName));
     }
 }

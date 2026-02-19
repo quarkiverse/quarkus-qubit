@@ -211,7 +211,7 @@ class QueryExecutorClassGeneratorTest {
     void sortOnlyQuery() throws Exception {
         // ORDER BY age ASC
         List<SortExpression> sorts = List.of(
-                new SortExpression(new FieldAccess("age", int.class), SortDirection.ASCENDING));
+                new SortExpression(new FieldAccess("age", int.class), SortDirection.ASCENDING, null));
 
         byte[] bytecode = generator.generateQueryExecutorClass(
                 null, null, sorts, null, null,
@@ -244,7 +244,7 @@ class QueryExecutorClassGeneratorTest {
     void paginationQuery() throws Exception {
         // All rows, ORDER BY name ASC, skip 1, limit 2
         List<SortExpression> sorts = List.of(
-                new SortExpression(new FieldAccess("name", String.class), SortDirection.ASCENDING));
+                new SortExpression(new FieldAccess("name", String.class), SortDirection.ASCENDING, null));
 
         byte[] bytecode = generator.generateQueryExecutorClass(
                 null, null, sorts, null, null,
@@ -355,7 +355,7 @@ class QueryExecutorClassGeneratorTest {
     void sortDescendingQuery() throws Exception {
         // ORDER BY salary DESC
         List<SortExpression> sorts = List.of(
-                new SortExpression(new FieldAccess("salary", double.class), SortDirection.DESCENDING));
+                new SortExpression(new FieldAccess("salary", double.class), SortDirection.DESCENDING, null));
 
         byte[] bytecode = generator.generateQueryExecutorClass(
                 null, null, sorts, null, null,

@@ -48,6 +48,8 @@ public class QubitEntityOperationGenerationVisitor extends ClassVisitor {
             generateSelectMethod();
             generateSortedByMethod();
             generateSortedDescendingByMethod();
+            generateSortedByWithNullsMethod();
+            generateSortedDescendingByWithNullsMethod();
 
             // Generate aggregation entry points
             generateMinMethod();
@@ -90,6 +92,18 @@ public class QubitEntityOperationGenerationVisitor extends ClassVisitor {
 
     private void generateSortedDescendingByMethod() {
         var config = QubitBytecodeGenerator.FluentMethodConfig.forSortedDescendingBy(
+                entityType, entityInternalName);
+        QubitBytecodeGenerator.generateFluentEntryPoint(cv, config);
+    }
+
+    private void generateSortedByWithNullsMethod() {
+        var config = QubitBytecodeGenerator.FluentMethodConfig.forSortedByWithNulls(
+                entityType, entityInternalName);
+        QubitBytecodeGenerator.generateFluentEntryPoint(cv, config);
+    }
+
+    private void generateSortedDescendingByWithNullsMethod() {
+        var config = QubitBytecodeGenerator.FluentMethodConfig.forSortedDescendingByWithNulls(
                 entityType, entityInternalName);
         QubitBytecodeGenerator.generateFluentEntryPoint(cv, config);
     }

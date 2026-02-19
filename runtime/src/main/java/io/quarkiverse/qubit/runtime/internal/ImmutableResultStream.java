@@ -9,6 +9,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+import jakarta.persistence.criteria.Nulls;
+
 import io.quarkiverse.qubit.GroupStream;
 import io.quarkiverse.qubit.JoinStream;
 import io.quarkiverse.qubit.QubitStream;
@@ -64,6 +66,30 @@ public final class ImmutableResultStream<T> implements QubitStream<T> {
 
     @Override
     public <K extends Comparable<K>> QubitStream<T> thenSortedDescendingBy(QuerySpec<T, K> keyExtractor) {
+        throw unsupported("sort");
+    }
+
+    @Override
+    public <K extends Comparable<K>> QubitStream<T> sortedBy(QuerySpec<T, K> keyExtractor,
+            Nulls nullPrecedence) {
+        throw unsupported("sort");
+    }
+
+    @Override
+    public <K extends Comparable<K>> QubitStream<T> sortedDescendingBy(QuerySpec<T, K> keyExtractor,
+            Nulls nullPrecedence) {
+        throw unsupported("sort");
+    }
+
+    @Override
+    public <K extends Comparable<K>> QubitStream<T> thenSortedBy(QuerySpec<T, K> keyExtractor,
+            Nulls nullPrecedence) {
+        throw unsupported("sort");
+    }
+
+    @Override
+    public <K extends Comparable<K>> QubitStream<T> thenSortedDescendingBy(QuerySpec<T, K> keyExtractor,
+            Nulls nullPrecedence) {
         throw unsupported("sort");
     }
 
