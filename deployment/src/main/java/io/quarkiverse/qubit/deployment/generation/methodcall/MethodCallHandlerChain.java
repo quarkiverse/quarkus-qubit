@@ -70,6 +70,7 @@ public final class MethodCallHandlerChain {
                 StringIndexOfHandler.INSTANCE, // indexOf -> LOCATE with 0-based conversion
                 StringReplaceHandler.INSTANCE, // replace -> cb.replace() (JPA 3.2)
                 QubitLikeHandler.INSTANCE, // Qubit.like(), Qubit.notLike()
+                QubitLeftRightHandler.INSTANCE, // Qubit.left(), Qubit.right()
 
                 // DELEGATING priority - delegate to expression builders
                 TemporalAccessorHandler.INSTANCE, // getYear, getMonth, getDayOfMonth

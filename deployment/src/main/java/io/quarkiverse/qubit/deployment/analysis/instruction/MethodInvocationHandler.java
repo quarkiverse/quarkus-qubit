@@ -220,6 +220,11 @@ public enum MethodInvocationHandler implements InstructionHandler {
             return;
         }
 
+        // Handle Qubit.left(field, length) and Qubit.right(field, length)
+        if (handleQubitLeftRightMethod(ctx, staticInsn)) {
+            return;
+        }
+
         // Handle Subqueries.subquery(Class) factory method (delegated to SubqueryAnalyzer)
         if (subqueryAnalyzer.isSubqueriesMethodCall(staticInsn)) {
             subqueryAnalyzer.handleSubqueriesFactoryMethod(ctx, staticInsn);
@@ -722,6 +727,26 @@ public enum MethodInvocationHandler implements InstructionHandler {
         // The code generation handler will map this to cb.like() or cb.not(cb.like())
         String methodName = isLike ? METHOD_LIKE : METHOD_NOT_LIKE;
         ctx.push(new LambdaExpression.MethodCall(field, methodName, List.of(pattern), boolean.class));
+        return true;
+    }
+
+    /** Handles Qubit.left(field, length) and Qubit.right(field, length) marker methods. */
+    private boolean handleQubitLeftRightMethod(AnalysisContext ctx, MethodInsnNode staticInsn) {
+        if (!staticInsn.owner.equals(JVM_QUBIT)) {
+            return false;
+        }
+        boolean isLeft = staticInsn.name.equals(METHOD_LEFT);
+        boolean isRight = staticInsn.name.equals(METHOD_RIGHT);
+        if (!isLeft && !isRight) {
+            return false;
+        }
+        if (ctx.getStack().size() < 2) {
+            return false;
+        }
+        LambdaExpression length = ctx.pop(); // second arg (int length)
+        LambdaExpression field = ctx.pop(); // first arg (String field)
+        String methodName = isLeft ? METHOD_LEFT : METHOD_RIGHT;
+        ctx.push(new LambdaExpression.MethodCall(field, methodName, List.of(length), String.class));
         return true;
     }
 

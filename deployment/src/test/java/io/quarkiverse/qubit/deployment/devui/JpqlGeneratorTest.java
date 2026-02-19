@@ -1581,6 +1581,73 @@ class JpqlGeneratorTest {
     }
 
     @Nested
+    @DisplayName("LEFT/RIGHT method calls")
+    class LeftRightMethodCalls {
+
+        @Test
+        @DisplayName("generates LEFT for Qubit.left()")
+        void generateLeft() {
+            LambdaExpression predicate = BinaryOp.eq(
+                    new MethodCall(
+                            new FieldAccess("firstName", String.class),
+                            "left",
+                            java.util.List.of(new Constant(3, int.class)),
+                            String.class),
+                    new Constant("Joh", String.class));
+
+            String jpql = JpqlGenerator.generateJpql(PERSON_CLASS, predicate, null, false);
+
+            assertThat(jpql).isEqualTo("SELECT e FROM Person e WHERE LEFT(e.firstName, 3) = 'Joh'");
+        }
+
+        @Test
+        @DisplayName("generates RIGHT for Qubit.right()")
+        void generateRight() {
+            LambdaExpression predicate = BinaryOp.eq(
+                    new MethodCall(
+                            new FieldAccess("email", String.class),
+                            "right",
+                            java.util.List.of(new Constant(4, int.class)),
+                            String.class),
+                    new Constant(".com", String.class));
+
+            String jpql = JpqlGenerator.generateJpql(PERSON_CLASS, predicate, null, false);
+
+            assertThat(jpql).isEqualTo("SELECT e FROM Person e WHERE RIGHT(e.email, 4) = '.com'");
+        }
+
+        @Test
+        @DisplayName("generates LEFT with captured variable")
+        void generateLeftWithCapturedVariable() {
+            LambdaExpression predicate = BinaryOp.eq(
+                    new MethodCall(
+                            new FieldAccess("firstName", String.class),
+                            "left",
+                            java.util.List.of(new CapturedVariable(0, int.class)),
+                            String.class),
+                    new Constant("Joh", String.class));
+
+            String jpql = JpqlGenerator.generateJpql(PERSON_CLASS, predicate, null, false);
+
+            assertThat(jpql).isEqualTo("SELECT e FROM Person e WHERE LEFT(e.firstName, :capturedVar0) = 'Joh'");
+        }
+
+        @Test
+        @DisplayName("generates RIGHT as projection")
+        void generateRightAsProjection() {
+            LambdaExpression projection = new MethodCall(
+                    new FieldAccess("email", String.class),
+                    "right",
+                    java.util.List.of(new Constant(4, int.class)),
+                    String.class);
+
+            String jpql = JpqlGenerator.generateJpql(PERSON_CLASS, null, projection, false);
+
+            assertThat(jpql).isEqualTo("SELECT RIGHT(e.email, 4) FROM Person e");
+        }
+    }
+
+    @Nested
     @DisplayName("Default method handling")
     class DefaultMethodHandling {
 

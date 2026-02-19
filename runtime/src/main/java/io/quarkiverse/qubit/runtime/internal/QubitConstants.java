@@ -193,6 +193,8 @@ public final class QubitConstants {
     // Qubit marker method names
     public static final String METHOD_LIKE = "like";
     public static final String METHOD_NOT_LIKE = "notLike";
+    public static final String METHOD_LEFT = "left";
+    public static final String METHOD_RIGHT = "right";
 
     public static final String METHOD_STARTS_WITH = "startsWith";
     public static final String METHOD_ENDS_WITH = "endsWith";

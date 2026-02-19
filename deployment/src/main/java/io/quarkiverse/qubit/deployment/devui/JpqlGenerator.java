@@ -6,9 +6,11 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_ENDS_W
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_EQUALS;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_EQUALS_IGNORE_CASE;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_INDEX_OF;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_LEFT;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_LIKE;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_REPLACE;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_NOT_LIKE;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_RIGHT;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_GET_DAY_OF_MONTH;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_GET_HOUR;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_GET_MINUTE;
@@ -224,6 +226,9 @@ public final class JpqlGenerator {
             // Qubit.like() / Qubit.notLike()
             case METHOD_LIKE -> target + " LIKE " + firstArg;
             case METHOD_NOT_LIKE -> target + " NOT LIKE " + firstArg;
+            // Qubit.left() / Qubit.right()
+            case METHOD_LEFT -> "LEFT(" + target + ", " + firstArg + ")";
+            case METHOD_RIGHT -> "RIGHT(" + target + ", " + firstArg + ")";
             // Date/Time methods
             case METHOD_GET_YEAR -> JPQL_YEAR + target + ")";
             case METHOD_GET_MONTH_VALUE -> JPQL_MONTH + target + ")";
@@ -427,6 +432,9 @@ public final class JpqlGenerator {
                 String arg = firstArgOrPlaceholder(methodCall);
                 yield target + " NOT LIKE " + arg;
             }
+            // Qubit.left() / Qubit.right()
+            case METHOD_LEFT -> "LEFT(" + target + ", " + firstArgOrPlaceholder(methodCall) + ")";
+            case METHOD_RIGHT -> "RIGHT(" + target + ", " + firstArgOrPlaceholder(methodCall) + ")";
             // Math methods
             case "abs" -> "ABS(" + target + ")";
             case "sqrt" -> "SQRT(" + target + ")";

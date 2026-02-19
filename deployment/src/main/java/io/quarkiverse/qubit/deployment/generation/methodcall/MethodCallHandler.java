@@ -16,6 +16,7 @@ public sealed interface MethodCallHandler permits
         BigDecimalArithmeticHandler,
         StringLikePatternHandler,
         QubitLikeHandler,
+        QubitLeftRightHandler,
         StringSubstringHandler,
         StringIndexOfHandler,
         StringReplaceHandler,

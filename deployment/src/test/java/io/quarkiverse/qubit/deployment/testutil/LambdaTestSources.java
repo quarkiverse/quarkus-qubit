@@ -916,4 +916,27 @@ public class LambdaTestSources {
     public static QuerySpec<TestPerson, Boolean> likeCombinedWithAnd() {
         return (TestPerson p) -> Qubit.like(p.email, "%@%.com") && p.active;
     }
+
+    // ─── LEFT / RIGHT Operations ────────────────────────────────────────────
+
+    // Qubit.left(field, constant) in WHERE
+    public static QuerySpec<TestPerson, Boolean> qubitLeft() {
+        return (TestPerson p) -> Qubit.left(p.firstName, 3).equals("Joh");
+    }
+
+    // Qubit.right(field, constant) in WHERE
+    public static QuerySpec<TestPerson, Boolean> qubitRight() {
+        return (TestPerson p) -> Qubit.right(p.email, 4).equals(".com");
+    }
+
+    // Qubit.left(field, captured) in WHERE
+    public static QuerySpec<TestPerson, Boolean> qubitLeftCaptured() {
+        int len = 3;
+        return (TestPerson p) -> Qubit.left(p.firstName, len).equals("Joh");
+    }
+
+    // Qubit.right(field, constant) as projection
+    public static QuerySpec<TestPerson, String> qubitRightProjection() {
+        return (TestPerson p) -> Qubit.right(p.email, 4);
+    }
 }

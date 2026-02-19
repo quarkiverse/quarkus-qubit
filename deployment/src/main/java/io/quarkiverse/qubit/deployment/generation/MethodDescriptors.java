@@ -123,6 +123,22 @@ public final class MethodDescriptors {
     public static final MethodDesc CB_LOCATE_3 = MethodDesc.of(CriteriaBuilder.class, "locate", Expression.class,
             Expression.class, Expression.class, Expression.class);
 
+    /** cb.left(Expression, int) -> Expression<String> (JPA 3.2) */
+    public static final MethodDesc CB_LEFT = MethodDesc.of(CriteriaBuilder.class, "left", Expression.class,
+            Expression.class, int.class);
+
+    /** cb.left(Expression, Expression) -> Expression<String> (JPA 3.2) */
+    public static final MethodDesc CB_LEFT_EXPR = MethodDesc.of(CriteriaBuilder.class, "left", Expression.class,
+            Expression.class, Expression.class);
+
+    /** cb.right(Expression, int) -> Expression<String> (JPA 3.2) */
+    public static final MethodDesc CB_RIGHT = MethodDesc.of(CriteriaBuilder.class, "right", Expression.class,
+            Expression.class, int.class);
+
+    /** cb.right(Expression, Expression) -> Expression<String> (JPA 3.2) */
+    public static final MethodDesc CB_RIGHT_EXPR = MethodDesc.of(CriteriaBuilder.class, "right", Expression.class,
+            Expression.class, Expression.class);
+
     /** cb.replace(Expression<String>, String, String) -> Expression<String> (JPA 3.2) */
     public static final MethodDesc CB_REPLACE = MethodDesc.of(CriteriaBuilder.class, "replace", Expression.class,
             Expression.class, String.class, String.class);

@@ -1,5 +1,6 @@
 package io.quarkiverse.qubit.it.datatypes;
 
+import io.quarkiverse.qubit.Qubit;
 import io.quarkiverse.qubit.it.Person;
 import io.quarkiverse.qubit.it.Product;
 import io.quarkiverse.qubit.it.testdata.TestDataFactory;
@@ -201,5 +202,37 @@ public abstract class AbstractStringOperationsTest {
         assertThat(results)
                 .hasSize(1)
                 .allMatch(p -> p.getEmail().equals("john.doe@example.com"));
+    }
+
+    // ─── Qubit.left() / Qubit.right() Tests ─────────────────────────────────
+
+    @Test
+    void qubitLeftWithConstant() {
+        // LEFT(firstName, 3) = 'Joh' should match "John"
+        var results = personOps().where((Person p) -> Qubit.left(p.firstName, 3).equals("Joh")).toList();
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(p -> p.getFirstName().startsWith("Joh"));
+    }
+
+    @Test
+    void qubitRightWithConstant() {
+        // RIGHT(email, 4) = '.com' should match emails ending with .com
+        var results = personOps().where((Person p) -> Qubit.right(p.email, 4).equals(".com")).toList();
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(p -> p.getEmail().endsWith(".com"));
+    }
+
+    @Test
+    void qubitLeftWithCapturedVariable() {
+        int len = 3;
+        var results = personOps().where((Person p) -> Qubit.left(p.firstName, len).equals("Joh")).toList();
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(p -> p.getFirstName().startsWith("Joh"));
     }
 }

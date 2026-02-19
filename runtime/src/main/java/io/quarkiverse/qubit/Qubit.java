@@ -56,4 +56,28 @@ public final class Qubit {
     public static boolean notLike(String value, String pattern) {
         return true; // Never executed — intercepted at build time
     }
+
+    /**
+     * Returns the leftmost {@code length} characters of the string field.
+     * Maps to {@code CriteriaBuilder.left(Expression, int)} at build time.
+     *
+     * @param value the string field
+     * @param length the number of characters from the left
+     * @return the value unchanged (never executed at runtime)
+     */
+    public static String left(String value, int length) {
+        return value;
+    }
+
+    /**
+     * Returns the rightmost {@code length} characters of the string field.
+     * Maps to {@code CriteriaBuilder.right(Expression, int)} at build time.
+     *
+     * @param value the string field
+     * @param length the number of characters from the right
+     * @return the value unchanged (never executed at runtime)
+     */
+    public static String right(String value, int length) {
+        return value;
+    }
 }
