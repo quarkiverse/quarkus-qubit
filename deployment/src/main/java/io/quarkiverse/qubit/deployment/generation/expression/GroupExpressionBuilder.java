@@ -71,6 +71,8 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
                 // Java type cast — unwrap and process inner expression
                 generateGroupPredicate(bc, innerExpr, cb, root, groupKeyExpr, capturedValues, helper);
 
+            case LambdaExpression.SqlCast _ -> null; // SqlCast not yet supported in group context
+
             default -> null;
         };
     }
@@ -150,6 +152,8 @@ public enum GroupExpressionBuilder implements ExpressionBuilder {
                 // Java type cast (e.g., CHECKCAST after g.key()) — unwrap and process inner expression.
                 // JPA Criteria API has no equivalent; the expression already has the correct type.
                 generateGroupSelectExpression(bc, innerExpr, cb, root, groupKeyExpr, capturedValues, helper);
+
+            case LambdaExpression.SqlCast _ -> null; // SqlCast not yet supported in group context
 
             default -> null;
         };

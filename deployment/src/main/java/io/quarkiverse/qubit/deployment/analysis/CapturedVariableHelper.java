@@ -82,6 +82,9 @@ public final class CapturedVariableHelper {
                 }
             }
 
+            case LambdaExpression.SqlCast(var expr, _) ->
+                collectCapturedVariableIndices(expr, capturedIndices);
+
             case LambdaExpression.TreatExpression(_, var inner) ->
                 collectCapturedVariableIndices(inner, capturedIndices);
 
@@ -172,6 +175,9 @@ public final class CapturedVariableHelper {
                         op,
                         renumberCapturedVariables(operand, offset),
                         secondOp != null ? renumberCapturedVariables(secondOp, offset) : null);
+
+            case LambdaExpression.SqlCast(var expr, var targetType) ->
+                new LambdaExpression.SqlCast(renumberCapturedVariables(expr, offset), targetType);
 
             case LambdaExpression.TreatExpression(var treatType, var inner) ->
                 new LambdaExpression.TreatExpression(

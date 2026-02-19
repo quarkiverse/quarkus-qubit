@@ -197,6 +197,7 @@ public final class QubitConstants {
     public static final String METHOD_RIGHT = "right";
     public static final String METHOD_QUARTER = "quarter";
     public static final String METHOD_WEEK = "week";
+    public static final String METHOD_CAST = "cast";
 
     public static final String METHOD_STARTS_WITH = "startsWith";
     public static final String METHOD_ENDS_WITH = "endsWith";

@@ -275,6 +275,9 @@ public final class MethodDescriptors {
     public static final MethodDesc CB_DESC_NULLS = MethodDesc.of(CriteriaBuilder.class, "desc", Order.class,
             Expression.class, Nulls.class);
 
+    /** expression.cast(Class) -> Expression (JPA 3.2) */
+    public static final MethodDesc EXPRESSION_CAST = MethodDesc.of(Expression.class, "cast", Expression.class, Class.class);
+
     public static final MethodDesc TQ_GET_RESULT_LIST = MethodDesc.of(TypedQuery.class, "getResultList", List.class);
     public static final MethodDesc TQ_GET_SINGLE_RESULT = MethodDesc.of(TypedQuery.class, "getSingleResult", Object.class);
     public static final MethodDesc TQ_SET_FIRST_RESULT = MethodDesc.of(TypedQuery.class, "setFirstResult", TypedQuery.class,

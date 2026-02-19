@@ -99,6 +99,8 @@ public final class JavaSourceGenerator {
             case MathFunction mathFunc -> mathFunctionToJava(mathFunc, param);
             case TreatExpression treat -> treatToJava(treat, param);
             case FoldedMethodCall folded -> foldedMethodCallToJava(folded, param);
+            case SqlCast sqlCast ->
+                "(" + sqlCast.targetType().getSimpleName() + ") " + expressionToJava(sqlCast.expression(), param);
         };
     }
 
@@ -134,6 +136,7 @@ public final class JavaSourceGenerator {
             case Constant constant -> constantToJava(constant);
             case CapturedVariable captured -> captured.displayName();
             case NullLiteral _ -> "null";
+            case SqlCast sqlCast -> expressionToJava(sqlCast, firstParam);
             default -> expressionToJava(expr, firstParam);
         };
     }

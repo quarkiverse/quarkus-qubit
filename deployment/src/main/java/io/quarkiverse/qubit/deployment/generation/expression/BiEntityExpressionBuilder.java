@@ -76,6 +76,8 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
             case LambdaExpression.MathFunction mathFunc ->
                 generateBiEntityMathFunction(ctx, mathFunc);
 
+            case LambdaExpression.SqlCast _ -> null; // SqlCast not yet supported in bi-entity context
+
             default -> null;
         };
     }
@@ -167,6 +169,8 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
             case LambdaExpression.MathFunction mathFunc ->
                 generateBiEntityMathFunction(ctx, mathFunc);
 
+            case LambdaExpression.SqlCast _ -> null; // SqlCast not yet supported in bi-entity context
+
             default -> null;
         };
     }
@@ -229,6 +233,8 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
 
             case LambdaExpression.CorrelatedVariable correlated ->
                 ctx.helper().generateCorrelatedFieldExpression(ctx.bc(), correlated, ctx.root());
+
+            case LambdaExpression.SqlCast _ -> null; // SqlCast not yet supported in bi-entity context
 
             default -> null;
         };

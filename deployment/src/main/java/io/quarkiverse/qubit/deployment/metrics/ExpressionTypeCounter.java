@@ -217,6 +217,11 @@ public final class ExpressionTypeCounter {
                 }
             }
 
+            case SqlCast sqlCast -> {
+                increment(counts, "SqlCast");
+                countRecursive(sqlCast.expression(), counts);
+            }
+
             case TreatExpression treat -> countRecursive(treat.inner(), counts);
 
             case FoldedMethodCall folded -> {

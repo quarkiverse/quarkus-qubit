@@ -236,6 +236,18 @@ public sealed interface LambdaExpression {
         }
     }
 
+    /**
+     * SQL CAST expression (JPA 3.2).
+     * Generates {@code expression.cast(targetType)} → SQL {@code CAST(expr AS type)}.
+     * Distinct from {@link Cast} which represents bytecode CHECKCAST (type narrowing, no SQL effect).
+     */
+    record SqlCast(LambdaExpression expression, Class<?> targetType) implements LambdaExpression {
+        public SqlCast {
+            Objects.requireNonNull(expression, "Expression cannot be null");
+            Objects.requireNonNull(targetType, "Target type cannot be null");
+        }
+    }
+
     /** Instance type check expression. */
     record InstanceOf(LambdaExpression expression, Class<?> targetType) implements LambdaExpression {
         public InstanceOf {

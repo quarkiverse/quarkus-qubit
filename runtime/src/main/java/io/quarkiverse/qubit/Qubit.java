@@ -124,4 +124,17 @@ public final class Qubit {
     public static int week(java.time.LocalDateTime dateTime) {
         return 0; // Never executed — intercepted at build time
     }
+
+    /**
+     * Casts a field value to the specified type using SQL CAST.
+     * Maps to {@code Expression.cast(Class)} at build time (JPA 3.2).
+     *
+     * @param value the field to cast
+     * @param targetType the target Java type (Integer.class, Long.class, Double.class, String.class, etc.)
+     * @return the value unchanged (never executed at runtime)
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> T cast(Object value, Class<T> targetType) {
+        return (T) value; // Never executed — intercepted at build time
+    }
 }

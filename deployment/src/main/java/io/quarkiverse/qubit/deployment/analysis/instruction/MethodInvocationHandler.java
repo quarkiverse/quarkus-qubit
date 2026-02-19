@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 
+import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 
@@ -222,6 +223,16 @@ public enum MethodInvocationHandler implements InstructionHandler {
 
         // Handle Qubit.left(field, length) and Qubit.right(field, length)
         if (handleQubitLeftRightMethod(ctx, staticInsn)) {
+            return;
+        }
+
+        // Handle Qubit.cast(field, type) marker method
+        if (handleQubitCastMethod(ctx, staticInsn)) {
+            return;
+        }
+
+        // Handle Integer.parseInt, Long.parseLong, etc. as SQL CAST
+        if (handleParseMethod(ctx, staticInsn)) {
             return;
         }
 
@@ -976,6 +987,65 @@ public enum MethodInvocationHandler implements InstructionHandler {
     /** Returns true if this INVOKESTATIC is an auto-boxing valueOf call. */
     private static boolean isBoxingCall(MethodInsnNode staticInsn) {
         return BOXING_OWNERS.contains(staticInsn.owner);
+    }
+
+    // ─── SQL CAST Handling ─────────────────────────────────────────────────
+
+    /** Handles Qubit.cast(field, type) marker method for SQL CAST. */
+    private boolean handleQubitCastMethod(AnalysisContext ctx, MethodInsnNode staticInsn) {
+        if (!staticInsn.owner.equals(JVM_QUBIT)) {
+            return false;
+        }
+        if (!staticInsn.name.equals(METHOD_CAST)) {
+            return false;
+        }
+        if (ctx.getStack().size() < 2) {
+            return false;
+        }
+        LambdaExpression targetTypeExpr = ctx.pop(); // second arg (Class literal)
+        LambdaExpression field = ctx.pop(); // first arg (field)
+        // Extract the target type from the Class constant (LDC stores class literals as ASM Type)
+        Class<?> targetType = Object.class;
+        if (targetTypeExpr instanceof LambdaExpression.Constant(var value, _)) {
+            if (value instanceof Class<?> cls) {
+                targetType = cls;
+            } else if (value instanceof Type asmType) {
+                targetType = TypeConverter.descriptorToClass(asmType.getDescriptor());
+            }
+        }
+        ctx.push(new LambdaExpression.SqlCast(field, targetType));
+        return true;
+    }
+
+    private static final Map<String, Map<String, Class<?>>> PARSE_METHODS = Map.of(
+            "java/lang/Integer", Map.of("parseInt", int.class, "valueOf", Integer.class),
+            "java/lang/Long", Map.of("parseLong", long.class, "valueOf", Long.class),
+            "java/lang/Double", Map.of("parseDouble", double.class, "valueOf", Double.class),
+            "java/lang/Float", Map.of("parseFloat", float.class, "valueOf", Float.class));
+
+    /** Handles Integer.parseInt, Long.parseLong, etc. as SQL CAST when argument is an entity field. */
+    private boolean handleParseMethod(AnalysisContext ctx, MethodInsnNode staticInsn) {
+        Map<String, Class<?>> methods = PARSE_METHODS.get(staticInsn.owner);
+        if (methods == null) {
+            return false;
+        }
+        Class<?> targetType = methods.get(staticInsn.name);
+        if (targetType == null) {
+            return false;
+        }
+        if (ctx.getStack().isEmpty()) {
+            return false;
+        }
+        LambdaExpression arg = ctx.peek();
+        // Only convert to SqlCast if the argument is an entity field expression
+        if (!(arg instanceof LambdaExpression.FieldAccess || arg instanceof LambdaExpression.PathExpression
+                || arg instanceof LambdaExpression.BiEntityFieldAccess
+                || arg instanceof LambdaExpression.BiEntityPathExpression)) {
+            return false; // Let constant folding handle constants/captured vars
+        }
+        ctx.pop();
+        ctx.push(new LambdaExpression.SqlCast(arg, targetType));
+        return true;
     }
 
     // Note: Subquery Methods have been extracted to SubqueryAnalyzer

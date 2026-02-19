@@ -299,6 +299,8 @@ public final class JpqlGenerator {
             case MathFunction mathFunc -> mathFunctionToJpql(mathFunc);
             case TreatExpression treat -> treatExpressionToJpql(treat);
             case FoldedMethodCall folded -> foldedMethodCallToJpql(folded);
+            case SqlCast sqlCast -> "CAST(" + expressionToJpql(sqlCast.expression()) + " AS "
+                    + sqlCast.targetType().getSimpleName().toUpperCase() + ")";
         };
     }
 

@@ -147,6 +147,12 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
                 yield bc.invokeInterface(CB_EQUAL, cb, rootType, typeLiteral);
             }
 
+            case LambdaExpression.SqlCast sqlCast ->
+                generatePredicate(bc, sqlCast.expression(), cb, root, capturedValues);
+
+            case LambdaExpression.Cast cast ->
+                generatePredicate(bc, cast.expression(), cb, root, capturedValues);
+
             default -> throw new UnsupportedExpressionException(expression, "predicate generation");
         };
     }
@@ -426,6 +432,13 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             case LambdaExpression.FoldedMethodCall folded ->
                 generateFoldedMethodCall(bc, cb, root, capturedValues, folded);
 
+            case LambdaExpression.SqlCast sqlCast ->
+                generateSqlCast(bc, sqlCast, cb, root, capturedValues);
+
+            // Strip CHECKCAST wrappers (from generics erasure) — no SQL semantics
+            case LambdaExpression.Cast cast ->
+                generateExpressionAsJpaExpression(bc, cast.expression(), cb, root, capturedValues);
+
             case LambdaExpression.InstanceOf instanceOf -> {
                 // TYPE(e) = SubType check: cb.equal(root.type(), cb.literal(SubType.class))
                 // Predicate extends Expression<Boolean>, so this is valid as a JPA expression.
@@ -542,6 +555,15 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
         // Wrap the result as a JPA literal: cb.literal(result)
         return wrapAsLiteral(bc, cb, result);
+    }
+
+    /** Generates SQL CAST expression: expression.cast(targetType). */
+    private Expr generateSqlCast(BlockCreator bc, LambdaExpression.SqlCast sqlCast, Expr cb, Expr root,
+            Expr capturedValues) {
+        Expr innerExpr = generateExpressionAsJpaExpression(bc, sqlCast.expression(), cb, root, capturedValues);
+        LocalVar innerLocal = bc.localVar("castSource", innerExpr);
+        Expr targetClass = Const.of(sqlCast.targetType());
+        return bc.invokeInterface(MethodDescriptors.EXPRESSION_CAST, innerLocal, targetClass);
     }
 
     /**

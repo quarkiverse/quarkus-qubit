@@ -169,4 +169,35 @@ public abstract class AbstractProjectionTest {
         assertThat(activeStatuses).contains(true, false);
         assertThat(prices).contains(new BigDecimal("1299.99"), new BigDecimal("89.99"));
     }
+
+    // ─── SQL CAST Tests (JPA 3.2 Expression.cast()) ─────────────────────────
+
+    @Test
+    void castIntToString() {
+        var results = Person.select((Person p) -> io.quarkiverse.qubit.Qubit.cast(p.age, String.class)).toList();
+
+        assertThat(results)
+                .hasSize(5)
+                .allMatch(String.class::isInstance);
+    }
+
+    @Test
+    void castWithWhereClause() {
+        var results = Person.where((Person p) -> p.age > 30)
+                .select((Person p) -> io.quarkiverse.qubit.Qubit.cast(p.age, String.class))
+                .toList();
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(String.class::isInstance);
+    }
+
+    @Test
+    void castDoubleToString() {
+        var results = Person.select((Person p) -> io.quarkiverse.qubit.Qubit.cast(p.salary, String.class)).toList();
+
+        assertThat(results)
+                .hasSize(5)
+                .allMatch(String.class::isInstance);
+    }
 }
