@@ -225,6 +225,11 @@ public enum MethodInvocationHandler implements InstructionHandler {
             return;
         }
 
+        // Handle Qubit.quarter(field) and Qubit.week(field) temporal extraction
+        if (handleQubitTemporalExtractMethod(ctx, staticInsn)) {
+            return;
+        }
+
         // Handle Subqueries.subquery(Class) factory method (delegated to SubqueryAnalyzer)
         if (subqueryAnalyzer.isSubqueriesMethodCall(staticInsn)) {
             subqueryAnalyzer.handleSubqueriesFactoryMethod(ctx, staticInsn);
@@ -747,6 +752,25 @@ public enum MethodInvocationHandler implements InstructionHandler {
         LambdaExpression field = ctx.pop(); // first arg (String field)
         String methodName = isLeft ? METHOD_LEFT : METHOD_RIGHT;
         ctx.push(new LambdaExpression.MethodCall(field, methodName, List.of(length), String.class));
+        return true;
+    }
+
+    /** Handles Qubit.quarter(field) and Qubit.week(field) temporal extraction marker methods. */
+    private boolean handleQubitTemporalExtractMethod(AnalysisContext ctx, MethodInsnNode staticInsn) {
+        if (!staticInsn.owner.equals(JVM_QUBIT)) {
+            return false;
+        }
+        boolean isQuarter = staticInsn.name.equals(METHOD_QUARTER);
+        boolean isWeek = staticInsn.name.equals(METHOD_WEEK);
+        if (!isQuarter && !isWeek) {
+            return false;
+        }
+        if (ctx.getStack().isEmpty()) {
+            return false;
+        }
+        LambdaExpression field = ctx.pop();
+        String methodName = isQuarter ? METHOD_QUARTER : METHOD_WEEK;
+        ctx.push(new LambdaExpression.MethodCall(field, methodName, List.of(), int.class));
         return true;
     }
 

@@ -18,6 +18,8 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_GET_MO
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_GET_SECOND;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_GET_YEAR;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_IS_EMPTY;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_QUARTER;
+import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_WEEK;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_LENGTH;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_STARTS_WITH;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUBSTRING;
@@ -63,6 +65,8 @@ public final class JpqlGenerator {
     private static final String JPQL_HOUR = "HOUR(";
     private static final String JPQL_MINUTE = "MINUTE(";
     private static final String JPQL_SECOND = "SECOND(";
+    private static final String JPQL_QUARTER = "QUARTER(";
+    private static final String JPQL_WEEK = "WEEK(";
 
     // JPQL LIKE pattern fragments
     private static final String LIKE_CONCAT_PREFIX = " LIKE CONCAT('%', ";
@@ -236,6 +240,9 @@ public final class JpqlGenerator {
             case METHOD_GET_HOUR -> JPQL_HOUR + target + ")";
             case METHOD_GET_MINUTE -> JPQL_MINUTE + target + ")";
             case METHOD_GET_SECOND -> JPQL_SECOND + target + ")";
+            // Qubit.quarter() / Qubit.week()
+            case METHOD_QUARTER -> JPQL_QUARTER + target + ")";
+            case METHOD_WEEK -> JPQL_WEEK + target + ")";
             // Default: show as function call with target
             default -> methodName.toUpperCase() + "(" + target + ")";
         };
@@ -449,6 +456,9 @@ public final class JpqlGenerator {
             case METHOD_GET_HOUR, "hour" -> JPQL_HOUR + target + ")";
             case METHOD_GET_MINUTE, "minute" -> JPQL_MINUTE + target + ")";
             case METHOD_GET_SECOND, "second" -> JPQL_SECOND + target + ")";
+            // Qubit.quarter() / Qubit.week()
+            case METHOD_QUARTER -> JPQL_QUARTER + target + ")";
+            case METHOD_WEEK -> JPQL_WEEK + target + ")";
             // Collection size
             case "size" -> "SIZE(" + target + ")";
             // Default: show as function call

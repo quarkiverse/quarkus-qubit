@@ -2,7 +2,14 @@ package io.quarkiverse.qubit.deployment.generation.expression;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Optional;
+
+import jakarta.persistence.criteria.LocalDateField;
+import jakarta.persistence.criteria.LocalDateTimeField;
+import jakarta.persistence.criteria.LocalTimeField;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -11,9 +18,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import io.quarkiverse.qubit.deployment.generation.MethodDescriptors;
-import io.quarkus.gizmo2.desc.MethodDesc;
-
 /**
  * Unit tests for {@link TemporalAccessorMethod} enum.
  *
@@ -21,7 +25,7 @@ import io.quarkus.gizmo2.desc.MethodDesc;
  * These tests ensure complete mutation coverage by testing:
  * <ul>
  * <li>{@link TemporalAccessorMethod#getJavaMethod()} for all enum values</li>
- * <li>{@link TemporalAccessorMethod#getMethodDesc()} for all enum values</li>
+ * <li>{@link TemporalAccessorMethod#getExtractFieldName()} for all enum values</li>
  * <li>{@link TemporalAccessorMethod#fromJavaMethod(String)} with null, valid, and invalid inputs</li>
  * <li>{@link TemporalAccessorMethod#isTemporalAccessor(String)} for both true and false paths</li>
  * </ul>
@@ -29,7 +33,7 @@ import io.quarkus.gizmo2.desc.MethodDesc;
 @DisplayName("TemporalAccessorMethod")
 class TemporalAccessorMethodTest {
 
-    // INSTANCE METHOD TESTS - getJavaMethod() and getMethodDesc()
+    // INSTANCE METHOD TESTS - getJavaMethod() and getExtractFieldName()
 
     @Nested
     @DisplayName("getJavaMethod()")
@@ -42,7 +46,9 @@ class TemporalAccessorMethodTest {
                 "GET_DAY_OF_MONTH, getDayOfMonth",
                 "GET_HOUR, getHour",
                 "GET_MINUTE, getMinute",
-                "GET_SECOND, getSecond"
+                "GET_SECOND, getSecond",
+                "QUARTER, quarter",
+                "WEEK, week"
         })
         void shouldReturnCorrectJavaMethodName(TemporalAccessorMethod method, String expectedJavaMethod) {
             assertThat(method.getJavaMethod())
@@ -63,76 +69,66 @@ class TemporalAccessorMethodTest {
     }
 
     @Nested
-    @DisplayName("getMethodDesc()")
-    class GetMethodDescTests {
+    @DisplayName("getExtractFieldName()")
+    class GetExtractFieldNameTests {
 
-        @Test
-        @DisplayName("GET_YEAR should return HCB_YEAR descriptor")
-        void getYear_shouldReturnHcbYearDescriptor() {
-            assertThat(TemporalAccessorMethod.GET_YEAR.getMethodDesc())
-                    .as("getMethodDesc() for GET_YEAR")
-                    .isSameAs(MethodDescriptors.HCB_YEAR);
+        @ParameterizedTest(name = "{0} should map to JPA 3.2 field \"{1}\"")
+        @CsvSource({
+                "GET_YEAR, YEAR",
+                "GET_MONTH_VALUE, MONTH",
+                "GET_DAY_OF_MONTH, DAY",
+                "GET_HOUR, HOUR",
+                "GET_MINUTE, MINUTE",
+                "GET_SECOND, SECOND",
+                "QUARTER, QUARTER",
+                "WEEK, WEEK"
+        })
+        void shouldReturnCorrectExtractFieldName(TemporalAccessorMethod method, String expectedFieldName) {
+            assertThat(method.getExtractFieldName())
+                    .as("getExtractFieldName() for %s", method.name())
+                    .isEqualTo(expectedFieldName);
         }
 
         @Test
-        @DisplayName("GET_MONTH_VALUE should return HCB_MONTH descriptor")
-        void getMonthValue_shouldReturnHcbMonthDescriptor() {
-            assertThat(TemporalAccessorMethod.GET_MONTH_VALUE.getMethodDesc())
-                    .as("getMethodDesc() for GET_MONTH_VALUE")
-                    .isSameAs(MethodDescriptors.HCB_MONTH);
-        }
-
-        @Test
-        @DisplayName("GET_DAY_OF_MONTH should return HCB_DAY descriptor")
-        void getDayOfMonth_shouldReturnHcbDayDescriptor() {
-            assertThat(TemporalAccessorMethod.GET_DAY_OF_MONTH.getMethodDesc())
-                    .as("getMethodDesc() for GET_DAY_OF_MONTH")
-                    .isSameAs(MethodDescriptors.HCB_DAY);
-        }
-
-        @Test
-        @DisplayName("GET_HOUR should return HCB_HOUR descriptor")
-        void getHour_shouldReturnHcbHourDescriptor() {
-            assertThat(TemporalAccessorMethod.GET_HOUR.getMethodDesc())
-                    .as("getMethodDesc() for GET_HOUR")
-                    .isSameAs(MethodDescriptors.HCB_HOUR);
-        }
-
-        @Test
-        @DisplayName("GET_MINUTE should return HCB_MINUTE descriptor")
-        void getMinute_shouldReturnHcbMinuteDescriptor() {
-            assertThat(TemporalAccessorMethod.GET_MINUTE.getMethodDesc())
-                    .as("getMethodDesc() for GET_MINUTE")
-                    .isSameAs(MethodDescriptors.HCB_MINUTE);
-        }
-
-        @Test
-        @DisplayName("GET_SECOND should return HCB_SECOND descriptor")
-        void getSecond_shouldReturnHcbSecondDescriptor() {
-            assertThat(TemporalAccessorMethod.GET_SECOND.getMethodDesc())
-                    .as("getMethodDesc() for GET_SECOND")
-                    .isSameAs(MethodDescriptors.HCB_SECOND);
-        }
-
-        @Test
-        @DisplayName("all enum values should have non-null MethodDesc")
-        void allEnumValuesShouldHaveNonNullMethodDesc() {
+        @DisplayName("all enum values should have non-null extract field names")
+        void allEnumValuesShouldHaveNonNullExtractFieldNames() {
             for (TemporalAccessorMethod method : TemporalAccessorMethod.values()) {
-                assertThat(method.getMethodDesc())
-                        .as("getMethodDesc() for %s should not be null", method.name())
-                        .isNotNull();
+                assertThat(method.getExtractFieldName())
+                        .as("getExtractFieldName() for %s should not be null", method.name())
+                        .isNotNull()
+                        .isNotEmpty();
             }
         }
 
         @Test
-        @DisplayName("all enum values should have MethodDesc for HibernateCriteriaBuilder")
-        void allEnumValuesShouldHaveHibernateCriteriaBuilderDescriptors() {
-            for (TemporalAccessorMethod method : TemporalAccessorMethod.values()) {
-                MethodDesc descriptor = method.getMethodDesc();
-                assertThat(descriptor.toString())
-                        .as("getMethodDesc() for %s should be for HibernateCriteriaBuilder", method.name())
-                        .contains("HibernateCriteriaBuilder");
-            }
+        @DisplayName("date accessor fields should exist on LocalDateField")
+        void dateAccessorFieldsShouldExistOnLocalDateField() throws NoSuchFieldException {
+            assertThat(LocalDateField.class.getField("YEAR")).isNotNull();
+            assertThat(LocalDateField.class.getField("MONTH")).isNotNull();
+            assertThat(LocalDateField.class.getField("DAY")).isNotNull();
+            assertThat(LocalDateField.class.getField("QUARTER")).isNotNull();
+            assertThat(LocalDateField.class.getField("WEEK")).isNotNull();
+        }
+
+        @Test
+        @DisplayName("time accessor fields should exist on LocalTimeField")
+        void timeAccessorFieldsShouldExistOnLocalTimeField() throws NoSuchFieldException {
+            assertThat(LocalTimeField.class.getField("HOUR")).isNotNull();
+            assertThat(LocalTimeField.class.getField("MINUTE")).isNotNull();
+            assertThat(LocalTimeField.class.getField("SECOND")).isNotNull();
+        }
+
+        @Test
+        @DisplayName("all accessor fields should exist on LocalDateTimeField")
+        void allAccessorFieldsShouldExistOnLocalDateTimeField() throws NoSuchFieldException {
+            assertThat(LocalDateTimeField.class.getField("YEAR")).isNotNull();
+            assertThat(LocalDateTimeField.class.getField("MONTH")).isNotNull();
+            assertThat(LocalDateTimeField.class.getField("DAY")).isNotNull();
+            assertThat(LocalDateTimeField.class.getField("HOUR")).isNotNull();
+            assertThat(LocalDateTimeField.class.getField("MINUTE")).isNotNull();
+            assertThat(LocalDateTimeField.class.getField("SECOND")).isNotNull();
+            assertThat(LocalDateTimeField.class.getField("QUARTER")).isNotNull();
+            assertThat(LocalDateTimeField.class.getField("WEEK")).isNotNull();
         }
     }
 
@@ -159,7 +155,9 @@ class TemporalAccessorMethodTest {
                 "getDayOfMonth, GET_DAY_OF_MONTH",
                 "getHour, GET_HOUR",
                 "getMinute, GET_MINUTE",
-                "getSecond, GET_SECOND"
+                "getSecond, GET_SECOND",
+                "quarter, QUARTER",
+                "week, WEEK"
         })
         void shouldReturnCorrectEnumValueForValidMethodName(String methodName, TemporalAccessorMethod expected) {
             Optional<TemporalAccessorMethod> result = TemporalAccessorMethod.fromJavaMethod(methodName);
@@ -202,7 +200,9 @@ class TemporalAccessorMethodTest {
                 "getDayOfMonth",
                 "getHour",
                 "getMinute",
-                "getSecond"
+                "getSecond",
+                "quarter",
+                "week"
         })
         void shouldReturnTrueForValidTemporalAccessorMethods(String methodName) {
             boolean result = TemporalAccessorMethod.isTemporalAccessor(methodName);
@@ -241,4 +241,51 @@ class TemporalAccessorMethodTest {
         }
     }
 
+    // TemporalExpressionBuilder.getTemporalFieldClass() tests (package-private access)
+
+    @Nested
+    @DisplayName("getTemporalFieldClass()")
+    class GetTemporalFieldClassTests {
+
+        @Test
+        @DisplayName("LocalDate should map to LocalDateField")
+        void localDateShouldMapToLocalDateField() {
+            assertThat(TemporalExpressionBuilder.getTemporalFieldClass(LocalDate.class))
+                    .isEqualTo(LocalDateField.class);
+        }
+
+        @Test
+        @DisplayName("LocalDateTime should map to LocalDateTimeField")
+        void localDateTimeShouldMapToLocalDateTimeField() {
+            assertThat(TemporalExpressionBuilder.getTemporalFieldClass(LocalDateTime.class))
+                    .isEqualTo(LocalDateTimeField.class);
+        }
+
+        @Test
+        @DisplayName("LocalTime should map to LocalTimeField")
+        void localTimeShouldMapToLocalTimeField() {
+            assertThat(TemporalExpressionBuilder.getTemporalFieldClass(LocalTime.class))
+                    .isEqualTo(LocalTimeField.class);
+        }
+
+        @Test
+        @DisplayName("unsupported types should return null")
+        void unsupportedTypesShouldReturnNull() {
+            assertThat(TemporalExpressionBuilder.getTemporalFieldClass(String.class)).isNull();
+            assertThat(TemporalExpressionBuilder.getTemporalFieldClass(Object.class)).isNull();
+        }
+    }
+
+    @Nested
+    @DisplayName("enum completeness")
+    class EnumCompletenessTests {
+
+        @Test
+        @DisplayName("should have exactly 8 temporal accessor methods")
+        void shouldHaveExactlyEightValues() {
+            assertThat(TemporalAccessorMethod.values())
+                    .as("TemporalAccessorMethod should have 8 values (6 standard + QUARTER + WEEK)")
+                    .hasSize(8);
+        }
+    }
 }

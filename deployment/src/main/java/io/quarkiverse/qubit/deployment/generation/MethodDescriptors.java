@@ -7,9 +7,6 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 
-import org.hibernate.query.criteria.HibernateCriteriaBuilder;
-import org.hibernate.query.criteria.JpaFunction;
-
 import io.quarkus.gizmo2.desc.MethodDesc;
 
 /** Cached {@link MethodDesc} constants for JPA Criteria API and JDK methods (Gizmo 2). */
@@ -176,18 +173,9 @@ public final class MethodDescriptors {
     public static final MethodDesc CB_CONSTRUCT = MethodDesc.of(CriteriaBuilder.class, "construct", CompoundSelection.class,
             Class.class, Selection[].class);
 
-    public static final MethodDesc HCB_YEAR = MethodDesc.of(HibernateCriteriaBuilder.class, "year", JpaFunction.class,
-            Expression.class);
-    public static final MethodDesc HCB_MONTH = MethodDesc.of(HibernateCriteriaBuilder.class, "month", JpaFunction.class,
-            Expression.class);
-    public static final MethodDesc HCB_DAY = MethodDesc.of(HibernateCriteriaBuilder.class, "day", JpaFunction.class,
-            Expression.class);
-    public static final MethodDesc HCB_HOUR = MethodDesc.of(HibernateCriteriaBuilder.class, "hour", JpaFunction.class,
-            Expression.class);
-    public static final MethodDesc HCB_MINUTE = MethodDesc.of(HibernateCriteriaBuilder.class, "minute", JpaFunction.class,
-            Expression.class);
-    public static final MethodDesc HCB_SECOND = MethodDesc.of(HibernateCriteriaBuilder.class, "second", JpaFunction.class,
-            Expression.class);
+    /** cb.extract(TemporalField, Expression) -> Expression (JPA 3.2) */
+    public static final MethodDesc CB_EXTRACT = MethodDesc.of(CriteriaBuilder.class, "extract", Expression.class,
+            TemporalField.class, Expression.class);
 
     // ─── Math Functions (JPA 2.0 + 3.1) ─────────────────────────────────────
 

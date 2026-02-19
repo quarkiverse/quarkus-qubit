@@ -1,5 +1,6 @@
 package io.quarkiverse.qubit.it.datatypes;
 
+import io.quarkiverse.qubit.Qubit;
 import io.quarkiverse.qubit.it.Person;
 import io.quarkiverse.qubit.it.testdata.TestDataFactory;
 import io.quarkiverse.qubit.it.testutil.PersonQueryOperations;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.temporal.IsoFields;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -140,6 +142,72 @@ public abstract class AbstractTemporalTypesTest {
         assertThat(results)
                 .hasSize(5)
                 .allMatch(p -> p.getStartTime().getSecond() == 0);
+    }
+
+    // Qubit.quarter() tests — JPA 3.2 EXTRACT(QUARTER FROM ...)
+
+    @Test
+    void localDateQuarter() {
+        // John: 1993-05-15 → Q2, Jane: 1998-08-22 → Q3, Bob: 1978-03-10 → Q1,
+        // Alice: 1988-11-05 → Q4, Charlie: 1995-07-18 → Q3
+        var results = personOps().where((Person p) -> Qubit.quarter(p.birthDate) == 2).toList();
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(p -> {
+                    int quarter = (p.getBirthDate().getMonthValue() - 1) / 3 + 1;
+                    return quarter == 2;
+                });
+    }
+
+    @Test
+    void localDateTimeQuarter() {
+        // createdAt: Jan=Q1, Feb=Q1, Mar=Q1, Apr=Q2, May=Q2
+        var results = personOps().where((Person p) -> Qubit.quarter(p.createdAt) == 1).toList();
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(p -> {
+                    int quarter = (p.getCreatedAt().getMonthValue() - 1) / 3 + 1;
+                    return quarter == 1;
+                });
+    }
+
+    // Qubit.week() tests — JPA 3.2 EXTRACT(WEEK FROM ...)
+
+    @Test
+    void localDateWeek() {
+        // John: 1993-05-15 → ISO week 19
+        int expectedWeek = LocalDate.of(1993, 5, 15).get(IsoFields.WEEK_OF_WEEK_BASED_YEAR);
+        var results = personOps().where((Person p) -> Qubit.week(p.birthDate) == expectedWeek).toList();
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(p -> p.getBirthDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR) == expectedWeek);
+    }
+
+    @Test
+    void localDateTimeWeek() {
+        // createdAt 2024-01-15 → ISO week 3
+        int expectedWeek = LocalDate.of(2024, 1, 15).get(IsoFields.WEEK_OF_WEEK_BASED_YEAR);
+        var results = personOps().where((Person p) -> Qubit.week(p.createdAt) == expectedWeek).toList();
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(p -> p.getCreatedAt().toLocalDate().get(IsoFields.WEEK_OF_WEEK_BASED_YEAR) == expectedWeek);
+    }
+
+    // Quarter combined with other conditions
+    @Test
+    void quarterWithAdditionalConditions() {
+        var results = personOps().where((Person p) -> Qubit.quarter(p.birthDate) >= 3 && p.age < 30).toList();
+
+        assertThat(results)
+                .hasSizeGreaterThan(0)
+                .allMatch(p -> {
+                    int quarter = (p.getBirthDate().getMonthValue() - 1) / 3 + 1;
+                    return quarter >= 3 && p.getAge() < 30;
+                });
     }
 
     // Mixed temporal types

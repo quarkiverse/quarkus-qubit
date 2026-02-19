@@ -5,17 +5,21 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_IS_BEF
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_IS_EQUAL;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.TEMPORAL_COMPARISON_METHOD_NAMES;
 
+import java.lang.constant.ClassDesc;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
-import org.hibernate.query.criteria.HibernateCriteriaBuilder;
+import jakarta.persistence.criteria.LocalDateField;
+import jakarta.persistence.criteria.LocalDateTimeField;
+import jakarta.persistence.criteria.LocalTimeField;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.generation.MethodDescriptors;
 import io.quarkus.gizmo2.Expr;
 import io.quarkus.gizmo2.LocalVar;
 import io.quarkus.gizmo2.creator.BlockCreator;
+import io.quarkus.gizmo2.desc.FieldDesc;
 import io.quarkus.gizmo2.desc.MethodDesc;
 
 /**
@@ -26,10 +30,15 @@ import io.quarkus.gizmo2.desc.MethodDesc;
  *
  * <ul>
  * <li><b>Accessor Functions:</b> getYear(), getMonthValue(), getDayOfMonth(),
- * getHour(), getMinute(), getSecond() → SQL YEAR, MONTH, DAY, HOUR, MINUTE, SECOND</li>
+ * getHour(), getMinute(), getSecond() → SQL EXTRACT(YEAR/MONTH/DAY/HOUR/MINUTE/SECOND FROM ...)</li>
+ * <li><b>Extended Extractions:</b> Qubit.quarter(), Qubit.week() → SQL EXTRACT(QUARTER/WEEK FROM ...)</li>
  * <li><b>Comparisons:</b> isAfter() → greaterThan(), isBefore() → lessThan(),
  * isEqual() → equal()</li>
  * </ul>
+ *
+ * <p>
+ * Uses the standard JPA 3.2 {@code CriteriaBuilder.extract(TemporalField, Expression)} API
+ * with {@code LocalDateField}, {@code LocalDateTimeField}, and {@code LocalTimeField} constants.
  *
  * <p>
  * <b>Supported Types:</b> LocalDate, LocalDateTime, LocalTime
@@ -50,8 +59,8 @@ public enum TemporalExpressionBuilder implements ExpressionBuilder {
     }
 
     /**
-     * Generates bytecode for temporal accessor functions using HibernateCriteriaBuilder.
-     * Uses database-agnostic methods (year, month, day, hour, minute, second).
+     * Generates bytecode for temporal accessor functions using standard JPA 3.2 extract().
+     * Maps Java temporal methods to {@code cb.extract(TemporalField, Expression)}.
      */
     public BuilderResult buildTemporalAccessorFunction(
             BlockCreator bc,
@@ -74,16 +83,45 @@ public enum TemporalExpressionBuilder implements ExpressionBuilder {
             return BuilderResult.notApplicable();
         }
 
-        // Cast to HibernateCriteriaBuilder - Quarkus with Hibernate always provides this
-        // Note: If using a non-Hibernate JPA provider, this will fail with ClassCastException at runtime
+        // Determine the JPA 3.2 TemporalField class based on the entity field's temporal type
+        Class<?> temporalFieldClass = getTemporalFieldClass(fieldType);
+        if (temporalFieldClass == null) {
+            return BuilderResult.notApplicable();
+        }
+
+        // Load the static TemporalField constant (e.g., LocalDateField.YEAR, LocalDateTimeField.HOUR)
+        String extractFieldName = temporalMethod.get().getExtractFieldName();
+        ClassDesc temporalFieldClassDesc = ClassDesc.of(temporalFieldClass.getName());
+        Expr temporalField = Expr.staticField(
+                FieldDesc.of(temporalFieldClassDesc, extractFieldName, temporalFieldClassDesc));
+
+        // Call cb.extract(temporalField, fieldExpression) — standard JPA 3.2, no Hibernate dependency
         // Use LocalVar for the fieldExpression since it's passed in from another context (Gizmo2 requirement)
         LocalVar fieldExprLocal = bc.localVar("fieldExpr", fieldExpression);
-        LocalVar hcb = bc.localVar("hcb", bc.cast(cb, HibernateCriteriaBuilder.class));
-
-        // Get the MethodDesc directly from the enum and invoke the HibernateCriteriaBuilder method
-        MethodDesc md = temporalMethod.get().getMethodDesc();
-        Expr result = bc.invokeInterface(md, hcb, fieldExprLocal);
+        Expr result = bc.invokeInterface(MethodDescriptors.CB_EXTRACT, cb, temporalField, fieldExprLocal);
         return BuilderResult.success(result);
+    }
+
+    /**
+     * Returns the JPA 3.2 TemporalField class for the given entity field type.
+     * <ul>
+     * <li>LocalDate → LocalDateField</li>
+     * <li>LocalDateTime → LocalDateTimeField</li>
+     * <li>LocalTime → LocalTimeField</li>
+     * </ul>
+     */
+    @org.jspecify.annotations.Nullable
+    static Class<?> getTemporalFieldClass(Class<?> entityFieldType) {
+        if (entityFieldType == LocalDate.class) {
+            return LocalDateField.class;
+        }
+        if (entityFieldType == LocalDateTime.class) {
+            return LocalDateTimeField.class;
+        }
+        if (entityFieldType == LocalTime.class) {
+            return LocalTimeField.class;
+        }
+        return null;
     }
 
     /** Generates bytecode for temporal comparisons: isAfter, isBefore, isEqual. */

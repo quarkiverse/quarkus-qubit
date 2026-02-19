@@ -80,4 +80,48 @@ public final class Qubit {
     public static String right(String value, int length) {
         return value;
     }
+
+    /**
+     * Extracts the calendar quarter (1-4) from a date field.
+     * Maps to {@code CriteriaBuilder.extract(LocalDateField.QUARTER, Expression)} at build time.
+     *
+     * @param date the LocalDate field to extract the quarter from
+     * @return always 0 (never executed at runtime)
+     */
+    public static int quarter(java.time.LocalDate date) {
+        return 0; // Never executed — intercepted at build time
+    }
+
+    /**
+     * Extracts the calendar quarter (1-4) from a datetime field.
+     * Maps to {@code CriteriaBuilder.extract(LocalDateTimeField.QUARTER, Expression)} at build time.
+     *
+     * @param dateTime the LocalDateTime field to extract the quarter from
+     * @return always 0 (never executed at runtime)
+     */
+    public static int quarter(java.time.LocalDateTime dateTime) {
+        return 0; // Never executed — intercepted at build time
+    }
+
+    /**
+     * Extracts the ISO-8601 week number from a date field.
+     * Maps to {@code CriteriaBuilder.extract(LocalDateField.WEEK, Expression)} at build time.
+     *
+     * @param date the LocalDate field to extract the week from
+     * @return always 0 (never executed at runtime)
+     */
+    public static int week(java.time.LocalDate date) {
+        return 0; // Never executed — intercepted at build time
+    }
+
+    /**
+     * Extracts the ISO-8601 week number from a datetime field.
+     * Maps to {@code CriteriaBuilder.extract(LocalDateTimeField.WEEK, Expression)} at build time.
+     *
+     * @param dateTime the LocalDateTime field to extract the week from
+     * @return always 0 (never executed at runtime)
+     */
+    public static int week(java.time.LocalDateTime dateTime) {
+        return 0; // Never executed — intercepted at build time
+    }
 }
