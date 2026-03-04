@@ -27,8 +27,9 @@ Thumbs.db
 # Ignore all dot directories
 .*/
 
-# Keep .gitignore tracked
+# Keep .gitignore and .github tracked
 !.gitignore
+!.github
 
 # Logs
 *.log

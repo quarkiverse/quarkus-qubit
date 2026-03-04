@@ -100,6 +100,11 @@
                         </goals>
                     </execution>
                 </executions>
+                <configuration>
+                    <systemProperties>
+                        <db.kind>${db.kind}</db.kind>
+                    </systemProperties>
+                </configuration>
             </plugin>
             <!-- JaCoCo agent for code coverage -->
             <plugin>
@@ -304,21 +309,7 @@
                     <artifactId>quarkus-jdbc-h2</artifactId>
                 </dependency>
             </dependencies>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>io.quarkus</groupId>
-                        <artifactId>quarkus-maven-plugin</artifactId>
-                        <configuration>
-                            <systemProperties>
-                                <quarkus.datasource.db-kind>h2</quarkus.datasource.db-kind>
-                                <quarkus.datasource.devservices.enabled>false</quarkus.datasource.devservices.enabled>
-                                <quarkus.datasource.jdbc.url>jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;MODE=PostgreSQL</quarkus.datasource.jdbc.url>
-                            </systemProperties>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
+            <!-- H2 config handled via application.properties %h2. prefixed properties -->
         </profile>
 
         <!--

@@ -52,7 +52,6 @@
     <modules>
         <module>runtime</module>
         <module>deployment</module>
-        <module>integration-tests</module>
     </modules>
 
     <dependencyManagement>
@@ -374,6 +373,23 @@
     </build>
 
     <profiles>
+        <!--
+            Integration tests profile.
+            Active by default; skipped during release to avoid deploying test artifacts to Sonatype.
+        -->
+        <profile>
+            <id>it</id>
+            <activation>
+                <property>
+                    <name>performRelease</name>
+                    <value>!true</value>
+                </property>
+            </activation>
+            <modules>
+                <module>integration-tests</module>
+            </modules>
+        </profile>
+
         <!--
             Coverage profile.
             Enables JaCoCo instrumentation and coverage check during verify phase.
