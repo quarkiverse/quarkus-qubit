@@ -73,11 +73,13 @@ jobs:
           java-version: 25
           cache: maven
 
+      - name: Build project
+        run: ./mvnw -B install -DskipTests --no-transfer-progress
+
       - name: Run integration tests with ${{ matrix.database }}
         run: |
           ./mvnw -B verify -P${{ matrix.database }} \
             -pl integration-tests \
-            -am \
             -Dmaven.test.failure.ignore=false
 
       - name: Upload test results
@@ -112,12 +114,14 @@ jobs:
           java-version: 25
           cache: maven
 
+      - name: Build project
+        run: ./mvnw -B install -DskipTests --no-transfer-progress
+
       - name: Build native image and run tests
         run: |
           ./mvnw -B verify -Dnative -P${{ matrix.database }} \
             -Dquarkus.native.container-build=true \
-            -pl integration-tests \
-            -am
+            -pl integration-tests
 
       - name: Upload native test results
         if: always()
