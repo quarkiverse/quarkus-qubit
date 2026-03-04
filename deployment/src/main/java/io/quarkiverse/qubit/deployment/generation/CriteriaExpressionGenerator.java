@@ -29,6 +29,7 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NO
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_OR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_SELECT_CASE;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CLASS_FOR_NAME;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.EXPRESSION_IN;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.EXPRESSION_IN_COLLECTION;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.PATH_GET;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.PATH_TYPE;
@@ -140,11 +141,12 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
                 generateTreatExpression(bc, treat, cb, root, capturedValues);
 
             case LambdaExpression.InstanceOf instanceOf -> {
-                // TYPE(e) = SubType check: cb.equal(root.type(), cb.literal(SubType.class))
+                // TYPE(e) IN (SubType): root.type().in(cb.literal(SubType.class))
+                // Uses IN instead of EQUAL to avoid Hibernate rendering "DTYPE='Dog'=true"
                 Expr rootType = bc.invokeInterface(PATH_TYPE, root);
                 Expr typeClass = Const.of(instanceOf.targetType());
                 Expr typeLiteral = bc.invokeInterface(CB_LITERAL, cb, typeClass);
-                yield bc.invokeInterface(CB_EQUAL, cb, rootType, typeLiteral);
+                yield bc.invokeInterface(EXPRESSION_IN, rootType, typeLiteral);
             }
 
             case LambdaExpression.SqlCast sqlCast ->
@@ -440,12 +442,13 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
                 generateExpressionAsJpaExpression(bc, cast.expression(), cb, root, capturedValues);
 
             case LambdaExpression.InstanceOf instanceOf -> {
-                // TYPE(e) = SubType check: cb.equal(root.type(), cb.literal(SubType.class))
-                // Predicate extends Expression<Boolean>, so this is valid as a JPA expression.
+                // TYPE(e) IN (SubType): root.type().in(cb.literal(SubType.class))
+                // Uses IN instead of EQUAL to avoid Hibernate rendering "DTYPE='Dog'=true"
+                // which is invalid SQL on PostgreSQL (missing parentheses around boolean expression).
                 Expr rootType = bc.invokeInterface(PATH_TYPE, root);
                 Expr typeClass = Const.of(instanceOf.targetType());
                 Expr typeLiteral = bc.invokeInterface(CB_LITERAL, cb, typeClass);
-                yield bc.invokeInterface(CB_EQUAL, cb, rootType, typeLiteral);
+                yield bc.invokeInterface(EXPRESSION_IN, rootType, typeLiteral);
             }
 
             default -> throw new UnsupportedExpressionException(expression);
