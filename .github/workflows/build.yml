@@ -139,7 +139,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright/java:v1.48.0-noble
+      image: mcr.microsoft.com/playwright/java:v1.58.0-noble
       options: --user 1001
     steps:
       - uses: actions/checkout@v4
