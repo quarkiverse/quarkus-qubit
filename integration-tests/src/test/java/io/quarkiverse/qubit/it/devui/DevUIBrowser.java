@@ -1,10 +1,8 @@
 package io.quarkiverse.qubit.it.devui;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import com.microsoft.playwright.Browser;
-import com.microsoft.playwright.ElementHandle;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
@@ -187,17 +185,11 @@ public class DevUIBrowser implements AutoCloseable {
         Locator grid = getVaadinGrid();
         grid.waitFor();
 
-        List<ElementHandle> cells = grid.locator("css=vaadin-grid-cell-content").elementHandles();
-        List<String> contents = new ArrayList<>();
-
-        for (ElementHandle cell : cells) {
-            String text = cell.textContent();
-            if (text != null && !text.isBlank()) {
-                contents.add(text.trim());
-            }
-        }
-
-        return contents;
+        return grid.locator("css=vaadin-grid-cell-content")
+                .allTextContents().stream()
+                .filter(t -> t != null && !t.isBlank())
+                .map(String::trim)
+                .toList();
     }
 
     /**
@@ -235,8 +227,8 @@ public class DevUIBrowser implements AutoCloseable {
     public void searchQueries(String query) {
         Locator searchField = page.locator("css=vaadin-text-field.searchField input");
         searchField.fill(query);
-        // Wait for filtering to apply
-        page.waitForTimeout(500);
+        // Wait for grid to update after filtering
+        getVaadinGrid().waitFor();
     }
 
     /**
@@ -245,8 +237,8 @@ public class DevUIBrowser implements AutoCloseable {
     public void clearSearch() {
         Locator searchField = page.locator("css=vaadin-text-field.searchField input");
         searchField.fill("");
-        // Wait for filtering to apply
-        page.waitForTimeout(500);
+        // Wait for grid to update after clearing filter
+        getVaadinGrid().waitFor();
     }
 
     /**
@@ -259,7 +251,6 @@ public class DevUIBrowser implements AutoCloseable {
         // Ensure grid is loaded before interacting
         Locator grid = getVaadinGrid();
         grid.waitFor();
-        page.waitForTimeout(500);
 
         // Use JavaScript to set the selected query in the Lit component's state
         // This directly updates _selectedQuery which triggers re-render
@@ -273,7 +264,9 @@ public class DevUIBrowser implements AutoCloseable {
                 "  } " +
                 "} " +
                 "}", rowIndex);
-        page.waitForTimeout(500);
+        // Wait for Lit component to re-render with the JPQL panel
+        page.waitForFunction("() => document.querySelector('qwc-qubit-queries')" +
+                "?.shadowRoot?.querySelector('.jpql-panel') !== null");
     }
 
     /**
@@ -326,7 +319,9 @@ public class DevUIBrowser implements AutoCloseable {
                 "  } " +
                 "} " +
                 "}");
-        page.waitForTimeout(300);
+        // Wait for Lit component to re-render without the JPQL panel
+        page.waitForFunction("() => document.querySelector('qwc-qubit-queries')" +
+                "?.shadowRoot?.querySelector('.jpql-panel') === null");
     }
 
     /**
@@ -356,8 +351,9 @@ public class DevUIBrowser implements AutoCloseable {
      */
     private void waitForPageLoad() {
         page.waitForLoadState();
-        // Additional wait for Vaadin components to render
-        page.waitForTimeout(1000);
+        // Wait for Vaadin/Lit web components to finish rendering
+        page.waitForFunction("() => !document.querySelector('vaadin-dev-tools')" +
+                " || document.querySelector('vaadin-dev-tools').shadowRoot !== null");
     }
 
     /**

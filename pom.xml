@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.quarkiverse</groupId>
         <artifactId>quarkiverse-parent</artifactId>
-        <version>20</version>
+        <version>21</version>
     </parent>
 
     <groupId>io.quarkiverse.qubit</groupId>
@@ -36,10 +36,10 @@
         <maven.compiler.release>25</maven.compiler.release>
 
         <!-- Quarkus version -->
-        <quarkus.version>3.31.1</quarkus.version>
+        <quarkus.version>3.32.2</quarkus.version>
 
         <!-- Plugin versions (override quarkiverse-parent where needed) -->
-        <surefire-plugin.version>3.5.4</surefire-plugin.version>
+        <surefire-plugin.version>3.5.5</surefire-plugin.version>
 
         <!-- JaCoCo version for code coverage -->
         <jacoco.version>0.8.14</jacoco.version>
@@ -298,7 +298,7 @@
                 <plugin>
                     <groupId>org.pitest</groupId>
                     <artifactId>pitest-maven</artifactId>
-                    <version>1.22.0</version>
+                    <version>1.22.1</version>
                     <configuration>
                         <targetClasses>
                             <param>io.quarkiverse.qubit.deployment.*</param>
