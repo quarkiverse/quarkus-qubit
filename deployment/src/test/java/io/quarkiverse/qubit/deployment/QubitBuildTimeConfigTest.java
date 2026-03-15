@@ -26,8 +26,7 @@ class QubitBuildTimeConfigTest {
             // This test documents the expected defaults
             QubitBuildTimeConfig.ScanningConfig config = createScanningConfig(
                     List.of("java.", "jakarta."),
-                    Optional.empty(),
-                    true);
+                    Optional.empty());
 
             assertTrue(config.excludePackages().contains("java."));
             assertTrue(config.excludePackages().contains("jakarta."));
@@ -39,34 +38,12 @@ class QubitBuildTimeConfigTest {
         void includePackagesOverrideExclude() {
             QubitBuildTimeConfig.ScanningConfig config = createScanningConfig(
                     List.of("java.", "jakarta."),
-                    Optional.of(List.of("jakarta.validation.")),
-                    true);
+                    Optional.of(List.of("jakarta.validation.")));
 
             assertTrue(config.includePackages().isPresent());
             assertTrue(config.includePackages().get().contains("jakarta.validation."));
         }
 
-        @Test
-        @DisplayName("scanTestClasses defaults to true")
-        void scanTestClassesDefaultTrue() {
-            QubitBuildTimeConfig.ScanningConfig config = createScanningConfig(
-                    List.of("java.", "jakarta."),
-                    Optional.empty(),
-                    true);
-
-            assertTrue(config.scanTestClasses());
-        }
-
-        @Test
-        @DisplayName("scanTestClasses can be disabled")
-        void scanTestClassesCanBeDisabled() {
-            QubitBuildTimeConfig.ScanningConfig config = createScanningConfig(
-                    List.of("java.", "jakarta."),
-                    Optional.empty(),
-                    false);
-
-            assertFalse(config.scanTestClasses());
-        }
     }
 
     @Nested
@@ -172,8 +149,7 @@ class QubitBuildTimeConfigTest {
 
     private QubitBuildTimeConfig.ScanningConfig createScanningConfig(
             List<String> excludePackages,
-            Optional<List<String>> includePackages,
-            boolean scanTestClasses) {
+            Optional<List<String>> includePackages) {
         return new QubitBuildTimeConfig.ScanningConfig() {
             @Override
             public List<String> excludePackages() {
@@ -183,11 +159,6 @@ class QubitBuildTimeConfigTest {
             @Override
             public Optional<List<String>> includePackages() {
                 return includePackages;
-            }
-
-            @Override
-            public boolean scanTestClasses() {
-                return scanTestClasses;
             }
         };
     }

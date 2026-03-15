@@ -15,6 +15,10 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Tests for package filtering logic in QubitProcessor.
+ *
+ * <p>
+ * After the getKnownUsers() migration, the filtering is simplified:
+ * no isTestClass() heuristic, no io.quarkus.* special case, no scanTestClasses config.
  */
 @DisplayName("Package Filtering Tests")
 class PackageFilteringTest {
@@ -30,8 +34,7 @@ class PackageFilteringTest {
         void javaClassesExcludedByDefault() throws Exception {
             QubitBuildTimeConfig.ScanningConfig config = createScanningConfig(
                     List.of("java.", "jakarta."),
-                    Optional.empty(),
-                    true);
+                    Optional.empty());
 
             assertFalse(isNotExcludedClass("java.lang.String", config));
             assertFalse(isNotExcludedClass("java.util.List", config));
@@ -43,8 +46,7 @@ class PackageFilteringTest {
         void jakartaClassesExcludedByDefault() throws Exception {
             QubitBuildTimeConfig.ScanningConfig config = createScanningConfig(
                     List.of("java.", "jakarta."),
-                    Optional.empty(),
-                    true);
+                    Optional.empty());
 
             assertFalse(isNotExcludedClass("jakarta.persistence.Entity", config));
             assertFalse(isNotExcludedClass("jakarta.enterprise.context.ApplicationScoped", config));
@@ -55,8 +57,7 @@ class PackageFilteringTest {
         void customExcludePackagesRespected() throws Exception {
             QubitBuildTimeConfig.ScanningConfig config = createScanningConfig(
                     List.of("java.", "jakarta.", "com.legacy."),
-                    Optional.empty(),
-                    true);
+                    Optional.empty());
 
             assertFalse(isNotExcludedClass("com.legacy.OldClass", config));
             assertFalse(isNotExcludedClass("com.legacy.deep.Nested", config));
@@ -67,8 +68,7 @@ class PackageFilteringTest {
         void applicationClassesIncluded() throws Exception {
             QubitBuildTimeConfig.ScanningConfig config = createScanningConfig(
                     List.of("java.", "jakarta."),
-                    Optional.empty(),
-                    true);
+                    Optional.empty());
 
             assertTrue(isNotExcludedClass("com.example.MyService", config));
             assertTrue(isNotExcludedClass("org.acme.entity.Person", config));
@@ -84,8 +84,7 @@ class PackageFilteringTest {
         void includeOverridesExclude() throws Exception {
             QubitBuildTimeConfig.ScanningConfig config = createScanningConfig(
                     List.of("java.", "jakarta."),
-                    Optional.of(List.of("jakarta.validation.")),
-                    true);
+                    Optional.of(List.of("jakarta.validation.")));
 
             // jakarta.validation.* should be included even though jakarta.* is excluded
             assertTrue(isNotExcludedClass("jakarta.validation.constraints.NotNull", config));
@@ -98,8 +97,7 @@ class PackageFilteringTest {
         void multipleIncludePackages() throws Exception {
             QubitBuildTimeConfig.ScanningConfig config = createScanningConfig(
                     List.of("java.", "jakarta.", "org.thirdparty."),
-                    Optional.of(List.of("java.time.", "org.thirdparty.good.")),
-                    true);
+                    Optional.of(List.of("java.time.", "org.thirdparty.good.")));
 
             // Included packages should work
             assertTrue(isNotExcludedClass("java.time.LocalDate", config));
@@ -112,46 +110,6 @@ class PackageFilteringTest {
     }
 
     @Nested
-    @DisplayName("Test Class Scanning Tests")
-    class TestClassScanningTests {
-
-        @Test
-        @DisplayName("Test classes (.it.) are scanned when enabled")
-        void testClassesScannedWhenEnabled() throws Exception {
-            QubitBuildTimeConfig.ScanningConfig config = createScanningConfig(
-                    List.of("java.", "jakarta."),
-                    Optional.empty(),
-                    true); // scanTestClasses = true
-
-            assertTrue(isNotExcludedClass("com.example.it.MyIntegrationTest", config));
-            assertTrue(isNotExcludedClass("io.quarkus.it.ExampleTest", config));
-        }
-
-        @Test
-        @DisplayName("Test classes (.test.) are scanned when enabled")
-        void testClassesDotTestScannedWhenEnabled() throws Exception {
-            QubitBuildTimeConfig.ScanningConfig config = createScanningConfig(
-                    List.of("java.", "jakarta."),
-                    Optional.empty(),
-                    true);
-
-            assertTrue(isNotExcludedClass("com.example.test.MyTest", config));
-        }
-
-        @Test
-        @DisplayName("Test classes are excluded when scanning disabled")
-        void testClassesExcludedWhenDisabled() throws Exception {
-            QubitBuildTimeConfig.ScanningConfig config = createScanningConfig(
-                    List.of("java.", "jakarta."),
-                    Optional.empty(),
-                    false); // scanTestClasses = false
-
-            assertFalse(isNotExcludedClass("com.example.it.MyIntegrationTest", config));
-            assertFalse(isNotExcludedClass("com.example.test.MyTest", config));
-        }
-    }
-
-    @Nested
     @DisplayName("Qubit Extension Classes Tests")
     class QubitExtensionClassesTests {
 
@@ -160,50 +118,10 @@ class PackageFilteringTest {
         void qubitExtensionClassesAlwaysIncluded() throws Exception {
             QubitBuildTimeConfig.ScanningConfig config = createScanningConfig(
                     List.of("java.", "jakarta."),
-                    Optional.empty(),
-                    true);
+                    Optional.empty());
 
             assertTrue(isNotExcludedClass("io.quarkiverse.qubit.QubitEntity", config));
             assertTrue(isNotExcludedClass("io.quarkiverse.qubit.api.QueryStream", config));
-        }
-    }
-
-    @Nested
-    @DisplayName("io.quarkus.* Classes Tests")
-    class QuarkusClassesTests {
-
-        @Test
-        @DisplayName("io.quarkus.* non-test classes are excluded")
-        void quarkusNonTestClassesExcluded() throws Exception {
-            QubitBuildTimeConfig.ScanningConfig config = createScanningConfig(
-                    List.of("java.", "jakarta."),
-                    Optional.empty(),
-                    true);
-
-            assertFalse(isNotExcludedClass("io.quarkus.arc.runtime.BeanContainer", config));
-            assertFalse(isNotExcludedClass("io.quarkus.deployment.Capability", config));
-        }
-
-        @Test
-        @DisplayName("io.quarkus.*.it.* classes are included when test scanning enabled")
-        void quarkusTestClassesIncludedWhenEnabled() throws Exception {
-            QubitBuildTimeConfig.ScanningConfig config = createScanningConfig(
-                    List.of("java.", "jakarta."),
-                    Optional.empty(),
-                    true);
-
-            assertTrue(isNotExcludedClass("io.quarkus.it.panache.TestEntity", config));
-        }
-
-        @Test
-        @DisplayName("io.quarkus.*.it.* classes are excluded when test scanning disabled")
-        void quarkusTestClassesExcludedWhenDisabled() throws Exception {
-            QubitBuildTimeConfig.ScanningConfig config = createScanningConfig(
-                    List.of("java.", "jakarta."),
-                    Optional.empty(),
-                    false);
-
-            assertFalse(isNotExcludedClass("io.quarkus.it.panache.TestEntity", config));
         }
     }
 
@@ -220,8 +138,7 @@ class PackageFilteringTest {
 
     private QubitBuildTimeConfig.ScanningConfig createScanningConfig(
             List<String> excludePackages,
-            Optional<List<String>> includePackages,
-            boolean scanTestClasses) {
+            Optional<List<String>> includePackages) {
         return new QubitBuildTimeConfig.ScanningConfig() {
             @Override
             public List<String> excludePackages() {
@@ -231,11 +148,6 @@ class PackageFilteringTest {
             @Override
             public Optional<List<String>> includePackages() {
                 return includePackages;
-            }
-
-            @Override
-            public boolean scanTestClasses() {
-                return scanTestClasses;
             }
         };
     }

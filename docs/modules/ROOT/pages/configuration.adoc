@@ -4,8 +4,8 @@ Qubit provides build-time configuration for scanning, code generation, and loggi
 
 == Scanning
 
-By default, Qubit scans all application classes for lambda queries.
-For large applications, configure a package allowlist to skip framework classes:
+Qubit only scans classes that reference Qubit types, then applies optional package filters.
+For large applications, configure a package allowlist for additional filtering:
 
 [source,properties]
 ----
@@ -35,10 +35,6 @@ Other scanning options:
 |`quarkus.qubit.scanning.include-packages`
 |_(not set)_
 |Package allowlist (when set, ONLY these packages are scanned)
-
-|`quarkus.qubit.scanning.scan-test-classes`
-|`true`
-|Whether to scan integration test classes (`.it.`, `.test.` paths)
 |===
 
 == Code Generation
