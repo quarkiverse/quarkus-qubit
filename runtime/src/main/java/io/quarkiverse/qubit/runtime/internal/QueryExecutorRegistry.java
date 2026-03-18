@@ -11,6 +11,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
 
 import org.jboss.logging.Logger;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Registry of build-time generated query executors keyed by call site ID.
@@ -188,7 +189,7 @@ public class QueryExecutorRegistry {
     /** Executes list query (lock held only during lookup, not DB execution). */
     @SuppressWarnings("unchecked")
     public <T> List<T> executeListQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues,
-            Integer offset, Integer limit, Boolean distinct) {
+            @Nullable Integer offset, @Nullable Integer limit, @Nullable Boolean distinct) {
         requireEntityManager();
 
         QueryExecutor<List<?>> executor = getExecutor(LIST_EXECUTORS, callSiteId, ExecutorType.LIST,
@@ -309,7 +310,7 @@ public class QueryExecutorRegistry {
      */
     @SuppressWarnings("unchecked")
     public <T> List<T> executeJoinListQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues,
-            Integer offset, Integer limit, Boolean distinct) {
+            @Nullable Integer offset, @Nullable Integer limit, @Nullable Boolean distinct) {
         requireEntityManager();
 
         QueryExecutor<List<?>> executor = getExecutor(JOIN_LIST_EXECUTORS, callSiteId, ExecutorType.JOIN_LIST,
@@ -350,7 +351,7 @@ public class QueryExecutorRegistry {
      */
     @SuppressWarnings("unchecked")
     public <T, R> List<R> executeJoinSelectJoinedQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues,
-            Integer offset, Integer limit, Boolean distinct) {
+            @Nullable Integer offset, @Nullable Integer limit, @Nullable Boolean distinct) {
         requireEntityManager();
 
         QueryExecutor<List<?>> executor = getExecutor(JOIN_SELECT_JOINED_EXECUTORS, callSiteId, ExecutorType.JOIN_SELECT_JOINED,
@@ -372,7 +373,7 @@ public class QueryExecutorRegistry {
      */
     @SuppressWarnings("unchecked")
     public <T, S> List<S> executeJoinProjectionQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues,
-            Integer offset, Integer limit, Boolean distinct) {
+            @Nullable Integer offset, @Nullable Integer limit, @Nullable Boolean distinct) {
         requireEntityManager();
 
         QueryExecutor<List<?>> executor = getExecutor(JOIN_PROJECTION_EXECUTORS, callSiteId, ExecutorType.JOIN_PROJECTION,
@@ -409,7 +410,7 @@ public class QueryExecutorRegistry {
      */
     @SuppressWarnings("unchecked")
     public <T, R> List<R> executeGroupQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues,
-            Integer offset, Integer limit) {
+            @Nullable Integer offset, @Nullable Integer limit) {
         requireEntityManager();
 
         QueryExecutor<List<?>> executor = getExecutor(GROUP_LIST_EXECUTORS, callSiteId, ExecutorType.GROUP_LIST,
@@ -439,7 +440,7 @@ public class QueryExecutorRegistry {
      */
     @SuppressWarnings("unchecked")
     public <T, K> List<K> executeGroupKeyQuery(String callSiteId, Class<T> entityClass, Object[] capturedValues,
-            Integer offset, Integer limit) {
+            @Nullable Integer offset, @Nullable Integer limit) {
         requireEntityManager();
 
         QueryExecutor<List<?>> executor = getExecutor(GROUP_LIST_EXECUTORS, callSiteId, ExecutorType.GROUP_LIST,

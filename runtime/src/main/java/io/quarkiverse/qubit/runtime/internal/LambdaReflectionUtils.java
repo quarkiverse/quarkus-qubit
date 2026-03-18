@@ -15,6 +15,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.NonUniqueResultException;
 
+import org.jspecify.annotations.Nullable;
+
 import io.quarkus.arc.Arc;
 import io.quarkus.arc.ArcContainer;
 import io.quarkus.arc.InstanceHandle;
@@ -45,7 +47,7 @@ public final class LambdaReflectionUtils {
     }
 
     /** Counts non-static instance fields (captured variables) in a lambda. */
-    public static int countCapturedFields(Object lambdaInstance) {
+    public static int countCapturedFields(@Nullable Object lambdaInstance) {
         if (lambdaInstance == null) {
             return 0;
         }
@@ -142,7 +144,7 @@ public final class LambdaReflectionUtils {
     public record LambdaInfo(String implMethodName, Object[] capturedArgs) {
 
         /** Extracts both method name and captured args from a lambda instance. */
-        public static LambdaInfo extract(Object lambdaInstance) {
+        public static LambdaInfo extract(@Nullable Object lambdaInstance) {
             if (lambdaInstance == null) {
                 return new LambdaInfo("null", new Object[0]);
             }
@@ -160,7 +162,7 @@ public final class LambdaReflectionUtils {
      * Extracts lambda implementation method name (e.g., "lambda$where$0") via SerializedLambda.
      * Fails fast on extraction failure - silent fallback would cause build/runtime ID mismatch.
      */
-    public static String extractLambdaMethodName(Object lambdaInstance) {
+    public static String extractLambdaMethodName(@Nullable Object lambdaInstance) {
         if (lambdaInstance == null) {
             return "null";
         }
@@ -178,7 +180,7 @@ public final class LambdaReflectionUtils {
      * @param lambdaInstance the lambda to extract captured args from
      * @return the captured argument values, or empty array if none
      */
-    public static Object[] extractCapturedArgs(Object lambdaInstance) {
+    public static Object[] extractCapturedArgs(@Nullable Object lambdaInstance) {
         if (lambdaInstance == null) {
             return new Object[0];
         }

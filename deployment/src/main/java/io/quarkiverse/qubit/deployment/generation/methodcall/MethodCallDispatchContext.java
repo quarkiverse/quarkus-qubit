@@ -2,6 +2,8 @@ package io.quarkiverse.qubit.deployment.generation.methodcall;
 
 import java.util.Collection;
 
+import org.jspecify.annotations.Nullable;
+
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.generation.expression.ExpressionBuilderRegistry;
 import io.quarkus.gizmo2.Expr;
@@ -57,7 +59,7 @@ public interface MethodCallDispatchContext {
     }
 
     /** Returns the first argument expression, or null if no arguments. */
-    default LambdaExpression firstArgument() {
+    default @Nullable LambdaExpression firstArgument() {
         return hasArguments() ? methodCall().arguments().getFirst() : null;
     }
 

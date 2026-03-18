@@ -3,6 +3,8 @@ package io.quarkiverse.qubit.deployment.generation.join;
 import java.util.List;
 import java.util.Objects;
 
+import org.jspecify.annotations.Nullable;
+
 import io.quarkiverse.qubit.deployment.analysis.CallSite;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
@@ -17,10 +19,10 @@ public record JoinQueryContext(
         Expr em,
         Expr entityClass,
         LambdaExpression joinRelationshipExpression,
-        LambdaExpression sourcePredicateExpression,
-        LambdaExpression biEntityPredicateExpression,
+        @Nullable LambdaExpression sourcePredicateExpression,
+        @Nullable LambdaExpression biEntityPredicateExpression,
         CallSite.JoinType joinType,
-        List<SortExpression> sortExpressions,
+        @Nullable List<SortExpression> sortExpressions,
         Expr capturedValues,
         Expr offset,
         Expr limit,
@@ -32,7 +34,10 @@ public record JoinQueryContext(
         Objects.requireNonNull(entityClass, "entityClass cannot be null");
         Objects.requireNonNull(joinRelationshipExpression, "joinRelationshipExpression cannot be null");
         Objects.requireNonNull(joinType, "joinType cannot be null");
-        // sourcePredicateExpression, biEntityPredicateExpression, sortExpressions, capturedValues, offset, limit, distinct can be null
+        Objects.requireNonNull(capturedValues, "capturedValues cannot be null");
+        Objects.requireNonNull(offset, "offset cannot be null");
+        Objects.requireNonNull(limit, "limit cannot be null");
+        Objects.requireNonNull(distinct, "distinct cannot be null");
     }
 
     /** Extracts field name from join relationship (e.g., "phones" from p -> p.phones). */

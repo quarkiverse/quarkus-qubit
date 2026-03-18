@@ -3,6 +3,7 @@ package io.quarkiverse.qubit.deployment.analysis.branch;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
@@ -18,10 +19,12 @@ import io.quarkus.logging.Log;
  */
 public class BranchCoordinator {
 
+    private record PreviousJump(LabelNode label, ControlFlowAnalyzer.LabelClassification classification) {
+    }
+
     private final List<BranchHandler> handlers;
     private BranchState state;
-    private LabelNode lastJumpLabel;
-    private ControlFlowAnalyzer.LabelClassification lastJumpLabelClass;
+    private Optional<PreviousJump> lastJump = Optional.empty();
 
     public BranchCoordinator() {
         this.handlers = List.of(
@@ -31,8 +34,6 @@ public class BranchCoordinator {
                 new SingleOperandComparisonHandler(),
                 new NullCheckHandler());
         this.state = new BranchState.Initial();
-        this.lastJumpLabel = null;
-        this.lastJumpLabelClass = null;
         Log.tracef("BranchCoordinator initialized with %d handlers", handlers.size());
     }
 
@@ -47,16 +48,19 @@ public class BranchCoordinator {
             if (handler.canHandle(jumpInsn)) {
                 LabelNode currentLabel = jumpInsn.label;
                 ControlFlowAnalyzer.LabelClassification currentLabelClass = labelClassifications.get(currentLabel);
-                boolean sameLabel = lastJumpLabel != null && lastJumpLabel == currentLabel;
+                boolean sameLabel = lastJump.map(prev -> prev.label() == currentLabel).orElse(false);
 
                 // Completing AND group: INTERMEDIATE → TRUE_SINK (e.g., (A && B) || C)
-                boolean completingAndGroupFromIntermediate = lastJumpLabelClass == ControlFlowAnalyzer.LabelClassification.INTERMEDIATE
-                        &&
-                        currentLabelClass == ControlFlowAnalyzer.LabelClassification.TRUE_SINK;
+                boolean completingAndGroupFromIntermediate = lastJump
+                        .map(prev -> prev.classification() == ControlFlowAnalyzer.LabelClassification.INTERMEDIATE)
+                        .orElse(false)
+                        && currentLabelClass == ControlFlowAnalyzer.LabelClassification.TRUE_SINK;
 
                 // Starting new group: FALSE_SINK → TRUE_SINK (e.g., (A || B) && (C || D))
-                boolean startingNewGroupAfterAnd = lastJumpLabelClass == ControlFlowAnalyzer.LabelClassification.FALSE_SINK &&
-                        currentLabelClass == ControlFlowAnalyzer.LabelClassification.TRUE_SINK;
+                boolean startingNewGroupAfterAnd = lastJump
+                        .map(prev -> prev.classification() == ControlFlowAnalyzer.LabelClassification.FALSE_SINK)
+                        .orElse(false)
+                        && currentLabelClass == ControlFlowAnalyzer.LabelClassification.TRUE_SINK;
 
                 Log.tracef(
                         "Processing %s with %s (state: %s, sameLabel: %s, completingAndGroup: %s, startingNewGroupAfterAnd: %s)",
@@ -81,8 +85,7 @@ public class BranchCoordinator {
                 }
 
                 // Track current label and classification for next instruction
-                lastJumpLabel = currentLabel;
-                lastJumpLabelClass = currentLabelClass;
+                lastJump = Optional.of(new PreviousJump(currentLabel, currentLabelClass));
 
                 return;
             }
@@ -95,7 +98,7 @@ public class BranchCoordinator {
     /** Resets to initial state for new lambda analysis. */
     public void reset() {
         this.state = new BranchState.Initial();
-        this.lastJumpLabel = null;
+        this.lastJump = Optional.empty();
         Log.tracef("BranchCoordinator reset to Initial state");
     }
 

@@ -83,21 +83,24 @@ public class StreamPipelineAnalyzer {
 
     /** Mutable state for pipeline scanning. */
     private static class PipelineScanState {
-        String pendingLambdaMethod;
-        String pendingLambdaDescriptor;
+        private boolean hasLambda;
+        private String pendingLambdaMethod = "";
+        private String pendingLambdaDescriptor = "";
 
         void setLambda(String method, String descriptor) {
             this.pendingLambdaMethod = method;
             this.pendingLambdaDescriptor = descriptor;
+            this.hasLambda = true;
         }
 
         void clearLambda() {
-            this.pendingLambdaMethod = null;
-            this.pendingLambdaDescriptor = null;
+            this.pendingLambdaMethod = "";
+            this.pendingLambdaDescriptor = "";
+            this.hasLambda = false;
         }
 
         boolean hasLambda() {
-            return pendingLambdaMethod != null;
+            return hasLambda;
         }
     }
 

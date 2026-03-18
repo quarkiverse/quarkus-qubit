@@ -584,9 +584,9 @@ class JavaSourceGeneratorTest {
         }
 
         @Test
-        @DisplayName("generates null constant")
-        void generateNullConstant() {
-            LambdaExpression expr = new Constant(null, String.class);
+        @DisplayName("generates null literal")
+        void generateNullLiteral() {
+            LambdaExpression expr = new NullLiteral(String.class);
 
             String java = JavaSourceGenerator.generateJavaSource(expr);
 

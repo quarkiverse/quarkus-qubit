@@ -18,6 +18,10 @@ public sealed interface CallSite permits CallSite.SimpleCallSite, CallSite.Aggre
 
     record SortLambda(String methodName, String descriptor, SortDirection direction,
             @Nullable String nullPrecedence) {
+        /** Extracts the method+descriptor pair as a LambdaPair. */
+        public LambdaPair toLambdaPair() {
+            return new LambdaPair(methodName, descriptor);
+        }
     }
 
     enum JoinType {
@@ -82,12 +86,10 @@ public sealed interface CallSite permits CallSite.SimpleCallSite, CallSite.Aggre
 
     record SimpleCallSite(
             Common common,
-            String lambdaMethodName,
-            String lambdaMethodDescriptor,
+            LambdaPair primaryLambda,
             String fluentMethodName,
             List<LambdaPair> predicateLambdas,
-            String projectionLambdaMethodName,
-            String projectionLambdaMethodDescriptor,
+            @Nullable LambdaPair projectionLambda,
             List<SortLambda> sortLambdas) implements CallSite {
 
         public SimpleCallSite {
@@ -96,7 +98,7 @@ public sealed interface CallSite permits CallSite.SimpleCallSite, CallSite.Aggre
         }
 
         public boolean isProjectionQuery() {
-            if (projectionLambdaMethodName != null) {
+            if (projectionLambda != null) {
                 return true;
             }
 
@@ -116,55 +118,50 @@ public sealed interface CallSite permits CallSite.SimpleCallSite, CallSite.Aggre
                 return false;
             }
 
-            if (returnsBooleanType(lambdaMethodDescriptor)) {
+            if (returnsBooleanType(primaryLambda.descriptor())) {
                 return false;
             }
 
-            Log.warnf("Treating as projection (non-boolean): descriptor=%s, fluent=%s", lambdaMethodDescriptor,
-                    fluentMethodName);
+            Log.warnf("Treating as projection (non-boolean): descriptor=%s, fluent=%s",
+                    primaryLambda.descriptor(), fluentMethodName);
             return true;
         }
 
         public boolean isCombinedQuery() {
-            return predicateLambdas != null && !predicateLambdas.isEmpty() && projectionLambdaMethodName != null;
+            return !predicateLambdas.isEmpty() && projectionLambda != null;
         }
 
         @Override
         public String getPrimaryLambdaMethodName() {
-            if (predicateLambdas != null && !predicateLambdas.isEmpty()) {
+            if (!predicateLambdas.isEmpty()) {
                 return predicateLambdas.getFirst().methodName();
             }
-            if (projectionLambdaMethodName != null) {
-                return projectionLambdaMethodName;
+            if (projectionLambda != null) {
+                return projectionLambda.methodName();
             }
-            if (sortLambdas != null && !sortLambdas.isEmpty()) {
+            if (!sortLambdas.isEmpty()) {
                 return sortLambdas.getFirst().methodName();
             }
-            if (lambdaMethodName != null) {
-                return lambdaMethodName;
-            }
-            return String.valueOf(terminalInsnIndex());
+            return primaryLambda.methodName();
         }
 
         @Override
         public String toString() {
             if (isCombinedQuery()) {
-                int predicateCount = predicateLambdas != null ? predicateLambdas.size() : 0;
                 return String.format("CallSite{%s.%s line %d, where=%d predicates, select=%s, target=%s}",
                         ownerClassName(), methodName(), lineNumber(),
-                        predicateCount, projectionLambdaMethodName, targetMethodName());
+                        predicateLambdas.size(), projectionLambda.methodName(), targetMethodName());
             }
             return String.format("CallSite{%s.%s line %d, lambda=%s, fluent=%s, target=%s}",
-                    ownerClassName(), methodName(), lineNumber(), lambdaMethodName, fluentMethodName,
-                    targetMethodName());
+                    ownerClassName(), methodName(), lineNumber(), primaryLambda.methodName(),
+                    fluentMethodName, targetMethodName());
         }
     }
 
     record AggregationCallSite(
             Common common,
             List<LambdaPair> predicateLambdas,
-            String aggregationLambdaMethodName,
-            String aggregationLambdaMethodDescriptor) implements CallSite {
+            LambdaPair aggregationLambda) implements CallSite {
 
         public AggregationCallSite {
             predicateLambdas = predicateLambdas != null ? List.copyOf(predicateLambdas) : List.of();
@@ -172,35 +169,29 @@ public sealed interface CallSite permits CallSite.SimpleCallSite, CallSite.Aggre
 
         @Override
         public String getPrimaryLambdaMethodName() {
-            if (predicateLambdas != null && !predicateLambdas.isEmpty()) {
+            if (!predicateLambdas.isEmpty()) {
                 return predicateLambdas.getFirst().methodName();
             }
-            if (aggregationLambdaMethodName != null) {
-                return aggregationLambdaMethodName;
-            }
-            return String.valueOf(terminalInsnIndex());
+            return aggregationLambda.methodName();
         }
 
         @Override
         public String toString() {
-            int predicateCount = predicateLambdas != null ? predicateLambdas.size() : 0;
             return String.format("CallSite{%s.%s line %d, aggregation=%s, predicates=%d, target=%s}",
                     ownerClassName(), methodName(), lineNumber(),
-                    aggregationLambdaMethodName, predicateCount, targetMethodName());
+                    aggregationLambda.methodName(), predicateLambdas.size(), targetMethodName());
         }
     }
 
     record JoinCallSite(
             Common common,
             JoinType joinType,
-            String joinRelationshipLambdaMethodName,
-            String joinRelationshipLambdaDescriptor,
+            @Nullable LambdaPair joinRelationshipLambda,
             List<LambdaPair> predicateLambdas,
             List<LambdaPair> biEntityPredicateLambdas,
             List<SortLambda> sortLambdas,
             boolean isSelectJoined,
-            String biEntityProjectionLambdaMethodName,
-            String biEntityProjectionLambdaDescriptor) implements CallSite {
+            @Nullable LambdaPair biEntityProjectionLambda) implements CallSite {
 
         public JoinCallSite {
             predicateLambdas = predicateLambdas != null ? List.copyOf(predicateLambdas) : List.of();
@@ -209,37 +200,36 @@ public sealed interface CallSite permits CallSite.SimpleCallSite, CallSite.Aggre
         }
 
         public boolean isJoinProjectionQuery() {
-            return biEntityProjectionLambdaMethodName != null;
+            return biEntityProjectionLambda != null;
         }
 
         @Override
         public String getPrimaryLambdaMethodName() {
-            if (predicateLambdas != null && !predicateLambdas.isEmpty()) {
+            if (!predicateLambdas.isEmpty()) {
                 return predicateLambdas.getFirst().methodName();
             }
-            if (biEntityPredicateLambdas != null && !biEntityPredicateLambdas.isEmpty()) {
+            if (!biEntityPredicateLambdas.isEmpty()) {
                 return biEntityPredicateLambdas.getFirst().methodName();
             }
-            if (joinRelationshipLambdaMethodName != null) {
-                return joinRelationshipLambdaMethodName;
+            if (joinRelationshipLambda != null) {
+                return joinRelationshipLambda.methodName();
             }
             return String.valueOf(terminalInsnIndex());
         }
 
         @Override
         public String toString() {
-            int biPredicateCount = biEntityPredicateLambdas != null ? biEntityPredicateLambdas.size() : 0;
+            String relName = joinRelationshipLambda != null ? joinRelationshipLambda.methodName() : null;
             return String.format("CallSite{%s.%s line %d, %s JOIN, relationship=%s, biPredicates=%d, target=%s}",
                     ownerClassName(), methodName(), lineNumber(),
-                    joinType, joinRelationshipLambdaMethodName, biPredicateCount, targetMethodName());
+                    joinType, relName, biEntityPredicateLambdas.size(), targetMethodName());
         }
     }
 
     record GroupCallSite(
             Common common,
             List<LambdaPair> predicateLambdas,
-            String groupByLambdaMethodName,
-            String groupByLambdaDescriptor,
+            @Nullable LambdaPair groupByLambda,
             List<LambdaPair> havingLambdas,
             List<LambdaPair> groupSelectLambdas,
             List<SortLambda> groupSortLambdas,
@@ -254,22 +244,21 @@ public sealed interface CallSite permits CallSite.SimpleCallSite, CallSite.Aggre
 
         @Override
         public String getPrimaryLambdaMethodName() {
-            if (predicateLambdas != null && !predicateLambdas.isEmpty()) {
+            if (!predicateLambdas.isEmpty()) {
                 return predicateLambdas.getFirst().methodName();
             }
-            if (groupByLambdaMethodName != null) {
-                return groupByLambdaMethodName;
+            if (groupByLambda != null) {
+                return groupByLambda.methodName();
             }
             return String.valueOf(terminalInsnIndex());
         }
 
         @Override
         public String toString() {
-            int havingCount = havingLambdas != null ? havingLambdas.size() : 0;
-            int selectCount = groupSelectLambdas != null ? groupSelectLambdas.size() : 0;
+            String groupByName = groupByLambda != null ? groupByLambda.methodName() : null;
             return String.format("CallSite{%s.%s line %d, GROUP BY=%s, having=%d, groupSelect=%d, target=%s}",
                     ownerClassName(), methodName(), lineNumber(),
-                    groupByLambdaMethodName, havingCount, selectCount, targetMethodName());
+                    groupByName, havingLambdas.size(), groupSelectLambdas.size(), targetMethodName());
         }
     }
 }

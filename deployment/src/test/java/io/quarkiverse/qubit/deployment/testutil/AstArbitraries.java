@@ -88,9 +88,7 @@ public class AstArbitraries {
                 Arbitraries.doubles().between(-1e6, 1e6)
                         .map(d -> new Constant(d, Double.class)),
                 // Boolean constants
-                Arbitraries.of(Constant.TRUE, Constant.FALSE),
-                // Null constants
-                types().map(t -> new Constant(null, t)));
+                Arbitraries.of(Constant.TRUE, Constant.FALSE));
     }
 
     /**

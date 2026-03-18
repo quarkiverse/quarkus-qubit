@@ -981,11 +981,11 @@ class JpqlGeneratorTest {
         void formatNullConstant() {
             LambdaExpression predicate = BinaryOp.eq(
                     new FieldAccess("name", String.class),
-                    new Constant(null, String.class));
+                    new NullLiteral(String.class));
 
             String jpql = JpqlGenerator.generateJpql(PERSON_CLASS, predicate, null, false);
 
-            assertThat(jpql).contains("= NULL");
+            assertThat(jpql).contains("IS NULL");
         }
 
         @Test

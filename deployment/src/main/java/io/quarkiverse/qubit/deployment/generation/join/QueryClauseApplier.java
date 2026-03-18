@@ -2,6 +2,8 @@ package io.quarkiverse.qubit.deployment.generation.join;
 
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 import io.quarkus.gizmo2.Expr;
 import io.quarkus.gizmo2.creator.BlockCreator;
 
@@ -11,11 +13,11 @@ import io.quarkus.gizmo2.creator.BlockCreator;
  */
 public interface QueryClauseApplier {
 
-    void applyWherePredicate(BlockCreator bc, Expr query, Expr predicate);
+    void applyWherePredicate(BlockCreator bc, Expr query, @Nullable Expr predicate);
 
     /** Uses "last call wins" semantics for sort ordering. */
     void applyBiEntityOrderBy(BlockCreator bc, Expr query, Expr root,
-            Expr join, Expr cb, List<?> sortExpressions,
+            Expr join, Expr cb, @Nullable List<?> sortExpressions,
             Expr capturedValues);
 
     void applyDistinct(BlockCreator bc, Expr query, Expr distinct);

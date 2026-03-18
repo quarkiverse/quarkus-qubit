@@ -30,7 +30,7 @@ public final class ImmutableResultStream<T> implements QubitStream<T> {
 
     /** Wraps results with defensive copy (Issue #23: true immutability). */
     public ImmutableResultStream(List<T> results, String operationContext) {
-        this.results = results != null ? List.copyOf(results) : List.of();
+        this.results = List.copyOf(results);
         this.operationContext = operationContext;
     }
 

@@ -363,7 +363,7 @@ public class CallSiteProcessor {
                 CallSite.GroupCallSite g = (CallSite.GroupCallSite) callSite;
                 var ctx = new ExecutorRegistrationHelper.ExecutorRegistrationContext(
                         lambdaHash, callSiteId,
-                        DescriptorParser.getEntityClassName(g.groupByLambdaDescriptor()),
+                        DescriptorParser.getEntityClassName(g.groupByLambda().descriptor()),
                         callSite.targetMethodName(),
                         callSite.isCountQuery(), callSite.hasDistinct(),
                         callSite.skipValue(), callSite.limitValue(),
@@ -375,7 +375,7 @@ public class CallSiteProcessor {
                 CallSite.JoinCallSite j = (CallSite.JoinCallSite) callSite;
                 var ctx = new ExecutorRegistrationHelper.ExecutorRegistrationContext(
                         lambdaHash, callSiteId,
-                        DescriptorParser.getEntityClassName(j.joinRelationshipLambdaDescriptor()),
+                        DescriptorParser.getEntityClassName(j.joinRelationshipLambda().descriptor()),
                         callSite.targetMethodName(),
                         callSite.isCountQuery(), callSite.hasDistinct(),
                         callSite.skipValue(), callSite.limitValue(),
@@ -524,9 +524,9 @@ public class CallSiteProcessor {
     private String extractEntityClassName(CallSite callSite, LambdaAnalysisResult result) {
         return switch (result) {
             case LambdaAnalysisResult.GroupQueryResult _ ->
-                DescriptorParser.getEntityClassName(((CallSite.GroupCallSite) callSite).groupByLambdaDescriptor());
+                DescriptorParser.getEntityClassName(((CallSite.GroupCallSite) callSite).groupByLambda().descriptor());
             case LambdaAnalysisResult.JoinQueryResult _ ->
-                DescriptorParser.getEntityClassName(((CallSite.JoinCallSite) callSite).joinRelationshipLambdaDescriptor());
+                DescriptorParser.getEntityClassName(((CallSite.JoinCallSite) callSite).joinRelationshipLambda().descriptor());
             case LambdaAnalysisResult.AggregationQueryResult _ ->
                 DescriptorParser.getEntityClassName(getEntityDescriptor(callSite));
             case LambdaAnalysisResult.SimpleQueryResult _ ->
@@ -540,21 +540,12 @@ public class CallSiteProcessor {
      */
     private String getEntityDescriptor(CallSite callSite) {
         return switch (callSite) {
-            case CallSite.SimpleCallSite s -> {
-                // Try primary lambda descriptor first
-                if (s.lambdaMethodDescriptor() != null) {
-                    yield s.lambdaMethodDescriptor();
-                }
-                // Fall back to first sort lambda descriptor if available
-                var sortLambdas = s.sortLambdas();
-                if (sortLambdas != null && !sortLambdas.isEmpty()) {
-                    yield sortLambdas.getFirst().descriptor();
-                }
-                yield null;
-            }
-            case CallSite.AggregationCallSite a -> a.aggregationLambdaMethodDescriptor();
-            case CallSite.GroupCallSite g -> g.groupByLambdaDescriptor();
-            case CallSite.JoinCallSite j -> j.joinRelationshipLambdaDescriptor();
+            case CallSite.SimpleCallSite s -> s.primaryLambda().descriptor();
+            case CallSite.AggregationCallSite a -> a.aggregationLambda().descriptor();
+            case CallSite.GroupCallSite g ->
+                g.groupByLambda() != null ? g.groupByLambda().descriptor() : null;
+            case CallSite.JoinCallSite j ->
+                j.joinRelationshipLambda() != null ? j.joinRelationshipLambda().descriptor() : null;
         };
     }
 

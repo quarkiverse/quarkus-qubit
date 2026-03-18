@@ -53,15 +53,9 @@ public final class AggregationQueryHandler extends AbstractQueryHandler {
     private AnalysisOutcome doAnalyze(QueryAnalysisContext context) {
         CallSite.AggregationCallSite callSite = (CallSite.AggregationCallSite) context.callSite();
 
-        // Analyze aggregation mapper lambda (required)
+        // Analyze aggregation mapper lambda (always present — guaranteed by classify())
         LambdaExpression aggregationExpr = analyzeSingleLambda(
-                context,
-                callSite.aggregationLambdaMethodName(),
-                callSite.aggregationLambdaMethodDescriptor());
-
-        if (aggregationExpr == null) {
-            return unsupportedMissingLambda("aggregation mapper", context.callSiteId());
-        }
+                context, callSite.aggregationLambda());
 
         // Analyze optional WHERE predicate
         LambdaExpression predicateExpr = analyzeAndCombinePredicates(

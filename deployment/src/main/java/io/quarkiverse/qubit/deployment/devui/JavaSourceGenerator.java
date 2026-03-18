@@ -4,6 +4,8 @@ import static io.quarkiverse.qubit.deployment.common.PatternDetector.isLogicalOp
 
 import java.util.stream.Collectors;
 
+import org.jspecify.annotations.Nullable;
+
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.*;
 import io.quarkiverse.qubit.deployment.util.ClassNameUtils;
@@ -22,7 +24,7 @@ public final class JavaSourceGenerator {
     }
 
     /** Generates lambda expression string (e.g., "p -> p.age > 18"). */
-    public static String generateJavaSource(LambdaExpression expression) {
+    public static @Nullable String generateJavaSource(@Nullable LambdaExpression expression) {
         if (expression == null) {
             return null;
         }
@@ -30,7 +32,7 @@ public final class JavaSourceGenerator {
     }
 
     /** Generates bi-entity lambda expression string for join queries. */
-    public static String generateBiEntityJavaSource(LambdaExpression expression,
+    public static @Nullable String generateBiEntityJavaSource(@Nullable LambdaExpression expression,
             String firstParam,
             String secondParam) {
         if (expression == null) {
@@ -41,7 +43,7 @@ public final class JavaSourceGenerator {
     }
 
     /** Generates group lambda expression string (e.g., "g -> g.count() > 5"). */
-    public static String generateGroupJavaSource(LambdaExpression expression) {
+    public static @Nullable String generateGroupJavaSource(@Nullable LambdaExpression expression) {
         if (expression == null) {
             return null;
         }
@@ -49,7 +51,7 @@ public final class JavaSourceGenerator {
     }
 
     /** Generates expression body without lambda arrow. */
-    public static String expressionBodyToJava(LambdaExpression expression) {
+    public static @Nullable String expressionBodyToJava(@Nullable LambdaExpression expression) {
         if (expression == null) {
             return null;
         }
@@ -167,7 +169,7 @@ public final class JavaSourceGenerator {
     }
 
     /** Simplifies "p.active == true" to "p.active"; returns null if not a boolean comparison. */
-    private static String simplifyBooleanComparison(BinaryOp binaryOp, String param) {
+    private static @Nullable String simplifyBooleanComparison(BinaryOp binaryOp, String param) {
         // Only handle EQ and NE operators
         if (binaryOp.operator() != BinaryOp.Operator.EQ && binaryOp.operator() != BinaryOp.Operator.NE) {
             return null;
@@ -214,7 +216,7 @@ public final class JavaSourceGenerator {
     }
 
     /** Gets boolean value from constant expression. */
-    private static Boolean getBooleanValue(LambdaExpression expr) {
+    private static @Nullable Boolean getBooleanValue(LambdaExpression expr) {
         if (expr instanceof Constant constant) {
             if (constant == Constant.TRUE)
                 return true;
@@ -232,7 +234,7 @@ public final class JavaSourceGenerator {
     }
 
     /** Formats string equality as .equals() call; returns null if not a string comparison. */
-    private static String formatStringEquality(BinaryOp binaryOp, String left, String right) {
+    private static @Nullable String formatStringEquality(BinaryOp binaryOp, String left, String right) {
         if (binaryOp.operator() == BinaryOp.Operator.EQ) {
             if (isStringConstant(binaryOp.right())) {
                 return left + DOT_EQUALS_PREFIX + right + ")";
@@ -263,7 +265,6 @@ public final class JavaSourceGenerator {
 
     private static String constantToJava(Constant constant) {
         return switch (constant.value()) {
-            case null -> "null";
             case String s -> "\"" + escapeString(s) + "\"";
             case Character c -> "'" + c + "'";
             case Long l -> l + "L";

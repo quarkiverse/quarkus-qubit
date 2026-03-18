@@ -108,11 +108,10 @@ class AstNodeValidationTest {
         }
 
         @Test
-        void constructor_withNullValue_succeeds() {
-            // Null value is allowed (for null constants)
-            Constant constant = new Constant(null, String.class);
-            assertThat(constant.value()).isNull();
-            assertThat(constant.type()).isEqualTo(String.class);
+        void constructor_withNullValue_throwsNpe() {
+            // Null value is rejected — use NullLiteral for null constants
+            assertThatThrownBy(() -> new Constant(null, String.class))
+                    .isInstanceOf(NullPointerException.class);
         }
 
         @Test

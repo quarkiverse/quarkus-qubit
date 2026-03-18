@@ -94,7 +94,7 @@ class QueryTypeHandlerRegistryTest {
         @DisplayName("returns SimpleQueryHandler for simple queries")
         void returnsSimpleHandlerForSimpleQueries() {
             CallSite callSite = new CallSite.SimpleCallSite(
-                    COMMON, "lambda$0", "(LPerson;)Z", "where", null, null, null, null);
+                    COMMON, new CallSite.LambdaPair("lambda$0", "(LPerson;)Z"), "where", null, null, null);
 
             QueryTypeHandlerRegistry registry = QueryTypeHandlerRegistry.getDefault();
             QueryTypeHandler handler = registry.handlerFor(callSite);
@@ -106,7 +106,7 @@ class QueryTypeHandlerRegistryTest {
         @DisplayName("returns GroupQueryHandler for group queries")
         void returnsGroupHandlerForGroupQueries() {
             CallSite callSite = new CallSite.GroupCallSite(
-                    COMMON, null, "lambda$0", "(LPerson;)LString;", null, null, null, false);
+                    COMMON, null, new CallSite.LambdaPair("lambda$0", "(LPerson;)LString;"), null, null, null, false);
 
             QueryTypeHandlerRegistry registry = QueryTypeHandlerRegistry.getDefault();
             QueryTypeHandler handler = registry.handlerFor(callSite);
@@ -118,8 +118,8 @@ class QueryTypeHandlerRegistryTest {
         @DisplayName("returns JoinQueryHandler for join queries")
         void returnsJoinHandlerForJoinQueries() {
             CallSite callSite = new CallSite.JoinCallSite(
-                    COMMON, CallSite.JoinType.INNER, "lambda$0", "(LPerson;)LList;",
-                    null, null, null, false, null, null);
+                    COMMON, CallSite.JoinType.INNER, new CallSite.LambdaPair("lambda$0", "(LPerson;)LList;"),
+                    null, null, null, false, null);
 
             QueryTypeHandlerRegistry registry = QueryTypeHandlerRegistry.getDefault();
             QueryTypeHandler handler = registry.handlerFor(callSite);
@@ -131,7 +131,7 @@ class QueryTypeHandlerRegistryTest {
         @DisplayName("returns AggregationQueryHandler for aggregation queries")
         void returnsAggregationHandlerForAggregationQueries() {
             CallSite callSite = new CallSite.AggregationCallSite(
-                    COMMON, null, "lambda$0", "(LPerson;)I");
+                    COMMON, null, new CallSite.LambdaPair("lambda$0", "(LPerson;)I"));
 
             QueryTypeHandlerRegistry registry = QueryTypeHandlerRegistry.getDefault();
             QueryTypeHandler handler = registry.handlerFor(callSite);
@@ -146,7 +146,7 @@ class QueryTypeHandlerRegistryTest {
             QueryTypeHandlerRegistry emptyRegistry = new QueryTypeHandlerRegistry(List.of());
 
             CallSite callSite = new CallSite.SimpleCallSite(
-                    COMMON, "lambda$0", "(LPerson;)Z", "where", null, null, null, null);
+                    COMMON, new CallSite.LambdaPair("lambda$0", "(LPerson;)Z"), "where", null, null, null);
 
             assertThatThrownBy(() -> emptyRegistry.handlerFor(callSite))
                     .isInstanceOf(IllegalStateException.class)

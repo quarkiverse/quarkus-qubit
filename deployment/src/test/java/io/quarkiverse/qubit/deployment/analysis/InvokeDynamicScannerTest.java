@@ -88,7 +88,10 @@ class InvokeDynamicScannerTest {
             assertThat(callSites)
                     .allSatisfy(cs -> {
                         if (cs instanceof CallSite.SimpleCallSite simple) {
-                            assertThat(simple.lambdaMethodName())
+                            assertThat(simple.primaryLambda())
+                                    .as("Primary lambda should be set")
+                                    .isNotNull();
+                            assertThat(simple.primaryLambda().methodName())
                                     .as("Lambda method name should be set")
                                     .isNotBlank();
                         }
