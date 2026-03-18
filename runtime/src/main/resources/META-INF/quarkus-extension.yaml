@@ -6,15 +6,23 @@ metadata:
   keywords:
     - jpa
     - criteria
+    - criteria-api
     - lambda
     - panache
     - query
     - typesafe
-  guide: https://quarkiverse.github.io/quarkiverse-docs/quarkus-qubit/dev/
+    - type-safe
+    - orm
+    - hibernate
+    - build-time
+  guide: https://docs.quarkiverse.io/quarkus-qubit/dev/
   categories:
     - "data"
+  status: "preview"
+  config:
+    - "quarkus.qubit."
   codestart:
-    name: Qubit
+    name: qubit
     languages:
       - java
     artifact: "io.quarkiverse.qubit:quarkus-qubit:codestarts:jar:${project.version}"

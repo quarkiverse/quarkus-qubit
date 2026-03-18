@@ -1,5 +1,5 @@
 name: qubit-codestart
-ref: Qubit
+ref: qubit
 type: code
 tags: extension-codestart
 metadata:
@@ -8,7 +8,7 @@ metadata:
     Type-safe JPA Criteria queries using lambda expressions.
     Query entities using fluent, compile-time checked syntax like
     <code>Person.where(p -> p.age > 18).toList()</code>.
-  related-guide-section: https://quarkiverse.github.io/quarkiverse-docs/quarkus-qubit/dev/
+  related-guide-section: https://docs.quarkiverse.io/quarkus-qubit/dev/
 language:
   base:
     dependencies:

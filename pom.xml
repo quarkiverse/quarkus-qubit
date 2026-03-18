@@ -391,6 +391,23 @@
         </profile>
 
         <!--
+            Documentation profile.
+            Active by default; skipped during release to avoid deploying docs to Sonatype.
+        -->
+        <profile>
+            <id>docs</id>
+            <activation>
+                <property>
+                    <name>performRelease</name>
+                    <value>!true</value>
+                </property>
+            </activation>
+            <modules>
+                <module>docs</module>
+            </modules>
+        </profile>
+
+        <!--
             Coverage profile.
             Enables JaCoCo instrumentation and coverage check during verify phase.
 

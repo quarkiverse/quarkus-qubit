@@ -1,0 +1,3 @@
+:quarkus-qubit-version: ${release.current-version}
+:quarkus-version: ${quarkus.version}
+:extension-status: preview
