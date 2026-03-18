@@ -75,7 +75,7 @@ public class AnalysisContext {
     private final boolean groupContextMode;
 
     /** Configuration for nested lambda analysis (null if not supported). */
-    private final NestedLambdaSupport nestedLambdaSupport;
+    private final @Nullable NestedLambdaSupport nestedLambdaSupport;
 
     /** Current instruction index in the instruction list. */
     private int currentInstructionIndex;
@@ -84,10 +84,10 @@ public class AnalysisContext {
     private boolean hasSeenBranch = false;
 
     /** Pending array element type for GROUP BY multi-value projections. */
-    private String pendingArrayElementType = null;
+    private @Nullable String pendingArrayElementType = null;
 
     /** Collected elements for pending array creation. */
-    private java.util.List<LambdaExpression> pendingArrayElements = null;
+    private java.util.@Nullable List<LambdaExpression> pendingArrayElements = null;
 
     /** Treat aliases: local variable slots that hold pattern-matched entity references. */
     private final Map<Integer, LambdaExpression> treatAliases = new HashMap<>();
@@ -122,7 +122,7 @@ public class AnalysisContext {
     /** Internal constructor for all cases. */
     private AnalysisContext(MethodNode method, int entityParameterIndex,
             int secondEntityParameterIndex, boolean biEntityMode,
-            boolean groupContextMode, NestedLambdaSupport nestedLambdaSupport) {
+            boolean groupContextMode, @Nullable NestedLambdaSupport nestedLambdaSupport) {
         this.method = method;
         this.entityParameterIndex = entityParameterIndex;
         this.secondEntityParameterIndex = secondEntityParameterIndex;
@@ -157,7 +157,7 @@ public class AnalysisContext {
     }
 
     /** Peeks at top of stack without removing. Returns null if empty. */
-    public LambdaExpression peek() {
+    public @Nullable LambdaExpression peek() {
         return stack.isEmpty() ? null : stack.peek();
     }
 
@@ -281,7 +281,7 @@ public class AnalysisContext {
     }
 
     /** Returns FIRST, SECOND, or null for slot index in bi-entity mode. */
-    public LambdaExpression.EntityPosition getEntityPosition(int slotIndex) {
+    public LambdaExpression.@Nullable EntityPosition getEntityPosition(int slotIndex) {
         if (slotIndex == entityParameterIndex) {
             return LambdaExpression.EntityPosition.FIRST;
         }
@@ -302,7 +302,7 @@ public class AnalysisContext {
     }
 
     /** Finds method by name and descriptor. Returns null if not found. */
-    public MethodNode findMethod(String name, String descriptor) {
+    public @Nullable MethodNode findMethod(String name, String descriptor) {
         if (nestedLambdaSupport == null) {
             return null;
         }
@@ -315,7 +315,7 @@ public class AnalysisContext {
     }
 
     /** Analyzes nested lambda method. Returns null if analysis fails. */
-    public LambdaExpression analyzeNestedLambda(MethodNode nestedMethod, int entityParamIndex) {
+    public @Nullable LambdaExpression analyzeNestedLambda(MethodNode nestedMethod, int entityParamIndex) {
         if (nestedLambdaSupport == null) {
             return null;
         }
@@ -344,17 +344,17 @@ public class AnalysisContext {
     }
 
     /** Returns pending array element type (null if not in array creation). */
-    public String getPendingArrayElementType() {
+    public @Nullable String getPendingArrayElementType() {
         return pendingArrayElementType;
     }
 
     /** Returns collected array elements (null if not in array creation). */
-    public java.util.List<LambdaExpression> getPendingArrayElements() {
+    public java.util.@Nullable List<LambdaExpression> getPendingArrayElements() {
         return pendingArrayElements;
     }
 
     /** Completes array creation. Returns null if not in array mode. */
-    public LambdaExpression.ArrayCreation completeArrayCreation() {
+    public LambdaExpression.@Nullable ArrayCreation completeArrayCreation() {
         if (pendingArrayElementType == null || pendingArrayElements == null) {
             return null;
         }
@@ -382,7 +382,7 @@ public class AnalysisContext {
     }
 
     /** Cached ternary patterns detected in the instruction list. */
-    private List<TernaryPattern> ternaryPatterns;
+    private @Nullable List<TernaryPattern> ternaryPatterns;
 
     /** Lazily initializes and returns detected ternary patterns. */
     public List<TernaryPattern> getTernaryPatterns() {

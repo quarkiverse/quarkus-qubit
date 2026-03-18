@@ -2,6 +2,8 @@ package io.quarkiverse.qubit.runtime.internal;
 
 import jakarta.persistence.EntityManager;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Functional interface for build-time generated query executors with captured variable support.
  * Includes pagination and distinct support.
@@ -22,5 +24,5 @@ public interface QueryExecutor<R> {
      * @return query result
      */
     R execute(EntityManager entityManager, Class<?> entityClass, Object[] capturedValues,
-            Integer offset, Integer limit, Boolean distinct);
+            @Nullable Integer offset, @Nullable Integer limit, @Nullable Boolean distinct);
 }

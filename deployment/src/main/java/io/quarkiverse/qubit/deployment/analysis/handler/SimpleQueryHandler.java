@@ -52,27 +52,17 @@ public final class SimpleQueryHandler extends AbstractQueryHandler {
 
         // Analyze projection (SELECT clause) - may be null for WHERE-only queries
         LambdaExpression projectionExpr = analyzeSingleLambda(
-                context,
-                callSite.projectionLambdaMethodName(),
-                callSite.projectionLambdaMethodDescriptor());
+                context, callSite.projectionLambda());
 
         // Analyze sort expressions
         List<SortExpression> sortExpressions = analyzeSortLambdas(
                 context, callSite.sortLambdas());
 
-        // At least one expression should be present
+        // If no classified lambdas produced results, fall back to the primary lambda.
+        // primaryLambda is always present (guaranteed by isTerminalOperation guard).
         if (predicateExpr == null && projectionExpr == null && sortExpressions.isEmpty()) {
-            // Check if there's a primary lambda for backward compatibility
             LambdaExpression primaryExpr = analyzeSingleLambda(
-                    context,
-                    callSite.lambdaMethodName(),
-                    callSite.lambdaMethodDescriptor());
-
-            if (primaryExpr == null) {
-                return AnalysisOutcome.unsupported(
-                        "No analyzable lambda expressions found",
-                        context.callSiteId());
-            }
+                    context, callSite.primaryLambda());
 
             // Determine if primary lambda is predicate or projection based on fluent method
             if (isProjectionMethod(callSite.fluentMethodName())) {

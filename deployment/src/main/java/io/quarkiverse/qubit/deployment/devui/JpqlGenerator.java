@@ -30,6 +30,8 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.STRING_CONCAT
 
 import java.util.stream.Collectors;
 
+import org.jspecify.annotations.Nullable;
+
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.*;
 import io.quarkiverse.qubit.deployment.common.PatternDetector;
@@ -86,8 +88,8 @@ public final class JpqlGenerator {
     /** Generates a complete JPQL-like query string from expressions. */
     public static String generateJpql(
             String entityClassName,
-            LambdaExpression predicateExpression,
-            LambdaExpression projectionExpression,
+            @Nullable LambdaExpression predicateExpression,
+            @Nullable LambdaExpression projectionExpression,
             boolean isCountQuery) {
 
         StringBuilder jpql = new StringBuilder();
@@ -116,9 +118,9 @@ public final class JpqlGenerator {
     /** Generates a JPQL-like query string with JOIN clause. */
     public static String generateJoinJpql(
             String entityClassName,
-            LambdaExpression joinRelationshipExpression,
-            LambdaExpression predicateExpression,
-            LambdaExpression projectionExpression,
+            @Nullable LambdaExpression joinRelationshipExpression,
+            @Nullable LambdaExpression predicateExpression,
+            @Nullable LambdaExpression projectionExpression,
             boolean isLeftJoin,
             boolean isCountQuery) {
 
@@ -153,7 +155,7 @@ public final class JpqlGenerator {
     }
 
     /** Extracts join path from relationship expression (e.g., "orderItems"). */
-    private static String extractJoinPath(LambdaExpression expr) {
+    private static String extractJoinPath(@Nullable LambdaExpression expr) {
         if (expr == null) {
             return "?";
         }
@@ -165,7 +167,7 @@ public final class JpqlGenerator {
     }
 
     /** Converts bi-entity expression to JPQL with entity position aliases. */
-    private static String expressionToJpqlBiEntity(LambdaExpression expr, String joinAlias) {
+    private static String expressionToJpqlBiEntity(@Nullable LambdaExpression expr, String joinAlias) {
         if (expr == null) {
             return "?";
         }
@@ -249,7 +251,7 @@ public final class JpqlGenerator {
     }
 
     /** Generates WHERE clause predicate as JPQL (without "WHERE" keyword). */
-    public static String predicateToJpql(LambdaExpression predicateExpression) {
+    public static @Nullable String predicateToJpql(@Nullable LambdaExpression predicateExpression) {
         if (predicateExpression == null) {
             return null;
         }
@@ -321,6 +323,15 @@ public final class JpqlGenerator {
             }
         }
 
+        // Null check: field == null → IS NULL, field != null → IS NOT NULL
+        if (PatternDetector.isNullCheckPattern(binaryOp)) {
+            LambdaExpression nonNull = binaryOp.left() instanceof NullLiteral ? binaryOp.right() : binaryOp.left();
+            String field = expressionToJpql(nonNull);
+            return binaryOp.operator() == BinaryOp.Operator.EQ
+                    ? field + " IS NULL"
+                    : field + " IS NOT NULL";
+        }
+
         String left = expressionToJpql(binaryOp.left());
         String right = expressionToJpql(binaryOp.right());
         String op = operatorToJpql(binaryOp.operator());
@@ -364,7 +375,6 @@ public final class JpqlGenerator {
 
     private static String constantToJpql(Constant constant) {
         return switch (constant.value()) {
-            case null -> "NULL";
             case String s -> "'" + s.replace("'", "''") + "'"; // Escape single quotes per SQL/JPQL standard
             case Boolean b -> b.toString().toUpperCase();
             case Enum<?> e -> "'" + e.name() + "'";

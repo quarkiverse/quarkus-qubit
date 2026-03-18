@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import io.quarkiverse.qubit.GroupStream;
 import io.quarkiverse.qubit.JoinStream;
 import io.quarkiverse.qubit.JoinType;
@@ -56,7 +58,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     private final List<QuerySpec<T, Boolean>> predicates;
 
     /** Projection selector (null if no projection). */
-    private final QuerySpec<T, ?> selector;
+    private final @Nullable QuerySpec<T, ?> selector;
 
     /** Result type after projection (same as T if no projection). */
     private final Class<?> resultType;
@@ -64,15 +66,15 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     /** Sort orders (last added has priority). */
     private final List<SortOrder<T>> sortOrders;
 
-    private final Integer offset;
-    private final Integer limit;
+    private final @Nullable Integer offset;
+    private final @Nullable Integer limit;
     private final boolean distinct;
 
     /** Aggregation type (null if not an aggregation query). */
-    private final AggregationType aggregationType;
+    private final @Nullable AggregationType aggregationType;
 
     /** Aggregation mapper (null if not an aggregation query). */
-    private final QuerySpec<T, ?> aggregationMapper;
+    private final @Nullable QuerySpec<T, ?> aggregationMapper;
 
     // CONSTRUCTORS
 
@@ -94,14 +96,14 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     private QubitStreamImpl(
             Class<T> entityClass,
             List<QuerySpec<T, Boolean>> predicates,
-            QuerySpec<T, ?> selector,
+            @Nullable QuerySpec<T, ?> selector,
             Class<?> resultType,
             List<SortOrder<T>> sortOrders,
-            Integer offset,
-            Integer limit,
+            @Nullable Integer offset,
+            @Nullable Integer limit,
             boolean distinct,
-            AggregationType aggregationType,
-            QuerySpec<T, ?> aggregationMapper) {
+            @Nullable AggregationType aggregationType,
+            @Nullable QuerySpec<T, ?> aggregationMapper) {
         this.entityClass = entityClass;
         this.predicates = List.copyOf(predicates);
         this.selector = selector;

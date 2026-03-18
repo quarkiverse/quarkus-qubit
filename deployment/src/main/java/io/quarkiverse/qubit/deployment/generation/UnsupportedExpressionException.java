@@ -1,22 +1,24 @@
 package io.quarkiverse.qubit.deployment.generation;
 
+import org.jspecify.annotations.Nullable;
+
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /** Thrown when encountering an unsupported expression during JPA code generation. */
 public class UnsupportedExpressionException extends RuntimeException {
 
     private final String expressionType;
-    private final String context;
+    private final @Nullable String context;
 
     public UnsupportedExpressionException(LambdaExpression expression) {
         super(formatMessage(expression, null));
-        this.expressionType = expression != null ? expression.getClass().getSimpleName() : "null";
+        this.expressionType = expression.getClass().getSimpleName();
         this.context = null;
     }
 
     public UnsupportedExpressionException(LambdaExpression expression, String context) {
         super(formatMessage(expression, context));
-        this.expressionType = expression != null ? expression.getClass().getSimpleName() : "null";
+        this.expressionType = expression.getClass().getSimpleName();
         this.context = context;
     }
 
@@ -30,20 +32,15 @@ public class UnsupportedExpressionException extends RuntimeException {
         return expressionType;
     }
 
-    public String getContext() {
+    public @Nullable String getContext() {
         return context;
     }
 
-    private static String formatMessage(LambdaExpression expression, String context) {
+    private static String formatMessage(LambdaExpression expression, @Nullable String context) {
         StringBuilder sb = new StringBuilder();
         sb.append("Unsupported expression type in JPA query generation: ");
-
-        if (expression == null) {
-            sb.append("null expression");
-        } else {
-            sb.append(expression.getClass().getSimpleName());
-            sb.append("\nExpression details: ").append(formatExpression(expression));
-        }
+        sb.append(expression.getClass().getSimpleName());
+        sb.append("\nExpression details: ").append(formatExpression(expression));
 
         if (context != null) {
             sb.append("\nContext: ").append(context);
@@ -56,7 +53,6 @@ public class UnsupportedExpressionException extends RuntimeException {
     }
 
     private static String formatExpression(LambdaExpression expression) {
-        // Provide a brief representation of the expression for debugging
         return switch (expression) {
             case LambdaExpression.FieldAccess f -> "field access: " + f.fieldName();
             case LambdaExpression.MethodCall m -> "method call: " + m.methodName() + "()";
@@ -70,27 +66,9 @@ public class UnsupportedExpressionException extends RuntimeException {
         };
     }
 
-    public static UnsupportedExpressionException nullExpression(String context) {
-        return new UnsupportedExpressionException(
-                "Null expression encountered where a value was required. Context: " + context);
-    }
-
     public static UnsupportedExpressionException inConstructorArgument(
             LambdaExpression expression, int argIndex, String constructorClass) {
         return new UnsupportedExpressionException(expression,
                 String.format("constructor argument at position %d for %s", argIndex, constructorClass));
-    }
-
-    public static UnsupportedExpressionException inBinaryOperation(
-            LambdaExpression expression, String side, String operator) {
-        return new UnsupportedExpressionException(expression,
-                String.format("%s operand of %s operation", side, operator));
-    }
-
-    public static UnsupportedExpressionException parameterNotAllowed(String parameterName, String context) {
-        return new UnsupportedExpressionException(
-                String.format("Lambda parameter '%s' cannot be used directly in %s. " +
-                        "Use a field access or method call on the parameter instead.",
-                        parameterName, context));
     }
 }

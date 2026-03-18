@@ -29,19 +29,13 @@ final class LambdaInfoBuilder {
     private final List<LambdaPair> groupSelectLambdas = new ArrayList<>();
     private final List<SortLambda> groupSortLambdas = new ArrayList<>();
 
-    // Single-value fields
-    private @Nullable String groupByMethod;
-    private @Nullable String groupByDescriptor;
-    private @Nullable String firstWhereMethod;
-    private @Nullable String firstWhereDescriptor;
-    private @Nullable String selectMethod;
-    private @Nullable String selectDescriptor;
-    private @Nullable String aggregationMethod;
-    private @Nullable String aggregationDescriptor;
-    private @Nullable String joinRelationshipMethod;
-    private @Nullable String joinRelationshipDescriptor;
-    private @Nullable String biEntityProjectionMethod;
-    private @Nullable String biEntityProjectionDescriptor;
+    // Single-value fields (coupled method+descriptor pairs)
+    private @Nullable LambdaPair groupByLambda;
+    private @Nullable LambdaPair firstWhereLambda;
+    private @Nullable LambdaPair selectLambda;
+    private @Nullable LambdaPair aggregationLambda;
+    private @Nullable LambdaPair joinRelationshipLambda;
+    private @Nullable LambdaPair biEntityProjectionLambda;
 
     // Context
     private final boolean isGroupQuery;
@@ -54,8 +48,7 @@ final class LambdaInfoBuilder {
     void classify(PendingLambda lambda, boolean isAggregation, boolean isLastLambda) {
         // Aggregation mapper (must be checked first - last lambda in aggregation query)
         if (isAggregation && isLastLambda) {
-            aggregationMethod = lambda.methodName();
-            aggregationDescriptor = lambda.descriptor();
+            aggregationLambda = new LambdaPair(lambda.methodName(), lambda.descriptor());
             return;
         }
 
@@ -82,8 +75,7 @@ final class LambdaInfoBuilder {
     private boolean classifyGroupByLambda(PendingLambda lambda, @Nullable String fluentMethod) {
         if (!METHOD_GROUP_BY.equals(fluentMethod))
             return false;
-        groupByMethod = lambda.methodName();
-        groupByDescriptor = lambda.descriptor();
+        groupByLambda = new LambdaPair(lambda.methodName(), lambda.descriptor());
         return true;
     }
 
@@ -120,8 +112,7 @@ final class LambdaInfoBuilder {
     private boolean classifyJoinRelationshipLambda(PendingLambda lambda, @Nullable String fluentMethod) {
         if (!JOIN_ENTRY_METHODS.contains(fluentMethod))
             return false;
-        joinRelationshipMethod = lambda.methodName();
-        joinRelationshipDescriptor = lambda.descriptor();
+        joinRelationshipLambda = new LambdaPair(lambda.methodName(), lambda.descriptor());
         return true;
     }
 
@@ -132,9 +123,8 @@ final class LambdaInfoBuilder {
             biEntityWhereLambdas.add(new LambdaPair(lambda.methodName(), lambda.descriptor()));
         } else {
             whereLambdas.add(new LambdaPair(lambda.methodName(), lambda.descriptor()));
-            if (firstWhereMethod == null) {
-                firstWhereMethod = lambda.methodName();
-                firstWhereDescriptor = lambda.descriptor();
+            if (firstWhereLambda == null) {
+                firstWhereLambda = new LambdaPair(lambda.methodName(), lambda.descriptor());
             }
         }
         return true;
@@ -144,11 +134,9 @@ final class LambdaInfoBuilder {
         if (!METHOD_SELECT.equals(fluentMethod))
             return false;
         if (lambda.isBiEntity()) {
-            biEntityProjectionMethod = lambda.methodName();
-            biEntityProjectionDescriptor = lambda.descriptor();
+            biEntityProjectionLambda = new LambdaPair(lambda.methodName(), lambda.descriptor());
         } else {
-            selectMethod = lambda.methodName();
-            selectDescriptor = lambda.descriptor();
+            selectLambda = new LambdaPair(lambda.methodName(), lambda.descriptor());
         }
         return true;
     }
@@ -163,29 +151,30 @@ final class LambdaInfoBuilder {
         }
     }
 
-    /** Builds the final LambdaInfo record from accumulated state. */
+    /**
+     * Builds the final LambdaInfo record from accumulated state.
+     *
+     * @param pendingLambdas must be non-empty (guaranteed by isTerminalOperation guard)
+     */
     LambdaInfo build(List<PendingLambda> pendingLambdas) {
-        PendingLambda first = pendingLambdas.isEmpty() ? null : pendingLambdas.getFirst();
+        PendingLambda first = pendingLambdas.getFirst();
+        LambdaPair primaryLambda = new LambdaPair(first.methodName(), first.descriptor());
+        String primaryFluentMethod = first.fluentMethod() != null
+                ? first.fluentMethod()
+                : METHOD_WHERE;
         return new LambdaInfo(
-                first != null ? first.methodName() : null,
-                first != null ? first.descriptor() : null,
-                first != null && first.fluentMethod() != null ? first.fluentMethod() : METHOD_WHERE,
-                firstWhereMethod,
-                firstWhereDescriptor,
-                selectMethod,
-                selectDescriptor,
+                primaryLambda,
+                primaryFluentMethod,
+                firstWhereLambda,
+                selectLambda,
                 whereLambdas.isEmpty() ? null : whereLambdas,
                 sortLambdas.isEmpty() ? null : sortLambdas,
-                aggregationMethod,
-                aggregationDescriptor,
-                joinRelationshipMethod,
-                joinRelationshipDescriptor,
+                aggregationLambda,
+                joinRelationshipLambda,
                 biEntityWhereLambdas.isEmpty() ? null : biEntityWhereLambdas,
-                biEntityProjectionMethod,
-                biEntityProjectionDescriptor,
+                biEntityProjectionLambda,
                 isGroupQuery,
-                groupByMethod,
-                groupByDescriptor,
+                groupByLambda,
                 havingLambdas.isEmpty() ? null : havingLambdas,
                 groupSelectLambdas.isEmpty() ? null : groupSelectLambdas,
                 groupSortLambdas.isEmpty() ? null : groupSortLambdas);
@@ -194,27 +183,19 @@ final class LambdaInfoBuilder {
 
 /** Grouped lambda info with aggregation, join, and group fields. */
 record LambdaInfo(
-        String primaryLambdaMethod,
-        String primaryLambdaDescriptor,
+        LambdaPair primaryLambda,
         String primaryFluentMethod,
-        String firstWhereLambdaMethod,
-        String firstWhereLambdaDescriptor,
-        String selectLambdaMethod,
-        String selectLambdaDescriptor,
+        @Nullable LambdaPair firstWhereLambda,
+        @Nullable LambdaPair selectLambda,
         List<LambdaPair> whereLambdas,
         List<SortLambda> sortLambdas,
-        String aggregationLambdaMethod, // Aggregation mapper lambda
-        String aggregationLambdaDescriptor, // Aggregation mapper descriptor
-        String joinRelationshipLambdaMethod, // Join relationship lambda
-        String joinRelationshipLambdaDescriptor, // Join relationship descriptor
-        List<LambdaPair> biEntityWhereLambdas, // BiQuerySpec WHERE lambdas
-        String biEntityProjectionLambdaMethod, // BiQuerySpec SELECT lambda for join projections
-        String biEntityProjectionLambdaDescriptor, // BiQuerySpec SELECT lambda descriptor
-        boolean isGroup, // True if this is a group query
-        String groupByLambdaMethod, // groupBy() key extractor lambda
-        String groupByLambdaDescriptor, // groupBy() lambda descriptor
-        List<LambdaPair> havingLambdas, // having() lambdas
-        List<LambdaPair> groupSelectLambdas, // select() on GroupStream
-        List<SortLambda> groupSortLambdas //sortedBy() on GroupStream
-) {
+        @Nullable LambdaPair aggregationLambda,
+        @Nullable LambdaPair joinRelationshipLambda,
+        List<LambdaPair> biEntityWhereLambdas,
+        @Nullable LambdaPair biEntityProjectionLambda,
+        boolean isGroup,
+        @Nullable LambdaPair groupByLambda,
+        List<LambdaPair> havingLambdas,
+        List<LambdaPair> groupSelectLambdas,
+        List<SortLambda> groupSortLambdas) {
 }

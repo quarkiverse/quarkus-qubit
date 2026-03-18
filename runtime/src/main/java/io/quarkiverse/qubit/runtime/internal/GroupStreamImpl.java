@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import io.quarkiverse.qubit.GroupQuerySpec;
 import io.quarkiverse.qubit.GroupStream;
 import io.quarkiverse.qubit.QubitStream;
@@ -53,7 +55,7 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
     /**
      * Projection selector (null if no projection).
      */
-    private final GroupQuerySpec<T, K, ?> selector;
+    private final @Nullable GroupQuerySpec<T, K, ?> selector;
 
     /**
      * Sort orders for groups.
@@ -63,12 +65,12 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
     /**
      * OFFSET value (null if not set).
      */
-    private final Integer offset;
+    private final @Nullable Integer offset;
 
     /**
      * LIMIT value (null if not set).
      */
-    private final Integer limit;
+    private final @Nullable Integer limit;
 
     /**
      * Creates a new group stream for the given entity class and key extractor.
@@ -97,10 +99,10 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
             QuerySpec<T, K> keyExtractor,
             List<QuerySpec<T, Boolean>> predicates,
             List<GroupQuerySpec<T, K, Boolean>> havingConditions,
-            GroupQuerySpec<T, K, ?> selector,
+            @Nullable GroupQuerySpec<T, K, ?> selector,
             List<GroupSortOrder<T, K>> sortOrders,
-            Integer offset,
-            Integer limit) {
+            @Nullable Integer offset,
+            @Nullable Integer limit) {
         this.entityClass = entityClass;
         this.keyExtractor = keyExtractor;
         this.predicates = List.copyOf(predicates);
@@ -234,25 +236,13 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
      * </ol>
      *
      * @return the primary lambda
-     * @throws IllegalStateException if no lambdas are present (unreachable — keyExtractor is always set)
      */
     private Object getPrimaryLambda() {
         if (!predicates.isEmpty()) {
             return predicates.getFirst();
         }
         // groupBy key extractor is always present (required constructor param)
-        if (keyExtractor != null) {
-            return keyExtractor;
-        }
-        if (!havingConditions.isEmpty()) {
-            return havingConditions.getFirst();
-        }
-        if (selector != null) {
-            return selector;
-        }
-        throw new IllegalStateException(
-                "No lambda found in group query pipeline. This should be unreachable — " +
-                        "group queries always have a key extractor lambda.");
+        return keyExtractor;
     }
 
     private Object[] extractCapturedVariables(String callSiteId) {
@@ -267,10 +257,8 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
         // Extract from predicates (WHERE clauses before grouping)
         extractFromLambdas(predicates, allCapturedValues);
 
-        // Extract from keyExtractor (groupBy key)
-        if (keyExtractor != null) {
-            extractFromSingleLambda(keyExtractor, allCapturedValues);
-        }
+        // Extract from keyExtractor (groupBy key — always present, required constructor param)
+        extractFromSingleLambda(keyExtractor, allCapturedValues);
 
         // Extract from havingConditions (HAVING clauses)
         extractFromLambdas(havingConditions, allCapturedValues);

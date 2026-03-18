@@ -1,5 +1,7 @@
 package io.quarkiverse.qubit.deployment.jfr;
 
+import org.jspecify.annotations.Nullable;
+
 import jdk.jfr.Category;
 import jdk.jfr.Description;
 import jdk.jfr.Event;
@@ -34,7 +36,7 @@ public class QubitScanEvent extends Event {
 
     @Label("Skipped Reason")
     @Description("Reason for skipping (null if not skipped)")
-    public String skippedReason;
+    public @Nullable String skippedReason;
 
     /** Starts a new scan event for the specified class. */
     public static QubitScanEvent start(String className) {

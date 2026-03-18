@@ -79,7 +79,6 @@ public final class GizmoHelper {
     /** Loads constant as bytecode (primitives, BigDecimal, LocalDate/Time). */
     public static Expr loadConstant(BlockCreator bc, Object value) {
         return switch (value) {
-            case null -> Const.ofNull(Object.class);
             case String s -> Const.of(s);
             case Integer i -> Const.of(i);
             case Long l -> Const.of(l);

@@ -41,12 +41,10 @@ class ImmutableResultStreamTest {
         }
 
         @Test
-        @DisplayName("handles null input as empty list")
-        void handlesNullInput() {
-            ImmutableResultStream<String> stream = new ImmutableResultStream<>(null);
-
-            assertThat(stream.toList()).isEmpty();
-            assertThat(stream.count()).isZero();
+        @DisplayName("rejects null input")
+        void rejectsNullInput() {
+            assertThatThrownBy(() -> new ImmutableResultStream<String>(null))
+                    .isInstanceOf(NullPointerException.class);
         }
 
         @Test

@@ -45,9 +45,7 @@ public final class JoinQueryHandler extends AbstractQueryHandler {
 
         // Analyze join relationship lambda (required)
         LambdaExpression joinRelationshipExpr = analyzeSingleLambda(
-                context,
-                callSite.joinRelationshipLambdaMethodName(),
-                callSite.joinRelationshipLambdaDescriptor());
+                context, callSite.joinRelationshipLambda());
 
         if (joinRelationshipExpr == null) {
             return unsupportedMissingLambda("join relationship", context.callSiteId());
@@ -56,15 +54,13 @@ public final class JoinQueryHandler extends AbstractQueryHandler {
         // Analyze bi-entity predicate (WHERE on joined entities)
         LambdaExpression biEntityPredicateExpr = analyzeAndCombineLambdas(
                 callSite.biEntityPredicateLambdas(),
-                pair -> analyzeBiEntityLambda(context, pair.methodName(), pair.descriptor()),
+                pair -> analyzeBiEntityLambda(context, pair),
                 "bi-entity predicate",
                 context.callSiteId());
 
         // Analyze bi-entity projection (SELECT on joined entities)
         LambdaExpression biEntityProjectionExpr = analyzeBiEntityLambda(
-                context,
-                callSite.biEntityProjectionLambdaMethodName(),
-                callSite.biEntityProjectionLambdaDescriptor());
+                context, callSite.biEntityProjectionLambda());
 
         // Analyze source-only predicates (single-entity WHERE on source)
         LambdaExpression sourcePredicateExpr = analyzeAndCombinePredicates(

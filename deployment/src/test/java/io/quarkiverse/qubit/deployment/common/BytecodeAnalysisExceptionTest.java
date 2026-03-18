@@ -191,40 +191,6 @@ class BytecodeAnalysisExceptionTest {
                     .contains("desc")
                     .doesNotContain("class=");
         }
-
-        @Test
-        void analysisFailedWithContext_withNullMethodName_formatsCorrectly() {
-            RuntimeException cause = new RuntimeException("cause");
-            BytecodeAnalysisException ex = BytecodeAnalysisException.analysisFailedWithContext(
-                    "Error", "Class", null, "desc", cause);
-
-            assertThat(ex.getMessage())
-                    .contains("Class")
-                    .contains("desc")
-                    .doesNotContain("method=");
-        }
-
-        @Test
-        void analysisFailedWithContext_withNullDescriptor_formatsCorrectly() {
-            RuntimeException cause = new RuntimeException("cause");
-            BytecodeAnalysisException ex = BytecodeAnalysisException.analysisFailedWithContext(
-                    "Error", "Class", "method", null, cause);
-
-            assertThat(ex.getMessage())
-                    .contains("Class")
-                    .contains("method")
-                    .doesNotContain("descriptor=");
-        }
-
-        @Test
-        void analysisFailedWithContext_withAllNullContext_formatsCorrectly() {
-            RuntimeException cause = new RuntimeException("cause");
-            BytecodeAnalysisException ex = BytecodeAnalysisException.analysisFailedWithContext(
-                    "Error message", null, null, null, cause);
-
-            assertThat(ex.getMessage()).contains("Error message");
-            assertThat(ex.getCause()).isSameAs(cause);
-        }
     }
 
     // Exception Hierarchy Tests

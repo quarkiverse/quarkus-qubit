@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
+import org.jspecify.annotations.Nullable;
+
 import io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome;
 import io.quarkiverse.qubit.deployment.analysis.CallSite.LambdaPair;
 import io.quarkiverse.qubit.deployment.analysis.CallSite.SortLambda;
@@ -19,55 +21,53 @@ import io.quarkus.logging.Log;
 public abstract sealed class AbstractQueryHandler implements QueryTypeHandler
         permits SimpleQueryHandler, AggregationQueryHandler, JoinQueryHandler, GroupQueryHandler {
 
-    /** Analyzes a single lambda method. */
-    protected LambdaExpression analyzeSingleLambda(
+    /** Analyzes a single lambda method. Returns null if the lambda pair is absent. */
+    protected @Nullable LambdaExpression analyzeSingleLambda(
             QueryAnalysisContext context,
-            String methodName,
-            String descriptor) {
+            @Nullable LambdaPair lambda) {
 
-        if (methodName == null) {
+        if (lambda == null) {
             return null;
         }
 
         return context.bytecodeAnalyzer().analyze(
                 context.classBytes(),
-                methodName,
-                descriptor,
+                lambda.methodName(),
+                lambda.descriptor(),
                 context.metricsCollector());
     }
 
     /** Analyzes a bi-entity lambda (for join queries with two parameters). */
-    protected LambdaExpression analyzeBiEntityLambda(
+    protected @Nullable LambdaExpression analyzeBiEntityLambda(
             QueryAnalysisContext context,
-            String methodName,
-            String descriptor) {
+            @Nullable LambdaPair lambda) {
 
-        if (methodName == null) {
+        if (lambda == null) {
             return null;
         }
 
         return context.bytecodeAnalyzer().analyzeBiEntity(
                 context.classBytes(),
-                methodName,
-                descriptor,
+                lambda.methodName(),
+                lambda.descriptor(),
                 context.metricsCollector());
     }
 
     /** Analyzes multiple predicates and combines with AND, renumbering captured variables. */
-    protected LambdaExpression analyzeAndCombinePredicates(
+    protected @Nullable LambdaExpression analyzeAndCombinePredicates(
             QueryAnalysisContext context,
             List<LambdaPair> lambdaPairs) {
 
         return analyzeAndCombineLambdas(
                 lambdaPairs,
-                pair -> analyzeSingleLambda(context, pair.methodName(), pair.descriptor()),
+                pair -> analyzeSingleLambda(context, pair),
                 "predicate",
                 context.callSiteId());
     }
 
     /** Core method: combines lambdas with AND, handling empty lists and captured variable renumbering. */
-    protected LambdaExpression analyzeAndCombineLambdas(
-            List<LambdaPair> lambdaPairs,
+    protected @Nullable LambdaExpression analyzeAndCombineLambdas(
+            @Nullable List<LambdaPair> lambdaPairs,
             Function<LambdaPair, LambdaExpression> analyzer,
             String lambdaTypeForLogging,
             String callSiteId) {
@@ -116,7 +116,7 @@ public abstract sealed class AbstractQueryHandler implements QueryTypeHandler
 
         return analyzeSortLambdasWithAnalyzer(
                 sortLambdas,
-                sl -> analyzeSingleLambda(context, sl.methodName(), sl.descriptor()),
+                sl -> analyzeSingleLambda(context, sl.toLambdaPair()),
                 context.callSiteId());
     }
 
@@ -127,13 +127,13 @@ public abstract sealed class AbstractQueryHandler implements QueryTypeHandler
 
         return analyzeSortLambdasWithAnalyzer(
                 sortLambdas,
-                sl -> analyzeBiEntityLambda(context, sl.methodName(), sl.descriptor()),
+                sl -> analyzeBiEntityLambda(context, sl.toLambdaPair()),
                 context.callSiteId());
     }
 
     /** Core method: analyzes sort lambdas with custom analyzer, building SortExpression with direction. */
     protected List<SortExpression> analyzeSortLambdasWithAnalyzer(
-            List<SortLambda> sortLambdas,
+            @Nullable List<SortLambda> sortLambdas,
             Function<SortLambda, LambdaExpression> analyzer,
             String callSiteId) {
 
@@ -162,8 +162,8 @@ public abstract sealed class AbstractQueryHandler implements QueryTypeHandler
     /** Counts captured variables across predicate and other expressions. */
     @SafeVarargs
     protected final int countTotalCapturedVariables(
-            LambdaExpression predicateExpr,
-            LambdaExpression... otherExpressions) {
+            @Nullable LambdaExpression predicateExpr,
+            @Nullable LambdaExpression... otherExpressions) {
 
         int count = 0;
 
@@ -182,9 +182,9 @@ public abstract sealed class AbstractQueryHandler implements QueryTypeHandler
 
     /** Counts captured variables including sort expressions. */
     protected int countTotalCapturedVariablesWithSort(
-            LambdaExpression predicateExpr,
+            @Nullable LambdaExpression predicateExpr,
             List<SortExpression> sortExpressions,
-            LambdaExpression... otherExpressions) {
+            @Nullable LambdaExpression... otherExpressions) {
 
         int count = countTotalCapturedVariables(predicateExpr, otherExpressions);
         count += CapturedVariableHelper.countCapturedVariablesInSortExpressions(sortExpressions);
@@ -192,8 +192,8 @@ public abstract sealed class AbstractQueryHandler implements QueryTypeHandler
     }
 
     /** Renumbers captured variable indices in sort expressions by adding offset. */
-    protected static List<SortExpression> renumberSortExpressions(
-            List<SortExpression> sortExpressions, int offset) {
+    protected static @Nullable List<SortExpression> renumberSortExpressions(
+            @Nullable List<SortExpression> sortExpressions, int offset) {
         if (offset == 0 || sortExpressions == null || sortExpressions.isEmpty()) {
             return sortExpressions;
         }

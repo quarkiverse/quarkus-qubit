@@ -3,6 +3,8 @@ package io.quarkiverse.qubit.deployment.common;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Unified exception for bytecode analysis failures with semantic factory methods.
  * Context is embedded in messages for logging. Use factory methods over constructors.
@@ -69,7 +71,8 @@ public class BytecodeAnalysisException extends RuntimeException {
 
     /** Lambda analysis failed with context. */
     public static BytecodeAnalysisException analysisFailedWithContext(
-            String message, String className, String methodName, String descriptor, Throwable cause) {
+            String message, @Nullable String className, String methodName, String descriptor,
+            Throwable cause) {
         String formatted = formatContext(message, className, methodName, descriptor);
         return new BytecodeAnalysisException(formatted, cause);
     }
@@ -79,25 +82,15 @@ public class BytecodeAnalysisException extends RuntimeException {
         return new BytecodeAnalysisException(formattedMessage, cause);
     }
 
-    private static String formatContext(String message, String className, String methodName, String descriptor) {
+    private static String formatContext(String message, @Nullable String className, String methodName,
+            String descriptor) {
         StringBuilder sb = new StringBuilder(message);
         sb.append(" [");
-        boolean hasContent = false;
         if (className != null) {
-            sb.append("class=").append(className);
-            hasContent = true;
+            sb.append("class=").append(className).append(", ");
         }
-        if (methodName != null) {
-            if (hasContent)
-                sb.append(", ");
-            sb.append("method=").append(methodName);
-            hasContent = true;
-        }
-        if (descriptor != null) {
-            if (hasContent)
-                sb.append(", ");
-            sb.append("descriptor=").append(descriptor);
-        }
+        sb.append("method=").append(methodName);
+        sb.append(", descriptor=").append(descriptor);
         sb.append("]");
         return sb.toString();
     }

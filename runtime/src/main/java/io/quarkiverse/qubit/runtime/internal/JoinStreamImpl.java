@@ -14,6 +14,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+import org.jspecify.annotations.Nullable;
+
 import io.quarkiverse.qubit.BiQuerySpec;
 import io.quarkiverse.qubit.JoinStream;
 import io.quarkiverse.qubit.JoinType;
@@ -77,12 +79,12 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
     /**
      * OFFSET value (null if not set).
      */
-    private final Integer offset;
+    private final @Nullable Integer offset;
 
     /**
      * LIMIT value (null if not set).
      */
-    private final Integer limit;
+    private final @Nullable Integer limit;
 
     /**
      * DISTINCT flag.
@@ -119,8 +121,8 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
             List<BiQuerySpec<T, R, Boolean>> biPredicates,
             List<QuerySpec<T, Boolean>> sourcePredicates,
             List<BiSortOrder<T, R>> sortOrders,
-            Integer offset,
-            Integer limit,
+            @Nullable Integer offset,
+            @Nullable Integer limit,
             boolean distinct) {
         this.sourceEntityClass = sourceEntityClass;
         this.joinedEntityClass = joinedEntityClass;
@@ -301,7 +303,6 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
      * </ol>
      *
      * @return the primary lambda
-     * @throws IllegalStateException if no lambdas are present (unreachable — relationshipAccessor is always set)
      */
     private Object getPrimaryLambda() {
         if (!sourcePredicates.isEmpty()) {
@@ -311,15 +312,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
             return biPredicates.getFirst();
         }
         // Relationship accessor is always present for joins (required constructor param)
-        if (relationshipAccessor != null) {
-            return relationshipAccessor;
-        }
-        if (!onConditions.isEmpty()) {
-            return onConditions.getFirst();
-        }
-        throw new IllegalStateException(
-                "No lambda found in join query pipeline. This should be unreachable — " +
-                        "join queries always have a relationship accessor lambda.");
+        return relationshipAccessor;
     }
 
     /**

@@ -530,12 +530,12 @@ public class LambdaBytecodeAnalyzer {
             case IFNULL -> {
                 // IFNULL jumps when value == null, so true branch condition is value != null
                 LambdaExpression value = ctx.pop();
-                yield LambdaExpression.BinaryOp.ne(value, new LambdaExpression.Constant(null, Object.class));
+                yield LambdaExpression.BinaryOp.ne(value, new LambdaExpression.NullLiteral(Object.class));
             }
             case IFNONNULL -> {
                 // IFNONNULL jumps when value != null, so true branch condition is value == null
                 LambdaExpression value = ctx.pop();
-                yield LambdaExpression.BinaryOp.eq(value, new LambdaExpression.Constant(null, Object.class));
+                yield LambdaExpression.BinaryOp.eq(value, new LambdaExpression.NullLiteral(Object.class));
             }
             default -> throw new BytecodeAnalysisException(
                     "Unexpected opcode in ternary condition: " + opcode);

@@ -32,7 +32,7 @@ public record BiEntityMethodCallContext(
         Objects.requireNonNull(cb, "cb cannot be null");
         Objects.requireNonNull(root, "root cannot be null");
         Objects.requireNonNull(join, "join cannot be null");
-        // capturedValues can be null for queries without captured variables
+        Objects.requireNonNull(capturedValues, "capturedValues cannot be null");
         Objects.requireNonNull(builderRegistry, "builderRegistry cannot be null");
         Objects.requireNonNull(helper, "helper cannot be null");
     }

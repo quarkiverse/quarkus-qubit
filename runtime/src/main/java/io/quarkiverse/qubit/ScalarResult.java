@@ -2,6 +2,8 @@ package io.quarkiverse.qubit;
 
 import java.util.Optional;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Result of a scalar aggregation query (min, max, avg, sum).
  * <p>
@@ -15,6 +17,7 @@ import java.util.Optional;
 public interface ScalarResult<T> {
 
     /** Returns the single aggregation result, or null if no rows matched. */
+    @Nullable
     T getSingleResult();
 
     /** Returns the aggregation result wrapped in Optional. */

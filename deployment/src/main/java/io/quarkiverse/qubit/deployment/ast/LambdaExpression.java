@@ -166,7 +166,7 @@ public sealed interface LambdaExpression {
 
     /** Method invocation expression. */
     record MethodCall(
-            LambdaExpression target,
+            @Nullable LambdaExpression target,
             String methodName,
             List<LambdaExpression> arguments,
             Class<?> returnType) implements LambdaExpression {
@@ -178,7 +178,7 @@ public sealed interface LambdaExpression {
         }
     }
 
-    /** Constant literal value. */
+    /** Constant literal value (non-null). Use {@link NullLiteral} for null values. */
     record Constant(Object value, Class<?> type) implements LambdaExpression {
         // Common constants
         public static final Constant TRUE = new Constant(true, boolean.class);
@@ -186,6 +186,7 @@ public sealed interface LambdaExpression {
         public static final Constant ZERO_INT = new Constant(0, int.class);
 
         public Constant {
+            Objects.requireNonNull(value, "Value cannot be null — use NullLiteral for null constants");
             Objects.requireNonNull(type, "Type cannot be null");
         }
     }
@@ -849,7 +850,7 @@ public sealed interface LambdaExpression {
      * @param resultType The type of the grouping key
      */
     record GroupKeyReference(
-            LambdaExpression keyExpression,
+            @Nullable LambdaExpression keyExpression,
             Class<?> resultType) implements LambdaExpression {
 
         public GroupKeyReference {
@@ -907,7 +908,7 @@ public sealed interface LambdaExpression {
      */
     record GroupAggregation(
             GroupAggregationType aggregationType,
-            LambdaExpression fieldExpression,
+            @Nullable LambdaExpression fieldExpression,
             Class<?> resultType) implements LambdaExpression {
 
         public GroupAggregation {
@@ -1044,8 +1045,8 @@ public sealed interface LambdaExpression {
      */
     record SubqueryBuilderReference(
             Class<?> entityClass,
-            String entityClassName,
-            LambdaExpression predicate) implements LambdaExpression {
+            @Nullable String entityClassName,
+            @Nullable LambdaExpression predicate) implements LambdaExpression {
 
         public SubqueryBuilderReference {
             Objects.requireNonNull(entityClass, ENTITY_CLASS_NULL);
@@ -1130,9 +1131,9 @@ public sealed interface LambdaExpression {
     record ScalarSubquery(
             SubqueryAggregationType aggregationType,
             Class<?> entityClass,
-            String entityClassName,
-            LambdaExpression fieldExpression,
-            LambdaExpression predicate,
+            @Nullable String entityClassName,
+            @Nullable LambdaExpression fieldExpression,
+            @Nullable LambdaExpression predicate,
             Class<?> resultType) implements LambdaExpression {
 
         public ScalarSubquery {
@@ -1147,14 +1148,16 @@ public sealed interface LambdaExpression {
         /**
          * Creates an AVG subquery.
          */
-        public static ScalarSubquery avg(Class<?> entityClass, LambdaExpression field, LambdaExpression predicate) {
+        public static ScalarSubquery avg(Class<?> entityClass, @Nullable LambdaExpression field,
+                @Nullable LambdaExpression predicate) {
             return new ScalarSubquery(SubqueryAggregationType.AVG, entityClass, null, field, predicate, Double.class);
         }
 
         /**
          * Creates a SUM subquery.
          */
-        public static ScalarSubquery sum(Class<?> entityClass, LambdaExpression field, LambdaExpression predicate,
+        public static ScalarSubquery sum(Class<?> entityClass, @Nullable LambdaExpression field,
+                @Nullable LambdaExpression predicate,
                 Class<?> resultType) {
             return new ScalarSubquery(SubqueryAggregationType.SUM, entityClass, null, field, predicate, resultType);
         }
@@ -1162,7 +1165,8 @@ public sealed interface LambdaExpression {
         /**
          * Creates a MIN subquery.
          */
-        public static ScalarSubquery min(Class<?> entityClass, LambdaExpression field, LambdaExpression predicate,
+        public static ScalarSubquery min(Class<?> entityClass, @Nullable LambdaExpression field,
+                @Nullable LambdaExpression predicate,
                 Class<?> resultType) {
             return new ScalarSubquery(SubqueryAggregationType.MIN, entityClass, null, field, predicate, resultType);
         }
@@ -1170,7 +1174,8 @@ public sealed interface LambdaExpression {
         /**
          * Creates a MAX subquery.
          */
-        public static ScalarSubquery max(Class<?> entityClass, LambdaExpression field, LambdaExpression predicate,
+        public static ScalarSubquery max(Class<?> entityClass, @Nullable LambdaExpression field,
+                @Nullable LambdaExpression predicate,
                 Class<?> resultType) {
             return new ScalarSubquery(SubqueryAggregationType.MAX, entityClass, null, field, predicate, resultType);
         }
@@ -1178,7 +1183,7 @@ public sealed interface LambdaExpression {
         /**
          * Creates a COUNT subquery.
          */
-        public static ScalarSubquery count(Class<?> entityClass, LambdaExpression predicate) {
+        public static ScalarSubquery count(Class<?> entityClass, @Nullable LambdaExpression predicate) {
             return new ScalarSubquery(SubqueryAggregationType.COUNT, entityClass, null, null, predicate, Long.class);
         }
 
@@ -1224,7 +1229,7 @@ public sealed interface LambdaExpression {
      */
     record ExistsSubquery(
             Class<?> entityClass,
-            String entityClassName,
+            @Nullable String entityClassName,
             LambdaExpression predicate,
             boolean negated) implements LambdaExpression {
 
@@ -1279,9 +1284,9 @@ public sealed interface LambdaExpression {
     record InSubquery(
             LambdaExpression field,
             Class<?> entityClass,
-            String entityClassName,
+            @Nullable String entityClassName,
             LambdaExpression selectExpression,
-            LambdaExpression predicate,
+            @Nullable LambdaExpression predicate,
             boolean negated) implements LambdaExpression {
 
         public InSubquery {
@@ -1296,7 +1301,7 @@ public sealed interface LambdaExpression {
          * Creates an IN subquery.
          */
         public static InSubquery in(LambdaExpression field, Class<?> entityClass,
-                LambdaExpression selectExpr, LambdaExpression predicate) {
+                LambdaExpression selectExpr, @Nullable LambdaExpression predicate) {
             return new InSubquery(field, entityClass, null, selectExpr, predicate, false);
         }
 
@@ -1304,7 +1309,7 @@ public sealed interface LambdaExpression {
          * Creates a NOT IN subquery.
          */
         public static InSubquery notIn(LambdaExpression field, Class<?> entityClass,
-                LambdaExpression selectExpr, LambdaExpression predicate) {
+                LambdaExpression selectExpr, @Nullable LambdaExpression predicate) {
             return new InSubquery(field, entityClass, null, selectExpr, predicate, true);
         }
 

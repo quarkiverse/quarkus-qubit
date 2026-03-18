@@ -35,12 +35,10 @@ class QubitProcessorCallSiteValidationTest {
                 className, methodName, lineNumber, "toList", 100, false, null, null);
         return new CallSite.SimpleCallSite(
                 common,
-                "lambda$0",
-                "(Ljava/lang/Object;)Z",
+                new CallSite.LambdaPair("lambda$0", "(Ljava/lang/Object;)Z"),
                 "where",
                 null, // predicateLambdas
-                null, // projectionLambdaMethodName
-                null, // projectionLambdaMethodDescriptor
+                null, // projectionLambda
                 null // sortLambdas
         );
     }

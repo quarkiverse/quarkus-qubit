@@ -78,7 +78,7 @@ public class InvokeDynamicScanner {
     }
 
     /** Tracked lambda with spec type (QuerySpec, BiQuerySpec, GroupQuerySpec). Package-private for testing. */
-    record PendingLambda(String methodName, String descriptor, String fluentMethod, LambdaSpecType specType,
+    record PendingLambda(String methodName, String descriptor, @Nullable String fluentMethod, LambdaSpecType specType,
             @Nullable String nullPrecedence) {
         boolean isBiEntity() {
             return specType == LambdaSpecType.BI_QUERY_SPEC;
@@ -393,8 +393,7 @@ public class InvokeDynamicScanner {
         if (info.isGroup()) {
             return new GroupCallSite(common,
                     info.whereLambdas(),
-                    info.groupByLambdaMethod(),
-                    info.groupByLambdaDescriptor(),
+                    info.groupByLambda(),
                     info.havingLambdas(),
                     info.groupSelectLambdas(),
                     info.groupSortLambdas(),
@@ -404,30 +403,25 @@ public class InvokeDynamicScanner {
         if (state.pendingJoinType() != null) {
             return new JoinCallSite(common,
                     state.pendingJoinType(),
-                    info.joinRelationshipLambdaMethod(),
-                    info.joinRelationshipLambdaDescriptor(),
+                    info.joinRelationshipLambda(),
                     info.whereLambdas(),
                     info.biEntityWhereLambdas(),
                     info.sortLambdas(),
                     state.pendingJoinSelectJoined(),
-                    info.biEntityProjectionLambdaMethod(),
-                    info.biEntityProjectionLambdaDescriptor());
+                    info.biEntityProjectionLambda());
         }
 
         if (aggregationMethod != null) {
             return new AggregationCallSite(common,
                     info.whereLambdas(),
-                    info.aggregationLambdaMethod(),
-                    info.aggregationLambdaDescriptor());
+                    info.aggregationLambda());
         }
 
         return new SimpleCallSite(common,
-                info.primaryLambdaMethod(),
-                info.primaryLambdaDescriptor(),
+                info.primaryLambda(),
                 info.primaryFluentMethod(),
                 info.whereLambdas(),
-                info.selectLambdaMethod(),
-                info.selectLambdaDescriptor(),
+                info.selectLambda(),
                 info.sortLambdas());
     }
 

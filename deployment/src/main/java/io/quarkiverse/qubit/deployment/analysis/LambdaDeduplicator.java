@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.jspecify.annotations.Nullable;
+
 import io.quarkiverse.qubit.deployment.QubitProcessor;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
@@ -49,23 +51,23 @@ public class LambdaDeduplicator {
         switch (callSite) {
             case CallSite.SimpleCallSite s -> {
                 appendLambdaPairs(sb, "W", s.predicateLambdas());
-                appendSingleLambda(sb, "S", s.projectionLambdaMethodName(), s.projectionLambdaMethodDescriptor());
+                appendOptionalLambda(sb, "S", s.projectionLambda());
                 appendSortLambdas(sb, "O", s.sortLambdas());
             }
             case CallSite.AggregationCallSite a -> {
                 appendLambdaPairs(sb, "W", a.predicateLambdas());
-                appendSingleLambda(sb, "A", a.aggregationLambdaMethodName(), a.aggregationLambdaMethodDescriptor());
+                appendOptionalLambda(sb, "A", a.aggregationLambda());
             }
             case CallSite.JoinCallSite j -> {
                 appendLambdaPairs(sb, "W", j.predicateLambdas());
                 appendSortLambdas(sb, "O", j.sortLambdas());
-                appendSingleLambda(sb, "J", j.joinRelationshipLambdaMethodName(), j.joinRelationshipLambdaDescriptor());
+                appendOptionalLambda(sb, "J", j.joinRelationshipLambda());
                 appendLambdaPairs(sb, "BW", j.biEntityPredicateLambdas());
-                appendSingleLambda(sb, "BS", j.biEntityProjectionLambdaMethodName(), j.biEntityProjectionLambdaDescriptor());
+                appendOptionalLambda(sb, "BS", j.biEntityProjectionLambda());
             }
             case CallSite.GroupCallSite g -> {
                 appendLambdaPairs(sb, "W", g.predicateLambdas());
-                appendSingleLambda(sb, "G", g.groupByLambdaMethodName(), g.groupByLambdaDescriptor());
+                appendOptionalLambda(sb, "G", g.groupByLambda());
                 appendLambdaPairs(sb, "H", g.havingLambdas());
                 appendLambdaPairs(sb, "GS", g.groupSelectLambdas());
                 appendSortLambdas(sb, "GO", g.groupSortLambdas());
@@ -100,14 +102,14 @@ public class LambdaDeduplicator {
         }
     }
 
-    /** Appends single lambda to signature builder. */
-    private void appendSingleLambda(StringBuilder sb, String prefix,
-            String methodName, String descriptor) {
-        if (methodName == null) {
+    /** Appends an optional lambda pair to the signature builder. */
+    private void appendOptionalLambda(StringBuilder sb, String prefix,
+            CallSite.@Nullable LambdaPair lambda) {
+        if (lambda == null) {
             return;
         }
-        sb.append(prefix).append(":").append(methodName)
-                .append(":").append(descriptor).append("|");
+        sb.append(prefix).append(":").append(lambda.methodName())
+                .append(":").append(lambda.descriptor()).append("|");
     }
 
     /** Appends query modifiers to signature builder. */

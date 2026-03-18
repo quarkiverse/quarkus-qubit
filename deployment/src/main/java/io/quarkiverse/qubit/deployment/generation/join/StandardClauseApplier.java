@@ -8,6 +8,8 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.TQ_SE
 import java.util.List;
 import java.util.Objects;
 
+import org.jspecify.annotations.Nullable;
+
 import jakarta.persistence.criteria.Predicate;
 
 import io.quarkiverse.qubit.deployment.generation.CriteriaExpressionGenerator;
@@ -28,7 +30,7 @@ public final class StandardClauseApplier implements QueryClauseApplier {
     }
 
     @Override
-    public void applyWherePredicate(BlockCreator bc, Expr query, Expr predicate) {
+    public void applyWherePredicate(BlockCreator bc, Expr query, @Nullable Expr predicate) {
         if (predicate != null) {
             Expr predicateArray = GizmoHelper.createElementArray(bc, Predicate.class, predicate);
             bc.invokeInterface(CQ_WHERE, query, predicateArray);
@@ -56,15 +58,11 @@ public final class StandardClauseApplier implements QueryClauseApplier {
             Expr query,
             Expr distinct) {
 
-        // Apply distinct if present: if (distinct != null) query.distinct(distinctValue);
-        // JPA's distinct(boolean) handles both true and false cases
-        if (distinct != null) {
-            bc.ifNotNull(distinct, distinctNotNull -> {
-                // Unbox Boolean to boolean and pass to query.distinct()
-                Expr distinctValue = GizmoHelper.unboxBoolean(distinctNotNull, distinct);
-                distinctNotNull.invokeInterface(CQ_DISTINCT, query, distinctValue);
-            });
-        }
+        // Runtime null check: the Expr handle is non-null, but the runtime Boolean value may be null
+        bc.ifNotNull(distinct, distinctNotNull -> {
+            Expr distinctValue = GizmoHelper.unboxBoolean(distinctNotNull, distinct);
+            distinctNotNull.invokeInterface(CQ_DISTINCT, query, distinctValue);
+        });
     }
 
     @Override
@@ -74,22 +72,15 @@ public final class StandardClauseApplier implements QueryClauseApplier {
             Expr offset,
             Expr limit) {
 
-        // Apply offset if present: if (offset != null) query.setFirstResult(offset);
-        if (offset != null) {
-            bc.ifNotNull(offset, offsetTrue -> {
-                // Unbox Integer to int
-                Expr offsetValue = GizmoHelper.unboxInteger(offsetTrue, offset);
-                offsetTrue.invokeInterface(TQ_SET_FIRST_RESULT, typedQuery, offsetValue);
-            });
-        }
+        // Runtime null check: the Expr handle is non-null, but the runtime Integer value may be null
+        bc.ifNotNull(offset, offsetTrue -> {
+            Expr offsetValue = GizmoHelper.unboxInteger(offsetTrue, offset);
+            offsetTrue.invokeInterface(TQ_SET_FIRST_RESULT, typedQuery, offsetValue);
+        });
 
-        // Apply limit if present: if (limit != null) query.setMaxResults(limit);
-        if (limit != null) {
-            bc.ifNotNull(limit, limitTrue -> {
-                // Unbox Integer to int
-                Expr limitValue = GizmoHelper.unboxInteger(limitTrue, limit);
-                limitTrue.invokeInterface(TQ_SET_MAX_RESULTS, typedQuery, limitValue);
-            });
-        }
+        bc.ifNotNull(limit, limitTrue -> {
+            Expr limitValue = GizmoHelper.unboxInteger(limitTrue, limit);
+            limitTrue.invokeInterface(TQ_SET_MAX_RESULTS, typedQuery, limitValue);
+        });
     }
 }

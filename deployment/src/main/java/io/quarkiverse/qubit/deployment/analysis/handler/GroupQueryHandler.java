@@ -49,9 +49,7 @@ public final class GroupQueryHandler extends AbstractQueryHandler {
 
         // Analyze groupBy key lambda (required)
         LambdaExpression groupByKeyExpr = analyzeSingleLambda(
-                context,
-                callSite.groupByLambdaMethodName(),
-                callSite.groupByLambdaDescriptor());
+                context, callSite.groupByLambda());
 
         if (groupByKeyExpr == null) {
             return unsupportedMissingLambda("groupBy key", context.callSiteId());

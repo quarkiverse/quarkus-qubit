@@ -5,6 +5,8 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_ID_SEPA
 
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 import io.quarkiverse.qubit.deployment.QubitProcessor.QueryTransformationBuildItem;
 import io.quarkiverse.qubit.deployment.util.ClassNameUtils;
 import io.quarkus.deployment.IsDevelopment;
@@ -170,20 +172,20 @@ public class QubitDevUIProcessor {
             String queryType,
             int capturedVariables,
             String jpql,
-            String predicateLambda,
-            String projectionLambda,
+            @Nullable String predicateLambda,
+            @Nullable String projectionLambda,
             String callSiteMethod,
-            String sortLambda,
+            @Nullable String sortLambda,
             boolean sortDescending,
-            String aggregationType,
-            String aggregationLambda,
-            String groupByKeyLambda,
-            String havingLambda,
-            String joinRelationshipLambda,
-            String terminalMethodName,
+            @Nullable String aggregationType,
+            @Nullable String aggregationLambda,
+            @Nullable String groupByKeyLambda,
+            @Nullable String havingLambda,
+            @Nullable String joinRelationshipLambda,
+            @Nullable String terminalMethodName,
             boolean hasDistinct,
             boolean isSelectKey,
-            Integer skipValue,
-            Integer limitValue) {
+            @Nullable Integer skipValue,
+            @Nullable Integer limitValue) {
     }
 }
