@@ -198,9 +198,11 @@ public class QubitProcessor {
         }
         InvokeDynamicScanner scanner = new InvokeDynamicScanner();
 
-        Collection<ClassInfo> allClasses = index.getKnownClasses();
+        // Use getKnownUsers() for precise class discovery instead of scanning all classes
+        Collection<ClassInfo> qubitUserClasses = discoverQubitUserClasses(index);
 
-        Log.debugf("Qubit: Scanning %d classes for lambda call sites", allClasses.size());
+        Log.debugf("Qubit: Found %d classes referencing Qubit query specs via getKnownUsers()",
+                qubitUserClasses.size());
 
         // Phase: Lambda Discovery
         QubitPhaseEvent discoveryEvent = QubitPhaseEvent.start("lambda_discovery");
@@ -208,22 +210,12 @@ public class QubitProcessor {
             metricsCollector.startPhase("lambda_discovery");
         }
 
-        List<ClassInfo> filteredClasses = allClasses.stream()
+        List<ClassInfo> filteredClasses = qubitUserClasses.stream()
                 .filter(classInfo -> isNotExcludedClass(classInfo, config.scanning()))
                 .toList();
 
-        Log.infof("Qubit: Filtered to %d application classes (from %d total)",
-                filteredClasses.size(), allClasses.size());
-
-        // Log test classes found
-        long testClassCount = filteredClasses.stream()
-                .filter(c -> isTestClass(c.name().toString()))
-                .count();
-        if (config.scanning().scanTestClasses()) {
-            Log.infof("Qubit: Found %d test classes (scanning enabled)", testClassCount);
-        } else {
-            Log.debugf("Qubit: Skipped %d test classes (scanning disabled)", testClassCount);
-        }
+        Log.infof("Qubit: Filtered to %d application classes (from %d Qubit users)",
+                filteredClasses.size(), qubitUserClasses.size());
 
         CallSiteProcessor configuredProcessor = new CallSiteProcessor(
                 bytecodeAnalyzer, deduplicator, classGenerator, config.generation(), metricsCollector);
@@ -239,7 +231,7 @@ public class QubitProcessor {
         if (metricsCollector != null) {
             metricsCollector.endPhase("lambda_discovery");
         }
-        discoveryEvent.complete(allClasses.size(), allCallSites.size(), 0);
+        discoveryEvent.complete(qubitUserClasses.size(), allCallSites.size(), 0);
 
         Log.debugf("Qubit: Found %d total lambda call site(s)", allCallSites.size());
 
@@ -366,6 +358,57 @@ public class QubitProcessor {
         }
     }
 
+    /**
+     * Discovers classes that may contain Qubit lambda call sites using Jandex getKnownUsers().
+     *
+     * <p>
+     * Uses a two-pronged strategy:
+     * <ol>
+     * <li>Direct users of QuerySpec/BiQuerySpec/GroupQuerySpec (classes declaring these in their API)</li>
+     * <li>Users of QubitEntity subclasses and QubitRepository implementations (classes that call
+     * entity/repository methods and therefore reference them in method signatures)</li>
+     * </ol>
+     *
+     * <p>
+     * This replaces the previous approach of scanning all classes in the index ({@code getKnownClasses()})
+     * and filtering by package name heuristics. Typically reduces the scan set from ~1400 classes to ~5.
+     */
+    private Collection<ClassInfo> discoverQubitUserClasses(IndexView index) {
+        Set<DotName> seen = new java.util.LinkedHashSet<>();
+        List<ClassInfo> result = new ArrayList<>();
+
+        // Strategy 1: direct users of the functional interface types
+        collectKnownUsers(index, seen, result,
+                DotName.createSimple("io.quarkiverse.qubit.QuerySpec"),
+                DotName.createSimple("io.quarkiverse.qubit.BiQuerySpec"),
+                DotName.createSimple("io.quarkiverse.qubit.GroupQuerySpec"));
+
+        // Strategy 2: users of concrete entity/repository types
+        DotName qubitEntityName = DotName.createSimple(QUBIT_ENTITY_CLASS_NAME);
+        for (ClassInfo entity : index.getAllKnownSubclasses(qubitEntityName)) {
+            collectKnownUsers(index, seen, result, entity.name());
+        }
+
+        DotName qubitRepositoryName = DotName.createSimple(QUBIT_REPOSITORY_CLASS_NAME);
+        for (ClassInfo repo : index.getAllKnownImplementations(qubitRepositoryName)) {
+            collectKnownUsers(index, seen, result, repo.name());
+        }
+
+        return result;
+    }
+
+    /** Adds known users of the given types to the result list, deduplicating by class name. */
+    private static void collectKnownUsers(IndexView index, Set<DotName> seen,
+            List<ClassInfo> result, DotName... typeNames) {
+        for (DotName typeName : typeNames) {
+            for (ClassInfo user : index.getKnownUsers(typeName)) {
+                if (seen.add(user.name())) {
+                    result.add(user);
+                }
+            }
+        }
+    }
+
     /** Determines if a class should be included in lambda scanning. */
     private boolean isNotExcludedClass(ClassInfo classInfo, QubitBuildTimeConfig.ScanningConfig scanningConfig) {
         String className = classInfo.name().toString();
@@ -376,52 +419,19 @@ public class QubitProcessor {
         }
 
         // Whitelist mode: when includePackages is configured (non-empty), ONLY scan matching packages
-        // This dramatically improves performance by skipping framework classes (Narayana, Mutiny, Vert.x, etc.)
         Optional<List<String>> includePackagesOpt = scanningConfig.includePackages();
         if (includePackagesOpt.isPresent() && !includePackagesOpt.get().isEmpty()) {
-            return isIncludedByWhitelist(className, includePackagesOpt.get(), scanningConfig);
+            return includePackagesOpt.get().stream().anyMatch(className::startsWith);
         }
 
-        // Legacy mode (no whitelist configured): use exclusion-based filtering
-        return isIncludedByExclusionRules(className, scanningConfig);
-    }
-
-    /** Checks if class matches whitelist packages and passes test filter. */
-    private boolean isIncludedByWhitelist(String className, List<String> includePackages,
-            QubitBuildTimeConfig.ScanningConfig scanningConfig) {
-        boolean matchesInclude = includePackages.stream().anyMatch(className::startsWith);
-        if (!matchesInclude) {
-            return false; // Strict whitelist: reject classes not in include list
-        }
-        // Class matches whitelist - still apply test class filter
-        return !isTestClass(className) || scanningConfig.scanTestClasses();
-    }
-
-    /** Checks if class passes exclusion-based filtering (legacy mode). */
-    private boolean isIncludedByExclusionRules(String className, QubitBuildTimeConfig.ScanningConfig scanningConfig) {
-        // Check exclude packages
+        // Exclusion mode: reject classes in excluded packages
         for (String excludePrefix : scanningConfig.excludePackages()) {
             if (className.startsWith(excludePrefix)) {
                 return false;
             }
         }
 
-        // Handle test classes based on config
-        if (isTestClass(className) && !scanningConfig.scanTestClasses()) {
-            return false;
-        }
-
-        // For io.quarkus.* classes, only include test classes (if test scanning is enabled)
-        if (className.startsWith("io.quarkus.")) {
-            return isTestClass(className) && scanningConfig.scanTestClasses();
-        }
-
         return true;
-    }
-
-    /** Checks if class name indicates a test class. */
-    private static boolean isTestClass(String className) {
-        return className.contains(".it.") || className.contains(".test.");
     }
 
     /** Returns true if Jandex metadata proves this class cannot contain lambda call sites. */

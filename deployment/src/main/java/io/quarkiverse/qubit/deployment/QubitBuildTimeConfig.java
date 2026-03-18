@@ -57,13 +57,6 @@ public interface QubitBuildTimeConfig {
          */
         Optional<List<String>> includePackages();
 
-        /**
-         * Whether to scan test classes (classes in paths containing .it. or .test.).
-         * <p>
-         * When enabled, integration test classes are analyzed for lambda queries.
-         */
-        @WithDefault("true")
-        boolean scanTestClasses();
     }
 
     /**
