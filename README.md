@@ -16,7 +16,20 @@ A Quarkus extension that enables type-safe, lambda-based queries on Panache enti
 
 ## Installation
 
-**Maven**
+### Quarkus CLI (recommended)
+
+```bash
+quarkus ext add io.quarkiverse.qubit:quarkus-qubit
+```
+
+Or when creating a new project:
+
+```bash
+quarkus create app my-app -x=io.quarkiverse.qubit:quarkus-qubit
+```
+
+### Maven
+
 ```xml
 <dependency>
     <groupId>io.quarkiverse.qubit</groupId>
@@ -25,7 +38,8 @@ A Quarkus extension that enables type-safe, lambda-based queries on Panache enti
 </dependency>
 ```
 
-**Gradle**
+### Gradle
+
 ```groovy
 implementation 'io.quarkiverse.qubit:quarkus-qubit:1.0.0'
 ```
