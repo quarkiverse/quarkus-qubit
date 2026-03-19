@@ -21,13 +21,13 @@ A Quarkus extension that enables type-safe, lambda-based queries on Panache enti
 <dependency>
     <groupId>io.quarkiverse.qubit</groupId>
     <artifactId>quarkus-qubit</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
 </dependency>
 ```
 
 **Gradle**
 ```groovy
-implementation 'io.quarkiverse.qubit:quarkus-qubit:1.0.0-SNAPSHOT'
+implementation 'io.quarkiverse.qubit:quarkus-qubit:1.0.0'
 ```
 
 ## Quick Start
