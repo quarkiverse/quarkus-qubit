@@ -10,7 +10,7 @@
 
     <groupId>io.quarkiverse.qubit</groupId>
     <artifactId>quarkus-qubit-parent</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Quarkus - Qubit - Parent</name>
@@ -26,7 +26,7 @@
         <connection>scm:git:git@github.com:quarkiverse/quarkus-qubit.git</connection>
         <developerConnection>scm:git:git@github.com:quarkiverse/quarkus-qubit.git</developerConnection>
         <url>https://github.com/quarkiverse/quarkus-qubit</url>
-        <tag>1.0.0</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <properties>
