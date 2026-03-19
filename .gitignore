@@ -31,5 +31,8 @@ Thumbs.db
 !.gitignore
 !.github
 
+# Generated docs (maven-resources-plugin output)
+docs/modules/ROOT/pages/includes/
+
 # Logs
 *.log
