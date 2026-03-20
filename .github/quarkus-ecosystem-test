@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -e
+
+# Update Quarkus version to the snapshot being tested
+mvn --settings .github/quarkus-ecosystem-maven-settings.xml -B versions:set-property -Dproperty=quarkus.version -DnewVersion=${QUARKUS_VERSION} -DgenerateBackupPoms=false
+
+# Run tests with PostgreSQL (H2 does not support native image)
+mvn --settings .github/quarkus-ecosystem-maven-settings.xml -B clean install -Ppostgresql -Dnative -Dquarkus.native.container-build=true --fail-at-end -e

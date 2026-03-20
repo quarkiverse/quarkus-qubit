@@ -19,11 +19,13 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Property-based integration tests for projection (select) operations.
+ * Integration tests for projection (select) operations verifying invariants
+ * that must hold for ANY valid projection configuration.
  *
  * <p>
- * This class uses jqwik to verify projection invariants that must hold
- * for ANY valid projection configuration, not just specific examples.
+ * Note: jqwik cannot be used here because {@code @QuarkusTest} is a JUnit Jupiter
+ * extension and jqwik runs as a separate TestEngine (see jqwik#487).
+ * Property-based testing with jqwik is used in the deployment module instead.
  *
  * <p>
  * <strong>Properties Tested:</strong>
