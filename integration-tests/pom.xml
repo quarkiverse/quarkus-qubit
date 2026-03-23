@@ -43,8 +43,6 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-rest-jackson</artifactId>
         </dependency>
-        <!-- JDBC driver is added via database profiles (postgresql, mysql, mariadb, etc.) -->
-
         <!-- Test dependencies -->
         <dependency>
             <groupId>io.quarkus</groupId>
@@ -60,13 +58,6 @@
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
             <version>3.27.7</version>
-            <scope>test</scope>
-        </dependency>
-        <!-- Property-based testing (TEST-003) -->
-        <dependency>
-            <groupId>net.jqwik</groupId>
-            <artifactId>jqwik</artifactId>
-            <version>1.9.3</version>
             <scope>test</scope>
         </dependency>
         <!-- Required for QuarkusDevModeTest (DevUI Playwright tests) -->
@@ -133,8 +124,12 @@
                                 <native.image.path>${project.build.directory}/${project.build.finalName}-runner</native.image.path>
                                 <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
                                 <maven.home>${maven.home}</maven.home>
-                                <!-- Pass database kind to tests for conditional logic -->
+                                <!-- Pass database kind to tests for conditional logic
+                                     and for Quarkus bootstrap profile activation -->
                                 <db.kind>${db.kind}</db.kind>
+                                <!-- Enable effective model builder so the bootstrap honors
+                                     property-based profile activation in the forked JVM -->
+                                <quarkus.bootstrap.effective-model-builder>true</quarkus.bootstrap.effective-model-builder>
                                 <!-- JaCoCo integration test agent configuration -->
                                 <quarkus.test.arg-line>${argLine}</quarkus.test.arg-line>
                             </systemPropertyVariables>
@@ -291,23 +286,23 @@
         </profile>
 
         <!-- H2 (in-memory, JVM only - no native support) -->
-        <!-- Default profile: fastest for local development, no container needed -->
-        <!-- For PostgreSQL: mvn verify -Ppostgresql -->
+        <!-- Uses activeByDefault + effective-model-builder=true (forwarded via failsafe
+             systemPropertyVariables) so the Quarkus test bootstrap sees this dependency.
+             See: DependencyInProfileActiveByDefaultEffectiveModelBuilderTest in Quarkus core. -->
         <profile>
             <id>h2</id>
             <activation>
                 <activeByDefault>true</activeByDefault>
             </activation>
-            <properties>
-                <db.kind>h2</db.kind>
-            </properties>
             <dependencies>
                 <dependency>
                     <groupId>io.quarkus</groupId>
                     <artifactId>quarkus-jdbc-h2</artifactId>
                 </dependency>
             </dependencies>
-            <!-- H2 config handled via application.properties %h2. prefixed properties -->
+            <properties>
+                <db.kind>h2</db.kind>
+            </properties>
         </profile>
 
         <!--
@@ -342,10 +337,11 @@
             ==========================================
             PERFORMANCE METRICS PROFILE
             ==========================================
-            Usage: mvn verify -Pperformance -Dtest=PerformanceBaselineTest
+            Usage: mvn verify -Pperformance,postgresql
         -->
         <profile>
             <id>performance</id>
+            <!-- Always combine with a DB profile: mvn verify -Pperformance,postgresql -->
             <properties>
                 <quarkus.qubit.metrics.enabled>true</quarkus.qubit.metrics.enabled>
             </properties>
@@ -370,7 +366,7 @@
                 <playwright.skip-install>false</playwright.skip-install>
                 <playwright.timing.enabled>false</playwright.timing.enabled>
             </properties>
-            <!-- H2 driver required for QuarkusDevModeTest -->
+            <!-- H2 needed here because -Pplaywright suppresses activeByDefault on the h2 profile -->
             <dependencies>
                 <dependency>
                     <groupId>io.quarkus</groupId>
