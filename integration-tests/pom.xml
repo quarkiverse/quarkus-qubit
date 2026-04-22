@@ -141,7 +141,7 @@
             <plugin>
                 <groupId>org.pitest</groupId>
                 <artifactId>pitest-maven</artifactId>
-                <version>1.23.0</version>
+                <version>1.23.1</version>
                 <configuration>
                     <!-- Target entity classes in integration-tests -->
                     <targetClasses>
