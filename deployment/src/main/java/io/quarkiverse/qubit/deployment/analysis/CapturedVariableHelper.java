@@ -6,6 +6,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
+
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /** Captured variable operations: counting, collecting indices, renumbering, validation. */
@@ -22,7 +24,8 @@ public final class CapturedVariableHelper {
     }
 
     /** Counts total captured variables across all sort expressions. */
-    public static int countCapturedVariablesInSortExpressions(List<LambdaAnalysisResult.SortExpression> sortExpressions) {
+    public static int countCapturedVariablesInSortExpressions(
+            @Nullable List<LambdaAnalysisResult.SortExpression> sortExpressions) {
         if (sortExpressions == null || sortExpressions.isEmpty()) {
             return 0;
         }
@@ -35,7 +38,7 @@ public final class CapturedVariableHelper {
     }
 
     /** Recursively collects captured variable indices. */
-    public static void collectCapturedVariableIndices(LambdaExpression expression, Set<Integer> capturedIndices) {
+    public static void collectCapturedVariableIndices(@Nullable LambdaExpression expression, Set<Integer> capturedIndices) {
         if (expression == null) {
             return;
         }
@@ -109,7 +112,7 @@ public final class CapturedVariableHelper {
     }
 
     /** Renumbers captured variable indices by adding offset. */
-    public static LambdaExpression renumberCapturedVariables(LambdaExpression expression, int offset) {
+    public static @Nullable LambdaExpression renumberCapturedVariables(@Nullable LambdaExpression expression, int offset) {
         if (expression == null || offset == 0) {
             return expression;
         }

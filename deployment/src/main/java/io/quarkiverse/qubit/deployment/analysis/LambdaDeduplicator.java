@@ -79,7 +79,7 @@ public class LambdaDeduplicator {
 
     /** Appends lambda pairs to signature builder. */
     private void appendLambdaPairs(StringBuilder sb, String prefix,
-            List<CallSite.LambdaPair> pairs) {
+            @Nullable List<CallSite.LambdaPair> pairs) {
         if (pairs == null) {
             return;
         }
@@ -91,7 +91,7 @@ public class LambdaDeduplicator {
 
     /** Appends sort lambdas to signature builder. */
     private void appendSortLambdas(StringBuilder sb, String prefix,
-            List<CallSite.SortLambda> sortLambdas) {
+            @Nullable List<CallSite.SortLambda> sortLambdas) {
         if (sortLambdas == null) {
             return;
         }
@@ -126,7 +126,7 @@ public class LambdaDeduplicator {
     }
 
     /** Returns cached result for the given bytecode signature, or null if not found. */
-    public CachedAnalysisResult getCachedResult(String bytecodeSignature) {
+    public @Nullable CachedAnalysisResult getCachedResult(String bytecodeSignature) {
         return cachedAnalysisResults.get(bytecodeSignature);
     }
 
@@ -283,7 +283,7 @@ public class LambdaDeduplicator {
     }
 
     /** Registers executor class for lambda hash (atomic putIfAbsent). */
-    public String registerExecutor(String lambdaHash, String executorClassName) {
+    public @Nullable String registerExecutor(String lambdaHash, String executorClassName) {
         return lambdaHashToExecutor.putIfAbsent(lambdaHash, executorClassName);
     }
 

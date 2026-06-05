@@ -389,8 +389,8 @@ public class QueryExecutorClassGenerator {
     /** Generates LIST query with WHERE, SELECT, ORDER BY, and pagination. */
     private Expr generateListQueryBody(
             QueryGenContext ctx,
-            LambdaExpression predicateExpression,
-            LambdaExpression projectionExpression) {
+            @Nullable LambdaExpression predicateExpression,
+            @Nullable LambdaExpression projectionExpression) {
 
         // Combined WHERE + SELECT query
         if (predicateExpression != null && projectionExpression != null) {
@@ -454,8 +454,8 @@ public class QueryExecutorClassGenerator {
             Expr em,
             Expr entityClass,
             LambdaExpression joinRelationshipExpression,
-            LambdaExpression sourcePredicateExpression,
-            LambdaExpression biEntityPredicateExpression,
+            @Nullable LambdaExpression sourcePredicateExpression,
+            @Nullable LambdaExpression biEntityPredicateExpression,
             CallSite.JoinType joinType,
             Expr capturedValues) {
 
@@ -645,7 +645,7 @@ public class QueryExecutorClassGenerator {
             Expr cb,
             List<?> sortExpressions,
             Expr capturedValues,
-            Expr projectionExpression) {
+            @Nullable Expr projectionExpression) {
 
         GizmoHelper.buildOrderByClause(bc, query, cb, sortExpressions, sortExpr -> {
             // Generate JPA Expression for the sort key extractor

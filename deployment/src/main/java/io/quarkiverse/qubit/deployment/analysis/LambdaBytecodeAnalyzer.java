@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import org.jspecify.annotations.Nullable;
+
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.InsnList;
@@ -89,7 +91,7 @@ public class LambdaBytecodeAnalyzer {
      * @throws BytecodeAnalysisException if bytecode cannot be read or lambda method not found
      */
     public LambdaExpression analyze(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor,
-            BuildMetricsCollector metricsCollector) {
+            @Nullable BuildMetricsCollector metricsCollector) {
         return analyze(classBytes, lambdaMethodName, lambdaDescriptor, false, metricsCollector);
     }
 
@@ -108,7 +110,7 @@ public class LambdaBytecodeAnalyzer {
      * @throws BytecodeAnalysisException if bytecode cannot be read or lambda method not found
      */
     public LambdaExpression analyzeBiEntity(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor,
-            BuildMetricsCollector metricsCollector) {
+            @Nullable BuildMetricsCollector metricsCollector) {
         return analyze(classBytes, lambdaMethodName, lambdaDescriptor, true, metricsCollector);
     }
 
@@ -127,13 +129,13 @@ public class LambdaBytecodeAnalyzer {
      * @throws BytecodeAnalysisException if bytecode cannot be read or lambda method not found
      */
     public LambdaExpression analyzeGroupQuerySpec(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor,
-            BuildMetricsCollector metricsCollector) {
+            @Nullable BuildMetricsCollector metricsCollector) {
         return analyzeGroupContext(classBytes, lambdaMethodName, lambdaDescriptor, metricsCollector);
     }
 
     /** Internal: analyzes group context lambda (fail-fast on error). */
     private LambdaExpression analyzeGroupContext(byte[] classBytes, String lambdaMethodName, String lambdaDescriptor,
-            BuildMetricsCollector metricsCollector) {
+            @Nullable BuildMetricsCollector metricsCollector) {
         ClassNode classNode;
         try {
             classNode = ClassNodeCache.getOrParse(classBytes, metricsCollector);
@@ -187,7 +189,7 @@ public class LambdaBytecodeAnalyzer {
     /** Internal: analyzes single or bi-entity lambda (fail-fast on error). */
     private LambdaExpression analyze(byte[] classBytes, String lambdaMethodName,
             String lambdaDescriptor, boolean biEntityMode,
-            BuildMetricsCollector metricsCollector) {
+            @Nullable BuildMetricsCollector metricsCollector) {
         ClassNode classNode;
         try {
             classNode = ClassNodeCache.getOrParse(classBytes, metricsCollector);

@@ -80,6 +80,7 @@ public class QueryExecutorRegistry {
     private static final String COUNT_FORMAT_GROUP = "%d list, %d count, %d group list, %d group count";
 
     @Inject
+    @Nullable
     EntityManager entityManager;
 
     /** Registers executor and its captured variable count. Called during STATIC_INIT (single-threaded). */

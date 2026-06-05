@@ -1,5 +1,7 @@
 package io.quarkiverse.qubit.deployment.util;
 
+import org.jspecify.annotations.Nullable;
+
 import io.quarkus.logging.Log;
 
 /**
@@ -36,7 +38,7 @@ public final class DescriptorParser {
     }
 
     /** Returns slot indices for both entity parameters in bi-entity lambda. */
-    public static int[] calculateBiEntityParameterSlotIndices(String descriptor) {
+    public static int @Nullable [] calculateBiEntityParameterSlotIndices(String descriptor) {
         int paramCount = countMethodArguments(descriptor);
         if (paramCount < 2) {
             return null;
@@ -155,7 +157,7 @@ public final class DescriptorParser {
     }
 
     /** Extracts return type descriptor from method descriptor. */
-    public static String getReturnTypeDescriptor(String methodDescriptor) {
+    public static String getReturnTypeDescriptor(@Nullable String methodDescriptor) {
         if (methodDescriptor == null) {
             return "";
         }
@@ -211,7 +213,7 @@ public final class DescriptorParser {
 
     /** Iterates method descriptor parameters accounting for wide types (long/double take 2 slots). */
     public static class ParameterIterator {
-        private final String descriptor;
+        private final @Nullable String descriptor;
         private int position;
         private int paramIndex;
         private int slotIndex;
@@ -219,7 +221,7 @@ public final class DescriptorParser {
         private int currentTypeStart;
         private int currentTypeEnd;
 
-        public ParameterIterator(String descriptor) {
+        public ParameterIterator(@Nullable String descriptor) {
             this.descriptor = descriptor;
             this.position = (descriptor != null && descriptor.startsWith("(")) ? 1 : 0;
             this.paramIndex = -1;

@@ -15,6 +15,7 @@ import java.util.EnumSet;
 import java.util.Optional;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
 import org.objectweb.asm.Type;
 
 /** Fluent API method types with factory methods for FluentMethodConfig creation. */
@@ -109,7 +110,7 @@ public enum FluentMethodType {
     /** Creates FluentMethodConfig for this method type. */
     public abstract QubitBytecodeGenerator.FluentMethodConfig createConfig(Type entityType, String entityInternalName);
 
-    public static Optional<FluentMethodType> fromMethodName(String methodName) {
+    public static Optional<FluentMethodType> fromMethodName(@Nullable String methodName) {
         if (methodName == null) {
             return Optional.empty();
         }

@@ -88,9 +88,9 @@ public sealed interface CallSite permits CallSite.SimpleCallSite, CallSite.Aggre
             Common common,
             LambdaPair primaryLambda,
             String fluentMethodName,
-            List<LambdaPair> predicateLambdas,
+            @Nullable List<LambdaPair> predicateLambdas,
             @Nullable LambdaPair projectionLambda,
-            List<SortLambda> sortLambdas) implements CallSite {
+            @Nullable List<SortLambda> sortLambdas) implements CallSite {
 
         public SimpleCallSite {
             predicateLambdas = predicateLambdas != null ? List.copyOf(predicateLambdas) : List.of();
@@ -160,7 +160,7 @@ public sealed interface CallSite permits CallSite.SimpleCallSite, CallSite.Aggre
 
     record AggregationCallSite(
             Common common,
-            List<LambdaPair> predicateLambdas,
+            @Nullable List<LambdaPair> predicateLambdas,
             LambdaPair aggregationLambda) implements CallSite {
 
         public AggregationCallSite {
@@ -187,9 +187,9 @@ public sealed interface CallSite permits CallSite.SimpleCallSite, CallSite.Aggre
             Common common,
             JoinType joinType,
             @Nullable LambdaPair joinRelationshipLambda,
-            List<LambdaPair> predicateLambdas,
-            List<LambdaPair> biEntityPredicateLambdas,
-            List<SortLambda> sortLambdas,
+            @Nullable List<LambdaPair> predicateLambdas,
+            @Nullable List<LambdaPair> biEntityPredicateLambdas,
+            @Nullable List<SortLambda> sortLambdas,
             boolean isSelectJoined,
             @Nullable LambdaPair biEntityProjectionLambda) implements CallSite {
 
@@ -228,11 +228,11 @@ public sealed interface CallSite permits CallSite.SimpleCallSite, CallSite.Aggre
 
     record GroupCallSite(
             Common common,
-            List<LambdaPair> predicateLambdas,
+            @Nullable List<LambdaPair> predicateLambdas,
             @Nullable LambdaPair groupByLambda,
-            List<LambdaPair> havingLambdas,
-            List<LambdaPair> groupSelectLambdas,
-            List<SortLambda> groupSortLambdas,
+            @Nullable List<LambdaPair> havingLambdas,
+            @Nullable List<LambdaPair> groupSelectLambdas,
+            @Nullable List<SortLambda> groupSortLambdas,
             boolean isGroupSelectKey) implements CallSite {
 
         public GroupCallSite {
