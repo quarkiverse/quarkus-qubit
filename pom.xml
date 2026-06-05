@@ -37,7 +37,7 @@
         <quarkus.version>3.36.1</quarkus.version>
 
         <!-- Plugin versions (override quarkiverse-parent where needed) -->
-        <surefire-plugin.version>3.5.5</surefire-plugin.version>
+        <surefire-plugin.version>3.5.6</surefire-plugin.version>
 
         <!-- JaCoCo version for code coverage -->
         <jacoco.version>0.8.14</jacoco.version>
