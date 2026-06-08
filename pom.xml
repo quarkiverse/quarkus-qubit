@@ -498,7 +498,8 @@
                         <configuration>
                             <compilerArgs>
                                 <arg>-XDcompilePolicy=simple</arg>
-                                <arg>-Xplugin:ErrorProne -Xep:NullAway:WARN -XepOpt:NullAway:AnnotatedPackages=io.quarkiverse.qubit -XepOpt:NullAway:JSpecifyMode=true</arg>
+                                <arg>--should-stop=ifError=FLOW</arg>
+                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -Xep:NullAway:WARN -Xep:AddNullMarkedToPackageInfo:WARN -Xep:RedundantNullCheck:WARN -XepOpt:NullAway:AnnotatedPackages=io.quarkiverse.qubit -XepOpt:NullAway:JSpecifyMode=true -XepAllSuggestionsAsWarnings</arg>
                             </compilerArgs>
                             <annotationProcessorPaths>
                                 <path>

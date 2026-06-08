@@ -20,6 +20,8 @@ import io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector;
 import io.quarkiverse.qubit.deployment.metrics.ExpressionTypeCounter;
 import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.builditem.GeneratedClassBuildItem;
+import org.jspecify.annotations.Nullable;
+
 import io.quarkus.logging.Log;
 
 /**
@@ -33,13 +35,13 @@ class ExecutorRegistrationHelper {
     private final QueryExecutorClassGenerator classGenerator;
     private final String classNamePrefix;
     private final String targetPackage;
-    private final BuildMetricsCollector metricsCollector;
+    private final @Nullable BuildMetricsCollector metricsCollector;
 
     ExecutorRegistrationHelper(
             QueryExecutorClassGenerator classGenerator,
             String classNamePrefix,
             String targetPackage,
-            BuildMetricsCollector metricsCollector) {
+            @Nullable BuildMetricsCollector metricsCollector) {
         this.classGenerator = classGenerator;
         this.classNamePrefix = classNamePrefix;
         this.targetPackage = targetPackage;

@@ -15,6 +15,8 @@ import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Selection;
 
+import org.jspecify.annotations.Nullable;
+
 import io.quarkiverse.qubit.SortDirection;
 import io.quarkiverse.qubit.deployment.analysis.CallSite;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
@@ -195,8 +197,8 @@ public final class GizmoHelper {
      * Returns the combined predicate, or whichever is non-null, or null if both are null.
      * Used when CriteriaQuery.where() would replace instead of AND'ing.
      */
-    public static Expr combinePredicatesWithAnd(
-            BlockCreator bc, Expr cb, Expr predicate1, Expr predicate2) {
+    public static @Nullable Expr combinePredicatesWithAnd(
+            BlockCreator bc, Expr cb, @Nullable Expr predicate1, @Nullable Expr predicate2) {
         if (predicate1 != null && predicate2 != null) {
             Expr predicateArray = createElementArray(bc, jakarta.persistence.criteria.Predicate.class,
                     predicate1, predicate2);

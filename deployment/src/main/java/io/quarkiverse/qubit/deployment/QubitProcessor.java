@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 import org.jboss.jandex.ClassInfo;
 import org.jboss.jandex.DotName;
 import org.jboss.jandex.IndexView;
+import org.jspecify.annotations.Nullable;
 
 import io.quarkiverse.qubit.QubitEntity;
 import io.quarkiverse.qubit.deployment.common.ClassLoaderHelper;
@@ -305,7 +306,7 @@ public class QubitProcessor {
             List<CallSite> allCallSites,
             CallSiteProcessor processor,
             CallSiteProcessor.CallSiteProcessingContext ctx,
-            BuildMetricsCollector metricsCollector) {
+            @Nullable BuildMetricsCollector metricsCollector) {
 
         if (allCallSites.isEmpty()) {
             return allCallSites;
@@ -454,7 +455,7 @@ public class QubitProcessor {
             InvokeDynamicScanner scanner,
             ApplicationArchivesBuildItem applicationArchives,
             QubitBuildTimeConfig.LoggingConfig loggingConfig,
-            BuildMetricsCollector metricsCollector) {
+            @Nullable BuildMetricsCollector metricsCollector) {
 
         String className = classInfo.name().toString();
         QubitScanEvent scanEvent = QubitScanEvent.start(className);
@@ -888,10 +889,10 @@ public class QubitProcessor {
         /** Builder with named setters. Required fields validated in build(). */
         public static final class Builder {
             // Required fields
-            private String queryId;
-            private String generatedClassName;
-            private String entityClassName;
-            private QueryCharacteristics characteristics;
+            private @Nullable String queryId;
+            private @Nullable String generatedClassName;
+            private @Nullable String entityClassName;
+            private @Nullable QueryCharacteristics characteristics;
             private int capturedVarCount;
 
             // Optional fields with defaults

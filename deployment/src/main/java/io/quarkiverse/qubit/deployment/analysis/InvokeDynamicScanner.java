@@ -308,6 +308,7 @@ public class InvokeDynamicScanner {
     @FunctionalInterface
     private interface IntegerExtractor {
         /** Returns extracted integer, or null if this extractor doesn't apply. */
+        @Nullable
         Integer extract(AbstractInsnNode insn);
     }
 
@@ -444,7 +445,7 @@ public class InvokeDynamicScanner {
     }
 
     /** Looks forward to find fluent method (where/select/join/groupBy). */
-    private String findFluentMethodForward(InsnList instructions, int startIndex) {
+    private @Nullable String findFluentMethodForward(InsnList instructions, int startIndex) {
         // Look ahead a few instructions to find where/select/join/groupBy call
         for (int j = startIndex + 1; j < Math.min(startIndex + 5, instructions.size()); j++) {
             AbstractInsnNode nextInsn = instructions.get(j);
@@ -472,7 +473,7 @@ public class InvokeDynamicScanner {
     }
 
     /** Extracts lambda method handle from invokedynamic instruction. */
-    private Handle extractLambdaHandle(InvokeDynamicInsnNode invokeDynamic) {
+    private @Nullable Handle extractLambdaHandle(InvokeDynamicInsnNode invokeDynamic) {
         Object[] bsmArgs = invokeDynamic.bsmArgs;
 
         if (bsmArgs != null && bsmArgs.length >= 2 && bsmArgs[1] instanceof Handle handle) {

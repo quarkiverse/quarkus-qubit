@@ -24,6 +24,8 @@ import io.quarkiverse.qubit.deployment.util.DescriptorParser;
 import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.builditem.ApplicationArchivesBuildItem;
 import io.quarkus.deployment.builditem.GeneratedClassBuildItem;
+import org.jspecify.annotations.Nullable;
+
 import io.quarkus.logging.Log;
 
 /**
@@ -39,7 +41,7 @@ public class CallSiteProcessor {
     private final QueryExecutorClassGenerator classGenerator;
     private final String classNamePrefix;
     private final String targetPackage;
-    private final BuildMetricsCollector metricsCollector;
+    private final @Nullable BuildMetricsCollector metricsCollector;
     private final ExecutorRegistrationHelper registrationHelper;
 
     /** Creates a CallSiteProcessor with default configuration. */
@@ -100,7 +102,7 @@ public class CallSiteProcessor {
             QueryExecutorClassGenerator classGenerator,
             String classNamePrefix,
             String targetPackage,
-            BuildMetricsCollector metricsCollector) {
+            @Nullable BuildMetricsCollector metricsCollector) {
         this.bytecodeAnalyzer = bytecodeAnalyzer;
         this.deduplicator = deduplicator;
         this.classGenerator = classGenerator;
@@ -201,7 +203,7 @@ public class CallSiteProcessor {
     }
 
     /** Result of early deduplication check: signature is always set, outcome is non-null on cache hit. */
-    private record EarlyDedupResult(String signature, LambdaDeduplicator.CachedAnalysisResult outcome) {
+    private record EarlyDedupResult(String signature, LambdaDeduplicator.@Nullable CachedAnalysisResult outcome) {
     }
 
     /** Computes bytecode signature and checks early dedup cache. */
