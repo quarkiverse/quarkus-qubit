@@ -148,22 +148,10 @@ public class DevUIBrowser implements AutoCloseable {
      * @return the badge count as a string, or null if not found
      */
     public String getExtensionLinkBadge(String extensionTitle) {
-        Locator lineLocator = page.locator("css=qwc-extension-link[displayname=\"" + extensionTitle + "\"]");
-        Locator badge = lineLocator.locator("css=qui-badge > span:not([theme])");
-        if (badge.count() > 0) {
-            return badge.first().textContent();
-        }
-        return null;
-    }
-
-    /**
-     * Check if the Qubit extension card is present in DevUI.
-     *
-     * @return true if the Qubit extension card is visible
-     */
-    public boolean isQubitExtensionCardPresent() {
-        Locator card = page.locator("css=qwc-extension-link[displayname=\"Lambda Queries\"]");
-        return card.count() > 0;
+        Locator badge = page.locator(
+                "css=qwc-extension-link[displayname=\"" + extensionTitle + "\"] qui-badge span");
+        badge.first().waitFor();
+        return badge.first().textContent();
     }
 
     /**
@@ -209,16 +197,6 @@ public class DevUIBrowser implements AutoCloseable {
         Object rowCount = page.evaluate(
                 "() => document.querySelector('vaadin-grid')?.items?.length ?? 0");
         return ((Number) rowCount).intValue();
-    }
-
-    /**
-     * Check if the search field is present on the Qubit queries page.
-     *
-     * @return true if the search field is visible
-     */
-    public boolean isSearchFieldPresent() {
-        Locator searchField = page.locator("css=vaadin-text-field");
-        return searchField.count() > 0;
     }
 
     /**
