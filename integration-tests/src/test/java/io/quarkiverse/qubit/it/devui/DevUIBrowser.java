@@ -1,11 +1,13 @@
 package io.quarkiverse.qubit.it.devui;
 
+import java.nio.file.Path;
 import java.util.List;
 
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
+import com.microsoft.playwright.Tracing;
 import com.microsoft.playwright.options.WaitForSelectorState;
 
 /**
@@ -146,22 +148,10 @@ public class DevUIBrowser implements AutoCloseable {
      * @return the badge count as a string, or null if not found
      */
     public String getExtensionLinkBadge(String extensionTitle) {
-        Locator lineLocator = page.locator("css=qwc-extension-link[displayname=\"" + extensionTitle + "\"]");
-        Locator badge = lineLocator.locator("css=qui-badge > span:not([theme])");
-        if (badge.count() > 0) {
-            return badge.first().textContent();
-        }
-        return null;
-    }
-
-    /**
-     * Check if the Qubit extension card is present in DevUI.
-     *
-     * @return true if the Qubit extension card is visible
-     */
-    public boolean isQubitExtensionCardPresent() {
-        Locator card = page.locator("css=qwc-extension-link[displayname=\"Lambda Queries\"]");
-        return card.count() > 0;
+        Locator badge = page.locator(
+                "css=qwc-extension-link[displayname=\"" + extensionTitle + "\"] qui-badge span");
+        badge.first().waitFor();
+        return badge.first().textContent();
     }
 
     /**
@@ -207,16 +197,6 @@ public class DevUIBrowser implements AutoCloseable {
         Object rowCount = page.evaluate(
                 "() => document.querySelector('vaadin-grid')?.items?.length ?? 0");
         return ((Number) rowCount).intValue();
-    }
-
-    /**
-     * Check if the search field is present on the Qubit queries page.
-     *
-     * @return true if the search field is visible
-     */
-    public boolean isSearchFieldPresent() {
-        Locator searchField = page.locator("css=vaadin-text-field");
-        return searchField.count() > 0;
     }
 
     /**
@@ -271,57 +251,34 @@ public class DevUIBrowser implements AutoCloseable {
 
     /**
      * Check if the JPQL panel is visible.
-     * The panel is inside the qwc-qubit-queries shadow DOM.
      *
      * @return true if the JPQL panel is displayed
      */
     public boolean isJpqlPanelVisible() {
-        // Use JavaScript to check shadow DOM
-        Object result = page.evaluate("() => { " +
-                "const component = document.querySelector('qwc-qubit-queries'); " +
-                "if (component && component.shadowRoot) { " +
-                "  return component.shadowRoot.querySelector('.jpql-panel') !== null; " +
-                "} " +
-                "return false; " +
-                "}");
-        return Boolean.TRUE.equals(result);
+        return page.locator("css=qwc-qubit-queries .jpql-panel").count() > 0;
     }
 
     /**
      * Get the JPQL content from the panel.
-     * The panel is inside the qwc-qubit-queries shadow DOM.
      *
      * @return the JPQL query text, or null if panel is not visible
      */
     public String getJpqlContent() {
-        Object result = page.evaluate("() => { " +
-                "const component = document.querySelector('qwc-qubit-queries'); " +
-                "if (component && component.shadowRoot) { " +
-                "  const content = component.shadowRoot.querySelector('.comparison-body-jpql'); " +
-                "  return content ? content.textContent : null; " +
-                "} " +
-                "return null; " +
-                "}");
-        return result != null ? result.toString() : null;
+        Locator content = page.locator("css=qwc-qubit-queries .comparison-body-jpql");
+        if (content.count() > 0) {
+            return content.textContent();
+        }
+        return null;
     }
 
     /**
      * Close the JPQL panel.
-     * The close button is inside the qwc-qubit-queries shadow DOM.
      */
     public void closeJpqlPanel() {
-        page.evaluate("() => { " +
-                "const component = document.querySelector('qwc-qubit-queries'); " +
-                "if (component && component.shadowRoot) { " +
-                "  const closeButton = component.shadowRoot.querySelector('.jpql-close'); " +
-                "  if (closeButton) { " +
-                "    closeButton.click(); " +
-                "  } " +
-                "} " +
-                "}");
-        // Wait for Lit component to re-render without the JPQL panel
-        page.waitForFunction("() => document.querySelector('qwc-qubit-queries')" +
-                "?.shadowRoot?.querySelector('.jpql-panel') === null");
+        page.locator("css=qwc-qubit-queries .jpql-close").click();
+        page.locator("css=qwc-qubit-queries .jpql-panel")
+                .waitFor(new Locator.WaitForOptions()
+                        .setState(WaitForSelectorState.HIDDEN));
     }
 
     /**
@@ -385,6 +342,34 @@ public class DevUIBrowser implements AutoCloseable {
      */
     public String getPageTitle() {
         return page.title();
+    }
+
+    /**
+     * Start tracing for CI failure debugging.
+     * Captures screenshots and DOM snapshots at each action.
+     */
+    public void startTracing() {
+        page.context().tracing().start(new Tracing.StartOptions()
+                .setScreenshots(true)
+                .setSnapshots(true));
+    }
+
+    /**
+     * Stop tracing and save to the given path.
+     *
+     * @param outputPath path for the output .zip file
+     */
+    public void stopTracing(Path outputPath) {
+        outputPath.getParent().toFile().mkdirs();
+        page.context().tracing().stop(new Tracing.StopOptions()
+                .setPath(outputPath));
+    }
+
+    /**
+     * Returns the underlying Playwright Page for direct assertions.
+     */
+    public Page getPage() {
+        return page;
     }
 
     @Override

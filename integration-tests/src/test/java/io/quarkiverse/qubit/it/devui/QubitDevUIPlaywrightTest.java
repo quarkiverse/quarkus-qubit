@@ -2,12 +2,16 @@ package io.quarkiverse.qubit.it.devui;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.microsoft.playwright.assertions.PlaywrightAssertions;
+
+import java.nio.file.Path;
 import java.util.List;
 
 import org.jboss.shrinkwrap.api.asset.StringAsset;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import io.quarkus.test.QuarkusDevModeTest;
@@ -69,15 +73,19 @@ public class QubitDevUIPlaywrightTest {
                     .addAsResource("import.sql"));
 
     private DevUIBrowser browser;
+    private String testName;
 
     @BeforeEach
-    void setUp() {
+    void setUp(TestInfo testInfo) {
+        testName = testInfo.getTestMethod().map(java.lang.reflect.Method::getName).orElse("unknown");
         browser = new DevUIBrowser();
+        browser.startTracing();
     }
 
     @AfterEach
     void tearDown() {
         if (browser != null) {
+            browser.stopTracing(Path.of("target/playwright-traces/" + testName + ".zip"));
             browser.close();
         }
     }
@@ -86,9 +94,8 @@ public class QubitDevUIPlaywrightTest {
     void extensionCardIsVisible() {
         browser.navigateToExtensions();
 
-        assertThat(browser.isQubitExtensionCardPresent())
-                .as("Qubit 'Lambda Queries' extension card should be visible in DevUI")
-                .isTrue();
+        PlaywrightAssertions.assertThat(browser.getPage().locator("css=qwc-extension-link[displayname='Lambda Queries']"))
+                .matchesAriaSnapshot("- link \"Lambda Queries\"");
     }
 
     @Test
@@ -126,9 +133,8 @@ public class QubitDevUIPlaywrightTest {
         browser.navigateToExtensions();
         browser.clickExtensionLink("Lambda Queries");
 
-        assertThat(browser.isSearchFieldPresent())
-                .as("Search field should be present on the queries page")
-                .isTrue();
+        PlaywrightAssertions.assertThat(browser.getPage().locator("css=qwc-qubit-queries"))
+                .matchesAriaSnapshot("- textbox");
     }
 
     @Test
