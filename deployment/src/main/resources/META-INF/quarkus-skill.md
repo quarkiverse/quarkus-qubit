@@ -6,7 +6,7 @@ guide: https://docs.quarkiverse.io/quarkus-qubit/dev/
 
 # Quarkus Qubit
 
-Qubit adds a JINQ-inspired fluent query API to Quarkus Panache. Write queries as Java lambdas — Qubit analyzes the bytecode at build time and generates JPA Criteria Queries. No reflection, no runtime parsing, no overhead.
+Qubit adds a JINQ-inspired fluent query API to Quarkus Panache. Write queries as Java lambdas — Qubit analyzes bytecode at build time and generates JPA Criteria Queries.
 
 ```xml
 <dependency>
@@ -17,8 +17,6 @@ Qubit adds a JINQ-inspired fluent query API to Quarkus Panache. Write queries as
 
 ## Getting Started
 
-**QubitRepository (recommended)** — inject a CDI bean, testable, familiar to Spring developers:
-
 ```java
 @Entity
 public class Person extends PanacheEntity {
@@ -26,61 +24,50 @@ public class Person extends PanacheEntity {
     public int age;
     public boolean active;
 }
+```
 
+**QubitRepository (recommended)** — CDI bean, testable:
+
+```java
 @ApplicationScoped
 public class PersonRepository implements QubitRepository<Person, Long> {
 }
 
-// Inject and use
 @Inject PersonRepository repo;
 List<Person> adults = repo.where(p -> p.age >= 18).toList();
 ```
 
-**QubitEntity (ActiveRecord)** — static methods on entities, less boilerplate:
+**QubitEntity (ActiveRecord)** — static methods, less boilerplate (extend `QubitEntity` instead of `PanacheEntity`):
 
 ```java
-@Entity
-public class Person extends QubitEntity {
-    public String name;
-    public int age;
-}
-
 List<Person> adults = Person.where(p -> p.age >= 18).toList();
 ```
 
 ## Querying
 
 ```java
-// Filtering — multiple where() calls combine with AND
+// Multiple where() calls combine with AND
 repo.where(p -> p.active && p.age >= 18).toList();
 
-// Projection — field access or DTO construction
 repo.select(p -> p.name).toList();
 repo.where(p -> p.active).select(p -> new PersonDTO(p.name, p.age)).toList();
 
-// Sorting — last sortedBy() is primary, thenSortedBy() is secondary
+// Last sortedBy() is primary, thenSortedBy() is secondary
 repo.sortedBy(p -> p.lastName).thenSortedBy(p -> p.firstName).toList();
 repo.sortedDescendingBy(p -> p.salary).toList();
+repo.sortedBy(p -> p.name, Nulls.LAST).toList();  // null precedence (JPA 3.2)
 
-// Null precedence (JPA 3.2)
-repo.sortedBy(p -> p.name, Nulls.LAST).toList();
-
-// Pagination
 repo.where(p -> p.active).skip(20).limit(10).toList();
 
-// Terminal operations
 long count    = repo.where(p -> p.active).count();
 boolean any   = repo.where(p -> p.active).exists();
 Person single = repo.where(p -> p.id == 42L).getSingleResult();
 Optional<Person> first = repo.where(p -> p.active).findFirst();
-
-// Distinct
 repo.select(p -> p.city).distinct().toList();
 
-// Aggregations — return ScalarResult with getSingleResult() or findFirst()
+// Aggregations return ScalarResult — call getSingleResult() or findFirst()
 Double avgSalary = repo.avg(p -> p.salary).getSingleResult();
 Integer maxAge   = repo.max(p -> p.age).getSingleResult();
-Integer minAge   = repo.min(p -> p.age).getSingleResult();
 Long totalDays   = repo.sumLong(p -> p.daysWorked).getSingleResult();
 ```
 
@@ -178,54 +165,35 @@ repo.where(p -> p.salary > Subqueries.subquery(Person.class)
 | `repo.find("active", true).count()` | `repo.where(p -> p.active).count()` |
 | `Person.find("salary > ?1 and active", Sort.by("name"), sal)` | `Person.where(p -> p.salary > sal && p.active).sortedBy(p -> p.name).toList()` |
 
-Panache methods (`findAll()`, `count()`, `deleteAll()`, etc.) still work — Qubit adds to Panache, it does not replace it.
+Panache methods still work alongside Qubit.
 
 ## Configuration
 
-All properties are build-time only (no runtime configuration):
+All properties are build-time only:
 
 ```properties
-# Restrict scanning to specific packages (comma-separated)
 quarkus.qubit.scanning.include-packages=com.example.model
 quarkus.qubit.scanning.exclude-packages=com.example.internal
-
-# Log generated query executor classes during build
 quarkus.qubit.logging.log-generated-classes=true
-
-# Fail build on unsupported lambda patterns (default: true)
 quarkus.qubit.failOnAnalysisError=true
 ```
 
 ## Testing
 
-Standard `@QuarkusTest` patterns apply. Lambda queries behave identically in test and production:
-
-```java
-@QuarkusTest
-class PersonRepositoryTest {
-    @Inject PersonRepository repo;
-
-    @Test
-    void findsAdults() {
-        List<Person> adults = repo.where(p -> p.age >= 18).toList();
-        assertThat(adults).allMatch(p -> p.age >= 18);
-    }
-}
-```
+Standard `@QuarkusTest` with `@Inject` repository. Lambda queries behave identically in test and production — no special test configuration needed.
 
 ## Lambda Constraints
 
 Qubit analyzes lambda bytecode at build time. Lambdas **must** contain only operations that map to JPA Criteria API. The following are **not supported**:
 
 - **Method references** — `Person::getName` does not work; use `p -> p.name`
-- **External method calls** — only field access and the supported operations listed above
+- **External method calls** — only field access and the supported operations listed above; unsupported JDK methods cause build failure
 - **Loops, try/catch, complex control flow** — lambdas must be single-expression
 - **Mutable captured variables** — captured values must be effectively final
 - **Side effects** — lambdas are analyzed, never executed at runtime
 - **Getter methods** — use direct field access (`p.name`), not `p.getName()` (unless mapped as a JPA attribute)
-- **Unsupported JDK methods** — only the string, math, and temporal methods listed above are recognized
 
-If a lambda contains unsupported patterns, the build fails with a descriptive error (when `failOnAnalysisError=true`).
+Unsupported patterns fail the build with a descriptive error (when `failOnAnalysisError=true`).
 
 ## Common Pitfalls
 
