@@ -105,6 +105,7 @@
                     <configuration>
                         <!-- Use late property evaluation for JaCoCo agent -->
                         <argLine>@{argLine}</argLine>
+                        <reportTestTimestamp>true</reportTestTimestamp>
                         <systemPropertyVariables>
                             <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
                             <maven.home>${maven.home}</maven.home>
@@ -352,6 +353,9 @@
                         <timestampedReports>false</timestampedReports>
                         <threads>16</threads>
                         <timeoutConstant>10000</timeoutConstant>
+                        <features>
+                            <feature>+progress</feature>
+                        </features>
                         <!-- Disable surefire config parsing to avoid JaCoCo @{argLine} issues -->
                         <parseSurefireConfig>false</parseSurefireConfig>
                         <jvmArgs>
@@ -499,7 +503,7 @@
                             <compilerArgs>
                                 <arg>-XDcompilePolicy=simple</arg>
                                 <arg>--should-stop=ifError=FLOW</arg>
-                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -Xep:NullAway:WARN -Xep:AddNullMarkedToPackageInfo:WARN -Xep:RedundantNullCheck:WARN -XepOpt:NullAway:AnnotatedPackages=io.quarkiverse.qubit -XepOpt:NullAway:JSpecifyMode=true -XepAllSuggestionsAsWarnings</arg>
+                                <arg>-Xplugin:ErrorProne @${project.basedir}/errorprone.cfg</arg>
                             </compilerArgs>
                             <annotationProcessorPaths>
                                 <path>

@@ -249,6 +249,9 @@
                     <threads>16</threads>
                     <timeoutConstant>60000</timeoutConstant>
                     <timeoutFactor>1.5</timeoutFactor>
+                    <features>
+                        <feature>+progress</feature>
+                    </features>
                     <!-- Exclude logging-related mutations -->
                     <avoidCallsTo>
                         <avoidCallsTo>io.quarkus.logging.Log</avoidCallsTo>

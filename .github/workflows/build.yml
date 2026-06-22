@@ -143,7 +143,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright/java:v1.58.0-noble
+      image: mcr.microsoft.com/playwright/java:v1.60.0-noble
       options: --user 1001
     steps:
       - uses: actions/checkout@v6
@@ -161,7 +161,8 @@ jobs:
       - name: Run Playwright tests
         run: |
           ./mvnw -B test -Pplaywright \
-            -pl deployment \
+            -pl integration-tests \
+            -Dplaywright.skip-install=true \
             -Dmaven.test.failure.ignore=false
 
       - name: Upload test results
@@ -170,8 +171,17 @@ jobs:
         with:
           name: test-results-playwright
           path: |
-            deployment/target/surefire-reports/
+            integration-tests/target/surefire-reports/
           retention-days: 7
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-traces
+          path: |
+            integration-tests/target/playwright-traces/
+          retention-days: 3
 
   # ============================================
   # CI SUMMARY
