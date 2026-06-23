@@ -52,6 +52,7 @@
 
         <!-- Test dependency versions -->
         <assertj.version>3.27.7</assertj.version>
+        <playwright.version>1.60.0</playwright.version>
     </properties>
 
     <modules>
