@@ -49,6 +49,9 @@
         <!-- Pitest mutation testing versions -->
         <pitest.version>1.25.4</pitest.version>
         <pitest-junit5.version>1.2.3</pitest-junit5.version>
+
+        <!-- Test dependency versions -->
+        <assertj.version>3.27.7</assertj.version>
     </properties>
 
     <modules>
