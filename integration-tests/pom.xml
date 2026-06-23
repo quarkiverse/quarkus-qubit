@@ -141,7 +141,7 @@
             <plugin>
                 <groupId>org.pitest</groupId>
                 <artifactId>pitest-maven</artifactId>
-                <version>1.25.4</version>
+                <version>${pitest.version}</version>
                 <configuration>
                     <!-- Target entity classes in integration-tests -->
                     <targetClasses>
@@ -162,6 +162,9 @@
                     <threads>16</threads>
                     <timeoutConstant>60000</timeoutConstant>
                     <timeoutFactor>1.5</timeoutFactor>
+                    <features>
+                        <feature>+progress</feature>
+                    </features>
                     <!-- Exclude logging-related mutations -->
                     <avoidCallsTo>
                         <avoidCallsTo>io.quarkus.logging.Log</avoidCallsTo>
@@ -176,12 +179,17 @@
                         <param>hashCode</param>
                         <param>toString</param>
                     </excludedMethods>
+                    <!-- Disable surefire config parsing to avoid JaCoCo @{argLine} issues -->
+                    <parseSurefireConfig>false</parseSurefireConfig>
+                    <jvmArgs>
+                        <jvmArg>-Xmx1024m</jvmArg>
+                    </jvmArgs>
                 </configuration>
                 <dependencies>
                     <dependency>
                         <groupId>org.pitest</groupId>
                         <artifactId>pitest-junit5-plugin</artifactId>
-                        <version>1.2.3</version>
+                        <version>${pitest-junit5.version}</version>
                     </dependency>
                 </dependencies>
             </plugin>

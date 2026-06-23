@@ -157,7 +157,7 @@
             <plugin>
                 <groupId>org.pitest</groupId>
                 <artifactId>pitest-maven</artifactId>
-                <version>1.25.4</version>
+                <version>${pitest.version}</version>
                 <configuration>
                     <!-- Target deployment module classes -->
                     <targetClasses>
@@ -274,7 +274,7 @@
                     <dependency>
                         <groupId>org.pitest</groupId>
                         <artifactId>pitest-junit5-plugin</artifactId>
-                        <version>1.2.3</version>
+                        <version>${pitest-junit5.version}</version>
                     </dependency>
                 </dependencies>
             </plugin>
