@@ -125,9 +125,9 @@ class ClassLoaderHelperTest {
             assertThat(result.className())
                     .as("className should contain the deferred class name")
                     .isEqualTo("java.lang.String");
-            assertThat(result.isPlaceholder())
+            EntityClassInfoAssert.assertThat(result)
                     .as("Should be marked as placeholder for runtime resolution")
-                    .isTrue();
+                    .isPlaceholder();
         }
 
         @Test
@@ -144,7 +144,8 @@ class ClassLoaderHelperTest {
             assertThat(result.className())
                     .as("className should contain the deferred class name")
                     .isEqualTo("java.lang.Integer");
-            assertThat(result.isPlaceholder()).isTrue();
+            EntityClassInfoAssert.assertThat(result)
+                    .isPlaceholder();
         }
 
         @Test

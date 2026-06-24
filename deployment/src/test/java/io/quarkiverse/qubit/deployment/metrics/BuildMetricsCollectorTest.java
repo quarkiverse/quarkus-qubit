@@ -32,7 +32,7 @@ class BuildMetricsCollectorTest {
         collector.incrementQueryCount();
         collector.incrementQueryCount();
 
-        assertThat(collector.getQueryCount()).isEqualTo(2);
+        BuildMetricsCollectorAssert.assertThat(collector).hasQueryCount(2);
     }
 
     @Test
@@ -110,8 +110,9 @@ class BuildMetricsCollectorTest {
         collector.recordClassNodeCacheMiss();
         collector.recordClassNodeCacheMiss();
 
-        assertThat(collector.getBytecodeCacheHitRate()).isEqualTo(2.0 / 3.0);
-        assertThat(collector.getClassNodeCacheHitRate()).isEqualTo(1.0 / 3.0);
+        BuildMetricsCollectorAssert.assertThat(collector)
+                .hasBytecodeCacheHitRate(2.0 / 3.0)
+                .hasClassNodeCacheHitRate(1.0 / 3.0);
     }
 
     @Test
@@ -123,8 +124,9 @@ class BuildMetricsCollectorTest {
         collector.incrementRepositoriesEnhanced();
         collector.addEntityEnhancementTime(5000);
 
-        assertThat(collector.getEntityClassesEnhanced()).isEqualTo(2);
-        assertThat(collector.getRepositoriesEnhanced()).isEqualTo(1);
+        BuildMetricsCollectorAssert.assertThat(collector)
+                .hasEntityClassesEnhanced(2)
+                .hasRepositoriesEnhanced(1);
     }
 
     @Test
@@ -138,12 +140,13 @@ class BuildMetricsCollectorTest {
         collector.incrementTotalBytecodeLoads();
         collector.incrementDuplicateCount();
 
-        assertThat(collector.getBytecodeLoadTimeNanos()).isEqualTo(1000);
-        assertThat(collector.getInstructionAnalysisTimeNanos()).isEqualTo(2000);
-        assertThat(collector.getCodeGenerationTimeNanos()).isEqualTo(3000);
-        assertThat(collector.getUniqueClassesLoaded()).isEqualTo(1);
-        assertThat(collector.getTotalBytecodeLoads()).isEqualTo(1);
-        assertThat(collector.getDuplicateCount()).isEqualTo(1);
+        BuildMetricsCollectorAssert.assertThat(collector)
+                .hasBytecodeLoadTimeNanos(1000)
+                .hasInstructionAnalysisTimeNanos(2000)
+                .hasCodeGenerationTimeNanos(3000)
+                .hasUniqueClassesLoaded(1)
+                .hasTotalBytecodeLoads(1)
+                .hasDuplicateCount(1);
     }
 
     @Test
@@ -153,7 +156,7 @@ class BuildMetricsCollectorTest {
         collector.incrementJandexPreFilterSkips();
         collector.incrementJandexPreFilterSkips();
 
-        assertThat(collector.getJandexPreFilterSkips()).isEqualTo(2);
+        BuildMetricsCollectorAssert.assertThat(collector).hasJandexPreFilterSkips(2);
     }
 
     @Test
@@ -163,8 +166,9 @@ class BuildMetricsCollectorTest {
         collector.incrementEarlyDeduplicationHits();
         collector.addEarlyDeduplicationCheckTime(500);
 
-        assertThat(collector.getEarlyDeduplicationHits()).isEqualTo(1);
-        assertThat(collector.getEarlyDeduplicationCheckTimeNanos()).isEqualTo(500);
+        BuildMetricsCollectorAssert.assertThat(collector)
+                .hasEarlyDeduplicationHits(1)
+                .hasEarlyDeduplicationCheckTimeNanos(500);
     }
 
     @Test
@@ -260,14 +264,15 @@ class BuildMetricsCollectorTest {
         collector.recordThreadWork(1000);
         collector.recordThreadWork(2000);
 
-        assertThat(collector.getActiveThreadCount()).isEqualTo(1); // Same thread
+        BuildMetricsCollectorAssert.assertThat(collector).hasActiveThreadCount(1); // Same thread
     }
 
     @Test
     void handlesZeroCacheAccesses() {
         BuildMetricsCollector collector = new BuildMetricsCollector();
 
-        assertThat(collector.getBytecodeCacheHitRate()).isEqualTo(0.0);
-        assertThat(collector.getClassNodeCacheHitRate()).isEqualTo(0.0);
+        BuildMetricsCollectorAssert.assertThat(collector)
+                .hasBytecodeCacheHitRate(0.0)
+                .hasClassNodeCacheHitRate(0.0);
     }
 }

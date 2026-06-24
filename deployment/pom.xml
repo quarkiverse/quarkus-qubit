@@ -365,8 +365,17 @@
                             <classes>
                                 <param>io.quarkiverse.qubit.deployment.analysis.QueryCharacteristics</param>
                                 <param>io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome</param>
+                                <param>io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome.Success</param>
+                                <param>io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome.UnsupportedPattern</param>
+                                <param>io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome.AnalysisError</param>
+                                <param>io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome.EarlyDeduplicated</param>
+                                <param>io.quarkiverse.qubit.deployment.analysis.instruction.AnalysisContext</param>
+                                <param>io.quarkiverse.qubit.deployment.analysis.MethodScanState</param>
+                                <param>io.quarkiverse.qubit.deployment.common.EntityClassInfo</param>
+                                <param>io.quarkiverse.qubit.deployment.analysis.QueryExecutionPlan</param>
+                                <param>io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector</param>
                             </classes>
-                            <targetDir>src/test/java</targetDir>
+                            <targetDir>${project.basedir}/src/test/java</targetDir>
                             <generateAssertions>true</generateAssertions>
                             <generateBddAssertions>false</generateBddAssertions>
                             <generateSoftAssertions>false</generateSoftAssertions>

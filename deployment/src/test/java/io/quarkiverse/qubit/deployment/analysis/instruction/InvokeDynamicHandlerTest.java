@@ -86,9 +86,9 @@ class InvokeDynamicHandlerTest {
             boolean terminated = handler.handle(indy, context);
 
             assertThat(terminated).isFalse();
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Should push concatenation result")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
             assertThat(context.peek())
                     .as("Result should be BinaryOp with ADD")
                     .isInstanceOf(LambdaExpression.BinaryOp.class);
@@ -104,9 +104,9 @@ class InvokeDynamicHandlerTest {
             boolean terminated = handler.handle(indy, context);
 
             assertThat(terminated).isFalse();
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Should push concatenation result")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
 
         @Test
@@ -119,7 +119,7 @@ class InvokeDynamicHandlerTest {
             boolean terminated = handler.handle(indy, context);
 
             assertThat(terminated).isFalse();
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
         }
 
         @Test
@@ -130,9 +130,9 @@ class InvokeDynamicHandlerTest {
             boolean terminated = handler.handle(indy, context);
 
             assertThat(terminated).isFalse();
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Should push constant result")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
             assertThat(context.peek())
                     .as("Result should be Constant")
                     .isInstanceOf(LambdaExpression.Constant.class);
@@ -146,9 +146,9 @@ class InvokeDynamicHandlerTest {
             boolean terminated = handler.handle(indy, context);
 
             assertThat(terminated).isFalse();
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("Stack should remain empty when underflow occurs")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -202,7 +202,7 @@ class InvokeDynamicHandlerTest {
             boolean terminated = handler.handle(indy, context);
 
             assertThat(terminated).isFalse();
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
         }
 
         @Test
@@ -216,9 +216,9 @@ class InvokeDynamicHandlerTest {
             boolean terminated = handler.handle(indy, context);
 
             assertThat(terminated).isFalse();
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Should consume all 3 operands and push 1 result")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
 
         @Test
@@ -231,7 +231,7 @@ class InvokeDynamicHandlerTest {
             boolean terminated = handler.handle(indy, context);
 
             assertThat(terminated).isFalse();
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             // When there's only one operand, it should be returned directly (not wrapped in BinaryOp)
             assertThat(context.peek()).isEqualTo(nameField);
         }
@@ -314,9 +314,9 @@ class InvokeDynamicHandlerTest {
 
             assertThat(terminated).isFalse();
             // Captured variable should be popped
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("Captured variable should be popped from stack")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -339,9 +339,9 @@ class InvokeDynamicHandlerTest {
 
             assertThat(terminated).isFalse();
             // Both captured variables should be popped
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("Both captured variables should be popped from stack")
-                    .isTrue();
+                    .isStackEmpty();
         }
     }
 
@@ -360,7 +360,7 @@ class InvokeDynamicHandlerTest {
             boolean terminated = handler.handle(indy, context);
 
             assertThat(terminated).isFalse();
-            assertThat(context.isStackEmpty()).isTrue();
+            AnalysisContextAssert.assertThat(context).isStackEmpty();
         }
 
         @Test
@@ -386,7 +386,7 @@ class InvokeDynamicHandlerTest {
 
             assertThat(terminated).isFalse();
             // Empty recipe produces null result, so stack remains empty
-            assertThat(context.isStackEmpty()).isTrue();
+            AnalysisContextAssert.assertThat(context).isStackEmpty();
         }
 
         @Test
@@ -398,7 +398,7 @@ class InvokeDynamicHandlerTest {
             boolean terminated = handler.handle(indy, context);
 
             assertThat(terminated).isFalse();
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
         }
 
         @Test
@@ -410,7 +410,7 @@ class InvokeDynamicHandlerTest {
             boolean terminated = handler.handle(indy, context);
 
             assertThat(terminated).isFalse();
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
         }
 
         @Test
@@ -423,7 +423,7 @@ class InvokeDynamicHandlerTest {
             boolean terminated = handler.handle(indy, context);
 
             assertThat(terminated).isFalse();
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
         }
 
         @Test
@@ -438,9 +438,9 @@ class InvokeDynamicHandlerTest {
             assertThat(terminated).isFalse();
             // Stack underflow occurs mid-operation - operands are already popped
             // The handler pops operands in reverse order and fails when stack is empty
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("Stack should be empty after underflow (operands already consumed)")
-                    .isTrue();
+                    .isStackEmpty();
         }
     }
 
@@ -457,7 +457,7 @@ class InvokeDynamicHandlerTest {
             boolean terminated = handler.handle(indy, context);
 
             assertThat(terminated).isFalse();
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
 
             // Verify the tree structure contains distinct constant segments
             LambdaExpression result = context.peek();
@@ -580,9 +580,9 @@ class InvokeDynamicHandlerTest {
 
             assertThat(terminated).isFalse();
             // String concat path pushes a Constant result (proving it wasn't treated as lambda)
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("String concat factory should produce a result")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
             assertThat(context.peek())
                     .as("Result should be a Constant with the recipe text")
                     .isInstanceOf(LambdaExpression.Constant.class);
@@ -604,9 +604,9 @@ class InvokeDynamicHandlerTest {
 
             assertThat(terminated).isFalse();
             // Stack should remain unchanged since neither string concat nor QuerySpec lambda
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("Non-QuerySpec lambda should not modify stack")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -623,7 +623,7 @@ class InvokeDynamicHandlerTest {
             boolean terminated = handler.handle(indy, context);
 
             assertThat(terminated).isFalse();
-            assertThat(context.isStackEmpty()).isTrue();
+            AnalysisContextAssert.assertThat(context).isStackEmpty();
         }
     }
 
@@ -639,7 +639,7 @@ class InvokeDynamicHandlerTest {
             handler.handle(indy, context);
 
             // If extractRecipe returned "" instead of actual recipe, constant would be empty
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             LambdaExpression result = context.peek();
             assertThat(result).isInstanceOf(LambdaExpression.Constant.class);
             LambdaExpression.Constant constant = (LambdaExpression.Constant) result;
@@ -660,7 +660,7 @@ class InvokeDynamicHandlerTest {
             handler.handle(indy, context);
 
             // extractRecipe returns null, so no expression is built
-            assertThat(context.isStackEmpty()).isTrue();
+            AnalysisContextAssert.assertThat(context).isStackEmpty();
         }
     }
 
@@ -674,7 +674,7 @@ class InvokeDynamicHandlerTest {
 
             handler.handle(indy, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
         }
 
         @Test
@@ -686,7 +686,7 @@ class InvokeDynamicHandlerTest {
 
             handler.handle(indy, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek()).isEqualTo(field);
         }
 
@@ -701,7 +701,7 @@ class InvokeDynamicHandlerTest {
 
             handler.handle(indy, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             // All 3 operands should be consumed and combined
         }
     }

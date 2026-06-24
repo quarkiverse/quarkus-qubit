@@ -28,9 +28,9 @@ import io.quarkus.logging.Log;
  * <b>Thread safety:</b> Not thread-safe. Each scanMethod call creates its own instance.
  *
  * <p>
- * <b>Visibility:</b> Package-private to enable unit testing.
+ * <b>Visibility:</b> Public to enable AssertJ assertion generation.
  */
-final class MethodScanState {
+public final class MethodScanState {
     private final List<PendingLambda> pendingLambdas = new ArrayList<>();
     private @Nullable PendingAggregation pendingAggregation;
     private @Nullable JoinType pendingJoinType;
@@ -46,7 +46,7 @@ final class MethodScanState {
     private int joinSelectJoinedLine = -1;
     private int joinSelectLine = -1;
 
-    List<PendingLambda> pendingLambdas() {
+    public List<PendingLambda> pendingLambdas() {
         return pendingLambdas;
     }
 
@@ -54,12 +54,12 @@ final class MethodScanState {
         pendingLambdas.add(lambda);
     }
 
-    boolean hasLambdas() {
+    public boolean hasLambdas() {
         return !pendingLambdas.isEmpty();
     }
 
     @Nullable
-    PendingAggregation pendingAggregation() {
+    public PendingAggregation pendingAggregation() {
         return pendingAggregation;
     }
 
@@ -68,7 +68,7 @@ final class MethodScanState {
     }
 
     @Nullable
-    JoinType pendingJoinType() {
+    public JoinType pendingJoinType() {
         return pendingJoinType;
     }
 
@@ -76,11 +76,11 @@ final class MethodScanState {
         this.pendingJoinType = type;
     }
 
-    boolean isJoinContext() {
+    public boolean isJoinContext() {
         return pendingJoinType != null;
     }
 
-    boolean pendingJoinSelectJoined() {
+    public boolean pendingJoinSelectJoined() {
         return pendingJoinSelectJoined;
     }
 
@@ -89,7 +89,7 @@ final class MethodScanState {
         this.joinSelectJoinedLine = line;
     }
 
-    boolean pendingJoinSelect() {
+    public boolean pendingJoinSelect() {
         return pendingJoinSelect;
     }
 
@@ -99,7 +99,7 @@ final class MethodScanState {
         Log.infof("Join context: detected JoinStream.select() at line %d", line);
     }
 
-    boolean isGroupContext() {
+    public boolean isGroupContext() {
         return pendingGroupQuery;
     }
 
@@ -107,7 +107,7 @@ final class MethodScanState {
         this.pendingGroupQuery = true;
     }
 
-    boolean pendingGroupSelectKey() {
+    public boolean pendingGroupSelectKey() {
         return pendingGroupSelectKey;
     }
 
@@ -120,7 +120,7 @@ final class MethodScanState {
         this.groupSelectLine = line;
     }
 
-    boolean hasDistinct() {
+    public boolean hasDistinct() {
         return pendingDistinct;
     }
 
@@ -129,7 +129,7 @@ final class MethodScanState {
     }
 
     @Nullable
-    Integer skipValue() {
+    public Integer skipValue() {
         return pendingSkipValue;
     }
 
@@ -138,7 +138,7 @@ final class MethodScanState {
     }
 
     @Nullable
-    Integer limitValue() {
+    public Integer limitValue() {
         return pendingLimitValue;
     }
 
@@ -146,7 +146,7 @@ final class MethodScanState {
         this.pendingLimitValue = value;
     }
 
-    int currentLine() {
+    public int currentLine() {
         return currentLine;
     }
 
@@ -158,7 +158,7 @@ final class MethodScanState {
      * Computes effective line number for call site identification.
      * Prioritizes context-specific lines over terminal line.
      */
-    int effectiveLine() {
+    public int effectiveLine() {
         if (pendingGroupQuery && groupSelectLine > 0) {
             return groupSelectLine;
         }
@@ -174,7 +174,7 @@ final class MethodScanState {
     /**
      * Checks if instruction is a terminal operation on QubitStream/JoinStream/GroupStream.
      */
-    boolean isTerminalOperation(AbstractInsnNode insn, InvokeDynamicScanner scanner) {
+    public boolean isTerminalOperation(AbstractInsnNode insn, InvokeDynamicScanner scanner) {
         if (!(insn instanceof MethodInsnNode methodCall) || pendingLambdas.isEmpty()) {
             return false;
         }

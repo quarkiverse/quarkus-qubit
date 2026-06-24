@@ -85,7 +85,7 @@ class TypeConversionHandlerTest {
             boolean result = handler.handle(insn, context);
 
             assertThat(result).isFalse();
-            assertThat(context.isStackEmpty()).isFalse();
+            AnalysisContextAssert.assertThat(context).isNotStackEmpty();
             LambdaExpression top = context.pop();
             assertThat(top).isInstanceOf(LambdaExpression.Constant.class);
             LambdaExpression.Constant constant = (LambdaExpression.Constant) top;
@@ -106,7 +106,7 @@ class TypeConversionHandlerTest {
             boolean result = handler.handle(insn, context);
 
             assertThat(result).isFalse();
-            assertThat(context.isStackEmpty()).isTrue();
+            AnalysisContextAssert.assertThat(context).isStackEmpty();
         }
 
         @Test

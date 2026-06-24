@@ -37,7 +37,7 @@ class AnalysisOutcomeTest {
             LambdaAnalysisResult.SimpleQueryResult result = new LambdaAnalysisResult.SimpleQueryResult(null, null, null, 0);
             AnalysisOutcome success = new AnalysisOutcome.Success(result, TEST_CALL_SITE_ID, TEST_LAMBDA_HASH);
 
-            assertThat(success.isSuccess()).isTrue();
+            AnalysisOutcomeAssert.assertThat(success).isSuccess();
         }
 
         @Test
@@ -45,7 +45,7 @@ class AnalysisOutcomeTest {
             LambdaAnalysisResult.SimpleQueryResult result = new LambdaAnalysisResult.SimpleQueryResult(null, null, null, 0);
             AnalysisOutcome success = new AnalysisOutcome.Success(result, TEST_CALL_SITE_ID, TEST_LAMBDA_HASH);
 
-            assertThat(success.canContinue()).isTrue();
+            AnalysisOutcomeAssert.assertThat(success).canContinue();
         }
 
         @Test
@@ -123,7 +123,7 @@ class AnalysisOutcomeTest {
             AnalysisOutcome unsupported = new AnalysisOutcome.UnsupportedPattern(
                     "reason", TEST_CALL_SITE_ID, AnalysisOutcome.UnsupportedPattern.PatternType.OTHER);
 
-            assertThat(unsupported.isSuccess()).isFalse();
+            AnalysisOutcomeAssert.assertThat(unsupported).isNotSuccess();
         }
 
         @Test
@@ -131,7 +131,7 @@ class AnalysisOutcomeTest {
             AnalysisOutcome unsupported = new AnalysisOutcome.UnsupportedPattern(
                     "reason", TEST_CALL_SITE_ID, AnalysisOutcome.UnsupportedPattern.PatternType.OTHER);
 
-            assertThat(unsupported.canContinue()).isTrue();
+            AnalysisOutcomeAssert.assertThat(unsupported).canContinue();
         }
 
         @Test
@@ -224,7 +224,7 @@ class AnalysisOutcomeTest {
             RuntimeException cause = new RuntimeException("error");
             AnalysisOutcome error = new AnalysisOutcome.AnalysisError(cause, TEST_CALL_SITE_ID, null);
 
-            assertThat(error.isSuccess()).isFalse();
+            AnalysisOutcomeAssert.assertThat(error).isNotSuccess();
         }
 
         @Test
@@ -232,7 +232,7 @@ class AnalysisOutcomeTest {
             RuntimeException cause = new RuntimeException("error");
             AnalysisOutcome error = new AnalysisOutcome.AnalysisError(cause, TEST_CALL_SITE_ID, null);
 
-            assertThat(error.canContinue()).isFalse();
+            AnalysisOutcomeAssert.assertThat(error).cannotContinue();
         }
 
         @Test

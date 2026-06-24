@@ -86,7 +86,7 @@ class GroupMethodAnalyzerTest {
 
             analyzer.handleGroupMethod(context, methodInsn);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .as("g.key() should create GroupKeyReference")
                     .isInstanceOf(GroupKeyReference.class);
@@ -98,9 +98,9 @@ class GroupMethodAnalyzerTest {
 
             analyzer.handleGroupMethod(context, methodInsn);
 
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("Empty stack should remain empty")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -110,9 +110,9 @@ class GroupMethodAnalyzerTest {
 
             analyzer.handleGroupMethod(context, methodInsn);
 
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("Non-GroupParameter should be popped without creating result")
-                    .isTrue();
+                    .isStackEmpty();
         }
     }
 
@@ -126,7 +126,7 @@ class GroupMethodAnalyzerTest {
 
             analyzer.handleGroupMethod(context, methodInsn);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .as("g.count() should create GroupAggregation")
                     .isInstanceOf(GroupAggregation.class);
@@ -142,7 +142,7 @@ class GroupMethodAnalyzerTest {
 
             analyzer.handleGroupMethod(context, methodInsn);
 
-            assertThat(context.isStackEmpty()).isTrue();
+            AnalysisContextAssert.assertThat(context).isStackEmpty();
         }
 
         @Test
@@ -152,9 +152,9 @@ class GroupMethodAnalyzerTest {
 
             analyzer.handleGroupMethod(context, methodInsn);
 
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("Non-GroupParameter should be popped without creating result")
-                    .isTrue();
+                    .isStackEmpty();
         }
     }
 
@@ -170,7 +170,7 @@ class GroupMethodAnalyzerTest {
 
             analyzer.handleGroupMethod(context, methodInsn);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .as("g.countDistinct(field) should create GroupAggregation")
                     .isInstanceOf(GroupAggregation.class);
@@ -211,9 +211,9 @@ class GroupMethodAnalyzerTest {
 
             analyzer.handleGroupMethod(context, methodInsn);
 
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("Non-GroupParameter should not create aggregation")
-                    .isTrue();
+                    .isStackEmpty();
         }
     }
 
@@ -229,7 +229,7 @@ class GroupMethodAnalyzerTest {
 
             analyzer.handleGroupMethod(context, methodInsn);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             GroupAggregation agg = (GroupAggregation) context.peek();
             assertThat(agg.aggregationType())
                     .as("g.avg(field) should create AVG aggregation")
@@ -245,7 +245,7 @@ class GroupMethodAnalyzerTest {
 
             analyzer.handleGroupMethod(context, methodInsn);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             GroupAggregation agg = (GroupAggregation) context.peek();
             assertThat(agg.aggregationType())
                     .as("g.sumInteger(field) should create SUM_INTEGER aggregation")
@@ -261,7 +261,7 @@ class GroupMethodAnalyzerTest {
 
             analyzer.handleGroupMethod(context, methodInsn);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             GroupAggregation agg = (GroupAggregation) context.peek();
             assertThat(agg.aggregationType())
                     .as("g.sumLong(field) should create SUM_LONG aggregation")
@@ -277,7 +277,7 @@ class GroupMethodAnalyzerTest {
 
             analyzer.handleGroupMethod(context, methodInsn);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             GroupAggregation agg = (GroupAggregation) context.peek();
             assertThat(agg.aggregationType())
                     .as("g.sumDouble(field) should create SUM_DOUBLE aggregation")
@@ -303,9 +303,9 @@ class GroupMethodAnalyzerTest {
 
             analyzer.handleGroupMethod(context, methodInsn);
 
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("Non-GroupParameter should not create aggregation")
-                    .isTrue();
+                    .isStackEmpty();
         }
     }
 
@@ -321,7 +321,7 @@ class GroupMethodAnalyzerTest {
 
             analyzer.handleGroupMethod(context, methodInsn);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             GroupAggregation agg = (GroupAggregation) context.peek();
             assertThat(agg.aggregationType())
                     .as("g.min(field) should create MIN aggregation")
@@ -337,7 +337,7 @@ class GroupMethodAnalyzerTest {
 
             analyzer.handleGroupMethod(context, methodInsn);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             GroupAggregation agg = (GroupAggregation) context.peek();
             assertThat(agg.aggregationType())
                     .as("g.max(field) should create MAX aggregation")
@@ -373,9 +373,9 @@ class GroupMethodAnalyzerTest {
 
             analyzer.handleGroupMethod(context, methodInsn);
 
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("Non-GroupParameter should not create aggregation")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -387,9 +387,9 @@ class GroupMethodAnalyzerTest {
 
             analyzer.handleGroupMethod(context, methodInsn);
 
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("Non-GroupParameter should not create aggregation")
-                    .isTrue();
+                    .isStackEmpty();
         }
     }
 
@@ -404,9 +404,9 @@ class GroupMethodAnalyzerTest {
             analyzer.handleGroupMethod(context, methodInsn);
 
             // Unknown method - GroupParameter is not consumed
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Unknown method should not consume stack")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
     }
 

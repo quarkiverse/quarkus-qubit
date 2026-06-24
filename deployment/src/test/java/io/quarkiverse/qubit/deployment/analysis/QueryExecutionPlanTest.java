@@ -73,11 +73,12 @@ class QueryExecutionPlanTest {
                     .capturedVarCount(5)
                     .build();
 
+            QueryExecutionPlanAssert.assertThat(plan)
+                    .hasDistinct();
             assertThat(plan.lambdaHash()).isEqualTo(TEST_LAMBDA_HASH);
             assertThat(plan.queryId()).isEqualTo(TEST_QUERY_ID);
             assertThat(plan.entityClassName()).isEqualTo(TEST_ENTITY_CLASS);
             assertThat(plan.terminalMethodName()).isEqualTo(TEST_TERMINAL_METHOD);
-            assertThat(plan.hasDistinct()).isTrue();
             assertThat(plan.skipValue()).isEqualTo(10);
             assertThat(plan.limitValue()).isEqualTo(100);
             assertThat(plan.capturedVarCount()).isEqualTo(5);
@@ -90,11 +91,12 @@ class QueryExecutionPlanTest {
                     .queryId(TEST_QUERY_ID)
                     .build();
 
+            QueryExecutionPlanAssert.assertThat(plan)
+                    .doesNotHaveDistinct();
             assertThat(plan.lambdaHash()).isEqualTo(TEST_LAMBDA_HASH);
             assertThat(plan.queryId()).isEqualTo(TEST_QUERY_ID);
             assertThat(plan.entityClassName()).isNull();
             assertThat(plan.terminalMethodName()).isNull();
-            assertThat(plan.hasDistinct()).isFalse();
             assertThat(plan.skipValue()).isNull();
             assertThat(plan.limitValue()).isNull();
             assertThat(plan.capturedVarCount()).isZero();
@@ -163,9 +165,10 @@ class QueryExecutionPlanTest {
                     .hasDistinct(false)
                     .build();
 
+            QueryExecutionPlanAssert.assertThat(plan)
+                    .doesNotHaveDistinct();
             assertThat(plan.lambdaHash()).isEqualTo(TEST_LAMBDA_HASH);
             assertThat(plan.queryId()).isEqualTo(TEST_QUERY_ID);
-            assertThat(plan.hasDistinct()).isFalse();
         }
     }
 
