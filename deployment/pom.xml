@@ -130,7 +130,8 @@
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <argLine>@{argLine}</argLine>
+                    <!-- Mockito javaagent: required for JDK 25+ where ByteBuddy self-attach is broken -->
+                    <argLine>@{argLine} -javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar</argLine>
                     <!-- Exclude Playwright tests from default run (they use QuarkusDevModeTest
                          which is incompatible with DevUIBuildTimeDataTest). Run with -Pplaywright -->
                     <excludes>

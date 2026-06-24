@@ -104,8 +104,7 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${surefire-plugin.version}</version>
                     <configuration>
-                        <!-- Use late property evaluation for JaCoCo agent -->
-                        <argLine>@{argLine} -XX:+EnableDynamicAgentLoading</argLine>
+                        <argLine>@{argLine}</argLine>
                         <reportTestTimestamp>true</reportTestTimestamp>
                         <systemPropertyVariables>
                             <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
