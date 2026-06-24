@@ -50,7 +50,8 @@
         <pitest.version>1.25.4</pitest.version>
         <pitest-junit5.version>1.2.3</pitest-junit5.version>
 
-        <!-- Test dependency versions -->
+        <!-- Test dependency versions (mockito version must match Quarkus BOM for -javaagent path) -->
+        <mockito.version>5.21.0</mockito.version>
         <assertj.version>3.27.7</assertj.version>
         <playwright.version>1.60.0</playwright.version>
     </properties>
@@ -104,7 +105,7 @@
                     <version>${surefire-plugin.version}</version>
                     <configuration>
                         <!-- Use late property evaluation for JaCoCo agent -->
-                        <argLine>@{argLine}</argLine>
+                        <argLine>@{argLine} -XX:+EnableDynamicAgentLoading</argLine>
                         <reportTestTimestamp>true</reportTestTimestamp>
                         <systemPropertyVariables>
                             <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>

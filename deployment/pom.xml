@@ -130,7 +130,6 @@
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <!-- Use late property evaluation for JaCoCo agent -->
                     <argLine>@{argLine}</argLine>
                     <!-- Exclude Playwright tests from default run (they use QuarkusDevModeTest
                          which is incompatible with DevUIBuildTimeDataTest). Run with -Pplaywright -->
