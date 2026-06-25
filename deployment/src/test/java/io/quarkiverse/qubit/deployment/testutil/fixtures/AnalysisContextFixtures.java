@@ -47,37 +47,4 @@ public final class AnalysisContextFixtures {
         return new AnalysisContext(method, 0, 1);
     }
 
-    /** Builder for custom AnalysisContext configurations. */
-    public static AnalysisContextBuilder analysisContext() {
-        return new AnalysisContextBuilder();
-    }
-
-    public static class AnalysisContextBuilder {
-        private MethodNode method;
-        private int entityParamIndex = 0;
-        private int secondEntityParamIndex = -1;
-
-        public AnalysisContextBuilder withMethod(MethodNode method) {
-            this.method = method;
-            return this;
-        }
-
-        public AnalysisContextBuilder entityAt(int index) {
-            this.entityParamIndex = index;
-            return this;
-        }
-
-        public AnalysisContextBuilder secondEntityAt(int index) {
-            this.secondEntityParamIndex = index;
-            return this;
-        }
-
-        public AnalysisContext build() {
-            MethodNode m = method != null ? method : testMethod().build();
-            if (secondEntityParamIndex >= 0) {
-                return new AnalysisContext(m, entityParamIndex, secondEntityParamIndex);
-            }
-            return new AnalysisContext(m, entityParamIndex);
-        }
-    }
 }
