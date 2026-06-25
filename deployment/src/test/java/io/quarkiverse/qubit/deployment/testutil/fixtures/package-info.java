@@ -6,7 +6,6 @@
  *
  * <ul>
  * <li>{@link io.quarkiverse.qubit.deployment.testutil.fixtures.AsmFixtures} - ClassNode, MethodNode builders</li>
- * <li>{@link io.quarkiverse.qubit.deployment.testutil.fixtures.BranchStateFixtures} - BranchState configurations</li>
  * <li>{@link io.quarkiverse.qubit.deployment.testutil.fixtures.AnalysisContextFixtures} - AnalysisContext builders</li>
  * </ul>
  *
