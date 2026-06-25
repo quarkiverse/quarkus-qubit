@@ -3,9 +3,6 @@ package io.quarkiverse.qubit.deployment.testutil.fixtures;
 import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
 import static org.objectweb.asm.Opcodes.ACC_STATIC;
 
-import java.util.ArrayList;
-
-import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.MethodNode;
 
@@ -31,11 +28,6 @@ public final class AsmFixtures {
     /** Creates a default test method builder. */
     public static MethodNodeBuilder testMethod() {
         return new MethodNodeBuilder();
-    }
-
-    /** Creates a default test class builder. */
-    public static ClassNodeBuilder testClass() {
-        return new ClassNodeBuilder();
     }
 
     /** Fluent builder for MethodNode. */
@@ -80,26 +72,4 @@ public final class AsmFixtures {
         }
     }
 
-    /** Fluent builder for ClassNode. */
-    public static class ClassNodeBuilder {
-        private String name = "TestClass";
-        private final java.util.List<MethodNode> methods = new ArrayList<>();
-
-        public ClassNodeBuilder withName(String name) {
-            this.name = name;
-            return this;
-        }
-
-        public ClassNodeBuilder withMethod(MethodNode method) {
-            this.methods.add(method);
-            return this;
-        }
-
-        public ClassNode build() {
-            ClassNode clazz = new ClassNode();
-            clazz.name = name;
-            clazz.methods = new ArrayList<>(methods);
-            return clazz;
-        }
-    }
 }
