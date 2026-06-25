@@ -359,31 +359,4 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
     private record BiSortOrder<T, R>(BiQuerySpec<T, R, ?> keyExtractor, SortDirection direction) {
     }
 
-    public Class<T> getSourceEntityClass() {
-        return sourceEntityClass;
-    }
-
-    public Class<R> getJoinedEntityClass() {
-        return joinedEntityClass;
-    }
-
-    public QuerySpec<T, Collection<R>> getRelationshipAccessor() {
-        return relationshipAccessor;
-    }
-
-    public JoinType getJoinType() {
-        return joinType;
-    }
-
-    public List<BiQuerySpec<T, R, Boolean>> getOnConditions() {
-        return onConditions;
-    }
-
-    public List<BiQuerySpec<T, R, Boolean>> getBiPredicates() {
-        return biPredicates;
-    }
-
-    public List<QuerySpec<T, Boolean>> getSourcePredicates() {
-        return sourcePredicates;
-    }
 }
