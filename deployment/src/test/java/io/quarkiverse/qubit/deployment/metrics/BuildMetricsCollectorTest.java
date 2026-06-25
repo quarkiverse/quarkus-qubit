@@ -122,7 +122,6 @@ class BuildMetricsCollectorTest {
         collector.incrementEntityClassesEnhanced();
         collector.incrementEntityClassesEnhanced();
         collector.incrementRepositoriesEnhanced();
-        collector.addEntityEnhancementTime(5000);
 
         BuildMetricsCollectorAssert.assertThat(collector)
                 .hasEntityClassesEnhanced(2)

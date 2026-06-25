@@ -138,7 +138,6 @@ public class BuildMetricsCollector {
 
     // ENTITY ENHANCEMENT METRICS
 
-    private final AtomicLong entityEnhancementTimeNanos = new AtomicLong();
     private final AtomicInteger entityClassesEnhanced = new AtomicInteger();
     private final AtomicInteger repositoriesEnhanced = new AtomicInteger();
 
@@ -421,12 +420,6 @@ public class BuildMetricsCollector {
 
     // ENTITY ENHANCEMENT METRICS
 
-    /** Adds time spent on entity enhancement. */
-    public void addEntityEnhancementTime(long nanos) {
-        entityEnhancementTimeNanos.addAndGet(nanos);
-        addFlameGraphStack("qubit;enhancement;entity", nanos);
-    }
-
     /** Increments count of enhanced entity classes. */
     public void incrementEntityClassesEnhanced() {
         entityClassesEnhanced.incrementAndGet();
@@ -582,8 +575,7 @@ public class BuildMetricsCollector {
 
         root.add("enhancement", Json.createObjectBuilder()
                 .add("entity_classes_enhanced", entityClassesEnhanced.get())
-                .add("repositories_enhanced", repositoriesEnhanced.get())
-                .add("total_time_nanos", entityEnhancementTimeNanos.get()));
+                .add("repositories_enhanced", repositoriesEnhanced.get()));
 
         JsonArrayBuilder topClasses = Json.createArrayBuilder();
         perClassAnalysisTimeNanos.entrySet().stream()
@@ -675,7 +667,6 @@ public class BuildMetricsCollector {
         addFlameGraphLine(collapsed, "qubit;instruction_analysis", instructionAnalysisTimeNanos.get());
         addFlameGraphLine(collapsed, "qubit;code_generation", codeGenerationTimeNanos.get());
         addFlameGraphLine(collapsed, "qubit;deduplication", deduplicationCheckTimeNanos.get());
-        addFlameGraphLine(collapsed, "qubit;enhancement", entityEnhancementTimeNanos.get());
 
         // Add accumulated stacks from processing
         for (Map.Entry<String, LongAdder> entry : flameGraphStacks.entrySet()) {
