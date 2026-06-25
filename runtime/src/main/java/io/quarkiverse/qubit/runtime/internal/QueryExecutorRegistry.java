@@ -240,39 +240,39 @@ public class QueryExecutorRegistry {
         return (R) executor.execute(entityManager, entityClass, capturedValues, null, null, null);
     }
 
-    public static int getListExecutorCount() {
+    private static int getListExecutorCount() {
         return LIST_EXECUTORS.size();
     }
 
-    public static int getCountExecutorCount() {
+    private static int getCountExecutorCount() {
         return COUNT_EXECUTORS.size();
     }
 
-    public static int getAggregationExecutorCount() {
+    private static int getAggregationExecutorCount() {
         return AGGREGATION_EXECUTORS.size();
     }
 
-    public static int getJoinListExecutorCount() {
+    private static int getJoinListExecutorCount() {
         return JOIN_LIST_EXECUTORS.size();
     }
 
-    public static int getJoinCountExecutorCount() {
+    private static int getJoinCountExecutorCount() {
         return JOIN_COUNT_EXECUTORS.size();
     }
 
-    public static int getJoinSelectJoinedExecutorCount() {
+    private static int getJoinSelectJoinedExecutorCount() {
         return JOIN_SELECT_JOINED_EXECUTORS.size();
     }
 
-    public static int getJoinProjectionExecutorCount() {
+    private static int getJoinProjectionExecutorCount() {
         return JOIN_PROJECTION_EXECUTORS.size();
     }
 
-    public static int getGroupListExecutorCount() {
+    private static int getGroupListExecutorCount() {
         return GROUP_LIST_EXECUTORS.size();
     }
 
-    public static int getGroupCountExecutorCount() {
+    private static int getGroupCountExecutorCount() {
         return GROUP_COUNT_EXECUTORS.size();
     }
 
