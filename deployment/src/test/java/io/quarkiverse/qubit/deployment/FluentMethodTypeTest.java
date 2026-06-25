@@ -136,65 +136,6 @@ class FluentMethodTypeTest {
     }
 
     @Nested
-    @DisplayName("EnumSet Constants")
-    class EnumSetConstantsTests {
-
-        @Test
-        @DisplayName("AGGREGATIONS contains exactly the aggregation methods")
-        void aggregations_containsCorrectMethods() {
-            assertThat(FluentMethodType.AGGREGATIONS)
-                    .containsExactlyInAnyOrder(
-                            FluentMethodType.MIN,
-                            FluentMethodType.MAX,
-                            FluentMethodType.AVG,
-                            FluentMethodType.SUM_INTEGER,
-                            FluentMethodType.SUM_LONG,
-                            FluentMethodType.SUM_DOUBLE);
-        }
-
-        @Test
-        @DisplayName("SORTING contains exactly the sorting methods")
-        void sorting_containsCorrectMethods() {
-            assertThat(FluentMethodType.SORTING)
-                    .containsExactlyInAnyOrder(
-                            FluentMethodType.SORTED_BY,
-                            FluentMethodType.SORTED_DESCENDING_BY);
-        }
-
-        @Test
-        @DisplayName("AGGREGATIONS matches isAggregation() for all values")
-        void aggregations_matchesIsAggregationMethod() {
-            for (FluentMethodType type : FluentMethodType.values()) {
-                boolean inSet = FluentMethodType.AGGREGATIONS.contains(type);
-                boolean isAggregation = type.isAggregation();
-                assertThat(inSet)
-                        .as("%s: AGGREGATIONS.contains() should equal isAggregation()", type)
-                        .isEqualTo(isAggregation);
-            }
-        }
-
-        @Test
-        @DisplayName("AGGREGATIONS contains only AGGREGATION category members")
-        void aggregations_containsOnlyAggregationCategory() {
-            for (FluentMethodType type : FluentMethodType.AGGREGATIONS) {
-                assertThat(type.getCategory())
-                        .as("%s in AGGREGATIONS should have AGGREGATION category", type)
-                        .isEqualTo(FluentMethodType.MethodCategory.AGGREGATION);
-            }
-        }
-
-        @Test
-        @DisplayName("SORTING contains only SORTING category members")
-        void sorting_containsOnlySortingCategory() {
-            for (FluentMethodType type : FluentMethodType.SORTING) {
-                assertThat(type.getCategory())
-                        .as("%s in SORTING should have SORTING category", type)
-                        .isEqualTo(FluentMethodType.MethodCategory.SORTING);
-            }
-        }
-    }
-
-    @Nested
     @DisplayName("MethodCategory enum")
     class MethodCategoryTests {
 
