@@ -724,36 +724,6 @@ public class QubitProcessor {
             this.devUIMetadata = devUIMetadata;
         }
 
-        /**
-         * Convenience constructor for simple list/count queries.
-         * Creates QueryCharacteristics with only isCountQuery set.
-         */
-        public QueryTransformationBuildItem(
-                String queryId,
-                String generatedClassName,
-                String entityClassName,
-                boolean isCountQuery,
-                int capturedVarCount) {
-            this(queryId, generatedClassName, entityClassName,
-                    isCountQuery ? QueryCharacteristics.forCount() : QueryCharacteristics.forList(),
-                    capturedVarCount);
-        }
-
-        /**
-         * Convenience constructor for aggregation queries.
-         */
-        public QueryTransformationBuildItem(
-                String queryId,
-                String generatedClassName,
-                String entityClassName,
-                boolean isCountQuery,
-                boolean isAggregationQuery,
-                int capturedVarCount) {
-            this(queryId, generatedClassName, entityClassName,
-                    new QueryCharacteristics(isCountQuery, isAggregationQuery, false, false, false, false),
-                    capturedVarCount);
-        }
-
         /** Returns unique query identifier (call site ID). */
         public String getQueryId() {
             return queryId;
