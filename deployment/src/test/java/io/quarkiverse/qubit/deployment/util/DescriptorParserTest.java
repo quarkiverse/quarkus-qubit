@@ -224,15 +224,6 @@ class DescriptorParserTest {
                 Arguments.of("(ZBCSIJFD)V", 7, "double"));
     }
 
-    /** Test data for getEntityClass tests. */
-    static Stream<Arguments> entityClassTestData() {
-        return Stream.of(
-                Arguments.of("()V", Object.class),
-                Arguments.of("(Ljava/lang/String;)V", String.class),
-                Arguments.of("(I)V", int.class),
-                Arguments.of("(Lcom/unknown/NonExistent;)V", Object.class));
-    }
-
     @ParameterizedTest(name = "{2}: {0} → slot {1}")
     @MethodSource("io.quarkiverse.qubit.deployment.util.DescriptorParserTest#entitySlotIndexTestData")
     @DisplayName("calculateEntityParameterSlotIndex returns correct slot")
@@ -328,13 +319,6 @@ class DescriptorParserTest {
     @DisplayName("getParameterTypeName handles all primitives")
     void getParameterTypeName_allPrimitives_returnsCorrectNames(String descriptor, int paramIndex, String expectedName) {
         assertThat(DescriptorParser.getParameterTypeName(descriptor, paramIndex)).isEqualTo(expectedName);
-    }
-
-    @ParameterizedTest(name = "{0} → {1}")
-    @MethodSource("io.quarkiverse.qubit.deployment.util.DescriptorParserTest#entityClassTestData")
-    @DisplayName("getEntityClass returns correct class")
-    void getEntityClass_returnsCorrectClass(String descriptor, Class<?> expectedClass) {
-        assertThat(DescriptorParser.getEntityClass(descriptor)).isEqualTo(expectedClass);
     }
 
     @Nested

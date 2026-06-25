@@ -125,16 +125,6 @@ public final class DescriptorParser {
         return null;
     }
 
-    /** Returns entity Class from descriptor (uses Class.forName(); prefer getEntityClassName() at build time). */
-    public static Class<?> getEntityClass(String descriptor) {
-        int paramCount = countMethodArguments(descriptor);
-        if (paramCount == 0) {
-            return Object.class;
-        }
-        // Entity is the last parameter
-        return getParameterType(descriptor, paramCount - 1);
-    }
-
     public static Class<?> getParameterType(String descriptor, int paramIndex) {
         ParameterTypeInfo info = getParameterTypeInfo(descriptor, paramIndex);
         if (info == null) {

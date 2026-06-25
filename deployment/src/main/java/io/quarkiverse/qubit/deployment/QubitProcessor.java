@@ -22,7 +22,6 @@ import org.jboss.jandex.IndexView;
 import org.jspecify.annotations.Nullable;
 
 import io.quarkiverse.qubit.QubitEntity;
-import io.quarkiverse.qubit.deployment.common.ClassLoaderHelper;
 import io.quarkiverse.qubit.deployment.analysis.CallSite;
 import io.quarkiverse.qubit.deployment.analysis.CallSiteProcessor;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicQuickCheck;
@@ -187,7 +186,6 @@ public class QubitProcessor {
         BytecodeLoader.clearCache();
         LambdaBytecodeAnalyzer.clearCache();
         QueryExecutorClassGenerator.clearCache();
-        ClassLoaderHelper.clearCache();
 
         Log.debugf("Qubit: Scanning for lambda call sites using invokedynamic analysis");
 
