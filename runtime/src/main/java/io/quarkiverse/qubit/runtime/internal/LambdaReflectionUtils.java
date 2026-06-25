@@ -4,9 +4,7 @@ import static java.util.stream.Collectors.joining;
 
 import java.io.Serializable;
 import java.lang.invoke.SerializedLambda;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -44,25 +42,6 @@ public final class LambdaReflectionUtils {
                     paramName + " cannot be null. Use " + methodName + "() with a non-null lambda expression.");
         }
         return lambda;
-    }
-
-    /** Counts non-static instance fields (captured variables) in a lambda. */
-    public static int countCapturedFields(@Nullable Object lambdaInstance) {
-        if (lambdaInstance == null) {
-            return 0;
-        }
-
-        Class<?> lambdaClass = lambdaInstance.getClass();
-        Field[] allFields = lambdaClass.getDeclaredFields();
-
-        int count = 0;
-        for (Field field : allFields) {
-            if (!Modifier.isStatic(field.getModifiers())) {
-                count++;
-            }
-        }
-
-        return count;
     }
 
     /** Max stack frames to scan for call site (safety limit). */
@@ -130,32 +109,6 @@ public final class LambdaReflectionUtils {
         String baseCallSiteId = getCallSiteId(additionalFilterMethods);
         String lambdaMethodName = extractLambdaMethodName(primaryLambda);
         return baseCallSiteId + ":" + lambdaMethodName;
-    }
-
-    /**
-     * Unified lambda metadata extraction via {@link SerializedLambda}.
-     * Combines method name and captured argument extraction into a single
-     * {@code writeReplace()} call, replacing the separate
-     * {@code CapturedVariableExtractor} field-reflection path.
-     *
-     * @param implMethodName the lambda's implementation method name (e.g., "lambda$where$0")
-     * @param capturedArgs the values captured by the lambda closure
-     */
-    public record LambdaInfo(String implMethodName, Object[] capturedArgs) {
-
-        /** Extracts both method name and captured args from a lambda instance. */
-        public static LambdaInfo extract(@Nullable Object lambdaInstance) {
-            if (lambdaInstance == null) {
-                return new LambdaInfo("null", new Object[0]);
-            }
-            SerializedLambda sl = getSerializedLambda(lambdaInstance);
-            int count = sl.getCapturedArgCount();
-            Object[] args = new Object[count];
-            for (int i = 0; i < count; i++) {
-                args[i] = sl.getCapturedArg(i);
-            }
-            return new LambdaInfo(sl.getImplMethodName(), args);
-        }
     }
 
     /**
