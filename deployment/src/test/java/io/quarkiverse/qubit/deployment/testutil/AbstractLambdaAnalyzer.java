@@ -105,6 +105,18 @@ public abstract class AbstractLambdaAnalyzer {
         }
     }
 
+    /** Analyzes a pre-compiled lambda expression by method name. */
+    protected LambdaExpression analyzeLambda(String methodName) {
+        try {
+            Handle lambdaHandle = getLambdaHandle(methodName);
+            byte[] classBytes = getSourceClassBytes();
+            LambdaBytecodeAnalyzer analyzer = new LambdaBytecodeAnalyzer();
+            return analyzer.analyze(classBytes, lambdaHandle.getName(), lambdaHandle.getDesc());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to analyze lambda: " + methodName, e);
+        }
+    }
+
     /**
      * Finds a method by name in a class.
      *

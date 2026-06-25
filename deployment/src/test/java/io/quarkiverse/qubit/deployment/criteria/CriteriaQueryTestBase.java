@@ -11,9 +11,6 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 
-import org.objectweb.asm.Handle;
-
-import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.generation.CriteriaExpressionGenerator;
 import io.quarkiverse.qubit.deployment.testutil.AbstractLambdaAnalyzer;
@@ -54,21 +51,6 @@ public abstract class CriteriaQueryTestBase extends AbstractLambdaAnalyzer {
     @Override
     protected String getDescriptorPattern() {
         return QUERY_SPEC_DESCRIPTOR;
-    }
-
-    /**
-     * Analyzes a lambda method from LambdaTestSources and returns its AST.
-     */
-    protected LambdaExpression analyzeLambda(String methodName) {
-        try {
-            Handle lambdaHandle = getLambdaHandle(methodName);
-            byte[] classBytes = getSourceClassBytes();
-
-            LambdaBytecodeAnalyzer analyzer = new LambdaBytecodeAnalyzer();
-            return analyzer.analyze(classBytes, lambdaHandle.getName(), lambdaHandle.getDesc());
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to analyze lambda: " + methodName, e);
-        }
     }
 
     /**

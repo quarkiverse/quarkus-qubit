@@ -55,17 +55,6 @@ class NullifOptimizationCriteriaTest extends AbstractLambdaAnalyzer {
         assertExpressionGenerationSucceeds(expression);
     }
 
-    private LambdaExpression analyzeLambda(String methodName) {
-        try {
-            var lambdaHandle = getLambdaHandle(methodName);
-            byte[] classBytes = getSourceClassBytes();
-            LambdaBytecodeAnalyzer analyzer = new LambdaBytecodeAnalyzer();
-            return analyzer.analyze(classBytes, lambdaHandle.getName(), lambdaHandle.getDesc());
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to analyze lambda: " + methodName, e);
-        }
-    }
-
     /**
      * Verifies that expression generation succeeds for projection-type expressions.
      * Uses {@code generateExpressionAsJpaExpression()} instead of {@code generatePredicate()}.

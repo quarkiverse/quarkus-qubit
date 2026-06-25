@@ -2,10 +2,6 @@ package io.quarkiverse.qubit.deployment.bytecode;
 
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_SPEC_DESCRIPTOR;
 
-import org.objectweb.asm.Handle;
-
-import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.testutil.AbstractLambdaAnalyzer;
 
 /**
@@ -33,21 +29,4 @@ public abstract class PrecompiledLambdaAnalyzer extends AbstractLambdaAnalyzer {
         return QUERY_SPEC_DESCRIPTOR;
     }
 
-    /**
-     * Analyzes a pre-compiled lambda expression by method name.
-     *
-     * @param methodName the name of the method in LambdaTestSources containing the lambda
-     * @return the parsed LambdaExpression AST
-     */
-    protected LambdaExpression analyzeLambda(String methodName) {
-        try {
-            Handle lambdaHandle = getLambdaHandle(methodName);
-            byte[] classBytes = getSourceClassBytes();
-
-            LambdaBytecodeAnalyzer analyzer = new LambdaBytecodeAnalyzer();
-            return analyzer.analyze(classBytes, lambdaHandle.getName(), lambdaHandle.getDesc());
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to analyze lambda from method: " + methodName, e);
-        }
-    }
 }
