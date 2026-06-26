@@ -50,6 +50,7 @@
     <modules>
         <module>runtime</module>
         <module>deployment</module>
+        <module>docs-rag</module>
     </modules>
 
     <dependencyManagement>
