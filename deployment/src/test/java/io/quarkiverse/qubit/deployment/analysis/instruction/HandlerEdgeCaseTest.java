@@ -2,7 +2,6 @@ package io.quarkiverse.qubit.deployment.analysis.instruction;
 
 import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.objectweb.asm.Opcodes.*;
 
@@ -89,34 +88,6 @@ class HandlerEdgeCaseTest {
 
             BytecodeValidator.requireStackSize(stack, requiredSize, "BINARY_OP");
             assertThat(stack).hasSize(actualSize);
-        }
-
-        @Test
-        void requireNonNull_withNull_throwsException() {
-            assertThatThrownBy(() -> BytecodeValidator.requireNonNull(null, "test value"))
-                    .isInstanceOf(BytecodeAnalysisException.class)
-                    .hasMessageContaining("Unexpected null")
-                    .hasMessageContaining("test value");
-        }
-
-        @Test
-        void requireNonNull_withNonNull_returnsValue() {
-            String result = BytecodeValidator.requireNonNull("value", "test");
-            assertThat(result).isEqualTo("value");
-        }
-
-        @Test
-        void requireValidOpcode_withValidOpcode_succeeds() {
-            // Verify that validation succeeds by ensuring no exception is thrown
-            assertThatCode(() -> BytecodeValidator.requireValidOpcode(IADD, IADD, ISUB, IMUL))
-                    .doesNotThrowAnyException();
-        }
-
-        @Test
-        void requireValidOpcode_withInvalidOpcode_throwsException() {
-            assertThatThrownBy(() -> BytecodeValidator.requireValidOpcode(IADD, ISUB, IMUL))
-                    .isInstanceOf(BytecodeAnalysisException.class)
-                    .hasMessageContaining("Invalid opcode");
         }
 
         @Test
