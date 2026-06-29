@@ -30,144 +30,132 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
 class PatternDetectorTest {
 
     @Nested
-    @DisplayName("isBooleanFieldCapturedVariableComparison")
+    @DisplayName("BooleanFieldCapturedVariable via categorize()")
     class BooleanFieldCapturedVariableComparisonTests {
 
         @Test
-        void returnsFalse_whenNotEqualityOperation() {
+        void notCategorizedAsBooleanFieldCapturedVar_whenNotEqualityOperation() {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("active", boolean.class),
                     Operator.LT,
                     new LambdaExpression.CapturedVariable(0, boolean.class));
-            assertThat(PatternDetector.isBooleanFieldCapturedVariableComparison(binOp)).isFalse();
+            assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, _ -> false))
+                    .isNotEqualTo(PatternDetector.BinaryOperationCategory.BOOLEAN_FIELD_CAPTURED_VARIABLE);
         }
 
         @Test
-        void returnsFalse_whenLeftIsNotFieldAccess() {
+        void notCategorizedAsBooleanFieldCapturedVar_whenLeftIsNotFieldAccess() {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.Constant(true, boolean.class),
                     Operator.EQ,
                     new LambdaExpression.CapturedVariable(0, boolean.class));
-            assertThat(PatternDetector.isBooleanFieldCapturedVariableComparison(binOp)).isFalse();
+            assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, _ -> false))
+                    .isNotEqualTo(PatternDetector.BinaryOperationCategory.BOOLEAN_FIELD_CAPTURED_VARIABLE);
         }
 
         @Test
-        void returnsFalse_whenFieldTypeIsNotBoolean() {
+        void notCategorizedAsBooleanFieldCapturedVar_whenFieldTypeIsNotBoolean() {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("name", String.class),
                     Operator.EQ,
                     new LambdaExpression.CapturedVariable(0, String.class));
-            assertThat(PatternDetector.isBooleanFieldCapturedVariableComparison(binOp)).isFalse();
+            assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, _ -> false))
+                    .isNotEqualTo(PatternDetector.BinaryOperationCategory.BOOLEAN_FIELD_CAPTURED_VARIABLE);
         }
 
         @Test
-        void returnsFalse_whenRightIsNotCapturedVariable() {
+        void notCategorizedAsBooleanFieldCapturedVar_whenRightIsNotCapturedVariable() {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("active", boolean.class),
                     Operator.EQ,
                     new LambdaExpression.Constant(true, boolean.class));
-            assertThat(PatternDetector.isBooleanFieldCapturedVariableComparison(binOp)).isFalse();
+            assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, _ -> false))
+                    .isNotEqualTo(PatternDetector.BinaryOperationCategory.BOOLEAN_FIELD_CAPTURED_VARIABLE);
         }
 
         @Test
-        void returnsFalse_whenCapturedVariableTypeIsNotBoolean() {
+        void notCategorizedAsBooleanFieldCapturedVar_whenCapturedVariableTypeIsNotBoolean() {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("active", boolean.class),
                     Operator.EQ,
                     new LambdaExpression.CapturedVariable(0, int.class));
-            assertThat(PatternDetector.isBooleanFieldCapturedVariableComparison(binOp)).isFalse();
+            assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, _ -> false))
+                    .isNotEqualTo(PatternDetector.BinaryOperationCategory.BOOLEAN_FIELD_CAPTURED_VARIABLE);
         }
 
-        @ParameterizedTest(name = "returns true for {0} boolean field with {1} operator")
+        @ParameterizedTest(name = "categorized as BOOLEAN_FIELD_CAPTURED_VARIABLE for {0} field with {1}")
         @CsvSource({
                 "boolean.class, EQ",
                 "boolean.class, NE",
                 "java.lang.Boolean, EQ"
         })
-        void returnsTrue_forValidBooleanFieldCapturedVariable(String fieldTypeStr, Operator operator) {
+        void categorizedAsBooleanFieldCapturedVariable(String fieldTypeStr, Operator operator) {
             Class<?> fieldType = fieldTypeStr.equals("boolean.class") ? boolean.class : Boolean.class;
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("active", fieldType),
                     operator,
                     new LambdaExpression.CapturedVariable(0, fieldType));
-            assertThat(PatternDetector.isBooleanFieldCapturedVariableComparison(binOp)).isTrue();
+            assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, _ -> false))
+                    .isEqualTo(PatternDetector.BinaryOperationCategory.BOOLEAN_FIELD_CAPTURED_VARIABLE);
         }
     }
 
     @Nested
-    @DisplayName("isEqualityOperation")
-    class EqualityOperationTests {
-
-        @ParameterizedTest(name = "{0} → {1}")
-        @CsvSource({
-                "EQ, true",
-                "NE, true",
-                "LT, false",
-                "AND, false"
-        })
-        void operatorCheck(Operator operator, boolean expected) {
-            BinaryOp binOp = createBinaryOp(operator);
-            assertThat(PatternDetector.isEqualityOperation(binOp)).isEqualTo(expected);
-        }
-
-        private BinaryOp createBinaryOp(Operator operator) {
-            LambdaExpression left = new LambdaExpression.Constant(1, int.class);
-            LambdaExpression right = new LambdaExpression.Constant(1, int.class);
-            return new BinaryOp(left, operator, right);
-        }
-    }
-
-    @Nested
-    @DisplayName("isCompareToEqualityPattern")
+    @DisplayName("CompareToEquality via categorize()")
     class CompareToEqualityPatternTests {
 
         @Test
-        void returnsFalse_whenNotEQ() {
+        void notCategorizedAsCompareToEquality_whenNotEQ() {
             LambdaExpression target = new LambdaExpression.FieldAccess("name", String.class);
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.MethodCall(target, "compareTo", java.util.List.of(), int.class),
                     Operator.NE,
                     new LambdaExpression.Constant(0, int.class));
-            assertThat(PatternDetector.isCompareToEqualityPattern(binOp)).isFalse();
+            assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, _ -> false))
+                    .isNotEqualTo(PatternDetector.BinaryOperationCategory.COMPARE_TO_EQUALITY);
         }
 
         @Test
-        void returnsFalse_whenLeftIsNotMethodCall() {
+        void notCategorizedAsCompareToEquality_whenLeftIsNotMethodCall() {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.Constant(0, int.class),
                     Operator.EQ,
                     new LambdaExpression.Constant(0, int.class));
-            assertThat(PatternDetector.isCompareToEqualityPattern(binOp)).isFalse();
+            assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, _ -> false))
+                    .isNotEqualTo(PatternDetector.BinaryOperationCategory.COMPARE_TO_EQUALITY);
         }
 
         @Test
-        void returnsFalse_whenMethodNameIsNotCompareTo() {
+        void notCategorizedAsCompareToEquality_whenMethodNameIsNotCompareTo() {
             LambdaExpression target = new LambdaExpression.FieldAccess("name", String.class);
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.MethodCall(target, "equals", java.util.List.of(), boolean.class),
                     Operator.EQ,
                     new LambdaExpression.Constant(0, int.class));
-            assertThat(PatternDetector.isCompareToEqualityPattern(binOp)).isFalse();
+            assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, _ -> false))
+                    .isNotEqualTo(PatternDetector.BinaryOperationCategory.COMPARE_TO_EQUALITY);
         }
 
         @Test
-        void returnsFalse_whenRightIsNotConstant() {
+        void notCategorizedAsCompareToEquality_whenRightIsNotConstant() {
             LambdaExpression target = new LambdaExpression.FieldAccess("name", String.class);
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.MethodCall(target, "compareTo", java.util.List.of(), int.class),
                     Operator.EQ,
                     new LambdaExpression.FieldAccess("value", int.class));
-            assertThat(PatternDetector.isCompareToEqualityPattern(binOp)).isFalse();
+            assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, _ -> false))
+                    .isNotEqualTo(PatternDetector.BinaryOperationCategory.COMPARE_TO_EQUALITY);
         }
 
         @Test
-        void returnsTrue_forValidPattern() {
+        void categorizedAsCompareToEquality_forValidPattern() {
             LambdaExpression target = new LambdaExpression.FieldAccess("name", String.class);
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.MethodCall(target, "compareTo", java.util.List.of(), int.class),
                     Operator.EQ,
                     new LambdaExpression.Constant(0, int.class));
-            assertThat(PatternDetector.isCompareToEqualityPattern(binOp)).isTrue();
+            assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, _ -> false))
+                    .isEqualTo(PatternDetector.BinaryOperationCategory.COMPARE_TO_EQUALITY);
         }
     }
 
@@ -213,60 +201,57 @@ class PatternDetectorTest {
     }
 
     @Nested
-    @DisplayName("isBooleanFieldConstantComparison")
+    @DisplayName("BooleanFieldConstant via categorize()")
     class BooleanFieldConstantComparisonTests {
 
         @Test
-        void returnsFalse_whenNotEqualityOperation() {
+        void notCategorizedAsBooleanFieldConstant_whenNotEqualityOperation() {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("active", boolean.class),
                     Operator.LT,
                     new LambdaExpression.Constant(1, int.class));
-            assertThat(PatternDetector.isBooleanFieldConstantComparison(binOp)).isFalse();
+            assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, _ -> false))
+                    .isNotEqualTo(PatternDetector.BinaryOperationCategory.BOOLEAN_FIELD_CONSTANT);
         }
 
         @Test
-        void returnsFalse_whenLeftIsNotFieldAccess() {
+        void notCategorizedAsBooleanFieldConstant_whenLeftIsNotFieldAccess() {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.Constant(true, boolean.class),
                     Operator.EQ,
                     new LambdaExpression.Constant(1, int.class));
-            assertThat(PatternDetector.isBooleanFieldConstantComparison(binOp)).isFalse();
+            assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, _ -> false))
+                    .isNotEqualTo(PatternDetector.BinaryOperationCategory.BOOLEAN_FIELD_CONSTANT);
         }
 
         @Test
-        void returnsFalse_whenFieldTypeIsNotBoolean() {
+        void notCategorizedAsBooleanFieldConstant_whenFieldTypeIsNotBoolean() {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("count", int.class),
                     Operator.EQ,
                     new LambdaExpression.Constant(1, int.class));
-            assertThat(PatternDetector.isBooleanFieldConstantComparison(binOp)).isFalse();
+            assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, _ -> false))
+                    .isNotEqualTo(PatternDetector.BinaryOperationCategory.BOOLEAN_FIELD_CONSTANT);
         }
 
         @Test
-        void returnsFalse_whenRightIsNotConstant() {
+        void notCategorizedAsBooleanFieldConstant_whenRightIsNotConstant() {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("active", boolean.class),
                     Operator.EQ,
                     new LambdaExpression.FieldAccess("other", int.class));
-            assertThat(PatternDetector.isBooleanFieldConstantComparison(binOp)).isFalse();
+            assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, _ -> false))
+                    .isNotEqualTo(PatternDetector.BinaryOperationCategory.BOOLEAN_FIELD_CONSTANT);
         }
 
-        @ParameterizedTest(name = "constant {0} with type {1} → {2}")
-        @CsvSource({
-                "1, String.class, false",
-                "2, int.class, false",
-                "0, int.class, true",
-                "1, int.class, true"
-        })
-        void constantTypeAndValueCheck(Object value, String typeStr, boolean expected) {
-            Class<?> type = typeStr.equals("int.class") ? int.class : String.class;
-            Object constantValue = type == int.class ? Integer.parseInt(value.toString()) : value.toString();
+        @Test
+        void categorizedAsBooleanFieldConstant_forValidPattern() {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("active", boolean.class),
                     Operator.EQ,
-                    new LambdaExpression.Constant(constantValue, type));
-            assertThat(PatternDetector.isBooleanFieldConstantComparison(binOp)).isEqualTo(expected);
+                    new LambdaExpression.Constant(1, int.class));
+            assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, _ -> false))
+                    .isEqualTo(PatternDetector.BinaryOperationCategory.BOOLEAN_FIELD_CONSTANT);
         }
     }
 
@@ -293,43 +278,47 @@ class PatternDetectorTest {
     }
 
     @Nested
-    @DisplayName("isArithmeticComparisonPattern")
+    @DisplayName("ArithmeticComparisonPattern via BranchPattern.detect()")
     class ArithmeticComparisonPatternTests {
 
         @Test
-        void returnsFalse_whenStackSizeLessThanTwo() {
+        void notNumericComparison_whenStackSizeLessThanTwo() {
             Deque<LambdaExpression> stack = new ArrayDeque<>();
             stack.push(new LambdaExpression.Constant(1, int.class));
-            assertThat(PatternDetector.isArithmeticComparisonPattern(stack)).isFalse();
+            assertThat(PatternDetector.BranchPattern.detect(stack))
+                    .isNotEqualTo(PatternDetector.BranchPattern.NUMERIC_COMPARISON);
         }
 
         @Test
-        void returnsFalse_whenTopIsNotConstant() {
+        void numericComparison_whenTopIsFieldAndSecondIsArithmetic() {
             Deque<LambdaExpression> stack = new ArrayDeque<>();
             stack.push(BinaryOp.add(
                     new LambdaExpression.Constant(1, int.class),
                     new LambdaExpression.Constant(2, int.class)));
             stack.push(new LambdaExpression.FieldAccess("value", int.class));
-            assertThat(PatternDetector.isArithmeticComparisonPattern(stack)).isFalse();
+            assertThat(PatternDetector.BranchPattern.detect(stack))
+                    .isEqualTo(PatternDetector.BranchPattern.NUMERIC_COMPARISON);
         }
 
         @Test
-        void returnsFalse_whenSecondIsNotArithmetic() {
+        void notNumericComparison_whenSecondIsNotArithmeticAndNotComparable() {
             Deque<LambdaExpression> stack = new ArrayDeque<>();
-            stack.push(new LambdaExpression.FieldAccess("value", int.class));
+            stack.push(new LambdaExpression.NullLiteral(Object.class));
             stack.push(new LambdaExpression.Constant(10, int.class));
-            assertThat(PatternDetector.isArithmeticComparisonPattern(stack)).isFalse();
+            assertThat(PatternDetector.BranchPattern.detect(stack))
+                    .isNotEqualTo(PatternDetector.BranchPattern.NUMERIC_COMPARISON);
         }
 
         @Test
-        void returnsTrue_forValidPattern() {
+        void numericComparison_forArithmeticWithConstant() {
             Deque<LambdaExpression> stack = new ArrayDeque<>();
             BinaryOp arithmetic = BinaryOp.add(
                     new LambdaExpression.FieldAccess("a", int.class),
                     new LambdaExpression.FieldAccess("b", int.class));
             stack.push(arithmetic);
             stack.push(new LambdaExpression.Constant(10, int.class));
-            assertThat(PatternDetector.isArithmeticComparisonPattern(stack)).isTrue();
+            assertThat(PatternDetector.BranchPattern.detect(stack))
+                    .isEqualTo(PatternDetector.BranchPattern.NUMERIC_COMPARISON);
         }
     }
 
@@ -704,33 +693,36 @@ class PatternDetectorTest {
     }
 
     @Nested
-    @DisplayName("isDcmplPattern")
+    @DisplayName("DcmplPattern via BranchPattern.detect()")
     class IsDcmplPatternTests {
 
         @Test
-        void returnsFalse_forStackSizeLessThanTwo() {
+        void notNumericComparison_forStackSizeLessThanTwo() {
             Deque<LambdaExpression> stack = new ArrayDeque<>();
             stack.push(new LambdaExpression.FieldAccess("price", double.class));
-            assertThat(PatternDetector.isDcmplPattern(stack)).isFalse();
+            assertThat(PatternDetector.BranchPattern.detect(stack))
+                    .isNotEqualTo(PatternDetector.BranchPattern.NUMERIC_COMPARISON);
         }
 
         @Test
-        void returnsFalse_whenFirstIsNotComparable() {
+        void notNumericComparison_whenFirstIsNotComparable() {
             Deque<LambdaExpression> stack = new ArrayDeque<>();
             stack.push(new LambdaExpression.FieldAccess("price", double.class));
             stack.push(new LambdaExpression.NullLiteral(Object.class));
-            assertThat(PatternDetector.isDcmplPattern(stack)).isFalse();
+            assertThat(PatternDetector.BranchPattern.detect(stack))
+                    .isNotEqualTo(PatternDetector.BranchPattern.NUMERIC_COMPARISON);
         }
 
-        @ParameterizedTest(name = "returns true for {0}")
+        @ParameterizedTest(name = "NUMERIC_COMPARISON for {0}")
         @ValueSource(strings = {
                 "twoFieldAccesses", "fieldAndConstant", "capturedVariables",
                 "groupAggregation", "scalarSubquery", "pathExpression",
                 "biEntityFieldAccess", "groupKeyReference", "biEntityPathExpression", "arithmetic"
         })
-        void returnsTrue_forComparableExpressions(String type) {
+        void numericComparison_forComparableExpressions(String type) {
             Deque<LambdaExpression> stack = createStackForType(type);
-            assertThat(PatternDetector.isDcmplPattern(stack)).isTrue();
+            assertThat(PatternDetector.BranchPattern.detect(stack))
+                    .isEqualTo(PatternDetector.BranchPattern.NUMERIC_COMPARISON);
         }
 
         private Deque<LambdaExpression> createStackForType(String type) {
@@ -1252,13 +1244,14 @@ class PatternDetectorTest {
     class AdditionalMutationKillingTests {
 
         @Test
-        void isBooleanFieldCapturedVariableComparison_returnsFalse_whenFieldTypeNotBooleanButCapturedVarIsBoolean() {
+        void notBooleanFieldCapturedVar_whenFieldTypeNotBooleanButCapturedVarIsBoolean() {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("name", String.class),
                     Operator.EQ,
                     new LambdaExpression.CapturedVariable(0, boolean.class));
-            assertThat(PatternDetector.isBooleanFieldCapturedVariableComparison(binOp))
-                    .as("Should return false when field type is not boolean").isFalse();
+            assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, _ -> false))
+                    .as("Should not categorize as BOOLEAN_FIELD_CAPTURED_VARIABLE when field type is not boolean")
+                    .isNotEqualTo(PatternDetector.BinaryOperationCategory.BOOLEAN_FIELD_CAPTURED_VARIABLE);
         }
 
         @Test
@@ -1294,13 +1287,14 @@ class PatternDetectorTest {
         }
 
         @Test
-        void isBooleanFieldConstantComparison_returnsFalse_whenConstantIsLongType() {
+        void notBooleanFieldConstant_whenConstantIsLongType() {
             BinaryOp binOp = new BinaryOp(
                     new LambdaExpression.FieldAccess("active", boolean.class),
                     Operator.EQ,
                     new LambdaExpression.Constant(1L, long.class));
-            assertThat(PatternDetector.isBooleanFieldConstantComparison(binOp))
-                    .as("Should return false when constant type is Long").isFalse();
+            assertThat(PatternDetector.BinaryOperationCategory.categorize(binOp, _ -> false))
+                    .as("Should not categorize as BOOLEAN_FIELD_CONSTANT when constant type is Long")
+                    .isNotEqualTo(PatternDetector.BinaryOperationCategory.BOOLEAN_FIELD_CONSTANT);
         }
 
         @Test

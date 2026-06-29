@@ -135,7 +135,7 @@ public final class PatternDetector {
     }
 
     /** Returns true if stack contains floating-point/long comparison pattern (includes GROUP BY HAVING). */
-    public static boolean isDcmplPattern(Deque<LambdaExpression> stack) {
+    private static boolean isDcmplPattern(Deque<LambdaExpression> stack) {
         if (stack.size() < 2) {
             return false;
         }
@@ -171,7 +171,7 @@ public final class PatternDetector {
                 expr instanceof LambdaExpression.BiEntityPathExpression;
     }
 
-    public static boolean isCompareToPattern(LambdaExpression expr) {
+    private static boolean isCompareToPattern(LambdaExpression expr) {
         return expr instanceof LambdaExpression.MethodCall(_, var methodName, _, var returnType) &&
                 returnType == int.class &&
                 METHOD_COMPARE_TO.equals(methodName);
@@ -187,13 +187,13 @@ public final class PatternDetector {
     }
 
     /** Returns true if expression is a method call returning a primitive numeric type. */
-    public static boolean isNumericMethodCall(LambdaExpression expr) {
+    private static boolean isNumericMethodCall(LambdaExpression expr) {
         return expr instanceof LambdaExpression.MethodCall(_, _, _, var returnType) &&
                 (returnType == int.class || returnType == long.class ||
                         returnType == double.class || returnType == float.class);
     }
 
-    public static boolean isArithmeticComparisonPattern(Deque<LambdaExpression> stack) {
+    private static boolean isArithmeticComparisonPattern(Deque<LambdaExpression> stack) {
         if (stack.size() < 2) {
             return false;
         }
@@ -208,7 +208,7 @@ public final class PatternDetector {
         return binOp.operator() == AND || binOp.operator() == OR;
     }
 
-    public static boolean isEqualityOperation(LambdaExpression.BinaryOp binOp) {
+    private static boolean isEqualityOperation(LambdaExpression.BinaryOp binOp) {
         return binOp.operator() == EQ || binOp.operator() == NE;
     }
 
@@ -220,7 +220,7 @@ public final class PatternDetector {
                 binOp.right() instanceof LambdaExpression.NullLiteral;
     }
 
-    public static boolean isBooleanFieldConstantComparison(LambdaExpression.BinaryOp binOp) {
+    private static boolean isBooleanFieldConstantComparison(LambdaExpression.BinaryOp binOp) {
         if (!isEqualityOperation(binOp)) {
             return false;
         }
@@ -241,7 +241,7 @@ public final class PatternDetector {
                 (value.equals(0) || value.equals(1));
     }
 
-    public static boolean isBooleanFieldCapturedVariableComparison(LambdaExpression.BinaryOp binOp) {
+    private static boolean isBooleanFieldCapturedVariableComparison(LambdaExpression.BinaryOp binOp) {
         if (!isEqualityOperation(binOp)) {
             return false;
         }
@@ -261,7 +261,7 @@ public final class PatternDetector {
         return TypeConverter.isBooleanType(capturedType);
     }
 
-    public static boolean isCompareToEqualityPattern(LambdaExpression.BinaryOp binOp) {
+    private static boolean isCompareToEqualityPattern(LambdaExpression.BinaryOp binOp) {
         if (binOp.operator() != EQ) {
             return false;
         }
@@ -603,7 +603,7 @@ public final class PatternDetector {
      * Returns true if expression is a field-like expression suitable for NULLIF.
      * This includes entity field access and path expressions.
      */
-    public static boolean isFieldExpression(LambdaExpression expr) {
+    private static boolean isFieldExpression(LambdaExpression expr) {
         return isEntityFieldExpression(expr);
     }
 }
