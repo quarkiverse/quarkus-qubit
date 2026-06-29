@@ -83,7 +83,7 @@ public final class OpcodeOperatorMapper {
     }
 
     /** Maps single-operand opcodes (IFLE, IFLT, IFGE, IFGT) to operators. */
-    public static Operator mapSingleOperandOp(int opcode, boolean invert) {
+    private static Operator mapSingleOperandOp(int opcode, boolean invert) {
         OpcodeSpec spec = SINGLE_OPERAND_SPECS.get(opcode);
         if (spec == null) {
             throw BytecodeAnalysisException.unexpectedOpcode("single-operand comparison", opcode);
@@ -92,7 +92,7 @@ public final class OpcodeOperatorMapper {
     }
 
     /** Maps two-operand opcodes (IF_ICMP*, IF_ACMP*) to operators. */
-    public static Operator mapTwoOperandOp(int opcode, boolean invert) {
+    private static Operator mapTwoOperandOp(int opcode, boolean invert) {
         OpcodeSpec spec = TWO_OPERAND_SPECS.get(opcode);
         // Default to EQ for unknown opcodes (preserves original behavior)
         return spec != null ? spec.getOperator(invert) : EQ;
