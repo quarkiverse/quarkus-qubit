@@ -57,18 +57,6 @@ public final class DescriptorParser {
         return new int[] { slots[paramCount - 2], slots[paramCount - 1] };
     }
 
-    /** Returns slot index of first entity (second-to-last parameter). */
-    public static int calculateFirstEntityParameterSlotIndex(String descriptor) {
-        int[] slots = calculateBiEntityParameterSlotIndices(descriptor);
-        return slots != null ? slots[0] : -1;
-    }
-
-    /** Returns slot index of second entity (last parameter). */
-    public static int calculateSecondEntityParameterSlotIndex(String descriptor) {
-        int[] slots = calculateBiEntityParameterSlotIndices(descriptor);
-        return slots != null ? slots[1] : -1;
-    }
-
     /** Converts JVM slot index to parameter index, or -1 if no match. */
     public static int slotIndexToParameterIndex(String descriptor, int slotIndex) {
         ParameterIterator iter = new ParameterIterator(descriptor);
@@ -93,7 +81,7 @@ public final class DescriptorParser {
     }
 
     /** Returns class name for parameter at index. */
-    public static String getParameterTypeName(String descriptor, int paramIndex) {
+    private static String getParameterTypeName(String descriptor, int paramIndex) {
         ParameterTypeInfo info = getParameterTypeInfo(descriptor, paramIndex);
         if (info == null) {
             return "java.lang.Object";
@@ -147,7 +135,7 @@ public final class DescriptorParser {
     }
 
     /** Extracts return type descriptor from method descriptor. */
-    public static String getReturnTypeDescriptor(@Nullable String methodDescriptor) {
+    private static String getReturnTypeDescriptor(@Nullable String methodDescriptor) {
         if (methodDescriptor == null) {
             return "";
         }
