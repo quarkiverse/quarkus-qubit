@@ -72,13 +72,6 @@ public class BytecodeInspector {
     public record MethodInvocation(String owner, String name, String descriptor) {
 
         /**
-         * Checks if this invocation is a call to a CriteriaBuilder method.
-         */
-        public boolean isCriteriaBuilderMethod() {
-            return owner.contains("CriteriaBuilder");
-        }
-
-        /**
          * Checks if this invocation is a specific method call.
          */
         public boolean isMethod(String methodName) {

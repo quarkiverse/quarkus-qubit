@@ -142,14 +142,6 @@ public abstract class CriteriaQueryTestBase extends AbstractLambdaAnalyzer {
     }
 
     /**
-     * Full test pattern: analyze lambda + verify Criteria generation succeeds.
-     */
-    protected void testCriteriaGeneration(String lambdaMethodName) {
-        LambdaExpression expr = analyzeLambda(lambdaMethodName);
-        assertCriteriaGenerationSucceeds(expr);
-    }
-
-    /**
      * Asserts that a specific Criteria API method was called.
      */
     protected void assertCriteriaMethodCalled(CriteriaQueryStructure structure, String methodName) {
@@ -195,15 +187,6 @@ public abstract class CriteriaQueryTestBase extends AbstractLambdaAnalyzer {
     }
 
     /**
-     * Asserts that specific Criteria API methods were called.
-     */
-    protected void assertCriteriaStructure(CriteriaQueryStructure structure, String... expectedMethods) {
-        for (String expectedMethod : expectedMethods) {
-            assertCriteriaMethodCalled(structure, expectedMethod);
-        }
-    }
-
-    /**
      * Represents the structure of a generated Criteria query for verification.
      */
     protected static class CriteriaQueryStructure {
@@ -215,10 +198,6 @@ public abstract class CriteriaQueryTestBase extends AbstractLambdaAnalyzer {
 
         public CriteriaQueryStructure(String entityName) {
             this.entityName = entityName;
-        }
-
-        public String getEntityName() {
-            return entityName;
         }
 
         public void setInspector(BytecodeInspector inspector) {
