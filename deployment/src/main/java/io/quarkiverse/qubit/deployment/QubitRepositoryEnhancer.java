@@ -157,7 +157,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             if (implementsQubitRepository && entityType != null) {
                 Log.debugf("Generating bridge methods for empty repository: %s", className);
 
-                for (FluentMethodType methodType : FluentMethodType.ENTRY_POINTS) {
+                for (FluentMethodType methodType : FluentMethodType.values()) {
                     generateBridgeMethod(methodType);
                 }
 
