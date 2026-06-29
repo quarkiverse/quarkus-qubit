@@ -3,11 +3,10 @@ package io.quarkiverse.qubit.deployment;
 import java.util.List;
 import java.util.Optional;
 
-import io.quarkiverse.qubit.deployment.metrics.BuildMetricsConfig;
+import io.smallrye.config.WithDefault;
 import io.quarkus.runtime.annotations.ConfigPhase;
 import io.quarkus.runtime.annotations.ConfigRoot;
 import io.smallrye.config.ConfigMapping;
-import io.smallrye.config.WithDefault;
 
 /** Build-time configuration for the Qubit extension. */
 @ConfigMapping(prefix = "quarkus.qubit")
@@ -128,7 +127,18 @@ public interface QubitBuildTimeConfig {
     /**
      * Performance metrics collection configuration.
      */
-    interface MetricsConfig extends BuildMetricsConfig {
-        // Inherits enabled() and outputPath() from BuildMetricsConfig
+    interface MetricsConfig {
+
+        @WithDefault("false")
+        boolean enabled();
+
+        @WithDefault("target/qubit-build-metrics.json")
+        String outputPath();
+
+        @WithDefault("false")
+        boolean flameGraph();
+
+        @WithDefault("target/qubit-flamegraph.collapsed")
+        String flameGraphPath();
     }
 }
