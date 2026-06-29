@@ -35,7 +35,7 @@ import io.quarkus.gizmo2.LocalVar;
 import io.quarkus.gizmo2.creator.BlockCreator;
 
 /** Builds JPA Criteria expressions for GROUP BY queries. */
-public enum GroupExpressionBuilder implements ExpressionBuilder {
+public enum GroupExpressionBuilder {
     INSTANCE;
 
     /** Generates JPA Predicate for HAVING clause. */

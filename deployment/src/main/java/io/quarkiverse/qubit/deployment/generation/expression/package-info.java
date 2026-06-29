@@ -7,7 +7,6 @@
  *
  * <h2>Key Types</h2>
  * <ul>
- * <li>{@link ExpressionBuilder} - Marker interface for expression builders
  * <li>{@link ExpressionBuilderRegistry} - Registry for expression builders
  * <li>{@link ArithmeticExpressionBuilder} - Handles arithmetic operations
  * <li>{@link StringExpressionBuilder} - Handles string method expressions
