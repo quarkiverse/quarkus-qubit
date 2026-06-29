@@ -258,9 +258,7 @@ public final class QubitConstants {
     public static final String CB_QUOT = "quot";
     public static final String CB_MOD = "mod";
     public static final String CB_GREATER_THAN = "greaterThan";
-    public static final String CB_GREATER_THAN_OR_EQUAL_TO = "greaterThanOrEqualTo";
     public static final String CB_LESS_THAN = "lessThan";
-    public static final String CB_LESS_THAN_OR_EQUAL_TO = "lessThanOrEqualTo";
     public static final String CB_AND = "and";
     public static final String CB_OR = "or";
     public static final String CB_FUNCTION = "function";
@@ -272,8 +270,7 @@ public final class QubitConstants {
     public static final String CB_LENGTH = "length";
     public static final String CB_LITERAL = "literal";
 
-    // CriteriaBuilder IN and MEMBER OF operations
-    public static final String CB_IN = "in";
+    // CriteriaBuilder MEMBER OF operations
     public static final String CB_IS_MEMBER = "isMember";
     public static final String CB_IS_NOT_MEMBER = "isNotMember";
 

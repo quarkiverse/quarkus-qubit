@@ -5,6 +5,7 @@ import static java.util.stream.Collectors.joining;
 import java.io.Serializable;
 import java.lang.invoke.SerializedLambda;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -97,11 +98,6 @@ public final class LambdaReflectionUtils {
 
         // Skip synthetic or generated classes (lambda proxies, etc.)
         return !className.contains("$$") && !className.contains("$Lambda");
-    }
-
-    /** Returns call site ID with default filters. */
-    public static String getCallSiteId() {
-        return getCallSiteId(Set.of());
     }
 
     /** Returns call site ID with lambda discriminator for same-line queries. */
@@ -205,16 +201,10 @@ public final class LambdaReflectionUtils {
     /** Returns functional interface type(s) for diagnostic messages. */
     private static String getLambdaInterfaceType(Class<?> lambdaClass) {
         Class<?>[] interfaces = lambdaClass.getInterfaces();
-        if (interfaces.length > 0) {
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < interfaces.length; i++) {
-                if (i > 0)
-                    sb.append(", ");
-                sb.append(interfaces[i].getName());
-            }
-            return sb.toString();
+        if (interfaces.length == 0) {
+            return "unknown";
         }
-        return "unknown";
+        return Arrays.stream(interfaces).map(Class::getName).collect(joining(", "));
     }
 
     /** Cached registry (Issue #17 fix: prevents InstanceHandle leaks). */
