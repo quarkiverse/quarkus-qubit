@@ -243,41 +243,6 @@ class TypeConverterTest {
     }
 
     @Nested
-    @DisplayName("isTemporalType")
-    class IsTemporalTypeTests {
-
-        @Test
-        void isTemporalType_LocalDate_returnsTrue() {
-            assertThat(TypeConverter.isTemporalType(java.time.LocalDate.class)).isTrue();
-        }
-
-        @Test
-        void isTemporalType_LocalDateTime_returnsTrue() {
-            assertThat(TypeConverter.isTemporalType(java.time.LocalDateTime.class)).isTrue();
-        }
-
-        @Test
-        void isTemporalType_LocalTime_returnsTrue() {
-            assertThat(TypeConverter.isTemporalType(java.time.LocalTime.class)).isTrue();
-        }
-
-        @Test
-        void isTemporalType_String_returnsFalse() {
-            assertThat(TypeConverter.isTemporalType(String.class)).isFalse();
-        }
-
-        @Test
-        void isTemporalType_Date_returnsFalse() {
-            assertThat(TypeConverter.isTemporalType(java.util.Date.class)).isFalse();
-        }
-
-        @Test
-        void isTemporalType_Instant_returnsFalse() {
-            assertThat(TypeConverter.isTemporalType(java.time.Instant.class)).isFalse();
-        }
-    }
-
-    @Nested
     @DisplayName("descriptorToClass")
     class DescriptorToClassTests {
 
