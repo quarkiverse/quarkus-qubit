@@ -291,12 +291,6 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
                 sortOrders, offset, limit, distinct, type, mapper);
     }
 
-    /** Type placeholder — actual type is resolved at build time by the Qubit processor. */
-    @SuppressWarnings("unchecked")
-    private static <R> Class<R> buildTimeResolvedType() {
-        return (Class<R>) Object.class;
-    }
-
     private Object getPrimaryLambda() {
         if (!predicates.isEmpty()) {
             return predicates.getFirst();
@@ -346,13 +340,13 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     @Override
     public <R> JoinStream<T, R> join(QuerySpec<T, Collection<R>> relationship) {
         requireNonNullLambda(relationship, "Relationship", "join");
-        return new JoinStreamImpl<>(entityClass, buildTimeResolvedType(), relationship, JoinType.INNER);
+        return new JoinStreamImpl<>(entityClass, relationship, JoinType.INNER);
     }
 
     @Override
     public <R> JoinStream<T, R> leftJoin(QuerySpec<T, Collection<R>> relationship) {
         requireNonNullLambda(relationship, "Relationship", "leftJoin");
-        return new JoinStreamImpl<>(entityClass, buildTimeResolvedType(), relationship, JoinType.LEFT);
+        return new JoinStreamImpl<>(entityClass, relationship, JoinType.LEFT);
     }
 
     @Override
@@ -365,6 +359,11 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     }
 
     private enum AggregationType {
-        MIN, MAX, SUM_INTEGER, SUM_LONG, SUM_DOUBLE, AVG
+        MIN,
+        MAX,
+        SUM_INTEGER,
+        SUM_LONG,
+        SUM_DOUBLE,
+        AVG
     }
 }

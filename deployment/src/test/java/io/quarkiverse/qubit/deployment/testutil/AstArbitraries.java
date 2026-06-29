@@ -151,6 +151,4 @@ public class AstArbitraries {
         return Arbitraries.of(BinaryOp.Operator.AND, BinaryOp.Operator.OR);
     }
 
-
-
 }
