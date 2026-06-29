@@ -168,8 +168,6 @@
                         <avoidCallsTo>org.jboss.logging.Logger</avoidCallsTo>
                         <avoidCallsTo>java.util.logging.Logger</avoidCallsTo>
                     </avoidCallsTo>
-                    <!-- Use full mutation testing mode -->
-                    <fullMutationMatrix>false</fullMutationMatrix>
                     <!-- Exclude methods not tested by integration tests -->
                     <excludedMethods>
                         <param>equals</param>
@@ -369,7 +367,6 @@
             <properties>
                 <playwright.browser>chromium</playwright.browser>
                 <playwright.skip-install>false</playwright.skip-install>
-                <playwright.timing.enabled>false</playwright.timing.enabled>
             </properties>
             <!-- H2 needed here because -Pplaywright suppresses activeByDefault on the h2 profile -->
             <dependencies>
@@ -384,7 +381,6 @@
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
-                        <version>3.6.3</version>
                         <executions>
                             <execution>
                                 <id>install-playwright-browsers</id>
@@ -415,7 +411,6 @@
                             </includes>
                             <systemPropertyVariables>
                                 <playwright.browser>${playwright.browser}</playwright.browser>
-                                <playwright.timing.enabled>${playwright.timing.enabled}</playwright.timing.enabled>
                             </systemPropertyVariables>
                         </configuration>
                     </plugin>
