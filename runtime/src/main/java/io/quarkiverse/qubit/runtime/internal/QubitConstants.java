@@ -266,7 +266,6 @@ public final class QubitConstants {
     public static final String CB_UPPER = "upper";
     public static final String CB_TRIM = "trim";
     public static final String CB_LIKE = "like";
-    public static final String CB_SUBSTRING = "substring";
     public static final String CB_LENGTH = "length";
     public static final String CB_LITERAL = "literal";
 
