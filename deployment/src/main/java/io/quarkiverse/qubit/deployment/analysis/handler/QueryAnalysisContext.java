@@ -2,7 +2,6 @@ package io.quarkiverse.qubit.deployment.analysis.handler;
 
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.CALL_SITE_ID_NULL;
 
-import java.util.Arrays;
 import java.util.Objects;
 
 import org.jspecify.annotations.Nullable;
@@ -49,38 +48,4 @@ public record QueryAnalysisContext(
                 metricsCollector);
     }
 
-    // Override equals/hashCode/toString to handle byte[] array content properly
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o)
-            return true;
-        if (!(o instanceof QueryAnalysisContext(var thatClassBytes, var thatCallSite, var thatCallSiteId, var thatBytecodeAnalyzer, var thatDeduplicator, var thatMetricsCollector))) {
-            return false;
-        }
-        return Arrays.equals(classBytes, thatClassBytes) &&
-                Objects.equals(callSite, thatCallSite) &&
-                Objects.equals(callSiteId, thatCallSiteId) &&
-                Objects.equals(bytecodeAnalyzer, thatBytecodeAnalyzer) &&
-                Objects.equals(deduplicator, thatDeduplicator) &&
-                Objects.equals(metricsCollector, thatMetricsCollector);
-    }
-
-    @Override
-    public int hashCode() {
-        int result = Objects.hash(callSite, callSiteId, bytecodeAnalyzer, deduplicator, metricsCollector);
-        result = 31 * result + Arrays.hashCode(classBytes);
-        return result;
-    }
-
-    @Override
-    public String toString() {
-        return "QueryAnalysisContext[" +
-                "classBytes=" + classBytes.length + " bytes, " +
-                "callSite=" + callSite + ", " +
-                "callSiteId=" + callSiteId + ", " +
-                "bytecodeAnalyzer=" + bytecodeAnalyzer + ", " +
-                "deduplicator=" + deduplicator + ", " +
-                "metricsCollector=" + metricsCollector + ']';
-    }
 }
