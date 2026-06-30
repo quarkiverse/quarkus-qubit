@@ -53,7 +53,4 @@ public record JoinQueryContext(
         return biEntityPredicateExpression != null;
     }
 
-    public boolean hasSorting() {
-        return sortExpressions != null && !sortExpressions.isEmpty();
-    }
 }

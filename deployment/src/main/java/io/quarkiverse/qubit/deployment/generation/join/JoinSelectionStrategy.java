@@ -14,19 +14,11 @@ public sealed interface JoinSelectionStrategy permits
     /** Result class handle for CriteriaQuery (entity class or Object.class). */
     Expr resultClass();
 
-    /** True if explicit query.select() needed (not needed for root selection). */
-    boolean requiresExplicitSelection();
-
     /** SELECT root entity (implicit, default JPA behavior). */
     record SelectRoot(Expr entityClass) implements JoinSelectionStrategy {
         @Override
         public Expr resultClass() {
             return entityClass;
-        }
-
-        @Override
-        public boolean requiresExplicitSelection() {
-            return false;
         }
     }
 
@@ -35,11 +27,6 @@ public sealed interface JoinSelectionStrategy permits
         @Override
         public Expr resultClass() {
             return objectClass;
-        }
-
-        @Override
-        public boolean requiresExplicitSelection() {
-            return true;
         }
     }
 
@@ -51,11 +38,6 @@ public sealed interface JoinSelectionStrategy permits
         @Override
         public Expr resultClass() {
             return objectClass;
-        }
-
-        @Override
-        public boolean requiresExplicitSelection() {
-            return true;
         }
     }
 }
