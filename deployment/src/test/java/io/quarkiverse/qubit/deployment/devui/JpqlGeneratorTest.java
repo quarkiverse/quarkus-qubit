@@ -1333,7 +1333,7 @@ class JpqlGeneratorTest {
         @Test
         @DisplayName("generates subquery builder reference placeholder")
         void generateSubqueryBuilderReference() {
-            LambdaExpression expr = new SubqueryBuilderReference(Object.class);
+            LambdaExpression expr = new SubqueryBuilderReference(Object.class, null, null);
 
             String jpql = JpqlGenerator.predicateToJpql(expr);
 

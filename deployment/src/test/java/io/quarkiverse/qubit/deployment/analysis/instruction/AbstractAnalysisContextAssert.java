@@ -109,31 +109,6 @@ public abstract class AbstractAnalysisContextAssert<S extends AbstractAnalysisCo
     }
 
     /**
-     * Verifies that the actual AnalysisContext's firstEntityParameterIndex is equal to the given one.
-     *
-     * @param firstEntityParameterIndex the given firstEntityParameterIndex to compare the actual AnalysisContext's
-     *        firstEntityParameterIndex to.
-     * @return this assertion object.
-     * @throws AssertionError - if the actual AnalysisContext's firstEntityParameterIndex is not equal to the given one.
-     */
-    public S hasFirstEntityParameterIndex(int firstEntityParameterIndex) {
-        // check that actual AnalysisContext we want to make assertions on is not null.
-        isNotNull();
-
-        // overrides the default error message with a more explicit one
-        String assertjErrorMessage = "\nExpecting firstEntityParameterIndex of:\n  <%s>\nto be:\n  <%s>\nbut was:\n  <%s>";
-
-        // check
-        int actualFirstEntityParameterIndex = actual.getFirstEntityParameterIndex();
-        if (actualFirstEntityParameterIndex != firstEntityParameterIndex) {
-            failWithMessage(assertjErrorMessage, actual, firstEntityParameterIndex, actualFirstEntityParameterIndex);
-        }
-
-        // return the current assertion for method chaining
-        return myself;
-    }
-
-    /**
      * Verifies that the actual AnalysisContext is group context mode.
      *
      * @return this assertion object.

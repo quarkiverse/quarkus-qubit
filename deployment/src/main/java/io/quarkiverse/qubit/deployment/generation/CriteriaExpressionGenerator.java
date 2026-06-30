@@ -82,11 +82,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         this(ExpressionBuilderRegistry.createDefault(), MethodCallHandlerChain.defaultInstance());
     }
 
-    /** Creates a generator with custom registry for testing. */
-    public CriteriaExpressionGenerator(ExpressionBuilderRegistry builderRegistry) {
-        this(builderRegistry, MethodCallHandlerChain.defaultInstance());
-    }
-
     /** Creates a generator with full dependency injection for testing. */
     public CriteriaExpressionGenerator(ExpressionBuilderRegistry builderRegistry,
             MethodCallHandlerChain methodCallHandlerChain) {

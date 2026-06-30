@@ -36,10 +36,6 @@ public enum TemporalAccessorMethod {
         this.extractFieldName = extractFieldName;
     }
 
-    public String getJavaMethod() {
-        return javaMethod;
-    }
-
     /**
      * Returns the JPA 3.2 TemporalField constant name (e.g., "YEAR", "MONTH", "QUARTER").
      * Used with {@code Expr.staticField()} to load the appropriate
@@ -61,7 +57,4 @@ public enum TemporalAccessorMethod {
         return Optional.empty();
     }
 
-    public static boolean isTemporalAccessor(String methodName) {
-        return fromJavaMethod(methodName).isPresent();
-    }
 }

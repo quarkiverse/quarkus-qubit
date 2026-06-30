@@ -517,7 +517,6 @@ class AnalysisContextTest {
             context = new AnalysisContext(testMethod, 1);
 
             AnalysisContextAssert.assertThat(context)
-                    .hasFirstEntityParameterIndex(1)
                     .isNotBiEntityMode()
                     .isNotGroupContextMode()
                     .doesNotHaveNestedLambdaSupport();
@@ -528,7 +527,6 @@ class AnalysisContextTest {
             context = new AnalysisContext(testMethod, 0, 1);
 
             AnalysisContextAssert.assertThat(context)
-                    .hasFirstEntityParameterIndex(0)
                     .hasSecondEntityParameterIndex(1)
                     .isBiEntityMode();
         }
