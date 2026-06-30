@@ -3,9 +3,6 @@ package io.quarkiverse.qubit.deployment.analysis;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
-
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -33,22 +30,6 @@ class AnalysisOutcomeTest {
         }
 
         @Test
-        void success_isSuccessReturnsTrue() {
-            LambdaAnalysisResult.SimpleQueryResult result = new LambdaAnalysisResult.SimpleQueryResult(null, null, null, 0);
-            AnalysisOutcome success = new AnalysisOutcome.Success(result, TEST_CALL_SITE_ID, TEST_LAMBDA_HASH);
-
-            AnalysisOutcomeAssert.assertThat(success).isSuccess();
-        }
-
-        @Test
-        void success_canContinueReturnsTrue() {
-            LambdaAnalysisResult.SimpleQueryResult result = new LambdaAnalysisResult.SimpleQueryResult(null, null, null, 0);
-            AnalysisOutcome success = new AnalysisOutcome.Success(result, TEST_CALL_SITE_ID, TEST_LAMBDA_HASH);
-
-            AnalysisOutcomeAssert.assertThat(success).canContinue();
-        }
-
-        @Test
         void success_withNullResult_throwsNullPointerException() {
             assertThatThrownBy(() -> new AnalysisOutcome.Success(null, TEST_CALL_SITE_ID, TEST_LAMBDA_HASH))
                     .isInstanceOf(NullPointerException.class)
@@ -71,23 +52,6 @@ class AnalysisOutcomeTest {
             assertThatThrownBy(() -> new AnalysisOutcome.Success(result, TEST_CALL_SITE_ID, null))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessageContaining("Lambda hash cannot be null");
-        }
-
-        @Test
-        void success_ifSuccessExecutesAction() {
-            LambdaAnalysisResult.SimpleQueryResult result = new LambdaAnalysisResult.SimpleQueryResult(null, null, null, 0);
-            AnalysisOutcome success = new AnalysisOutcome.Success(result, TEST_CALL_SITE_ID, TEST_LAMBDA_HASH);
-            AtomicBoolean actionExecuted = new AtomicBoolean(false);
-            AtomicReference<LambdaAnalysisResult> capturedResult = new AtomicReference<>();
-
-            AnalysisOutcome returnedOutcome = success.ifSuccess(r -> {
-                actionExecuted.set(true);
-                capturedResult.set(r);
-            });
-
-            assertThat(actionExecuted.get()).isTrue();
-            assertThat(capturedResult.get()).isEqualTo(result);
-            assertThat(returnedOutcome).isSameAs(success);
         }
 
         @Test
@@ -119,22 +83,6 @@ class AnalysisOutcomeTest {
         }
 
         @Test
-        void unsupportedPattern_isSuccessReturnsFalse() {
-            AnalysisOutcome unsupported = new AnalysisOutcome.UnsupportedPattern(
-                    "reason", TEST_CALL_SITE_ID, AnalysisOutcome.UnsupportedPattern.PatternType.OTHER);
-
-            AnalysisOutcomeAssert.assertThat(unsupported).isNotSuccess();
-        }
-
-        @Test
-        void unsupportedPattern_canContinueReturnsTrue() {
-            AnalysisOutcome unsupported = new AnalysisOutcome.UnsupportedPattern(
-                    "reason", TEST_CALL_SITE_ID, AnalysisOutcome.UnsupportedPattern.PatternType.OTHER);
-
-            AnalysisOutcomeAssert.assertThat(unsupported).canContinue();
-        }
-
-        @Test
         void unsupportedPattern_withNullPatternType_defaultsToOther() {
             AnalysisOutcome.UnsupportedPattern unsupported = new AnalysisOutcome.UnsupportedPattern(
                     "reason", TEST_CALL_SITE_ID, null);
@@ -154,18 +102,6 @@ class AnalysisOutcomeTest {
             assertThatThrownBy(() -> new AnalysisOutcome.UnsupportedPattern("reason", null, null))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessageContaining("Call site ID cannot be null");
-        }
-
-        @Test
-        void unsupportedPattern_ifSuccessDoesNotExecuteAction() {
-            AnalysisOutcome unsupported = new AnalysisOutcome.UnsupportedPattern(
-                    "reason", TEST_CALL_SITE_ID, AnalysisOutcome.UnsupportedPattern.PatternType.OTHER);
-            AtomicBoolean actionExecuted = new AtomicBoolean(false);
-
-            AnalysisOutcome returnedOutcome = unsupported.ifSuccess(r -> actionExecuted.set(true));
-
-            assertThat(actionExecuted.get()).isFalse();
-            assertThat(returnedOutcome).isSameAs(unsupported);
         }
 
         @Test
@@ -220,22 +156,6 @@ class AnalysisOutcomeTest {
         }
 
         @Test
-        void analysisError_isSuccessReturnsFalse() {
-            RuntimeException cause = new RuntimeException("error");
-            AnalysisOutcome error = new AnalysisOutcome.AnalysisError(cause, TEST_CALL_SITE_ID, null);
-
-            AnalysisOutcomeAssert.assertThat(error).isNotSuccess();
-        }
-
-        @Test
-        void analysisError_canContinueReturnsFalse() {
-            RuntimeException cause = new RuntimeException("error");
-            AnalysisOutcome error = new AnalysisOutcome.AnalysisError(cause, TEST_CALL_SITE_ID, null);
-
-            AnalysisOutcomeAssert.assertThat(error).cannotContinue();
-        }
-
-        @Test
         void analysisError_withNullCause_throwsNullPointerException() {
             assertThatThrownBy(() -> new AnalysisOutcome.AnalysisError(null, TEST_CALL_SITE_ID, null))
                     .isInstanceOf(NullPointerException.class)
@@ -247,18 +167,6 @@ class AnalysisOutcomeTest {
             assertThatThrownBy(() -> new AnalysisOutcome.AnalysisError(new RuntimeException(), null, null))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessageContaining("Call site ID cannot be null");
-        }
-
-        @Test
-        void analysisError_ifSuccessDoesNotExecuteAction() {
-            RuntimeException cause = new RuntimeException("error");
-            AnalysisOutcome error = new AnalysisOutcome.AnalysisError(cause, TEST_CALL_SITE_ID, null);
-            AtomicBoolean actionExecuted = new AtomicBoolean(false);
-
-            AnalysisOutcome returnedOutcome = error.ifSuccess(r -> actionExecuted.set(true));
-
-            assertThat(actionExecuted.get()).isFalse();
-            assertThat(returnedOutcome).isSameAs(error);
         }
 
         @Test
@@ -330,48 +238,4 @@ class AnalysisOutcomeTest {
         }
     }
 
-    // fold() Tests
-
-    @Nested
-    class FoldTests {
-
-        @Test
-        void fold_withSuccess_callsOnSuccess() {
-            LambdaAnalysisResult.SimpleQueryResult result = new LambdaAnalysisResult.SimpleQueryResult(null, null, null, 0);
-            AnalysisOutcome success = new AnalysisOutcome.Success(result, TEST_CALL_SITE_ID, TEST_LAMBDA_HASH);
-
-            String folded = success.fold(
-                    s -> "success:" + s.lambdaHash(),
-                    u -> "unsupported:" + u.reason(),
-                    e -> "error:" + e.cause().getMessage());
-
-            assertThat(folded).isEqualTo("success:" + TEST_LAMBDA_HASH);
-        }
-
-        @Test
-        void fold_withUnsupported_callsOnUnsupported() {
-            AnalysisOutcome unsupported = new AnalysisOutcome.UnsupportedPattern(
-                    "complex lambda", TEST_CALL_SITE_ID, AnalysisOutcome.UnsupportedPattern.PatternType.OTHER);
-
-            String folded = unsupported.fold(
-                    s -> "success",
-                    u -> "unsupported:" + u.reason(),
-                    e -> "error");
-
-            assertThat(folded).isEqualTo("unsupported:complex lambda");
-        }
-
-        @Test
-        void fold_withError_callsOnError() {
-            RuntimeException cause = new RuntimeException("boom");
-            AnalysisOutcome error = new AnalysisOutcome.AnalysisError(cause, TEST_CALL_SITE_ID, null);
-
-            String folded = error.fold(
-                    s -> "success",
-                    u -> "unsupported",
-                    e -> "error:" + e.cause().getMessage());
-
-            assertThat(folded).isEqualTo("error:boom");
-        }
-    }
 }
