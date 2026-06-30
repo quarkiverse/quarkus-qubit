@@ -681,31 +681,6 @@ public class QubitProcessor {
             }
         }
 
-        /** Primary constructor using QueryCharacteristics. */
-        public QueryTransformationBuildItem(
-                String queryId,
-                String generatedClassName,
-                String entityClassName,
-                QueryCharacteristics characteristics,
-                int capturedVarCount) {
-            this(queryId, generatedClassName, entityClassName, characteristics, capturedVarCount,
-                    DevUIExpressions.empty(), DevUIMetadata.empty());
-        }
-
-        /** Full constructor with optional expressions for DevUI. */
-        public QueryTransformationBuildItem(
-                String queryId,
-                String generatedClassName,
-                String entityClassName,
-                QueryCharacteristics characteristics,
-                int capturedVarCount,
-                LambdaExpression predicateExpression,
-                LambdaExpression projectionExpression) {
-            this(queryId, generatedClassName, entityClassName, characteristics, capturedVarCount,
-                    new DevUIExpressions(predicateExpression, projectionExpression, null, null, null, null, null),
-                    DevUIMetadata.empty());
-        }
-
         /** Canonical constructor with parameter objects. */
         private QueryTransformationBuildItem(
                 String queryId,
@@ -737,11 +712,6 @@ public class QubitProcessor {
         /** Returns entity class name for this query (fully qualified). */
         public String getEntityClassName() {
             return entityClassName;
-        }
-
-        /** Returns query characteristics */
-        public QueryCharacteristics getCharacteristics() {
-            return characteristics;
         }
 
         /** Returns true if this is a count query. */
