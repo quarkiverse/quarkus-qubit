@@ -63,7 +63,7 @@ public abstract class CriteriaQueryTestBase extends AbstractLambdaAnalyzer {
     /**
      * Generates Criteria query building bytecode and inspects it for verification.
      */
-    protected CriteriaQueryStructure generateCriteriaQuery(LambdaExpression expression, String entityName) {
+    private CriteriaQueryStructure generateCriteriaQuery(LambdaExpression expression, String entityName) {
         CriteriaQueryStructure structure = new CriteriaQueryStructure(entityName);
 
         try {
