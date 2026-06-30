@@ -110,7 +110,7 @@ public enum BiEntityExpressionBuilder {
     }
 
     /** Generates JPA Expression from bi-entity lambda AST with subquery support. */
-    public @Nullable Expr generateBiEntityExpressionWithSubqueries(
+    private @Nullable Expr generateBiEntityExpressionWithSubqueries(
             BiEntitySubqueryContext ctx, @Nullable LambdaExpression expression) {
 
         if (expression == null) {
