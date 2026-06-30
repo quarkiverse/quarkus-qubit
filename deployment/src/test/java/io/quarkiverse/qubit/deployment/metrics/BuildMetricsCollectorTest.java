@@ -64,7 +64,6 @@ class BuildMetricsCollectorTest {
 
         collector.recordExpressionType(BuildMetricsCollector.EXPR_COMPARISON);
         collector.recordExpressionType(BuildMetricsCollector.EXPR_STRING);
-        collector.addExpressionTypeTime(BuildMetricsCollector.EXPR_COMPARISON, 100);
 
         // Verify through JSON report output
         Path outputPath = tempDir.resolve("expression-types.json");
@@ -74,8 +73,7 @@ class BuildMetricsCollectorTest {
         assertThat(content)
                 .contains("\"expression_types\"")
                 .contains("\"COMPARISON\"")
-                .contains("\"STRING\"")
-                .contains("\"time_nanos\": 100");
+                .contains("\"STRING\"");
     }
 
     @Test

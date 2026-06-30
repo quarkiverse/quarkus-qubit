@@ -289,12 +289,6 @@ public class BuildMetricsCollector {
         expressionTypeCount.computeIfAbsent(expressionType, _ -> new LongAdder()).increment();
     }
 
-    /** Records expression generation time for a specific type. */
-    public void addExpressionTypeTime(String expressionType, long nanos) {
-        expressionTypeTimeNanos.computeIfAbsent(expressionType, _ -> new LongAdder()).add(nanos);
-        addFlameGraphStack("qubit;expression;" + expressionType.toLowerCase(), nanos);
-    }
-
     // PER-CLASS ANALYSIS
 
     /** Records analysis time for a specific class. */

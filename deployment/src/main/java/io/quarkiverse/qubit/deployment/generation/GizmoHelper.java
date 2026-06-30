@@ -73,11 +73,6 @@ public final class GizmoHelper {
         return bc.invokeVirtual(BOOLEAN_BOOLEAN_VALUE, boxedValue);
     }
 
-    /** Unboxes Long to long. */
-    public static Expr unboxLong(BlockCreator bc, Expr boxedValue) {
-        return bc.invokeVirtual(LONG_LONG_VALUE, boxedValue);
-    }
-
     /** Loads constant as bytecode (primitives, BigDecimal, LocalDate/Time). */
     public static Expr loadConstant(BlockCreator bc, Object value) {
         return switch (value) {
