@@ -567,7 +567,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
     /**
      * Generates comparison, logical, arithmetic, or string concatenation operation.
      */
-    public Expr generateBinaryOperation(
+    private Expr generateBinaryOperation(
             BlockCreator bc,
             LambdaExpression.BinaryOp binOp,
             Expr cb,
@@ -718,7 +718,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
     }
 
     /** Generates unary NOT operation. */
-    public Expr generateUnaryOperation(
+    private Expr generateUnaryOperation(
             BlockCreator bc,
             LambdaExpression.UnaryOp unOp,
             Expr cb,
@@ -777,7 +777,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
      *
      * @throws UnsupportedExpressionException if the method call is not supported
      */
-    public Expr generateMethodCall(
+    private Expr generateMethodCall(
             BlockCreator bc,
             LambdaExpression.MethodCall methodCall,
             Expr cb,
