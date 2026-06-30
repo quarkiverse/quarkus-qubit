@@ -44,28 +44,6 @@ public class CallSiteProcessor {
     private final @Nullable BuildMetricsCollector metricsCollector;
     private final ExecutorRegistrationHelper registrationHelper;
 
-    /** Creates a CallSiteProcessor with default configuration. */
-    public CallSiteProcessor(
-            LambdaBytecodeAnalyzer bytecodeAnalyzer,
-            LambdaDeduplicator deduplicator,
-            QueryExecutorClassGenerator classGenerator) {
-        this(bytecodeAnalyzer, deduplicator, classGenerator, "QueryExecutor_", DEFAULT_GENERATED_PACKAGE, null);
-    }
-
-    /**
-     * Creates a CallSiteProcessor with generation configuration.
-     */
-    public CallSiteProcessor(
-            LambdaBytecodeAnalyzer bytecodeAnalyzer,
-            LambdaDeduplicator deduplicator,
-            QueryExecutorClassGenerator classGenerator,
-            QubitBuildTimeConfig.GenerationConfig generationConfig) {
-        this(bytecodeAnalyzer, deduplicator, classGenerator,
-                generationConfig.classNamePrefix(),
-                generationConfig.targetPackage().orElse(DEFAULT_GENERATED_PACKAGE),
-                null);
-    }
-
     /**
      * Creates a CallSiteProcessor with generation configuration and metrics collector.
      */
@@ -79,18 +57,6 @@ public class CallSiteProcessor {
                 generationConfig.classNamePrefix(),
                 generationConfig.targetPackage().orElse(DEFAULT_GENERATED_PACKAGE),
                 metricsCollector);
-    }
-
-    /**
-     * Creates a CallSiteProcessor with explicit class naming parameters.
-     */
-    public CallSiteProcessor(
-            LambdaBytecodeAnalyzer bytecodeAnalyzer,
-            LambdaDeduplicator deduplicator,
-            QueryExecutorClassGenerator classGenerator,
-            String classNamePrefix,
-            String targetPackage) {
-        this(bytecodeAnalyzer, deduplicator, classGenerator, classNamePrefix, targetPackage, null);
     }
 
     /**
@@ -412,38 +378,6 @@ public class CallSiteProcessor {
                         null, null, false, ctx);
             }
         }
-    }
-
-    /**
-     * Registers a duplicate call site detected by bytecode signature pre-grouping. Returns false if fallback analysis needed.
-     */
-    public boolean registerEarlyDeduplicated(
-            CallSite duplicate,
-            CallSite representative,
-            CallSiteProcessingContext ctx) {
-
-        // Get the executor class name from the representative's signature
-        String bytecodeSignature = deduplicator.computeBytecodeSignature(representative);
-        LambdaDeduplicator.CachedAnalysisResult cachedResult = deduplicator.getCachedResult(bytecodeSignature);
-
-        if (cachedResult == null) {
-            // Representative failed analysis - caller should process duplicate independently
-            Log.debugf("Early deduplication: no cached result for representative %s, will process duplicate independently",
-                    representative.getCallSiteId());
-            return false;
-        }
-
-        String executorClassName = cachedResult.executorClassName();
-        ctx.deduplicatedCount().incrementAndGet();
-
-        registerEarlyDeduplicatedQuery(duplicate, executorClassName,
-                ctx.queryTransformations(), ctx.loggingConfig());
-
-        if (ctx.loggingConfig().logDeduplication()) {
-            Log.debugf("Early pre-grouped deduplication: %s -> %s (same as %s)",
-                    duplicate.getCallSiteId(), executorClassName, representative.getCallSiteId());
-        }
-        return true;
     }
 
     /**
