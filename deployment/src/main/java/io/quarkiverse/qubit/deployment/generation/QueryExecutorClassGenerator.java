@@ -19,7 +19,7 @@ import jakarta.persistence.EntityManager;
 
 import org.jspecify.annotations.Nullable;
 
-import io.quarkiverse.qubit.deployment.analysis.CallSite;
+import io.quarkiverse.qubit.JoinType;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.generation.join.JoinQueryBuilder;
@@ -209,7 +209,7 @@ public class QueryExecutorClassGenerator {
             LambdaExpression biEntityPredicateExpression,
             LambdaExpression biEntityProjectionExpression,
             List<SortExpression> sortExpressions,
-            CallSite.JoinType joinType,
+            JoinType joinType,
             String className,
             boolean isCountQuery,
             boolean isSelectJoined,
@@ -451,7 +451,7 @@ public class QueryExecutorClassGenerator {
             LambdaExpression joinRelationshipExpression,
             @Nullable LambdaExpression sourcePredicateExpression,
             @Nullable LambdaExpression biEntityPredicateExpression,
-            CallSite.JoinType joinType,
+            JoinType joinType,
             Expr capturedValues) {
 
         // Setup query for Long (count result)

@@ -9,7 +9,7 @@ import org.jspecify.annotations.Nullable;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 
-import io.quarkiverse.qubit.deployment.analysis.CallSite.JoinType;
+import io.quarkiverse.qubit.JoinType;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaSpecType;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.PendingAggregation;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.PendingLambda;

@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.jspecify.annotations.Nullable;
 
+import io.quarkiverse.qubit.JoinType;
 import io.quarkiverse.qubit.SortDirection;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
@@ -60,7 +61,7 @@ public sealed interface LambdaAnalysisResult {
             LambdaExpression biEntityPredicateExpression,
             LambdaExpression biEntityProjectionExpression,
             List<SortExpression> sortExpressions,
-            CallSite.JoinType joinType,
+            JoinType joinType,
             int totalCapturedVarCount) implements LambdaAnalysisResult {
     }
 
