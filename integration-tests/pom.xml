@@ -100,7 +100,6 @@
             <!-- Surefire plugin for unit tests - skip for integration test module -->
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>${surefire-plugin.version}</version>
                 <configuration>
                     <!-- Skip surefire - this module only has integration tests run by failsafe -->
                     <skip>true</skip>
@@ -109,7 +108,6 @@
             <!-- Failsafe plugin for integration tests (IT) -->
             <plugin>
                 <artifactId>maven-failsafe-plugin</artifactId>
-                <version>${surefire-plugin.version}</version>
                 <executions>
                     <execution>
                         <goals>
@@ -303,9 +301,6 @@
                     <artifactId>quarkus-jdbc-h2</artifactId>
                 </dependency>
             </dependencies>
-            <properties>
-                <db.kind>h2</db.kind>
-            </properties>
         </profile>
 
         <!--
@@ -320,19 +315,8 @@
                     <name>native</name>
                 </property>
             </activation>
-            <build>
-                <plugins>
-                    <plugin>
-                        <artifactId>maven-surefire-plugin</artifactId>
-                        <configuration>
-                            <skipTests>${native.surefire.skip}</skipTests>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
             <properties>
                 <quarkus.native.enabled>true</quarkus.native.enabled>
-                <quarkus.package.jar.enabled>false</quarkus.package.jar.enabled>
             </properties>
         </profile>
 
