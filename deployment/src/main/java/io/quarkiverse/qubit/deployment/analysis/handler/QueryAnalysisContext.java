@@ -33,21 +33,6 @@ public record QueryAnalysisContext(
         // metricsCollector can be null
     }
 
-    /** Creates context from components, deriving callSiteId from callSite. */
-    public static QueryAnalysisContext of(
-            byte[] classBytes,
-            CallSite callSite,
-            LambdaBytecodeAnalyzer bytecodeAnalyzer,
-            LambdaDeduplicator deduplicator) {
-        return new QueryAnalysisContext(
-                classBytes,
-                callSite,
-                callSite.getCallSiteId(),
-                bytecodeAnalyzer,
-                deduplicator,
-                null);
-    }
-
     /** Creates context from components with metrics collector. */
     public static QueryAnalysisContext of(
             byte[] classBytes,

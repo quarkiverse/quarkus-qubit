@@ -16,9 +16,7 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUM_LO
 import io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome;
 import io.quarkiverse.qubit.deployment.analysis.CallSite;
 import io.quarkiverse.qubit.deployment.analysis.CapturedVariableHelper;
-import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.AggregationQueryResult;
-import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /** Handler for aggregation queries: min, max, avg, sumInteger/sumLong/sumDouble. */
@@ -85,19 +83,6 @@ public final class AggregationQueryHandler extends AbstractQueryHandler {
                 predicateExpr, aggregationExpr, aggregationType);
 
         return AnalysisOutcome.success(result, context.callSiteId(), lambdaHash);
-    }
-
-    @Override
-    public String computeHash(
-            LambdaDeduplicator deduplicator,
-            CallSite callSite,
-            LambdaAnalysisResult result) {
-
-        AggregationQueryResult agg = castResult(result, AggregationQueryResult.class);
-        return deduplicator.computeAggregationHash(
-                agg.predicateExpression(),
-                agg.aggregationExpression(),
-                agg.aggregationType());
     }
 
     private String getAggregationType(String methodName) {

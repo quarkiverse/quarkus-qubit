@@ -7,7 +7,6 @@ import java.util.List;
 import io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome;
 import io.quarkiverse.qubit.deployment.analysis.CallSite;
 import io.quarkiverse.qubit.deployment.analysis.CapturedVariableHelper;
-import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SimpleQueryResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator;
@@ -100,16 +99,6 @@ public final class SimpleQueryHandler extends AbstractQueryHandler {
                 new SimpleQueryResult(predicateExpr, projectionExpr, sortExpressions, 0));
 
         return AnalysisOutcome.success(result, context.callSiteId(), lambdaHash);
-    }
-
-    @Override
-    public String computeHash(
-            LambdaDeduplicator deduplicator,
-            CallSite callSite,
-            LambdaAnalysisResult result) {
-
-        SimpleQueryResult simple = castResult(result, SimpleQueryResult.class);
-        return computeHashWithDeduplicator(deduplicator, callSite, simple);
     }
 
     private String computeHashWithDeduplicator(

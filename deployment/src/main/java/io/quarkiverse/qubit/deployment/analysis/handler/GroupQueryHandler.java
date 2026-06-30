@@ -5,11 +5,9 @@ import java.util.List;
 import io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome;
 import io.quarkiverse.qubit.deployment.analysis.CallSite;
 import io.quarkiverse.qubit.deployment.analysis.CapturedVariableHelper;
-import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.GroupQueryResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
-import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 
 /**
@@ -133,19 +131,4 @@ public final class GroupQueryHandler extends AbstractQueryHandler {
         return count;
     }
 
-    @Override
-    public String computeHash(
-            LambdaDeduplicator deduplicator,
-            CallSite callSite,
-            LambdaAnalysisResult result) {
-
-        GroupQueryResult group = castResult(result, GroupQueryResult.class);
-        return deduplicator.computeGroupHash(
-                group.predicateExpression(),
-                group.groupByKeyExpression(),
-                group.havingExpression(),
-                group.groupSelectExpression(),
-                group.groupSortExpressions(),
-                callSite.isCountQuery());
-    }
 }
