@@ -63,11 +63,6 @@ public class QueryExecutorClassGenerator {
         Log.debug("QueryExecutorClassGenerator bytecode cache cleared");
     }
 
-    /** Returns the current cache size (for metrics/debugging). */
-    public static int getCacheSize() {
-        return BYTECODE_CACHE.size();
-    }
-
     private final CriteriaExpressionGenerator expressionGenerator = new CriteriaExpressionGenerator();
 
     /** Join query builder using Template Method pattern. */
