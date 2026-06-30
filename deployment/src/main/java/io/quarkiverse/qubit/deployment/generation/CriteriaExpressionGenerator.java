@@ -191,7 +191,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
     }
 
     /** Generates JPA Expression with ScalarSubquery support. Returns null if expression is null. */
-    public @Nullable Expr generateExpressionWithSubqueries(
+    private @Nullable Expr generateExpressionWithSubqueries(
             BlockCreator bc,
             LambdaExpression expression,
             Expr cb,
