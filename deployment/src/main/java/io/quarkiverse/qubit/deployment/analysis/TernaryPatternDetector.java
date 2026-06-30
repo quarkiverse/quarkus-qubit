@@ -51,10 +51,6 @@ public final class TernaryPatternDetector {
             JumpInsnNode conditionJump,
             LabelNode falseBranchLabel,
             LabelNode mergeLabel) {
-        /** Returns the end index (exclusive) of the entire ternary pattern. */
-        public int patternEndIndex() {
-            return mergeIndex;
-        }
     }
 
     /** Detects all ternary patterns in the instruction list, ordered by conditionJumpIndex. */
@@ -238,17 +234,4 @@ public final class TernaryPatternDetector {
         return Optional.empty();
     }
 
-    /**
-     * Checks if the given instruction index is within any ternary pattern.
-     * Used to skip instructions that are part of a ternary being processed.
-     */
-    public static boolean isWithinPattern(List<TernaryPattern> patterns, int instructionIndex) {
-        for (TernaryPattern pattern : patterns) {
-            if (instructionIndex >= pattern.conditionJumpIndex() &&
-                    instructionIndex < pattern.patternEndIndex()) {
-                return true;
-            }
-        }
-        return false;
-    }
 }
