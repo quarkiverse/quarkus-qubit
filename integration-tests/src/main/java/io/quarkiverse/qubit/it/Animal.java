@@ -26,10 +26,6 @@ public class Animal extends QubitEntity {
         return weight;
     }
 
-    public boolean isVaccinated() {
-        return vaccinated;
-    }
-
     @Override
     public String toString() {
         return getClass().getSimpleName() + "{name='" + name + "', weight=" + weight + "}";
