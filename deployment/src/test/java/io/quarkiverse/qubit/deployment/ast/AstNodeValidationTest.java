@@ -839,15 +839,6 @@ class AstNodeValidationTest {
             assertThat(agg.resultType()).isEqualTo(Double.class);
         }
 
-        @Test
-        void requiresField_forCount_returnsFalse() {
-            assertThat(GroupAggregation.count().requiresField()).isFalse();
-        }
-
-        @Test
-        void requiresField_forAvg_returnsTrue() {
-            assertThat(GroupAggregation.avg(field("salary", Double.class)).requiresField()).isTrue();
-        }
     }
 
     @Nested

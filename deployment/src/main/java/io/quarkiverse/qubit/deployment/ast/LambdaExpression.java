@@ -973,12 +973,6 @@ public sealed interface LambdaExpression {
             return new GroupAggregation(GroupAggregationType.MAX, field, resultType);
         }
 
-        /**
-         * Returns true if this aggregation requires a field expression.
-         */
-        public boolean requiresField() {
-            return aggregationType != GroupAggregationType.COUNT;
-        }
     }
 
     /**
@@ -1052,13 +1046,6 @@ public sealed interface LambdaExpression {
             Objects.requireNonNull(entityClass, ENTITY_CLASS_NULL);
             // entityClassName can be null (only set when class not loadable at build-time)
             // predicate can be null (no WHERE clause)
-        }
-
-        /**
-         * Creates a SubqueryBuilderReference without entityClassName or predicate.
-         */
-        public SubqueryBuilderReference(Class<?> entityClass) {
-            this(entityClass, null, null);
         }
 
         /**
