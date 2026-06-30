@@ -456,7 +456,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
      * Maps: {@code condition ? trueValue : falseValue}
      * To JPA: {@code cb.selectCase().when(conditionPredicate, trueExpr).otherwise(falseExpr)}
      */
-    public Expr generateConditionalExpression(
+    private Expr generateConditionalExpression(
             BlockCreator bc,
             LambdaExpression.Conditional conditional,
             Expr cb,
