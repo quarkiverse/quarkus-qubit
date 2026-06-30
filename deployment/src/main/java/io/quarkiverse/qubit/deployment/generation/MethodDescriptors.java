@@ -238,10 +238,6 @@ public final class MethodDescriptors {
     public static final MethodDesc CB_NULLIF_EXPR = MethodDesc.of(CriteriaBuilder.class, "nullif", Expression.class,
             Expression.class, Expression.class);
 
-    /** cb.nullif(Expression, Object) -> Expression (JPA 2.0) */
-    public static final MethodDesc CB_NULLIF = MethodDesc.of(CriteriaBuilder.class, "nullif", Expression.class,
-            Expression.class, Object.class);
-
     public static final MethodDesc CB_ASC = MethodDesc.of(CriteriaBuilder.class, "asc", Order.class, Expression.class);
     public static final MethodDesc CB_DESC = MethodDesc.of(CriteriaBuilder.class, "desc", Order.class, Expression.class);
 
