@@ -49,7 +49,7 @@ class BranchStateTest {
         void transitionsCorrectly(boolean jumpTarget, Class<? extends BranchState> expectedType) {
             BranchState next = new BranchState.Initial().transition(jumpTarget, false);
             assertThat(next).isInstanceOf(expectedType);
-            assertThat(next.isInitial()).isFalse();
+            assertThat(next).isNotInstanceOf(BranchState.Initial.class);
         }
 
         @Test

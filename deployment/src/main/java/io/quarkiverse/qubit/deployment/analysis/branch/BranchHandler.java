@@ -2,12 +2,10 @@ package io.quarkiverse.qubit.deployment.analysis.branch;
 
 import java.util.function.IntPredicate;
 
-import org.jspecify.annotations.Nullable;
 import org.objectweb.asm.tree.JumpInsnNode;
 
 import io.quarkiverse.qubit.deployment.analysis.ControlFlowAnalyzer;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
-import io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.Operator;
 
 /**
  * Strategy interface for handling branch instructions.
@@ -45,36 +43,9 @@ public interface BranchHandler {
         return expr instanceof LambdaExpression.Cast(var inner, _) ? inner : expr;
     }
 
-    // Convenience methods delegating to BranchExpressionCombiner
-    // These provide cleaner call sites in handlers
-
-    /** Combines expressions and restructures to fix precedence if needed. */
-    default LambdaExpression combineAndRestructureIfNeeded(
-            Operator combineOp,
-            LambdaExpression previousCondition,
-            LambdaExpression newExpression) {
-        return BranchExpressionCombiner.combineAndRestructureIfNeeded(combineOp, previousCondition, newExpression);
-    }
-
     /** Returns true if expression is a predicate that can be combined with AND/OR. */
     default boolean isPredicateExpression(LambdaExpression expr) {
         return BranchExpressionCombiner.isPredicateExpression(expr);
-    }
-
-    /**
-     * Adjusts combine operator based on label semantics.
-     * Same-label to FALSE_SINK uses AND; TRUE_SINK/INTERMEDIATE uses OR.
-     */
-    @Nullable
-    default Operator adjustCombineOperator(
-            @Nullable Operator combineOp,
-            boolean sameLabel,
-            ControlFlowAnalyzer.LabelClassification jumpLabelClass,
-            boolean completingAndGroup,
-            boolean startingNewOrGroup,
-            boolean hasPredicateOnStack) {
-        return BranchExpressionCombiner.adjustCombineOperator(
-                combineOp, sameLabel, jumpLabelClass, completingAndGroup, startingNewOrGroup, hasPredicateOnStack);
     }
 
     /** Returns true if branch jumps to the "true" path. */
