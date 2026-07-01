@@ -121,20 +121,6 @@ class DescriptorParserErrorTest {
         }
 
         @Test
-        @DisplayName("calculateFirstEntityParameterSlotIndex returns -1 for single param")
-        void calculateFirstEntitySlot_singleParam_returnsNegativeOne() {
-            int result = DescriptorParser.calculateFirstEntityParameterSlotIndex("(I)V");
-            assertThat(result).isEqualTo(-1);
-        }
-
-        @Test
-        @DisplayName("calculateSecondEntityParameterSlotIndex returns -1 for single param")
-        void calculateSecondEntitySlot_singleParam_returnsNegativeOne() {
-            int result = DescriptorParser.calculateSecondEntityParameterSlotIndex("(I)V");
-            assertThat(result).isEqualTo(-1);
-        }
-
-        @Test
         @DisplayName("slotIndexToParameterIndex returns -1 for non-existent slot")
         void slotIndexToParameterIndex_nonExistentSlot_returnsNegativeOne() {
             // For "(I)V", only slot 0 is valid

@@ -35,8 +35,6 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * <p>
      * Entry point for fluent query composition. Multiple where() calls can be chained
      * and will be combined with AND logic.
-     * <p>
-     * <strong>Generated at build time</strong> via bytecode enhancement.
      *
      * @param spec filtering predicate returning boolean
      * @return a new QubitStream with the filter applied
@@ -50,8 +48,6 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * Creates a query with field projection or transformation.
      * <p>
      * Entry point for projection-based queries.
-     * <p>
-     * <strong>Generated at build time</strong> via bytecode enhancement.
      *
      * @param <R> the projection result type
      * @param mapper lambda transforming entity to projection
@@ -64,8 +60,6 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
 
     /**
      * Creates a query sorted in ascending order.
-     * <p>
-     * <strong>Generated at build time</strong> via bytecode enhancement.
      *
      * @param <K> the type of the sort key
      * @param keyExtractor lambda extracting sort key
@@ -78,8 +72,6 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
 
     /**
      * Creates a query sorted in descending order.
-     * <p>
-     * <strong>Generated at build time</strong> via bytecode enhancement.
      *
      * @param <K> the type of the sort key
      * @param keyExtractor lambda extracting sort key
@@ -108,8 +100,6 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * This is an intermediate operation that sets up the aggregation but does not execute it.
      * Call {@link QubitStream#getSingleResult()} to execute and get the result.
      * <p>
-     * <strong>Generated at build time</strong> via bytecode enhancement.
-     * <p>
      * Example:
      *
      * <pre>{@code
@@ -134,8 +124,6 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * <p>
      * This is an intermediate operation that sets up the aggregation but does not execute it.
      * Call {@link QubitStream#getSingleResult()} to execute and get the result.
-     * <p>
-     * <strong>Generated at build time</strong> via bytecode enhancement.
      * <p>
      * Example:
      *
@@ -162,8 +150,6 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * This is an intermediate operation that sets up the aggregation but does not execute it.
      * Call {@link QubitStream#getSingleResult()} to execute and get the result.
      * <p>
-     * <strong>Generated at build time</strong> via bytecode enhancement.
-     * <p>
      * Example:
      *
      * <pre>{@code
@@ -187,8 +173,6 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * <p>
      * This is an intermediate operation that sets up the aggregation but does not execute it.
      * Call {@link QubitStream#getSingleResult()} to execute and get the result.
-     * <p>
-     * <strong>Generated at build time</strong> via bytecode enhancement.
      * <p>
      * Example:
      *
@@ -214,8 +198,6 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * This is an intermediate operation that sets up the aggregation but does not execute it.
      * Call {@link QubitStream#getSingleResult()} to execute and get the result.
      * <p>
-     * <strong>Generated at build time</strong> via bytecode enhancement.
-     * <p>
      * Example:
      *
      * <pre>{@code
@@ -239,8 +221,6 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * <p>
      * This is an intermediate operation that sets up the aggregation but does not execute it.
      * Call {@link QubitStream#getSingleResult()} to execute and get the result.
-     * <p>
-     * <strong>Generated at build time</strong> via bytecode enhancement.
      * <p>
      * Example:
      *
@@ -266,8 +246,6 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * The join follows the relationship defined by the lambda expression,
      * typically accessing a collection field. Inner join excludes source
      * entities that have no matching joined entities.
-     * <p>
-     * <strong>Generated at build time</strong> via bytecode enhancement.
      * <p>
      * Example:
      *
@@ -301,8 +279,6 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
      * there are no matching joined entities. The joined entity will be
      * null in such cases.
      * <p>
-     * <strong>Generated at build time</strong> via bytecode enhancement.
-     * <p>
      * Example:
      *
      * <pre>{@code
@@ -329,8 +305,6 @@ public interface QubitRepository<E extends PanacheEntity, I> extends PanacheRepo
 
     /**
      * Creates a GROUP BY query grouped by the specified key extractor.
-     * <p>
-     * <strong>Generated at build time</strong> via bytecode enhancement.
      * <p>
      * Example:
      *

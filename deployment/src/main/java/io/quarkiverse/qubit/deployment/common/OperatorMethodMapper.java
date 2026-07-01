@@ -72,11 +72,4 @@ public final class OperatorMethodMapper {
         };
     }
 
-    /** Returns true if operator is AND or OR. */
-    public static boolean isLogicalOperator(Operator operator) {
-        return switch (operator) {
-            case AND, OR -> true;
-            default -> false;
-        };
-    }
 }

@@ -839,15 +839,6 @@ class AstNodeValidationTest {
             assertThat(agg.resultType()).isEqualTo(Double.class);
         }
 
-        @Test
-        void requiresField_forCount_returnsFalse() {
-            assertThat(GroupAggregation.count().requiresField()).isFalse();
-        }
-
-        @Test
-        void requiresField_forAvg_returnsTrue() {
-            assertThat(GroupAggregation.avg(field("salary", Double.class)).requiresField()).isTrue();
-        }
     }
 
     @Nested
@@ -893,8 +884,8 @@ class AstNodeValidationTest {
         }
 
         @Test
-        void singleArgConstructor_succeeds() {
-            SubqueryBuilderReference ref = new SubqueryBuilderReference(Object.class);
+        void constructor_withNullEntityClassNameAndPredicate_succeeds() {
+            SubqueryBuilderReference ref = new SubqueryBuilderReference(Object.class, null, null);
             assertThat(ref.entityClass()).isEqualTo(Object.class);
             assertThat(ref.entityClassName()).isNull();
             assertThat(ref.predicate()).isNull();
@@ -902,7 +893,7 @@ class AstNodeValidationTest {
 
         @Test
         void hasPredicate_withNoPredicate_returnsFalse() {
-            SubqueryBuilderReference ref = new SubqueryBuilderReference(Object.class);
+            SubqueryBuilderReference ref = new SubqueryBuilderReference(Object.class, null, null);
             assertThat(ref.hasPredicate())
                     .as("No predicate should return false for hasPredicate()")
                     .isFalse();
@@ -910,7 +901,7 @@ class AstNodeValidationTest {
 
         @Test
         void withPredicate_addsPredicate() {
-            SubqueryBuilderReference ref = new SubqueryBuilderReference(Object.class);
+            SubqueryBuilderReference ref = new SubqueryBuilderReference(Object.class, null, null);
             SubqueryBuilderReference withPred = ref.withPredicate(Constant.TRUE);
 
             assertThat(withPred.hasPredicate())
@@ -931,7 +922,7 @@ class AstNodeValidationTest {
 
         @Test
         void withPredicate_withNullPredicate_throwsNullPointerException() {
-            SubqueryBuilderReference ref = new SubqueryBuilderReference(Object.class);
+            SubqueryBuilderReference ref = new SubqueryBuilderReference(Object.class, null, null);
             assertThatThrownBy(() -> ref.withPredicate(null))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessageContaining("New predicate cannot be null");

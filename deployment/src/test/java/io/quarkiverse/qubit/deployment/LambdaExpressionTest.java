@@ -60,11 +60,7 @@ class LambdaExpressionTest {
     void testMethodCallFluentBuilder() {
         var target = param("entity", Object.class, 0);
         var arg = constant("test");
-        var methodCallExpr = call("equals")
-                .on(target)
-                .withArg(arg)
-                .returns(Boolean.class)
-                .build();
+        var methodCallExpr = new LambdaExpression.MethodCall(target, "equals", List.of(arg), Boolean.class);
 
         assertThat(methodCallExpr.target()).isEqualTo(target);
         assertThat(methodCallExpr.methodName()).isEqualTo("equals");

@@ -4,8 +4,6 @@ import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.CALL_SITE
 import static io.quarkiverse.qubit.deployment.common.ExceptionMessages.LAMBDA_HASH_NULL;
 
 import java.util.Objects;
-import java.util.function.Consumer;
-import java.util.function.Function;
 
 /**
  * Sealed result type for lambda analysis: Success, UnsupportedPattern, or AnalysisError.
@@ -15,40 +13,6 @@ public sealed interface AnalysisOutcome {
 
     /** Returns the call site ID associated with this outcome. */
     String callSiteId();
-
-    /** Returns true if this outcome represents a successful analysis. */
-    default boolean isSuccess() {
-        return this instanceof Success;
-    }
-
-    /** Returns true if processing can continue (Success, EarlyDeduplicated, or UnsupportedPattern). */
-    default boolean canContinue() {
-        return this instanceof Success || this instanceof EarlyDeduplicated || this instanceof UnsupportedPattern;
-    }
-
-    /** Executes the given action if this is a Success; returns this for chaining. */
-    default AnalysisOutcome ifSuccess(Consumer<LambdaAnalysisResult> action) {
-        if (this instanceof Success success) {
-            action.accept(success.result());
-        }
-        return this;
-    }
-
-    /** Maps this outcome to a value using the provided functions for each case. */
-    default <T> T fold(
-            Function<Success, T> onSuccess,
-            Function<UnsupportedPattern, T> onUnsupported,
-            Function<AnalysisError, T> onError) {
-        return switch (this) {
-            case EarlyDeduplicated ed -> onSuccess.apply(
-                    // Convert EarlyDeduplicated to Success for backward compatibility
-                    // Use a minimal SimpleQueryResult since we don't have the full analysis
-                    new Success(LambdaAnalysisResult.SimpleQueryResult.empty(), ed.callSiteId(), ed.lambdaHash()));
-            case Success s -> onSuccess.apply(s);
-            case UnsupportedPattern u -> onUnsupported.apply(u);
-            case AnalysisError e -> onError.apply(e);
-        };
-    }
 
     /**
      * Early deduplication hit: analysis was skipped because an identical lambda
@@ -65,10 +29,6 @@ public sealed interface AnalysisOutcome {
             Objects.requireNonNull(executorClassName, "Executor class name cannot be null");
         }
 
-        @Override
-        public boolean isSuccess() {
-            return true; // Early deduplication is a successful outcome
-        }
     }
 
     /** Successful analysis with a valid result. */
@@ -99,12 +59,8 @@ public sealed interface AnalysisOutcome {
             LAMBDA_NOT_FOUND,
             /** Missing required lambda (e.g., groupBy key) */
             MISSING_REQUIRED_LAMBDA,
-            /** Bi-entity descriptor requires 2+ parameters */
-            INVALID_BI_ENTITY_DESCRIPTOR,
             /** Bytecode pattern not recognized */
             UNRECOGNIZED_BYTECODE,
-            /** Multiple predicates failed to combine */
-            PREDICATE_COMBINATION_FAILED,
             /** Other unsupported pattern */
             OTHER
         }

@@ -136,7 +136,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "equals", "(Ljava/lang/Object;)Z");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.BinaryOp.class);
             var binOp = (LambdaExpression.BinaryOp) result;
@@ -152,7 +152,7 @@ class MethodInvocationHandlerTest {
                     "(Ljava/math/BigDecimal;)I");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
@@ -167,7 +167,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "length", "()I");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
@@ -182,7 +182,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "isEmpty", "()Z");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
@@ -197,7 +197,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "isBlank", "()Z");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
@@ -214,7 +214,7 @@ class MethodInvocationHandlerTest {
                     "(Ljava/lang/String;)Z");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
@@ -230,7 +230,7 @@ class MethodInvocationHandlerTest {
                     "(Ljava/lang/String;)Z");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
@@ -246,7 +246,7 @@ class MethodInvocationHandlerTest {
                     "(Ljava/lang/CharSequence;)Z");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
         }
@@ -263,7 +263,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", methodName, descriptor);
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
@@ -279,7 +279,7 @@ class MethodInvocationHandlerTest {
                     "(I)Ljava/lang/String;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
@@ -296,7 +296,7 @@ class MethodInvocationHandlerTest {
                     "(II)Ljava/lang/String;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
@@ -319,7 +319,7 @@ class MethodInvocationHandlerTest {
                     "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
@@ -334,7 +334,7 @@ class MethodInvocationHandlerTest {
                     "()Ljava/lang/String;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.FieldAccess.class);
             var fieldAccess = (LambdaExpression.FieldAccess) result;
@@ -349,7 +349,7 @@ class MethodInvocationHandlerTest {
                     "()Ljava/lang/String;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.BiEntityFieldAccess.class);
             var biFieldAccess = (LambdaExpression.BiEntityFieldAccess) result;
@@ -366,7 +366,7 @@ class MethodInvocationHandlerTest {
                     "(Ljava/time/chrono/ChronoLocalDate;)Z");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
@@ -382,7 +382,7 @@ class MethodInvocationHandlerTest {
                     "(Ljava/time/chrono/ChronoLocalDate;)Z");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
@@ -396,7 +396,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEVIRTUAL, "java/time/LocalDate", "getYear", "()I");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
@@ -418,7 +418,7 @@ class MethodInvocationHandlerTest {
             handler.handle(insn, context);
 
             // Stack should be unchanged - Boolean.valueOf is skipped
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.pop()).isSameAs(boolExpr);
         }
 
@@ -431,7 +431,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKESTATIC, "java/time/LocalDate", "of", "(III)Ljava/time/LocalDate;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.Constant.class);
             var constant = (LambdaExpression.Constant) result;
@@ -446,7 +446,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKESTATIC, "java/time/LocalTime", "of", "(II)Ljava/time/LocalTime;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.Constant.class);
             var constant = (LambdaExpression.Constant) result;
@@ -465,7 +465,7 @@ class MethodInvocationHandlerTest {
                     "(IIIII)Ljava/time/LocalDateTime;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.Constant.class);
             var constant = (LambdaExpression.Constant) result;
@@ -481,7 +481,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKESTATIC, "java/time/LocalDate", "of", "(III)Ljava/time/LocalDate;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
         }
@@ -504,7 +504,7 @@ class MethodInvocationHandlerTest {
                     "(Ljava/lang/Object;)Z");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.InExpression.class);
         }
@@ -521,7 +521,7 @@ class MethodInvocationHandlerTest {
                     "(Ljava/lang/Object;)Z");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MemberOfExpression.class);
         }
@@ -538,7 +538,7 @@ class MethodInvocationHandlerTest {
                     "(Ljava/lang/Object;)Z");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MemberOfExpression.class);
         }
@@ -552,7 +552,7 @@ class MethodInvocationHandlerTest {
                     "(Ljava/lang/Object;)Z");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.BinaryOp.class);
         }
@@ -566,7 +566,7 @@ class MethodInvocationHandlerTest {
                     "(Ljava/lang/Object;)I");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
         }
@@ -588,7 +588,7 @@ class MethodInvocationHandlerTest {
                     "(Ljava/lang/String;)V");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.Constant.class);
             var constant = (LambdaExpression.Constant) result;
@@ -605,7 +605,7 @@ class MethodInvocationHandlerTest {
                     "(Ljava/lang/String;)V");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.ConstructorCall.class);
         }
@@ -652,7 +652,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", methodName, wrongDescriptor);
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
         }
 
         @ParameterizedTest(name = "{0} with wrong descriptor does not handle (two-stack)")
@@ -669,7 +669,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", methodName, wrongDescriptor);
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(2);
+            AnalysisContextAssert.assertThat(context).hasStackSize(2);
         }
     }
 
@@ -686,7 +686,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKESPECIAL, "java/lang/Integer", "<init>", "(Ljava/lang/String;)V");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.ConstructorCall.class);
         }
@@ -702,7 +702,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKESPECIAL, "java/math/BigDecimal", "<init>", "(II)V");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.ConstructorCall.class);
         }
@@ -716,7 +716,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKESPECIAL, "java/math/BigDecimal", "<init>", "(Ljava/lang/String;)V");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.ConstructorCall.class);
         }
@@ -730,7 +730,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKESPECIAL, "java/math/BigDecimal", "<init>", "(I)V");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.ConstructorCall.class);
         }
@@ -747,7 +747,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEVIRTUAL, owner, "add", descriptor);
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(2);
+            AnalysisContextAssert.assertThat(context).hasStackSize(2);
         }
     }
 
@@ -766,7 +766,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEVIRTUAL, owner, methodName, "()I");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
         }
 
         @ParameterizedTest(name = "{0}.{1}() with 3 args is not handled")
@@ -782,7 +782,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKESTATIC, owner, methodName, descriptor);
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(3);
+            AnalysisContextAssert.assertThat(context).hasStackSize(3);
         }
 
         @Test
@@ -795,7 +795,7 @@ class MethodInvocationHandlerTest {
             handler.handle(insn, context);
 
             // Should not be handled - wrong arg count
-            assertThat(context.getStackSize()).isEqualTo(2);
+            AnalysisContextAssert.assertThat(context).hasStackSize(2);
         }
 
         @ParameterizedTest(name = "{0}.{2}() creates MethodCall")
@@ -811,7 +811,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEVIRTUAL, owner, methodName, "()I");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
@@ -836,7 +836,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKESTATIC, owner, methodName, descriptor);
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
         }
     }
 
@@ -853,7 +853,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
         }
@@ -871,7 +871,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEINTERFACE, owner, methodName, descriptor);
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(2);
+            AnalysisContextAssert.assertThat(context).hasStackSize(2);
         }
     }
 
@@ -891,7 +891,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/Object", methodName, descriptor);
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(2);
+            AnalysisContextAssert.assertThat(context).hasStackSize(2);
         }
 
         @ParameterizedTest(name = "compareTo with {0}{1} is not handled")
@@ -906,7 +906,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/Integer", methodName, descriptor);
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(2);
+            AnalysisContextAssert.assertThat(context).hasStackSize(2);
         }
     }
 
@@ -928,7 +928,7 @@ class MethodInvocationHandlerTest {
             handler.handle(insn, context);
 
             // Should not throw - no-argument methods check isStackEmpty first
-            assertThat(context.isStackEmpty()).isTrue();
+            AnalysisContextAssert.assertThat(context).isStackEmpty();
         }
 
         @Test
@@ -959,7 +959,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", methodName, descriptor);
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
@@ -992,7 +992,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", methodName, descriptor);
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
@@ -1020,7 +1020,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "substring", "(I)Ljava/lang/String;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
@@ -1054,7 +1054,7 @@ class MethodInvocationHandlerTest {
                     "(Ljava/math/BigDecimal;)Ljava/math/BigDecimal;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
@@ -1086,7 +1086,7 @@ class MethodInvocationHandlerTest {
             handler.handle(insn, context);
 
             // Stack unchanged because abs is not in the switch
-            assertThat(context.getStackSize()).isEqualTo(2);
+            AnalysisContextAssert.assertThat(context).hasStackSize(2);
         }
     }
 
@@ -1150,7 +1150,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEVIRTUAL, owner, methodName, "()I");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
@@ -1167,7 +1167,7 @@ class MethodInvocationHandlerTest {
             handler.handle(insn, context);
 
             // Stack unchanged - not a recognized accessor
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             // Still has the original field
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.FieldAccess.class);
@@ -1189,7 +1189,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result)
                     .as("Constant argument with entity field target should create MemberOfExpression")
@@ -1207,7 +1207,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result)
                     .as("CapturedVariable argument with entity field target should create MemberOfExpression")
@@ -1225,7 +1225,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             // Neither IN nor MEMBER OF pattern - falls back to MethodCall
             assertThat(result)
@@ -1247,7 +1247,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKESPECIAL, "java/math/BigDecimal", "<init>", "(Ljava/lang/String;)V");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result)
                     .as("BigDecimal(String) with correct owner should fold to Constant")
@@ -1266,7 +1266,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKESPECIAL, "java/lang/Integer", "<init>", "(Ljava/lang/String;)V");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result)
                     .as("Constructor with wrong owner should create ConstructorCall, not Constant")
@@ -1283,7 +1283,7 @@ class MethodInvocationHandlerTest {
             handler.handle(insn, context);
 
             // Should create ConstructorCall for no-arg constructor
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.ConstructorCall.class);
         }
@@ -1297,7 +1297,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKESPECIAL, "java/math/BigDecimal", "<init>", "(Ljava/lang/String;)V");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result)
                     .as("Non-constant arg should create ConstructorCall, not fold to Constant")
@@ -1313,7 +1313,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKESPECIAL, "java/math/BigDecimal", "<init>", "(I)V");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result)
                     .as("Non-String constant should create ConstructorCall, not fold to Constant")
@@ -1333,7 +1333,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "substring", "(I)Ljava/lang/String;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
@@ -1349,7 +1349,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "substring", "(II)Ljava/lang/String;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
@@ -1384,9 +1384,9 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEINTERFACE, "java/util/Collection", "contains", "(Ljava/lang/Object;)Z");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Valid pair should produce exactly one result")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
 
         @Test
@@ -1414,7 +1414,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "equals", "(Ljava/lang/Object;)Z");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.BinaryOp.class);
         }
@@ -1512,7 +1512,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "substring", "(I)Ljava/lang/String;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
@@ -1532,7 +1532,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKEVIRTUAL, "java/lang/String", "substring", "(II)Ljava/lang/String;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.MethodCall.class);
             var methodCall = (LambdaExpression.MethodCall) result;
@@ -1550,7 +1550,7 @@ class MethodInvocationHandlerTest {
             handler.handle(insn, context);
 
             // Should not process - stack should still have original item
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(LambdaExpression.FieldAccess.class);
         }
@@ -1566,7 +1566,7 @@ class MethodInvocationHandlerTest {
             handler.handle(insn, context);
 
             // Should not process - stack should still have original items
-            assertThat(context.getStackSize()).isEqualTo(2);
+            AnalysisContextAssert.assertThat(context).hasStackSize(2);
         }
     }
 
@@ -1587,7 +1587,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKESTATIC, "java/time/LocalDate", "of", "(III)Ljava/time/LocalDate;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result)
                     .as("LocalDate.of with all constants should fold to Constant")
@@ -1603,7 +1603,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKESTATIC, "java/time/LocalDate", "of", "(III)Ljava/time/LocalDate;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result)
                     .as("LocalDate.of with non-constant should create MethodCall")
@@ -1618,7 +1618,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKESTATIC, "java/time/LocalTime", "of", "(II)Ljava/time/LocalTime;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result)
                     .as("LocalTime.of(hour, minute) with constants should fold")
@@ -1634,7 +1634,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKESTATIC, "java/time/LocalTime", "of", "(III)Ljava/time/LocalTime;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result)
                     .as("LocalTime.of(hour, minute, second) with constants should fold to Constant")
@@ -1654,7 +1654,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKESTATIC, "java/time/LocalDateTime", "of", "(IIIII)Ljava/time/LocalDateTime;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result)
                     .as("LocalDateTime.of with 5 constant args should fold")
@@ -1673,7 +1673,7 @@ class MethodInvocationHandlerTest {
             var insn = createMethodInsn(INVOKESTATIC, "java/time/LocalDateTime", "of", "(IIIIII)Ljava/time/LocalDateTime;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result)
                     .as("LocalDateTime.of(year, month, day, hour, minute, second) with constants should fold to Constant")
@@ -1690,7 +1690,7 @@ class MethodInvocationHandlerTest {
             handler.handle(insn, context);
 
             // Unknown static method should leave stack unchanged
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
         }
     }
 

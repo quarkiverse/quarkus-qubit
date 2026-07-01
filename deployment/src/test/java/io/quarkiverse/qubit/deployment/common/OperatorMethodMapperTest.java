@@ -285,28 +285,4 @@ class OperatorMethodMapperTest {
         }
     }
 
-    // isLogicalOperator Tests
-
-    @Nested
-    @DisplayName("isLogicalOperator")
-    class IsLogicalOperatorTests {
-
-        @ParameterizedTest
-        @EnumSource(value = Operator.class, names = { "AND", "OR" })
-        void logicalOperators_returnTrue(Operator operator) {
-            assertThat(OperatorMethodMapper.isLogicalOperator(operator)).isTrue();
-        }
-
-        @ParameterizedTest
-        @EnumSource(value = Operator.class, names = { "EQ", "NE", "GT", "GE", "LT", "LE" })
-        void comparisonOperators_returnFalse(Operator operator) {
-            assertThat(OperatorMethodMapper.isLogicalOperator(operator)).isFalse();
-        }
-
-        @ParameterizedTest
-        @EnumSource(value = Operator.class, names = { "ADD", "SUB", "MUL", "DIV", "MOD" })
-        void arithmeticOperators_returnFalse(Operator operator) {
-            assertThat(OperatorMethodMapper.isLogicalOperator(operator)).isFalse();
-        }
-    }
 }

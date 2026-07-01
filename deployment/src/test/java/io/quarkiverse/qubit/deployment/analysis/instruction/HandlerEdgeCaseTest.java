@@ -2,7 +2,6 @@ package io.quarkiverse.qubit.deployment.analysis.instruction;
 
 import static io.quarkiverse.qubit.deployment.testutil.AstBuilders.*;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.objectweb.asm.Opcodes.*;
 
@@ -92,34 +91,6 @@ class HandlerEdgeCaseTest {
         }
 
         @Test
-        void requireNonNull_withNull_throwsException() {
-            assertThatThrownBy(() -> BytecodeValidator.requireNonNull(null, "test value"))
-                    .isInstanceOf(BytecodeAnalysisException.class)
-                    .hasMessageContaining("Unexpected null")
-                    .hasMessageContaining("test value");
-        }
-
-        @Test
-        void requireNonNull_withNonNull_returnsValue() {
-            String result = BytecodeValidator.requireNonNull("value", "test");
-            assertThat(result).isEqualTo("value");
-        }
-
-        @Test
-        void requireValidOpcode_withValidOpcode_succeeds() {
-            // Verify that validation succeeds by ensuring no exception is thrown
-            assertThatCode(() -> BytecodeValidator.requireValidOpcode(IADD, IADD, ISUB, IMUL))
-                    .doesNotThrowAnyException();
-        }
-
-        @Test
-        void requireValidOpcode_withInvalidOpcode_throwsException() {
-            assertThatThrownBy(() -> BytecodeValidator.requireValidOpcode(IADD, ISUB, IMUL))
-                    .isInstanceOf(BytecodeAnalysisException.class)
-                    .hasMessageContaining("Invalid opcode");
-        }
-
-        @Test
         void popSafe_onEmptyStack_throwsStackUnderflow() {
             Deque<Object> emptyStack = new ArrayDeque<>();
 
@@ -191,7 +162,7 @@ class HandlerEdgeCaseTest {
             boolean terminated = handler.handle(new InsnNode(IADD), context);
 
             assertThat(terminated).isFalse();
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
         }
 
         @Test
@@ -215,7 +186,7 @@ class HandlerEdgeCaseTest {
             boolean terminated = handler.handle(new InsnNode(opcode), context);
 
             assertThat(terminated).isFalse();
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .isInstanceOf(LambdaExpression.BinaryOp.class);
             LambdaExpression.BinaryOp result = (LambdaExpression.BinaryOp) context.peek();
@@ -250,7 +221,7 @@ class HandlerEdgeCaseTest {
         void handle_aloadWithEntityParameter_pushesParameter() {
             handler.handle(new VarInsnNode(ALOAD, 0), context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek()).isNotNull();
         }
 
@@ -296,7 +267,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(new VarInsnNode(ALOAD, 0), groupContext);
 
-            assertThat(groupContext.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(groupContext).hasStackSize(1);
             assertThat(groupContext.peek())
                     .as("ALOAD in group context mode should push GroupParameter")
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.GroupParameter.class);
@@ -322,7 +293,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(new VarInsnNode(ALOAD, slot), biContext);
 
-            assertThat(biContext.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(biContext).hasStackSize(1);
             assertThat(biContext.peek())
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityParameter.class);
             io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityParameter biParam = (io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityParameter) biContext
@@ -362,7 +333,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(new VarInsnNode(opcode, 1), ctx);
 
-            assertThat(ctx.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(ctx).hasStackSize(1);
             assertThat(ctx.peek())
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable.class);
             io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable captured = (io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable) ctx
@@ -390,7 +361,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(new VarInsnNode(ILOAD, 1), ctx);
 
-            assertThat(ctx.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(ctx).hasStackSize(1);
             io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable captured = (io.quarkiverse.qubit.deployment.ast.LambdaExpression.CapturedVariable) ctx
                     .peek();
             assertThat(captured.type())
@@ -417,7 +388,7 @@ class HandlerEdgeCaseTest {
         void handle_aconstNull_pushesNullLiteral() {
             handler.handle(new InsnNode(ACONST_NULL), context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek()).isNotNull();
         }
 
@@ -429,9 +400,9 @@ class HandlerEdgeCaseTest {
             assertThat(terminated)
                     .as("ACONST_NULL handler should return false (not terminate)")
                     .isFalse();
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("ACONST_NULL should push exactly one element")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
             assertThat(context.peek())
                     .as("Pushed element should be NullLiteral")
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.NullLiteral.class);
@@ -452,7 +423,7 @@ class HandlerEdgeCaseTest {
         void handle_const_pushesConstant(int opcode) {
             handler.handle(new InsnNode(opcode), context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
         }
 
         // These tests exercise the ICONST handling after branch instructions have been seen
@@ -466,7 +437,7 @@ class HandlerEdgeCaseTest {
             boolean terminated = handler.handle(new InsnNode(ICONST_5), context);
 
             assertThat(terminated).isFalse();
-            assertThat(context.getStackSize()).isEqualTo(2);
+            AnalysisContextAssert.assertThat(context).hasStackSize(2);
         }
 
         @ParameterizedTest(name = "ICONST_{0} after branch pushes constant (value > 1, not boolean marker)")
@@ -477,7 +448,7 @@ class HandlerEdgeCaseTest {
             boolean terminated = handler.handle(new InsnNode(opcode), context);
 
             assertThat(terminated).isFalse();
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
         }
 
         @ParameterizedTest(name = "ICONST opcode {0} with no branch seen pushes constant")
@@ -487,7 +458,7 @@ class HandlerEdgeCaseTest {
             boolean terminated = handler.handle(new InsnNode(opcode), context);
 
             assertThat(terminated).isFalse();
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
         }
 
         // Test the isFinalResult() and handleIconst() mutation-killing scenarios
@@ -563,9 +534,9 @@ class HandlerEdgeCaseTest {
             assertThat(terminated)
                     .as("ICONST_0 used in arithmetic expression should not terminate")
                     .isFalse();
-            assertThat(ctx.getStackSize())
+            AnalysisContextAssert.assertThat(ctx)
                     .as("ICONST_0 should be pushed for arithmetic expression")
-                    .isEqualTo(2);
+                    .hasStackSize(2);
         }
 
         static Stream<Arguments> constantOpcodeValues() {
@@ -586,7 +557,7 @@ class HandlerEdgeCaseTest {
         void handle_constOpcode_pushesExpectedValue(int opcode, Object expectedValue, String opcodeName) {
             handler.handle(new InsnNode(opcode), context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant.class);
             io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant constExpr = (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context
@@ -610,9 +581,9 @@ class HandlerEdgeCaseTest {
             assertThat(terminated)
                     .as("ICONST_0 used as invoke arg should not terminate")
                     .isFalse();
-            assertThat(ctx.getStackSize())
+            AnalysisContextAssert.assertThat(ctx)
                     .as("ICONST_0 should be pushed for invoke")
-                    .isEqualTo(2);
+                    .hasStackSize(2);
         }
 
         @Test
@@ -648,9 +619,9 @@ class HandlerEdgeCaseTest {
             assertThat(terminated)
                     .as("ICONST_0 used in branch should not terminate")
                     .isFalse();
-            assertThat(ctx.getStackSize())
+            AnalysisContextAssert.assertThat(ctx)
                     .as("ICONST_0 should be pushed for branch comparison")
-                    .isEqualTo(2);
+                    .hasStackSize(2);
         }
 
         @ParameterizedTest(name = "ICONST_0 after branch with {0} next pushes for logical")
@@ -667,9 +638,9 @@ class HandlerEdgeCaseTest {
             assertThat(terminated)
                     .as("ICONST_0 used in logical expression should not terminate")
                     .isFalse();
-            assertThat(ctx.getStackSize())
+            AnalysisContextAssert.assertThat(ctx)
                     .as("ICONST_0 should be pushed for logical expression")
-                    .isEqualTo(2);
+                    .hasStackSize(2);
         }
 
         @ParameterizedTest(name = "ICONST_0 after branch with {0} next pushes for branch")
@@ -685,7 +656,7 @@ class HandlerEdgeCaseTest {
             boolean terminated = handler.handle(new InsnNode(ICONST_0), ctx);
 
             assertThat(terminated).isFalse();
-            assertThat(ctx.getStackSize()).isEqualTo(2);
+            AnalysisContextAssert.assertThat(ctx).hasStackSize(2);
         }
 
         @Test
@@ -717,7 +688,7 @@ class HandlerEdgeCaseTest {
             boolean terminated = handler.handle(new InsnNode(ICONST_0), ctx);
 
             assertThat(terminated).isFalse();
-            assertThat(ctx.getStackSize()).isEqualTo(2);
+            AnalysisContextAssert.assertThat(ctx).hasStackSize(2);
         }
 
         @Test
@@ -732,7 +703,7 @@ class HandlerEdgeCaseTest {
             boolean terminated = handler.handle(new InsnNode(ICONST_0), ctx);
 
             assertThat(terminated).isFalse();
-            assertThat(ctx.getStackSize()).isEqualTo(2);
+            AnalysisContextAssert.assertThat(ctx).hasStackSize(2);
         }
 
         @Test
@@ -747,7 +718,7 @@ class HandlerEdgeCaseTest {
             boolean terminated = handler.handle(new InsnNode(ICONST_0), ctx);
 
             assertThat(terminated).isFalse();
-            assertThat(ctx.getStackSize()).isEqualTo(2);
+            AnalysisContextAssert.assertThat(ctx).hasStackSize(2);
         }
 
         @ParameterizedTest(name = "canHandle non-constant opcode {0} returns false")
@@ -773,7 +744,7 @@ class HandlerEdgeCaseTest {
             boolean terminated = handler.handle(new InsnNode(ICONST_0), ctx);
 
             assertThat(terminated).isFalse();
-            assertThat(ctx.getStackSize()).isEqualTo(2);
+            AnalysisContextAssert.assertThat(ctx).hasStackSize(2);
         }
 
         @ParameterizedTest(name = "ICONST_0 before branch opcode {0} pushes for branch")
@@ -789,7 +760,7 @@ class HandlerEdgeCaseTest {
             boolean terminated = handler.handle(new InsnNode(ICONST_0), ctx);
 
             assertThat(terminated).isFalse();
-            assertThat(ctx.getStackSize()).isEqualTo(2);
+            AnalysisContextAssert.assertThat(ctx).hasStackSize(2);
         }
 
         @Test
@@ -812,9 +783,9 @@ class HandlerEdgeCaseTest {
             assertThat(terminated)
                     .as("Boolean.valueOf is not a return, so isFinalResult returns false, handler doesn't terminate")
                     .isFalse();
-            assertThat(ctx.getStackSize())
+            AnalysisContextAssert.assertThat(ctx)
                     .as("Stack should have original element (ICONST was skipped)")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
 
         @Test
@@ -832,9 +803,9 @@ class HandlerEdgeCaseTest {
             assertThat(terminated)
                     .as("ICONST_0 before Integer.valueOf should not terminate")
                     .isFalse();
-            assertThat(ctx.getStackSize())
+            AnalysisContextAssert.assertThat(ctx)
                     .as("ICONST_0 should be pushed as argument")
-                    .isEqualTo(2);
+                    .hasStackSize(2);
         }
 
         @Test
@@ -903,7 +874,7 @@ class HandlerEdgeCaseTest {
             boolean terminated = handler.handle(new InsnNode(I2L), context);
 
             assertThat(terminated).isFalse();
-            assertThat(context.isStackEmpty()).isTrue();
+            AnalysisContextAssert.assertThat(context).isStackEmpty();
         }
 
         static Stream<Arguments> typeConversionFoldingCases() {
@@ -934,7 +905,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(new InsnNode(opcode), context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant.class);
             io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result = (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context
@@ -975,7 +946,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(new InsnNode(opcode), context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant result = (io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant) context
                     .peek();
             assertThat(result.type())
@@ -990,7 +961,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(new InsnNode(I2L), context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .as("Non-constant should not be folded")
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.FieldAccess.class);
@@ -1094,9 +1065,9 @@ class HandlerEdgeCaseTest {
             boolean terminated = handler.handle(booleanValueOf, context);
 
             assertThat(terminated).isFalse();
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Stack should remain unchanged for Boolean.valueOf skip")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
 
         @Test
@@ -1110,9 +1081,9 @@ class HandlerEdgeCaseTest {
 
             handler.handle(localDateOf, context);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Temporal factory should create constant")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
 
         @Test
@@ -1125,9 +1096,9 @@ class HandlerEdgeCaseTest {
 
             handler.handle(localTimeOf, context);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Temporal factory should create constant for LocalTime")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
 
         @Test
@@ -1143,9 +1114,9 @@ class HandlerEdgeCaseTest {
 
             handler.handle(localDateTimeOf, context);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Temporal factory should create constant for LocalDateTime")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
 
         @Test
@@ -1159,9 +1130,9 @@ class HandlerEdgeCaseTest {
             handler.handle(localDateOf, context);
 
             // Stack should remain unchanged because arg count mismatch
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Wrong arg count should leave stack unchanged")
-                    .isEqualTo(2);
+                    .hasStackSize(2);
         }
 
         @Test
@@ -1175,9 +1146,9 @@ class HandlerEdgeCaseTest {
 
             handler.handle(wrongOwner, context);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Wrong owner should leave stack unchanged")
-                    .isEqualTo(3);
+                    .hasStackSize(3);
         }
 
         @Test
@@ -1191,9 +1162,9 @@ class HandlerEdgeCaseTest {
 
             handler.handle(wrongMethod, context);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Wrong method name should leave stack unchanged")
-                    .isEqualTo(3);
+                    .hasStackSize(3);
         }
 
         @Test
@@ -1210,9 +1181,9 @@ class HandlerEdgeCaseTest {
 
             handler.handle(bigDecimalInit, context);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("BigDecimal constructor should fold to constant")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
 
         @Test
@@ -1227,9 +1198,9 @@ class HandlerEdgeCaseTest {
 
             handler.handle(bigDecimalInit, context);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Invalid BigDecimal string should create ConstructorCall")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
 
         @Test
@@ -1244,9 +1215,9 @@ class HandlerEdgeCaseTest {
 
             handler.handle(someClassInit, context);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Non-BigDecimal constructor should create ConstructorCall")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
 
         @Test
@@ -1262,9 +1233,9 @@ class HandlerEdgeCaseTest {
 
             handler.handle(multiArgInit, context);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Multi-arg constructor should create ConstructorCall")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
 
         @Test
@@ -1276,9 +1247,9 @@ class HandlerEdgeCaseTest {
 
             handler.handle(superMethod, context);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Non-constructor INVOKESPECIAL should not modify stack")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
 
         @Test
@@ -1290,9 +1261,9 @@ class HandlerEdgeCaseTest {
 
             handler.handle(substringInsn, context);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("substring(int) should create MethodCall")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
 
         @Test
@@ -1305,9 +1276,9 @@ class HandlerEdgeCaseTest {
 
             handler.handle(substringInsn, context);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("substring(int, int) should create MethodCall")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
 
         @Test
@@ -1320,9 +1291,9 @@ class HandlerEdgeCaseTest {
             // Should not throw, just leave stack as-is
             handler.handle(substringInsn, context);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Insufficient stack should leave as-is")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
 
         @Test
@@ -1335,9 +1306,9 @@ class HandlerEdgeCaseTest {
 
             handler.handle(substringWrong, context);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Wrong substring descriptor should leave stack unchanged")
-                    .isEqualTo(2);
+                    .hasStackSize(2);
         }
 
         @ParameterizedTest(name = "BigDecimal.{0} creates MethodCall")
@@ -1350,9 +1321,9 @@ class HandlerEdgeCaseTest {
 
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("BigDecimal.%s should create MethodCall", methodName)
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
 
         @Test
@@ -1366,9 +1337,9 @@ class HandlerEdgeCaseTest {
             handler.handle(negateInsn, context);
 
             // Stack should still have 2 elements since negate is not recognized
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Unrecognized BigDecimal method should not consume arguments")
-                    .isEqualTo(2);
+                    .hasStackSize(2);
         }
 
         @Test
@@ -1379,9 +1350,9 @@ class HandlerEdgeCaseTest {
 
             handler.handle(getterInsn, context);
 
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("Empty stack should remain empty for getter")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         static Stream<Arguments> getterPatterns() {
@@ -1398,7 +1369,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(getterInsn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .as("%s should create FieldAccess", description)
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.FieldAccess.class);
@@ -1432,7 +1403,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(getterInsn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .as("Getter on BiEntityParameter should create BiEntityFieldAccess")
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.BiEntityFieldAccess.class);
@@ -1476,7 +1447,7 @@ class HandlerEdgeCaseTest {
             handler.handle(wrongMethod, context);
 
             // Stack should not be modified for this unhandled pattern
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
         }
 
         @Test
@@ -1501,9 +1472,9 @@ class HandlerEdgeCaseTest {
 
             handler.handle(privateMethod, context);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Non-constructor INVOKESPECIAL should leave stack unchanged")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
 
         @Test
@@ -1516,7 +1487,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(containsInsn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .as("CapturedVariable.contains(FieldAccess) should create InExpression")
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.InExpression.class);
@@ -1532,7 +1503,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(containsInsn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .as("FieldAccess.contains(Constant) should create MemberOfExpression")
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.MemberOfExpression.class);
@@ -1548,7 +1519,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(containsInsn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .as("FieldAccess.contains(CapturedVariable) should create MemberOfExpression")
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.MemberOfExpression.class);
@@ -1564,7 +1535,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(containsInsn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .as("Non-matching pattern should create MethodCall fallback")
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall.class);
@@ -1703,9 +1674,9 @@ class HandlerEdgeCaseTest {
 
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("%s should not be processed as contains", description)
-                    .isEqualTo(2);
+                    .hasStackSize(2);
         }
 
         @ParameterizedTest(name = "contains on {0} owner creates InExpression")
@@ -1748,9 +1719,9 @@ class HandlerEdgeCaseTest {
             handler.handle(localDateOf, context);
 
             // Stack should remain unchanged due to insufficient stack size
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Insufficient stack should leave unchanged")
-                    .isEqualTo(2);
+                    .hasStackSize(2);
         }
 
         @Test
@@ -1766,9 +1737,9 @@ class HandlerEdgeCaseTest {
             handler.handle(localDateTimeOf, context);
 
             // Should not process because arg count doesn't match expectedArgCount (5)
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Wrong expected arg count should leave stack unchanged")
-                    .isEqualTo(3);
+                    .hasStackSize(3);
         }
 
         static Stream<Arguments> temporalFactoryNonConstantCases() {
@@ -1794,7 +1765,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(factoryCall, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .as("Non-constant args should create MethodCall")
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall.class);
@@ -1810,9 +1781,9 @@ class HandlerEdgeCaseTest {
 
             handler.handle(substringInsn, context);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Insufficient stack for substring(II) should leave unchanged")
-                    .isEqualTo(2);
+                    .hasStackSize(2);
         }
 
         static Stream<Arguments> invokeInterfaceMethodCases() {
@@ -1833,7 +1804,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .as("Interface %s() should create %s", methodName, resultDescription)
                     .isInstanceOf(expectedResultType);
@@ -1849,9 +1820,9 @@ class HandlerEdgeCaseTest {
 
             handler.handle(noArgInit, context);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Zero-arg constructor should create ConstructorCall")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
 
         @Test
@@ -1865,9 +1836,9 @@ class HandlerEdgeCaseTest {
 
             handler.handle(bigDecimalInit, context);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("BigDecimal with multiple args should create ConstructorCall")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
 
         @Test
@@ -1881,7 +1852,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(bigDecimalInit, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .as("Non-constant arg should create ConstructorCall, not constant folding")
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.ConstructorCall.class);
@@ -1897,7 +1868,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(bigDecimalInit, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .as("Non-string constant should create ConstructorCall")
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.ConstructorCall.class);
@@ -1913,7 +1884,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call = (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context
                     .peek();
             assertThat(call.methodName()).isEqualTo(methodName);
@@ -1928,7 +1899,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(containsInsn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call = (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context
                     .peek();
             assertThat(call.methodName()).isEqualTo("contains");
@@ -1951,7 +1922,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call = (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context
                     .peek();
             assertThat(call.methodName()).isEqualTo(methodName);
@@ -1967,7 +1938,7 @@ class HandlerEdgeCaseTest {
             handler.handle(unknownInsn, context);
 
             // hashCode is not handled, stack unchanged
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.FieldAccess.class);
         }
@@ -2002,7 +1973,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(wrongInsn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.FieldAccess.class);
         }
@@ -2025,7 +1996,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call = (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context
                     .peek();
             assertThat(call.methodName()).isEqualTo(methodName);
@@ -2038,7 +2009,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(getYearInsn, context);
 
-            assertThat(context.isStackEmpty()).isTrue();
+            AnalysisContextAssert.assertThat(context).isStackEmpty();
         }
 
         @ParameterizedTest(name = "temporal comparison {0} creates MethodCall")
@@ -2051,7 +2022,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall call = (io.quarkiverse.qubit.deployment.ast.LambdaExpression.MethodCall) context
                     .peek();
             assertThat(call.methodName()).isEqualTo(methodName);
@@ -2069,7 +2040,7 @@ class HandlerEdgeCaseTest {
             handler.handle(remainderInsn, context);
 
             // Should leave stack unchanged
-            assertThat(context.getStackSize()).isEqualTo(2);
+            AnalysisContextAssert.assertThat(context).hasStackSize(2);
         }
 
         @Test
@@ -2081,7 +2052,7 @@ class HandlerEdgeCaseTest {
 
             handler.handle(absInsn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
         }
 
         @Test
@@ -2093,7 +2064,7 @@ class HandlerEdgeCaseTest {
             handler.handle(superHashCode, context);
 
             // Non-constructor INVOKESPECIAL is ignored
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
         }
 
         @Test
@@ -2215,9 +2186,9 @@ class HandlerEdgeCaseTest {
             assertThat(terminated)
                     .as("StringConcatFactory should not terminate")
                     .isFalse();
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Should have concatenation result on stack")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
 
         @Test
@@ -2279,7 +2250,7 @@ class HandlerEdgeCaseTest {
             boolean terminated = handler.handle(indyInsn, context);
 
             assertThat(terminated).isFalse();
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .as("Constant-only recipe should produce Constant")
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant.class);
@@ -2306,7 +2277,7 @@ class HandlerEdgeCaseTest {
             boolean terminated = handler.handle(indyInsn, context);
 
             assertThat(terminated).isFalse();
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .as("Multiple dynamic args should produce BinaryOp (ADD)")
                     .isInstanceOf(io.quarkiverse.qubit.deployment.ast.LambdaExpression.BinaryOp.class);
@@ -2394,9 +2365,9 @@ class HandlerEdgeCaseTest {
             assertThat(terminated)
                     .as("Non-string recipe should return false")
                     .isFalse();
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("Stack should remain empty")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -2442,7 +2413,7 @@ class HandlerEdgeCaseTest {
             boolean terminated = handler.handle(indyInsn, context);
 
             assertThat(terminated).isFalse();
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
         }
 
         private String invokeEscapeRecipe(String recipe) {

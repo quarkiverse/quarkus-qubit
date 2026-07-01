@@ -157,7 +157,7 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             if (implementsQubitRepository && entityType != null) {
                 Log.debugf("Generating bridge methods for empty repository: %s", className);
 
-                for (FluentMethodType methodType : FluentMethodType.ENTRY_POINTS) {
+                for (FluentMethodType methodType : FluentMethodType.values()) {
                     generateBridgeMethod(methodType);
                 }
 
@@ -316,31 +316,27 @@ public class QubitRepositoryEnhancer implements BiFunction<String, ClassVisitor,
             // Load entity class as first constructor argument (sourceEntityClass)
             mv.visitLdcInsn(entityType);
 
-            // Load Object.class as second constructor argument (joinedEntityClass - placeholder)
-            // The actual joined entity type is erased at runtime; Object.class is used as placeholder
-            mv.visitLdcInsn(Type.getType(Object.class));
-
-            // Load relationship QuerySpec parameter (index 1 for instance method)
+            // Load relationship QuerySpec parameter
             mv.visitVarInsn(Opcodes.ALOAD, 1);
 
-            // Load join type as fourth constructor argument
+            // Load join type
             mv.visitFieldInsn(
                     Opcodes.GETSTATIC,
                     JOIN_TYPE_INTERNAL_NAME,
                     isLeftJoin ? "LEFT" : "INNER",
                     JOIN_TYPE_DESCRIPTOR);
 
-            // Call JoinStreamImpl constructor: <init>(Class, Class, QuerySpec, JoinType)
+            // Call JoinStreamImpl constructor: <init>(Class, QuerySpec, JoinType)
             mv.visitMethodInsn(
                     Opcodes.INVOKESPECIAL,
                     JOIN_STREAM_IMPL_INTERNAL_NAME,
                     CONSTRUCTOR,
-                    "(Ljava/lang/Class;Ljava/lang/Class;" + QUERY_SPEC_DESCRIPTOR + JOIN_TYPE_DESCRIPTOR + ")V",
+                    "(Ljava/lang/Class;" + QUERY_SPEC_DESCRIPTOR + JOIN_TYPE_DESCRIPTOR + ")V",
                     false);
 
             mv.visitInsn(Opcodes.ARETURN);
 
-            mv.visitMaxs(6, 2);
+            mv.visitMaxs(5, 2);
             mv.visitEnd();
             Log.infof("    Successfully generated join method: %s", methodName);
         }

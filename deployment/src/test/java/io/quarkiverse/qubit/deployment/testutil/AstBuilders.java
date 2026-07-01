@@ -1,6 +1,5 @@
 package io.quarkiverse.qubit.deployment.testutil;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
@@ -284,74 +283,4 @@ public final class AstBuilders {
         return new LambdaExpression.MethodCall(target, methodName, List.of(), returnType);
     }
 
-    /**
-     * Starts building a method call with fluent syntax.
-     *
-     * <p>
-     * Example usage:
-     *
-     * <pre>{@code
-     * var call = call("getValue").on(captured(0, Object.class)).returns(Object.class).build();
-     * }</pre>
-     *
-     * @param methodName the method name
-     * @return a MethodCallBuilder for fluent configuration
-     */
-    public static MethodCallBuilder call(String methodName) {
-        return new MethodCallBuilder(methodName);
-    }
-
-    /**
-     * Fluent builder for constructing MethodCall expressions.
-     */
-    public static class MethodCallBuilder {
-        private final String methodName;
-        private LambdaExpression target;
-        private final List<LambdaExpression> arguments = new ArrayList<>();
-        private Class<?> returnType = Object.class;
-
-        public MethodCallBuilder(String methodName) {
-            this.methodName = methodName;
-        }
-
-        /**
-         * Sets the target object for the method call.
-         */
-        public MethodCallBuilder on(LambdaExpression target) {
-            this.target = target;
-            return this;
-        }
-
-        /**
-         * Adds arguments to the method call.
-         */
-        public MethodCallBuilder withArgs(LambdaExpression... args) {
-            this.arguments.clear();
-            this.arguments.addAll(List.of(args));
-            return this;
-        }
-
-        /**
-         * Adds a single argument to the method call.
-         */
-        public MethodCallBuilder withArg(LambdaExpression arg) {
-            this.arguments.add(arg);
-            return this;
-        }
-
-        /**
-         * Sets the return type of the method.
-         */
-        public MethodCallBuilder returns(Class<?> returnType) {
-            this.returnType = returnType;
-            return this;
-        }
-
-        /**
-         * Builds the MethodCall expression.
-         */
-        public LambdaExpression.MethodCall build() {
-            return new LambdaExpression.MethodCall(target, methodName, List.copyOf(arguments), returnType);
-        }
-    }
 }

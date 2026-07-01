@@ -194,7 +194,7 @@ public class QueryExecutorRegistry {
         requireEntityManager();
 
         QueryExecutor<List<?>> executor = getExecutor(LIST_EXECUTORS, callSiteId, ExecutorType.LIST,
-                () -> String.format(COUNT_FORMAT_STANDARD, getListExecutorCount(), getCountExecutorCount()));
+                () -> String.format(COUNT_FORMAT_STANDARD, LIST_EXECUTORS.size(), COUNT_EXECUTORS.size()));
 
         if (LOG.isTraceEnabled()) {
             LOG.tracef("Executing list query for call site: %s with %d captured variables (offset=%s, limit=%s, distinct=%s)",
@@ -211,7 +211,7 @@ public class QueryExecutorRegistry {
         requireEntityManager();
 
         QueryExecutor<Long> executor = getExecutor(COUNT_EXECUTORS, callSiteId, ExecutorType.COUNT,
-                () -> String.format(COUNT_FORMAT_STANDARD, getListExecutorCount(), getCountExecutorCount()));
+                () -> String.format(COUNT_FORMAT_STANDARD, LIST_EXECUTORS.size(), COUNT_EXECUTORS.size()));
 
         if (LOG.isTraceEnabled()) {
             LOG.tracef("Executing count query for call site: %s with %d captured variables",
@@ -230,7 +230,7 @@ public class QueryExecutorRegistry {
 
         QueryExecutor<Object> executor = getExecutor(AGGREGATION_EXECUTORS, callSiteId, ExecutorType.AGGREGATION,
                 () -> String.format(COUNT_FORMAT_WITH_AGGREGATION,
-                        getListExecutorCount(), getCountExecutorCount(), getAggregationExecutorCount()));
+                        LIST_EXECUTORS.size(), COUNT_EXECUTORS.size(), AGGREGATION_EXECUTORS.size()));
 
         if (LOG.isTraceEnabled()) {
             LOG.tracef("Executing aggregation query for call site: %s with %d captured variables",
@@ -238,42 +238,6 @@ public class QueryExecutorRegistry {
         }
 
         return (R) executor.execute(entityManager, entityClass, capturedValues, null, null, null);
-    }
-
-    public static int getListExecutorCount() {
-        return LIST_EXECUTORS.size();
-    }
-
-    public static int getCountExecutorCount() {
-        return COUNT_EXECUTORS.size();
-    }
-
-    public static int getAggregationExecutorCount() {
-        return AGGREGATION_EXECUTORS.size();
-    }
-
-    public static int getJoinListExecutorCount() {
-        return JOIN_LIST_EXECUTORS.size();
-    }
-
-    public static int getJoinCountExecutorCount() {
-        return JOIN_COUNT_EXECUTORS.size();
-    }
-
-    public static int getJoinSelectJoinedExecutorCount() {
-        return JOIN_SELECT_JOINED_EXECUTORS.size();
-    }
-
-    public static int getJoinProjectionExecutorCount() {
-        return JOIN_PROJECTION_EXECUTORS.size();
-    }
-
-    public static int getGroupListExecutorCount() {
-        return GROUP_LIST_EXECUTORS.size();
-    }
-
-    public static int getGroupCountExecutorCount() {
-        return GROUP_COUNT_EXECUTORS.size();
     }
 
     /**
@@ -316,8 +280,8 @@ public class QueryExecutorRegistry {
 
         QueryExecutor<List<?>> executor = getExecutor(JOIN_LIST_EXECUTORS, callSiteId, ExecutorType.JOIN_LIST,
                 () -> String.format(COUNT_FORMAT_JOIN,
-                        getListExecutorCount(), getCountExecutorCount(),
-                        getJoinListExecutorCount(), getJoinCountExecutorCount()));
+                        LIST_EXECUTORS.size(), COUNT_EXECUTORS.size(),
+                        JOIN_LIST_EXECUTORS.size(), JOIN_COUNT_EXECUTORS.size()));
 
         if (LOG.isTraceEnabled()) {
             LOG.tracef(
@@ -336,8 +300,8 @@ public class QueryExecutorRegistry {
 
         QueryExecutor<Long> executor = getExecutor(JOIN_COUNT_EXECUTORS, callSiteId, ExecutorType.JOIN_COUNT,
                 () -> String.format(COUNT_FORMAT_JOIN,
-                        getListExecutorCount(), getCountExecutorCount(),
-                        getJoinListExecutorCount(), getJoinCountExecutorCount()));
+                        LIST_EXECUTORS.size(), COUNT_EXECUTORS.size(),
+                        JOIN_LIST_EXECUTORS.size(), JOIN_COUNT_EXECUTORS.size()));
 
         if (LOG.isTraceEnabled()) {
             LOG.tracef("Executing join count query for call site: %s with %d captured variables",
@@ -357,8 +321,8 @@ public class QueryExecutorRegistry {
 
         QueryExecutor<List<?>> executor = getExecutor(JOIN_SELECT_JOINED_EXECUTORS, callSiteId, ExecutorType.JOIN_SELECT_JOINED,
                 () -> String.format(COUNT_FORMAT_JOIN_SELECT,
-                        getListExecutorCount(), getCountExecutorCount(),
-                        getJoinListExecutorCount(), getJoinCountExecutorCount(), getJoinSelectJoinedExecutorCount()));
+                        LIST_EXECUTORS.size(), COUNT_EXECUTORS.size(),
+                        JOIN_LIST_EXECUTORS.size(), JOIN_COUNT_EXECUTORS.size(), JOIN_SELECT_JOINED_EXECUTORS.size()));
 
         if (LOG.isTraceEnabled()) {
             LOG.tracef(
@@ -379,9 +343,9 @@ public class QueryExecutorRegistry {
 
         QueryExecutor<List<?>> executor = getExecutor(JOIN_PROJECTION_EXECUTORS, callSiteId, ExecutorType.JOIN_PROJECTION,
                 () -> String.format(COUNT_FORMAT_JOIN_PROJECTION,
-                        getListExecutorCount(), getCountExecutorCount(),
-                        getJoinListExecutorCount(), getJoinCountExecutorCount(),
-                        getJoinSelectJoinedExecutorCount(), getJoinProjectionExecutorCount()));
+                        LIST_EXECUTORS.size(), COUNT_EXECUTORS.size(),
+                        JOIN_LIST_EXECUTORS.size(), JOIN_COUNT_EXECUTORS.size(),
+                        JOIN_SELECT_JOINED_EXECUTORS.size(), JOIN_PROJECTION_EXECUTORS.size()));
 
         if (LOG.isTraceEnabled()) {
             LOG.tracef(
@@ -416,8 +380,8 @@ public class QueryExecutorRegistry {
 
         QueryExecutor<List<?>> executor = getExecutor(GROUP_LIST_EXECUTORS, callSiteId, ExecutorType.GROUP_LIST,
                 () -> String.format(COUNT_FORMAT_GROUP,
-                        getListExecutorCount(), getCountExecutorCount(),
-                        getGroupListExecutorCount(), getGroupCountExecutorCount()));
+                        LIST_EXECUTORS.size(), COUNT_EXECUTORS.size(),
+                        GROUP_LIST_EXECUTORS.size(), GROUP_COUNT_EXECUTORS.size()));
 
         if (LOG.isTraceEnabled()) {
             LOG.tracef("Executing group list query for call site: %s with %d captured variables (offset=%s, limit=%s)",
@@ -446,8 +410,8 @@ public class QueryExecutorRegistry {
 
         QueryExecutor<List<?>> executor = getExecutor(GROUP_LIST_EXECUTORS, callSiteId, ExecutorType.GROUP_LIST,
                 () -> String.format(COUNT_FORMAT_GROUP,
-                        getListExecutorCount(), getCountExecutorCount(),
-                        getGroupListExecutorCount(), getGroupCountExecutorCount()));
+                        LIST_EXECUTORS.size(), COUNT_EXECUTORS.size(),
+                        GROUP_LIST_EXECUTORS.size(), GROUP_COUNT_EXECUTORS.size()));
 
         if (LOG.isTraceEnabled()) {
             LOG.tracef("Executing group key query for call site: %s with %d captured variables (offset=%s, limit=%s)",
@@ -465,8 +429,8 @@ public class QueryExecutorRegistry {
 
         QueryExecutor<Long> executor = getExecutor(GROUP_COUNT_EXECUTORS, callSiteId, ExecutorType.GROUP_COUNT,
                 () -> String.format(COUNT_FORMAT_GROUP,
-                        getListExecutorCount(), getCountExecutorCount(),
-                        getGroupListExecutorCount(), getGroupCountExecutorCount()));
+                        LIST_EXECUTORS.size(), COUNT_EXECUTORS.size(),
+                        GROUP_LIST_EXECUTORS.size(), GROUP_COUNT_EXECUTORS.size()));
 
         if (LOG.isTraceEnabled()) {
             LOG.tracef("Executing group count query for call site: %s with %d captured variables",

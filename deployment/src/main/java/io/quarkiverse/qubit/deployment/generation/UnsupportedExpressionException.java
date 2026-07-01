@@ -7,33 +7,12 @@ import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 /** Thrown when encountering an unsupported expression during JPA code generation. */
 public class UnsupportedExpressionException extends RuntimeException {
 
-    private final String expressionType;
-    private final @Nullable String context;
-
     public UnsupportedExpressionException(LambdaExpression expression) {
         super(formatMessage(expression, null));
-        this.expressionType = expression.getClass().getSimpleName();
-        this.context = null;
     }
 
     public UnsupportedExpressionException(LambdaExpression expression, String context) {
         super(formatMessage(expression, context));
-        this.expressionType = expression.getClass().getSimpleName();
-        this.context = context;
-    }
-
-    public UnsupportedExpressionException(String message) {
-        super(message);
-        this.expressionType = "unknown";
-        this.context = null;
-    }
-
-    public String getExpressionType() {
-        return expressionType;
-    }
-
-    public @Nullable String getContext() {
-        return context;
     }
 
     private static String formatMessage(LambdaExpression expression, @Nullable String context) {

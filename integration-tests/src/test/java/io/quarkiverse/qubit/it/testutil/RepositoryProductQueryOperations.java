@@ -17,11 +17,6 @@ public class RepositoryProductQueryOperations implements ProductQueryOperations 
     }
 
     @Override
-    public String getSourceName() {
-        return "Repository";
-    }
-
-    @Override
     public QubitStream<Product> where(QuerySpec<Product, Boolean> spec) {
         return repository.where(spec);
     }

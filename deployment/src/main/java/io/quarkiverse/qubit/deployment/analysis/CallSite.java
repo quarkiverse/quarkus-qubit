@@ -7,6 +7,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
+import io.quarkiverse.qubit.JoinType;
 import io.quarkiverse.qubit.SortDirection;
 import io.quarkus.logging.Log;
 
@@ -22,11 +23,6 @@ public sealed interface CallSite permits CallSite.SimpleCallSite, CallSite.Aggre
         public LambdaPair toLambdaPair() {
             return new LambdaPair(methodName, descriptor);
         }
-    }
-
-    enum JoinType {
-        INNER,
-        LEFT
     }
 
     record Common(

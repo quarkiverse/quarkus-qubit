@@ -16,7 +16,6 @@ import org.jspecify.annotations.Nullable;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.MathFunction;
 import io.quarkus.gizmo2.Expr;
 import io.quarkus.gizmo2.creator.BlockCreator;
-import io.quarkus.gizmo2.desc.MethodDesc;
 
 /**
  * Generates JPA CriteriaBuilder math function calls from {@link MathFunction} AST nodes.
@@ -60,19 +59,4 @@ public final class MathExpressionBuilder {
         };
     }
 
-    /** Maps MathOp to its MethodDesc for testing/inspection purposes. */
-    public static MethodDesc methodDescFor(MathFunction.MathOp op) {
-        return switch (op) {
-            case ABS -> CB_ABS;
-            case NEG -> CB_NEG;
-            case SQRT -> CB_SQRT;
-            case SIGN -> CB_SIGN;
-            case CEILING -> CB_CEILING;
-            case FLOOR -> CB_FLOOR;
-            case EXP -> CB_EXP;
-            case LN -> CB_LN;
-            case POWER -> CB_POWER;
-            case ROUND -> CB_ROUND;
-        };
-    }
 }

@@ -5,7 +5,6 @@ import java.util.List;
 import io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome;
 import io.quarkiverse.qubit.deployment.analysis.CallSite;
 import io.quarkiverse.qubit.deployment.analysis.CapturedVariableHelper;
-import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.JoinQueryResult;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator;
@@ -117,24 +116,4 @@ public final class JoinQueryHandler extends AbstractQueryHandler {
         return AnalysisOutcome.success(result, context.callSiteId(), lambdaHash);
     }
 
-    @Override
-    public String computeHash(
-            LambdaDeduplicator deduplicator,
-            CallSite callSite,
-            LambdaAnalysisResult result) {
-
-        CallSite.JoinCallSite joinCallSite = (CallSite.JoinCallSite) callSite;
-        JoinQueryResult join = castResult(result, JoinQueryResult.class);
-        return deduplicator.computeJoinHash(
-                new LambdaDeduplicator.JoinHashRequest(
-                        join.joinRelationshipExpression(),
-                        join.sourcePredicateExpression(),
-                        join.biEntityPredicateExpression(),
-                        join.biEntityProjectionExpression(),
-                        join.sortExpressions(),
-                        join.joinType().name(),
-                        joinCallSite.isCountQuery(),
-                        joinCallSite.isSelectJoined(),
-                        joinCallSite.isJoinProjectionQuery()));
-    }
 }

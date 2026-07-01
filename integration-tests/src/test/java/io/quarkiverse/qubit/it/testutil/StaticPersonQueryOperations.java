@@ -22,11 +22,6 @@ public class StaticPersonQueryOperations implements PersonQueryOperations {
     }
 
     @Override
-    public String getSourceName() {
-        return "Static";
-    }
-
-    @Override
     public QubitStream<Person> where(QuerySpec<Person, Boolean> spec) {
         return Person.where(spec);
     }

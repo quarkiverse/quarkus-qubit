@@ -119,7 +119,7 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueriesFactoryMethod(context, methodInsn);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .as("Should create SubqueryBuilderReference")
                     .isInstanceOf(SubqueryBuilderReference.class);
@@ -141,9 +141,9 @@ class SubqueryAnalyzerTest {
             analyzer.handleSubqueriesFactoryMethod(context, methodInsn);
 
             // Stack should be unchanged (method returned early)
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Stack should be unchanged for unexpected method")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
             assertThat(context.peek())
                     .as("Original constant should remain on stack")
                     .isInstanceOf(LambdaExpression.Constant.class);
@@ -162,9 +162,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("Stack should remain empty after error")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -177,9 +177,9 @@ class SubqueryAnalyzerTest {
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
             // Stack should be restored (builderRef pushed back)
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Stack should have the original element restored")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
             assertThat(context.peek())
                     .as("Original field access should be restored on stack")
                     .isInstanceOf(LambdaExpression.FieldAccess.class);
@@ -197,9 +197,9 @@ class SubqueryAnalyzerTest {
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
             // Method should have returned early, stack should be empty
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("where() with wrong arg count should leave stack empty")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -214,9 +214,9 @@ class SubqueryAnalyzerTest {
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
             // Method should have returned early, stack should be empty
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("avg() with wrong arg count should leave stack empty")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -231,9 +231,9 @@ class SubqueryAnalyzerTest {
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
             // Method should have returned early, stack should be empty
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("exists() with wrong arg count should leave stack empty")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -249,9 +249,9 @@ class SubqueryAnalyzerTest {
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
             // Method should have returned early, stack should be empty
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("in() with wrong arg count should leave stack empty")
-                    .isTrue();
+                    .isStackEmpty();
         }
     }
 
@@ -267,7 +267,7 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .as("count() should create ScalarSubquery")
                     .isInstanceOf(ScalarSubquery.class);
@@ -287,7 +287,7 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .as("avg() should create ScalarSubquery")
                     .isInstanceOf(ScalarSubquery.class);
@@ -307,7 +307,7 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .as("exists() should create ExistsSubquery")
                     .isInstanceOf(ExistsSubquery.class);
@@ -327,7 +327,7 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .as("notExists() should create ExistsSubquery")
                     .isInstanceOf(ExistsSubquery.class);
@@ -348,7 +348,7 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .as("in() should create InSubquery")
                     .isInstanceOf(InSubquery.class);
@@ -369,7 +369,7 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .as("notIn() should create InSubquery")
                     .isInstanceOf(InSubquery.class);
@@ -391,7 +391,7 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertThat(context.peek())
                     .as("where() should push updated SubqueryBuilderReference")
                     .isInstanceOf(SubqueryBuilderReference.class);
@@ -571,9 +571,9 @@ class SubqueryAnalyzerTest {
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
             // Unknown method is handled in default case - stack cleared by arg popping
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("Unknown method should result in empty stack")
-                    .isTrue();
+                    .isStackEmpty();
         }
     }
 
@@ -595,9 +595,9 @@ class SubqueryAnalyzerTest {
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
             // Should have processed with partial args (arg count check will fail, but line 56 was exercised)
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("Stack should be empty after failed arg count check")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -613,9 +613,9 @@ class SubqueryAnalyzerTest {
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
             // SubqueryBuilderReference was consumed as arg, then stack was empty -> early return
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("Stack should be empty after builder consumed as arg and early return")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -634,9 +634,9 @@ class SubqueryAnalyzerTest {
             // With proper check: args.size() != 1 -> early return, nothing pushed
             // With mutation: args would have null, size check passes, but NPE when using null selector
             // We verify by checking the stack is empty (early return happened)
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("Stack should be empty - arg count check should fail and return early")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -652,7 +652,7 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             ScalarSubquery subquery = (ScalarSubquery) context.peek();
             // If mutation popped extra null, the fieldExpression would be wrong
             assertThat(subquery.fieldExpression())
@@ -679,9 +679,9 @@ class SubqueryAnalyzerTest {
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
             // All 3 elements should be restored (builderRef + 2 args)
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("All elements should be restored after wrong type detection")
-                    .isEqualTo(3);
+                    .hasStackSize(3);
             // Verify order: last pushed should be at top (arg 2)
             assertThat(context.pop())
                     .as("Top should be last arg pushed")
@@ -704,9 +704,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Both elements should be restored")
-                    .isEqualTo(2);
+                    .hasStackSize(2);
         }
 
         @Test
@@ -721,9 +721,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("All 4 elements should be restored")
-                    .isEqualTo(4);
+                    .hasStackSize(4);
         }
     }
 
@@ -741,9 +741,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("AVG switch case must push a result to the stack")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
             assertThat(context.peek())
                     .as("AVG must push a non-null ScalarSubquery")
                     .isNotNull()
@@ -767,9 +767,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("SUM switch case must push a result to the stack")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
             assertThat(context.peek())
                     .as("SUM must push a non-null ScalarSubquery")
                     .isNotNull()
@@ -794,9 +794,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("MIN switch case must push a result to the stack")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
             assertThat(context.peek())
                     .as("MIN must push a non-null ScalarSubquery")
                     .isNotNull()
@@ -821,9 +821,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("MAX switch case must push a result to the stack")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
             assertThat(context.peek())
                     .as("MAX must push a non-null ScalarSubquery")
                     .isNotNull()
@@ -842,9 +842,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("COUNT switch case must push a result to the stack")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
             assertThat(context.peek())
                     .as("COUNT must push a non-null ScalarSubquery")
                     .isNotNull()
@@ -868,9 +868,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("EXISTS switch case must push a result to the stack")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
             assertThat(context.peek())
                     .as("EXISTS must create ExistsSubquery, not InSubquery or ScalarSubquery")
                     .isNotNull()
@@ -891,9 +891,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("NOT_EXISTS switch case must push a result to the stack")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
             assertThat(context.peek())
                     .as("NOT_EXISTS must push a non-null ExistsSubquery")
                     .isNotNull()
@@ -915,9 +915,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("IN switch case must push a result to the stack")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
             assertThat(context.peek())
                     .as("IN must create InSubquery, not ExistsSubquery")
                     .isNotNull()
@@ -939,9 +939,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("NOT_IN switch case must push a result to the stack")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
             assertThat(context.peek())
                     .as("NOT_IN must push a non-null InSubquery")
                     .isNotNull()
@@ -964,9 +964,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("WHERE switch case must push a result to the stack")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
             assertThat(context.peek())
                     .as("WHERE must create SubqueryBuilderReference, not subquery")
                     .isNotNull()
@@ -988,9 +988,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("where() with 0 args should leave stack empty (returned early)")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -1004,9 +1004,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("where() with 2 args should leave stack empty (returned early)")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -1017,9 +1017,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("avg() with 0 args should leave stack empty")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -1033,9 +1033,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("sum() with 2 args should leave stack empty")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -1046,9 +1046,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("min() with 0 args should leave stack empty")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -1059,9 +1059,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("max() with 0 args should leave stack empty")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -1072,9 +1072,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("exists() with 0 args should leave stack empty")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -1088,9 +1088,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("exists() with 2 args should leave stack empty")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -1101,9 +1101,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("notExists() with 0 args should leave stack empty")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -1114,9 +1114,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("in() with 0 args should leave stack empty")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -1129,9 +1129,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("in() with 1 arg should leave stack empty")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -1147,9 +1147,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("in() with 4 args should leave stack empty")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -1162,9 +1162,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("notIn() with 1 arg should leave stack empty")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -1180,9 +1180,9 @@ class SubqueryAnalyzerTest {
 
             analyzer.handleSubqueryBuilderMethod(context, methodInsn);
 
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("notIn() with 4 args should leave stack empty")
-                    .isTrue();
+                    .isStackEmpty();
         }
     }
 

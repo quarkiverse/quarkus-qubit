@@ -11,6 +11,7 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.QUERY_TYPE_PR
 
 import java.util.List;
 
+import io.quarkiverse.qubit.JoinType;
 import io.quarkiverse.qubit.deployment.QubitBuildTimeConfig;
 import io.quarkiverse.qubit.deployment.QubitProcessor;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
@@ -172,7 +173,7 @@ class ExecutorRegistrationHelper {
                         .build());
 
         if (ctx.loggingConfig().logGeneratedClasses()) {
-            String joinTypeDesc = (join.joinType() == CallSite.JoinType.LEFT)
+            String joinTypeDesc = (join.joinType() == JoinType.LEFT)
                     ? "LEFT JOIN"
                     : "INNER JOIN";
             String queryTypeDesc;

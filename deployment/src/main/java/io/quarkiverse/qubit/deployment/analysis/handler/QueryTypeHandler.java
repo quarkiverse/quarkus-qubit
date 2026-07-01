@@ -2,11 +2,9 @@ package io.quarkiverse.qubit.deployment.analysis.handler;
 
 import io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome;
 import io.quarkiverse.qubit.deployment.analysis.CallSite;
-import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult;
-import io.quarkiverse.qubit.deployment.analysis.LambdaDeduplicator;
 
 /**
- * Strategy interface for query type-specific analysis and hash computation.
+ * Strategy interface for query type-specific analysis.
  * Sealed interface ensures exhaustive handling of all query types.
  */
 public sealed interface QueryTypeHandler permits AbstractQueryHandler {
@@ -19,7 +17,4 @@ public sealed interface QueryTypeHandler permits AbstractQueryHandler {
 
     /** Analyzes lambda bytecode; returns Success, UnsupportedPattern, or AnalysisError. */
     AnalysisOutcome analyze(QueryAnalysisContext context);
-
-    /** Computes MD5 hash for deduplication based on query type-specific components. */
-    String computeHash(LambdaDeduplicator deduplicator, CallSite callSite, LambdaAnalysisResult result);
 }

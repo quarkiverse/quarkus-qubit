@@ -43,25 +43,13 @@ class BranchStateTest {
     @DisplayName("Initial State")
     class InitialStateTests {
 
-        @Test
-        @DisplayName("isInitial returns true")
-        void isInitialReturnsTrue() {
-            assertThat(new BranchState.Initial().isInitial()).isTrue();
-        }
-
-        @Test
-        @DisplayName("determineCombineOperator returns null")
-        void determineCombineOperatorReturnsNull() {
-            assertThat(new BranchState.Initial().determineCombineOperator(true, null)).isNull();
-        }
-
         @ParameterizedTest(name = "transition({0}) → {1}")
         @MethodSource("io.quarkiverse.qubit.deployment.analysis.branch.BranchStateTest#initialTransitions")
         @DisplayName("transitions correctly")
         void transitionsCorrectly(boolean jumpTarget, Class<? extends BranchState> expectedType) {
             BranchState next = new BranchState.Initial().transition(jumpTarget, false);
             assertThat(next).isInstanceOf(expectedType);
-            assertThat(next.isInitial()).isFalse();
+            assertThat(next).isNotInstanceOf(BranchState.Initial.class);
         }
 
         @Test

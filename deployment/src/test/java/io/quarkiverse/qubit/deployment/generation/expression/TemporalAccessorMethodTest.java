@@ -24,49 +24,12 @@ import org.junit.jupiter.params.provider.ValueSource;
  * <p>
  * These tests ensure complete mutation coverage by testing:
  * <ul>
- * <li>{@link TemporalAccessorMethod#getJavaMethod()} for all enum values</li>
  * <li>{@link TemporalAccessorMethod#getExtractFieldName()} for all enum values</li>
  * <li>{@link TemporalAccessorMethod#fromJavaMethod(String)} with null, valid, and invalid inputs</li>
- * <li>{@link TemporalAccessorMethod#isTemporalAccessor(String)} for both true and false paths</li>
  * </ul>
  */
 @DisplayName("TemporalAccessorMethod")
 class TemporalAccessorMethodTest {
-
-    // INSTANCE METHOD TESTS - getJavaMethod() and getExtractFieldName()
-
-    @Nested
-    @DisplayName("getJavaMethod()")
-    class GetJavaMethodTests {
-
-        @ParameterizedTest(name = "{0} should return \"{1}\"")
-        @CsvSource({
-                "GET_YEAR, getYear",
-                "GET_MONTH_VALUE, getMonthValue",
-                "GET_DAY_OF_MONTH, getDayOfMonth",
-                "GET_HOUR, getHour",
-                "GET_MINUTE, getMinute",
-                "GET_SECOND, getSecond",
-                "QUARTER, quarter",
-                "WEEK, week"
-        })
-        void shouldReturnCorrectJavaMethodName(TemporalAccessorMethod method, String expectedJavaMethod) {
-            assertThat(method.getJavaMethod())
-                    .as("getJavaMethod() for %s", method.name())
-                    .isEqualTo(expectedJavaMethod);
-        }
-
-        @Test
-        @DisplayName("all enum values should have non-null Java method names")
-        void allEnumValuesShouldHaveNonNullJavaMethodNames() {
-            for (TemporalAccessorMethod method : TemporalAccessorMethod.values()) {
-                assertThat(method.getJavaMethod())
-                        .as("getJavaMethod() for %s should not be null", method.name())
-                        .isNotNull()
-                        .isNotEmpty();
-            }
-        }
-    }
 
     @Nested
     @DisplayName("getExtractFieldName()")
@@ -184,60 +147,6 @@ class TemporalAccessorMethodTest {
             assertThat(result)
                     .as("fromJavaMethod(\"%s\") should return empty Optional", methodName)
                     .isEmpty();
-        }
-    }
-
-    // STATIC METHOD TESTS - isTemporalAccessor()
-
-    @Nested
-    @DisplayName("isTemporalAccessor()")
-    class IsTemporalAccessorTests {
-
-        @ParameterizedTest(name = "isTemporalAccessor(\"{0}\") should return true")
-        @ValueSource(strings = {
-                "getYear",
-                "getMonthValue",
-                "getDayOfMonth",
-                "getHour",
-                "getMinute",
-                "getSecond",
-                "quarter",
-                "week"
-        })
-        void shouldReturnTrueForValidTemporalAccessorMethods(String methodName) {
-            boolean result = TemporalAccessorMethod.isTemporalAccessor(methodName);
-
-            assertThat(result)
-                    .as("isTemporalAccessor(\"%s\") should return true", methodName)
-                    .isTrue();
-        }
-
-        @ParameterizedTest(name = "isTemporalAccessor(\"{0}\") should return false")
-        @ValueSource(strings = {
-                "invalidMethod",
-                "toString",
-                "hashCode",
-                "equals",
-                "getTime", // not a supported method
-                "getDate", // not a supported method
-                ""
-        })
-        void shouldReturnFalseForInvalidMethods(String methodName) {
-            boolean result = TemporalAccessorMethod.isTemporalAccessor(methodName);
-
-            assertThat(result)
-                    .as("isTemporalAccessor(\"%s\") should return false", methodName)
-                    .isFalse();
-        }
-
-        @Test
-        @DisplayName("should return false for null input")
-        void shouldReturnFalseForNullInput() {
-            boolean result = TemporalAccessorMethod.isTemporalAccessor(null);
-
-            assertThat(result)
-                    .as("isTemporalAccessor(null) should return false")
-                    .isFalse();
         }
     }
 

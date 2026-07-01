@@ -10,6 +10,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import io.quarkiverse.qubit.JoinType;
 import io.quarkiverse.qubit.deployment.analysis.CallSite;
 
 /**
@@ -118,7 +119,7 @@ class QueryTypeHandlerRegistryTest {
         @DisplayName("returns JoinQueryHandler for join queries")
         void returnsJoinHandlerForJoinQueries() {
             CallSite callSite = new CallSite.JoinCallSite(
-                    COMMON, CallSite.JoinType.INNER, new CallSite.LambdaPair("lambda$0", "(LPerson;)LList;"),
+                    COMMON, JoinType.INNER, new CallSite.LambdaPair("lambda$0", "(LPerson;)LList;"),
                     null, null, null, false, null);
 
             QueryTypeHandlerRegistry registry = QueryTypeHandlerRegistry.getDefault();

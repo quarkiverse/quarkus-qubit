@@ -85,10 +85,4 @@ public final class TypeConverter {
                 Number.class.isAssignableFrom(type);
     }
 
-    /** Returns true if type is a temporal type (LocalDate, LocalDateTime, LocalTime). */
-    public static boolean isTemporalType(Class<?> type) {
-        return type == LocalDate.class ||
-                type == LocalDateTime.class ||
-                type == LocalTime.class;
-    }
 }

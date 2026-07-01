@@ -257,11 +257,6 @@ public class AnalysisContext {
         return method;
     }
 
-    /** Returns entity parameter index (first entity for bi-entity lambdas). */
-    public int getFirstEntityParameterIndex() {
-        return entityParameterIndex;
-    }
-
     /** Returns second entity parameter index (-1 if single-entity). */
     public int getSecondEntityParameterIndex() {
         return secondEntityParameterIndex;
@@ -390,11 +385,6 @@ public class AnalysisContext {
             ternaryPatterns = TernaryPatternDetector.detectAll(instructions);
         }
         return ternaryPatterns;
-    }
-
-    /** Checks if instruction at index starts a ternary pattern. */
-    public boolean startsTernaryPattern(int instructionIndex) {
-        return TernaryPatternDetector.findPatternStartingAt(getTernaryPatterns(), instructionIndex).isPresent();
     }
 
     /** Gets the ternary pattern starting at the given instruction index, if any. */

@@ -11,14 +11,13 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.function.Function;
 
-import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Selection;
 
 import org.jspecify.annotations.Nullable;
 
+import io.quarkiverse.qubit.JoinType;
 import io.quarkiverse.qubit.SortDirection;
-import io.quarkiverse.qubit.deployment.analysis.CallSite;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkus.gizmo2.Const;
@@ -52,9 +51,9 @@ public final class GizmoHelper {
     }
 
     /** Loads JPA JoinType enum value (INNER or LEFT). */
-    public static Expr loadJpaJoinType(CallSite.JoinType joinType) {
-        String jpaJoinTypeName = (joinType == CallSite.JoinType.LEFT) ? "LEFT" : "INNER";
-        ClassDesc joinTypeDesc = ClassDesc.of(JoinType.class.getName());
+    public static Expr loadJpaJoinType(JoinType joinType) {
+        String jpaJoinTypeName = (joinType == JoinType.LEFT) ? "LEFT" : "INNER";
+        ClassDesc joinTypeDesc = ClassDesc.of(jakarta.persistence.criteria.JoinType.class.getName());
         return Expr.staticField(FieldDesc.of(joinTypeDesc, jpaJoinTypeName, joinTypeDesc));
     }
 
@@ -71,11 +70,6 @@ public final class GizmoHelper {
     /** Unboxes Boolean to boolean. */
     public static Expr unboxBoolean(BlockCreator bc, Expr boxedValue) {
         return bc.invokeVirtual(BOOLEAN_BOOLEAN_VALUE, boxedValue);
-    }
-
-    /** Unboxes Long to long. */
-    public static Expr unboxLong(BlockCreator bc, Expr boxedValue) {
-        return bc.invokeVirtual(LONG_LONG_VALUE, boxedValue);
     }
 
     /** Loads constant as bytecode (primitives, BigDecimal, LocalDate/Time). */

@@ -52,13 +52,7 @@ public sealed interface BranchState permits BranchState.Initial, BranchState.And
     }
 
     /**
-     * Returns true if this is the initial state (no jumps processed yet).
-     */
-    default boolean isInitial() {
-        return this instanceof Initial;
-    }
-
-    /**
+     * /**
      * Returns the previous instruction's jump target, or empty if initial/first comparison.
      */
     default Optional<Boolean> getLastJumpTarget() {

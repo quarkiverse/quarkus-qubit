@@ -28,7 +28,7 @@ import io.quarkus.gizmo2.creator.BlockCreator;
  * <b>Note:</b> BigDecimal methods are mapped to binary operators and delegated
  * to {@link ArithmeticExpressionBuilder} for actual bytecode generation.
  */
-public enum BigDecimalExpressionBuilder implements ExpressionBuilder {
+public enum BigDecimalExpressionBuilder {
     INSTANCE;
 
     /** Maps BigDecimal method names to binary operators. */

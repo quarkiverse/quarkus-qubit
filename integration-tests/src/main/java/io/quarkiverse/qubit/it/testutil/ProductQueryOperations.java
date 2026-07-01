@@ -12,11 +12,6 @@ import io.quarkiverse.qubit.QubitStream;
 public interface ProductQueryOperations {
 
     /**
-     * Returns a descriptive name for this query source.
-     */
-    String getSourceName();
-
-    /**
      * Creates a filtered query stream.
      */
     QubitStream<Product> where(QuerySpec<Product, Boolean> spec);

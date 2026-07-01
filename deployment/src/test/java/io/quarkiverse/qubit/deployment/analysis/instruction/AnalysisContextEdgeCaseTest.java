@@ -51,12 +51,9 @@ class AnalysisContextEdgeCaseTest {
 
         @Test
         void isStackEmpty_onEmptyStack_returnsTrue() {
-            assertThat(context.isStackEmpty()).isTrue();
-        }
-
-        @Test
-        void getStackSize_onEmptyStack_returnsZero() {
-            assertThat(context.getStackSize()).isZero();
+            AnalysisContextAssert.assertThat(context)
+                    .isStackEmpty()
+                    .hasStackSize(0);
         }
 
         @Test
@@ -118,14 +115,14 @@ class AnalysisContextEdgeCaseTest {
         void discardN_discardsSingleElement() {
             int discarded = context.discardN(1);
             assertThat(discarded).isEqualTo(1);
-            assertThat(context.isStackEmpty()).isTrue();
+            AnalysisContextAssert.assertThat(context).isStackEmpty();
         }
 
         @Test
         void discardN_partialDiscard_whenMoreRequestedThanAvailable() {
             int discarded = context.discardN(5);
             assertThat(discarded).isEqualTo(1);
-            assertThat(context.isStackEmpty()).isTrue();
+            AnalysisContextAssert.assertThat(context).isStackEmpty();
         }
     }
 
@@ -147,7 +144,7 @@ class AnalysisContextEdgeCaseTest {
             // Left was second-to-top, right was top
             assertConstantValue(result.left(), 2);
             assertConstantValue(result.right(), 3);
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
         }
 
         @Test
@@ -159,7 +156,7 @@ class AnalysisContextEdgeCaseTest {
             assertConstantValue(result.getFirst(), 1);
             assertConstantValue(result.get(1), 2);
             assertConstantValue(result.get(2), 3);
-            assertThat(context.isStackEmpty()).isTrue();
+            AnalysisContextAssert.assertThat(context).isStackEmpty();
         }
 
         @Test
@@ -167,7 +164,7 @@ class AnalysisContextEdgeCaseTest {
             int discarded = context.discardN(2);
 
             assertThat(discarded).isEqualTo(2);
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             assertConstantValue(context.peek(), 1);
         }
 
@@ -176,7 +173,7 @@ class AnalysisContextEdgeCaseTest {
             int discarded = context.discardN(3);
 
             assertThat(discarded).isEqualTo(3);
-            assertThat(context.isStackEmpty()).isTrue();
+            AnalysisContextAssert.assertThat(context).isStackEmpty();
         }
     }
 
@@ -192,13 +189,13 @@ class AnalysisContextEdgeCaseTest {
 
         @Test
         void isInArrayCreation_beforeStart_returnsFalse() {
-            assertThat(context.isInArrayCreation()).isFalse();
+            AnalysisContextAssert.assertThat(context).isNotInArrayCreation();
         }
 
         @Test
         void isInArrayCreation_afterStart_returnsTrue() {
             context.startArrayCreation("java/lang/Object");
-            assertThat(context.isInArrayCreation()).isTrue();
+            AnalysisContextAssert.assertThat(context).isInArrayCreation();
         }
 
         @Test
@@ -223,7 +220,7 @@ class AnalysisContextEdgeCaseTest {
             context.addArrayElement(constant(1));
             context.completeArrayCreation();
 
-            assertThat(context.isInArrayCreation()).isFalse();
+            AnalysisContextAssert.assertThat(context).isNotInArrayCreation();
             assertThat(context.getPendingArrayElements()).isNull();
             assertThat(context.getPendingArrayElementType()).isNull();
         }
@@ -234,7 +231,7 @@ class AnalysisContextEdgeCaseTest {
 
         @Test
         void hasNestedLambdaSupport_withoutConfiguration_returnsFalse() {
-            assertThat(context.hasNestedLambdaSupport()).isFalse();
+            AnalysisContextAssert.assertThat(context).doesNotHaveNestedLambdaSupport();
         }
 
         @Test
@@ -321,12 +318,12 @@ class AnalysisContextEdgeCaseTest {
 
         @Test
         void isBiEntityMode_returnsTrue() {
-            assertThat(biEntityContext.isBiEntityMode()).isTrue();
+            AnalysisContextAssert.assertThat(biEntityContext).isBiEntityMode();
         }
 
         @Test
         void getSecondEntityParameterIndex_returnsCorrectValue() {
-            assertThat(biEntityContext.getSecondEntityParameterIndex()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(biEntityContext).hasSecondEntityParameterIndex(1);
         }
 
         @Test
@@ -369,12 +366,12 @@ class AnalysisContextEdgeCaseTest {
 
         @Test
         void isGroupContextMode_returnsTrue() {
-            assertThat(groupContext.isGroupContextMode()).isTrue();
+            AnalysisContextAssert.assertThat(groupContext).isGroupContextMode();
         }
 
         @Test
         void hasNestedLambdaSupport_returnsTrue() {
-            assertThat(groupContext.hasNestedLambdaSupport()).isTrue();
+            AnalysisContextAssert.assertThat(groupContext).hasNestedLambdaSupport();
         }
     }
 
@@ -403,20 +400,20 @@ class AnalysisContextEdgeCaseTest {
 
         @Test
         void hasSeenBranch_initiallyFalse() {
-            assertThat(context.hasSeenBranch()).isFalse();
+            AnalysisContextAssert.assertThat(context).doesNotHaveSeenBranch();
         }
 
         @Test
         void markBranchSeen_setsHasSeenBranchTrue() {
             context.markBranchSeen();
-            assertThat(context.hasSeenBranch()).isTrue();
+            AnalysisContextAssert.assertThat(context).hasSeenBranch();
         }
 
         @Test
         void markBranchSeen_isIdempotent() {
             context.markBranchSeen();
             context.markBranchSeen();
-            assertThat(context.hasSeenBranch()).isTrue();
+            AnalysisContextAssert.assertThat(context).hasSeenBranch();
         }
     }
 

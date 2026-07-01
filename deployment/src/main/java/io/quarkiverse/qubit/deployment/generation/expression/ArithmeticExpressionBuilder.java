@@ -19,7 +19,7 @@ import io.quarkus.gizmo2.desc.MethodDesc;
  * <li>MOD (%) → {@code CriteriaBuilder.mod()}</li>
  * </ul>
  */
-public enum ArithmeticExpressionBuilder implements ExpressionBuilder {
+public enum ArithmeticExpressionBuilder {
     INSTANCE;
 
     /** Generates bytecode for arithmetic operations. */

@@ -159,8 +159,7 @@ public final class HashBuilder {
         return queryType(isCountQuery ? QUERY_TYPE_COUNT : QUERY_TYPE_LIST);
     }
 
-    /** Returns raw hash string (before MD5). */
-    public String buildString() {
+    String buildString() {
         return builder.toString();
     }
 

@@ -30,7 +30,7 @@ import io.quarkus.gizmo2.Expr;
 /**
  * Builds JPA Criteria expressions for bi-entity (join) queries.
  */
-public enum BiEntityExpressionBuilder implements ExpressionBuilder {
+public enum BiEntityExpressionBuilder {
     INSTANCE;
 
     /** Generates JPA Predicate from bi-entity lambda AST. */
@@ -110,7 +110,7 @@ public enum BiEntityExpressionBuilder implements ExpressionBuilder {
     }
 
     /** Generates JPA Expression from bi-entity lambda AST with subquery support. */
-    public @Nullable Expr generateBiEntityExpressionWithSubqueries(
+    private @Nullable Expr generateBiEntityExpressionWithSubqueries(
             BiEntitySubqueryContext ctx, @Nullable LambdaExpression expression) {
 
         if (expression == null) {

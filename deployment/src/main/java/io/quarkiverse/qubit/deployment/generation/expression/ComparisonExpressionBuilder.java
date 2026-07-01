@@ -20,7 +20,7 @@ import io.quarkus.gizmo2.desc.MethodDesc;
  * <li>LE (<=) → {@code CriteriaBuilder.lessThanOrEqualTo()}</li>
  * </ul>
  */
-public enum ComparisonExpressionBuilder implements ExpressionBuilder {
+public enum ComparisonExpressionBuilder {
     INSTANCE;
 
     /** Generates bytecode for comparison operations. */

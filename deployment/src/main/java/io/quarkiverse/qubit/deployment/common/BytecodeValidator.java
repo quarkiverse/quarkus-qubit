@@ -21,24 +21,6 @@ public class BytecodeValidator {
         }
     }
 
-    /** Ensures a value is not null, returning it if valid. */
-    public static <T> T requireNonNull(T value, String context) {
-        if (value == null) {
-            throw BytecodeAnalysisException.unexpectedNull(context);
-        }
-        return value;
-    }
-
-    /** Validates that an opcode is one of the expected values. */
-    public static void requireValidOpcode(int opcode, int... validOpcodes) {
-        for (int valid : validOpcodes) {
-            if (opcode == valid) {
-                return;
-            }
-        }
-        throw BytecodeAnalysisException.invalidOpcode(opcode, validOpcodes);
-    }
-
     /** Safely pops an element from the stack with validation. */
     public static @NonNull <T> T popSafe(Deque<T> stack, String instruction) {
         requireStackSize(stack, 1, instruction);

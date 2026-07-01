@@ -1,7 +1,6 @@
 package io.quarkiverse.qubit.deployment.generation.methodcall;
 
 import java.util.Objects;
-import java.util.function.UnaryOperator;
 
 import io.quarkus.gizmo2.Expr;
 
@@ -35,43 +34,8 @@ public sealed interface GenerationResult permits
         }
     }
 
-    /** Returns true if this result is a Success. */
-    default boolean isSuccess() {
-        return this instanceof Success;
-    }
-
-    /** Returns the Expr if Success, or throws if Unsupported. */
-    default Expr getOrThrow() {
-        return switch (this) {
-            case Success(var value) -> value;
-            case Unsupported(_, var reason) ->
-                throw new IllegalStateException("Cannot get value from Unsupported: " + reason);
-        };
-    }
-
-    /** Maps the Success value, passing through Unsupported unchanged. */
-    default GenerationResult map(UnaryOperator<Expr> mapper) {
-        return switch (this) {
-            case Success(var value) -> new Success(mapper.apply(value));
-            case Unsupported u -> u;
-        };
-    }
-
-    /** Returns the Expr if Success, or the fallback if Unsupported. */
-    default Expr orElse(Expr fallback) {
-        return switch (this) {
-            case Success(var value) -> value;
-            case Unsupported _ -> fallback;
-        };
-    }
-
     /** Creates a Success result. */
     static GenerationResult success(Expr value) {
         return new Success(value);
-    }
-
-    /** Creates an Unsupported result. */
-    static GenerationResult unsupported(String methodName, String reason) {
-        return new Unsupported(methodName, reason);
     }
 }

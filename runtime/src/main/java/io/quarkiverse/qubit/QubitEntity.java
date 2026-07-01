@@ -68,9 +68,6 @@ public abstract class QubitEntity extends PanacheEntity {
      * This is an entry point for fluent query composition. Multiple {@code where()} calls
      * can be chained and will be combined with AND logic.
      * <p>
-     * <strong>Implemented at build time</strong> - the bytecode enhancement processor will
-     * replace this method body in each entity subclass with the actual query execution code.
-     * <p>
      * Example:
      *
      * <pre>{@code
@@ -100,9 +97,6 @@ public abstract class QubitEntity extends PanacheEntity {
      * <p>
      * This is an entry point for projection-based queries. Use this when you want to select
      * specific fields, compute values, or construct DTOs instead of loading full entities.
-     * <p>
-     * <strong>Implemented at build time</strong> - the bytecode enhancement processor will
-     * replace this method body in each entity subclass with the actual query execution code.
      * <p>
      * Example:
      *
@@ -136,9 +130,6 @@ public abstract class QubitEntity extends PanacheEntity {
      * This is an entry point for sorted queries. For multi-level sorting, call {@code sortedBy()}
      * multiple times - the <strong>last call</strong> becomes the primary sort key.
      * <p>
-     * <strong>Implemented at build time</strong> - the bytecode enhancement processor will
-     * replace this method body in each entity subclass with the actual query execution code.
-     * <p>
      * Example:
      *
      * <pre>{@code
@@ -169,9 +160,6 @@ public abstract class QubitEntity extends PanacheEntity {
      * Creates a query sorted in descending order by the given key extractor.
      * <p>
      * This is an entry point for reverse-sorted queries.
-     * <p>
-     * <strong>Implemented at build time</strong> - the bytecode enhancement processor will
-     * replace this method body in each entity subclass with the actual query execution code.
      * <p>
      * Example:
      *
@@ -228,9 +216,6 @@ public abstract class QubitEntity extends PanacheEntity {
      * This is an entry point for finding the minimum value of a comparable field.
      * Can be combined with {@code where()} for conditional aggregation.
      * <p>
-     * <strong>Implemented at build time</strong> - the bytecode enhancement processor will
-     * replace this method body in each entity subclass with the actual query execution code.
-     * <p>
      * Example:
      *
      * <pre>{@code
@@ -261,9 +246,6 @@ public abstract class QubitEntity extends PanacheEntity {
      * <p>
      * This is an entry point for finding the maximum value of a comparable field.
      * Can be combined with {@code where()} for conditional aggregation.
-     * <p>
-     * <strong>Implemented at build time</strong> - the bytecode enhancement processor will
-     * replace this method body in each entity subclass with the actual query execution code.
      * <p>
      * Example:
      *
@@ -296,9 +278,6 @@ public abstract class QubitEntity extends PanacheEntity {
      * This is an entry point for computing the average value of a numeric field.
      * Can be combined with {@code where()} for conditional aggregation.
      * <p>
-     * <strong>Implemented at build time</strong> - the bytecode enhancement processor will
-     * replace this method body in each entity subclass with the actual query execution code.
-     * <p>
      * Example:
      *
      * <pre>{@code
@@ -328,9 +307,6 @@ public abstract class QubitEntity extends PanacheEntity {
      * <p>
      * This is an entry point for computing the sum of Integer fields.
      * Returns Long to prevent overflow. Can be combined with {@code where()} for conditional aggregation.
-     * <p>
-     * <strong>Implemented at build time</strong> - the bytecode enhancement processor will
-     * replace this method body in each entity subclass with the actual query execution code.
      * <p>
      * Example:
      *
@@ -362,9 +338,6 @@ public abstract class QubitEntity extends PanacheEntity {
      * This is an entry point for computing the sum of Long fields.
      * Can be combined with {@code where()} for conditional aggregation.
      * <p>
-     * <strong>Implemented at build time</strong> - the bytecode enhancement processor will
-     * replace this method body in each entity subclass with the actual query execution code.
-     * <p>
      * Example:
      *
      * <pre>{@code
@@ -395,9 +368,6 @@ public abstract class QubitEntity extends PanacheEntity {
      * This is an entry point for computing the sum of Double fields.
      * Can be combined with {@code where()} for conditional aggregation.
      * <p>
-     * <strong>Implemented at build time</strong> - the bytecode enhancement processor will
-     * replace this method body in each entity subclass with the actual query execution code.
-     * <p>
      * Example:
      *
      * <pre>{@code
@@ -427,9 +397,6 @@ public abstract class QubitEntity extends PanacheEntity {
      * <p>
      * This is an entry point for join-based queries. The join follows the relationship
      * defined by the lambda expression, typically accessing a collection field.
-     * <p>
-     * <strong>Implemented at build time</strong> - the bytecode enhancement processor will
-     * replace this method body in each entity subclass with the actual query execution code.
      * <p>
      * Example:
      *
@@ -467,9 +434,6 @@ public abstract class QubitEntity extends PanacheEntity {
      * Unlike inner join, left join includes entities from the left side (source)
      * even when there are no matching entities on the right side (joined).
      * <p>
-     * <strong>Implemented at build time</strong> - the bytecode enhancement processor will
-     * replace this method body in each entity subclass with the actual query execution code.
-     * <p>
      * Example:
      *
      * <pre>{@code
@@ -504,9 +468,6 @@ public abstract class QubitEntity extends PanacheEntity {
      * <p>
      * This is an entry point for grouped aggregation queries. The grouping key can be
      * any field, relationship navigation, or expression that returns a comparable value.
-     * <p>
-     * <strong>Implemented at build time</strong> - the bytecode enhancement processor will
-     * replace this method body in each entity subclass with the actual query execution code.
      * <p>
      * Example:
      *

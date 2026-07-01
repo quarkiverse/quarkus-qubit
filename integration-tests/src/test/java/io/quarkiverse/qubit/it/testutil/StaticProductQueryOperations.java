@@ -15,11 +15,6 @@ public class StaticProductQueryOperations implements ProductQueryOperations {
     }
 
     @Override
-    public String getSourceName() {
-        return "Static";
-    }
-
-    @Override
     public QubitStream<Product> where(QuerySpec<Product, Boolean> spec) {
         return Product.where(spec);
     }

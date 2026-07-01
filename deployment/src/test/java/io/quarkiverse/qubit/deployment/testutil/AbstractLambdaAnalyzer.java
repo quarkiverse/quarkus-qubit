@@ -64,7 +64,7 @@ public abstract class AbstractLambdaAnalyzer {
      *
      * @return the ClassNode representing the compiled class
      */
-    protected ClassNode loadSourcesClass() {
+    private ClassNode loadSourcesClass() {
         String className = getSourcesClassName();
         return classNodeCache.computeIfAbsent(className, this::loadClassNode);
     }
@@ -105,6 +105,18 @@ public abstract class AbstractLambdaAnalyzer {
         }
     }
 
+    /** Analyzes a pre-compiled lambda expression by method name. */
+    protected LambdaExpression analyzeLambda(String methodName) {
+        try {
+            Handle lambdaHandle = getLambdaHandle(methodName);
+            byte[] classBytes = getSourceClassBytes();
+            LambdaBytecodeAnalyzer analyzer = new LambdaBytecodeAnalyzer();
+            return analyzer.analyze(classBytes, lambdaHandle.getName(), lambdaHandle.getDesc());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to analyze lambda: " + methodName, e);
+        }
+    }
+
     /**
      * Finds a method by name in a class.
      *
@@ -112,7 +124,7 @@ public abstract class AbstractLambdaAnalyzer {
      * @param methodName the method name to find
      * @return the MethodNode, or null if not found
      */
-    protected MethodNode findMethod(ClassNode classNode, String methodName) {
+    private MethodNode findMethod(ClassNode classNode, String methodName) {
         for (MethodNode method : classNode.methods) {
             if (method.name.equals(methodName)) {
                 return method;
@@ -127,7 +139,7 @@ public abstract class AbstractLambdaAnalyzer {
      * @param method the method to search
      * @return the InvokeDynamicInsnNode, or null if not found
      */
-    protected InvokeDynamicInsnNode findInvokeDynamic(MethodNode method) {
+    private InvokeDynamicInsnNode findInvokeDynamic(MethodNode method) {
         String pattern = getDescriptorPattern();
         for (int i = 0; i < method.instructions.size(); i++) {
             if (method.instructions.get(i) instanceof InvokeDynamicInsnNode invokeDynamic) {
@@ -145,7 +157,7 @@ public abstract class AbstractLambdaAnalyzer {
      * @param invokeDynamic the invokedynamic instruction
      * @return the Handle representing the lambda implementation method, or null if not found
      */
-    protected Handle extractLambdaHandle(InvokeDynamicInsnNode invokeDynamic) {
+    private Handle extractLambdaHandle(InvokeDynamicInsnNode invokeDynamic) {
         Object[] bsmArgs = invokeDynamic.bsmArgs;
         if (bsmArgs != null && bsmArgs.length >= 2 && bsmArgs[1] instanceof Handle handle) {
             return handle;
@@ -246,16 +258,6 @@ public abstract class AbstractLambdaAnalyzer {
         assertThat(unaryOp.operator())
                 .as("UnaryOp operator should be %s", expectedOp)
                 .isEqualTo(expectedOp);
-    }
-
-    /**
-     * Asserts that an expression is a captured variable.
-     */
-    protected void assertCapturedVariable(LambdaExpression expr) {
-        assertThat(expr)
-                .as("Expression should be a CapturedVariable but was %s",
-                        expr == null ? "null" : expr.getClass().getSimpleName())
-                .isInstanceOf(LambdaExpression.CapturedVariable.class);
     }
 
     /**

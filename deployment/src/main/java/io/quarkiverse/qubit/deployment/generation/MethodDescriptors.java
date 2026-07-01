@@ -17,7 +17,6 @@ public final class MethodDescriptors {
 
     public static final MethodDesc INTEGER_INT_VALUE = MethodDesc.of(Integer.class, "intValue", int.class);
     public static final MethodDesc BOOLEAN_BOOLEAN_VALUE = MethodDesc.of(Boolean.class, "booleanValue", boolean.class);
-    public static final MethodDesc LONG_LONG_VALUE = MethodDesc.of(Long.class, "longValue", long.class);
 
     public static final MethodDesc CLASS_FOR_NAME = MethodDesc.of(Class.class, "forName", Class.class, String.class);
 
@@ -59,10 +58,6 @@ public final class MethodDescriptors {
     public static final MethodDesc CB_BETWEEN_EXPR = MethodDesc.of(CriteriaBuilder.class, "between", Predicate.class,
             Expression.class, Expression.class, Expression.class);
 
-    /** cb.between(Expression, Comparable, Comparable) -> Predicate (JPA 2.0) */
-    public static final MethodDesc CB_BETWEEN = MethodDesc.of(CriteriaBuilder.class, "between", Predicate.class,
-            Expression.class, Comparable.class, Comparable.class);
-
     public static final MethodDesc CB_COUNT = MethodDesc.of(CriteriaBuilder.class, "count", Expression.class, Expression.class);
     public static final MethodDesc CB_AVG = MethodDesc.of(CriteriaBuilder.class, "avg", Expression.class, Expression.class);
     public static final MethodDesc CB_SUM = MethodDesc.of(CriteriaBuilder.class, "sum", Expression.class, Expression.class);
@@ -103,10 +98,6 @@ public final class MethodDescriptors {
             Expression.class, String.class);
     public static final MethodDesc CB_CONCAT_EXPR_EXPR = MethodDesc.of(CriteriaBuilder.class, "concat", Expression.class,
             Expression.class, Expression.class);
-    public static final MethodDesc CB_CONCAT_STR_EXPR = MethodDesc.of(CriteriaBuilder.class, "concat", Expression.class,
-            String.class, Expression.class);
-    public static final MethodDesc CB_CONCAT_EXPR_STR = MethodDesc.of(CriteriaBuilder.class, "concat", Expression.class,
-            Expression.class, String.class);
     public static final MethodDesc CB_SUBSTRING_2 = MethodDesc.of(CriteriaBuilder.class, "substring", Expression.class,
             Expression.class, Expression.class);
     public static final MethodDesc CB_SUBSTRING_3 = MethodDesc.of(CriteriaBuilder.class, "substring", Expression.class,
@@ -139,10 +130,6 @@ public final class MethodDescriptors {
     /** cb.replace(Expression<String>, String, String) -> Expression<String> (JPA 3.2) */
     public static final MethodDesc CB_REPLACE = MethodDesc.of(CriteriaBuilder.class, "replace", Expression.class,
             Expression.class, String.class, String.class);
-
-    /** cb.replace(Expression<String>, Expression<String>, Expression<String>) -> Expression<String> (JPA 3.2) */
-    public static final MethodDesc CB_REPLACE_EXPR = MethodDesc.of(CriteriaBuilder.class, "replace", Expression.class,
-            Expression.class, Expression.class, Expression.class);
 
     public static final MethodDesc CB_FUNCTION = MethodDesc.of(CriteriaBuilder.class, "function", Expression.class,
             String.class, Class.class, Expression[].class);
@@ -209,10 +196,6 @@ public final class MethodDescriptors {
     public static final MethodDesc CB_POWER = MethodDesc.of(CriteriaBuilder.class, "power", Expression.class,
             Expression.class, Expression.class);
 
-    /** cb.power(Expression, Number) -> Expression<Double> (JPA 3.1) */
-    public static final MethodDesc CB_POWER_NUMBER = MethodDesc.of(CriteriaBuilder.class, "power", Expression.class,
-            Expression.class, Number.class);
-
     /** cb.round(Expression, Integer) -> Expression (JPA 3.1) */
     public static final MethodDesc CB_ROUND = MethodDesc.of(CriteriaBuilder.class, "round", Expression.class,
             Expression.class, Integer.class);
@@ -247,23 +230,13 @@ public final class MethodDescriptors {
     /** Case.when(Expression<Boolean> condition, Expression<R> result) -> Case<R> */
     public static final MethodDesc CASE_WHEN_EXPR = MethodDesc.of(CriteriaBuilder.Case.class, "when",
             CriteriaBuilder.Case.class, Expression.class, Expression.class);
-    /** Case.when(Expression<Boolean> condition, R result) -> Case<R> */
-    public static final MethodDesc CASE_WHEN_VALUE = MethodDesc.of(CriteriaBuilder.Case.class, "when",
-            CriteriaBuilder.Case.class, Expression.class, Object.class);
     /** Case.otherwise(Expression<R> result) -> Expression<R> */
     public static final MethodDesc CASE_OTHERWISE_EXPR = MethodDesc.of(CriteriaBuilder.Case.class, "otherwise",
             Expression.class, Expression.class);
-    /** Case.otherwise(R result) -> Expression<R> */
-    public static final MethodDesc CASE_OTHERWISE_VALUE = MethodDesc.of(CriteriaBuilder.Case.class, "otherwise",
-            Expression.class, Object.class);
 
     /** cb.nullif(Expression, Expression) -> Expression (JPA 2.0) */
     public static final MethodDesc CB_NULLIF_EXPR = MethodDesc.of(CriteriaBuilder.class, "nullif", Expression.class,
             Expression.class, Expression.class);
-
-    /** cb.nullif(Expression, Object) -> Expression (JPA 2.0) */
-    public static final MethodDesc CB_NULLIF = MethodDesc.of(CriteriaBuilder.class, "nullif", Expression.class,
-            Expression.class, Object.class);
 
     public static final MethodDesc CB_ASC = MethodDesc.of(CriteriaBuilder.class, "asc", Order.class, Expression.class);
     public static final MethodDesc CB_DESC = MethodDesc.of(CriteriaBuilder.class, "desc", Order.class, Expression.class);

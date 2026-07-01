@@ -29,7 +29,7 @@ import io.quarkus.logging.Log;
 import jakarta.persistence.criteria.Predicate;
 
 /** Generates JPA bytecode for subquery expressions (ScalarSubquery, ExistsSubquery, InSubquery). */
-public enum SubqueryExpressionBuilder implements ExpressionBuilder {
+public enum SubqueryExpressionBuilder {
     INSTANCE;
 
     /** Generates JPA scalar aggregation subquery. */

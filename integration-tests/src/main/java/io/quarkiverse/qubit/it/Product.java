@@ -77,10 +77,6 @@ public class Product extends QubitEntity {
         return rating;
     }
 
-    public Set<Tag> getTags() {
-        return tags;
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o)

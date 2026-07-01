@@ -111,10 +111,6 @@ public class Person extends QubitEntity {
         return department;
     }
 
-    public List<Phone> getPhones() {
-        return phones;
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o)

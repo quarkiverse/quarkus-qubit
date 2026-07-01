@@ -82,11 +82,6 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         this(ExpressionBuilderRegistry.createDefault(), MethodCallHandlerChain.defaultInstance());
     }
 
-    /** Creates a generator with custom registry for testing. */
-    public CriteriaExpressionGenerator(ExpressionBuilderRegistry builderRegistry) {
-        this(builderRegistry, MethodCallHandlerChain.defaultInstance());
-    }
-
     /** Creates a generator with full dependency injection for testing. */
     public CriteriaExpressionGenerator(ExpressionBuilderRegistry builderRegistry,
             MethodCallHandlerChain methodCallHandlerChain) {
@@ -196,7 +191,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
     }
 
     /** Generates JPA Expression with ScalarSubquery support. Returns null if expression is null. */
-    public @Nullable Expr generateExpressionWithSubqueries(
+    private @Nullable Expr generateExpressionWithSubqueries(
             BlockCreator bc,
             LambdaExpression expression,
             Expr cb,
@@ -461,7 +456,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
      * Maps: {@code condition ? trueValue : falseValue}
      * To JPA: {@code cb.selectCase().when(conditionPredicate, trueExpr).otherwise(falseExpr)}
      */
-    public Expr generateConditionalExpression(
+    private Expr generateConditionalExpression(
             BlockCreator bc,
             LambdaExpression.Conditional conditional,
             Expr cb,
@@ -572,7 +567,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
     /**
      * Generates comparison, logical, arithmetic, or string concatenation operation.
      */
-    public Expr generateBinaryOperation(
+    private Expr generateBinaryOperation(
             BlockCreator bc,
             LambdaExpression.BinaryOp binOp,
             Expr cb,
@@ -723,7 +718,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
     }
 
     /** Generates unary NOT operation. */
-    public Expr generateUnaryOperation(
+    private Expr generateUnaryOperation(
             BlockCreator bc,
             LambdaExpression.UnaryOp unOp,
             Expr cb,
@@ -782,7 +777,7 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
      *
      * @throws UnsupportedExpressionException if the method call is not supported
      */
-    public Expr generateMethodCall(
+    private Expr generateMethodCall(
             BlockCreator bc,
             LambdaExpression.MethodCall methodCall,
             Expr cb,

@@ -20,7 +20,7 @@ import io.quarkus.gizmo2.creator.BlockCreator;
 /**
  * Standard implementation generating JPA Criteria API clause bytecode. Thread-safe.
  */
-public final class StandardClauseApplier implements QueryClauseApplier {
+public final class StandardClauseApplier {
 
     private final CriteriaExpressionGenerator expressionGenerator;
 
@@ -29,7 +29,6 @@ public final class StandardClauseApplier implements QueryClauseApplier {
                 "expressionGenerator cannot be null");
     }
 
-    @Override
     public void applyWherePredicate(BlockCreator bc, Expr query, @Nullable Expr predicate) {
         if (predicate != null) {
             Expr predicateArray = GizmoHelper.createElementArray(bc, Predicate.class, predicate);
@@ -37,7 +36,6 @@ public final class StandardClauseApplier implements QueryClauseApplier {
         }
     }
 
-    @Override
     public void applyBiEntityOrderBy(
             BlockCreator bc,
             Expr query,
@@ -52,7 +50,6 @@ public final class StandardClauseApplier implements QueryClauseApplier {
                         bc, sortExpr.keyExtractor(), cb, root, join, capturedValues));
     }
 
-    @Override
     public void applyDistinct(
             BlockCreator bc,
             Expr query,
@@ -65,7 +62,6 @@ public final class StandardClauseApplier implements QueryClauseApplier {
         });
     }
 
-    @Override
     public void applyPagination(
             BlockCreator bc,
             Expr typedQuery,

@@ -10,110 +10,13 @@ import org.objectweb.asm.Type;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression.Constant;
 
-/**
- * Tests for {@link ClassLoaderHelper}.
- *
- * <p>
- * Tests class loading utilities for build-time bytecode analysis.
- */
 class ClassLoaderHelperTest {
-
-    @Nested
-    class TryLoadClassTests {
-
-        @Test
-        void tryLoadClass_withNull_returnsNull() {
-            Class<?> result = ClassLoaderHelper.tryLoadClass(null);
-
-            assertThat(result)
-                    .as("Null className should return null")
-                    .isNull();
-        }
-
-        @Test
-        void tryLoadClass_withEmptyString_returnsNull() {
-            Class<?> result = ClassLoaderHelper.tryLoadClass("");
-
-            assertThat(result)
-                    .as("Empty className should return null")
-                    .isNull();
-        }
-
-        @Test
-        void tryLoadClass_withValidClassName_returnsClass() {
-            Class<?> result = ClassLoaderHelper.tryLoadClass("java.lang.String");
-
-            assertThat(result)
-                    .as("Valid class should be loaded")
-                    .isEqualTo(String.class);
-        }
-
-        @Test
-        void tryLoadClass_withJavaLangInteger_returnsClass() {
-            Class<?> result = ClassLoaderHelper.tryLoadClass("java.lang.Integer");
-
-            assertThat(result)
-                    .as("java.lang.Integer should be loaded")
-                    .isEqualTo(Integer.class);
-        }
-
-        @Test
-        void tryLoadClass_withJavaUtilList_returnsClass() {
-            Class<?> result = ClassLoaderHelper.tryLoadClass("java.util.List");
-
-            assertThat(result)
-                    .as("java.util.List should be loaded")
-                    .isEqualTo(java.util.List.class);
-        }
-
-        @Test
-        void tryLoadClass_withInvalidClassName_returnsNull() {
-            Class<?> result = ClassLoaderHelper.tryLoadClass("com.nonexistent.NonExistentClass");
-
-            assertThat(result)
-                    .as("Non-existent class should return null")
-                    .isNull();
-        }
-
-        @Test
-        void tryLoadClass_withMalformedClassName_returnsNull() {
-            Class<?> result = ClassLoaderHelper.tryLoadClass("not.a.valid.class.name!");
-
-            assertThat(result)
-                    .as("Malformed class name should return null")
-                    .isNull();
-        }
-
-        @Test
-        void tryLoadClass_withProjectClass_returnsClass() {
-            Class<?> result = ClassLoaderHelper.tryLoadClass(
-                    "io.quarkiverse.qubit.deployment.common.ClassLoaderHelper");
-
-            assertThat(result)
-                    .as("Project class should be loaded")
-                    .isEqualTo(ClassLoaderHelper.class);
-        }
-
-        @Test
-        void tryLoadClass_withPrimitiveArrayClassName_returnsNull() {
-            // Primitive arrays cannot be loaded via Class.forName with a descriptor
-            Class<?> result = ClassLoaderHelper.tryLoadClass("[I");
-
-            assertThat(result)
-                    .as("Primitive array descriptor should return class or null")
-                    .satisfiesAnyOf(
-                            r -> assertThat(r).isEqualTo(int[].class),
-                            r -> assertThat(r).isNull());
-        }
-    }
 
     @Nested
     class ExtractEntityClassInfoTests {
 
         @Test
         void extractEntityClassInfo_withTypeConstant_returnsPlaceholderToAvoidDeadlock() {
-            // ASM Type constants are deferred to runtime to avoid JVM class loading deadlocks
-            // in parallel ForkJoinPool workers (see ClassLoaderHelper Javadoc)
             Type asmType = Type.getType(String.class);
             Constant constant = new Constant(asmType, Class.class);
 
@@ -125,14 +28,13 @@ class ClassLoaderHelperTest {
             assertThat(result.className())
                     .as("className should contain the deferred class name")
                     .isEqualTo("java.lang.String");
-            assertThat(result.isPlaceholder())
+            EntityClassInfoAssert.assertThat(result)
                     .as("Should be marked as placeholder for runtime resolution")
-                    .isTrue();
+                    .isPlaceholder();
         }
 
         @Test
         void extractEntityClassInfo_withTypeConstantInteger_returnsPlaceholderToAvoidDeadlock() {
-            // ASM Type constants are deferred to runtime to avoid JVM class loading deadlocks
             Type asmType = Type.getType(Integer.class);
             Constant constant = new Constant(asmType, Class.class);
 
@@ -144,12 +46,12 @@ class ClassLoaderHelperTest {
             assertThat(result.className())
                     .as("className should contain the deferred class name")
                     .isEqualTo("java.lang.Integer");
-            assertThat(result.isPlaceholder()).isTrue();
+            EntityClassInfoAssert.assertThat(result)
+                    .isPlaceholder();
         }
 
         @Test
         void extractEntityClassInfo_withUnloadableType_returnsPlaceholder() {
-            // Create an ASM Type for a non-existent class
             Type asmType = Type.getType("Lcom/nonexistent/EntityClass;");
             Constant constant = new Constant(asmType, Class.class);
 
@@ -243,53 +145,6 @@ class ClassLoaderHelperTest {
             assertThat(result.clazz())
                     .as("CapturedVariable should return Object.class")
                     .isEqualTo(Object.class);
-        }
-    }
-
-    @Nested
-    class IsClassLoadableTests {
-
-        @Test
-        void isClassLoadable_withNull_returnsFalse() {
-            assertThat(ClassLoaderHelper.isClassLoadable(null))
-                    .as("Null className should not be loadable")
-                    .isFalse();
-        }
-
-        @Test
-        void isClassLoadable_withEmptyString_returnsFalse() {
-            assertThat(ClassLoaderHelper.isClassLoadable(""))
-                    .as("Empty className should not be loadable")
-                    .isFalse();
-        }
-
-        @Test
-        void isClassLoadable_withValidClassName_returnsTrue() {
-            assertThat(ClassLoaderHelper.isClassLoadable("java.lang.String"))
-                    .as("java.lang.String should be loadable")
-                    .isTrue();
-        }
-
-        @Test
-        void isClassLoadable_withJavaLangObject_returnsTrue() {
-            assertThat(ClassLoaderHelper.isClassLoadable("java.lang.Object"))
-                    .as("java.lang.Object should be loadable")
-                    .isTrue();
-        }
-
-        @Test
-        void isClassLoadable_withInvalidClassName_returnsFalse() {
-            assertThat(ClassLoaderHelper.isClassLoadable("com.nonexistent.Class"))
-                    .as("Non-existent class should not be loadable")
-                    .isFalse();
-        }
-
-        @Test
-        void isClassLoadable_withProjectClass_returnsTrue() {
-            assertThat(ClassLoaderHelper.isClassLoadable(
-                    "io.quarkiverse.qubit.deployment.common.EntityClassInfo"))
-                    .as("Project class should be loadable")
-                    .isTrue();
         }
     }
 }

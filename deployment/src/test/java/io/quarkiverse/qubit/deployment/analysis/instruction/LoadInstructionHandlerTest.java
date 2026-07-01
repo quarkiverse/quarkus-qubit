@@ -93,7 +93,7 @@ class LoadInstructionHandlerTest {
             var insn = new VarInsnNode(ALOAD, 0);
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(Parameter.class);
             var param = (Parameter) result;
@@ -110,7 +110,7 @@ class LoadInstructionHandlerTest {
             var insn = new VarInsnNode(ALOAD, 1);
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(CapturedVariable.class);
             var captured = (CapturedVariable) result;
@@ -127,7 +127,7 @@ class LoadInstructionHandlerTest {
             var insn = new VarInsnNode(ALOAD, 1);
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(BiEntityParameter.class);
             var biParam = (BiEntityParameter) result;
@@ -141,7 +141,7 @@ class LoadInstructionHandlerTest {
             var insn = new VarInsnNode(ALOAD, 0);
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(GroupParameter.class);
         }
@@ -171,7 +171,7 @@ class LoadInstructionHandlerTest {
             var insn = new VarInsnNode(opcode, 1);
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(CapturedVariable.class);
             var captured = (CapturedVariable) result;
@@ -199,7 +199,7 @@ class LoadInstructionHandlerTest {
             var insn = new FieldInsnNode(GETFIELD, "com/example/Entity", "name", "Ljava/lang/String;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(FieldAccess.class);
             var fieldAccess = (FieldAccess) result;
@@ -214,7 +214,7 @@ class LoadInstructionHandlerTest {
             var insn = new FieldInsnNode(GETFIELD, "com/example/Person", "firstName", "Ljava/lang/String;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(PathExpression.class);
             var pathExpr = (PathExpression) result;
@@ -235,7 +235,7 @@ class LoadInstructionHandlerTest {
             var insn = new FieldInsnNode(GETFIELD, "com/example/Department", "name", "Ljava/lang/String;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(PathExpression.class);
             var pathExpr = (PathExpression) result;
@@ -250,7 +250,7 @@ class LoadInstructionHandlerTest {
             var insn = new FieldInsnNode(GETFIELD, "com/example/Entity", "name", "Ljava/lang/String;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(BiEntityFieldAccess.class);
             var biFieldAccess = (BiEntityFieldAccess) result;
@@ -265,7 +265,7 @@ class LoadInstructionHandlerTest {
             var insn = new FieldInsnNode(GETFIELD, "com/example/Person", "firstName", "Ljava/lang/String;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(BiEntityPathExpression.class);
             var biPathExpr = (BiEntityPathExpression) result;
@@ -285,7 +285,7 @@ class LoadInstructionHandlerTest {
             var insn = new FieldInsnNode(GETFIELD, "com/example/Person", "name", "Ljava/lang/String;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(BiEntityPathExpression.class);
             var biPathExpr = (BiEntityPathExpression) result;
@@ -299,7 +299,7 @@ class LoadInstructionHandlerTest {
             var insn = new FieldInsnNode(GETFIELD, "com/example/Entity", "id", "I");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(CorrelatedVariable.class);
             var correlatedVar = (CorrelatedVariable) result;
@@ -314,7 +314,7 @@ class LoadInstructionHandlerTest {
             var insn = new FieldInsnNode(GETFIELD, "com/example/Person", "id", "I");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(CorrelatedVariable.class);
             var correlatedVar = (CorrelatedVariable) result;
@@ -332,7 +332,7 @@ class LoadInstructionHandlerTest {
             var insn = new FieldInsnNode(GETFIELD, "com/example/Person", "name", "Ljava/lang/String;");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(CorrelatedVariable.class);
             var correlatedVar = (CorrelatedVariable) result;
@@ -349,7 +349,7 @@ class LoadInstructionHandlerTest {
             var insn = new FieldInsnNode(GETFIELD, "com/example/Entity", "value", "I");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(FieldAccess.class);
         }
@@ -399,7 +399,7 @@ class LoadInstructionHandlerTest {
             var insn = new FieldInsnNode(GETFIELD, "com/example/Result", "id", "I");
             handler.handle(insn, context);
 
-            assertThat(context.getStackSize()).isEqualTo(1);
+            AnalysisContextAssert.assertThat(context).hasStackSize(1);
             var result = context.pop();
             assertThat(result).isInstanceOf(CorrelatedVariable.class);
             // Should wrap in PathExpression via default case
