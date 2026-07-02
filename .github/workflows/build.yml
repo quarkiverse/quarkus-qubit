@@ -50,7 +50,7 @@ jobs:
       - name: Verify Playwright version sync
         run: |
           mvn_ver=$(sed -n 's/.*<playwright.version>\([^<]*\)<.*/\1/p' pom.xml)
-          ci_ver=$(grep 'image:.*playwright/java:v' .github/workflows/build.yml | sed 's/.*playwright\/java:v\([0-9.]*\)-.*/\1/')
+          ci_ver=$(sed -n 's/.*image:.*playwright\/java:v\([0-9.]*\)-.*/\1/p' .github/workflows/build.yml)
           if [ "$mvn_ver" != "$ci_ver" ]; then
             echo "::error::Playwright version mismatch: pom.xml=$mvn_ver, build.yml Docker image=$ci_ver. Update the container image tag in build.yml."
             exit 1
