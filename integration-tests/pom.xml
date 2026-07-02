@@ -12,14 +12,6 @@
     <name>Quarkus - Qubit - Integration Tests</name>
 
     <properties>
-        <!-- Database container images (version-controlled for reproducibility) -->
-        <postgresql.image>docker.io/library/postgres:17</postgresql.image>
-        <mysql.image>docker.io/library/mysql:8.4</mysql.image>
-        <mariadb.image>docker.io/library/mariadb:11</mariadb.image>
-        <oracle.image>container-registry.oracle.com/database/free:23-slim</oracle.image>
-        <mssql.image>mcr.microsoft.com/mssql/server:2022-latest</mssql.image>
-        <db2.image>icr.io/db2_community/db2:11.5.9.0</db2.image>
-
         <!-- Default database kind (overridden by profiles) -->
         <db.kind>h2</db.kind>
     </properties>
@@ -46,6 +38,11 @@
         <!-- Test dependencies -->
         <dependency>
             <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-jacoco</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
             <artifactId>quarkus-junit</artifactId>
             <scope>test</scope>
         </dependency>
@@ -57,7 +54,7 @@
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
-            <version>3.27.7</version>
+            <version>${assertj.version}</version>
             <scope>test</scope>
         </dependency>
         <!-- Required for QuarkusDevModeTest (DevUI Playwright tests) -->
@@ -70,7 +67,7 @@
         <dependency>
             <groupId>com.microsoft.playwright</groupId>
             <artifactId>playwright</artifactId>
-            <version>1.60.0</version>
+            <version>${playwright.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -103,7 +100,6 @@
             <!-- Surefire plugin for unit tests - skip for integration test module -->
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>${surefire-plugin.version}</version>
                 <configuration>
                     <!-- Skip surefire - this module only has integration tests run by failsafe -->
                     <skip>true</skip>
@@ -112,7 +108,6 @@
             <!-- Failsafe plugin for integration tests (IT) -->
             <plugin>
                 <artifactId>maven-failsafe-plugin</artifactId>
-                <version>${surefire-plugin.version}</version>
                 <executions>
                     <execution>
                         <goals>
@@ -141,7 +136,7 @@
             <plugin>
                 <groupId>org.pitest</groupId>
                 <artifactId>pitest-maven</artifactId>
-                <version>1.25.4</version>
+                <version>${pitest.version}</version>
                 <configuration>
                     <!-- Target entity classes in integration-tests -->
                     <targetClasses>
@@ -162,26 +157,32 @@
                     <threads>16</threads>
                     <timeoutConstant>60000</timeoutConstant>
                     <timeoutFactor>1.5</timeoutFactor>
+                    <features>
+                        <feature>+progress</feature>
+                    </features>
                     <!-- Exclude logging-related mutations -->
                     <avoidCallsTo>
                         <avoidCallsTo>io.quarkus.logging.Log</avoidCallsTo>
                         <avoidCallsTo>org.jboss.logging.Logger</avoidCallsTo>
                         <avoidCallsTo>java.util.logging.Logger</avoidCallsTo>
                     </avoidCallsTo>
-                    <!-- Use full mutation testing mode -->
-                    <fullMutationMatrix>false</fullMutationMatrix>
                     <!-- Exclude methods not tested by integration tests -->
                     <excludedMethods>
                         <param>equals</param>
                         <param>hashCode</param>
                         <param>toString</param>
                     </excludedMethods>
+                    <!-- Disable surefire config parsing to avoid JaCoCo @{argLine} issues -->
+                    <parseSurefireConfig>false</parseSurefireConfig>
+                    <jvmArgs>
+                        <jvmArg>-Xmx1024m</jvmArg>
+                    </jvmArgs>
                 </configuration>
                 <dependencies>
                     <dependency>
                         <groupId>org.pitest</groupId>
                         <artifactId>pitest-junit5-plugin</artifactId>
-                        <version>1.2.3</version>
+                        <version>${pitest-junit5.version}</version>
                     </dependency>
                 </dependencies>
             </plugin>
@@ -300,9 +301,6 @@
                     <artifactId>quarkus-jdbc-h2</artifactId>
                 </dependency>
             </dependencies>
-            <properties>
-                <db.kind>h2</db.kind>
-            </properties>
         </profile>
 
         <!--
@@ -317,19 +315,8 @@
                     <name>native</name>
                 </property>
             </activation>
-            <build>
-                <plugins>
-                    <plugin>
-                        <artifactId>maven-surefire-plugin</artifactId>
-                        <configuration>
-                            <skipTests>${native.surefire.skip}</skipTests>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
             <properties>
                 <quarkus.native.enabled>true</quarkus.native.enabled>
-                <quarkus.package.jar.enabled>false</quarkus.package.jar.enabled>
             </properties>
         </profile>
 
@@ -364,7 +351,6 @@
             <properties>
                 <playwright.browser>chromium</playwright.browser>
                 <playwright.skip-install>false</playwright.skip-install>
-                <playwright.timing.enabled>false</playwright.timing.enabled>
             </properties>
             <!-- H2 needed here because -Pplaywright suppresses activeByDefault on the h2 profile -->
             <dependencies>
@@ -379,7 +365,6 @@
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
-                        <version>3.6.3</version>
                         <executions>
                             <execution>
                                 <id>install-playwright-browsers</id>
@@ -410,7 +395,6 @@
                             </includes>
                             <systemPropertyVariables>
                                 <playwright.browser>${playwright.browser}</playwright.browser>
-                                <playwright.timing.enabled>${playwright.timing.enabled}</playwright.timing.enabled>
                             </systemPropertyVariables>
                         </configuration>
                     </plugin>

@@ -1,6 +1,7 @@
 package io.quarkiverse.qubit.deployment.metrics;
 
 import java.io.IOException;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -15,6 +16,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
+
+import jakarta.json.Json;
+import jakarta.json.JsonArrayBuilder;
+import jakarta.json.JsonObjectBuilder;
+import jakarta.json.stream.JsonGenerator;
 
 /**
  * Thread-safe build-time performance metrics for Qubit processing phases.
@@ -132,7 +138,6 @@ public class BuildMetricsCollector {
 
     // ENTITY ENHANCEMENT METRICS
 
-    private final AtomicLong entityEnhancementTimeNanos = new AtomicLong();
     private final AtomicInteger entityClassesEnhanced = new AtomicInteger();
     private final AtomicInteger repositoriesEnhanced = new AtomicInteger();
 
@@ -284,12 +289,6 @@ public class BuildMetricsCollector {
         expressionTypeCount.computeIfAbsent(expressionType, _ -> new LongAdder()).increment();
     }
 
-    /** Records expression generation time for a specific type. */
-    public void addExpressionTypeTime(String expressionType, long nanos) {
-        expressionTypeTimeNanos.computeIfAbsent(expressionType, _ -> new LongAdder()).add(nanos);
-        addFlameGraphStack("qubit;expression;" + expressionType.toLowerCase(), nanos);
-    }
-
     // PER-CLASS ANALYSIS
 
     /** Records analysis time for a specific class. */
@@ -415,12 +414,6 @@ public class BuildMetricsCollector {
 
     // ENTITY ENHANCEMENT METRICS
 
-    /** Adds time spent on entity enhancement. */
-    public void addEntityEnhancementTime(long nanos) {
-        entityEnhancementTimeNanos.addAndGet(nanos);
-        addFlameGraphStack("qubit;enhancement;entity", nanos);
-    }
-
     /** Increments count of enhanced entity classes. */
     public void incrementEntityClassesEnhanced() {
         entityClassesEnhanced.incrementAndGet();
@@ -512,213 +505,141 @@ public class BuildMetricsCollector {
     public synchronized void writeReport(Path outputPath) throws IOException {
         long totalMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
         long endHeapUsed = getHeapUsed();
+        double skipRate = classesScanned.get() > 0 ? (double) quickCheckSkips.get() / classesScanned.get() : 0.0;
 
-        StringBuilder json = new StringBuilder();
-        json.append("{\n");
-        json.append("  \"timestamp\": \"").append(Instant.now()).append("\",\n");
-        json.append("  \"total_ms\": ").append(totalMs).append(",\n");
+        JsonObjectBuilder root = Json.createObjectBuilder()
+                .add("timestamp", Instant.now().toString())
+                .add("total_ms", totalMs)
+                .add("memory", Json.createObjectBuilder()
+                        .add("start_heap_bytes", startHeapUsed)
+                        .add("end_heap_bytes", endHeapUsed)
+                        .add("delta_bytes", endHeapUsed - startHeapUsed));
 
-        writeMemorySection(json, endHeapUsed);
-        writePhasesSection(json);
-        json.append("  \"query_count\": ").append(queryCount.get()).append(",\n");
-        writeGranularSection(json);
-        writeQueryTypesSection(json);
-        writeExpressionTypesSection(json);
-        writeCacheSection(json);
-        writeThreadsSection(json);
-        writeHistogramsSection(json);
-        writeEnhancementSection(json);
-        writeTopClassesSection(json);
-        writeFailedClassesSection(json);
+        JsonObjectBuilder phases = Json.createObjectBuilder();
+        phaseDurations.forEach(phases::add);
+        root.add("phases", phases);
 
-        json.append("}\n");
+        root.add("query_count", queryCount.get());
+
+        root.add("granular", Json.createObjectBuilder()
+                .add("bytecode_load_time_nanos", bytecodeLoadTimeNanos.get())
+                .add("asm_parsing_time_nanos", asmParsingTimeNanos.get())
+                .add("instruction_analysis_time_nanos", instructionAnalysisTimeNanos.get())
+                .add("code_generation_time_nanos", codeGenerationTimeNanos.get())
+                .add("deduplication_check_time_nanos", deduplicationCheckTimeNanos.get())
+                .add("unique_classes_loaded", uniqueClassesLoaded.get())
+                .add("total_bytecode_loads", totalBytecodeLoads.get())
+                .add("duplicate_count", duplicateCount.get())
+                .add("early_deduplication_hits", earlyDeduplicationHits.get())
+                .add("early_deduplication_check_time_nanos", earlyDeduplicationCheckTimeNanos.get())
+                .add("classes_scanned", classesScanned.get())
+                .add("jandex_pre_filter_skips", jandexPreFilterSkips.get())
+                .add("quick_check_skips", quickCheckSkips.get())
+                .add("quick_check_passes", quickCheckPasses.get())
+                .add("quick_check_skip_rate", Double.parseDouble(String.format("%.4f", skipRate))));
+
+        root.add("query_types", buildMapSection(queryTypeCount, queryTypeAnalysisTimeNanos, queryTypeCodeGenTimeNanos));
+        root.add("expression_types", buildExpressionTypesSection());
+
+        root.add("cache", Json.createObjectBuilder()
+                .add("bytecode_hits", bytecodeeCacheHits.get())
+                .add("bytecode_misses", bytecodeCacheMisses.get())
+                .add("bytecode_hit_rate", Double.parseDouble(String.format("%.4f", getBytecodeCacheHitRate())))
+                .add("classnode_hits", classNodeCacheHits.get())
+                .add("classnode_misses", classNodeCacheMisses.get())
+                .add("classnode_hit_rate", Double.parseDouble(String.format("%.4f", getClassNodeCacheHitRate())))
+                .add("codegen_hits", codeGenCacheHits.get())
+                .add("codegen_misses", codeGenCacheMisses.get())
+                .add("codegen_hit_rate", Double.parseDouble(String.format("%.4f", getCodeGenCacheHitRate()))));
+
+        JsonObjectBuilder threads = Json.createObjectBuilder()
+                .add("active_count", activeThreadIds.size());
+        JsonObjectBuilder distribution = Json.createObjectBuilder();
+        perThreadTaskCount.forEach((threadId, tasks) -> {
+            LongAdder workTime = perThreadWorkTimeNanos.get(threadId);
+            distribution.add(threadId.toString(), Json.createObjectBuilder()
+                    .add("tasks", tasks.sum())
+                    .add("work_time_nanos", workTime != null ? workTime.sum() : 0));
+        });
+        root.add("threads", threads.add("distribution", distribution));
+
+        root.add("histograms", Json.createObjectBuilder()
+                .add("lambda_analysis_micros", buildHistogram(lambdaAnalysisLatenciesMicros))
+                .add("code_gen_micros", buildHistogram(codeGenLatenciesMicros)));
+
+        root.add("enhancement", Json.createObjectBuilder()
+                .add("entity_classes_enhanced", entityClassesEnhanced.get())
+                .add("repositories_enhanced", repositoriesEnhanced.get()));
+
+        JsonArrayBuilder topClasses = Json.createArrayBuilder();
+        perClassAnalysisTimeNanos.entrySet().stream()
+                .map(e -> Map.entry(e.getKey(), e.getValue().sum()))
+                .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
+                .limit(10)
+                .forEach(e -> {
+                    LongAdder count = perClassLambdaCount.get(e.getKey());
+                    topClasses.add(Json.createObjectBuilder()
+                            .add("class", e.getKey())
+                            .add("time_nanos", e.getValue())
+                            .add("lambdas", count != null ? count.sum() : 0));
+                });
+        root.add("top_classes_by_time", topClasses);
+
+        JsonArrayBuilder failed = Json.createArrayBuilder();
+        failedClasses.forEach(failed::add);
+        root.add("failed_classes", failed);
 
         Path parent = outputPath.getParent();
         if (parent != null) {
             Files.createDirectories(parent);
         }
-        Files.writeString(outputPath, json.toString());
-    }
-
-    private void writeMemorySection(StringBuilder json, long endHeapUsed) {
-        json.append("  \"memory\": {\n");
-        json.append("    \"start_heap_bytes\": ").append(startHeapUsed).append(",\n");
-        json.append("    \"end_heap_bytes\": ").append(endHeapUsed).append(",\n");
-        json.append("    \"delta_bytes\": ").append(endHeapUsed - startHeapUsed).append("\n");
-        json.append("  },\n");
-    }
-
-    private void writePhasesSection(StringBuilder json) {
-        json.append("  \"phases\": {\n");
-        boolean first = true;
-        for (Map.Entry<String, Long> entry : phaseDurations.entrySet()) {
-            if (!first)
-                json.append(",\n");
-            json.append("    \"").append(entry.getKey()).append("\": ").append(entry.getValue());
-            first = false;
+        var writerFactory = Json.createWriterFactory(Map.of(JsonGenerator.PRETTY_PRINTING, true));
+        var sw = new StringWriter();
+        try (var writer = writerFactory.createWriter(sw)) {
+            writer.write(root.build());
         }
-        json.append("\n  },\n");
+        Files.writeString(outputPath, sw.toString());
     }
 
-    private void writeGranularSection(StringBuilder json) {
-        json.append("  \"granular\": {\n");
-        json.append("    \"bytecode_load_time_nanos\": ").append(bytecodeLoadTimeNanos.get()).append(",\n");
-        json.append("    \"asm_parsing_time_nanos\": ").append(asmParsingTimeNanos.get()).append(",\n");
-        json.append("    \"instruction_analysis_time_nanos\": ").append(instructionAnalysisTimeNanos.get()).append(",\n");
-        json.append("    \"code_generation_time_nanos\": ").append(codeGenerationTimeNanos.get()).append(",\n");
-        json.append("    \"deduplication_check_time_nanos\": ").append(deduplicationCheckTimeNanos.get()).append(",\n");
-        json.append("    \"unique_classes_loaded\": ").append(uniqueClassesLoaded.get()).append(",\n");
-        json.append("    \"total_bytecode_loads\": ").append(totalBytecodeLoads.get()).append(",\n");
-        json.append("    \"duplicate_count\": ").append(duplicateCount.get()).append(",\n");
-        json.append("    \"early_deduplication_hits\": ").append(earlyDeduplicationHits.get()).append(",\n");
-        json.append("    \"early_deduplication_check_time_nanos\": ").append(earlyDeduplicationCheckTimeNanos.get())
-                .append(",\n");
-        // Pre-filter and quick check optimization metrics
-        json.append("    \"classes_scanned\": ").append(classesScanned.get()).append(",\n");
-        json.append("    \"jandex_pre_filter_skips\": ").append(jandexPreFilterSkips.get()).append(",\n");
-        json.append("    \"quick_check_skips\": ").append(quickCheckSkips.get()).append(",\n");
-        json.append("    \"quick_check_passes\": ").append(quickCheckPasses.get()).append(",\n");
-        double skipRate = classesScanned.get() > 0 ? (double) quickCheckSkips.get() / classesScanned.get() : 0.0;
-        json.append("    \"quick_check_skip_rate\": ").append(String.format("%.4f", skipRate)).append("\n");
-        json.append("  },\n");
+    private JsonObjectBuilder buildMapSection(Map<String, LongAdder> counts,
+            Map<String, LongAdder> analysisTimes, Map<String, LongAdder> codeGenTimes) {
+        JsonObjectBuilder section = Json.createObjectBuilder();
+        counts.forEach((type, count) -> {
+            LongAdder analysisTime = analysisTimes.get(type);
+            LongAdder codeGenTime = codeGenTimes.get(type);
+            section.add(type, Json.createObjectBuilder()
+                    .add("count", count.sum())
+                    .add("analysis_time_nanos", analysisTime != null ? analysisTime.sum() : 0)
+                    .add("codegen_time_nanos", codeGenTime != null ? codeGenTime.sum() : 0));
+        });
+        return section;
     }
 
-    private void writeQueryTypesSection(StringBuilder json) {
-        json.append("  \"query_types\": {\n");
-        boolean first = true;
-        for (Map.Entry<String, LongAdder> entry : queryTypeCount.entrySet()) {
-            if (!first)
-                json.append(",\n");
-            String type = entry.getKey();
-            json.append("    \"").append(type).append("\": {\n");
-            json.append("      \"count\": ").append(entry.getValue().sum()).append(",\n");
-            LongAdder analysisTime = queryTypeAnalysisTimeNanos.get(type);
-            json.append("      \"analysis_time_nanos\": ").append(analysisTime != null ? analysisTime.sum() : 0).append(",\n");
-            LongAdder codeGenTime = queryTypeCodeGenTimeNanos.get(type);
-            json.append("      \"codegen_time_nanos\": ").append(codeGenTime != null ? codeGenTime.sum() : 0).append("\n");
-            json.append("    }");
-            first = false;
-        }
-        json.append("\n  },\n");
-    }
-
-    private void writeExpressionTypesSection(StringBuilder json) {
-        json.append("  \"expression_types\": {\n");
-        boolean first = true;
-        for (Map.Entry<String, LongAdder> entry : expressionTypeCount.entrySet()) {
-            if (!first)
-                json.append(",\n");
-            String type = entry.getKey();
-            json.append("    \"").append(type).append("\": {\n");
-            json.append("      \"count\": ").append(entry.getValue().sum()).append(",\n");
+    private JsonObjectBuilder buildExpressionTypesSection() {
+        JsonObjectBuilder section = Json.createObjectBuilder();
+        expressionTypeCount.forEach((type, count) -> {
             LongAdder exprTime = expressionTypeTimeNanos.get(type);
-            json.append("      \"time_nanos\": ").append(exprTime != null ? exprTime.sum() : 0).append("\n");
-            json.append("    }");
-            first = false;
-        }
-        json.append("\n  },\n");
+            section.add(type, Json.createObjectBuilder()
+                    .add("count", count.sum())
+                    .add("time_nanos", exprTime != null ? exprTime.sum() : 0));
+        });
+        return section;
     }
 
-    private void writeCacheSection(StringBuilder json) {
-        json.append("  \"cache\": {\n");
-        json.append("    \"bytecode_hits\": ").append(bytecodeeCacheHits.get()).append(",\n");
-        json.append("    \"bytecode_misses\": ").append(bytecodeCacheMisses.get()).append(",\n");
-        json.append("    \"bytecode_hit_rate\": ").append(String.format("%.4f", getBytecodeCacheHitRate())).append(",\n");
-        json.append("    \"classnode_hits\": ").append(classNodeCacheHits.get()).append(",\n");
-        json.append("    \"classnode_misses\": ").append(classNodeCacheMisses.get()).append(",\n");
-        json.append("    \"classnode_hit_rate\": ").append(String.format("%.4f", getClassNodeCacheHitRate())).append(",\n");
-        json.append("    \"codegen_hits\": ").append(codeGenCacheHits.get()).append(",\n");
-        json.append("    \"codegen_misses\": ").append(codeGenCacheMisses.get()).append(",\n");
-        json.append("    \"codegen_hit_rate\": ").append(String.format("%.4f", getCodeGenCacheHitRate())).append("\n");
-        json.append("  },\n");
-    }
-
-    private void writeThreadsSection(StringBuilder json) {
-        json.append("  \"threads\": {\n");
-        json.append("    \"active_count\": ").append(activeThreadIds.size()).append(",\n");
-        json.append("    \"distribution\": {\n");
-        boolean first = true;
-        for (Map.Entry<Long, LongAdder> entry : perThreadTaskCount.entrySet()) {
-            if (!first)
-                json.append(",\n");
-            Long threadId = entry.getKey();
-            json.append("      \"").append(threadId).append("\": {\n");
-            json.append("        \"tasks\": ").append(entry.getValue().sum()).append(",\n");
-            LongAdder workTime = perThreadWorkTimeNanos.get(threadId);
-            json.append("        \"work_time_nanos\": ").append(workTime != null ? workTime.sum() : 0).append("\n");
-            json.append("      }");
-            first = false;
-        }
-        json.append("\n    }\n");
-        json.append("  },\n");
-    }
-
-    private void writeHistogramsSection(StringBuilder json) {
-        json.append("  \"histograms\": {\n");
-        writeHistogram(json, "lambda_analysis_micros", lambdaAnalysisLatenciesMicros);
-        json.append(",\n");
-        writeHistogram(json, "code_gen_micros", codeGenLatenciesMicros);
-        json.append("\n  },\n");
-    }
-
-    private void writeEnhancementSection(StringBuilder json) {
-        json.append("  \"enhancement\": {\n");
-        json.append("    \"entity_classes_enhanced\": ").append(entityClassesEnhanced.get()).append(",\n");
-        json.append("    \"repositories_enhanced\": ").append(repositoriesEnhanced.get()).append(",\n");
-        json.append("    \"total_time_nanos\": ").append(entityEnhancementTimeNanos.get()).append("\n");
-        json.append("  },\n");
-    }
-
-    private void writeTopClassesSection(StringBuilder json) {
-        json.append("  \"top_classes_by_time\": [\n");
-        List<Map.Entry<String, Long>> topClasses = perClassAnalysisTimeNanos.entrySet().stream()
-                .map(e -> Map.entry(e.getKey(), e.getValue().sum()))
-                .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
-                .limit(10)
-                .toList();
-        boolean first = true;
-        for (Map.Entry<String, Long> entry : topClasses) {
-            if (!first)
-                json.append(",\n");
-            json.append("    {\"class\": \"").append(entry.getKey())
-                    .append("\", \"time_nanos\": ").append(entry.getValue())
-                    .append(", \"lambdas\": ");
-            LongAdder count = perClassLambdaCount.get(entry.getKey());
-            json.append(count != null ? count.sum() : 0).append("}");
-            first = false;
-        }
-        json.append("\n  ],\n");
-    }
-
-    private void writeFailedClassesSection(StringBuilder json) {
-        json.append("  \"failed_classes\": [");
-        boolean first = true;
-        for (String className : failedClasses) {
-            if (!first)
-                json.append(", ");
-            json.append("\"").append(className).append("\"");
-            first = false;
-        }
-        json.append("]\n");
-    }
-
-    /** Writes histogram section with percentiles. */
-    private void writeHistogram(StringBuilder json, String name, List<Long> samples) {
+    private JsonObjectBuilder buildHistogram(List<Long> samples) {
         List<Long> sorted = samples.stream().sorted().toList();
         long sum = sorted.stream().mapToLong(Long::longValue).sum();
         double avg = sorted.isEmpty() ? 0 : (double) sum / sorted.size();
-
-        json.append("    \"").append(name).append("\": {\n");
-        json.append("      \"count\": ").append(sorted.size()).append(",\n");
-        json.append("      \"sum\": ").append(sum).append(",\n");
-        json.append("      \"avg\": ").append(String.format("%.2f", avg)).append(",\n");
-        json.append("      \"min\": ").append(sorted.isEmpty() ? 0 : sorted.getFirst()).append(",\n");
-        json.append("      \"max\": ").append(sorted.isEmpty() ? 0 : sorted.getLast()).append(",\n");
-        json.append("      \"p50\": ").append(percentile(sorted, 50)).append(",\n");
-        json.append("      \"p90\": ").append(percentile(sorted, 90)).append(",\n");
-        json.append("      \"p95\": ").append(percentile(sorted, 95)).append(",\n");
-        json.append("      \"p99\": ").append(percentile(sorted, 99)).append("\n");
-        json.append("    }");
+        return Json.createObjectBuilder()
+                .add("count", sorted.size())
+                .add("sum", sum)
+                .add("avg", Double.parseDouble(String.format("%.2f", avg)))
+                .add("min", sorted.isEmpty() ? 0 : sorted.getFirst())
+                .add("max", sorted.isEmpty() ? 0 : sorted.getLast())
+                .add("p50", percentile(sorted, 50))
+                .add("p90", percentile(sorted, 90))
+                .add("p95", percentile(sorted, 95))
+                .add("p99", percentile(sorted, 99));
     }
 
     /**
@@ -740,7 +661,6 @@ public class BuildMetricsCollector {
         addFlameGraphLine(collapsed, "qubit;instruction_analysis", instructionAnalysisTimeNanos.get());
         addFlameGraphLine(collapsed, "qubit;code_generation", codeGenerationTimeNanos.get());
         addFlameGraphLine(collapsed, "qubit;deduplication", deduplicationCheckTimeNanos.get());
-        addFlameGraphLine(collapsed, "qubit;enhancement", entityEnhancementTimeNanos.get());
 
         // Add accumulated stacks from processing
         for (Map.Entry<String, LongAdder> entry : flameGraphStacks.entrySet()) {

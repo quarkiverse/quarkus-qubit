@@ -11,9 +11,6 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 
-import org.objectweb.asm.Handle;
-
-import io.quarkiverse.qubit.deployment.analysis.LambdaBytecodeAnalyzer;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.generation.CriteriaExpressionGenerator;
 import io.quarkiverse.qubit.deployment.testutil.AbstractLambdaAnalyzer;
@@ -57,21 +54,6 @@ public abstract class CriteriaQueryTestBase extends AbstractLambdaAnalyzer {
     }
 
     /**
-     * Analyzes a lambda method from LambdaTestSources and returns its AST.
-     */
-    protected LambdaExpression analyzeLambda(String methodName) {
-        try {
-            Handle lambdaHandle = getLambdaHandle(methodName);
-            byte[] classBytes = getSourceClassBytes();
-
-            LambdaBytecodeAnalyzer analyzer = new LambdaBytecodeAnalyzer();
-            return analyzer.analyze(classBytes, lambdaHandle.getName(), lambdaHandle.getDesc());
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to analyze lambda: " + methodName, e);
-        }
-    }
-
-    /**
      * Generates Criteria query building bytecode for the given lambda expression.
      */
     protected CriteriaQueryStructure generateCriteriaQuery(LambdaExpression expression) {
@@ -81,7 +63,7 @@ public abstract class CriteriaQueryTestBase extends AbstractLambdaAnalyzer {
     /**
      * Generates Criteria query building bytecode and inspects it for verification.
      */
-    protected CriteriaQueryStructure generateCriteriaQuery(LambdaExpression expression, String entityName) {
+    private CriteriaQueryStructure generateCriteriaQuery(LambdaExpression expression, String entityName) {
         CriteriaQueryStructure structure = new CriteriaQueryStructure(entityName);
 
         try {
@@ -160,14 +142,6 @@ public abstract class CriteriaQueryTestBase extends AbstractLambdaAnalyzer {
     }
 
     /**
-     * Full test pattern: analyze lambda + verify Criteria generation succeeds.
-     */
-    protected void testCriteriaGeneration(String lambdaMethodName) {
-        LambdaExpression expr = analyzeLambda(lambdaMethodName);
-        assertCriteriaGenerationSucceeds(expr);
-    }
-
-    /**
      * Asserts that a specific Criteria API method was called.
      */
     protected void assertCriteriaMethodCalled(CriteriaQueryStructure structure, String methodName) {
@@ -213,15 +187,6 @@ public abstract class CriteriaQueryTestBase extends AbstractLambdaAnalyzer {
     }
 
     /**
-     * Asserts that specific Criteria API methods were called.
-     */
-    protected void assertCriteriaStructure(CriteriaQueryStructure structure, String... expectedMethods) {
-        for (String expectedMethod : expectedMethods) {
-            assertCriteriaMethodCalled(structure, expectedMethod);
-        }
-    }
-
-    /**
      * Represents the structure of a generated Criteria query for verification.
      */
     protected static class CriteriaQueryStructure {
@@ -233,10 +198,6 @@ public abstract class CriteriaQueryTestBase extends AbstractLambdaAnalyzer {
 
         public CriteriaQueryStructure(String entityName) {
             this.entityName = entityName;
-        }
-
-        public String getEntityName() {
-            return entityName;
         }
 
         public void setInspector(BytecodeInspector inspector) {

@@ -17,9 +17,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Unit tests for {@link FluentMethodType}.
- * <p>
- * Tests the enum functionality including method name lookup, category checks,
- * and static enum sets.
  */
 class FluentMethodTypeTest {
 
@@ -36,21 +33,6 @@ class FluentMethodTypeTest {
                 Arguments.of("sumInteger", FluentMethodType.SUM_INTEGER),
                 Arguments.of("sumLong", FluentMethodType.SUM_LONG),
                 Arguments.of("sumDouble", FluentMethodType.SUM_DOUBLE));
-    }
-
-    /** FluentMethodType to MethodCategory mappings for category tests. */
-    static Stream<Arguments> categoryMappings() {
-        return Stream.of(
-                Arguments.of(FluentMethodType.WHERE, FluentMethodType.MethodCategory.PREDICATE),
-                Arguments.of(FluentMethodType.SELECT, FluentMethodType.MethodCategory.PROJECTION),
-                Arguments.of(FluentMethodType.SORTED_BY, FluentMethodType.MethodCategory.SORTING),
-                Arguments.of(FluentMethodType.SORTED_DESCENDING_BY, FluentMethodType.MethodCategory.SORTING),
-                Arguments.of(FluentMethodType.MIN, FluentMethodType.MethodCategory.AGGREGATION),
-                Arguments.of(FluentMethodType.MAX, FluentMethodType.MethodCategory.AGGREGATION),
-                Arguments.of(FluentMethodType.AVG, FluentMethodType.MethodCategory.AGGREGATION),
-                Arguments.of(FluentMethodType.SUM_INTEGER, FluentMethodType.MethodCategory.AGGREGATION),
-                Arguments.of(FluentMethodType.SUM_LONG, FluentMethodType.MethodCategory.AGGREGATION),
-                Arguments.of(FluentMethodType.SUM_DOUBLE, FluentMethodType.MethodCategory.AGGREGATION));
     }
 
     @Nested
@@ -97,134 +79,6 @@ class FluentMethodTypeTest {
                     .as("Lookup for method name '%s' should return %s", methodName, type)
                     .isPresent()
                     .contains(type);
-        }
-    }
-
-    @Nested
-    @DisplayName("Category and isAggregation()")
-    class CategoryTests {
-
-        @ParameterizedTest(name = "{0} → {1}")
-        @MethodSource("io.quarkiverse.qubit.deployment.FluentMethodTypeTest#categoryMappings")
-        @DisplayName("FluentMethodType has correct category")
-        void methodType_hasCorrectCategory(FluentMethodType type, FluentMethodType.MethodCategory expectedCategory) {
-            assertThat(type.getCategory()).isEqualTo(expectedCategory);
-        }
-
-        @ParameterizedTest
-        @EnumSource(value = FluentMethodType.class, names = { "MIN", "MAX", "AVG", "SUM_INTEGER", "SUM_LONG", "SUM_DOUBLE" })
-        @DisplayName("isAggregation returns true for aggregation methods")
-        void isAggregation_forAggregationMethods_returnsTrue(FluentMethodType type) {
-            assertThat(type.isAggregation()).isTrue();
-        }
-
-        @ParameterizedTest
-        @EnumSource(value = FluentMethodType.class, names = { "WHERE", "SELECT", "SORTED_BY", "SORTED_DESCENDING_BY" })
-        @DisplayName("isAggregation returns false for non-aggregation methods")
-        void isAggregation_forNonAggregationMethods_returnsFalse(FluentMethodType type) {
-            assertThat(type.isAggregation()).isFalse();
-        }
-
-        @ParameterizedTest
-        @EnumSource(FluentMethodType.class)
-        @DisplayName("Every enum value has a non-null category")
-        void allValues_haveNonNullCategory(FluentMethodType type) {
-            assertThat(type.getCategory())
-                    .as("%s should have a non-null category", type)
-                    .isNotNull();
-        }
-    }
-
-    @Nested
-    @DisplayName("EnumSet Constants")
-    class EnumSetConstantsTests {
-
-        @Test
-        @DisplayName("AGGREGATIONS contains exactly the aggregation methods")
-        void aggregations_containsCorrectMethods() {
-            assertThat(FluentMethodType.AGGREGATIONS)
-                    .containsExactlyInAnyOrder(
-                            FluentMethodType.MIN,
-                            FluentMethodType.MAX,
-                            FluentMethodType.AVG,
-                            FluentMethodType.SUM_INTEGER,
-                            FluentMethodType.SUM_LONG,
-                            FluentMethodType.SUM_DOUBLE);
-        }
-
-        @Test
-        @DisplayName("SORTING contains exactly the sorting methods")
-        void sorting_containsCorrectMethods() {
-            assertThat(FluentMethodType.SORTING)
-                    .containsExactlyInAnyOrder(
-                            FluentMethodType.SORTED_BY,
-                            FluentMethodType.SORTED_DESCENDING_BY);
-        }
-
-        @Test
-        @DisplayName("AGGREGATIONS matches isAggregation() for all values")
-        void aggregations_matchesIsAggregationMethod() {
-            for (FluentMethodType type : FluentMethodType.values()) {
-                boolean inSet = FluentMethodType.AGGREGATIONS.contains(type);
-                boolean isAggregation = type.isAggregation();
-                assertThat(inSet)
-                        .as("%s: AGGREGATIONS.contains() should equal isAggregation()", type)
-                        .isEqualTo(isAggregation);
-            }
-        }
-
-        @Test
-        @DisplayName("AGGREGATIONS contains only AGGREGATION category members")
-        void aggregations_containsOnlyAggregationCategory() {
-            for (FluentMethodType type : FluentMethodType.AGGREGATIONS) {
-                assertThat(type.getCategory())
-                        .as("%s in AGGREGATIONS should have AGGREGATION category", type)
-                        .isEqualTo(FluentMethodType.MethodCategory.AGGREGATION);
-            }
-        }
-
-        @Test
-        @DisplayName("SORTING contains only SORTING category members")
-        void sorting_containsOnlySortingCategory() {
-            for (FluentMethodType type : FluentMethodType.SORTING) {
-                assertThat(type.getCategory())
-                        .as("%s in SORTING should have SORTING category", type)
-                        .isEqualTo(FluentMethodType.MethodCategory.SORTING);
-            }
-        }
-    }
-
-    @Nested
-    @DisplayName("MethodCategory enum")
-    class MethodCategoryTests {
-
-        @Test
-        @DisplayName("All four categories exist")
-        void allCategoriesExist() {
-            assertThat(FluentMethodType.MethodCategory.values())
-                    .hasSize(4)
-                    .containsExactlyInAnyOrder(
-                            FluentMethodType.MethodCategory.PREDICATE,
-                            FluentMethodType.MethodCategory.PROJECTION,
-                            FluentMethodType.MethodCategory.SORTING,
-                            FluentMethodType.MethodCategory.AGGREGATION);
-        }
-
-        @Test
-        @DisplayName("Each category has at least one FluentMethodType")
-        void eachCategoryHasAtLeastOneMethod() {
-            for (FluentMethodType.MethodCategory category : FluentMethodType.MethodCategory.values()) {
-                boolean hasMethod = false;
-                for (FluentMethodType type : FluentMethodType.values()) {
-                    if (type.getCategory() == category) {
-                        hasMethod = true;
-                        break;
-                    }
-                }
-                assertThat(hasMethod)
-                        .as("Category %s should have at least one FluentMethodType", category)
-                        .isTrue();
-            }
         }
     }
 

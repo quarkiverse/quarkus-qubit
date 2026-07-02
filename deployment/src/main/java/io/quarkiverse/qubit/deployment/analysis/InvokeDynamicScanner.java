@@ -27,7 +27,7 @@ import io.quarkiverse.qubit.deployment.analysis.CallSite.AggregationCallSite;
 import io.quarkiverse.qubit.deployment.analysis.CallSite.Common;
 import io.quarkiverse.qubit.deployment.analysis.CallSite.GroupCallSite;
 import io.quarkiverse.qubit.deployment.analysis.CallSite.JoinCallSite;
-import io.quarkiverse.qubit.deployment.analysis.CallSite.JoinType;
+import io.quarkiverse.qubit.JoinType;
 import io.quarkiverse.qubit.deployment.analysis.CallSite.SimpleCallSite;
 import io.quarkus.logging.Log;
 
@@ -36,16 +36,6 @@ import io.quarkus.logging.Log;
  * Supports standard, join (BiQuerySpec), and group (GroupQuerySpec) queries.
  */
 public class InvokeDynamicScanner {
-
-    /** Query context type: STANDARD, JOIN, or GROUP. */
-    public enum QueryContext {
-        /** Standard query (no special context). */
-        STANDARD,
-        /** Join query context (after join() or leftJoin()). */
-        JOIN,
-        /** Group query context (after groupBy()). */
-        GROUP
-    }
 
     /** Scans class bytecode for QuerySpec lambda call sites. */
     public List<CallSite> scanClass(byte[] classBytes, String className) {

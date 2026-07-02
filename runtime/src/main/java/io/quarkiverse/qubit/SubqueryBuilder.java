@@ -27,15 +27,7 @@ package io.quarkiverse.qubit;
  */
 public final class SubqueryBuilder<T> {
 
-    private final Class<T> entityClass;
-
-    /**
-     * Package-private constructor - use {@link Subqueries#subquery(Class)} instead.
-     *
-     * @param entityClass the entity class for the subquery
-     */
-    SubqueryBuilder(Class<T> entityClass) {
-        this.entityClass = entityClass;
+    SubqueryBuilder() {
     }
 
     /**
@@ -212,13 +204,4 @@ public final class SubqueryBuilder<T> {
                         "This method exists only for bytecode analysis at build time.");
     }
 
-    /**
-     * Returns the entity class for this subquery builder.
-     * Used by bytecode analyzers at build time.
-     *
-     * @return the entity class
-     */
-    Class<T> getEntityClass() {
-        return entityClass;
-    }
 }

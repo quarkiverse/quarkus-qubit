@@ -224,15 +224,6 @@ class DescriptorParserTest {
                 Arguments.of("(ZBCSIJFD)V", 7, "double"));
     }
 
-    /** Test data for getEntityClass tests. */
-    static Stream<Arguments> entityClassTestData() {
-        return Stream.of(
-                Arguments.of("()V", Object.class),
-                Arguments.of("(Ljava/lang/String;)V", String.class),
-                Arguments.of("(I)V", int.class),
-                Arguments.of("(Lcom/unknown/NonExistent;)V", Object.class));
-    }
-
     @ParameterizedTest(name = "{2}: {0} → slot {1}")
     @MethodSource("io.quarkiverse.qubit.deployment.util.DescriptorParserTest#entitySlotIndexTestData")
     @DisplayName("calculateEntityParameterSlotIndex returns correct slot")
@@ -274,13 +265,6 @@ class DescriptorParserTest {
         }
     }
 
-    @ParameterizedTest(name = "{0} → \"{1}\"")
-    @MethodSource("io.quarkiverse.qubit.deployment.util.DescriptorParserTest#returnTypeDescriptorTestData")
-    @DisplayName("getReturnTypeDescriptor extracts return type")
-    void getReturnTypeDescriptor_extractsReturnType(String descriptor, String expected) {
-        assertThat(DescriptorParser.getReturnTypeDescriptor(descriptor)).isEqualTo(expected);
-    }
-
     @ParameterizedTest(name = "{0} → {1}")
     @MethodSource("io.quarkiverse.qubit.deployment.util.DescriptorParserTest#returnsBooleanTypeTestData")
     @DisplayName("returnsBooleanType returns correct result")
@@ -314,69 +298,6 @@ class DescriptorParserTest {
     @DisplayName("getEntityClassName returns correct name")
     void getEntityClassName_returnsCorrectName(String descriptor, String expectedName) {
         assertThat(DescriptorParser.getEntityClassName(descriptor)).isEqualTo(expectedName);
-    }
-
-    @ParameterizedTest(name = "{0}, param {1} → \"{2}\"")
-    @MethodSource("io.quarkiverse.qubit.deployment.util.DescriptorParserTest#parameterTypeNameTestData")
-    @DisplayName("getParameterTypeName returns correct name")
-    void getParameterTypeName_returnsCorrectName(String descriptor, int paramIndex, String expectedName) {
-        assertThat(DescriptorParser.getParameterTypeName(descriptor, paramIndex)).isEqualTo(expectedName);
-    }
-
-    @ParameterizedTest(name = "{0}, param {1} → \"{2}\"")
-    @MethodSource("io.quarkiverse.qubit.deployment.util.DescriptorParserTest#parameterTypeNamePrimitivesTestData")
-    @DisplayName("getParameterTypeName handles all primitives")
-    void getParameterTypeName_allPrimitives_returnsCorrectNames(String descriptor, int paramIndex, String expectedName) {
-        assertThat(DescriptorParser.getParameterTypeName(descriptor, paramIndex)).isEqualTo(expectedName);
-    }
-
-    @ParameterizedTest(name = "{0} → {1}")
-    @MethodSource("io.quarkiverse.qubit.deployment.util.DescriptorParserTest#entityClassTestData")
-    @DisplayName("getEntityClass returns correct class")
-    void getEntityClass_returnsCorrectClass(String descriptor, Class<?> expectedClass) {
-        assertThat(DescriptorParser.getEntityClass(descriptor)).isEqualTo(expectedClass);
-    }
-
-    @Nested
-    @DisplayName("Bi-Entity Specific Slot Calculations")
-    class BiEntitySpecificTests {
-
-        @Test
-        @DisplayName("First entity slot index calculation")
-        void calculateFirstEntityParameterSlotIndex_withCapturedVariables_returnsCorrectSlot() {
-            // (int a, long b, Person p, Phone ph) -> int:0, long:1-2, Person:3, Phone:4
-            String descriptor = "(IJLPerson;LPhone;)Z";
-            int slot = DescriptorParser.calculateFirstEntityParameterSlotIndex(descriptor);
-            assertThat(slot).isEqualTo(3);
-        }
-
-        @Test
-        @DisplayName("Second entity slot index calculation")
-        void calculateSecondEntityParameterSlotIndex_withCapturedVariables_returnsCorrectSlot() {
-            String descriptor = "(IJLPerson;LPhone;)Z";
-            int slot = DescriptorParser.calculateSecondEntityParameterSlotIndex(descriptor);
-            assertThat(slot).isEqualTo(4);
-        }
-
-        @ParameterizedTest
-        @CsvSource({
-                "(LPerson;)Z, -1",
-                "()Z, -1"
-        })
-        @DisplayName("calculateFirstEntityParameterSlotIndex returns -1 for insufficient params")
-        void calculateFirstEntityParameterSlotIndex_insufficientParams_returnsNegativeOne(String descriptor, int expected) {
-            assertThat(DescriptorParser.calculateFirstEntityParameterSlotIndex(descriptor)).isEqualTo(expected);
-        }
-
-        @ParameterizedTest
-        @CsvSource({
-                "(LPerson;)Z, -1",
-                "()Z, -1"
-        })
-        @DisplayName("calculateSecondEntityParameterSlotIndex returns -1 for insufficient params")
-        void calculateSecondEntityParameterSlotIndex_insufficientParams_returnsNegativeOne(String descriptor, int expected) {
-            assertThat(DescriptorParser.calculateSecondEntityParameterSlotIndex(descriptor)).isEqualTo(expected);
-        }
     }
 
     @Nested

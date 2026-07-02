@@ -6,8 +6,6 @@ public final class ExceptionMessages {
     private ExceptionMessages() {
     }
 
-    public static final String LAMBDA_HASH_REQUIRED = "lambdaHash is required";
-
     public static final String QUERY_ID_REQUIRED = "queryId is required";
 
     // --- AST Node Validation (LambdaExpression records) ---

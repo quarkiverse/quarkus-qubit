@@ -39,23 +39,6 @@ public final class ExpressionTypeInferrer {
         };
     }
 
-    /** Checks if expression is numeric. */
-    public static boolean isNumericType(LambdaExpression expression) {
-        Class<?> type = inferFieldType(expression);
-        return TypeConverter.isNumericType(type);
-    }
-
-    /** Checks if class is numeric. */
-    public static boolean isNumericClass(Class<?> type) {
-        return TypeConverter.isNumericType(type);
-    }
-
-    /** Checks if expression is comparable. */
-    public static boolean isComparableType(LambdaExpression expression) {
-        Class<?> type = inferFieldType(expression);
-        return Comparable.class.isAssignableFrom(type) || type.isPrimitive();
-    }
-
     /** Checks if class is boolean or Boolean. */
     public static boolean isBooleanType(Class<?> type) {
         return TypeConverter.isBooleanType(type);

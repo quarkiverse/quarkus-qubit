@@ -11,9 +11,7 @@ import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUM_IN
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_SUM_LONG;
 import static io.quarkiverse.qubit.runtime.internal.QubitConstants.METHOD_WHERE;
 
-import java.util.EnumSet;
 import java.util.Optional;
-import java.util.Set;
 
 import org.jspecify.annotations.Nullable;
 import org.objectweb.asm.Type;
@@ -21,70 +19,70 @@ import org.objectweb.asm.Type;
 /** Fluent API method types with factory methods for FluentMethodConfig creation. */
 public enum FluentMethodType {
 
-    WHERE(METHOD_WHERE, MethodCategory.PREDICATE) {
+    WHERE(METHOD_WHERE) {
         @Override
         public QubitBytecodeGenerator.FluentMethodConfig createConfig(Type entityType, String entityInternalName) {
             return QubitBytecodeGenerator.FluentMethodConfig.forWhere(entityType, entityInternalName);
         }
     },
 
-    SELECT(METHOD_SELECT, MethodCategory.PROJECTION) {
+    SELECT(METHOD_SELECT) {
         @Override
         public QubitBytecodeGenerator.FluentMethodConfig createConfig(Type entityType, String entityInternalName) {
             return QubitBytecodeGenerator.FluentMethodConfig.forSelect(entityType, entityInternalName);
         }
     },
 
-    SORTED_BY(METHOD_SORTED_BY, MethodCategory.SORTING) {
+    SORTED_BY(METHOD_SORTED_BY) {
         @Override
         public QubitBytecodeGenerator.FluentMethodConfig createConfig(Type entityType, String entityInternalName) {
             return QubitBytecodeGenerator.FluentMethodConfig.forSortedBy(entityType, entityInternalName);
         }
     },
 
-    SORTED_DESCENDING_BY(METHOD_SORTED_DESCENDING_BY, MethodCategory.SORTING) {
+    SORTED_DESCENDING_BY(METHOD_SORTED_DESCENDING_BY) {
         @Override
         public QubitBytecodeGenerator.FluentMethodConfig createConfig(Type entityType, String entityInternalName) {
             return QubitBytecodeGenerator.FluentMethodConfig.forSortedDescendingBy(entityType, entityInternalName);
         }
     },
 
-    MIN(METHOD_MIN, MethodCategory.AGGREGATION) {
+    MIN(METHOD_MIN) {
         @Override
         public QubitBytecodeGenerator.FluentMethodConfig createConfig(Type entityType, String entityInternalName) {
             return QubitBytecodeGenerator.FluentMethodConfig.forMin(entityType, entityInternalName);
         }
     },
 
-    MAX(METHOD_MAX, MethodCategory.AGGREGATION) {
+    MAX(METHOD_MAX) {
         @Override
         public QubitBytecodeGenerator.FluentMethodConfig createConfig(Type entityType, String entityInternalName) {
             return QubitBytecodeGenerator.FluentMethodConfig.forMax(entityType, entityInternalName);
         }
     },
 
-    AVG(METHOD_AVG, MethodCategory.AGGREGATION) {
+    AVG(METHOD_AVG) {
         @Override
         public QubitBytecodeGenerator.FluentMethodConfig createConfig(Type entityType, String entityInternalName) {
             return QubitBytecodeGenerator.FluentMethodConfig.forAvg(entityType, entityInternalName);
         }
     },
 
-    SUM_INTEGER(METHOD_SUM_INTEGER, MethodCategory.AGGREGATION) {
+    SUM_INTEGER(METHOD_SUM_INTEGER) {
         @Override
         public QubitBytecodeGenerator.FluentMethodConfig createConfig(Type entityType, String entityInternalName) {
             return QubitBytecodeGenerator.FluentMethodConfig.forSumInteger(entityType, entityInternalName);
         }
     },
 
-    SUM_LONG(METHOD_SUM_LONG, MethodCategory.AGGREGATION) {
+    SUM_LONG(METHOD_SUM_LONG) {
         @Override
         public QubitBytecodeGenerator.FluentMethodConfig createConfig(Type entityType, String entityInternalName) {
             return QubitBytecodeGenerator.FluentMethodConfig.forSumLong(entityType, entityInternalName);
         }
     },
 
-    SUM_DOUBLE(METHOD_SUM_DOUBLE, MethodCategory.AGGREGATION) {
+    SUM_DOUBLE(METHOD_SUM_DOUBLE) {
         @Override
         public QubitBytecodeGenerator.FluentMethodConfig createConfig(Type entityType, String entityInternalName) {
             return QubitBytecodeGenerator.FluentMethodConfig.forSumDouble(entityType, entityInternalName);
@@ -92,19 +90,13 @@ public enum FluentMethodType {
     };
 
     private final String methodName;
-    private final MethodCategory category;
 
-    FluentMethodType(String methodName, MethodCategory category) {
+    FluentMethodType(String methodName) {
         this.methodName = methodName;
-        this.category = category;
     }
 
     public String getMethodName() {
         return methodName;
-    }
-
-    public MethodCategory getCategory() {
-        return category;
     }
 
     /** Creates FluentMethodConfig for this method type. */
@@ -120,24 +112,5 @@ public enum FluentMethodType {
             }
         }
         return Optional.empty();
-    }
-
-    public boolean isAggregation() {
-        return category == MethodCategory.AGGREGATION;
-    }
-
-    protected static final Set<FluentMethodType> ENTRY_POINTS = EnumSet.allOf(FluentMethodType.class);
-
-    protected static final Set<FluentMethodType> AGGREGATIONS = EnumSet.of(
-            MIN, MAX, AVG, SUM_INTEGER, SUM_LONG, SUM_DOUBLE);
-
-    protected static final Set<FluentMethodType> SORTING = EnumSet.of(SORTED_BY, SORTED_DESCENDING_BY);
-
-    /** Semantic grouping: PREDICATE (filtering), PROJECTION (transform), SORTING, AGGREGATION. */
-    public enum MethodCategory {
-        PREDICATE, // Filtering methods (where)
-        PROJECTION, // Transform result type (select)
-        SORTING, // Order results (sortedBy, sortedDescendingBy)
-        AGGREGATION // Compute aggregate values (min, max, avg, sum*)
     }
 }

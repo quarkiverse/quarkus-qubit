@@ -44,7 +44,7 @@ import io.quarkus.gizmo2.desc.MethodDesc;
  * <b>Note:</b> Java's substring() uses 0-based indexing, but JPA uses 1-based.
  * This builder automatically adds 1 to the start index.
  */
-public enum StringExpressionBuilder implements ExpressionBuilder {
+public enum StringExpressionBuilder {
     INSTANCE;
 
     /** Determines the string operation type for a method call. */

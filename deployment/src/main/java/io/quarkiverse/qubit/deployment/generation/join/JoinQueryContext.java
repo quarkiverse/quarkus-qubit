@@ -5,7 +5,7 @@ import java.util.Objects;
 
 import org.jspecify.annotations.Nullable;
 
-import io.quarkiverse.qubit.deployment.analysis.CallSite;
+import io.quarkiverse.qubit.JoinType;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkus.gizmo2.Expr;
@@ -21,7 +21,7 @@ public record JoinQueryContext(
         LambdaExpression joinRelationshipExpression,
         @Nullable LambdaExpression sourcePredicateExpression,
         @Nullable LambdaExpression biEntityPredicateExpression,
-        CallSite.JoinType joinType,
+        JoinType joinType,
         @Nullable List<SortExpression> sortExpressions,
         Expr capturedValues,
         Expr offset,
@@ -53,7 +53,4 @@ public record JoinQueryContext(
         return biEntityPredicateExpression != null;
     }
 
-    public boolean hasSorting() {
-        return sortExpressions != null && !sortExpressions.isEmpty();
-    }
 }

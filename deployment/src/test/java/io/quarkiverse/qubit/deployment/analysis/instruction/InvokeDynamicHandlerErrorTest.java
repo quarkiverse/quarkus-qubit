@@ -64,9 +64,9 @@ class InvokeDynamicHandlerErrorTest {
             assertThat(result)
                     .as("Should return false when recipe is missing")
                     .isFalse();
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("Stack should remain empty")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -124,9 +124,9 @@ class InvokeDynamicHandlerErrorTest {
             assertThat(result)
                     .as("Should return false on stack underflow")
                     .isFalse();
-            assertThat(context.isStackEmpty())
+            AnalysisContextAssert.assertThat(context)
                     .as("Stack should remain empty after underflow")
-                    .isTrue();
+                    .isStackEmpty();
         }
 
         @Test
@@ -264,9 +264,9 @@ class InvokeDynamicHandlerErrorTest {
             boolean result = handler.handle(indy, context);
 
             assertThat(result).isFalse(); // Handler always returns false to continue
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Should push concatenation result onto stack")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
 
         @Test
@@ -282,9 +282,9 @@ class InvokeDynamicHandlerErrorTest {
             boolean result = handler.handle(indy, context);
 
             assertThat(result).isFalse();
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Should push concatenation result onto stack")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
 
         @Test
@@ -297,9 +297,9 @@ class InvokeDynamicHandlerErrorTest {
             boolean result = handler.handle(indy, context);
 
             assertThat(result).isFalse();
-            assertThat(context.getStackSize())
+            AnalysisContextAssert.assertThat(context)
                     .as("Should push constant result onto stack")
-                    .isEqualTo(1);
+                    .hasStackSize(1);
         }
     }
 

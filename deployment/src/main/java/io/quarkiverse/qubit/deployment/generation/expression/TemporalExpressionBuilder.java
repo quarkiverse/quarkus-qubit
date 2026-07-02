@@ -43,7 +43,7 @@ import io.quarkus.gizmo2.desc.MethodDesc;
  * <p>
  * <b>Supported Types:</b> LocalDate, LocalDateTime, LocalTime
  */
-public enum TemporalExpressionBuilder implements ExpressionBuilder {
+public enum TemporalExpressionBuilder {
     INSTANCE;
 
     /** Checks if a method call is a temporal comparison (isAfter, isBefore, isEqual). */

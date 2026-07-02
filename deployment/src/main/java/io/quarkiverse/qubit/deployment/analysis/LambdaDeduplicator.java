@@ -137,11 +137,6 @@ public class LambdaDeduplicator {
                 new CachedAnalysisResult(lambdaHash, executorClassName));
     }
 
-    /** Returns the number of early deduplication cache entries. */
-    public int getEarlyDeduplicationCacheSize() {
-        return cachedAnalysisResults.size();
-    }
-
     /** Computes MD5 hash for lambda expression and query type. */
     public String computeLambdaHash(LambdaExpression expression, boolean isCountQuery, boolean isProjectionQuery) {
         String queryType = ExecutorRegistrationHelper.getQueryType(isCountQuery, !isProjectionQuery, isProjectionQuery);
@@ -285,11 +280,6 @@ public class LambdaDeduplicator {
     /** Registers executor class for lambda hash (atomic putIfAbsent). */
     public @Nullable String registerExecutor(String lambdaHash, String executorClassName) {
         return lambdaHashToExecutor.putIfAbsent(lambdaHash, executorClassName);
-    }
-
-    /** Returns number of unique lambda expressions. */
-    public int getUniqueCount() {
-        return lambdaHashToExecutor.size();
     }
 
     /** Bundles join hash computation parameters. */

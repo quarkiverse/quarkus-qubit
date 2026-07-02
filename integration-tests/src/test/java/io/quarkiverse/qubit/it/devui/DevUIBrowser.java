@@ -188,17 +188,6 @@ public class DevUIBrowser implements AutoCloseable {
      *
      * @return the number of data rows
      */
-    public int getGridRowCount() {
-        Locator grid = getVaadinGrid();
-        grid.waitFor();
-
-        // Vaadin Grid uses shadow DOM, rows are in vaadin-grid-cell-content
-        // We count unique rows by checking the grid's items property
-        Object rowCount = page.evaluate(
-                "() => document.querySelector('vaadin-grid')?.items?.length ?? 0");
-        return ((Number) rowCount).intValue();
-    }
-
     /**
      * Type a search query into the search field.
      *
@@ -295,15 +284,6 @@ public class DevUIBrowser implements AutoCloseable {
     }
 
     /**
-     * Take a screenshot of the current page.
-     *
-     * @param filename the output filename
-     */
-    public void takeScreenshot(String filename) {
-        page.screenshot(new Page.ScreenshotOptions().setPath(java.nio.file.Path.of(filename)));
-    }
-
-    /**
      * Wait for the page to fully load.
      */
     private void waitForPageLoad() {
@@ -314,34 +294,12 @@ public class DevUIBrowser implements AutoCloseable {
     }
 
     /**
-     * Wait for a specific element to appear.
-     *
-     * @param selector the CSS selector
-     * @param timeoutMs timeout in milliseconds
-     */
-    public void waitForElement(String selector, int timeoutMs) {
-        page.locator("css=" + selector).waitFor(
-                new Locator.WaitForOptions()
-                        .setState(WaitForSelectorState.VISIBLE)
-                        .setTimeout(timeoutMs));
-    }
-
-    /**
      * Get the current page URL.
      *
      * @return the page URL
      */
     public String getCurrentUrl() {
         return page.url();
-    }
-
-    /**
-     * Get the page title.
-     *
-     * @return the page title
-     */
-    public String getPageTitle() {
-        return page.title();
     }
 
     /**

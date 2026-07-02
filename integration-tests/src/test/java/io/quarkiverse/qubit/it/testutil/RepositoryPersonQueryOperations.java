@@ -24,11 +24,6 @@ public class RepositoryPersonQueryOperations implements PersonQueryOperations {
     }
 
     @Override
-    public String getSourceName() {
-        return "Repository";
-    }
-
-    @Override
     public QubitStream<Person> where(QuerySpec<Person, Boolean> spec) {
         return repository.where(spec);
     }

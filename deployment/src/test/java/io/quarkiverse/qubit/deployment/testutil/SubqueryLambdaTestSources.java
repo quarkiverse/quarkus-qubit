@@ -119,31 +119,4 @@ public class SubqueryLambdaTestSources {
         return p -> subquery(TestDepartment.class).notIn(p.departmentId, d -> d.id);
     }
 
-    /**
-     * AVG subquery with predicate using .where() chaining
-     */
-    public static QuerySpec<TestPerson, Boolean> avgSubqueryWithPredicate() {
-        return p -> p.salary > subquery(TestPerson.class).where(q -> q.active).avg(q -> q.salary);
-    }
-
-    /**
-     * IN subquery with predicate using .where() chaining
-     */
-    public static QuerySpec<TestPerson, Boolean> inSubqueryWithPredicate() {
-        return p -> subquery(TestDepartment.class).where(d -> d.budget > 1000000).in(p.departmentId, d -> d.id);
-    }
-
-    /**
-     * Subquery combined with AND predicate
-     */
-    public static QuerySpec<TestPerson, Boolean> subqueryWithAndPredicate() {
-        return p -> p.active && p.salary > subquery(TestPerson.class).avg(q -> q.salary);
-    }
-
-    /**
-     * Subquery combined with OR predicate
-     */
-    public static QuerySpec<TestPerson, Boolean> subqueryWithOrPredicate() {
-        return p -> p.age > 50 || subquery(TestPhone.class).exists(ph -> ph.ownerId.equals(p.id));
-    }
 }

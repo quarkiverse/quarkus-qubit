@@ -24,9 +24,9 @@ import io.quarkus.gizmo2.creator.BlockCreator;
 public final class JoinQueryBuilder {
 
     private final CriteriaExpressionGenerator expressionGenerator;
-    private final QueryClauseApplier clauseApplier;
+    private final StandardClauseApplier clauseApplier;
 
-    public JoinQueryBuilder(CriteriaExpressionGenerator expressionGenerator, QueryClauseApplier clauseApplier) {
+    public JoinQueryBuilder(CriteriaExpressionGenerator expressionGenerator, StandardClauseApplier clauseApplier) {
         this.expressionGenerator = Objects.requireNonNull(expressionGenerator, "expressionGenerator cannot be null");
         this.clauseApplier = Objects.requireNonNull(clauseApplier, "clauseApplier cannot be null");
     }

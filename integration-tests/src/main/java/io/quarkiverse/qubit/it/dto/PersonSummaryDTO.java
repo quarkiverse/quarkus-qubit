@@ -19,18 +19,6 @@ public class PersonSummaryDTO {
         this.salary = salary;
     }
 
-    public String getFirstName() {
-        return firstName;
-    }
-
-    public int getAge() {
-        return age;
-    }
-
-    public Double getSalary() {
-        return salary;
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o)

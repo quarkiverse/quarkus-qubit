@@ -45,36 +45,36 @@ class EntityClassInfoTest {
         void isPlaceholder_withNullClassName_returnsFalse() {
             EntityClassInfo info = EntityClassInfo.of(String.class);
 
-            assertThat(info.isPlaceholder())
+            EntityClassInfoAssert.assertThat(info)
                     .as("Non-placeholder should return false")
-                    .isFalse();
+                    .isNotPlaceholder();
         }
 
         @Test
         void isPlaceholder_withClassName_returnsTrue() {
             EntityClassInfo info = EntityClassInfo.placeholder("com.example.Entity");
 
-            assertThat(info.isPlaceholder())
+            EntityClassInfoAssert.assertThat(info)
                     .as("Placeholder should return true")
-                    .isTrue();
+                    .isPlaceholder();
         }
 
         @Test
         void isPlaceholder_withConstructorCreatedPlaceholder_returnsTrue() {
             EntityClassInfo info = new EntityClassInfo(Object.class, "com.test.MyClass");
 
-            assertThat(info.isPlaceholder())
+            EntityClassInfoAssert.assertThat(info)
                     .as("Constructor-created placeholder should return true")
-                    .isTrue();
+                    .isPlaceholder();
         }
 
         @Test
         void isPlaceholder_withConstructorCreatedNonPlaceholder_returnsFalse() {
             EntityClassInfo info = new EntityClassInfo(Long.class, null);
 
-            assertThat(info.isPlaceholder())
+            EntityClassInfoAssert.assertThat(info)
                     .as("Constructor-created non-placeholder should return false")
-                    .isFalse();
+                    .isNotPlaceholder();
         }
     }
 
@@ -85,27 +85,27 @@ class EntityClassInfoTest {
         void getEffectiveClassName_withLoadedClass_returnsClassName() {
             EntityClassInfo info = EntityClassInfo.of(String.class);
 
-            assertThat(info.getEffectiveClassName())
+            EntityClassInfoAssert.assertThat(info)
                     .as("Should return loaded class name")
-                    .isEqualTo("java.lang.String");
+                    .hasEffectiveClassName("java.lang.String");
         }
 
         @Test
         void getEffectiveClassName_withIntegerClass_returnsClassName() {
             EntityClassInfo info = EntityClassInfo.of(Integer.class);
 
-            assertThat(info.getEffectiveClassName())
+            EntityClassInfoAssert.assertThat(info)
                     .as("Should return Integer class name")
-                    .isEqualTo("java.lang.Integer");
+                    .hasEffectiveClassName("java.lang.Integer");
         }
 
         @Test
         void getEffectiveClassName_withPlaceholder_returnsPlaceholderClassName() {
             EntityClassInfo info = EntityClassInfo.placeholder("com.example.UnloadableEntity");
 
-            assertThat(info.getEffectiveClassName())
+            EntityClassInfoAssert.assertThat(info)
                     .as("Should return placeholder className")
-                    .isEqualTo("com.example.UnloadableEntity");
+                    .hasEffectiveClassName("com.example.UnloadableEntity");
         }
 
         @Test
@@ -113,18 +113,18 @@ class EntityClassInfoTest {
             // Even though Object.class has a name, className takes precedence
             EntityClassInfo info = new EntityClassInfo(Object.class, "com.specific.Entity");
 
-            assertThat(info.getEffectiveClassName())
+            EntityClassInfoAssert.assertThat(info)
                     .as("Should prefer className over class.getName()")
-                    .isEqualTo("com.specific.Entity");
+                    .hasEffectiveClassName("com.specific.Entity");
         }
 
         @Test
         void getEffectiveClassName_withCustomProjectClass_returnsFullyQualifiedName() {
             EntityClassInfo info = EntityClassInfo.of(EntityClassInfo.class);
 
-            assertThat(info.getEffectiveClassName())
+            EntityClassInfoAssert.assertThat(info)
                     .as("Should return fully qualified project class name")
-                    .isEqualTo("io.quarkiverse.qubit.deployment.common.EntityClassInfo");
+                    .hasEffectiveClassName("io.quarkiverse.qubit.deployment.common.EntityClassInfo");
         }
     }
 }

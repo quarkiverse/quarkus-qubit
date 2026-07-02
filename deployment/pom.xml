@@ -41,20 +41,6 @@
             <artifactId>gizmo2</artifactId>
         </dependency>
 
-        <!-- ASM for bytecode analysis -->
-        <dependency>
-            <groupId>org.ow2.asm</groupId>
-            <artifactId>asm</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.ow2.asm</groupId>
-            <artifactId>asm-util</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.ow2.asm</groupId>
-            <artifactId>asm-tree</artifactId>
-        </dependency>
-
         <!-- Test dependencies -->
         <dependency>
             <groupId>io.quarkus</groupId>
@@ -64,7 +50,7 @@
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
-            <version>3.27.7</version>
+            <version>${assertj.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -77,13 +63,6 @@
             <artifactId>quarkus-devui-test-spi</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- Playwright for DevUI browser testing -->
-        <dependency>
-            <groupId>com.microsoft.playwright</groupId>
-            <artifactId>playwright</artifactId>
-            <version>1.60.0</version>
-            <scope>test</scope>
-        </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-vertx-http-deployment</artifactId>
@@ -93,7 +72,7 @@
         <dependency>
             <groupId>net.jqwik</groupId>
             <artifactId>jqwik</artifactId>
-            <version>1.10.1</version>
+            <version>${jqwik.version}</version>
             <scope>test</scope>
         </dependency>
 
@@ -140,24 +119,18 @@
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
             </plugin>
-            <!-- Surefire configuration - exclude Playwright tests from default run -->
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <!-- Use late property evaluation for JaCoCo agent -->
-                    <argLine>@{argLine}</argLine>
-                    <!-- Exclude Playwright tests from default run (they use QuarkusDevModeTest
-                         which is incompatible with DevUIBuildTimeDataTest). Run with -Pplaywright -->
-                    <excludes>
-                        <exclude>**/*PlaywrightTest.java</exclude>
-                    </excludes>
+                    <!-- Mockito javaagent: required for JDK 25+ where ByteBuddy self-attach is broken -->
+                    <argLine>@{argLine} -javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar</argLine>
                 </configuration>
             </plugin>
             <!-- TEST-006: Mutation Testing - run with: mvn -pl deployment pitest:mutationCoverage -->
             <plugin>
                 <groupId>org.pitest</groupId>
                 <artifactId>pitest-maven</artifactId>
-                <version>1.25.4</version>
+                <version>${pitest.version}</version>
                 <configuration>
                     <!-- Target deployment module classes -->
                     <targetClasses>
@@ -274,7 +247,7 @@
                     <dependency>
                         <groupId>org.pitest</groupId>
                         <artifactId>pitest-junit5-plugin</artifactId>
-                        <version>1.2.3</version>
+                        <version>${pitest-junit5.version}</version>
                     </dependency>
                 </dependencies>
             </plugin>
@@ -282,72 +255,6 @@
     </build>
 
     <profiles>
-        <!--
-            Playwright browser testing profile.
-            Activates browser installation and Playwright-based DevUI tests.
-
-            Usage (local development):
-              mvn test -Pplaywright                    # Install browser and run tests
-              mvn test -Pplaywright -Dplaywright.browser=chromium  # Use Chromium
-
-            Usage (CI uses pre-installed browsers in Docker container):
-              mvn test -Pplaywright -Dplaywright.skip-install=true
-
-            Note: Browser installation requires system dependencies. On Linux, you may
-            need to run once with sudo. See deployment/README.md for details.
-        -->
-        <profile>
-            <id>playwright</id>
-            <build>
-                <plugins>
-                    <!-- Install Playwright browsers before tests (unless skip-install is set) -->
-                    <plugin>
-                        <groupId>org.codehaus.mojo</groupId>
-                        <artifactId>exec-maven-plugin</artifactId>
-                        <version>3.6.3</version>
-                        <executions>
-                            <execution>
-                                <id>install-playwright-browsers</id>
-                                <phase>process-test-classes</phase>
-                                <goals>
-                                    <goal>java</goal>
-                                </goals>
-                                <configuration>
-                                    <mainClass>com.microsoft.playwright.CLI</mainClass>
-                                    <!-- Include test scope to access Playwright CLI -->
-                                    <classpathScope>test</classpathScope>
-                                    <arguments>
-                                        <argument>install</argument>
-                                        <argument>${playwright.browser}</argument>
-                                    </arguments>
-                                    <skip>${playwright.skip-install}</skip>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <!-- Enable Playwright tests (excluded by default) -->
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-surefire-plugin</artifactId>
-                        <configuration>
-                            <includes>
-                                <include>**/*PlaywrightTest.java</include>
-                            </includes>
-                            <systemPropertyVariables>
-                                <playwright.browser>${playwright.browser}</playwright.browser>
-                            </systemPropertyVariables>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-            <properties>
-                <!-- Default browser for Playwright tests (firefox has better Vaadin support) -->
-                <playwright.browser>firefox</playwright.browser>
-                <!-- Skip browser installation (use when browsers are pre-installed, e.g., CI container) -->
-                <playwright.skip-install>false</playwright.skip-install>
-            </properties>
-        </profile>
-
         <!--
             AssertJ Assertions Generator profile.
             Generates custom AssertJ assertions for domain objects on-demand.
@@ -379,8 +286,17 @@
                             <classes>
                                 <param>io.quarkiverse.qubit.deployment.analysis.QueryCharacteristics</param>
                                 <param>io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome</param>
+                                <param>io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome.Success</param>
+                                <param>io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome.UnsupportedPattern</param>
+                                <param>io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome.AnalysisError</param>
+                                <param>io.quarkiverse.qubit.deployment.analysis.AnalysisOutcome.EarlyDeduplicated</param>
+                                <param>io.quarkiverse.qubit.deployment.analysis.instruction.AnalysisContext</param>
+                                <param>io.quarkiverse.qubit.deployment.analysis.MethodScanState</param>
+                                <param>io.quarkiverse.qubit.deployment.common.EntityClassInfo</param>
+                                <param>io.quarkiverse.qubit.deployment.analysis.QueryExecutionPlan</param>
+                                <param>io.quarkiverse.qubit.deployment.metrics.BuildMetricsCollector</param>
                             </classes>
-                            <targetDir>src/test/java</targetDir>
+                            <targetDir>${project.basedir}/src/test/java</targetDir>
                             <generateAssertions>true</generateAssertions>
                             <generateBddAssertions>false</generateBddAssertions>
                             <generateSoftAssertions>false</generateSoftAssertions>
@@ -406,12 +322,12 @@
                                 <path>
                                     <groupId>com.google.errorprone</groupId>
                                     <artifactId>error_prone_core</artifactId>
-                                    <version>2.50.0</version>
+                                    <version>${errorprone.version}</version>
                                 </path>
                                 <path>
                                     <groupId>com.uber.nullaway</groupId>
                                     <artifactId>nullaway</artifactId>
-                                    <version>0.13.7</version>
+                                    <version>${nullaway.version}</version>
                                 </path>
                             </annotationProcessorPaths>
                         </configuration>

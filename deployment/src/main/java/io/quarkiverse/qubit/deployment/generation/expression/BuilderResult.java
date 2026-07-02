@@ -28,20 +28,6 @@ public sealed interface BuilderResult permits
     record NotApplicable() implements BuilderResult {
     }
 
-    /** Returns true if this result is a Success. */
-    default boolean isSuccess() {
-        return this instanceof Success;
-    }
-
-    /** Returns the Expr if Success, or throws if NotApplicable. */
-    default Expr getOrThrow() {
-        return switch (this) {
-            case Success(var value) -> value;
-            case NotApplicable _ ->
-                throw new IllegalStateException("Cannot get value from NotApplicable result");
-        };
-    }
-
     /** Converts to Optional - present for Success, empty for NotApplicable. */
     default Optional<Expr> toOptional() {
         return switch (this) {
@@ -60,8 +46,4 @@ public sealed interface BuilderResult permits
         return NOT_APPLICABLE;
     }
 
-    /** Migration helper: Success if non-null, NotApplicable if null. */
-    static BuilderResult fromNullable(Expr value) {
-        return value != null ? new Success(value) : NOT_APPLICABLE;
-    }
 }

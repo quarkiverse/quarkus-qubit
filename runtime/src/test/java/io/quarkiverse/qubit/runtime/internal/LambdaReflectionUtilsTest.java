@@ -59,66 +59,6 @@ class LambdaReflectionUtilsTest {
     }
 
     @Nested
-    @DisplayName("countCapturedFields()")
-    class CountCapturedFieldsTests {
-
-        @Test
-        @DisplayName("returns 0 for null instance")
-        void returnsZeroForNullInstance() {
-            int count = LambdaReflectionUtils.countCapturedFields(null);
-
-            assertThat(count).isZero();
-        }
-
-        @Test
-        @DisplayName("returns 0 for class with only static fields")
-        void returnsZeroForClassWithOnlyStaticFields() {
-            int count = LambdaReflectionUtils.countCapturedFields(new ClassWithStaticFieldsOnly());
-
-            assertThat(count).isZero();
-        }
-
-        @Test
-        @DisplayName("counts non-static instance fields")
-        void countsNonStaticInstanceFields() {
-            int count = LambdaReflectionUtils.countCapturedFields(new ClassWithInstanceFields());
-
-            // ClassWithInstanceFields has 3 instance fields
-            assertThat(count).isEqualTo(3);
-        }
-
-        @Test
-        @DisplayName("excludes static fields from count")
-        void excludesStaticFieldsFromCount() {
-            int count = LambdaReflectionUtils.countCapturedFields(new ClassWithMixedFields());
-
-            // ClassWithMixedFields has 2 instance fields and 1 static field
-            assertThat(count).isEqualTo(2);
-        }
-
-        // Test helper classes
-        @SuppressWarnings("unused")
-        static class ClassWithStaticFieldsOnly {
-            private static final String CONSTANT = "value";
-            private static int counter = 0;
-        }
-
-        @SuppressWarnings("unused")
-        static class ClassWithInstanceFields {
-            private String field1 = "a";
-            private int field2 = 1;
-            private Object field3 = new Object();
-        }
-
-        @SuppressWarnings("unused")
-        static class ClassWithMixedFields {
-            private static final String CONSTANT = "value";
-            private String instanceField1 = "a";
-            private int instanceField2 = 1;
-        }
-    }
-
-    @Nested
     @DisplayName("validateSkipCount()")
     class ValidateSkipCountTests {
 
@@ -334,32 +274,6 @@ class LambdaReflectionUtilsTest {
             Object[] result = LambdaReflectionUtils.extractCapturedArgs(lambda);
 
             assertThat(result).containsExactly("hello", 42);
-        }
-    }
-
-    @Nested
-    @DisplayName("LambdaInfo")
-    class LambdaInfoTests {
-
-        @Test
-        @DisplayName("extract returns null method name for null instance")
-        void extractReturnsNullMethodNameForNullInstance() {
-            LambdaReflectionUtils.LambdaInfo info = LambdaReflectionUtils.LambdaInfo.extract(null);
-
-            assertThat(info.implMethodName()).isEqualTo("null");
-            assertThat(info.capturedArgs()).isEmpty();
-        }
-
-        @Test
-        @DisplayName("extract returns method name and captured args")
-        void extractReturnsMethodNameAndCapturedArgs() {
-            String value = "captured";
-            Supplier<String> lambda = (Supplier<String> & Serializable) () -> value;
-
-            LambdaReflectionUtils.LambdaInfo info = LambdaReflectionUtils.LambdaInfo.extract(lambda);
-
-            assertThat(info.implMethodName()).startsWith("lambda$");
-            assertThat(info.capturedArgs()).containsExactly("captured");
         }
     }
 

@@ -32,74 +32,32 @@ import io.quarkiverse.qubit.SortDirection;
  */
 public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
 
-    /**
-     * The entity class being queried.
-     */
     private final Class<T> entityClass;
-
-    /**
-     * The grouping key extractor.
-     */
     private final QuerySpec<T, K> keyExtractor;
-
-    /**
-     * Accumulated WHERE predicates applied before grouping (combined with AND).
-     */
     private final List<QuerySpec<T, Boolean>> predicates;
-
-    /**
-     * Accumulated HAVING conditions (combined with AND).
-     */
     private final List<GroupQuerySpec<T, K, Boolean>> havingConditions;
-
-    /**
-     * Projection selector (null if no projection).
-     */
-    private final @Nullable GroupQuerySpec<T, K, ?> selector;
-
-    /**
-     * Sort orders for groups.
-     */
     private final List<GroupSortOrder<T, K>> sortOrders;
-
-    /**
-     * OFFSET value (null if not set).
-     */
     private final @Nullable Integer offset;
-
-    /**
-     * LIMIT value (null if not set).
-     */
     private final @Nullable Integer limit;
-
-    /**
-     * Creates a new group stream for the given entity class and key extractor.
-     */
-    public GroupStreamImpl(Class<T> entityClass, QuerySpec<T, K> keyExtractor) {
-        this(entityClass, keyExtractor, new ArrayList<>(), new ArrayList<>(), null, new ArrayList<>(), null, null);
-    }
 
     /**
      * Creates a new group stream with pre-filtered entities.
      */
     public GroupStreamImpl(Class<T> entityClass, QuerySpec<T, K> keyExtractor, List<QuerySpec<T, Boolean>> predicates) {
-        this(entityClass, keyExtractor, predicates, new ArrayList<>(), null, new ArrayList<>(), null, null);
+        this(entityClass, keyExtractor, predicates, new ArrayList<>(), new ArrayList<>(), null, null);
     }
 
     /**
      * Internal constructor for creating derived streams.
      * <p>
      * <b>Issue #19 Fix (Thread Safety):</b> Defensive copies are made of mutable
-     * List parameters to prevent unsafe publication. While the current derivation
-     * methods always create new lists, this defensive copying ensures the class
-     * remains safe even if future code changes introduce shared references.
+     * List parameters to prevent unsafe publication.
      */
     private GroupStreamImpl(
             Class<T> entityClass,
             QuerySpec<T, K> keyExtractor,
             List<QuerySpec<T, Boolean>> predicates,
             List<GroupQuerySpec<T, K, Boolean>> havingConditions,
-            @Nullable GroupQuerySpec<T, K, ?> selector,
             List<GroupSortOrder<T, K>> sortOrders,
             @Nullable Integer offset,
             @Nullable Integer limit) {
@@ -107,7 +65,6 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
         this.keyExtractor = keyExtractor;
         this.predicates = List.copyOf(predicates);
         this.havingConditions = List.copyOf(havingConditions);
-        this.selector = selector;
         this.sortOrders = List.copyOf(sortOrders);
         this.offset = offset;
         this.limit = limit;
@@ -124,8 +81,6 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
     @Override
     public <R> QubitStream<R> select(GroupQuerySpec<T, K, R> mapper) {
         requireNonNullLambda(mapper, "Mapper", "select");
-        // Create a new stream that represents the projected result
-        // The actual type inference and query generation is done at build time
         String callSiteId = getCallSiteId(Set.of(), getPrimaryLambda());
         Object[] capturedValues = extractCapturedVariables(callSiteId);
 
@@ -205,43 +160,25 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
     }
 
     private GroupStreamImpl<T, K> withHavingConditions(List<GroupQuerySpec<T, K, Boolean>> havingConditions) {
-        return new GroupStreamImpl<>(entityClass, keyExtractor, predicates, havingConditions, selector, sortOrders, offset,
-                limit);
+        return new GroupStreamImpl<>(entityClass, keyExtractor, predicates, havingConditions, sortOrders, offset, limit);
     }
 
     private GroupStreamImpl<T, K> withSortOrders(List<GroupSortOrder<T, K>> sortOrders) {
-        return new GroupStreamImpl<>(entityClass, keyExtractor, predicates, havingConditions, selector, sortOrders, offset,
-                limit);
+        return new GroupStreamImpl<>(entityClass, keyExtractor, predicates, havingConditions, sortOrders, offset, limit);
     }
 
     private GroupStreamImpl<T, K> withOffset(Integer offset) {
-        return new GroupStreamImpl<>(entityClass, keyExtractor, predicates, havingConditions, selector, sortOrders, offset,
-                limit);
+        return new GroupStreamImpl<>(entityClass, keyExtractor, predicates, havingConditions, sortOrders, offset, limit);
     }
 
     private GroupStreamImpl<T, K> withLimit(Integer limit) {
-        return new GroupStreamImpl<>(entityClass, keyExtractor, predicates, havingConditions, selector, sortOrders, offset,
-                limit);
+        return new GroupStreamImpl<>(entityClass, keyExtractor, predicates, havingConditions, sortOrders, offset, limit);
     }
 
-    /**
-     * Returns the primary lambda for call site ID uniqueness.
-     * <p>
-     * Priority order (matching build-time InvokeDynamicScanner.getPrimaryLambdaMethodName):
-     * <ol>
-     * <li>First predicate (WHERE clause before grouping)</li>
-     * <li>groupBy key extractor</li>
-     * <li>First having condition</li>
-     * <li>Selector (select projection)</li>
-     * </ol>
-     *
-     * @return the primary lambda
-     */
     private Object getPrimaryLambda() {
         if (!predicates.isEmpty()) {
             return predicates.getFirst();
         }
-        // groupBy key extractor is always present (required constructor param)
         return keyExtractor;
     }
 
@@ -254,21 +191,10 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
 
         List<Object> allCapturedValues = new ArrayList<>();
 
-        // Extract from predicates (WHERE clauses before grouping)
         extractFromLambdas(predicates, allCapturedValues);
-
-        // Extract from keyExtractor (groupBy key — always present, required constructor param)
         extractFromSingleLambda(keyExtractor, allCapturedValues);
-
-        // Extract from havingConditions (HAVING clauses)
         extractFromLambdas(havingConditions, allCapturedValues);
 
-        // Extract from selector (select projection)
-        if (selector != null) {
-            extractFromSingleLambda(selector, allCapturedValues);
-        }
-
-        // Extract from sort key extractors
         for (GroupSortOrder<T, K> sortOrder : sortOrders) {
             extractFromSingleLambda(sortOrder.keyExtractor(), allCapturedValues);
         }
@@ -282,9 +208,6 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
         return allCapturedValues.toArray(new Object[0]);
     }
 
-    /**
-     * Represents a sort order specification for groups.
-     */
     private record GroupSortOrder<T, K>(GroupQuerySpec<T, K, ?> keyExtractor, SortDirection direction) {
     }
 }

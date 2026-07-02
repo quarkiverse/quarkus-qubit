@@ -35,60 +35,15 @@ import io.quarkiverse.qubit.SortDirection;
  */
 public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
 
-    /**
-     * The source entity class being queried.
-     */
     private final Class<T> sourceEntityClass;
-
-    /**
-     * The joined entity class.
-     */
-    private final Class<R> joinedEntityClass;
-
-    /**
-     * The relationship accessor lambda for the join.
-     * Returns a collection-valued relationship (e.g., {@code p -> p.phones}).
-     */
     private final QuerySpec<T, Collection<R>> relationshipAccessor;
-
-    /**
-     * Join type (INNER or LEFT).
-     */
     private final JoinType joinType;
-
-    /**
-     * ON clause conditions.
-     */
     private final List<BiQuerySpec<T, R, Boolean>> onConditions;
-
-    /**
-     * WHERE predicates using bi-entity lambdas.
-     */
     private final List<BiQuerySpec<T, R, Boolean>> biPredicates;
-
-    /**
-     * WHERE predicates using single-entity lambdas (source only).
-     */
     private final List<QuerySpec<T, Boolean>> sourcePredicates;
-
-    /**
-     * Sort orders.
-     */
     private final List<BiSortOrder<T, R>> sortOrders;
-
-    /**
-     * OFFSET value (null if not set).
-     */
     private final @Nullable Integer offset;
-
-    /**
-     * LIMIT value (null if not set).
-     */
     private final @Nullable Integer limit;
-
-    /**
-     * DISTINCT flag.
-     */
     private final boolean distinct;
 
     /**
@@ -96,10 +51,9 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
      */
     public JoinStreamImpl(
             Class<T> sourceEntityClass,
-            Class<R> joinedEntityClass,
             QuerySpec<T, Collection<R>> relationshipAccessor,
             JoinType joinType) {
-        this(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
+        this(sourceEntityClass, relationshipAccessor, joinType,
                 new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(),
                 null, null, false);
     }
@@ -108,13 +62,10 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
      * Internal constructor for creating derived streams.
      * <p>
      * <b>Issue #19 Fix (Thread Safety):</b> Defensive copies are made of mutable
-     * List parameters to prevent unsafe publication. While the current derivation
-     * methods always create new lists, this defensive copying ensures the class
-     * remains safe even if future code changes introduce shared references.
+     * List parameters to prevent unsafe publication.
      */
     private JoinStreamImpl(
             Class<T> sourceEntityClass,
-            Class<R> joinedEntityClass,
             QuerySpec<T, Collection<R>> relationshipAccessor,
             JoinType joinType,
             List<BiQuerySpec<T, R, Boolean>> onConditions,
@@ -125,7 +76,6 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
             @Nullable Integer limit,
             boolean distinct) {
         this.sourceEntityClass = sourceEntityClass;
-        this.joinedEntityClass = joinedEntityClass;
         this.relationshipAccessor = relationshipAccessor;
         this.joinType = joinType;
         this.onConditions = List.copyOf(onConditions);
@@ -142,7 +92,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         requireNonNullLambda(condition, "Condition", "on");
         List<BiQuerySpec<T, R, Boolean>> newOnConditions = new ArrayList<>(this.onConditions);
         newOnConditions.add(condition);
-        return new JoinStreamImpl<>(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
+        return new JoinStreamImpl<>(sourceEntityClass, relationshipAccessor, joinType,
                 newOnConditions, biPredicates, sourcePredicates, sortOrders, offset, limit, distinct);
     }
 
@@ -151,7 +101,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         requireNonNullLambda(predicate, "Predicate", "where");
         List<BiQuerySpec<T, R, Boolean>> newBiPredicates = new ArrayList<>(this.biPredicates);
         newBiPredicates.add(predicate);
-        return new JoinStreamImpl<>(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
+        return new JoinStreamImpl<>(sourceEntityClass, relationshipAccessor, joinType,
                 onConditions, newBiPredicates, sourcePredicates, sortOrders, offset, limit, distinct);
     }
 
@@ -160,14 +110,13 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         requireNonNullLambda(predicate, "Predicate", "where");
         List<QuerySpec<T, Boolean>> newSourcePredicates = new ArrayList<>(this.sourcePredicates);
         newSourcePredicates.add(predicate);
-        return new JoinStreamImpl<>(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
+        return new JoinStreamImpl<>(sourceEntityClass, relationshipAccessor, joinType,
                 onConditions, biPredicates, newSourcePredicates, sortOrders, offset, limit, distinct);
     }
 
     @Override
     public <S> QubitStream<S> select(BiQuerySpec<T, R, S> mapper) {
         requireNonNullLambda(mapper, "Mapper", "select");
-        // Execute join projection query and return wrapped results
         String callSiteId = getCallSiteId(QubitConstants.JOIN_METHODS, getPrimaryLambda());
         Object[] capturedValues = extractCapturedVariables();
 
@@ -179,17 +128,12 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
 
     @Override
     public QubitStream<T> selectSource() {
-        // Execute join query and return source entities wrapped in ImmutableResultStream
-        // Issue #22 Fix: Previously this created an empty QubitStreamImpl, losing all
-        // join context (ON conditions, WHERE predicates, sort orders, pagination).
-        // Now correctly delegates to toList() which executes the join query via registry.
         List<T> results = toList();
         return new ImmutableResultStream<>(results, "selectSource projection");
     }
 
     @Override
     public QubitStream<R> selectJoined() {
-        // Execute query selecting joined entities and return wrapped results
         String callSiteId = getCallSiteId(QubitConstants.JOIN_METHODS, getPrimaryLambda());
         Object[] capturedValues = extractCapturedVariables();
 
@@ -204,7 +148,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         requireNonNullLambda(keyExtractor, "Key extractor", "sortedBy");
         List<BiSortOrder<T, R>> newSortOrders = new ArrayList<>(this.sortOrders);
         newSortOrders.add(0, new BiSortOrder<>(keyExtractor, SortDirection.ASCENDING));
-        return new JoinStreamImpl<>(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
+        return new JoinStreamImpl<>(sourceEntityClass, relationshipAccessor, joinType,
                 onConditions, biPredicates, sourcePredicates, newSortOrders, offset, limit, distinct);
     }
 
@@ -213,7 +157,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         requireNonNullLambda(keyExtractor, "Key extractor", "sortedDescendingBy");
         List<BiSortOrder<T, R>> newSortOrders = new ArrayList<>(this.sortOrders);
         newSortOrders.add(0, new BiSortOrder<>(keyExtractor, SortDirection.DESCENDING));
-        return new JoinStreamImpl<>(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
+        return new JoinStreamImpl<>(sourceEntityClass, relationshipAccessor, joinType,
                 onConditions, biPredicates, sourcePredicates, newSortOrders, offset, limit, distinct);
     }
 
@@ -222,7 +166,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         requireNonNullLambda(keyExtractor, "Key extractor", "thenSortedBy");
         List<BiSortOrder<T, R>> newSortOrders = new ArrayList<>(this.sortOrders);
         newSortOrders.add(new BiSortOrder<>(keyExtractor, SortDirection.ASCENDING));
-        return new JoinStreamImpl<>(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
+        return new JoinStreamImpl<>(sourceEntityClass, relationshipAccessor, joinType,
                 onConditions, biPredicates, sourcePredicates, newSortOrders, offset, limit, distinct);
     }
 
@@ -231,37 +175,34 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         requireNonNullLambda(keyExtractor, "Key extractor", "thenSortedDescendingBy");
         List<BiSortOrder<T, R>> newSortOrders = new ArrayList<>(this.sortOrders);
         newSortOrders.add(new BiSortOrder<>(keyExtractor, SortDirection.DESCENDING));
-        return new JoinStreamImpl<>(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
+        return new JoinStreamImpl<>(sourceEntityClass, relationshipAccessor, joinType,
                 onConditions, biPredicates, sourcePredicates, newSortOrders, offset, limit, distinct);
     }
 
     @Override
     public JoinStream<T, R> skip(int n) {
-        return new JoinStreamImpl<>(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
+        return new JoinStreamImpl<>(sourceEntityClass, relationshipAccessor, joinType,
                 onConditions, biPredicates, sourcePredicates, sortOrders, validateSkipCount(n), limit, distinct);
     }
 
     @Override
     public JoinStream<T, R> limit(int n) {
-        return new JoinStreamImpl<>(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
+        return new JoinStreamImpl<>(sourceEntityClass, relationshipAccessor, joinType,
                 onConditions, biPredicates, sourcePredicates, sortOrders, offset, validateLimitCount(n), distinct);
     }
 
     @Override
     public JoinStream<T, R> distinct() {
-        return new JoinStreamImpl<>(sourceEntityClass, joinedEntityClass, relationshipAccessor, joinType,
+        return new JoinStreamImpl<>(sourceEntityClass, relationshipAccessor, joinType,
                 onConditions, biPredicates, sourcePredicates, sortOrders, offset, limit, true);
     }
 
     @Override
     public List<T> toList() {
-        // Delegate to build-time generated executor via registry
         String callSiteId = getCallSiteId(QubitConstants.JOIN_METHODS, getPrimaryLambda());
         Object[] capturedValues = extractCapturedVariables();
 
         QueryExecutorRegistry registry = getQueryExecutorRegistry();
-
-        // Execute as join query - registry will need to handle this specially
         return registry.executeJoinListQuery(callSiteId, sourceEntityClass, capturedValues, offset, limit, distinct);
     }
 
@@ -291,19 +232,6 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         return findFirst().isPresent();
     }
 
-    /**
-     * Returns the primary lambda for call site ID uniqueness.
-     * <p>
-     * Priority order (matching build-time InvokeDynamicScanner.getPrimaryLambdaMethodName):
-     * <ol>
-     * <li>First source predicate (single-entity WHERE on source)</li>
-     * <li>First bi-entity predicate (bi-entity WHERE on both)</li>
-     * <li>Relationship accessor (join relationship)</li>
-     * <li>First ON condition</li>
-     * </ol>
-     *
-     * @return the primary lambda
-     */
     private Object getPrimaryLambda() {
         if (!sourcePredicates.isEmpty()) {
             return sourcePredicates.getFirst();
@@ -311,23 +239,9 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         if (!biPredicates.isEmpty()) {
             return biPredicates.getFirst();
         }
-        // Relationship accessor is always present for joins (required constructor param)
         return relationshipAccessor;
     }
 
-    /**
-     * Extracts captured variables from all lambdas in the join stream.
-     * <p>
-     * Build-time counting order (JoinQueryHandler):
-     * biEntityPredicate → joinRelationship → biEntityProjection → sorts.
-     * <p>
-     * Runtime extraction order (here): biPredicates → sourcePredicates → onConditions → sorts.
-     * Note: sourcePredicates and onConditions are not separately analyzed at build time
-     * (JoinQueryHandler only processes biEntityPredicateLambdas). The relationship accessor
-     * and projection lambdas are not extracted here because they typically have no captured
-     * variables (field access only). If captured variables in these lambdas become needed,
-     * both build-time analysis and runtime extraction must be updated together.
-     */
     private Object[] extractCapturedVariables() {
         String callSiteId = getCallSiteId(QubitConstants.JOIN_METHODS, getPrimaryLambda());
         int capturedCount = QueryExecutorRegistry.getCapturedVariableCount(callSiteId);
@@ -353,37 +267,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         return allCapturedValues.toArray(new Object[0]);
     }
 
-    /**
-     * Represents a bi-entity sort order specification.
-     */
     private record BiSortOrder<T, R>(BiQuerySpec<T, R, ?> keyExtractor, SortDirection direction) {
     }
 
-    public Class<T> getSourceEntityClass() {
-        return sourceEntityClass;
-    }
-
-    public Class<R> getJoinedEntityClass() {
-        return joinedEntityClass;
-    }
-
-    public QuerySpec<T, Collection<R>> getRelationshipAccessor() {
-        return relationshipAccessor;
-    }
-
-    public JoinType getJoinType() {
-        return joinType;
-    }
-
-    public List<BiQuerySpec<T, R, Boolean>> getOnConditions() {
-        return onConditions;
-    }
-
-    public List<BiQuerySpec<T, R, Boolean>> getBiPredicates() {
-        return biPredicates;
-    }
-
-    public List<QuerySpec<T, Boolean>> getSourcePredicates() {
-        return sourcePredicates;
-    }
 }

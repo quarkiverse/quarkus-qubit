@@ -3,7 +3,7 @@
  *
  * <p>
  * Events: {@link QubitPhaseEvent} (phases), {@link QubitAnalysisEvent} (analysis),
- * {@link QubitCodeGenEvent} (codegen), {@link QubitScanEvent} (scanning).
+ * {@link QubitScanEvent} (scanning).
  *
  * <p>
  * Enable: {@code MAVEN_OPTS="-XX:StartFlightRecording=filename=qubit.jfr" mvn package}

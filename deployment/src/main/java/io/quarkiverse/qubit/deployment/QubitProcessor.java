@@ -22,7 +22,6 @@ import org.jboss.jandex.IndexView;
 import org.jspecify.annotations.Nullable;
 
 import io.quarkiverse.qubit.QubitEntity;
-import io.quarkiverse.qubit.deployment.common.ClassLoaderHelper;
 import io.quarkiverse.qubit.deployment.analysis.CallSite;
 import io.quarkiverse.qubit.deployment.analysis.CallSiteProcessor;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicQuickCheck;
@@ -187,7 +186,6 @@ public class QubitProcessor {
         BytecodeLoader.clearCache();
         LambdaBytecodeAnalyzer.clearCache();
         QueryExecutorClassGenerator.clearCache();
-        ClassLoaderHelper.clearCache();
 
         Log.debugf("Qubit: Scanning for lambda call sites using invokedynamic analysis");
 
@@ -683,31 +681,6 @@ public class QubitProcessor {
             }
         }
 
-        /** Primary constructor using QueryCharacteristics. */
-        public QueryTransformationBuildItem(
-                String queryId,
-                String generatedClassName,
-                String entityClassName,
-                QueryCharacteristics characteristics,
-                int capturedVarCount) {
-            this(queryId, generatedClassName, entityClassName, characteristics, capturedVarCount,
-                    DevUIExpressions.empty(), DevUIMetadata.empty());
-        }
-
-        /** Full constructor with optional expressions for DevUI. */
-        public QueryTransformationBuildItem(
-                String queryId,
-                String generatedClassName,
-                String entityClassName,
-                QueryCharacteristics characteristics,
-                int capturedVarCount,
-                LambdaExpression predicateExpression,
-                LambdaExpression projectionExpression) {
-            this(queryId, generatedClassName, entityClassName, characteristics, capturedVarCount,
-                    new DevUIExpressions(predicateExpression, projectionExpression, null, null, null, null, null),
-                    DevUIMetadata.empty());
-        }
-
         /** Canonical constructor with parameter objects. */
         private QueryTransformationBuildItem(
                 String queryId,
@@ -726,36 +699,6 @@ public class QubitProcessor {
             this.devUIMetadata = devUIMetadata;
         }
 
-        /**
-         * Convenience constructor for simple list/count queries.
-         * Creates QueryCharacteristics with only isCountQuery set.
-         */
-        public QueryTransformationBuildItem(
-                String queryId,
-                String generatedClassName,
-                String entityClassName,
-                boolean isCountQuery,
-                int capturedVarCount) {
-            this(queryId, generatedClassName, entityClassName,
-                    isCountQuery ? QueryCharacteristics.forCount() : QueryCharacteristics.forList(),
-                    capturedVarCount);
-        }
-
-        /**
-         * Convenience constructor for aggregation queries.
-         */
-        public QueryTransformationBuildItem(
-                String queryId,
-                String generatedClassName,
-                String entityClassName,
-                boolean isCountQuery,
-                boolean isAggregationQuery,
-                int capturedVarCount) {
-            this(queryId, generatedClassName, entityClassName,
-                    new QueryCharacteristics(isCountQuery, isAggregationQuery, false, false, false, false),
-                    capturedVarCount);
-        }
-
         /** Returns unique query identifier (call site ID). */
         public String getQueryId() {
             return queryId;
@@ -769,11 +712,6 @@ public class QubitProcessor {
         /** Returns entity class name for this query (fully qualified). */
         public String getEntityClassName() {
             return entityClassName;
-        }
-
-        /** Returns query characteristics */
-        public QueryCharacteristics getCharacteristics() {
-            return characteristics;
         }
 
         /** Returns true if this is a count query. */

@@ -26,11 +26,6 @@ import java.util.Collection;
 public interface PersonQueryOperations {
 
     /**
-     * Returns a descriptive name for this query source (e.g., "Static" or "Repository").
-     */
-    String getSourceName();
-
-    /**
      * Creates a filtered query stream.
      */
     QubitStream<Person> where(QuerySpec<Person, Boolean> spec);

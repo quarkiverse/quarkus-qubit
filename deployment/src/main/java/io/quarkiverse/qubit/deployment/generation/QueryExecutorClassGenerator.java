@@ -19,7 +19,7 @@ import jakarta.persistence.EntityManager;
 
 import org.jspecify.annotations.Nullable;
 
-import io.quarkiverse.qubit.deployment.analysis.CallSite;
+import io.quarkiverse.qubit.JoinType;
 import io.quarkiverse.qubit.deployment.analysis.LambdaAnalysisResult.SortExpression;
 import io.quarkiverse.qubit.deployment.ast.LambdaExpression;
 import io.quarkiverse.qubit.deployment.generation.join.JoinQueryBuilder;
@@ -61,11 +61,6 @@ public class QueryExecutorClassGenerator {
     public static void clearCache() {
         BYTECODE_CACHE.clear();
         Log.debug("QueryExecutorClassGenerator bytecode cache cleared");
-    }
-
-    /** Returns the current cache size (for metrics/debugging). */
-    public static int getCacheSize() {
-        return BYTECODE_CACHE.size();
     }
 
     private final CriteriaExpressionGenerator expressionGenerator = new CriteriaExpressionGenerator();
@@ -214,7 +209,7 @@ public class QueryExecutorClassGenerator {
             LambdaExpression biEntityPredicateExpression,
             LambdaExpression biEntityProjectionExpression,
             List<SortExpression> sortExpressions,
-            CallSite.JoinType joinType,
+            JoinType joinType,
             String className,
             boolean isCountQuery,
             boolean isSelectJoined,
@@ -456,7 +451,7 @@ public class QueryExecutorClassGenerator {
             LambdaExpression joinRelationshipExpression,
             @Nullable LambdaExpression sourcePredicateExpression,
             @Nullable LambdaExpression biEntityPredicateExpression,
-            CallSite.JoinType joinType,
+            JoinType joinType,
             Expr capturedValues) {
 
         // Setup query for Long (count result)

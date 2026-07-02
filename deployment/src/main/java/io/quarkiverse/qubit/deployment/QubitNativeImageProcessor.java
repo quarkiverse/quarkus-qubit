@@ -1,9 +1,16 @@
 package io.quarkiverse.qubit.deployment;
 
+import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+
+import jakarta.json.Json;
+import jakarta.json.JsonArrayBuilder;
+import jakarta.json.JsonObjectBuilder;
+import jakarta.json.stream.JsonGenerator;
 
 import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
@@ -104,46 +111,30 @@ public class QubitNativeImageProcessor {
             seen.add(item.getDeclaringClass() + ":" + item.getInterfaceType());
         }
 
-        StringBuilder json = new StringBuilder();
-
-        // GraalVM 25+ reachability-metadata.json format with "reflection" wrapper
-        json.append("{\n");
-        json.append("  \"reflection\": [\n");
-
-        boolean first = true;
+        // GraalVM 25+ reachability-metadata.json format
+        JsonArrayBuilder reflection = Json.createArrayBuilder();
         for (String key : seen) {
             String[] parts = key.split(":");
-            String declaringClass = parts[0];
-            String interfaceType = parts[1];
-
-            if (!first) {
-                json.append(",\n");
-            }
-            first = false;
-
-            // Generate lambda reflection entry using GraalVM 25+ syntax
-            json.append("    {\n");
-            json.append("      \"type\": {\n");
-            json.append("        \"lambda\": {\n");
-            json.append("          \"declaringClass\": \"").append(declaringClass).append("\",\n");
-            json.append("          \"interfaces\": [\"").append(interfaceType).append("\"]\n");
-            json.append("        }\n");
-            json.append("      },\n");
-
-            // writeReplace method needed for SerializedLambda extraction (Issue #14)
-            json.append("      \"methods\": [\n");
-            json.append("        { \"name\": \"writeReplace\", \"parameterTypes\": [] }\n");
-            json.append("      ]\n");
-
-            json.append("    }");
+            reflection.add(Json.createObjectBuilder()
+                    .add("type", Json.createObjectBuilder()
+                            .add("lambda", Json.createObjectBuilder()
+                                    .add("declaringClass", parts[0])
+                                    .add("interfaces", Json.createArrayBuilder().add(parts[1]))))
+                    .add("methods", Json.createArrayBuilder()
+                            .add(Json.createObjectBuilder()
+                                    .add("name", "writeReplace")
+                                    .add("parameterTypes", Json.createArrayBuilder()))));
         }
 
-        json.append("\n  ]\n");
-        json.append("}");
+        var writerFactory = Json.createWriterFactory(Map.of(JsonGenerator.PRETTY_PRINTING, true));
+        var sw = new StringWriter();
+        try (var writer = writerFactory.createWriter(sw)) {
+            writer.write(Json.createObjectBuilder().add("reflection", reflection).build());
+        }
 
         Log.infof("Qubit: Generating native image lambda reflection config for %d lambda type(s)", seen.size());
         generatedResource.produce(new GeneratedResourceBuildItem(
                 QUBIT_REACHABILITY_METADATA_PATH,
-                json.toString().getBytes(StandardCharsets.UTF_8)));
+                sw.toString().getBytes(StandardCharsets.UTF_8)));
     }
 }

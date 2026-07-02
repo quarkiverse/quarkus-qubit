@@ -7,6 +7,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import io.quarkiverse.qubit.JoinType;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.LambdaSpecType;
 import io.quarkiverse.qubit.deployment.analysis.InvokeDynamicScanner.PendingLambda;
 
@@ -34,7 +35,7 @@ class MethodScanStateTest {
         @Test
         @DisplayName("has no lambdas initially")
         void hasNoLambdasInitially() {
-            assertThat(state.hasLambdas()).isFalse();
+            MethodScanStateAssert.assertThat(state).doesNotHaveLambdas();
             assertThat(state.pendingLambdas()).isEmpty();
         }
 
@@ -48,20 +49,20 @@ class MethodScanStateTest {
         @DisplayName("has no join type initially")
         void hasNoJoinTypeInitially() {
             assertThat(state.pendingJoinType()).isNull();
-            assertThat(state.isJoinContext()).isFalse();
+            MethodScanStateAssert.assertThat(state).isNotJoinContext();
         }
 
         @Test
         @DisplayName("is not in group context initially")
         void notInGroupContextInitially() {
-            assertThat(state.isGroupContext()).isFalse();
+            MethodScanStateAssert.assertThat(state).isNotGroupContext();
             assertThat(state.pendingGroupSelectKey()).isFalse();
         }
 
         @Test
         @DisplayName("has no pagination initially")
         void hasNoPaginationInitially() {
-            assertThat(state.hasDistinct()).isFalse();
+            MethodScanStateAssert.assertThat(state).doesNotHaveDistinct();
             assertThat(state.skipValue()).isNull();
             assertThat(state.limitValue()).isNull();
         }
@@ -85,7 +86,7 @@ class MethodScanStateTest {
 
             state.addLambda(lambda);
 
-            assertThat(state.hasLambdas()).isTrue();
+            MethodScanStateAssert.assertThat(state).hasLambdas();
             assertThat(state.pendingLambdas()).hasSize(1);
             assertThat(state.pendingLambdas().getFirst()).isEqualTo(lambda);
         }
@@ -108,7 +109,7 @@ class MethodScanStateTest {
             // The list should be modifiable for reset()
             state.pendingLambdas().clear();
 
-            assertThat(state.hasLambdas()).isFalse();
+            MethodScanStateAssert.assertThat(state).doesNotHaveLambdas();
         }
     }
 
@@ -142,19 +143,19 @@ class MethodScanStateTest {
         @Test
         @DisplayName("setJoinType sets INNER join")
         void setJoinTypeInner() {
-            state.setJoinType(CallSite.JoinType.INNER);
+            state.setJoinType(JoinType.INNER);
 
-            assertThat(state.pendingJoinType()).isEqualTo(CallSite.JoinType.INNER);
-            assertThat(state.isJoinContext()).isTrue();
+            assertThat(state.pendingJoinType()).isEqualTo(JoinType.INNER);
+            MethodScanStateAssert.assertThat(state).isJoinContext();
         }
 
         @Test
         @DisplayName("setJoinType sets LEFT join")
         void setJoinTypeLeft() {
-            state.setJoinType(CallSite.JoinType.LEFT);
+            state.setJoinType(JoinType.LEFT);
 
-            assertThat(state.pendingJoinType()).isEqualTo(CallSite.JoinType.LEFT);
-            assertThat(state.isJoinContext()).isTrue();
+            assertThat(state.pendingJoinType()).isEqualTo(JoinType.LEFT);
+            MethodScanStateAssert.assertThat(state).isJoinContext();
         }
 
         @Test
@@ -183,7 +184,7 @@ class MethodScanStateTest {
         void markGroupQuerySetsContext() {
             state.markGroupQuery();
 
-            assertThat(state.isGroupContext()).isTrue();
+            MethodScanStateAssert.assertThat(state).isGroupContext();
         }
 
         @Test
@@ -215,7 +216,7 @@ class MethodScanStateTest {
         void markDistinctSetsFlag() {
             state.markDistinct();
 
-            assertThat(state.hasDistinct()).isTrue();
+            MethodScanStateAssert.assertThat(state).hasDistinct();
         }
 
         @Test
@@ -316,7 +317,7 @@ class MethodScanStateTest {
             // Set up various state
             state.addLambda(new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC, null));
             state.setAggregation("min");
-            state.setJoinType(CallSite.JoinType.LEFT);
+            state.setJoinType(JoinType.LEFT);
             state.markJoinSelectJoined(50);
             state.markJoinSelect(55);
             state.markGroupQuery();
@@ -331,14 +332,15 @@ class MethodScanStateTest {
             state.reset();
 
             // Verify all state is cleared
-            assertThat(state.hasLambdas()).isFalse();
+            MethodScanStateAssert.assertThat(state)
+                    .doesNotHaveLambdas()
+                    .isNotGroupContext()
+                    .doesNotHaveDistinct();
             assertThat(state.pendingAggregation()).isNull();
             assertThat(state.pendingJoinType()).isNull();
             assertThat(state.pendingJoinSelectJoined()).isFalse();
             assertThat(state.pendingJoinSelect()).isFalse();
-            assertThat(state.isGroupContext()).isFalse();
             assertThat(state.pendingGroupSelectKey()).isFalse();
-            assertThat(state.hasDistinct()).isFalse();
             assertThat(state.skipValue()).isNull();
             assertThat(state.limitValue()).isNull();
 
@@ -354,24 +356,25 @@ class MethodScanStateTest {
             state.reset();
             state.reset();
 
-            assertThat(state.hasLambdas()).isFalse();
+            MethodScanStateAssert.assertThat(state).doesNotHaveLambdas();
         }
 
         @Test
         @DisplayName("state can be reused after reset")
         void stateCanBeReusedAfterReset() {
             state.addLambda(new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC, null));
-            state.setJoinType(CallSite.JoinType.INNER);
+            state.setJoinType(JoinType.INNER);
             state.reset();
 
             // Add new state
             state.addLambda(new PendingLambda("lambda$1", "(LOrder;)Z", "where", LambdaSpecType.QUERY_SPEC, null));
             state.markGroupQuery();
 
-            assertThat(state.hasLambdas()).isTrue();
+            MethodScanStateAssert.assertThat(state)
+                    .hasLambdas()
+                    .isGroupContext()
+                    .isNotJoinContext();
             assertThat(state.pendingLambdas().getFirst().methodName()).isEqualTo("lambda$1");
-            assertThat(state.isGroupContext()).isTrue();
-            assertThat(state.isJoinContext()).isFalse();
         }
     }
 
@@ -420,9 +423,10 @@ class MethodScanStateTest {
             state.addLambda(new PendingLambda("lambda$0", "(LPerson;)Z", "where", LambdaSpecType.QUERY_SPEC, null));
             state.updateLine(11);
 
-            assertThat(state.hasLambdas()).isTrue();
-            assertThat(state.isJoinContext()).isFalse();
-            assertThat(state.isGroupContext()).isFalse();
+            MethodScanStateAssert.assertThat(state)
+                    .hasLambdas()
+                    .isNotJoinContext()
+                    .isNotGroupContext();
             assertThat(state.effectiveLine()).isEqualTo(11);
         }
 
@@ -432,13 +436,14 @@ class MethodScanStateTest {
             // Simulate: Person.join(p -> p.phones).where((p, ph) -> ph.type.equals("mobile")).toList()
             state.updateLine(20);
             state.addLambda(new PendingLambda("lambda$0", "(LPerson;)LList;", "join", LambdaSpecType.QUERY_SPEC, null));
-            state.setJoinType(CallSite.JoinType.INNER);
+            state.setJoinType(JoinType.INNER);
             state.updateLine(21);
             state.addLambda(new PendingLambda("lambda$1", "(LPerson;LPhone;)Z", "where", LambdaSpecType.BI_QUERY_SPEC, null));
 
-            assertThat(state.hasLambdas()).isTrue();
-            assertThat(state.isJoinContext()).isTrue();
-            assertThat(state.pendingJoinType()).isEqualTo(CallSite.JoinType.INNER);
+            MethodScanStateAssert.assertThat(state)
+                    .hasLambdas()
+                    .isJoinContext();
+            assertThat(state.pendingJoinType()).isEqualTo(JoinType.INNER);
             assertThat(state.pendingLambdas()).hasSize(2);
         }
 
@@ -453,7 +458,7 @@ class MethodScanStateTest {
             state.addLambda(new PendingLambda("lambda$1", "(LGroup;)J", "select", LambdaSpecType.GROUP_QUERY_SPEC, null));
             state.markGroupSelect(31);
 
-            assertThat(state.isGroupContext()).isTrue();
+            MethodScanStateAssert.assertThat(state).isGroupContext();
             assertThat(state.effectiveLine()).isEqualTo(31);
         }
 
@@ -467,7 +472,7 @@ class MethodScanStateTest {
             state.setSkipValue(10);
             state.setLimitValue(25);
 
-            assertThat(state.hasDistinct()).isTrue();
+            MethodScanStateAssert.assertThat(state).hasDistinct();
             assertThat(state.skipValue()).isEqualTo(10);
             assertThat(state.limitValue()).isEqualTo(25);
         }
@@ -489,9 +494,10 @@ class MethodScanStateTest {
             state.markDistinct();
 
             // Verify second query state
-            assertThat(state.hasLambdas()).isTrue();
+            MethodScanStateAssert.assertThat(state)
+                    .hasLambdas()
+                    .hasDistinct();
             assertThat(state.pendingLambdas().getFirst().methodName()).isEqualTo("lambda$1");
-            assertThat(state.hasDistinct()).isTrue();
             assertThat(state.limitValue()).isNull(); // Reset from first query
             assertThat(state.currentLine()).isEqualTo(55);
         }
