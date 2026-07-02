@@ -49,7 +49,7 @@
         <jacoco.check.skip>true</jacoco.check.skip>
 
         <!-- Pitest mutation testing versions -->
-        <pitest.version>1.25.4</pitest.version>
+        <pitest.version>1.25.5</pitest.version>
         <pitest-junit5.version>1.2.3</pitest-junit5.version>
 
         <!-- Test dependency versions (mockito version must match Quarkus BOM for -javaagent path) -->
