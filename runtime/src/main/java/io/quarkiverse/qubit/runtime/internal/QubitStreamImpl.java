@@ -234,7 +234,8 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
             return (T) registry.executeAggregationQuery(callSiteId, entityClass, capturedValues);
         }
 
-        return requireSingleResult(toList());
+        QubitStream<T> bounded = (this.limit == null) ? this.limit(2) : this;
+        return requireSingleResult(bounded.toList());
     }
 
     @Override

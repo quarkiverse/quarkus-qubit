@@ -118,7 +118,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
     public <S> QubitStream<S> select(BiQuerySpec<T, R, S> mapper) {
         requireNonNullLambda(mapper, "Mapper", "select");
         String callSiteId = getCallSiteId(QubitConstants.JOIN_METHODS, getPrimaryLambda());
-        Object[] capturedValues = extractCapturedVariables();
+        Object[] capturedValues = extractCapturedVariables(callSiteId);
 
         QueryExecutorRegistry registry = getQueryExecutorRegistry();
         List<S> results = registry.executeJoinProjectionQuery(callSiteId, sourceEntityClass, capturedValues, offset, limit,
@@ -135,7 +135,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
     @Override
     public QubitStream<R> selectJoined() {
         String callSiteId = getCallSiteId(QubitConstants.JOIN_METHODS, getPrimaryLambda());
-        Object[] capturedValues = extractCapturedVariables();
+        Object[] capturedValues = extractCapturedVariables(callSiteId);
 
         QueryExecutorRegistry registry = getQueryExecutorRegistry();
         List<R> results = registry.executeJoinSelectJoinedQuery(callSiteId, sourceEntityClass, capturedValues, offset, limit,
@@ -200,7 +200,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
     @Override
     public List<T> toList() {
         String callSiteId = getCallSiteId(QubitConstants.JOIN_METHODS, getPrimaryLambda());
-        Object[] capturedValues = extractCapturedVariables();
+        Object[] capturedValues = extractCapturedVariables(callSiteId);
 
         QueryExecutorRegistry registry = getQueryExecutorRegistry();
         return registry.executeJoinListQuery(callSiteId, sourceEntityClass, capturedValues, offset, limit, distinct);
@@ -208,7 +208,8 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
 
     @Override
     public T getSingleResult() {
-        return requireSingleResult(toList());
+        JoinStream<T, R> bounded = (this.limit == null) ? this.limit(2) : this;
+        return requireSingleResult(bounded.toList());
     }
 
     @Override
@@ -221,7 +222,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
     @Override
     public long count() {
         String callSiteId = getCallSiteId(QubitConstants.JOIN_METHODS, getPrimaryLambda());
-        Object[] capturedValues = extractCapturedVariables();
+        Object[] capturedValues = extractCapturedVariables(callSiteId);
 
         QueryExecutorRegistry registry = getQueryExecutorRegistry();
         return registry.executeJoinCountQuery(callSiteId, sourceEntityClass, capturedValues);
@@ -242,8 +243,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         return relationshipAccessor;
     }
 
-    private Object[] extractCapturedVariables() {
-        String callSiteId = getCallSiteId(QubitConstants.JOIN_METHODS, getPrimaryLambda());
+    private Object[] extractCapturedVariables(String callSiteId) {
         int capturedCount = QueryExecutorRegistry.getCapturedVariableCount(callSiteId);
 
         if (capturedCount == 0) {
