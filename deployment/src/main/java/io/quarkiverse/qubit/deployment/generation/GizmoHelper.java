@@ -98,7 +98,9 @@ public final class GizmoHelper {
                     md(LocalTime.class, METHOD_OF, LocalTime.class, int.class, int.class),
                     Const.of(lt.getHour()), Const.of(lt.getMinute()));
 
-            default -> Const.ofNull(Object.class);
+            default -> throw new IllegalArgumentException(
+                    "Unsupported constant type in lambda: " + value.getClass().getName()
+                            + " (value: " + value + ")");
         };
     }
 

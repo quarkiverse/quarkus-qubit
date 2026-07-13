@@ -5,8 +5,6 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CQ_GR
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CQ_HAVING_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CQ_SELECT;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.EM_CREATE_QUERY;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.INTEGER_LONG_VALUE;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.INTEGER_VALUE_OF;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.LIST_SIZE;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.LONG_VALUE_OF;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.TQ_GET_RESULT_LIST;
@@ -202,12 +200,8 @@ final class GroupQueryGenerator {
         expressionGenerator.emitParameterBindings(bc, typedQuery, ctx.capturedValues());
         Expr resultList = bc.invokeInterface(TQ_GET_RESULT_LIST, typedQuery);
 
-        // Return result list size as Long
         Expr size = bc.invokeInterface(LIST_SIZE, resultList);
-        Expr sizeLong = bc.invokeVirtual(
-                INTEGER_LONG_VALUE,
-                bc.invokeStatic(INTEGER_VALUE_OF, size));
-        return bc.invokeStatic(LONG_VALUE_OF, sizeLong);
+        return bc.invokeStatic(LONG_VALUE_OF, bc.cast(size, long.class));
     }
 
     /** Generates GROUP COUNT without HAVING using COUNT(DISTINCT groupKey). */

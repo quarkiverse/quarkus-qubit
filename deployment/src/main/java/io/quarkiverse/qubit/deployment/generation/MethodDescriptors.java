@@ -274,9 +274,7 @@ public final class MethodDescriptors {
     public static final MethodDesc FROM_JOIN = MethodDesc.of(From.class, "join", Join.class, String.class, JoinType.class);
 
     public static final MethodDesc LIST_SIZE = MethodDesc.of(List.class, "size", int.class);
-    public static final MethodDesc INTEGER_VALUE_OF = MethodDesc.of(Integer.class, "valueOf", Integer.class, int.class);
     public static final MethodDesc LONG_VALUE_OF = MethodDesc.of(Long.class, "valueOf", Long.class, long.class);
-    public static final MethodDesc INTEGER_LONG_VALUE = MethodDesc.of(Integer.class, "longValue", long.class);
 
     /** Creates a MethodDesc for methods not covered by predefined constants. */
     public static MethodDesc md(Class<?> clazz, String methodName, Class<?> returnType, Class<?>... params) {
