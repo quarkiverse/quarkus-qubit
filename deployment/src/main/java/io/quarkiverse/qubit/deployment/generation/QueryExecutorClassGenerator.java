@@ -168,19 +168,23 @@ public class QueryExecutorClassGenerator {
 
                     mc.body(bc -> {
                         Expr result;
-                        if (isAggregationQuery) {
-                            // Delegate aggregation queries (min, max, avg, sum*) to AggregationQueryGenerator
-                            var aggGen = new AggregationQueryGenerator(expressionGenerator, clauseApplier,
-                                    QueryExecutorClassGenerator.this);
-                            result = aggGen.generateAggregationQueryBody(bc, em, entityClassParam, predicateExpression,
-                                    aggregationExpression, aggregationType, capturedValues);
-                        } else if (isCountQuery) {
-                            // Count queries ignore pagination and distinct parameters
-                            result = generateCountQueryBody(bc, em, entityClassParam, predicateExpression, capturedValues);
-                        } else {
-                            QueryGenContext ctx = new QueryGenContext(bc, em, entityClassParam,
-                                    sortExpressions, capturedValues, offset, limit, distinct);
-                            result = generateListQueryBody(ctx, predicateExpression, projectionExpression);
+                        expressionGenerator.beginParameterCapture();
+                        try {
+                            if (isAggregationQuery) {
+                                var aggGen = new AggregationQueryGenerator(expressionGenerator, clauseApplier,
+                                        QueryExecutorClassGenerator.this);
+                                result = aggGen.generateAggregationQueryBody(bc, em, entityClassParam,
+                                        predicateExpression, aggregationExpression, aggregationType, capturedValues);
+                            } else if (isCountQuery) {
+                                result = generateCountQueryBody(bc, em, entityClassParam, predicateExpression,
+                                        capturedValues);
+                            } else {
+                                QueryGenContext ctx = new QueryGenContext(bc, em, entityClassParam,
+                                        sortExpressions, capturedValues, offset, limit, distinct);
+                                result = generateListQueryBody(ctx, predicateExpression, projectionExpression);
+                            }
+                        } finally {
+                            expressionGenerator.endParameterCapture();
                         }
 
                         bc.return_(result);
@@ -247,38 +251,38 @@ public class QueryExecutorClassGenerator {
                     var distinct = mc.parameter("distinct", Boolean.class);
 
                     mc.body(bc -> {
+                        expressionGenerator.beginParameterCapture();
                         Expr result;
-                        if (isCountQuery) {
-                            result = generateJoinCountQueryBody(
-                                    bc, em, entityClassParam,
-                                    joinRelationshipExpression, sourcePredicateExpression,
-                                    biEntityPredicateExpression,
-                                    joinType, capturedValues);
-                        } else {
-                            // Use Template Method pattern with Strategy for the three join query variants
-                            JoinQueryContext ctx = new JoinQueryContext(
-                                    bc, em, entityClassParam,
-                                    joinRelationshipExpression, sourcePredicateExpression,
-                                    biEntityPredicateExpression,
-                                    joinType, sortExpressions, capturedValues, offset, limit, distinct);
-
-                            // Determine selection strategy based on query type
-                            JoinSelectionStrategy strategy;
-                            if (isJoinProjection) {
-                                // select() with BiQuerySpec returns projected results
-                                Expr objectClass = Const.of(Object.class);
-                                strategy = new JoinSelectionStrategy.SelectProjection(objectClass,
-                                        biEntityProjectionExpression);
-                            } else if (isSelectJoined) {
-                                // selectJoined() returns joined entities instead of source entities
-                                Expr objectClass = Const.of(Object.class);
-                                strategy = new JoinSelectionStrategy.SelectJoined(objectClass);
+                        try {
+                            if (isCountQuery) {
+                                result = generateJoinCountQueryBody(
+                                        bc, em, entityClassParam,
+                                        joinRelationshipExpression, sourcePredicateExpression,
+                                        biEntityPredicateExpression,
+                                        joinType, capturedValues);
                             } else {
-                                // Default: return root entities
-                                strategy = new JoinSelectionStrategy.SelectRoot(entityClassParam);
-                            }
+                                JoinQueryContext ctx = new JoinQueryContext(
+                                        bc, em, entityClassParam,
+                                        joinRelationshipExpression, sourcePredicateExpression,
+                                        biEntityPredicateExpression,
+                                        joinType, sortExpressions, capturedValues, offset, limit, distinct);
 
-                            result = joinQueryBuilder.build(ctx, strategy);
+                                JoinSelectionStrategy strategy;
+                                if (isJoinProjection) {
+                                    Expr objectClass = Const.of(Object.class);
+                                    strategy = new JoinSelectionStrategy.SelectProjection(objectClass,
+                                            biEntityProjectionExpression);
+                                } else if (isSelectJoined) {
+                                    Expr objectClass = Const.of(Object.class);
+                                    strategy = new JoinSelectionStrategy.SelectJoined(objectClass);
+                                } else {
+                                    strategy = new JoinSelectionStrategy.SelectRoot(entityClassParam);
+                                }
+
+                                result = joinQueryBuilder.build(ctx, strategy);
+                            }
+                        } finally {
+                            expressionGenerator.endParameterCapture();
                         }
 
                         bc.return_(result);
@@ -342,24 +346,27 @@ public class QueryExecutorClassGenerator {
                     var distinct = mc.parameter("distinct", Boolean.class);
 
                     mc.body(bc -> {
-                        // Delegate to GroupQueryGenerator
-                        var groupGen = new GroupQueryGenerator(expressionGenerator, clauseApplier,
-                                QueryExecutorClassGenerator.this);
-
-                        // Create base context with common parameters
-                        var baseCtx = new GroupQueryGenerator.GroupQueryContext(
-                                bc, em, entityClassParam,
-                                predicateExpression, groupByKeyExpression,
-                                havingExpression, capturedValues);
-
+                        expressionGenerator.beginParameterCapture();
                         Expr result;
-                        if (isCountQuery) {
-                            result = groupGen.generateGroupCountQueryBody(baseCtx);
-                        } else {
-                            var listCtx = new GroupQueryGenerator.GroupListContext(
-                                    baseCtx, groupSelectExpression, groupSortExpressions,
-                                    offset, limit, distinct);
-                            result = groupGen.generateGroupQueryBody(listCtx);
+                        try {
+                            var groupGen = new GroupQueryGenerator(expressionGenerator, clauseApplier,
+                                    QueryExecutorClassGenerator.this);
+
+                            var baseCtx = new GroupQueryGenerator.GroupQueryContext(
+                                    bc, em, entityClassParam,
+                                    predicateExpression, groupByKeyExpression,
+                                    havingExpression, capturedValues);
+
+                            if (isCountQuery) {
+                                result = groupGen.generateGroupCountQueryBody(baseCtx);
+                            } else {
+                                var listCtx = new GroupQueryGenerator.GroupListContext(
+                                        baseCtx, groupSelectExpression, groupSortExpressions,
+                                        offset, limit, distinct);
+                                result = groupGen.generateGroupQueryBody(listCtx);
+                            }
+                        } finally {
+                            expressionGenerator.endParameterCapture();
                         }
 
                         bc.return_(result);
@@ -411,7 +418,7 @@ public class QueryExecutorClassGenerator {
         return executeListQuery(ctx, setup);
     }
 
-    /** Executes list query: ORDER BY, DISTINCT, pagination, getResultList(). */
+    /** Executes list query: ORDER BY, DISTINCT, parameter binding, pagination, getResultList(). */
     private Expr executeListQuery(QueryGenContext ctx, QuerySetup setup) {
         applyOrderBy(ctx.bc(), setup.query(), setup.root(), setup.cb(),
                 ctx.sortExpressions(), ctx.capturedValues(), null);
@@ -419,6 +426,8 @@ public class QueryExecutorClassGenerator {
         // Use LocalVar for values used across multiple operations (Gizmo2 requirement)
         LocalVar typedQuery = ctx.bc().localVar("typedQuery",
                 ctx.bc().invokeInterface(EM_CREATE_QUERY, ctx.em(), setup.query()));
+
+        expressionGenerator.emitParameterBindings(ctx.bc(), typedQuery, ctx.capturedValues());
         clauseApplier.applyPagination(ctx.bc(), typedQuery, ctx.offset(), ctx.limit());
         return ctx.bc().invokeInterface(TQ_GET_RESULT_LIST, typedQuery);
     }
@@ -439,7 +448,9 @@ public class QueryExecutorClassGenerator {
         bc.invokeInterface(CQ_SELECT, query, countExpr);
         Expr predicate = expressionGenerator.generatePredicateWithSubqueries(bc, expression, cb, query, root, capturedValues);
         clauseApplier.applyWherePredicate(bc, query, predicate);
-        Expr typedQuery = bc.invokeInterface(EM_CREATE_QUERY, em, query);
+        LocalVar typedQuery = bc.localVar("typedQuery", bc.invokeInterface(EM_CREATE_QUERY, em, query));
+
+        expressionGenerator.emitParameterBindings(bc, typedQuery, capturedValues);
         return bc.invokeInterface(TQ_GET_SINGLE_RESULT, typedQuery);
     }
 
@@ -487,10 +498,9 @@ public class QueryExecutorClassGenerator {
             clauseApplier.applyWherePredicate(bc, query, combinedPredicate);
         }
 
-        // Create TypedQuery
-        Expr typedQuery = bc.invokeInterface(EM_CREATE_QUERY, em, query);
-
-        // Return getSingleResult() for count
+        // Create TypedQuery, bind parameters, and return count
+        LocalVar typedQuery = bc.localVar("typedQuery", bc.invokeInterface(EM_CREATE_QUERY, em, query));
+        expressionGenerator.emitParameterBindings(bc, typedQuery, capturedValues);
         return bc.invokeInterface(TQ_GET_SINGLE_RESULT, typedQuery);
     }
 
@@ -523,6 +533,8 @@ public class QueryExecutorClassGenerator {
         // Create TypedQuery
         // Use LocalVar for values used across multiple operations (Gizmo2 requirement)
         LocalVar typedQuery = ctx.bc().localVar("typedQuery", ctx.bc().invokeInterface(EM_CREATE_QUERY, ctx.em(), query));
+
+        expressionGenerator.emitParameterBindings(ctx.bc(), typedQuery, ctx.capturedValues());
 
         // Apply pagination
         clauseApplier.applyPagination(ctx.bc(), typedQuery, ctx.offset(), ctx.limit());
@@ -564,6 +576,8 @@ public class QueryExecutorClassGenerator {
         // Create TypedQuery
         // Use LocalVar for values used across multiple operations (Gizmo2 requirement)
         LocalVar typedQuery = ctx.bc().localVar("typedQuery", ctx.bc().invokeInterface(EM_CREATE_QUERY, ctx.em(), query));
+
+        expressionGenerator.emitParameterBindings(ctx.bc(), typedQuery, ctx.capturedValues());
 
         // Apply pagination
         clauseApplier.applyPagination(ctx.bc(), typedQuery, ctx.offset(), ctx.limit());
@@ -624,6 +638,8 @@ public class QueryExecutorClassGenerator {
         // Create TypedQuery
         // Use LocalVar for values used across multiple operations (Gizmo2 requirement)
         LocalVar typedQuery = ctx.bc().localVar("typedQuery", ctx.bc().invokeInterface(EM_CREATE_QUERY, ctx.em(), query));
+
+        expressionGenerator.emitParameterBindings(ctx.bc(), typedQuery, ctx.capturedValues());
 
         // Apply pagination
         clauseApplier.applyPagination(ctx.bc(), typedQuery, ctx.offset(), ctx.limit());

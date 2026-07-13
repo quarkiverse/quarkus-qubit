@@ -126,9 +126,9 @@ final class GroupQueryGenerator {
         // Apply DISTINCT if requested
         clauseApplier.applyDistinct(bc, query, ctx.distinct());
 
-        // Create TypedQuery
-        // Use LocalVar for values used across multiple operations (Gizmo2 requirement)
+        // Create TypedQuery and bind parameters
         LocalVar typedQuery = bc.localVar("typedQuery", bc.invokeInterface(EM_CREATE_QUERY, ctx.em(), query));
+        expressionGenerator.emitParameterBindings(bc, typedQuery, ctx.capturedValues());
 
         // Apply pagination
         clauseApplier.applyPagination(bc, typedQuery, ctx.offset(), ctx.limit());
@@ -197,8 +197,9 @@ final class GroupQueryGenerator {
         // SELECT groupKey (we'll count results at runtime)
         bc.invokeInterface(CQ_SELECT, setup.query(), groupKeyExpr);
 
-        // Create TypedQuery and get result list
-        Expr typedQuery = bc.invokeInterface(EM_CREATE_QUERY, ctx.em(), setup.query());
+        // Create TypedQuery, bind parameters, and get result list
+        LocalVar typedQuery = bc.localVar("typedQuery", bc.invokeInterface(EM_CREATE_QUERY, ctx.em(), setup.query()));
+        expressionGenerator.emitParameterBindings(bc, typedQuery, ctx.capturedValues());
         Expr resultList = bc.invokeInterface(TQ_GET_RESULT_LIST, typedQuery);
 
         // Return result list size as Long
@@ -223,8 +224,9 @@ final class GroupQueryGenerator {
         Expr countExpr = bc.invokeInterface(CB_COUNT_DISTINCT, setup.cb(), groupKeyExpr);
         bc.invokeInterface(CQ_SELECT, setup.query(), countExpr);
 
-        // Create TypedQuery and return getSingleResult()
-        Expr typedQuery = bc.invokeInterface(EM_CREATE_QUERY, ctx.em(), setup.query());
+        // Create TypedQuery, bind parameters, and return getSingleResult()
+        LocalVar typedQuery = bc.localVar("typedQuery", bc.invokeInterface(EM_CREATE_QUERY, ctx.em(), setup.query()));
+        expressionGenerator.emitParameterBindings(bc, typedQuery, ctx.capturedValues());
         return bc.invokeInterface(TQ_GET_SINGLE_RESULT, typedQuery);
     }
 

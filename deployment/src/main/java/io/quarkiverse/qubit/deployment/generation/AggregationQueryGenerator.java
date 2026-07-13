@@ -21,6 +21,7 @@ import io.quarkiverse.qubit.deployment.generation.QueryExecutorClassGenerator.Qu
 import io.quarkiverse.qubit.deployment.generation.join.StandardClauseApplier;
 import io.quarkus.gizmo2.Const;
 import io.quarkus.gizmo2.Expr;
+import io.quarkus.gizmo2.LocalVar;
 import io.quarkus.gizmo2.creator.BlockCreator;
 
 /**
@@ -82,8 +83,9 @@ final class AggregationQueryGenerator {
             clauseApplier.applyWherePredicate(bc, query, predicate);
         }
 
-        // Create and execute query
-        Expr typedQuery = bc.invokeInterface(EM_CREATE_QUERY, em, query);
+        // Create TypedQuery, bind parameters, and execute
+        LocalVar typedQuery = bc.localVar("typedQuery", bc.invokeInterface(EM_CREATE_QUERY, em, query));
+        expressionGenerator.emitParameterBindings(bc, typedQuery, capturedValues);
 
         return bc.invokeInterface(TQ_GET_SINGLE_RESULT, typedQuery);
     }

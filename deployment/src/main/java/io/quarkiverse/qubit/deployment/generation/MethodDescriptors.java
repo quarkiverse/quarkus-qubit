@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.List;
 
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.Parameter;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 
@@ -144,6 +145,10 @@ public final class MethodDescriptors {
             Expression.class);
     public static final MethodDesc CB_LITERAL = MethodDesc.of(CriteriaBuilder.class, "literal", Expression.class, Object.class);
 
+    /** cb.parameter(Class) -> ParameterExpression (JPA 2.0 — for query plan caching) */
+    public static final MethodDesc CB_PARAMETER = MethodDesc.of(CriteriaBuilder.class, "parameter",
+            ParameterExpression.class, Class.class);
+
     /** cb.nullLiteral(Class) -> Expression (JPA 2.0) */
     public static final MethodDesc CB_NULL_LITERAL = MethodDesc.of(CriteriaBuilder.class, "nullLiteral", Expression.class,
             Class.class);
@@ -253,6 +258,9 @@ public final class MethodDescriptors {
 
     public static final MethodDesc TQ_GET_RESULT_LIST = MethodDesc.of(TypedQuery.class, "getResultList", List.class);
     public static final MethodDesc TQ_GET_SINGLE_RESULT = MethodDesc.of(TypedQuery.class, "getSingleResult", Object.class);
+    /** typedQuery.setParameter(Parameter, Object) -> TypedQuery (JPA 2.0 — bind captured variable values) */
+    public static final MethodDesc TQ_SET_PARAMETER = MethodDesc.of(TypedQuery.class, "setParameter", TypedQuery.class,
+            Parameter.class, Object.class);
     public static final MethodDesc TQ_SET_FIRST_RESULT = MethodDesc.of(TypedQuery.class, "setFirstResult", TypedQuery.class,
             int.class);
     public static final MethodDesc TQ_SET_MAX_RESULTS = MethodDesc.of(TypedQuery.class, "setMaxResults", TypedQuery.class,

@@ -80,10 +80,10 @@ public final class JoinQueryBuilder {
         // Step 8: Apply DISTINCT
         clauseApplier.applyDistinct(bc, query, ctx.distinct());
 
-        // Step 9: Create TypedQuery
-        // Use LocalVar for values used across multiple operations (Gizmo2 requirement)
+        // Step 9: Create TypedQuery and bind parameters
         LocalVar typedQuery = bc.localVar("typedQuery", bc.invokeInterface(
                 EM_CREATE_QUERY, ctx.em(), query));
+        expressionGenerator.emitParameterBindings(bc, typedQuery, ctx.capturedValues());
 
         // Step 10: Apply pagination
         clauseApplier.applyPagination(bc, typedQuery, ctx.offset(), ctx.limit());
