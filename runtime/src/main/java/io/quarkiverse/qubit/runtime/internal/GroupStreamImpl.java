@@ -44,7 +44,7 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
      * Creates a new group stream with pre-filtered entities.
      */
     public GroupStreamImpl(Class<T> entityClass, QuerySpec<T, K> keyExtractor, List<QuerySpec<T, Boolean>> predicates) {
-        this(entityClass, keyExtractor, predicates, new ArrayList<>(), new ArrayList<>(), null, null);
+        this(entityClass, keyExtractor, predicates, List.of(), List.of(), null, null);
     }
 
     /**
@@ -186,7 +186,7 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
         int capturedCount = QueryExecutorRegistry.getCapturedVariableCount(callSiteId);
 
         if (capturedCount == 0) {
-            return new Object[0];
+            return LambdaReflectionUtils.EMPTY_OBJECT_ARRAY;
         }
 
         List<Object> allCapturedValues = new ArrayList<>();
@@ -205,7 +205,7 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
                             callSiteId, capturedCount, allCapturedValues.size()));
         }
 
-        return allCapturedValues.toArray(new Object[0]);
+        return allCapturedValues.toArray(LambdaReflectionUtils.EMPTY_OBJECT_ARRAY);
     }
 
     private record GroupSortOrder<T, K>(GroupQuerySpec<T, K, ?> keyExtractor, SortDirection direction) {

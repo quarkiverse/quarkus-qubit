@@ -33,8 +33,9 @@ import io.quarkus.arc.InstanceHandle;
  */
 public final class LambdaReflectionUtils {
 
+    static final Object[] EMPTY_OBJECT_ARRAY = {};
+
     private LambdaReflectionUtils() {
-        // Utility class - no instantiation
     }
 
     /** Validates lambda is not null, returns it for inline usage. */
@@ -113,12 +114,12 @@ public final class LambdaReflectionUtils {
      */
     public static Object[] extractCapturedArgs(@Nullable Object lambdaInstance) {
         if (lambdaInstance == null) {
-            return new Object[0];
+            return EMPTY_OBJECT_ARRAY;
         }
         SerializedLambda sl = getSerializedLambda(lambdaInstance);
         int count = sl.getCapturedArgCount();
         if (count == 0) {
-            return new Object[0];
+            return EMPTY_OBJECT_ARRAY;
         }
         Object[] args = new Object[count];
         for (int i = 0; i < count; i++) {

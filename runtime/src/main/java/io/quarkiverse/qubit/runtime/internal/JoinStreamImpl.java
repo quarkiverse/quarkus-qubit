@@ -54,7 +54,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
             QuerySpec<T, Collection<R>> relationshipAccessor,
             JoinType joinType) {
         this(sourceEntityClass, relationshipAccessor, joinType,
-                new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(),
+                List.of(), List.of(), List.of(), List.of(),
                 null, null, false);
     }
 
@@ -247,7 +247,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         int capturedCount = QueryExecutorRegistry.getCapturedVariableCount(callSiteId);
 
         if (capturedCount == 0) {
-            return new Object[0];
+            return LambdaReflectionUtils.EMPTY_OBJECT_ARRAY;
         }
 
         List<Object> allCapturedValues = new ArrayList<>();
@@ -264,7 +264,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
                             callSiteId, capturedCount, allCapturedValues.size()));
         }
 
-        return allCapturedValues.toArray(new Object[0]);
+        return allCapturedValues.toArray(LambdaReflectionUtils.EMPTY_OBJECT_ARRAY);
     }
 
     private record BiSortOrder<T, R>(BiQuerySpec<T, R, ?> keyExtractor, SortDirection direction) {

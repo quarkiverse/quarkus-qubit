@@ -54,7 +54,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
      * Creates a new stream for the given entity class with no operations.
      */
     public QubitStreamImpl(Class<T> entityClass) {
-        this(entityClass, new ArrayList<>(), null, new ArrayList<>(), null, null, false, null, null);
+        this(entityClass, List.of(), null, List.of(), null, null, false, null, null);
     }
 
     /**
@@ -314,7 +314,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
         int capturedCount = QueryExecutorRegistry.getCapturedVariableCount(callSiteId);
 
         if (capturedCount == 0) {
-            return new Object[0];
+            return LambdaReflectionUtils.EMPTY_OBJECT_ARRAY;
         }
 
         List<Object> allCapturedValues = new ArrayList<>();
@@ -335,7 +335,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
                             callSiteId, capturedCount, allCapturedValues.size()));
         }
 
-        return allCapturedValues.toArray(new Object[0]);
+        return allCapturedValues.toArray(LambdaReflectionUtils.EMPTY_OBJECT_ARRAY);
     }
 
     @Override
@@ -353,7 +353,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     @Override
     public <K> GroupStream<T, K> groupBy(QuerySpec<T, K> keyExtractor) {
         requireNonNullLambda(keyExtractor, PARAM_KEY_EXTRACTOR, "groupBy");
-        return new GroupStreamImpl<>(entityClass, keyExtractor, new ArrayList<>(predicates));
+        return new GroupStreamImpl<>(entityClass, keyExtractor, predicates);
     }
 
     private record SortOrder<T>(QuerySpec<T, ?> keyExtractor, SortDirection direction) {
