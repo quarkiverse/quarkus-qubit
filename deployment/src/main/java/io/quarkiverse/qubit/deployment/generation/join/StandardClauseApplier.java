@@ -1,7 +1,7 @@
 package io.quarkiverse.qubit.deployment.generation.join;
 
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CQ_DISTINCT;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CQ_WHERE;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CQ_WHERE_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.TQ_SET_FIRST_RESULT;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.TQ_SET_MAX_RESULTS;
 
@@ -9,8 +9,6 @@ import java.util.List;
 import java.util.Objects;
 
 import org.jspecify.annotations.Nullable;
-
-import jakarta.persistence.criteria.Predicate;
 
 import io.quarkiverse.qubit.deployment.generation.CriteriaExpressionGenerator;
 import io.quarkiverse.qubit.deployment.generation.GizmoHelper;
@@ -31,8 +29,7 @@ public final class StandardClauseApplier {
 
     public void applyWherePredicate(BlockCreator bc, Expr query, @Nullable Expr predicate) {
         if (predicate != null) {
-            Expr predicateArray = GizmoHelper.createElementArray(bc, Predicate.class, predicate);
-            bc.invokeInterface(CQ_WHERE, query, predicateArray);
+            bc.invokeInterface(CQ_WHERE_EXPR, query, predicate);
         }
     }
 

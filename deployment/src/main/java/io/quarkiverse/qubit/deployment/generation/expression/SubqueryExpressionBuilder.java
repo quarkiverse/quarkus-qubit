@@ -329,10 +329,8 @@ public enum SubqueryExpressionBuilder {
             Expr leftPredicate = generateSubqueryPredicate(bc, binOp.left(), cb, subRoot, outerRoot, capturedValues);
             Expr rightPredicate = generateSubqueryPredicate(bc, binOp.right(), cb, subRoot, outerRoot, capturedValues);
 
-            Expr predicateArray = GizmoHelper.createElementArray(bc, Predicate.class, leftPredicate, rightPredicate);
-
-            MethodDesc cbOperator = binOp.operator() == AND ? CB_AND : CB_OR;
-            return bc.invokeInterface(cbOperator, cb, predicateArray);
+            MethodDesc cbOperator = binOp.operator() == AND ? CB_AND_EXP : CB_OR_EXP;
+            return bc.invokeInterface(cbOperator, cb, leftPredicate, rightPredicate);
         }
 
         // For comparison operators, generate expressions
@@ -459,9 +457,7 @@ public enum SubqueryExpressionBuilder {
         return GizmoHelper.loadConstant(bc, constant.value());
     }
 
-    /** JPA's Subquery.where() takes Predicate... varargs. */
     private void applySubqueryWhere(BlockCreator bc, Expr subquery, Expr predicate) {
-        Expr predicateArray = GizmoHelper.createElementArray(bc, Predicate.class, predicate);
-        bc.invokeInterface(SUBQUERY_WHERE, subquery, predicateArray);
+        bc.invokeInterface(SUBQUERY_WHERE_EXPR, subquery, predicate);
     }
 }

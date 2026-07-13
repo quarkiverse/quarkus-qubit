@@ -2,7 +2,7 @@ package io.quarkiverse.qubit.deployment.generation;
 
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_COUNT_DISTINCT;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CQ_GROUP_BY;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CQ_HAVING;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CQ_HAVING_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CQ_SELECT;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.EM_CREATE_QUERY;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.INTEGER_LONG_VALUE;
@@ -235,8 +235,7 @@ final class GroupQueryGenerator {
      */
     private void applyHavingPredicate(BlockCreator bc, Expr query, Expr predicate) {
         if (predicate != null) {
-            Expr predicateArray = GizmoHelper.createElementArray(bc, Predicate.class, predicate);
-            bc.invokeInterface(CQ_HAVING, query, predicateArray);
+            bc.invokeInterface(CQ_HAVING_EXPR, query, predicate);
         }
     }
 

@@ -8,10 +8,9 @@ import static io.quarkiverse.qubit.deployment.common.PatternDetector.containsSub
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isLogicalOperation;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isNegatedSubqueryComparison;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isSubqueryBooleanComparison;
-import static io.quarkiverse.qubit.deployment.generation.GizmoHelper.createElementArray;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CASE_OTHERWISE_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CASE_WHEN_EXPR;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_AND;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_AND_EXP;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_BETWEEN_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NULLIF_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_TREAT_ROOT;
@@ -27,19 +26,18 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_PA
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NOT;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NULL_LITERAL;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NOT_EQUAL;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_OR;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_OR_EXP;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_SELECT_CASE;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CLASS_FOR_NAME;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.EXPRESSION_IN;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.EXPRESSION_IN_COLLECTION;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.PATH_GET;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.PATH_TYPE;
 
+import java.lang.constant.ClassDesc;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Selection;
 
 import org.jspecify.annotations.Nullable;
@@ -986,15 +984,11 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             Expr right,
             LambdaExpression.BinaryOp.Operator operator) {
 
-        Expr predicateArray = createElementArray(bc, Predicate.class, left, right);
-
-        MethodDesc combineMethod = switch (operator) {
-            case AND -> CB_AND;
-            case OR -> CB_OR;
+        return switch (operator) {
+            case AND -> bc.invokeInterface(CB_AND_EXP, cb, left, right);
+            case OR -> bc.invokeInterface(CB_OR_EXP, cb, left, right);
             default -> throw new IllegalArgumentException("Expected AND or OR operator, got: " + operator);
         };
-
-        return bc.invokeInterface(combineMethod, cb, predicateArray);
     }
 
     /** Generates cb.between(field, lowerBound, upperBound) for detected BETWEEN patterns. */
@@ -1044,11 +1038,8 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
      */
     @Override
     public Expr loadDtoClass(BlockCreator bc, String internalClassName) {
-        // Convert internal class name to fully qualified class name (replace / with .)
         String fqClassName = internalClassName.replace('/', '.');
-        // Load the class at runtime using Class.forName()
-        Expr classNameHandle = Const.of(fqClassName);
-        return bc.invokeStatic(CLASS_FOR_NAME, classNameHandle);
+        return Const.of(ClassDesc.of(fqClassName));
     }
 
     /**

@@ -40,13 +40,11 @@ public final class GizmoHelper {
         // Utility class
     }
 
-    /** Loads entity class, using Class.forName() for placeholder class names. */
+    /** Loads entity class, using LDC class constant for placeholder class names. */
     public static Expr loadEntityClass(BlockCreator bc, Class<?> entityClass, String entityClassName) {
-        // Placeholder case: Load class by name at runtime
         if (entityClassName != null) {
-            return bc.invokeStatic(CLASS_FOR_NAME, Const.of(entityClassName));
+            return Const.of(ClassDesc.of(entityClassName));
         }
-        // Normal case: Direct class reference
         return Const.of(entityClass);
     }
 
@@ -194,9 +192,7 @@ public final class GizmoHelper {
     public static @Nullable Expr combinePredicatesWithAnd(
             BlockCreator bc, Expr cb, @Nullable Expr predicate1, @Nullable Expr predicate2) {
         if (predicate1 != null && predicate2 != null) {
-            Expr predicateArray = createElementArray(bc, jakarta.persistence.criteria.Predicate.class,
-                    predicate1, predicate2);
-            return bc.invokeInterface(CB_AND, cb, predicateArray);
+            return bc.invokeInterface(CB_AND_EXP, cb, predicate1, predicate2);
         }
         return predicate1 != null ? predicate1 : predicate2;
     }
