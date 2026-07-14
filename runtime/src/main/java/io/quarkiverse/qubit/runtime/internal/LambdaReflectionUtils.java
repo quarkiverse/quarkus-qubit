@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 import jakarta.persistence.NoResultException;
@@ -83,11 +84,21 @@ public final class LambdaReflectionUtils {
         return !className.contains("$$") && !className.contains("$Lambda");
     }
 
-    /** Returns call site ID with lambda discriminator for same-line queries. */
+    // ponytail: call site ID never changes for a given lambda class — cache after first computation
+    private static final ConcurrentHashMap<Class<?>, String> CALL_SITE_CACHE = new ConcurrentHashMap<>();
+
+    /** Returns call site ID with lambda discriminator. Cached per lambda class after first call. */
     public static String getCallSiteId(Set<String> additionalFilterMethods, Object primaryLambda) {
+        String cached = CALL_SITE_CACHE.get(primaryLambda.getClass());
+        if (cached != null) {
+            return cached;
+        }
+        // First call: compute (stack walk must happen in the CALLER's stack frame, not inside computeIfAbsent)
         String baseCallSiteId = getCallSiteId(additionalFilterMethods);
-        String lambdaMethodName = extractLambdaMethodName(primaryLambda);
-        return baseCallSiteId + ":" + lambdaMethodName;
+        String lambdaMethodName = getSerializedLambda(primaryLambda).getImplMethodName();
+        String result = baseCallSiteId + ":" + lambdaMethodName;
+        CALL_SITE_CACHE.putIfAbsent(primaryLambda.getClass(), result);
+        return result;
     }
 
     /**
