@@ -2,6 +2,8 @@ package io.quarkiverse.qubit.runtime.internal;
 
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.extractFromLambdas;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.extractFromSingleLambda;
+import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.fillCapturedArgs;
+import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.fillCapturedArgsFromList;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.getCallSiteId;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.getQueryExecutorRegistry;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.requireNonNullLambda;
@@ -312,30 +314,30 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
 
     private Object[] extractCapturedVariables(String callSiteId) {
         int capturedCount = QueryExecutorRegistry.getCapturedVariableCount(callSiteId);
-
         if (capturedCount == 0) {
             return LambdaReflectionUtils.EMPTY_OBJECT_ARRAY;
         }
 
-        List<Object> allCapturedValues = new ArrayList<>();
-        extractFromLambdas(predicates, allCapturedValues);
+        Object[] result = new Object[capturedCount];
+        int pos = 0;
+        pos = fillCapturedArgsFromList(predicates, result, pos);
         if (selector != null) {
-            extractFromSingleLambda(selector, allCapturedValues);
+            pos = fillCapturedArgs(selector, result, pos);
         }
         if (aggregationMapper != null) {
-            extractFromSingleLambda(aggregationMapper, allCapturedValues);
+            pos = fillCapturedArgs(aggregationMapper, result, pos);
         }
         for (SortOrder<T> sortOrder : sortOrders) {
-            extractFromSingleLambda(sortOrder.keyExtractor(), allCapturedValues);
+            pos = fillCapturedArgs(sortOrder.keyExtractor(), result, pos);
         }
 
-        if (allCapturedValues.size() != capturedCount) {
+        if (pos != capturedCount) {
             throw new IllegalStateException(
                     String.format("Captured variable count mismatch at %s: expected %d, found %d",
-                            callSiteId, capturedCount, allCapturedValues.size()));
+                            callSiteId, capturedCount, pos));
         }
 
-        return allCapturedValues.toArray(LambdaReflectionUtils.EMPTY_OBJECT_ARRAY);
+        return result;
     }
 
     @Override

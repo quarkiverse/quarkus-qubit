@@ -1,7 +1,7 @@
 package io.quarkiverse.qubit.runtime.internal;
 
-import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.extractFromLambdas;
-import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.extractFromSingleLambda;
+import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.fillCapturedArgs;
+import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.fillCapturedArgsFromList;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.getCallSiteId;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.getQueryExecutorRegistry;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.requireNonNullLambda;
@@ -245,26 +245,26 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
 
     private Object[] extractCapturedVariables(String callSiteId) {
         int capturedCount = QueryExecutorRegistry.getCapturedVariableCount(callSiteId);
-
         if (capturedCount == 0) {
             return LambdaReflectionUtils.EMPTY_OBJECT_ARRAY;
         }
 
-        List<Object> allCapturedValues = new ArrayList<>();
-        extractFromLambdas(biPredicates, allCapturedValues);
-        extractFromLambdas(sourcePredicates, allCapturedValues);
-        extractFromLambdas(onConditions, allCapturedValues);
+        Object[] result = new Object[capturedCount];
+        int pos = 0;
+        pos = fillCapturedArgsFromList(biPredicates, result, pos);
+        pos = fillCapturedArgsFromList(sourcePredicates, result, pos);
+        pos = fillCapturedArgsFromList(onConditions, result, pos);
         for (BiSortOrder<T, R> sortOrder : sortOrders) {
-            extractFromSingleLambda(sortOrder.keyExtractor(), allCapturedValues);
+            pos = fillCapturedArgs(sortOrder.keyExtractor(), result, pos);
         }
 
-        if (allCapturedValues.size() != capturedCount) {
+        if (pos != capturedCount) {
             throw new IllegalStateException(
                     String.format("Captured variable count mismatch at %s: expected %d, found %d",
-                            callSiteId, capturedCount, allCapturedValues.size()));
+                            callSiteId, capturedCount, pos));
         }
 
-        return allCapturedValues.toArray(LambdaReflectionUtils.EMPTY_OBJECT_ARRAY);
+        return result;
     }
 
     private record BiSortOrder<T, R>(BiQuerySpec<T, R, ?> keyExtractor, SortDirection direction) {

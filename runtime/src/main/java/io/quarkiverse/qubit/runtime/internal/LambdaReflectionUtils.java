@@ -269,6 +269,27 @@ public final class LambdaReflectionUtils {
         Collections.addAll(destination, extractCapturedArgs(lambda));
     }
 
+    /** Fills captured args directly into a destination array at the given offset. Returns new offset. */
+    public static int fillCapturedArgs(Object lambda, Object[] dest, int offset) {
+        if (lambda == null) {
+            return offset;
+        }
+        SerializedLambda sl = getSerializedLambda(lambda);
+        int count = sl.getCapturedArgCount();
+        for (int i = 0; i < count; i++) {
+            dest[offset++] = sl.getCapturedArg(i);
+        }
+        return offset;
+    }
+
+    /** Fills captured args from all lambdas in the list. Returns new offset. */
+    public static int fillCapturedArgsFromList(List<?> lambdas, Object[] dest, int offset) {
+        for (Object lambda : lambdas) {
+            offset = fillCapturedArgs(lambda, dest, offset);
+        }
+        return offset;
+    }
+
     /** Validates skip count is non-negative, returns it. */
     public static int validateSkipCount(int n) {
         if (n < 0) {

@@ -1,7 +1,7 @@
 package io.quarkiverse.qubit.runtime.internal;
 
-import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.extractFromLambdas;
-import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.extractFromSingleLambda;
+import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.fillCapturedArgs;
+import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.fillCapturedArgsFromList;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.getCallSiteId;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.getQueryExecutorRegistry;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.requireNonNullLambda;
@@ -184,28 +184,26 @@ public class GroupStreamImpl<T, K> implements GroupStream<T, K> {
 
     private Object[] extractCapturedVariables(String callSiteId) {
         int capturedCount = QueryExecutorRegistry.getCapturedVariableCount(callSiteId);
-
         if (capturedCount == 0) {
             return LambdaReflectionUtils.EMPTY_OBJECT_ARRAY;
         }
 
-        List<Object> allCapturedValues = new ArrayList<>();
-
-        extractFromLambdas(predicates, allCapturedValues);
-        extractFromSingleLambda(keyExtractor, allCapturedValues);
-        extractFromLambdas(havingConditions, allCapturedValues);
-
+        Object[] result = new Object[capturedCount];
+        int pos = 0;
+        pos = fillCapturedArgsFromList(predicates, result, pos);
+        pos = fillCapturedArgs(keyExtractor, result, pos);
+        pos = fillCapturedArgsFromList(havingConditions, result, pos);
         for (GroupSortOrder<T, K> sortOrder : sortOrders) {
-            extractFromSingleLambda(sortOrder.keyExtractor(), allCapturedValues);
+            pos = fillCapturedArgs(sortOrder.keyExtractor(), result, pos);
         }
 
-        if (allCapturedValues.size() != capturedCount) {
+        if (pos != capturedCount) {
             throw new IllegalStateException(
                     String.format("Captured variable count mismatch at %s: expected %d, found %d",
-                            callSiteId, capturedCount, allCapturedValues.size()));
+                            callSiteId, capturedCount, pos));
         }
 
-        return allCapturedValues.toArray(LambdaReflectionUtils.EMPTY_OBJECT_ARRAY);
+        return result;
     }
 
     private record GroupSortOrder<T, K>(GroupQuerySpec<T, K, ?> keyExtractor, SortDirection direction) {
