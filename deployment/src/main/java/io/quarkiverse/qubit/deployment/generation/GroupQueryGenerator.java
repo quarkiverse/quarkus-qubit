@@ -2,11 +2,9 @@ package io.quarkiverse.qubit.deployment.generation;
 
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_COUNT_DISTINCT;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CQ_GROUP_BY;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CQ_HAVING;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CQ_HAVING_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CQ_SELECT;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.EM_CREATE_QUERY;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.INTEGER_LONG_VALUE;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.INTEGER_VALUE_OF;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.LIST_SIZE;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.LONG_VALUE_OF;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.TQ_GET_RESULT_LIST;
@@ -126,9 +124,9 @@ final class GroupQueryGenerator {
         // Apply DISTINCT if requested
         clauseApplier.applyDistinct(bc, query, ctx.distinct());
 
-        // Create TypedQuery
-        // Use LocalVar for values used across multiple operations (Gizmo2 requirement)
+        // Create TypedQuery and bind parameters
         LocalVar typedQuery = bc.localVar("typedQuery", bc.invokeInterface(EM_CREATE_QUERY, ctx.em(), query));
+        expressionGenerator.emitParameterBindings(bc, typedQuery, ctx.capturedValues());
 
         // Apply pagination
         clauseApplier.applyPagination(bc, typedQuery, ctx.offset(), ctx.limit());
@@ -197,16 +195,13 @@ final class GroupQueryGenerator {
         // SELECT groupKey (we'll count results at runtime)
         bc.invokeInterface(CQ_SELECT, setup.query(), groupKeyExpr);
 
-        // Create TypedQuery and get result list
-        Expr typedQuery = bc.invokeInterface(EM_CREATE_QUERY, ctx.em(), setup.query());
+        // Create TypedQuery, bind parameters, and get result list
+        LocalVar typedQuery = bc.localVar("typedQuery", bc.invokeInterface(EM_CREATE_QUERY, ctx.em(), setup.query()));
+        expressionGenerator.emitParameterBindings(bc, typedQuery, ctx.capturedValues());
         Expr resultList = bc.invokeInterface(TQ_GET_RESULT_LIST, typedQuery);
 
-        // Return result list size as Long
         Expr size = bc.invokeInterface(LIST_SIZE, resultList);
-        Expr sizeLong = bc.invokeVirtual(
-                INTEGER_LONG_VALUE,
-                bc.invokeStatic(INTEGER_VALUE_OF, size));
-        return bc.invokeStatic(LONG_VALUE_OF, sizeLong);
+        return bc.invokeStatic(LONG_VALUE_OF, bc.cast(size, long.class));
     }
 
     /** Generates GROUP COUNT without HAVING using COUNT(DISTINCT groupKey). */
@@ -223,8 +218,9 @@ final class GroupQueryGenerator {
         Expr countExpr = bc.invokeInterface(CB_COUNT_DISTINCT, setup.cb(), groupKeyExpr);
         bc.invokeInterface(CQ_SELECT, setup.query(), countExpr);
 
-        // Create TypedQuery and return getSingleResult()
-        Expr typedQuery = bc.invokeInterface(EM_CREATE_QUERY, ctx.em(), setup.query());
+        // Create TypedQuery, bind parameters, and return getSingleResult()
+        LocalVar typedQuery = bc.localVar("typedQuery", bc.invokeInterface(EM_CREATE_QUERY, ctx.em(), setup.query()));
+        expressionGenerator.emitParameterBindings(bc, typedQuery, ctx.capturedValues());
         return bc.invokeInterface(TQ_GET_SINGLE_RESULT, typedQuery);
     }
 
@@ -233,8 +229,7 @@ final class GroupQueryGenerator {
      */
     private void applyHavingPredicate(BlockCreator bc, Expr query, Expr predicate) {
         if (predicate != null) {
-            Expr predicateArray = GizmoHelper.createElementArray(bc, Predicate.class, predicate);
-            bc.invokeInterface(CQ_HAVING, query, predicateArray);
+            bc.invokeInterface(CQ_HAVING_EXPR, query, predicate);
         }
     }
 

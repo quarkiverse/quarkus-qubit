@@ -2,6 +2,8 @@ package io.quarkiverse.qubit.runtime.internal;
 
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.extractFromLambdas;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.extractFromSingleLambda;
+import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.fillCapturedArgs;
+import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.fillCapturedArgsFromList;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.getCallSiteId;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.getQueryExecutorRegistry;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.requireNonNullLambda;
@@ -54,7 +56,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
      * Creates a new stream for the given entity class with no operations.
      */
     public QubitStreamImpl(Class<T> entityClass) {
-        this(entityClass, new ArrayList<>(), null, new ArrayList<>(), null, null, false, null, null);
+        this(entityClass, List.of(), null, List.of(), null, null, false, null, null);
     }
 
     /**
@@ -234,7 +236,8 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
             return (T) registry.executeAggregationQuery(callSiteId, entityClass, capturedValues);
         }
 
-        return requireSingleResult(toList());
+        QubitStream<T> bounded = (this.limit == null) ? this.limit(2) : this;
+        return requireSingleResult(bounded.toList());
     }
 
     @Override
@@ -311,30 +314,30 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
 
     private Object[] extractCapturedVariables(String callSiteId) {
         int capturedCount = QueryExecutorRegistry.getCapturedVariableCount(callSiteId);
-
         if (capturedCount == 0) {
-            return new Object[0];
+            return LambdaReflectionUtils.EMPTY_OBJECT_ARRAY;
         }
 
-        List<Object> allCapturedValues = new ArrayList<>();
-        extractFromLambdas(predicates, allCapturedValues);
+        Object[] result = new Object[capturedCount];
+        int pos = 0;
+        pos = fillCapturedArgsFromList(predicates, result, pos);
         if (selector != null) {
-            extractFromSingleLambda(selector, allCapturedValues);
+            pos = fillCapturedArgs(selector, result, pos);
         }
         if (aggregationMapper != null) {
-            extractFromSingleLambda(aggregationMapper, allCapturedValues);
+            pos = fillCapturedArgs(aggregationMapper, result, pos);
         }
         for (SortOrder<T> sortOrder : sortOrders) {
-            extractFromSingleLambda(sortOrder.keyExtractor(), allCapturedValues);
+            pos = fillCapturedArgs(sortOrder.keyExtractor(), result, pos);
         }
 
-        if (allCapturedValues.size() != capturedCount) {
+        if (pos != capturedCount) {
             throw new IllegalStateException(
                     String.format("Captured variable count mismatch at %s: expected %d, found %d",
-                            callSiteId, capturedCount, allCapturedValues.size()));
+                            callSiteId, capturedCount, pos));
         }
 
-        return allCapturedValues.toArray(new Object[0]);
+        return result;
     }
 
     @Override
@@ -352,7 +355,7 @@ public class QubitStreamImpl<T> implements QubitStream<T> {
     @Override
     public <K> GroupStream<T, K> groupBy(QuerySpec<T, K> keyExtractor) {
         requireNonNullLambda(keyExtractor, PARAM_KEY_EXTRACTOR, "groupBy");
-        return new GroupStreamImpl<>(entityClass, keyExtractor, new ArrayList<>(predicates));
+        return new GroupStreamImpl<>(entityClass, keyExtractor, predicates);
     }
 
     private record SortOrder<T>(QuerySpec<T, ?> keyExtractor, SortDirection direction) {

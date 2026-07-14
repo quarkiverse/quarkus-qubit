@@ -1,7 +1,7 @@
 package io.quarkiverse.qubit.runtime.internal;
 
-import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.extractFromLambdas;
-import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.extractFromSingleLambda;
+import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.fillCapturedArgs;
+import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.fillCapturedArgsFromList;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.getCallSiteId;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.getQueryExecutorRegistry;
 import static io.quarkiverse.qubit.runtime.internal.LambdaReflectionUtils.requireNonNullLambda;
@@ -54,7 +54,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
             QuerySpec<T, Collection<R>> relationshipAccessor,
             JoinType joinType) {
         this(sourceEntityClass, relationshipAccessor, joinType,
-                new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(),
+                List.of(), List.of(), List.of(), List.of(),
                 null, null, false);
     }
 
@@ -118,7 +118,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
     public <S> QubitStream<S> select(BiQuerySpec<T, R, S> mapper) {
         requireNonNullLambda(mapper, "Mapper", "select");
         String callSiteId = getCallSiteId(QubitConstants.JOIN_METHODS, getPrimaryLambda());
-        Object[] capturedValues = extractCapturedVariables();
+        Object[] capturedValues = extractCapturedVariables(callSiteId);
 
         QueryExecutorRegistry registry = getQueryExecutorRegistry();
         List<S> results = registry.executeJoinProjectionQuery(callSiteId, sourceEntityClass, capturedValues, offset, limit,
@@ -135,7 +135,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
     @Override
     public QubitStream<R> selectJoined() {
         String callSiteId = getCallSiteId(QubitConstants.JOIN_METHODS, getPrimaryLambda());
-        Object[] capturedValues = extractCapturedVariables();
+        Object[] capturedValues = extractCapturedVariables(callSiteId);
 
         QueryExecutorRegistry registry = getQueryExecutorRegistry();
         List<R> results = registry.executeJoinSelectJoinedQuery(callSiteId, sourceEntityClass, capturedValues, offset, limit,
@@ -200,7 +200,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
     @Override
     public List<T> toList() {
         String callSiteId = getCallSiteId(QubitConstants.JOIN_METHODS, getPrimaryLambda());
-        Object[] capturedValues = extractCapturedVariables();
+        Object[] capturedValues = extractCapturedVariables(callSiteId);
 
         QueryExecutorRegistry registry = getQueryExecutorRegistry();
         return registry.executeJoinListQuery(callSiteId, sourceEntityClass, capturedValues, offset, limit, distinct);
@@ -208,7 +208,8 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
 
     @Override
     public T getSingleResult() {
-        return requireSingleResult(toList());
+        JoinStream<T, R> bounded = (this.limit == null) ? this.limit(2) : this;
+        return requireSingleResult(bounded.toList());
     }
 
     @Override
@@ -221,7 +222,7 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
     @Override
     public long count() {
         String callSiteId = getCallSiteId(QubitConstants.JOIN_METHODS, getPrimaryLambda());
-        Object[] capturedValues = extractCapturedVariables();
+        Object[] capturedValues = extractCapturedVariables(callSiteId);
 
         QueryExecutorRegistry registry = getQueryExecutorRegistry();
         return registry.executeJoinCountQuery(callSiteId, sourceEntityClass, capturedValues);
@@ -242,29 +243,28 @@ public class JoinStreamImpl<T, R> implements JoinStream<T, R> {
         return relationshipAccessor;
     }
 
-    private Object[] extractCapturedVariables() {
-        String callSiteId = getCallSiteId(QubitConstants.JOIN_METHODS, getPrimaryLambda());
+    private Object[] extractCapturedVariables(String callSiteId) {
         int capturedCount = QueryExecutorRegistry.getCapturedVariableCount(callSiteId);
-
         if (capturedCount == 0) {
-            return new Object[0];
+            return LambdaReflectionUtils.EMPTY_OBJECT_ARRAY;
         }
 
-        List<Object> allCapturedValues = new ArrayList<>();
-        extractFromLambdas(biPredicates, allCapturedValues);
-        extractFromLambdas(sourcePredicates, allCapturedValues);
-        extractFromLambdas(onConditions, allCapturedValues);
+        Object[] result = new Object[capturedCount];
+        int pos = 0;
+        pos = fillCapturedArgsFromList(biPredicates, result, pos);
+        pos = fillCapturedArgsFromList(sourcePredicates, result, pos);
+        pos = fillCapturedArgsFromList(onConditions, result, pos);
         for (BiSortOrder<T, R> sortOrder : sortOrders) {
-            extractFromSingleLambda(sortOrder.keyExtractor(), allCapturedValues);
+            pos = fillCapturedArgs(sortOrder.keyExtractor(), result, pos);
         }
 
-        if (allCapturedValues.size() != capturedCount) {
+        if (pos != capturedCount) {
             throw new IllegalStateException(
                     String.format("Captured variable count mismatch at %s: expected %d, found %d",
-                            callSiteId, capturedCount, allCapturedValues.size()));
+                            callSiteId, capturedCount, pos));
         }
 
-        return allCapturedValues.toArray(new Object[0]);
+        return result;
     }
 
     private record BiSortOrder<T, R>(BiQuerySpec<T, R, ?> keyExtractor, SortDirection direction) {

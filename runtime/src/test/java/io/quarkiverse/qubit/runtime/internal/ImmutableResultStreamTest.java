@@ -110,16 +110,6 @@ class ImmutableResultStreamTest {
                     .hasMessageContaining("skip count");
         }
 
-        @Test
-        @DisplayName("creates independent copy (GC-friendly)")
-        void createsIndependentCopy() {
-            List<String> original = new ArrayList<>(List.of("a", "b", "c", "d"));
-            ImmutableResultStream<String> stream = new ImmutableResultStream<>(original);
-
-            // The skipped stream should have an independent copy
-            List<String> skippedResult = stream.skip(1).toList();
-            assertThat(skippedResult).containsExactly("b", "c", "d");
-        }
     }
 
     @Nested
@@ -163,16 +153,6 @@ class ImmutableResultStreamTest {
                     .hasMessageContaining("limit count");
         }
 
-        @Test
-        @DisplayName("creates independent copy (GC-friendly)")
-        void createsIndependentCopy() {
-            List<String> original = new ArrayList<>(List.of("a", "b", "c", "d"));
-            ImmutableResultStream<String> stream = new ImmutableResultStream<>(original);
-
-            // The limited stream should have an independent copy
-            List<String> limitedResult = stream.limit(2).toList();
-            assertThat(limitedResult).containsExactly("a", "b");
-        }
     }
 
     @Nested
@@ -246,26 +226,24 @@ class ImmutableResultStreamTest {
         class ToListTests {
 
             @Test
-            @DisplayName("returns copy of results")
-            void returnsCopyOfResults() {
-                List<String> original = List.of("a", "b", "c");
-                ImmutableResultStream<String> stream = new ImmutableResultStream<>(original);
+            @DisplayName("returns results with correct contents")
+            void returnsCorrectContents() {
+                ImmutableResultStream<String> stream = new ImmutableResultStream<>(List.of("a", "b", "c"));
 
                 List<String> result = stream.toList();
 
                 assertThat(result).containsExactly("a", "b", "c");
-                assertThat(result).isNotSameAs(original);
             }
 
             @Test
-            @DisplayName("returns mutable list")
-            void returnsMutableList() {
+            @DisplayName("returns unmodifiable list")
+            void returnsUnmodifiableList() {
                 ImmutableResultStream<String> stream = new ImmutableResultStream<>(List.of("a", "b"));
 
                 List<String> result = stream.toList();
-                result.add("c");
 
-                assertThat(result).containsExactly("a", "b", "c");
+                assertThatThrownBy(() -> result.add("c"))
+                        .isInstanceOf(UnsupportedOperationException.class);
             }
         }
 

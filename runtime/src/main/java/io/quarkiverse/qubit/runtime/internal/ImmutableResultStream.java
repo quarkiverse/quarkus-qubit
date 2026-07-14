@@ -140,21 +140,17 @@ public final class ImmutableResultStream<T> implements QubitStream<T> {
 
     @Override
     public QubitStream<T> skip(int n) {
-        // Create independent copy to break reference chain to original list (enables GC)
-        // List.subList() returns a view backed by the original, causing memory leaks
         int startIndex = Math.min(validateSkipCount(n), results.size());
         return new ImmutableResultStream<>(
-                new ArrayList<>(results.subList(startIndex, results.size())),
+                results.subList(startIndex, results.size()),
                 operationContext);
     }
 
     @Override
     public QubitStream<T> limit(int n) {
-        // Create independent copy to break reference chain to original list (enables GC)
-        // List.subList() returns a view backed by the original, causing memory leaks
         int endIndex = Math.min(validateLimitCount(n), results.size());
         return new ImmutableResultStream<>(
-                new ArrayList<>(results.subList(0, endIndex)),
+                results.subList(0, endIndex),
                 operationContext);
     }
 
@@ -172,7 +168,7 @@ public final class ImmutableResultStream<T> implements QubitStream<T> {
 
     @Override
     public List<T> toList() {
-        return new ArrayList<>(results);
+        return results;
     }
 
     @Override

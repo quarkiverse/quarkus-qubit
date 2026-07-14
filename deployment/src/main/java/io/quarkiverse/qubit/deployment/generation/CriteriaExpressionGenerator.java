@@ -8,10 +8,9 @@ import static io.quarkiverse.qubit.deployment.common.PatternDetector.containsSub
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isLogicalOperation;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isNegatedSubqueryComparison;
 import static io.quarkiverse.qubit.deployment.common.PatternDetector.isSubqueryBooleanComparison;
-import static io.quarkiverse.qubit.deployment.generation.GizmoHelper.createElementArray;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CASE_OTHERWISE_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CASE_WHEN_EXPR;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_AND;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_AND_EXP;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_BETWEEN_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NULLIF_EXPR;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_TREAT_ROOT;
@@ -23,20 +22,22 @@ import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_IS
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_IS_NOT_MEMBER;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_IS_TRUE;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_LITERAL;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_PARAMETER;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NOT;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NULL_LITERAL;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_NOT_EQUAL;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_OR;
+import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_OR_EXP;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CB_SELECT_CASE;
-import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.CLASS_FOR_NAME;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.EXPRESSION_IN;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.EXPRESSION_IN_COLLECTION;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.PATH_GET;
 import static io.quarkiverse.qubit.deployment.generation.MethodDescriptors.PATH_TYPE;
 
+import java.lang.constant.ClassDesc;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
-import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Selection;
 
 import org.jspecify.annotations.Nullable;
@@ -74,8 +75,15 @@ import io.quarkus.gizmo2.desc.MethodDesc;
  */
 public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
 
+    /** Deferred cb.parameter() → typedQuery.setParameter() binding. */
+    public record DeferredBinding(Expr paramExpr, int capturedVarIndex, Class<?> targetType) {
+    }
+
     private final ExpressionBuilderRegistry builderRegistry;
     private final MethodCallHandlerChain methodCallHandlerChain;
+
+    // ponytail: ThreadLocal for ForkJoinPool concurrency — null means cb.literal() mode
+    private final ThreadLocal<List<DeferredBinding>> deferredBindingsLocal = new ThreadLocal<>();
 
     /** Creates a generator with the default expression builder registry. */
     public CriteriaExpressionGenerator() {
@@ -89,6 +97,29 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
                 "builderRegistry cannot be null");
         this.methodCallHandlerChain = Objects.requireNonNull(methodCallHandlerChain,
                 "methodCallHandlerChain cannot be null");
+    }
+
+    /** Activates cb.parameter() mode for captured variables on the current thread. */
+    public void beginParameterCapture() {
+        deferredBindingsLocal.set(new ArrayList<>());
+    }
+
+    /** Deactivates parameter capture and clears the ThreadLocal. */
+    public void endParameterCapture() {
+        deferredBindingsLocal.remove();
+    }
+
+    /** Emits typedQuery.setParameter() bytecode for each deferred binding accumulated during expression generation. */
+    public void emitParameterBindings(BlockCreator bc, Expr typedQuery, Expr capturedValues) {
+        List<DeferredBinding> bindings = deferredBindingsLocal.get();
+        if (bindings == null || bindings.isEmpty()) {
+            return;
+        }
+        for (DeferredBinding binding : bindings) {
+            Expr rawValue = capturedValues.elem(binding.capturedVarIndex());
+            Expr castedValue = bc.cast(rawValue, binding.targetType());
+            bc.invokeInterface(MethodDescriptors.TQ_SET_PARAMETER, typedQuery, binding.paramExpr(), castedValue);
+        }
     }
 
     /** Generates JPA Predicate from lambda expression AST. Returns null if expression is null. */
@@ -953,15 +984,11 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
             Expr right,
             LambdaExpression.BinaryOp.Operator operator) {
 
-        Expr predicateArray = createElementArray(bc, Predicate.class, left, right);
-
-        MethodDesc combineMethod = switch (operator) {
-            case AND -> CB_AND;
-            case OR -> CB_OR;
+        return switch (operator) {
+            case AND -> bc.invokeInterface(CB_AND_EXP, cb, left, right);
+            case OR -> bc.invokeInterface(CB_OR_EXP, cb, left, right);
             default -> throw new IllegalArgumentException("Expected AND or OR operator, got: " + operator);
         };
-
-        return bc.invokeInterface(combineMethod, cb, predicateArray);
     }
 
     /** Generates cb.between(field, lowerBound, upperBound) for detected BETWEEN patterns. */
@@ -991,12 +1018,17 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
         return bc.cast(value, targetType);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Expr loadAndWrapCapturedValue(BlockCreator bc, Expr cb,
             LambdaExpression.CapturedVariable capturedVar, Expr capturedValues) {
+        List<DeferredBinding> bindings = deferredBindingsLocal.get();
+        if (bindings != null) {
+            Class<?> targetType = TypeConverter.getBoxedType(capturedVar.type());
+            LocalVar paramVar = bc.localVar("param_" + bindings.size(),
+                    bc.invokeInterface(CB_PARAMETER, cb, Const.of(targetType)));
+            bindings.add(new DeferredBinding(paramVar, capturedVar.index(), targetType));
+            return paramVar;
+        }
         Expr castedValue = loadCapturedValue(bc, capturedVar, capturedValues);
         return wrapAsLiteral(bc, cb, castedValue);
     }
@@ -1006,11 +1038,8 @@ public class CriteriaExpressionGenerator implements ExpressionGeneratorHelper {
      */
     @Override
     public Expr loadDtoClass(BlockCreator bc, String internalClassName) {
-        // Convert internal class name to fully qualified class name (replace / with .)
         String fqClassName = internalClassName.replace('/', '.');
-        // Load the class at runtime using Class.forName()
-        Expr classNameHandle = Const.of(fqClassName);
-        return bc.invokeStatic(CLASS_FOR_NAME, classNameHandle);
+        return Const.of(ClassDesc.of(fqClassName));
     }
 
     /**

@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.List;
 
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.Parameter;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 
@@ -18,8 +19,6 @@ public final class MethodDescriptors {
     public static final MethodDesc INTEGER_INT_VALUE = MethodDesc.of(Integer.class, "intValue", int.class);
     public static final MethodDesc BOOLEAN_BOOLEAN_VALUE = MethodDesc.of(Boolean.class, "booleanValue", boolean.class);
 
-    public static final MethodDesc CLASS_FOR_NAME = MethodDesc.of(Class.class, "forName", Class.class, String.class);
-
     public static final MethodDesc PATH_GET = MethodDesc.of(Path.class, "get", Path.class, String.class);
     public static final MethodDesc PATH_TYPE = MethodDesc.of(Path.class, "type", Expression.class);
 
@@ -27,7 +26,8 @@ public final class MethodDescriptors {
             Class.class);
     public static final MethodDesc SUBQUERY_FROM = MethodDesc.of(Subquery.class, "from", Root.class, Class.class);
     public static final MethodDesc SUBQUERY_SELECT = MethodDesc.of(Subquery.class, "select", Subquery.class, Expression.class);
-    public static final MethodDesc SUBQUERY_WHERE = MethodDesc.of(Subquery.class, "where", Subquery.class, Predicate[].class);
+    public static final MethodDesc SUBQUERY_WHERE_EXPR = MethodDesc.of(Subquery.class, "where", Subquery.class,
+            Expression.class);
 
     public static final MethodDesc CB_EQUAL = MethodDesc.of(CriteriaBuilder.class, "equal", Predicate.class, Expression.class,
             Object.class);
@@ -82,8 +82,10 @@ public final class MethodDescriptors {
             Expression.class);
     public static final MethodDesc CB_IS_NOT_NULL = MethodDesc.of(CriteriaBuilder.class, "isNotNull", Predicate.class,
             Expression.class);
-    public static final MethodDesc CB_AND = MethodDesc.of(CriteriaBuilder.class, "and", Predicate.class, Predicate[].class);
-    public static final MethodDesc CB_OR = MethodDesc.of(CriteriaBuilder.class, "or", Predicate.class, Predicate[].class);
+    public static final MethodDesc CB_AND_EXP = MethodDesc.of(CriteriaBuilder.class, "and", Predicate.class,
+            Expression.class, Expression.class);
+    public static final MethodDesc CB_OR_EXP = MethodDesc.of(CriteriaBuilder.class, "or", Predicate.class,
+            Expression.class, Expression.class);
 
     public static final MethodDesc EXPRESSION_IN = MethodDesc.of(Expression.class, "in", Predicate.class, Expression.class);
 
@@ -143,6 +145,10 @@ public final class MethodDescriptors {
     public static final MethodDesc CB_MOD = MethodDesc.of(CriteriaBuilder.class, "mod", Expression.class, Expression.class,
             Expression.class);
     public static final MethodDesc CB_LITERAL = MethodDesc.of(CriteriaBuilder.class, "literal", Expression.class, Object.class);
+
+    /** cb.parameter(Class) -> ParameterExpression (JPA 2.0 — for query plan caching) */
+    public static final MethodDesc CB_PARAMETER = MethodDesc.of(CriteriaBuilder.class, "parameter",
+            ParameterExpression.class, Class.class);
 
     /** cb.nullLiteral(Class) -> Expression (JPA 2.0) */
     public static final MethodDesc CB_NULL_LITERAL = MethodDesc.of(CriteriaBuilder.class, "nullLiteral", Expression.class,
@@ -213,16 +219,16 @@ public final class MethodDescriptors {
     public static final MethodDesc CQ_FROM = MethodDesc.of(CriteriaQuery.class, "from", Root.class, Class.class);
     public static final MethodDesc CQ_SELECT = MethodDesc.of(CriteriaQuery.class, "select", CriteriaQuery.class,
             Selection.class);
-    public static final MethodDesc CQ_WHERE = MethodDesc.of(CriteriaQuery.class, "where", CriteriaQuery.class,
-            Predicate[].class);
+    public static final MethodDesc CQ_WHERE_EXPR = MethodDesc.of(CriteriaQuery.class, "where", CriteriaQuery.class,
+            Expression.class);
     public static final MethodDesc CQ_ORDER_BY = MethodDesc.of(CriteriaQuery.class, "orderBy", CriteriaQuery.class,
             Order[].class);
     public static final MethodDesc CQ_DISTINCT = MethodDesc.of(CriteriaQuery.class, "distinct", CriteriaQuery.class,
             boolean.class);
     public static final MethodDesc CQ_GROUP_BY = MethodDesc.of(CriteriaQuery.class, "groupBy", CriteriaQuery.class,
             Expression[].class);
-    public static final MethodDesc CQ_HAVING = MethodDesc.of(CriteriaQuery.class, "having", CriteriaQuery.class,
-            Predicate[].class);
+    public static final MethodDesc CQ_HAVING_EXPR = MethodDesc.of(CriteriaQuery.class, "having", CriteriaQuery.class,
+            Expression.class);
 
     /** CriteriaBuilder.selectCase() -> Case<Object> */
     public static final MethodDesc CB_SELECT_CASE = MethodDesc.of(CriteriaBuilder.class, "selectCase",
@@ -253,6 +259,9 @@ public final class MethodDescriptors {
 
     public static final MethodDesc TQ_GET_RESULT_LIST = MethodDesc.of(TypedQuery.class, "getResultList", List.class);
     public static final MethodDesc TQ_GET_SINGLE_RESULT = MethodDesc.of(TypedQuery.class, "getSingleResult", Object.class);
+    /** typedQuery.setParameter(Parameter, Object) -> TypedQuery (JPA 2.0 — bind captured variable values) */
+    public static final MethodDesc TQ_SET_PARAMETER = MethodDesc.of(TypedQuery.class, "setParameter", TypedQuery.class,
+            Parameter.class, Object.class);
     public static final MethodDesc TQ_SET_FIRST_RESULT = MethodDesc.of(TypedQuery.class, "setFirstResult", TypedQuery.class,
             int.class);
     public static final MethodDesc TQ_SET_MAX_RESULTS = MethodDesc.of(TypedQuery.class, "setMaxResults", TypedQuery.class,
@@ -265,9 +274,7 @@ public final class MethodDescriptors {
     public static final MethodDesc FROM_JOIN = MethodDesc.of(From.class, "join", Join.class, String.class, JoinType.class);
 
     public static final MethodDesc LIST_SIZE = MethodDesc.of(List.class, "size", int.class);
-    public static final MethodDesc INTEGER_VALUE_OF = MethodDesc.of(Integer.class, "valueOf", Integer.class, int.class);
     public static final MethodDesc LONG_VALUE_OF = MethodDesc.of(Long.class, "valueOf", Long.class, long.class);
-    public static final MethodDesc INTEGER_LONG_VALUE = MethodDesc.of(Integer.class, "longValue", long.class);
 
     /** Creates a MethodDesc for methods not covered by predefined constants. */
     public static MethodDesc md(Class<?> clazz, String methodName, Class<?> returnType, Class<?>... params) {

@@ -4,11 +4,13 @@ import static java.util.stream.Collectors.joining;
 
 import java.io.Serializable;
 import java.lang.invoke.SerializedLambda;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 import jakarta.persistence.NoResultException;
@@ -32,8 +34,9 @@ import io.quarkus.arc.InstanceHandle;
  */
 public final class LambdaReflectionUtils {
 
+    static final Object[] EMPTY_OBJECT_ARRAY = {};
+
     private LambdaReflectionUtils() {
-        // Utility class - no instantiation
     }
 
     /** Validates lambda is not null, returns it for inline usage. */
@@ -48,35 +51,16 @@ public final class LambdaReflectionUtils {
     /** Max stack frames to scan for call site (safety limit). */
     private static final int MAX_STACK_FRAMES = 50;
 
+    private static final StackWalker WALKER = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
+
     /** Returns call site ID via stack walking. Format: "className:methodName:lineNumber". */
     public static String getCallSiteId(Set<String> additionalFilterMethods) {
-        StackWalker walker = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
-        return walker.walk(frames -> {
-            // Collect frames up to limit for both finding and error reporting
-            List<StackWalker.StackFrame> frameList = frames
-                    .skip(1) // Skip getCallSiteId itself
-                    .limit(MAX_STACK_FRAMES)
-                    .toList();
-
-            // Find first frame that passes all filters
-            for (StackWalker.StackFrame frame : frameList) {
-                if (isValidCallSiteFrame(frame, additionalFilterMethods)) {
-                    return frame.getClassName() + ":" + frame.getMethodName() + ":" + frame.getLineNumber();
-                }
-            }
-
-            // Build error message with scanned frames for debugging
-            String scannedFrames = frameList.stream()
-                    .limit(10) // Show first 10 frames in error
-                    .map(f -> f.getClassName() + "." + f.getMethodName() + ":" + f.getLineNumber())
-                    .collect(joining("\n  - ", "\n  - ", ""));
-
-            throw new IllegalStateException(
-                    "Could not determine call site. Scanned " + frameList.size() +
-                            " frames (limit: " + MAX_STACK_FRAMES + ")." +
-                            " This may indicate the query was called from a generated class or via reflection." +
-                            " First frames examined:" + scannedFrames);
-        });
+        return WALKER.walk(frames -> frames
+                .skip(1).limit(MAX_STACK_FRAMES)
+                .filter(f -> isValidCallSiteFrame(f, additionalFilterMethods))
+                .findFirst()
+                .map(f -> f.getClassName() + ":" + f.getMethodName() + ":" + f.getLineNumber())
+                .orElseThrow(() -> new IllegalStateException("Could not determine Qubit call site.")));
     }
 
     /** Returns true if frame is valid call site (not runtime class, fluent method, or synthetic). */
@@ -100,11 +84,21 @@ public final class LambdaReflectionUtils {
         return !className.contains("$$") && !className.contains("$Lambda");
     }
 
-    /** Returns call site ID with lambda discriminator for same-line queries. */
+    // ponytail: call site ID never changes for a given lambda class — cache after first computation
+    private static final ConcurrentHashMap<Class<?>, String> CALL_SITE_CACHE = new ConcurrentHashMap<>();
+
+    /** Returns call site ID with lambda discriminator. Cached per lambda class after first call. */
     public static String getCallSiteId(Set<String> additionalFilterMethods, Object primaryLambda) {
+        String cached = CALL_SITE_CACHE.get(primaryLambda.getClass());
+        if (cached != null) {
+            return cached;
+        }
+        // First call: compute (stack walk must happen in the CALLER's stack frame, not inside computeIfAbsent)
         String baseCallSiteId = getCallSiteId(additionalFilterMethods);
-        String lambdaMethodName = extractLambdaMethodName(primaryLambda);
-        return baseCallSiteId + ":" + lambdaMethodName;
+        String lambdaMethodName = getSerializedLambda(primaryLambda).getImplMethodName();
+        String result = baseCallSiteId + ":" + lambdaMethodName;
+        CALL_SITE_CACHE.putIfAbsent(primaryLambda.getClass(), result);
+        return result;
     }
 
     /**
@@ -131,12 +125,12 @@ public final class LambdaReflectionUtils {
      */
     public static Object[] extractCapturedArgs(@Nullable Object lambdaInstance) {
         if (lambdaInstance == null) {
-            return new Object[0];
+            return EMPTY_OBJECT_ARRAY;
         }
         SerializedLambda sl = getSerializedLambda(lambdaInstance);
         int count = sl.getCapturedArgCount();
         if (count == 0) {
-            return new Object[0];
+            return EMPTY_OBJECT_ARRAY;
         }
         Object[] args = new Object[count];
         for (int i = 0; i < count; i++) {
@@ -145,56 +139,51 @@ public final class LambdaReflectionUtils {
         return args;
     }
 
+    // ponytail: ClassValue stores on the Class object itself — no ConcurrentHashMap, zero GC pressure
+    private static final ClassValue<Method> WRITE_REPLACE_CACHE = new ClassValue<>() {
+        @Override
+        protected Method computeValue(Class<?> type) {
+            try {
+                Method m = type.getDeclaredMethod("writeReplace");
+                m.setAccessible(true);
+                return m;
+            } catch (NoSuchMethodException e) {
+                throw new IllegalStateException(String.format(
+                        "Lambda class %s does not have writeReplace() method. " +
+                                "In native image mode, ensure reachability-metadata.json registers this method. " +
+                                "Lambda interface type: %s",
+                        type.getName(), getLambdaInterfaceType(type)), e);
+            }
+        }
+    };
+
     /**
-     * Gets {@link SerializedLambda} from a lambda instance via {@code writeReplace()}.
-     * Fails fast with actionable diagnostics on all failure modes.
+     * Gets {@link SerializedLambda} from a lambda instance via cached {@code writeReplace()}.
+     * The Method lookup is cached per lambda class via ClassValue.
      */
     private static SerializedLambda getSerializedLambda(Object lambdaInstance) {
-        Class<?> lambdaClass = lambdaInstance.getClass();
-
         if (!(lambdaInstance instanceof Serializable)) {
             throw new IllegalStateException(String.format(
                     "Lambda class %s does not implement Serializable. " +
-                            "This is a Qubit configuration error - all QuerySpec, BiQuerySpec, and GroupQuerySpec " +
-                            "functional interfaces must extend Serializable to enable lambda method name extraction. " +
-                            "This is required for unique call site ID generation.",
-                    lambdaClass.getName()));
+                            "All QuerySpec functional interfaces must extend Serializable.",
+                    lambdaInstance.getClass().getName()));
         }
 
         try {
-            Method writeReplace = lambdaClass.getDeclaredMethod("writeReplace");
-            writeReplace.setAccessible(true);
+            Method writeReplace = WRITE_REPLACE_CACHE.get(lambdaInstance.getClass());
             Object serializedForm = writeReplace.invoke(lambdaInstance);
             if (serializedForm instanceof SerializedLambda sl) {
                 return sl;
             }
-
             throw new IllegalStateException(String.format(
-                    "Lambda class %s.writeReplace() returned %s instead of SerializedLambda. " +
-                            "This is unexpected - the lambda may be using a non-standard implementation.",
-                    lambdaClass.getName(),
+                    "Lambda class %s.writeReplace() returned %s instead of SerializedLambda.",
+                    lambdaInstance.getClass().getName(),
                     serializedForm != null ? serializedForm.getClass().getName() : "null"));
-
-        } catch (NoSuchMethodException e) {
-            throw new IllegalStateException(String.format(
-                    "Lambda class %s does not have writeReplace() method. " +
-                            "In native image mode, ensure reachability-metadata.json registers this method. " +
-                            "Check that QubitNativeImageProcessor is generating proper reflection configuration. " +
-                            "Lambda interface type: %s",
-                    lambdaClass.getName(),
-                    getLambdaInterfaceType(lambdaClass)), e);
-
         } catch (IllegalStateException e) {
             throw e;
-
-        } catch (Exception e) {
-            throw new IllegalStateException(String.format(
-                    "Failed to extract SerializedLambda from %s. " +
-                            "Cause: %s: %s. " +
-                            "This may indicate a security manager restriction or native image reflection issue.",
-                    lambdaClass.getName(),
-                    e.getClass().getSimpleName(),
-                    e.getMessage()), e);
+        } catch (InvocationTargetException | IllegalAccessException e) {
+            throw new IllegalStateException(
+                    "Failed to extract SerializedLambda from " + lambdaInstance.getClass().getName(), e);
         }
     }
 
@@ -278,6 +267,27 @@ public final class LambdaReflectionUtils {
     /** Extracts captured variables from a single lambda via SerializedLambda. */
     public static void extractFromSingleLambda(Object lambda, List<Object> destination) {
         Collections.addAll(destination, extractCapturedArgs(lambda));
+    }
+
+    /** Fills captured args directly into a destination array at the given offset. Returns new offset. */
+    public static int fillCapturedArgs(Object lambda, Object[] dest, int offset) {
+        if (lambda == null) {
+            return offset;
+        }
+        SerializedLambda sl = getSerializedLambda(lambda);
+        int count = sl.getCapturedArgCount();
+        for (int i = 0; i < count; i++) {
+            dest[offset++] = sl.getCapturedArg(i);
+        }
+        return offset;
+    }
+
+    /** Fills captured args from all lambdas in the list. Returns new offset. */
+    public static int fillCapturedArgsFromList(List<?> lambdas, Object[] dest, int offset) {
+        for (Object lambda : lambdas) {
+            offset = fillCapturedArgs(lambda, dest, offset);
+        }
+        return offset;
     }
 
     /** Validates skip count is non-negative, returns it. */
