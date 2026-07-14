@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.quarkiverse.qubit</groupId>
+        <artifactId>quarkus-qubit-parent</artifactId>
+        <version>1.0.1-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>quarkus-qubit-benchmarks</artifactId>
+    <name>Quarkus - Qubit - Benchmarks</name>
+    <description>Performance benchmarks for Qubit query operations</description>
+
+    <properties>
+        <db.kind>h2</db.kind>
+    </properties>
+
+    <dependencies>
+        <!-- Qubit runtime -->
+        <dependency>
+            <groupId>io.quarkiverse.qubit</groupId>
+            <artifactId>quarkus-qubit</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- Required for QubitEntity (extends PanacheEntity) -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-hibernate-orm-panache</artifactId>
+        </dependency>
+        <!-- Qubit deployment (build-time lambda analysis) -->
+        <dependency>
+            <groupId>io.quarkiverse.qubit</groupId>
+            <artifactId>quarkus-qubit-deployment</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Test dependencies -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-junit5</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>${assertj.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-jdbc-h2</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-jdbc-postgresql</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>io.quarkus</groupId>
+                <artifactId>quarkus-maven-plugin</artifactId>
+                <version>${quarkus.version}</version>
+                <extensions>true</extensions>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <systemProperties>
+                        <db.kind>${db.kind}</db.kind>
+                    </systemProperties>
+                </configuration>
+            </plugin>
+            <!-- Skip surefire - benchmarks are integration tests -->
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+            <!-- Failsafe runs the *IT.java benchmark classes -->
+            <plugin>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                        <configuration>
+                            <systemPropertyVariables>
+                                <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+                                <maven.home>${maven.home}</maven.home>
+                                <db.kind>${db.kind}</db.kind>
+                                <quarkus.bootstrap.effective-model-builder>true</quarkus.bootstrap.effective-model-builder>
+                            </systemPropertyVariables>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>postgresql</id>
+            <properties>
+                <db.kind>postgresql</db.kind>
+            </properties>
+        </profile>
+    </profiles>
+</project>

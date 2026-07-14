@@ -416,6 +416,21 @@
         </profile>
 
         <!--
+            Benchmark profile.
+            Activates the benchmarks module for performance measurement.
+
+            Usage:
+              mvn verify -pl benchmarks -Pbenchmark,h2
+              mvn verify -pl benchmarks -Pbenchmark,postgresql
+        -->
+        <profile>
+            <id>benchmark</id>
+            <modules>
+                <module>benchmarks</module>
+            </modules>
+        </profile>
+
+        <!--
             NullAway static analysis profile.
             Runs Error Prone with NullAway to enforce JSpecify nullability contracts
             at compile time. Currently at WARN severity.
