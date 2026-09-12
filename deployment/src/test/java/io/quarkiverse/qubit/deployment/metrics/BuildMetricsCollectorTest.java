@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -271,5 +272,28 @@ class BuildMetricsCollectorTest {
         BuildMetricsCollectorAssert.assertThat(collector)
                 .hasBytecodeCacheHitRate(0.0)
                 .hasClassNodeCacheHitRate(0.0);
+    }
+
+    @Test
+    void writesLocaleIndependentReport() throws Exception {
+        Locale originalLocale = Locale.getDefault();
+        // German locale formats decimals with a comma (e.g. "0,5000"), which previously
+        // broke writeReport's Double.parseDouble(String.format(...)) round-trip.
+        Locale.setDefault(Locale.GERMANY);
+        try {
+            BuildMetricsCollector collector = new BuildMetricsCollector();
+            collector.recordBytecodeCacheHit();
+            collector.recordBytecodeCacheMiss();
+
+            Path outputPath = tempDir.resolve("locale.json");
+            collector.writeReport(outputPath);
+
+            String content = Files.readString(outputPath);
+            assertThat(content)
+                    .contains("\"quick_check_skip_rate\": 0.0")
+                    .contains("\"bytecode_hit_rate\": 0.5");
+        } finally {
+            Locale.setDefault(originalLocale);
+        }
     }
 }
