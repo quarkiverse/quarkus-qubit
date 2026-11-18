@@ -210,8 +210,9 @@ public final class MethodDescriptors {
 
     public static final MethodDesc EM_GET_CRITERIA_BUILDER = MethodDesc.of(EntityManager.class, "getCriteriaBuilder",
             CriteriaBuilder.class);
+    // the CriteriaSelect overload exists in Jakarta Persistence 3.2 and 4, the CriteriaQuery one was removed in 4
     public static final MethodDesc EM_CREATE_QUERY = MethodDesc.of(EntityManager.class, "createQuery", TypedQuery.class,
-            CriteriaQuery.class);
+            CriteriaSelect.class);
 
     public static final MethodDesc CB_CREATE_QUERY = MethodDesc.of(CriteriaBuilder.class, "createQuery", CriteriaQuery.class,
             Class.class);
