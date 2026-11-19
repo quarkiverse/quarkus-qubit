@@ -65,6 +65,9 @@ class QueryExecutorClassGeneratorTest {
         config.setProperty("hibernate.connection.password", "");
         config.setProperty("hibernate.hbm2ddl.auto", "create-drop");
         config.setProperty("hibernate.show_sql", "false");
+        // Hibernate ORM 8 (Quarkus 4) generates accessors with ByteBuddy by default, but Quarkus excludes
+        // hibernate-accessor-bytebuddy as it provides its own; Hibernate ORM 7 ignores this property
+        config.setProperty("hibernate.accessor.strategy", "reflection");
         config.addAnnotatedClass(TestPerson.class);
 
         // SessionFactory extends EntityManagerFactory in Hibernate

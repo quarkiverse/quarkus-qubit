@@ -7,8 +7,6 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import com.fasterxml.jackson.databind.JsonNode;
-
 import io.quarkus.devui.tests.DevUIBuildTimeDataTest;
 import io.quarkus.test.QuarkusDevModeTest;
 
@@ -45,9 +43,10 @@ public class QubitDevUIBuildTimeDataTest extends DevUIBuildTimeDataTest {
 
     @Test
     public void testQueriesIsArray() throws Exception {
-        JsonNode queries = super.getBuildTimeData("queries");
+        // not typed as JsonNode: it is the Jackson 2 one in Quarkus 3 and the Jackson 3 one in Quarkus 4
+        Object queries = super.getBuildTimeData("queries");
         Assertions.assertNotNull(queries, "Expected queries data to be present");
-        Assertions.assertTrue(queries.isArray(), "Expected queries to be an array");
+        Assertions.assertTrue(queries.toString().startsWith("["), "Expected queries to be an array");
     }
 
     public static class Dummy {
