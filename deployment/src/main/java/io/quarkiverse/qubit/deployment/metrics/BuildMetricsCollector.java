@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -536,7 +537,7 @@ public class BuildMetricsCollector {
                 .add("jandex_pre_filter_skips", jandexPreFilterSkips.get())
                 .add("quick_check_skips", quickCheckSkips.get())
                 .add("quick_check_passes", quickCheckPasses.get())
-                .add("quick_check_skip_rate", Double.parseDouble(String.format("%.4f", skipRate))));
+                .add("quick_check_skip_rate", Double.parseDouble(String.format(Locale.ROOT, "%.4f", skipRate))));
 
         root.add("query_types", buildMapSection(queryTypeCount, queryTypeAnalysisTimeNanos, queryTypeCodeGenTimeNanos));
         root.add("expression_types", buildExpressionTypesSection());
@@ -544,13 +545,13 @@ public class BuildMetricsCollector {
         root.add("cache", Json.createObjectBuilder()
                 .add("bytecode_hits", bytecodeeCacheHits.get())
                 .add("bytecode_misses", bytecodeCacheMisses.get())
-                .add("bytecode_hit_rate", Double.parseDouble(String.format("%.4f", getBytecodeCacheHitRate())))
+                .add("bytecode_hit_rate", Double.parseDouble(String.format(Locale.ROOT, "%.4f", getBytecodeCacheHitRate())))
                 .add("classnode_hits", classNodeCacheHits.get())
                 .add("classnode_misses", classNodeCacheMisses.get())
-                .add("classnode_hit_rate", Double.parseDouble(String.format("%.4f", getClassNodeCacheHitRate())))
+                .add("classnode_hit_rate", Double.parseDouble(String.format(Locale.ROOT, "%.4f", getClassNodeCacheHitRate())))
                 .add("codegen_hits", codeGenCacheHits.get())
                 .add("codegen_misses", codeGenCacheMisses.get())
-                .add("codegen_hit_rate", Double.parseDouble(String.format("%.4f", getCodeGenCacheHitRate()))));
+                .add("codegen_hit_rate", Double.parseDouble(String.format(Locale.ROOT, "%.4f", getCodeGenCacheHitRate()))));
 
         JsonObjectBuilder threads = Json.createObjectBuilder()
                 .add("active_count", activeThreadIds.size());
@@ -633,7 +634,7 @@ public class BuildMetricsCollector {
         return Json.createObjectBuilder()
                 .add("count", sorted.size())
                 .add("sum", sum)
-                .add("avg", Double.parseDouble(String.format("%.2f", avg)))
+                .add("avg", Double.parseDouble(String.format(Locale.ROOT, "%.2f", avg)))
                 .add("min", sorted.isEmpty() ? 0 : sorted.getFirst())
                 .add("max", sorted.isEmpty() ? 0 : sorted.getLast())
                 .add("p50", percentile(sorted, 50))
